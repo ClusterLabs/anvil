@@ -41,8 +41,27 @@ type APIHostOverviewList = {
 
 type APIHostDetail = APIHostOverview & {
   dns: string;
+  domain?: string;
   gateway: string;
+  gatewayInterface: string;
   installTarget: APIHostInstallTarget;
+  networks: {
+    [networkId: string]: {
+      createBridge?: NumberBoolean;
+      ip: string;
+      link1MacToSet: string;
+      link1Uuid: string;
+      link2MacToSet?: string;
+      link2Uuid?: string;
+      subnetMask: string;
+      type: NetworkType;
+    };
+  };
+  organization?: string;
+  prefix?: string;
+  sequence?: string;
+  strikerPassword?: string;
+  strikerUser?: string;
 };
 
 type APIDeleteHostConnectionRequestBody = { [key: 'local' | string]: string[] };

@@ -30,12 +30,20 @@ export const buildQueryFileDetail = ({
       fil_loc.file_location_active,
       anv.anvil_uuid,
       anv.anvil_name,
-      anv.anvil_description
+      anv.anvil_description,
+      hos.host_uuid,
+      hos.host_name
     FROM files AS fil
     JOIN file_locations AS fil_loc
       ON fil.file_uuid = fil_loc.file_location_file_uuid
     JOIN anvils AS anv
-      ON fil_loc.file_location_anvil_uuid = anv.anvil_uuid
+      ON fil_loc.file_location_host_uuid IN (
+        anv.anvil_node1_host_uuid,
+        anv.anvil_node2_host_uuid,
+        anv.anvil_dr1_host_uuid
+      )
+    JOIN hosts AS hos
+      ON fil_loc.file_location_host_uuid = hos.host_uuid
     WHERE fil.file_type != '${DELETED}'
       ${condFileUUIDs};`;
 };

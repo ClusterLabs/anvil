@@ -1,12 +1,10 @@
-type QueryField = string;
-
 export const buildQueryResultModifier =
-  <T>(mod: (output: QueryField[][]) => T): QueryResultModifierFunction =>
+  <T>(mod: (output: string[][]) => T): QueryResultModifierFunction =>
   (output) =>
     output instanceof Array ? mod(output) : output;
 
 export const buildQueryResultReducer = <T>(
-  reduce: (previous: T, row: QueryField[]) => T,
+  reduce: (previous: T, row: string[]) => T,
   initialValue: T,
 ) =>
   buildQueryResultModifier<T>((output) =>

@@ -4,10 +4,10 @@ import { getFenceSpec } from '../../accessModule';
 import { stderr } from '../../shell';
 
 export const getFenceTemplate: RequestHandler = async (request, response) => {
-  let rawFenceData;
+  let rFenceData: AnvilDataFenceHash;
 
   try {
-    rawFenceData = await getFenceSpec();
+    rFenceData = await getFenceSpec();
   } catch (subError) {
     stderr(`Failed to get fence device template; CAUSE: ${subError}`);
 
@@ -16,5 +16,5 @@ export const getFenceTemplate: RequestHandler = async (request, response) => {
     return;
   }
 
-  response.status(200).send(rawFenceData);
+  response.status(200).send(rFenceData);
 };

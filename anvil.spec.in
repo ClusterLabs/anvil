@@ -255,7 +255,7 @@ getent passwd %{suiapi} >/dev/null \
 
 if [ $1 -gt 1 ]; then # >1=Upgrade
 	# Transfer files owned by apache to Striker UI API user.
-	chown -R --from apache  %{suiapi}: /mnt
+	chown -R --from apache %{suiapi}: /mnt
 	chown -R --from apache %{suiapi}: %{_localstatedir}/www
 fi
 
@@ -401,19 +401,20 @@ fi
 %{_sbindir}/*
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
-%{_datadir}/%{suiapi}/*
 %{_mandir}/*
 
 %files striker
 %{_localstatedir}/www/*/*
 %{_datadir}/anvil/striker-auto-initialize-all.example
+%{_datadir}/%{suiapi}/*
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
 %files node
+%{_sysconfdir}/libvirt/hooks/*
 %{_usr}/lib/ocf/resource.d/alteeve/server
 
 %files dr
-#<placeholder for dr specific files>
+%{_sysconfdir}/libvirt/hooks/*
 
 
 %changelog

@@ -3,6 +3,7 @@ import {
   forwardRef,
   ReactNode,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -92,8 +93,12 @@ const buildHostName = ({
 
 const GeneralInitForm = forwardRef<
   GeneralInitFormForwardedRefContent,
-  { toggleSubmitDisabled?: ToggleSubmitDisabledFunction }
->(({ toggleSubmitDisabled }, ref) => {
+  {
+    expectHostDetail?: boolean;
+    hostDetail?: APIHostDetail;
+    toggleSubmitDisabled?: ToggleSubmitDisabledFunction;
+  }
+>(({ expectHostDetail = false, hostDetail, toggleSubmitDisabled }, ref) => {
   const [helpMessage, setHelpMessage] = useState<ReactNode | undefined>();
   const [isShowOrganizationPrefixSuggest, setIsShowOrganizationPrefixSuggest] =
     useState<boolean>(false);
@@ -102,6 +107,8 @@ const GeneralInitForm = forwardRef<
   const [isConfirmAdminPassword, setIsConfirmAdminPassword] =
     useState<boolean>(true);
   const [isValidateDomain, setIsValidateDomain] = useState<boolean>(true);
+
+  const readHostDetailRef = useRef<boolean>(true);
 
   const adminPasswordInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const confirmAdminPasswordInputRef = useRef<
@@ -491,6 +498,39 @@ const GeneralInitForm = forwardRef<
     [isValidateDomain, testInputToToggleSubmitDisabled],
   );
 
+  useEffect(() => {
+    if (
+      [
+        expectHostDetail,
+        hostDetail,
+        readHostDetailRef.current,
+        domainNameInputRef.current,
+        hostNameInputRef.current,
+        hostNumberInputRef.current,
+        organizationNameInputRef.current,
+        organizationPrefixInputRef.current,
+      ].every((condition) => Boolean(condition))
+    ) {
+      readHostDetailRef.current = false;
+
+      const {
+        domain: pDomain,
+        hostName: pHostName,
+        organization: pOrganization,
+        prefix: pPrefix,
+        sequence: pSequence,
+      } = hostDetail as APIHostDetail;
+
+      domainNameInputRef.current.setValue?.call(null, pDomain);
+      hostNameInputRef.current.setValue?.call(null, pHostName);
+      hostNumberInputRef.current.setValue?.call(null, pSequence);
+      organizationNameInputRef.current.setValue?.call(null, pOrganization);
+      organizationPrefixInputRef.current.setValue?.call(null, pPrefix);
+
+      testInputToToggleSubmitDisabled();
+    }
+  }, [expectHostDetail, hostDetail, testInputToToggleSubmitDisabled]);
+
   useImperativeHandle(ref, () => ({
     get: () => ({
       adminPassword: adminPasswordInputRef.current.getValue?.call(null),
@@ -829,7 +869,12 @@ const GeneralInitForm = forwardRef<
   );
 });
 
-GeneralInitForm.defaultProps = { toggleSubmitDisabled: undefined };
+GeneralInitForm.defaultProps = {
+  expectHostDetail: false,
+  hostDetail: undefined,
+  toggleSubmitDisabled: undefined,
+};
+
 GeneralInitForm.displayName = 'GeneralInitForm';
 
 export type { GeneralInitFormForwardedRefContent, GeneralInitFormValues };

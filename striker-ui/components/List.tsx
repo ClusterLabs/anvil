@@ -13,15 +13,7 @@ import {
   SxProps,
   Theme,
 } from '@mui/material';
-import {
-  FC,
-  ForwardedRef,
-  forwardRef,
-  useCallback,
-  useImperativeHandle,
-  useMemo,
-  useState,
-} from 'react';
+import { FC, forwardRef, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';
@@ -33,42 +25,39 @@ import IconButton from './IconButton';
 import { BodyText } from './Text';
 
 const List = forwardRef(
-  <T,>(
-    {
-      allowCheckAll: isAllowCheckAll = false,
-      allowEdit: isAllowEdit = false,
-      allowItemButton: isAllowItemButton = false,
-      edit: isEdit = false,
-      flexBoxProps,
-      header,
-      headerSpacing = '.3em',
-      initialCheckAll = false,
-      insertHeader: isInsertHeader = true,
-      listEmpty,
-      listItemIconMinWidth = '56px',
-      listItemKeyPrefix = uuidv4(),
-      listItemProps: { sx: listItemSx, ...restListItemProps } = {},
-      listItems,
-      listProps: { sx: listSx, ...restListProps } = {},
-      onAdd,
-      onDelete,
-      onEdit,
-      onAllCheckboxChange,
-      onItemCheckboxChange,
-      onItemClick,
-      renderListItem = (key) => <BodyText>{key}</BodyText>,
-      renderListItemCheckboxState,
-      scroll: isScroll = false,
-      // Input props that depend on other input props.
-      allowAddItem: isAllowAddItem = isAllowEdit,
-      allowCheckItem: isAllowCheckItem = isAllowEdit,
-      allowDelete: isAllowDelete = isAllowEdit,
-      allowEditItem: isAllowEditItem = isAllowEdit,
-    }: ListProps<T>,
-    ref: ForwardedRef<ListForwardedRefContent>,
-  ) => {
-    const [isCheckAll, setIsCheckAll] = useState<boolean>(initialCheckAll);
-
+  <T,>({
+    allowCheckAll: isAllowCheckAll = false,
+    allowEdit: isAllowEdit = false,
+    allowItemButton: isAllowItemButton = false,
+    disableDelete = false,
+    edit: isEdit = false,
+    flexBoxProps,
+    getListCheckboxProps,
+    getListItemCheckboxProps,
+    header,
+    headerSpacing = '.3em',
+    insertHeader: isInsertHeader = true,
+    listEmpty,
+    listItemIconMinWidth = '56px',
+    listItemKeyPrefix = uuidv4(),
+    listItemProps: { sx: listItemSx, ...restListItemProps } = {},
+    listItems,
+    listProps: { sx: listSx, ...restListProps } = {},
+    onAdd,
+    onDelete,
+    onEdit,
+    onAllCheckboxChange,
+    onItemCheckboxChange,
+    onItemClick,
+    renderListItem = (key) => <BodyText>{key}</BodyText>,
+    renderListItemCheckboxState,
+    scroll: isScroll = false,
+    // Input props that depend on other input props.
+    allowAddItem: isAllowAddItem = isAllowEdit,
+    allowCheckItem: isAllowCheckItem = isAllowEdit,
+    allowDelete: isAllowDelete = isAllowEdit,
+    allowEditItem: isAllowEditItem = isAllowEdit,
+  }: ListProps<T>) => {
     const checkAllMinWidth = useMemo(
       () => `calc(${listItemIconMinWidth} - ${headerSpacing})`,
       [headerSpacing, listItemIconMinWidth],
@@ -87,6 +76,7 @@ const List = forwardRef(
       () =>
         isEdit && isAllowDelete ? (
           <IconButton
+            disabled={disableDelete}
             onClick={onDelete}
             size="small"
             sx={{
@@ -99,7 +89,7 @@ const List = forwardRef(
             <MUIDeleteIcon />
           </IconButton>
         ) : undefined,
-      [isAllowDelete, isEdit, onDelete],
+      [disableDelete, isAllowDelete, isEdit, onDelete],
     );
     const editItemButton = useMemo(() => {
       if (isAllowEditItem) {
@@ -119,14 +109,9 @@ const List = forwardRef(
         element = isAllowCheckAll ? (
           <MUIBox sx={{ minWidth: checkAllMinWidth }}>
             <Checkbox
-              checked={isCheckAll}
               edge="start"
-              onChange={(...args) => {
-                const [, isChecked] = args;
-
-                onAllCheckboxChange?.call(null, ...args);
-                setIsCheckAll(isChecked);
-              }}
+              onChange={onAllCheckboxChange}
+              {...getListCheckboxProps?.call(null)}
             />
           </MUIBox>
         ) : (
@@ -137,9 +122,9 @@ const List = forwardRef(
       return element;
     }, [
       checkAllMinWidth,
+      getListCheckboxProps,
       isAllowCheckAll,
       isAllowCheckItem,
-      isCheckAll,
       isEdit,
       onAllCheckboxChange,
     ]);
@@ -184,7 +169,7 @@ const List = forwardRef(
     );
 
     const listItemCheckbox = useCallback(
-      (key: string, checked?: boolean) =>
+      (key: string, checked?: boolean, props?: CheckboxProps) =>
         isEdit && isAllowCheckItem ? (
           <MUIListItemIcon sx={{ minWidth: listItemIconMinWidth }}>
             <Checkbox
@@ -193,6 +178,7 @@ const List = forwardRef(
               onChange={(...args) =>
                 onItemCheckboxChange?.call(null, key, ...args)
               }
+              {...props}
             />
           </MUIListItemIcon>
         ) : undefined,
@@ -218,6 +204,7 @@ const List = forwardRef(
                 {listItemCheckbox(
                   key,
                   renderListItemCheckboxState?.call(null, key, value),
+                  getListItemCheckboxProps?.call(null, key, value),
                 )}
                 {isAllowItemButton ? (
                   <ListItemButton
@@ -247,20 +234,13 @@ const List = forwardRef(
       listItemSx,
       listItemCheckbox,
       renderListItemCheckboxState,
+      getListItemCheckboxProps,
       isAllowItemButton,
       onItemClick,
     ]);
     const listScrollSx: SxProps<Theme> | undefined = useMemo(
       () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
       [isScroll],
-    );
-
-    useImperativeHandle(
-      ref,
-      () => ({
-        setCheckAll: (value) => setIsCheckAll(value),
-      }),
-      [],
     );
 
     return (
@@ -279,6 +259,4 @@ const List = forwardRef(
 
 List.displayName = 'List';
 
-export default List as <T>(
-  props: ListProps<T> & { ref?: ForwardedRef<ListForwardedRefContent> },
-) => ReturnType<FC<ListProps<T>>>;
+export default List as <T>(props: ListProps<T>) => ReturnType<FC<ListProps<T>>>;

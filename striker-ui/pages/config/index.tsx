@@ -1,4 +1,5 @@
-import { Box, Grid } from '@mui/material';
+import { Grid } from '@mui/material';
+import Head from 'next/head';
 import { FC, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
@@ -42,45 +43,51 @@ const Config: FC<{ refreshInterval?: number }> = ({
   const [simpleOpsPanelHeader, setSimpleOpsPanelHeader] =
     useProtectedState<string>('', protect);
 
-  periodicFetch<APIHostDetail>(`${API_BASE_URL}/host/local`, {
-    onError: () => {
-      setSimpleOpsPanelHeader('Unknown');
-    },
-    onSuccess: ({ installTarget, shortHostName }) => {
-      setSimpleOpsInstallTarget(installTarget);
-      setSimpleOpsPanelHeader(shortHostName);
-    },
-    refreshInterval,
-  });
+  const { data: hostDetail, isLoading: loadingHostDetail } =
+    periodicFetch<APIHostDetail>(`${API_BASE_URL}/host/local`, {
+      onError: () => {
+        setSimpleOpsPanelHeader('Unknown');
+      },
+      onSuccess: ({ installTarget, shortHostName }) => {
+        setSimpleOpsInstallTarget(installTarget);
+        setSimpleOpsPanelHeader(shortHostName);
+      },
+      refreshInterval,
+    });
 
   return (
     <>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Header />
-        <Grid container columns={{ xs: 1, md: 3, lg: 4 }}>
-          <Grid item xs={1}>
-            <SimpleOperationsPanel
-              installTarget={simpleOpsInstallTarget}
-              onSubmit={({ onProceedAppend, ...restConfirmDialogProps }) => {
-                setConfirmDialogProps((previous) => ({
-                  ...previous,
-                  ...restConfirmDialogProps,
-                  onProceedAppend: (...args) => {
-                    onProceedAppend?.call(null, ...args);
-                    setIsOpenConfirmDialog(false);
-                  },
-                }));
+      <Head>
+        <title>
+          {loadingHostDetail
+            ? 'Loading...'
+            : `${hostDetail?.shortHostName} Config`}
+        </title>
+      </Head>
+      <Header />
+      <Grid container columns={{ xs: 1, md: 3, lg: 4 }}>
+        <Grid item xs={1}>
+          <SimpleOperationsPanel
+            installTarget={simpleOpsInstallTarget}
+            onSubmit={({ onProceedAppend, ...restConfirmDialogProps }) => {
+              setConfirmDialogProps((previous) => ({
+                ...previous,
+                ...restConfirmDialogProps,
+                onProceedAppend: (...args) => {
+                  onProceedAppend?.call(null, ...args);
+                  setIsOpenConfirmDialog(false);
+                },
+              }));
 
-                setIsOpenConfirmDialog(true);
-              }}
-              title={simpleOpsPanelHeader}
-            />
-          </Grid>
-          <Grid item md={2} xs={1}>
-            <ComplexOperationsPanel />
-          </Grid>
+              setIsOpenConfirmDialog(true);
+            }}
+            title={simpleOpsPanelHeader}
+          />
         </Grid>
-      </Box>
+        <Grid item md={2} xs={1}>
+          <ComplexOperationsPanel />
+        </Grid>
+      </Grid>
       <ConfirmDialog
         {...confirmDialogProps}
         dialogProps={{ open: isOpenConfirmDialog }}

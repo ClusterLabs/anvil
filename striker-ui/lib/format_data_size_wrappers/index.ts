@@ -1,4 +1,5 @@
 import dsize from './dsize';
 import dsizeToByte from './dsizeToByte';
+import toBinaryByte from './toBinaryByte';
 
-export { dsize, dsizeToByte };
+export { dsize, dsizeToByte, toBinaryByte };

@@ -13,11 +13,13 @@ type ListOptionalProps<T extends unknown = unknown> = {
   allowEdit?: boolean;
   allowEditItem?: boolean;
   allowItemButton?: boolean;
+  disableDelete?: boolean;
   edit?: boolean;
   flexBoxProps?: import('../components/FlexBox').FlexBoxProps;
+  getListCheckboxProps?: () => CheckboxProps;
+  getListItemCheckboxProps?: (key: string, value: T) => CheckboxProps;
   header?: import('react').ReactNode;
   headerSpacing?: number | string;
-  initialCheckAll?: boolean;
   insertHeader?: boolean;
   listEmpty?: import('react').ReactNode;
   listItemIconMinWidth?: number | string;
@@ -44,7 +46,3 @@ type ListOptionalProps<T extends unknown = unknown> = {
 };
 
 type ListProps<T extends unknown = unknown> = ListOptionalProps<T>;
-
-type ListForwardedRefContent = {
-  setCheckAll?: (value: boolean) => void;
-};

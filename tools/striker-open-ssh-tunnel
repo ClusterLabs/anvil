@@ -95,8 +95,6 @@ sub close_ssh_tunnel
 			message => "SSH tunnel disconnected."
 		} });
 	}
-
-	$anvil->nice_exit({ exit_code => 0 });
 }
 
 $SIG->{INT}  = \&close_ssh_tunnel;
@@ -134,3 +132,5 @@ while($is_ssh_tunnel_alive)
 }
 
 close_ssh_tunnel();
+
+$anvil->nice_exit({ exit_code => 0 });

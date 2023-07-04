@@ -1,4 +1,7 @@
+import { DELETED } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
 import { stdoutVar } from '../../shell';
@@ -17,31 +20,33 @@ export const getServer = buildGetRequestHandler(
     stdoutVar({ condAnvilUUIDs });
 
     if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = (queryStdout) => {
-        let result = queryStdout;
+      buildQueryOptions.afterQueryReturn = buildQueryResultReducer<
+        ServerOverview[]
+      >(
+        (
+          previous,
+          [
+            serverUUID,
+            serverName,
+            serverState,
+            serverHostUUID,
+            anvilUUID,
+            anvilName,
+          ],
+        ) => {
+          previous.push({
+            anvilName,
+            anvilUUID,
+            serverHostUUID,
+            serverName,
+            serverState,
+            serverUUID,
+          });
 
-        if (queryStdout instanceof Array) {
-          result = queryStdout.map<ServerOverview>(
-            ([
-              serverUUID,
-              serverName,
-              serverState,
-              serverHostUUID,
-              anvilUUID,
-              anvilName,
-            ]) => ({
-              serverHostUUID,
-              serverName,
-              serverState,
-              serverUUID,
-              anvilUUID,
-              anvilName,
-            }),
-          );
-        }
-
-        return result;
-      };
+          return previous;
+        },
+        [],
+      );
     }
 
     return `
@@ -55,7 +60,7 @@ export const getServer = buildGetRequestHandler(
       FROM servers AS ser
       JOIN anvils AS anv
         ON ser.server_anvil_uuid = anv.anvil_uuid
-      WHERE ser.server_state != 'DELETED'
+      WHERE ser.server_state != '${DELETED}'
         ${condAnvilUUIDs};`;
   },
 );

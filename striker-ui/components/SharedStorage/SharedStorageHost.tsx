@@ -1,7 +1,8 @@
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import * as prettyBytes from 'pretty-bytes';
+import { Box, styled } from '@mui/material';
+import { useMemo } from 'react';
+
 import { AllocationBar } from '../Bars';
+import { toBinaryByte } from '../../lib/format_data_size_wrappers';
 import { BodyText } from '../Text';
 
 const PREFIX = 'SharedStorageHost';
@@ -32,46 +33,38 @@ const SharedStorageHost = ({
   group,
 }: {
   group: AnvilSharedStorageGroup;
-}): JSX.Element => (
-  <StyledDiv>
-    <Box display="flex" width="100%" className={classes.fs}>
-      <Box flexGrow={1}>
-        <BodyText
-          text={`Used: ${prettyBytes.default(
-            group.storage_group_total - group.storage_group_free,
-            {
-              binary: true,
-            },
-          )}`}
-        />
+}): JSX.Element => {
+  const { storage_group_free: sgFree, storage_group_total: sgTotal } = group;
+
+  const nFree = useMemo(() => BigInt(sgFree), [sgFree]);
+  const nTotal = useMemo(() => BigInt(sgTotal), [sgTotal]);
+
+  const nAllocated = useMemo(() => nTotal - nFree, [nFree, nTotal]);
+  const percentAllocated = useMemo(
+    () => Number((nAllocated * BigInt(100)) / nTotal),
+    [nAllocated, nTotal],
+  );
+
+  return (
+    <StyledDiv>
+      <Box display="flex" width="100%" className={classes.fs}>
+        <Box flexGrow={1}>
+          <BodyText text={`Used: ${toBinaryByte(nTotal - nFree)}`} />
+        </Box>
+        <Box>
+          <BodyText text={`Free: ${toBinaryByte(nFree)}`} />
+        </Box>
       </Box>
-      <Box>
-        <BodyText
-          text={`Free: ${prettyBytes.default(group.storage_group_free, {
-            binary: true,
-          })}`}
-        />
+      <Box display="flex" width="100%" className={classes.bar}>
+        <Box flexGrow={1}>
+          <AllocationBar allocated={percentAllocated} />
+        </Box>
       </Box>
-    </Box>
-    <Box display="flex" width="100%" className={classes.bar}>
-      <Box flexGrow={1}>
-        <AllocationBar
-          allocated={
-            ((group.storage_group_total - group.storage_group_free) /
-              group.storage_group_total) *
-            100
-          }
-        />
+      <Box display="flex" justifyContent="center" width="100%">
+        <BodyText text={`Total Storage: ${toBinaryByte(nTotal)}`} />
       </Box>
-    </Box>
-    <Box display="flex" justifyContent="center" width="100%">
-      <BodyText
-        text={`Total Storage: ${prettyBytes.default(group.storage_group_total, {
-          binary: true,
-        })}`}
-      />
-    </Box>
-  </StyledDiv>
-);
+    </StyledDiv>
+  );
+};
 
 export default SharedStorageHost;

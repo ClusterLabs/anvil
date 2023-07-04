@@ -1,15 +1,16 @@
-import { FC, useMemo } from 'react';
+import { ReactElement, useMemo } from 'react';
 
 import CommonFenceInputGroup from './CommonFenceInputGroup';
 import Spinner from '../Spinner';
 
-const EditFenceInputGroup: FC<EditFenceInputGroupProps> = ({
+const EditFenceInputGroup = <M extends Record<string, string>>({
   fenceId,
   fenceTemplate: externalFenceTemplate,
+  formUtils,
   loading: isExternalLoading,
   previousFenceName,
   previousFenceParameters,
-}) => {
+}: EditFenceInputGroupProps<M>): ReactElement => {
   const content = useMemo(
     () =>
       isExternalLoading ? (
@@ -18,6 +19,7 @@ const EditFenceInputGroup: FC<EditFenceInputGroupProps> = ({
         <CommonFenceInputGroup
           fenceId={fenceId}
           fenceTemplate={externalFenceTemplate}
+          formUtils={formUtils}
           previousFenceName={previousFenceName}
           previousFenceParameters={previousFenceParameters}
         />
@@ -25,6 +27,7 @@ const EditFenceInputGroup: FC<EditFenceInputGroupProps> = ({
     [
       externalFenceTemplate,
       fenceId,
+      formUtils,
       isExternalLoading,
       previousFenceName,
       previousFenceParameters,

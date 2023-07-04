@@ -1,19 +1,25 @@
-import { Box, Divider, Drawer, List, ListItem } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import DashboardIcon from '@mui/icons-material/Dashboard';
+import {
+  Dashboard as DashboardIcon,
+  Logout as LogoutIcon,
+} from '@mui/icons-material';
+import { Drawer, List, ListItem, ListItemButton, styled } from '@mui/material';
 import { Dispatch, SetStateAction } from 'react';
-import { BodyText, HeaderText } from './Text';
+
+import { OLD_ICON } from '../lib/consts/DEFAULT_THEME';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
-import { DIVIDER, GREY } from '../lib/consts/DEFAULT_THEME';
+
+import api from '../lib/api';
+import Divider from './Divider';
+import FlexBox from './FlexBox';
+import handleAPIError from '../lib/handleAPIError';
+import { BodyText } from './Text';
+import useCookieJar from '../hooks/useCookieJar';
 
 const PREFIX = 'AnvilDrawer';
 
 const classes = {
+  actionIcon: `${PREFIX}-actionIcon`,
   list: `${PREFIX}-list`,
-  divider: `${PREFIX}-divider`,
-  text: `${PREFIX}-text`,
-  dashboardButton: `${PREFIX}-dashboardButton`,
-  dashboardIcon: `${PREFIX}-dashboardIcon`,
 };
 
 const StyledDrawer = styled(Drawer)(() => ({
@@ -21,22 +27,9 @@ const StyledDrawer = styled(Drawer)(() => ({
     width: '200px',
   },
 
-  [`& .${classes.divider}`]: {
-    backgroundColor: DIVIDER,
-  },
-
-  [`& .${classes.text}`]: {
-    paddingTop: '.5em',
-    paddingLeft: '1.5em',
-  },
-
-  [`& .${classes.dashboardButton}`]: {
-    paddingLeft: '.1em',
-  },
-
-  [`& .${classes.dashboardIcon}`]: {
+  [`& .${classes.actionIcon}`]: {
     fontSize: '2.3em',
-    color: GREY,
+    color: OLD_ICON,
   },
 }));
 
@@ -45,55 +38,67 @@ interface DrawerProps {
   setOpen: Dispatch<SetStateAction<boolean>>;
 }
 
-const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => (
-  <StyledDrawer
-    BackdropProps={{ invisible: true }}
-    anchor="left"
-    open={open}
-    onClose={() => setOpen(!open)}
-  >
-    <div role="presentation">
-      <List className={classes.list}>
-        <ListItem button>
-          <HeaderText text="Admin" />
-        </ListItem>
-        <Divider className={classes.divider} />
-        <ListItem button component="a" href="/index.html">
-          <Box display="flex" flexDirection="row" width="100%">
-            <Box className={classes.dashboardButton}>
-              <DashboardIcon className={classes.dashboardIcon} />
-            </Box>
-            <Box flexGrow={1} className={classes.text}>
-              <BodyText text="Dashboard" />
-            </Box>
-          </Box>
-        </ListItem>
-        {ICONS.map(
-          (icon): JSX.Element => (
-            <ListItem
-              button
-              key={icon.image}
-              component="a"
-              href={
-                icon.uri.search(/^https?:/) !== -1
-                  ? icon.uri
-                  : `${process.env.NEXT_PUBLIC_API_URL}${icon.uri}`
-              }
-            >
-              <Box display="flex" flexDirection="row" width="100%">
-                <Box>
-                  <img alt="" key="icon" src={icon.image} {...ICON_SIZE} />
-                </Box>
-                <Box flexGrow={1} className={classes.text}>
-                  <BodyText text={icon.text} />
-                </Box>
-              </Box>
-            </ListItem>
-          ),
-        )}
-      </List>
-    </div>
-  </StyledDrawer>
-);
+const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
+  const { getSessionUser } = useCookieJar();
+
+  const sessionUser = getSessionUser();
+
+  return (
+    <StyledDrawer
+      BackdropProps={{ invisible: true }}
+      anchor="left"
+      open={open}
+      onClose={() => setOpen(!open)}
+    >
+      <div role="presentation">
+        <List className={classes.list}>
+          <ListItem>
+            <BodyText>
+              {sessionUser ? <>Welcome, {sessionUser.name}</> : 'Unregistered'}
+            </BodyText>
+          </ListItem>
+          <Divider />
+          <ListItemButton component="a" href="/index.html">
+            <FlexBox fullWidth row spacing="2em">
+              <DashboardIcon className={classes.actionIcon} />
+              <BodyText>Dashboard</BodyText>
+            </FlexBox>
+          </ListItemButton>
+          {ICONS.map(
+            (icon): JSX.Element => (
+              <ListItemButton
+                key={`anvil-drawer-${icon.image}`}
+                component="a"
+                href={icon.uri}
+              >
+                <FlexBox fullWidth row spacing="2em">
+                  <img alt={icon.text} src={icon.image} {...ICON_SIZE} />
+                  <BodyText>{icon.text}</BodyText>
+                </FlexBox>
+              </ListItemButton>
+            ),
+          )}
+          <ListItemButton
+            onClick={() => {
+              api
+                .put('/auth/logout')
+                .then(() => {
+                  window.location.replace('/login');
+                })
+                .catch((error) => {
+                  handleAPIError(error);
+                });
+            }}
+          >
+            <FlexBox fullWidth row spacing="2em">
+              <LogoutIcon className={classes.actionIcon} />
+              <BodyText>Logout</BodyText>
+            </FlexBox>
+          </ListItemButton>
+        </List>
+      </div>
+    </StyledDrawer>
+  );
+};
 
 export default AnvilDrawer;

@@ -1,5 +1,7 @@
 import { useContext, useMemo } from 'react';
 
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
+
 import { AnvilContext } from './AnvilContext';
 import FlexBox from './FlexBox';
 import { Panel, PanelHeader } from './Panels';
@@ -11,9 +13,7 @@ const CPU = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data: { allocated = 0, cores = 0, threads = 0 } = {}, isLoading } =
-    periodicFetch<AnvilCPU>(
-      `${process.env.NEXT_PUBLIC_API_URL}/get_cpu?anvil_uuid=${uuid}`,
-    );
+    periodicFetch<AnvilCPU>(`${API_BASE_URL}/anvil/${uuid}/cpu`);
 
   const contentAreaElement = useMemo(
     () =>

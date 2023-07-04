@@ -22,7 +22,7 @@ router
   .post('/', createHost)
   .post(CONNECTION_PATH, createHostConnection)
   .put('/prepare', prepareHost)
-  .put('/:hostUUID', updateHost)
+  .put('/:hostUUID?', updateHost)
   .delete(CONNECTION_PATH, deleteHostConnection);
 
 export default router;

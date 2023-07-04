@@ -5,11 +5,9 @@ import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
 import { ProgressBar } from './Bars';
 import FlexBox from './FlexBox';
-import Link from './Link';
 import List from './List';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import { BodyText } from './Text';
-import useProtect from '../hooks/useProtect';
 import useProtectedState from '../hooks/useProtectedState';
 
 type AnvilJobs = {
@@ -22,6 +20,7 @@ type AnvilJobs = {
 };
 
 type JobSummaryOptionalPropsWithDefault = {
+  getJobUrl?: (epoch: number) => string;
   openInitially?: boolean;
   refreshInterval?: number;
 };
@@ -43,6 +42,7 @@ type JobSummaryForwardedRefContent = {
 const JOB_LIST_LENGTH = '20em';
 const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
+  getJobUrl: (epoch) => `${API_BASE_URL}/job?start=${epoch}`,
   onFetchSuccessAppend: undefined,
   openInitially: false,
   refreshInterval: 10000,
@@ -51,15 +51,14 @@ const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
 const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
   (
     {
+      getJobUrl = JOB_SUMMARY_DEFAULT_PROPS.getJobUrl,
       onFetchSuccessAppend,
       openInitially = JOB_SUMMARY_DEFAULT_PROPS.openInitially,
       refreshInterval = JOB_SUMMARY_DEFAULT_PROPS.refreshInterval,
     },
     ref,
   ) => {
-    const { protect } = useProtect();
-
-    const [anvilJobs, setAnvilJobs] = useProtectedState<AnvilJobs>({}, protect);
+    const [anvilJobs, setAnvilJobs] = useProtectedState<AnvilJobs>({});
     const [isOpenJobSummary, setIsOpenJobSummary] =
       useState<boolean>(openInitially);
     const [menuAnchorElement, setMenuAnchorElement] = useState<
@@ -68,7 +67,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
     const loadTimestamp = useMemo(() => Math.floor(Date.now() / 1000), []);
 
-    periodicFetch<AnvilJobs>(`${API_BASE_URL}/job?start=${loadTimestamp}`, {
+    periodicFetch<AnvilJobs>(getJobUrl(loadTimestamp), {
       onError: () => {
         setAnvilJobs({});
       },
@@ -116,7 +115,6 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
               </FlexBox>
             )}
           />
-          <Link href="cgi-bin/striker?jobs=true">More details</Link>
         </FlexBox>
       ),
       [anvilJobs],

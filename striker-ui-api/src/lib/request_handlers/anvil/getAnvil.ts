@@ -4,24 +4,24 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryAnvilDetail from './buildQueryAnvilDetail';
 import { sanitize } from '../../sanitize';
 
-const getAnvil: RequestHandler = buildGetRequestHandler(
+export const getAnvil: RequestHandler = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const { anvilUUIDs, isForProvisionServer } = request.query;
 
     let query = `
-    SELECT
-      anv.anvil_name,
-      anv.anvil_uuid,
-      hos.host_name,
-      hos.host_uuid
-    FROM anvils AS anv
-    JOIN hosts AS hos
-      ON hos.host_uuid IN (
-        anv.anvil_node1_host_uuid,
-        anv.anvil_node2_host_uuid,
-        anv.anvil_dr1_host_uuid
-      )
-    ORDER BY anv.anvil_uuid;`;
+      SELECT
+        anv.anvil_name,
+        anv.anvil_uuid,
+        hos.host_name,
+        hos.host_uuid
+      FROM anvils AS anv
+      JOIN hosts AS hos
+        ON hos.host_uuid IN (
+          anv.anvil_node1_host_uuid,
+          anv.anvil_node2_host_uuid,
+          anv.anvil_dr1_host_uuid
+        )
+      ORDER BY anv.anvil_uuid;`;
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {
@@ -77,5 +77,3 @@ const getAnvil: RequestHandler = buildGetRequestHandler(
     return query;
   },
 );
-
-export default getAnvil;

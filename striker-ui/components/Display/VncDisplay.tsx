@@ -14,6 +14,7 @@ type Props = {
   background: string;
   qualityLevel: number;
   compressionLevel: number;
+  onDisconnect: (event: { detail: { clean: boolean } }) => void;
 };
 
 const VncDisplay = (props: Props): JSX.Element => {
@@ -32,6 +33,7 @@ const VncDisplay = (props: Props): JSX.Element => {
     background,
     qualityLevel,
     compressionLevel,
+    onDisconnect,
   } = props;
 
   useEffect(() => {
@@ -59,6 +61,10 @@ const VncDisplay = (props: Props): JSX.Element => {
       rfb.current.background = background;
       rfb.current.qualityLevel = qualityLevel;
       rfb.current.compressionLevel = compressionLevel;
+
+      // RFB extends custom class EventTargetMixin;
+      // the usual .on or .once doesn't exist.
+      rfb.current.addEventListener('disconnect', onDisconnect);
     }
 
     /* eslint-disable consistent-return */

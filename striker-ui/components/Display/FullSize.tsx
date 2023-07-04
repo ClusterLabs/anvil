@@ -1,25 +1,31 @@
-import { useState, useRef, useEffect, FC } from 'react';
-import dynamic from 'next/dynamic';
+import {
+  Close as CloseIcon,
+  Keyboard as KeyboardIcon,
+} from '@mui/icons-material';
 import {
   Box,
-  Button,
   IconButton,
   IconButtonProps,
   Menu,
   MenuItem,
+  styled,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
-import KeyboardIcon from '@mui/icons-material/Keyboard';
 import RFB from '@novnc/novnc/core/rfb';
-import { Panel } from '../Panels';
+import { useState, useRef, useEffect, FC, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+
+import ContainedButton from '../ContainedButton';
+import { HeaderText } from '../Text';
 import keyCombinations from './keyCombinations';
+import { Panel } from '../Panels';
 import putFetch from '../../lib/fetchers/putFetch';
 import putFetchWithTimeout from '../../lib/fetchers/putFetchWithTimeout';
-import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
+import useProtectedState from '../../hooks/useProtectedState';
 
 const PREFIX = 'FullSize';
 
@@ -31,7 +37,6 @@ const classes = {
   closeBox: `${PREFIX}-closeBox`,
   buttonsBox: `${PREFIX}-buttonsBox`,
   keysItem: `${PREFIX}-keysItem`,
-  buttonText: `${PREFIX}-buttonText`,
 };
 
 const StyledDiv = styled('div')(() => ({
@@ -85,11 +90,9 @@ const StyledDiv = styled('div')(() => ({
       backgroundColor: TEXT,
     },
   },
-
-  [`& .${classes.buttonText}`]: {
-    color: BLACK,
-  },
 }));
+
+const CMD_VNC_PIPE_URL = `${API_BASE_URL}/command/vnc-pipe`;
 
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
@@ -104,7 +107,7 @@ type FullSizeProps = FullSizeOptionalProps & {
 
 type VncConnectionProps = {
   protocol: string;
-  forward_port: number;
+  forwardPort: number;
 };
 
 const FULL_SIZE_DEFAULT_PROPS: Required<
@@ -122,43 +125,56 @@ const FullSize: FC<FullSizeProps> = ({
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const rfb = useRef<typeof RFB>();
   const hostname = useRef<string | undefined>(undefined);
-  const [vncConnection, setVncConnection] = useState<
+  const [vncConnection, setVncConnection] = useProtectedState<
     VncConnectionProps | undefined
   >(undefined);
-  const [isError, setIsError] = useState<boolean>(false);
+  const [vncConnecting, setVncConnecting] = useProtectedState<boolean>(false);
+  const [isError, setIsError] = useProtectedState<boolean>(false);
+
+  const connectVnc = useCallback(async () => {
+    if (vncConnection || vncConnecting) return;
+
+    setVncConnecting(true);
+
+    try {
+      const res = await putFetchWithTimeout(
+        CMD_VNC_PIPE_URL,
+        {
+          serverUuid: serverUUID,
+          open: true,
+        },
+        120000,
+      );
+
+      setVncConnection(await res.json());
+    } catch {
+      setIsError(true);
+    } finally {
+      setVncConnecting(false);
+    }
+  }, [
+    serverUUID,
+    setIsError,
+    setVncConnecting,
+    setVncConnection,
+    vncConnecting,
+    vncConnection,
+  ]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       hostname.current = window.location.hostname;
     }
 
-    if (!vncConnection)
-      (async () => {
-        try {
-          const res = await putFetchWithTimeout(
-            `${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`,
-            {
-              server_uuid: serverUUID,
-              is_open: true,
-            },
-            120000,
-          );
-          setVncConnection(await res.json());
-        } catch {
-          setIsError(true);
-        }
-      })();
-  }, [serverUUID, vncConnection, isError]);
+    connectVnc();
+  }, [connectVnc]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     setAnchorEl(event.currentTarget);
   };
 
   const handleClickClose = async () => {
-    await putFetch(`${process.env.NEXT_PUBLIC_API_URL}/manage_vnc_pipes`, {
-      server_uuid: serverUUID,
-      is_open: false,
-    });
+    await putFetch(CMD_VNC_PIPE_URL, { serverUuid: serverUUID });
   };
 
   const handleSendKeys = (scans: string[]) => {
@@ -189,7 +205,7 @@ const FullSize: FC<FullSizeProps> = ({
           <Box display="flex" className={classes.displayBox}>
             <VncDisplay
               rfb={rfb}
-              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forward_port}`}
+              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forwardPort}`}
               viewOnly={false}
               focusOnClick={false}
               clipViewport={false}
@@ -200,6 +216,12 @@ const FullSize: FC<FullSizeProps> = ({
               background=""
               qualityLevel={6}
               compressionLevel={2}
+              onDisconnect={({ detail: { clean } }) => {
+                if (!clean) {
+                  setVncConnection(undefined);
+                  connectVnc();
+                }
+              }}
             />
             <Box>
               <Box className={classes.closeBox}>
@@ -262,20 +284,13 @@ const FullSize: FC<FullSizeProps> = ({
                 <Box style={{ paddingBottom: '2em' }}>
                   <HeaderText text="There was a problem connecting to the server, please try again" />
                 </Box>
-                <Button
-                  variant="contained"
+                <ContainedButton
                   onClick={() => {
                     setIsError(false);
                   }}
-                  style={{ textTransform: 'none' }}
                 >
-                  <Typography
-                    className={classes.buttonText}
-                    variant="subtitle1"
-                  >
-                    Reconnect
-                  </Typography>
-                </Button>
+                  Reconnect
+                </ContainedButton>
               </>
             )}
           </Box>

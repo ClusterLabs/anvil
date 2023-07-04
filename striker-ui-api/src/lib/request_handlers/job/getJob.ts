@@ -1,11 +1,14 @@
+import { REP_PEACEFUL_STRING } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { sanitize } from '../../sanitize';
 import { date, stdout } from '../../shell';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
-  const { start: rawStart } = request.query;
+  const { start: rStart, command: rCommand } = request.query;
 
-  const start = sanitize(rawStart, 'number');
+  const start = sanitize(rStart, 'number');
+  const jcmd = sanitize(rCommand, 'string');
 
   let condModifiedDate = '';
 
@@ -17,6 +20,12 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
     throw new Error(
       `Failed to build date condition for job query; CAUSE: ${shellError}`,
     );
+  }
+
+  let condJobCommand = '';
+
+  if (REP_PEACEFUL_STRING.test(jcmd)) {
+    condJobCommand = `AND job.job_command LIKE '%${jcmd}%'`;
   }
 
   stdout(`condModifiedDate=[${condModifiedDate}]`);
@@ -77,6 +86,7 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
     FROM jobs AS job
     JOIN hosts AS hos
       ON job.job_host_uuid = hos.host_uuid
-    WHERE job.job_progress < 100
-      ${condModifiedDate};`;
+    WHERE (job.job_progress < 100 ${condModifiedDate})
+      ${condJobCommand}
+      AND job_name NOT LIKE 'get_server_screenshot%';`;
 });

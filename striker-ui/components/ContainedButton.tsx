@@ -1,7 +1,12 @@
-import { Button as MUIButton, SxProps, Theme } from '@mui/material';
+import {
+  Button as MUIButton,
+  buttonClasses as muiButtonClasses,
+  SxProps,
+  Theme,
+} from '@mui/material';
 import { FC, useMemo } from 'react';
 
-import { BLACK, GREY } from '../lib/consts/DEFAULT_THEME';
+import { BLACK, DISABLED, GREY } from '../lib/consts/DEFAULT_THEME';
 
 const ContainedButton: FC<ContainedButtonProps> = ({ sx, ...restProps }) => {
   const combinedSx = useMemo<SxProps<Theme>>(
@@ -12,6 +17,10 @@ const ContainedButton: FC<ContainedButtonProps> = ({ sx, ...restProps }) => {
 
       '&:hover': {
         backgroundColor: `${GREY}F0`,
+      },
+
+      [`&.${muiButtonClasses.disabled}`]: {
+        backgroundColor: DISABLED,
       },
 
       ...sx,

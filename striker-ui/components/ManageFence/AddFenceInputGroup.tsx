@@ -1,17 +1,25 @@
 import { Box } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { ReactElement, useEffect, useMemo, useState } from 'react';
 
 import Autocomplete from '../Autocomplete';
 import CommonFenceInputGroup from './CommonFenceInputGroup';
 import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
+import useIsFirstRender from '../../hooks/useIsFirstRender';
 
-const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
+const INPUT_ID_FENCE_AGENT = 'add-fence-input-agent';
+
+const AddFenceInputGroup = <M extends Record<string, string>>({
   fenceTemplate: externalFenceTemplate,
+  formUtils,
   loading: isExternalLoading,
-}) => {
-  const [fenceTypeValue, setInputFenceTypeValue] =
+}: AddFenceInputGroupProps<M>): ReactElement => {
+  const { setValidity } = formUtils;
+
+  const isFirstRender = useIsFirstRender();
+
+  const [inputFenceTypeValue, setInputFenceTypeValue] =
     useState<FenceAutocompleteOption | null>(null);
 
   const fenceTypeOptions = useMemo<FenceAutocompleteOption[]>(
@@ -38,12 +46,13 @@ const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
   const fenceTypeElement = useMemo(
     () => (
       <Autocomplete
-        id="add-fence-select-type"
+        id={INPUT_ID_FENCE_AGENT}
         isOptionEqualToValue={(option, value) =>
           option.fenceId === value.fenceId
         }
         label="Fence device type"
         onChange={(event, newFenceType) => {
+          setValidity(INPUT_ID_FENCE_AGENT, newFenceType !== null);
           setInputFenceTypeValue(newFenceType);
         }}
         openOnFocus
@@ -74,19 +83,21 @@ const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
           </Box>
         )}
         sx={{ marginTop: '.3em' }}
-        value={fenceTypeValue}
+        value={inputFenceTypeValue}
       />
     ),
-    [fenceTypeOptions, fenceTypeValue],
+    [fenceTypeOptions, inputFenceTypeValue, setValidity],
   );
+
   const fenceParameterElements = useMemo(
     () => (
       <CommonFenceInputGroup
-        fenceId={fenceTypeValue?.fenceId}
+        fenceId={inputFenceTypeValue?.fenceId}
         fenceTemplate={externalFenceTemplate}
+        formUtils={formUtils}
       />
     ),
-    [externalFenceTemplate, fenceTypeValue],
+    [externalFenceTemplate, inputFenceTypeValue?.fenceId, formUtils],
   );
 
   const content = useMemo(
@@ -102,7 +113,15 @@ const AddFenceInputGroup: FC<AddFenceInputGroupProps> = ({
     [fenceTypeElement, fenceParameterElements, isExternalLoading],
   );
 
+  useEffect(() => {
+    if (isFirstRender) {
+      setValidity(INPUT_ID_FENCE_AGENT, inputFenceTypeValue !== null);
+    }
+  }, [inputFenceTypeValue, isFirstRender, setValidity]);
+
   return <>{content}</>;
 };
+
+export { INPUT_ID_FENCE_AGENT };
 
 export default AddFenceInputGroup;

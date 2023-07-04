@@ -1,9 +1,8 @@
-import { Box } from '@mui/material';
 import {
   FC,
   FormEventHandler,
-  ReactElement,
   ReactNode,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -11,156 +10,126 @@ import {
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
-import AddFenceInputGroup from './AddFenceInputGroup';
+import AddFenceInputGroup, { INPUT_ID_FENCE_AGENT } from './AddFenceInputGroup';
 import api from '../../lib/api';
-import { ID_SEPARATOR } from './CommonFenceInputGroup';
+import { INPUT_ID_SEPARATOR } from './CommonFenceInputGroup';
 import ConfirmDialog from '../ConfirmDialog';
 import EditFenceInputGroup from './EditFenceInputGroup';
 import FlexBox from '../FlexBox';
+import FormDialog from '../FormDialog';
+import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
-import {
-  BodyText,
-  HeaderText,
-  InlineMonoText,
-  MonoText,
-  SensitiveText,
-  SmallText,
-} from '../Text';
+import { BodyText, HeaderText, InlineMonoText, SensitiveText } from '../Text';
+import useChecklist from '../../hooks/useChecklist';
+import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
-type FormFenceParameterData = {
-  fenceAgent: string;
-  fenceName: string;
-  parameterInputs: {
-    [parameterInputId: string]: {
-      isParameterSensitive: boolean;
-      parameterId: string;
-      parameterType: string;
-      parameterValue: string;
-    };
-  };
+type FenceFormData = {
+  agent: string;
+  name: string;
+  parameters: { [parameterId: string]: string };
 };
 
-const fenceParameterBooleanToString = (value: boolean) => (value ? '1' : '0');
+const assertFormInputId = (element: Element) => {
+  const { id } = element;
 
-const getFormFenceParameters = (
+  const re = new RegExp(`^(fence[^-]+)${INPUT_ID_SEPARATOR}([^\\s]+)$`);
+  const matched = id.match(re);
+
+  if (!matched) throw Error('Not target input element');
+
+  return matched;
+};
+
+const assertFormInputName = (
+  paramId: string,
+  parent: FenceFormData,
+  value: string,
+) => {
+  if (paramId === 'name') {
+    parent.name = value;
+
+    throw Error('Not child parameter');
+  }
+};
+
+const assertFormParamSpec = (
+  spec: APIFenceTemplate[string]['parameters'][string],
+) => {
+  if (!spec) throw Error('Not parameter specification');
+};
+
+const assertFormParamValue = (value: string, paramDefault?: string) => {
+  if ([paramDefault, '', null, undefined].some((bad) => value === bad))
+    throw Error('Skippable parameter value');
+};
+
+const getFormData = (
   fenceTemplate: APIFenceTemplate,
   ...[{ target }]: Parameters<FormEventHandler<HTMLDivElement>>
 ) => {
   const { elements } = target as HTMLFormElement;
 
-  return Object.values(elements).reduce<FormFenceParameterData>(
-    (previous, formElement) => {
-      const { id: inputId } = formElement;
-      const reExtract = new RegExp(`^(fence[^-]+)${ID_SEPARATOR}([^\\s]+)$`);
-      const matched = inputId.match(reExtract);
+  return Object.values(elements).reduce<FenceFormData>(
+    (previous, element) => {
+      try {
+        const matched = assertFormInputId(element);
 
-      if (matched) {
-        const [, fenceId, parameterId] = matched;
+        const [, fenceId, paramId] = matched;
 
-        previous.fenceAgent = fenceId;
+        previous.agent = fenceId;
 
-        const inputElement = formElement as HTMLInputElement;
-        const {
-          checked,
-          dataset: { sensitive: rawSensitive },
-          value,
-        } = inputElement;
+        const inputElement = element as HTMLInputElement;
+        const { checked, value } = inputElement;
 
-        if (parameterId === 'name') {
-          previous.fenceName = value;
-        }
+        assertFormInputName(paramId, previous, value);
 
         const {
           [fenceId]: {
-            parameters: {
-              [parameterId]: { content_type: parameterType = 'string' } = {},
-            },
+            parameters: { [paramId]: paramSpec },
           },
         } = fenceTemplate;
 
-        previous.parameterInputs[inputId] = {
-          isParameterSensitive: rawSensitive === 'true',
-          parameterId,
-          parameterType,
-          parameterValue:
-            parameterType === 'boolean'
-              ? fenceParameterBooleanToString(checked)
-              : value,
-        };
+        assertFormParamSpec(paramSpec);
+
+        const { content_type: paramType, default: paramDefault } = paramSpec;
+
+        let paramValue = value;
+
+        if (paramType === 'boolean') {
+          paramValue = checked ? '1' : '';
+        }
+
+        assertFormParamValue(paramValue, paramDefault);
+
+        previous.parameters[paramId] = paramValue;
+      } catch (error) {
+        return previous;
       }
 
       return previous;
     },
-    { fenceAgent: '', fenceName: '', parameterInputs: {} },
+    { agent: '', name: '', parameters: {} },
   );
 };
-
-const buildConfirmFenceParameters = (
-  parameterInputs: FormFenceParameterData['parameterInputs'],
-) => (
-  <List
-    listItems={parameterInputs}
-    listItemProps={{ sx: { padding: 0 } }}
-    renderListItem={(
-      parameterInputId,
-      { isParameterSensitive, parameterId, parameterValue },
-    ) => {
-      let textElement: ReactElement;
-
-      if (parameterValue) {
-        textElement = isParameterSensitive ? (
-          <SensitiveText monospaced>{parameterValue}</SensitiveText>
-        ) : (
-          <Box sx={{ maxWidth: '100%', overflowX: 'scroll' }}>
-            <MonoText lineHeight={2.8} whiteSpace="nowrap">
-              {parameterValue}
-            </MonoText>
-          </Box>
-        );
-      } else {
-        textElement = <SmallText>none</SmallText>;
-      }
-
-      return (
-        <FlexBox
-          fullWidth
-          growFirst
-          height="2.8em"
-          key={`confirm-${parameterInputId}`}
-          maxWidth="100%"
-          row
-        >
-          <BodyText>{parameterId}</BodyText>
-          {textElement}
-        </FlexBox>
-      );
-    }}
-  />
-);
 
 const ManageFencePanel: FC = () => {
   const isFirstRender = useIsFirstRender();
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const formDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
+  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-  const [confirmDialogProps, setConfirmDialogProps] =
-    useState<ConfirmDialogProps>({
-      actionProceedText: '',
-      content: '',
-      titleText: '',
-    });
-  const [formDialogProps, setFormDialogProps] = useState<ConfirmDialogProps>({
-    actionProceedText: '',
-    content: '',
-    titleText: '',
-  });
+  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
+  const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
+
   const [fenceTemplate, setFenceTemplate] = useProtectedState<
     APIFenceTemplate | undefined
   >(undefined);
@@ -173,34 +142,67 @@ const ManageFencePanel: FC = () => {
       refreshInterval: 60000,
     });
 
+  const formUtils = useFormUtils([INPUT_ID_FENCE_AGENT], messageGroupRef);
+  const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
+
+  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
+    useChecklist({ list: fenceOverviews });
+
+  const getFormSummaryEntryLabel = useCallback<GetFormEntryLabelFunction>(
+    ({ cap, depth, key }) => (depth === 0 ? cap(key) : key),
+    [],
+  );
+
   const listElement = useMemo(
     () => (
       <List
         allowEdit
         allowItemButton={isEditFences}
+        disableDelete={!hasChecks}
         edit={isEditFences}
         header
         listItems={fenceOverviews}
         onAdd={() => {
           setFormDialogProps({
             actionProceedText: 'Add',
-            content: <AddFenceInputGroup fenceTemplate={fenceTemplate} />,
+            content: (
+              <AddFenceInputGroup
+                fenceTemplate={fenceTemplate}
+                formUtils={formUtils}
+              />
+            ),
             onSubmitAppend: (event) => {
               if (!fenceTemplate) {
                 return;
               }
 
-              const addData = getFormFenceParameters(fenceTemplate, event);
+              const addData = getFormData(fenceTemplate, event);
+              const { agent, name } = addData;
 
               setConfirmDialogProps({
                 actionProceedText: 'Add',
-                content: buildConfirmFenceParameters(addData.parameterInputs),
+                content: (
+                  <FormSummary
+                    entries={addData}
+                    hasPassword
+                    getEntryLabel={getFormSummaryEntryLabel}
+                  />
+                ),
+                onProceedAppend: () => {
+                  submitForm({
+                    body: addData,
+                    getErrorMsg: (parentMsg) => (
+                      <>Failed to add fence device. {parentMsg}</>
+                    ),
+                    method: 'post',
+                    successMsg: `Added fence device ${name}`,
+                    url: '/fence',
+                  });
+                },
                 titleText: (
                   <HeaderText>
                     Add a{' '}
-                    <InlineMonoText fontSize="inherit">
-                      {addData.fenceAgent}
-                    </InlineMonoText>{' '}
+                    <InlineMonoText fontSize="inherit">{agent}</InlineMonoText>{' '}
                     fence device with the following parameters?
                   </HeaderText>
                 ),
@@ -213,16 +215,48 @@ const ManageFencePanel: FC = () => {
 
           formDialogRef.current.setOpen?.call(null, true);
         }}
+        onDelete={() => {
+          setConfirmDialogProps(
+            buildDeleteDialogProps({
+              getConfirmDialogTitle: (count) =>
+                `Delete ${count} fence device(s)?`,
+              onProceedAppend: () => {
+                submitForm({
+                  body: { uuids: checks },
+                  getErrorMsg: (parentMsg) => (
+                    <>Failed to delete fence device(s). {parentMsg}</>
+                  ),
+                  method: 'delete',
+                  url: '/fence',
+                });
+              },
+              renderEntry: ({ key }) => (
+                <BodyText>{fenceOverviews?.[key].fenceName}</BodyText>
+              ),
+            }),
+          );
+
+          confirmDialogRef.current.setOpen?.call(null, true);
+        }}
         onEdit={() => {
           setIsEditFences((previous) => !previous);
         }}
-        onItemClick={({ fenceAgent: fenceId, fenceName, fenceParameters }) => {
+        onItemCheckboxChange={(key, event, checked) => {
+          setCheck(key, checked);
+        }}
+        onItemClick={({
+          fenceAgent: fenceId,
+          fenceName,
+          fenceParameters,
+          fenceUUID,
+        }) => {
           setFormDialogProps({
             actionProceedText: 'Update',
             content: (
               <EditFenceInputGroup
                 fenceId={fenceId}
                 fenceTemplate={fenceTemplate}
+                formUtils={formUtils}
                 previousFenceName={fenceName}
                 previousFenceParameters={fenceParameters}
               />
@@ -232,16 +266,33 @@ const ManageFencePanel: FC = () => {
                 return;
               }
 
-              const editData = getFormFenceParameters(fenceTemplate, event);
+              const editData = getFormData(fenceTemplate, event);
 
               setConfirmDialogProps({
                 actionProceedText: 'Update',
-                content: buildConfirmFenceParameters(editData.parameterInputs),
+                content: (
+                  <FormSummary
+                    entries={editData}
+                    hasPassword
+                    getEntryLabel={getFormSummaryEntryLabel}
+                  />
+                ),
+                onProceedAppend: () => {
+                  submitForm({
+                    body: editData,
+                    getErrorMsg: (parentMsg) => (
+                      <>Failed to update fence device. {parentMsg}</>
+                    ),
+                    method: 'put',
+                    successMsg: `Updated fence device ${fenceName}`,
+                    url: `/fence/${fenceUUID}`,
+                  });
+                },
                 titleText: (
                   <HeaderText>
                     Update{' '}
                     <InlineMonoText fontSize="inherit">
-                      {editData.fenceName}
+                      {fenceName}
                     </InlineMonoText>{' '}
                     fence device with the following parameters?
                   </HeaderText>
@@ -261,6 +312,7 @@ const ManageFencePanel: FC = () => {
 
           formDialogRef.current.setOpen?.call(null, true);
         }}
+        renderListItemCheckboxState={(key) => getCheck(key)}
         renderListItem={(
           fenceUUID,
           { fenceAgent, fenceName, fenceParameters },
@@ -297,7 +349,21 @@ const ManageFencePanel: FC = () => {
         )}
       />
     ),
-    [fenceOverviews, fenceTemplate, isEditFences],
+    [
+      buildDeleteDialogProps,
+      checks,
+      fenceOverviews,
+      fenceTemplate,
+      formUtils,
+      getCheck,
+      getFormSummaryEntryLabel,
+      hasChecks,
+      isEditFences,
+      setCheck,
+      setConfirmDialogProps,
+      setFormDialogProps,
+      submitForm,
+    ],
   );
   const panelContent = useMemo(
     () =>
@@ -307,6 +373,17 @@ const ManageFencePanel: FC = () => {
         listElement
       ),
     [isFenceOverviewsLoading, isLoadingFenceTemplate, listElement],
+  );
+
+  const messageArea = useMemo(
+    () => (
+      <MessageGroup
+        count={1}
+        defaultMessageType="warning"
+        ref={messageGroupRef}
+      />
+    ),
+    [],
   );
 
   if (isFirstRender) {
@@ -331,23 +408,26 @@ const ManageFencePanel: FC = () => {
         </PanelHeader>
         {panelContent}
       </Panel>
-      <ConfirmDialog
+      <FormDialog
         dialogProps={{
           PaperProps: { sx: { minWidth: { xs: '90%', md: '50em' } } },
         }}
-        formContent
         scrollBoxProps={{
           padding: '.3em .5em',
         }}
-        scrollContent
         {...formDialogProps}
+        disableProceed={isFormInvalid}
+        loadingAction={isFormSubmitting}
+        preActionArea={messageArea}
         ref={formDialogRef}
+        scrollContent
       />
       <ConfirmDialog
+        closeOnProceed
         scrollBoxProps={{ paddingRight: '1em' }}
-        scrollContent
         {...confirmDialogProps}
         ref={confirmDialogRef}
+        scrollContent
       />
     </>
   );

@@ -1,0 +1,55 @@
+import { Handler } from 'express';
+
+import { LOCAL } from '../lib/consts';
+
+import { query } from '../lib/accessModule';
+import { toHostUUID } from '../lib/convertHostUUID';
+import { stderr, stdoutVar } from '../lib/shell';
+
+export const assertInit =
+  ({
+    fail = (rq, rs) => rs.status(401).send(),
+    hostUuid: rHostUuid = LOCAL,
+    invert,
+    succeed = (rq, rs, nx) => nx(),
+  }: {
+    fail?: (...args: Parameters<Handler>) => void;
+    hostUuid?: string;
+    invert?: boolean;
+    succeed?: (...args: Parameters<Handler>) => void;
+  } = {}): Handler =>
+  async (...args) => {
+    const { 1: response } = args;
+    const hostUuid = toHostUUID(rHostUuid);
+
+    let rows: [[string]];
+
+    try {
+      rows = await query(
+        `SELECT variable_value
+          FROM variables
+          WHERE variable_name = 'system::configured'
+            AND variable_source_table = 'hosts'
+            AND variable_source_uuid = '${hostUuid}'
+          LIMIT 1;`,
+      );
+    } catch (error) {
+      stderr(`Failed to get system configured flag; CAUSE: ${error}`);
+
+      return response.status(500).send();
+    }
+
+    stdoutVar(rows, `Configured variable of host ${hostUuid}: `);
+
+    let condition = rows.length === 1 && rows[0][0] === '1';
+
+    if (invert) condition = !condition;
+
+    if (condition) {
+      stderr(`Assert init failed; invert=${invert}`);
+
+      return fail(...args);
+    }
+
+    return succeed(...args);
+  };

@@ -9,14 +9,17 @@ import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar } from '../../shell';
 
 export const deleteUser: RequestHandler<
-  DeleteUserParamsDictionary,
+  UserParamsDictionary,
   undefined,
   DeleteUserRequestBody
 > = async (request, response) => {
   const {
     body: { uuids: rawUserUuidList } = {},
     params: { userUuid },
+    user: { name: sessionUserName } = {},
   } = request;
+
+  if (sessionUserName !== 'admin') return response.status(401).send();
 
   const userUuidList = sanitize(rawUserUuidList, 'string[]');
 
@@ -45,7 +48,10 @@ export const deleteUser: RequestHandler<
     const wcode = await write(
       `UPDATE users
         SET user_algorithm = '${DELETED}'
-        WHERE user_uuid IN (${join(ulist)});`,
+        WHERE user_uuid IN (${join(ulist, {
+          elementWrapper: "'",
+          separator: ',',
+        })});`,
     );
 
     assert(wcode === 0, `Write exited with code ${wcode}`);

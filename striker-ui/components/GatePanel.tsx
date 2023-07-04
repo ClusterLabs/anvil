@@ -7,7 +7,9 @@ import handleAPIError from '../lib/handleAPIError';
 import { Panel } from './Panels';
 
 const GatePanel: FC = () => {
-  const router = useRouter();
+  const {
+    query: { rt: returnTo },
+  } = useRouter();
 
   return (
     <Panel
@@ -26,13 +28,11 @@ const GatePanel: FC = () => {
           setIsSubmitting(true);
 
           api
-            .post(
-              '/auth/login',
-              { username, password },
-              { withCredentials: true },
-            )
+            .post('/auth/login', { username, password })
             .then(() => {
-              router.push('/');
+              const url = returnTo ? String(returnTo) : '/';
+
+              window.location.replace(url);
             })
             .catch((error) => {
               const emsg = handleAPIError(error, {

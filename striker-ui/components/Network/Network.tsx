@@ -1,6 +1,7 @@
 import { Box, Divider, styled } from '@mui/material';
 import { useContext } from 'react';
 
+import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import {
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
@@ -13,7 +14,6 @@ import periodicFetch from '../../lib/fetchers/periodicFetch';
 import processNetworkData from './processNetwork';
 import Spinner from '../Spinner';
 import { HeaderText, BodyText } from '../Text';
-import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const PREFIX = 'Network';
@@ -71,14 +71,13 @@ const selectDecorator = (state: string): Colours => {
 
 const Network = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
-  const { protect } = useProtect();
 
   const [processed, setProcessed] = useProtectedState<
     ProcessedNetwork | undefined
-  >(undefined, protect);
+  >(undefined);
 
   const { isLoading } = periodicFetch<AnvilNetwork>(
-    `${process.env.NEXT_PUBLIC_API_URL}/get_networks?anvil_uuid=${uuid}`,
+    `${API_BASE_URL}/anvil/${uuid}/network`,
     {
       onSuccess: (data) => {
         setProcessed(processNetworkData(data));
