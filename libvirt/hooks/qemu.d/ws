@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# TODO: re-enable after the possible libvirt deadlock is fixed.
+exit 0
+
 {
 	echo "wsargs=$@"
 
