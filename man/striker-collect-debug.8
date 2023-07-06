@@ -34,6 +34,10 @@ This restricts the data to be collected to the Striker dashboards and the specif
 \fB\-\-hosts\fR <comma-separated list of host names or UUIDs>
 .TP
 This can be used to specify which specific hosts data is collected from. Note that this can be used in conjuction with \fB\-\-anvil\fR to add additional hosts to collect data from, like DR hosts. 
+.TP
+\fB\-\-output\-file\fR </path/to/file.tar.bz2>
+.TP
+This allows you to specify the output compressed tarball that the files will be saved in. By default, the output file is \fB/root/anvil-debug_<timestamp>.tar.bz2\fR. If this is a directory (ending in \fB/\fR), the normal file name is created, just in a different directory. If the path ends in a file that doesn't have the \fB.tar.bz2\fR suffix, that suffix will be added automatically. The output file will always be a bzip2's tarball.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
