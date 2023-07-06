@@ -382,7 +382,8 @@ sub sanity_check
 	if (($anvil->data->{switches}{'connect'}) or ($anvil->data->{switches}{'disconnect'}))
 	{
 		# Is this server configured to be protected?
-		my $config_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+		my $config_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+		   $config_file =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
 		if (not -e $config_file)
 		{
@@ -398,8 +399,8 @@ sub sanity_check
 				variables  => $variables, 
 				job_status => "failed", 
 			});
+			$anvil->nice_exit({exit_code => 1});
 		}
-		$anvil->nice_exit({exit_code => 1});
 	}
 
 	# If we're doing a --protect or --remove, make sure we're a node, the cluster is up, and both nodes 
@@ -533,7 +534,6 @@ sub sanity_check
 	
 	# Get the Anvil! details.
 	$anvil->Database->get_hosts();
-	$anvil->Database->get_anvils();
 	$anvil->Database->get_storage_group_data({debug => 2});
 	$anvil->Database->get_dr_links({debug => 2});
 
@@ -559,7 +559,9 @@ sub sanity_check
 		}
 	}
 
-	# If I don't have a dr_host_uuid yet, see which are available. If only one, use it. If two or more, tell the user they need to specify which.
+	# If I don't have a dr_host_uuid yet, see which are available. If only one, use it. If two or more, 
+	# and if the server is already being protected, determine which to use from it's config. Otherwise,
+	# tell the user they need to specify which.
 	if (not $dr_host_uuid)
 	{
 		my $dr_count = keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}};
@@ -585,6 +587,26 @@ sub sanity_check
 			{
 				$dr_host_uuid = $host_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_uuid => $dr_host_uuid }});
+			}
+		}
+		else
+		{
+			# Two or more. Is the server already protected? If so, try to find which DR it's 
+			# using.
+			if (($anvil->data->{switches}{'connect'}) or ($anvil->data->{switches}{'disconnect'}))
+			{
+				# Read the config.
+				my $config_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+				   $config_file =~ s/\/\//\//g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
+				
+				my $resource_config = $anvil->Storage->read_file({file => $config_file});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_config => $resource_config }});
+				foreach my $line (split/\n/, $resource_config)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lineg => $line }});
+					
+				}
 			}
 		}
 	}

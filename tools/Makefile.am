@@ -52,6 +52,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-auto-initialize-all \
 			  striker-boot-machine \
 			  striker-check-machines \
+			  striker-collect-debug \
 			  striker-db-report \
 			  striker-db-status \
 			  striker-file-manager \

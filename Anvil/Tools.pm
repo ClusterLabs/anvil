@@ -1282,6 +1282,7 @@ sub _set_paths
 				swapon				=>	"/usr/sbin/swapon",
 				sysctl				=>	"/usr/sbin/sysctl",
 				systemctl			=>	"/usr/bin/systemctl",
+				tar				=>	"/usr/bin/tar",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",
 				tput				=>	"/usr/bin/tput", 

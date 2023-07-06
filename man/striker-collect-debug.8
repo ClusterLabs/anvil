@@ -1,0 +1,41 @@
+.\" Manpage for the Anvil! machine power and access reporting tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH striker-collect-data "8" "July 04 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+striker-collect-data \- This program collects data needed to help diagnose problems with an Anvil! system.
+.SH SYNOPSIS
+.B striker-collect-data 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program collects database data, logs, config files and other information needed to help diagnose problems with the Anvil! platform. By default, this collects all data from all accessible machines.
+.TP
+.B Note:
+.TP
+This program collects potentially secure information, like passwords. Be careful who you share the collected data with!
+.TP
+The data from Striker dashboards are always collected.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-anvil\fR <name or UUID>
+.TP
+This restricts the data to be collected to the Striker dashboards and the specific Anvil! node pair.
+.TP
+\fB\-\-hosts\fR <comma-separated list of host names or UUIDs>
+.TP
+This can be used to specify which specific hosts data is collected from. Note that this can be used in conjuction with \fB\-\-anvil\fR to add additional hosts to collect data from, like DR hosts. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

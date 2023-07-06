@@ -25,4 +25,5 @@ dist_man8_MANS		= \
 			  anvil-watch-drbd.8 \
 			  scancore.8 \
 			  striker-check-machines.8 \
+			  striker-collect-debug.8 \
 			  striker-initialize-host.8

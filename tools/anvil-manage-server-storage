@@ -516,7 +516,7 @@ sub manage_disk_add
 	my $next_drbd_volume = "";
 	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
 	{
-		my $host_uuid       = $anvil->Get->host_uuid_from_name({debug => 2, host_name => $this_host});
+		my $host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $this_host});
 		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:this_host'       => $this_host, 
@@ -988,7 +988,6 @@ sub manage_disk_add
 	$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$drbd_resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	($output, $return_code) = $anvil->System->call({
-		debug      => 2,
 		background => 1,
 		shell_call => $shell_call,
 	});
@@ -1002,12 +1001,20 @@ sub manage_disk_add
 	print "- Waiting for all peers to connect the new volume...";
 	my $waiting    = 1;
 	my $wait_until = time + 300;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
 	while ($waiting)
 	{
 		$anvil->DRBD->get_status({debug => 2});
 		my $peers_connected = 1;
 		my $disks_ready     = 0;
-		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{peers}})
+		my $drbd_peer_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_peer_count => $drbd_peer_count }});
+		if (not $drbd_peer_count)
+		{
+			$peers_connected = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
+		}
+		foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}})
 		{
 			my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name}); 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1039,6 +1046,7 @@ sub manage_disk_add
 			$anvil->data->{peers}{$short_host_name}{role}       = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"peers::${short_host_name}::disk_state" => $anvil->data->{peers}{$short_host_name}{disk_state},
+				"peers::${short_host_name}::role"       => $anvil->data->{peers}{$short_host_name}{role},
 			}});
 			foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}})
 			{
@@ -1054,12 +1062,12 @@ sub manage_disk_add
 				if (lc($replication_state) ne "established")
 				{
 					$disks_ready = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
 				}
 				if ((not $peer_disk_state) or (lc($peer_disk_state) eq "diskless"))
 				{
 					$disks_ready = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
 				}
 				
 				$anvil->data->{peers}{$peer_name}{disk_state} = $peer_disk_state;
@@ -1070,7 +1078,7 @@ sub manage_disk_add
 			}
 		}
 		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
 		if ($disks_ready)
 		{
 			$waiting = 0;
@@ -1118,20 +1126,28 @@ sub manage_disk_add
 		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." primary ".$drbd_resource." --force";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
+		print Dumper %{$anvil->data->{peers}};
+		die;
+		
 		# Which node should be forced primary?
+		my $already_primary = 1;
 		if (not $primary_on_host)
 		{
 			# We'll make it primary.
 			$primary_on_host = $short_host_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { primary_on_host => $primary_on_host }});
+			$already_primary = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				primary_on_host => $primary_on_host, 
+				already_primary => $already_primary,
+			}});
 		}
 		
-		my $primary_on_host_uuid = $anvil->Get->host_uuid_from_name({debug => 2, host_name => $primary_on_host});
+		my $primary_on_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $primary_on_host});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { primary_on_host_uuid => $primary_on_host_uuid }});
 		if ($primary_on_host_uuid eq $anvil->Get->host_uuid)
 		{
 			print "- Forcing primary locally... ";
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code,
@@ -1166,6 +1182,10 @@ sub manage_disk_add
 		{
 			my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 			my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				use_ip      => $use_ip,
+				use_network => $use_network,
+			}});
 			print " - The resource is primary on the peer: [".$short_host_name."], forcing primary there via: [".$use_ip." (".$use_network.")]";
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				shell_call => $shell_call, 
@@ -1209,85 +1229,172 @@ sub manage_disk_add
 	{
 		print "Initial sync does not appear to be required.\n";
 	}
-
-=cut
-	my $startup_needed = 1;
-	my $local_role     = defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{role} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_role => $local_role }});
 	
-	# Create the DRBD metadata. For this, we don't fail.
+	# Is the server running? If so, where.
+	print "- Ready to add the new disk. Checking if the server is running...\n";
+	my $server_host = "";
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
 			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$drbd_resource."/".$next_drbd_volume;
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's7:shell_call'      => $shell_call, 
+				's3:shell_call'      => $shell_call, 
 			}});
+			
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				print " - Creating the new local LV: [".$backing_disk."]...";
-				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output,
-					return_code => $return_code, 
-				}});
-				if ($return_code)
-				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to create the new local logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==========\n";
-					print $output."\n";
-					print "==========\n";
-					print "The creation of the new replicatedd disk is incomplete, manual intervention is required!!\n";
-					$anvil->nice_exit({exit_code => 1});
-				}
-				else
-				{
-					print " Done!\n";
-				}
+				$anvil->Server->find();
 			}
 			else
 			{
-				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
-				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-				print " - Creating the new LV on the peer: [".$short_host_name.":".$backing_disk."], via: [".$use_ip." (".$use_network.")]";
-				my ($output, $error, $return_code) = $anvil->Remote->call({
-					shell_call => $shell_call, 
-					target     => $use_ip,
-				});
+				my $use_ip = $anvil->data->{peer}{$short_host_name}{access}{ip};
+				$anvil->Server->find({target => $use_ip });
+			}
+			
+			if ((exists $anvil->data->{server}{location}{$server_name}) && 
+			    ($anvil->data->{server}{location}{$server_name}{host_name}))
+			{
+				my $this_host     = defined $anvil->data->{server}{location}{$server_name}{host_name} ? $anvil->data->{server}{location}{$server_name}{host_name} : "";
+				my $server_status = defined $anvil->data->{server}{location}{$server_name}{status}    ? $anvil->data->{server}{location}{$server_name}{status}    : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output, 
-					error       => $error,
-					return_code => $return_code,
+					this_host     => $this_host, 
+					server_status => $server_status, 
 				}});
-				if ($return_code)
+				if ($server_status eq "running")
 				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to create the peer's logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==] STDOUT [========\n";
-					print $output."\n";
-					print "==] STDERR [========\n";
-					print $error."\n";
-					print "====================\n";
-					print "The creation of the new replicated disk is incomplete, manual intervention is required!!\n";
-					$anvil->nice_exit({exit_code => 1});
-				}
-				else
-				{
-					print " Done!\n";
+					# Found it.
+					$server_host = $this_host;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host => $server_host }});
+					if ($host_uuid eq $anvil->Get->host_uuid)
+					{
+						print "- The server is running on this host, we'll attach the disk here.\n";
+					}
+					else
+					{
+						print "- The server is running on: [".$server_host."], we'll attach the disk there.\n";
+					}
+					last;
 				}
 			}
 		}
 	}
-=cut
+	
+	my $offline = 0;
+	if (not $server_host)
+	{
+		print "- The server isn't running anywhere, we'll attach the disk offline on this host.\n";
+		$server_host = $short_host_name;
+		$offline     = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_host => $server_host, 
+			offline     => $offline, 
+		}});
+	}
+	
+	$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." attach-disk ".$server_name." ";
+	$shell_call .= "/dev/drbd/by-res/".$drbd_resource."/".$next_drbd_volume." ".$new_device_target." ";
+	$shell_call .= "--persistent --targetbus ".$disk_device_bus." ";
+	$shell_call .= "--cache ".$disk_cache." ";
+	$shell_call .= "--io ".$disk_io_policy;
+	$shell_call .= "--sourcetype block --subdriver raw";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	if ($offline)
+	{
+		# Define the VM, if needed, then add the drive, dump the config and push it out.
+		print "- Defining the server: [".$server_name."] to prepare for 'virsh' modification of the server.\n";
+		update_definition($anvil, "define", "");
+		
+		# Update the definition.
+		print "- Adding the drive to the definition now.\n";
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		print "- Updating the stored definition and undefining the server now...\n";
+		update_definition($anvil, "undefine", "");
+		print "Done!\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		# Add the drive live, dump the new definition and push it out.
+		my $host_uuid = $anvil->Get->host_uuid_from_name({host_name => $server_host}); 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+		if ($host_uuid eq $anvil->Get->host_uuid)
+		{
+			# Do the add here.
+			print "- Adding the drive to the server directly...\n";
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		
+			print "- Updating the stored definition and undefining the server now...\n";
+			update_definition($anvil, "undefine", "");
+			print "Done!\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			# Do the add on the target.
+			my $use_ip = $anvil->data->{peer}{$short_host_name}{access}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+			print " - Adding the drivve to the server using its host: [".$server_host."] via: [".$use_ip."]...\n";
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				shell_call => $shell_call, 
+				target     => $use_ip,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				error       => $error,
+				return_code => $return_code,
+			}});
+			
+			# Get the updated definition file.
+			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			(my $virsh_definition, $error, $return_code) = $anvil->Remote->call({
+				shell_call => $shell_call, 
+				target     => $use_ip,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				virsh_definition => $virsh_definition, 
+				error            => $error,
+				return_code      => $return_code,
+			}});
+			
+			# Make sure the $output is valid XML.
+			my $problem = $anvil->Server->parse_definition({
+				server     => $server_name,
+				source     => "from_virsh", 
+				definition => $virsh_definition, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			
+			if ($problem)
+			{
+				# Failed?!
+				print "
+[ Error ] - The definition file read from the remote host appears to be invalid after trying to attach the 
+[ Error ] - disk! It is unsafe to update the on disk and in DB definition. It's likely the attach has failed.
+[ Error ] - Manual update to the server is likely required now.
+";
+					$anvil->nice_exit({exit_code => 1});
+			}
+		
+			print "- Updating the stored definition and undefining the server now...\n";
+			update_definition($anvil, "undefine", $virsh_definition);
+			print "Done!\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
 	
 	return(0);
 }
@@ -1695,7 +1802,7 @@ sub manage_optical
 		if (not -f $iso)
 		{
 			print "[ Error ] - The target: [".$iso."] doesn't exist, can't insert it into the optical drive.\n";
-			update_definition($anvil, "undefine");
+			update_definition($anvil, "undefine", "");
 			$anvil->nice_exit({exit_code => 1});
 		}
 		else
@@ -1707,7 +1814,7 @@ sub manage_optical
 	
 	# If the server is running, update the on-disk and in-DB definition.
 	print "Defining the server: [".$server_name."] to prepare for 'virsh' modification of the server.\n";
-	update_definition($anvil, "define");
+	update_definition($anvil, "define", "");
 	
 	# Now we can modify the server using virsh.
 	if ($anvil->data->{switches}{insert})
@@ -1742,7 +1849,7 @@ sub manage_optical
 	print "'virsh' Output: [".$output."]\n";
 	
 	print "Updating the stored definition and undefining the server now:\n";
-	update_definition($anvil, "undefine");
+	update_definition($anvil, "undefine", "");
 	print "Done!\n";
 	
 	return(0);
@@ -1929,7 +2036,7 @@ sub check_drbd_peer_access
 	my $all_online = 1;
 	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
 	{
-		my $host_uuid       = $anvil->Get->host_uuid_from_name({debug => 2, host_name => $this_host});
+		my $host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $this_host});
 		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:this_host'       => $this_host, 
@@ -2284,8 +2391,11 @@ sub validate_server
 # Update the definition on disk and in the DB, and define or undefine if requested.
 sub update_definition
 {
-	my ($anvil, $task) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
+	my ($anvil, $task, $definition) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		task       => $task,
+		definition => $definition, 
+	}});
 	
 	my $short_host_name     = $anvil->Get->short_host_name;
 	my $server_name         = $anvil->data->{switches}{server_name};
@@ -2330,39 +2440,55 @@ sub update_definition
 	
 	my $disk_definition  = $anvil->data->{server}{$short_host_name}{$server_name}{from_disk}{xml}  ? $anvil->data->{server}{$short_host_name}{$server_name}{from_disk}{xml}  : "";
 	my $virsh_definition = $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml} ? $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml} : "";
-	my $use_definition   = "";
-	if (($server_running_here) or (($server_state eq "running") && ($virsh_definition)))
+	my $use_definition   = $virsh_definition;
+	if (not $use_definition)
 	{
-		# Get the live definition
-		if ($server_running_here)
+		if (($server_running_here) or (($server_state eq "running") && ($virsh_definition)))
 		{
-			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			my ($live_virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				live_virsh_definition => $live_virsh_definition, 
-				return_code           => $return_code,
-			}});
-			
-			my ($problem) = $anvil->Server->parse_definition({
-				server     => $server_name,
-				source     => "from_virsh", 
-				definition => $live_virsh_definition, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-			if (not $problem)
+			# Get the live definition
+			if ($server_running_here)
 			{
-				$use_definition = $live_virsh_definition;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+				my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
-				$anvil->Server->parse_definition({
-					debug      => 3,
-					host       => $short_host_name,
-					server     => $server_name, 
-					source     => "from_virsh",
+				my ($live_virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					live_virsh_definition => $live_virsh_definition, 
+					return_code           => $return_code,
+				}});
+				
+				my ($problem) = $anvil->Server->parse_definition({
+					server     => $server_name,
+					source     => "from_virsh", 
 					definition => $live_virsh_definition, 
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				if (not $problem)
+				{
+					$use_definition = $live_virsh_definition;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+					
+					$anvil->Server->parse_definition({
+						debug      => 3,
+						host       => $short_host_name,
+						server     => $server_name, 
+						source     => "from_virsh",
+						definition => $live_virsh_definition, 
+					});
+				}
+				else
+				{
+					$use_definition = $virsh_definition;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
+					
+					$anvil->Server->parse_definition({
+						debug      => 3,
+						host       => $short_host_name,
+						server     => $server_name, 
+						source     => "from_virsh",
+						definition => $virsh_definition, 
+					});
+				}
 			}
 			else
 			{
@@ -2380,30 +2506,17 @@ sub update_definition
 		}
 		else
 		{
-			$use_definition = $virsh_definition;
+			$use_definition = $disk_definition;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
 			
 			$anvil->Server->parse_definition({
 				debug      => 3,
 				host       => $short_host_name,
 				server     => $server_name, 
-				source     => "from_virsh",
+				source     => "from_disk",
 				definition => $virsh_definition, 
 			});
 		}
-	}
-	else
-	{
-		$use_definition = $disk_definition;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
-		
-		$anvil->Server->parse_definition({
-			debug      => 3,
-			host       => $short_host_name,
-			server     => $server_name, 
-			source     => "from_disk",
-			definition => $virsh_definition, 
-		});
 	}
 	
 	if (not $use_definition)

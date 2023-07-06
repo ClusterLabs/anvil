@@ -161,10 +161,10 @@ sub anvil_from_switch
 			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
 		}});
 	}
-	elsif (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_string})
+	elsif (exists $anvil->data->{anvils}{anvil_name}{$anvil_string})
 	{
 		$anvil->data->{switches}{anvil_name} = $anvil_string;
-		$anvil->data->{switches}{anvil_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_string}{anvil_uuid};
+		$anvil->data->{switches}{anvil_uuid} = $anvil->data->{anvils}{anvil_name}{$anvil_string}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"switches::anvil_name" => $anvil->data->{switches}{anvil_name},
 			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
