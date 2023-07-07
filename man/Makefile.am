@@ -26,4 +26,5 @@ dist_man8_MANS		= \
 			  scancore.8 \
 			  striker-check-machines.8 \
 			  striker-collect-debug.8 \
-			  striker-initialize-host.8
+			  striker-initialize-host.8 \
+			  striker-update-cluster
