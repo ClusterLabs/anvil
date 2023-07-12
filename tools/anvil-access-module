@@ -524,10 +524,12 @@ else
 	my $script_file_handle;
 
 	eval {
-		if ($script_file =~ /^#!SET!#|-$/)
-		{
-			$script_file = "-";
+		# TODO: make this script read piped input
 
+		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
+
+		if ($script_file =~ /^-$/)
+		{
 			open($script_file_handle, $script_file);
 		}
 		else
