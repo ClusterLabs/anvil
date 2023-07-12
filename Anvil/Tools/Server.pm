@@ -18,6 +18,7 @@ my $THIS_FILE = "Server.pm";
 # find
 # get_definition
 # get_runtime
+# get_servers
 # get_status
 # map_network
 # parse_definition
@@ -612,6 +613,77 @@ sub get_runtime
 	}
 	
 	return($runtime);
+}
+
+
+sub get_servers
+{
+	my $self          = shift;
+	my $parameters    = shift;
+	my $anvil         = $self->parent;
+	my $base_vnc_port = $parameters->{base_vnc_port} // 5900;
+	my $debug         = $parameters->{debug} // 3;
+
+	return (1) if ($base_vnc_port =~ /^\d+$/);
+
+	$base_vnc_port = int($base_vnc_port);
+
+	# Servers only exist on non-striker
+	return (1) if ($anvil->data->{sys}{host_type} eq "striker");
+
+	my $grep = $anvil->data->{path}{exe}{'grep'};
+	my $nc   = $anvil->data->{path}{exe}{'nc'};
+	my $ps   = $anvil->data->{path}{exe}{'ps'};
+	my $sed  = $anvil->data->{path}{exe}{'sed'};
+
+	my $ps_call = "$ps -ef | $grep '[q]emu-kvm' | $sed -E 's@^.*guest=([^,]+).*-uuid[[:space:]]+([^[:space:]]+)(.*-vnc[[:space:]]+([[:digit:].:]+))?.*\$@\\2,\\1,\\4@'";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ps_call => $ps_call }});
+
+	my ($call_output, $call_rcode) = $anvil->System->call({ shell_call => $ps_call });
+
+	return (1) if ($call_rcode != 0);
+
+	my $result = { names => {}, uuids => {} };
+
+	foreach my $line (split(/\n/, $call_output))
+	{
+		my ($uuid, $name, $vnc) = split(/,/, $line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			server_name => $name,
+			server_uuid => $uuid,
+			server_vnc  => $vnc,
+		}});
+
+		$result->{uuids}{$uuid} = { name => $name };
+		# Record name to UUID mapping
+		$result->{names}{$name} = $uuid;
+
+		next if (not $vnc);
+
+		my ($hostname, $port_offset) = split(/:/, $vnc);
+
+		my $vnc_port = $base_vnc_port + int($port_offset);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			server_vnc_hostname    => $hostname,
+			server_vnc_port_offset => $port_offset,
+			server_vnc_port        => $vnc_port,
+		}});
+
+		$result->{uuids}{$uuid}{vnc_port} = $vnc_port;
+
+		my $nc_call = "$nc -z $hostname $vnc_port";
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { nc_call => $nc_call }});
+
+		my ($nc_output, $nc_rcode) = $anvil->System->call({ shell_call => $nc_call });
+
+		$result->{uuids}{$uuid}{vnc_alive} => int($nc_rcode) > 0 ? 0 : 1;
+	}
+
+	return (0, $result);
 }
 
 
