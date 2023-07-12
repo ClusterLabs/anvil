@@ -624,7 +624,11 @@ sub get_servers
 	my $base_vnc_port = $parameters->{base_vnc_port} // 5900;
 	my $debug         = $parameters->{debug} // 3;
 
-	return (1) if ($base_vnc_port =~ /^\d+$/);
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters });
+
+	$base_vnc_port = "$base_vnc_port";
+
+	return (1) if (not $base_vnc_port =~ /^\d+$/);
 
 	$base_vnc_port = int($base_vnc_port);
 
@@ -636,7 +640,7 @@ sub get_servers
 	my $ps   = $anvil->data->{path}{exe}{'ps'};
 	my $sed  = $anvil->data->{path}{exe}{'sed'};
 
-	my $ps_call = "$ps -ef | $grep '[q]emu-kvm' | $sed -E 's@^.*guest=([^,]+).*-uuid[[:space:]]+([^[:space:]]+)(.*-vnc[[:space:]]+([[:digit:].:]+))?.*\$@\\2,\\1,\\4@'";
+	my $ps_call = "$ps -ef | $grep '[q]emu-kvm' | $sed -E 's/^.*guest=([^,]+).*-uuid[[:space:]]+([^[:space:]]+)(.*-vnc[[:space:]]+([[:digit:].:]+))?.*\$/\\2,\\1,\\4/'";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ps_call => $ps_call }});
 
@@ -680,7 +684,7 @@ sub get_servers
 
 		my ($nc_output, $nc_rcode) = $anvil->System->call({ shell_call => $nc_call });
 
-		$result->{uuids}{$uuid}{vnc_alive} => int($nc_rcode) > 0 ? 0 : 1;
+		$result->{uuids}{$uuid}{vnc_alive} = int($nc_rcode) > 0 ? 0 : 1;
 	}
 
 	return (0, $result);
