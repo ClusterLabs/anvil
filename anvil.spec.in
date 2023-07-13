@@ -157,7 +157,7 @@ NOTE: This installs and enables Gnome desktop.
 
 %package node 
 Summary:        Alteeve's Anvil! node package
-Requires:	anvil-core == %{version}-%{release}
+Requires:       anvil-core == %{version}-%{release}
 Requires:       drbd90-utils 
 Requires:       kmod-drbd
 Requires:       libvirt 
@@ -177,6 +177,7 @@ Requires:       virt-top
 # allowed to host a database or be a DR host.
 Conflicts:      anvil-striker
 Conflicts:      anvil-dr
+Conflicts:      netcat
 
 %description node
 
@@ -189,7 +190,7 @@ NOTE: LINBIT customers must have access to the LINBIT repositories configured.
 
 %package dr
 Summary:        Alteeve's Anvil! DR host package
-Requires:	anvil-core == %{version}-%{release}
+Requires:       anvil-core == %{version}-%{release}
 Requires:       drbd90-utils 
 Requires:       kmod-drbd
 Requires:       libvirt 
@@ -204,8 +205,9 @@ Requires:       qemu-kvm-core
 Requires:       virt-install
 Requires:       virt-top
 # A DR host is not allowed to be a live-migration target or host a database.
-Conflicts:	anvil-striker
-Conflicts:	anvil-node
+Conflicts:      anvil-striker
+Conflicts:      anvil-node
+Conflicts:      netcat
 
 %description dr
 
