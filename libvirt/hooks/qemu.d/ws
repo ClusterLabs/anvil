@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# Note: libvirt hook scripts execute with uid=0(root) gid=0(root) for all
+#       operations, i.e., started, stopped.
+#
 
 # TODO: re-enable after the possible libvirt deadlock is fixed.
 exit 0
