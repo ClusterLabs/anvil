@@ -1,12 +1,11 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
-import { existsSync, readFileSync } from 'fs';
-import path from 'path';
 
 import { REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { sanitize } from '../../sanitize';
-import { stderr, stdout, stdoutVar } from '../../shell';
+import { stderr, stdout } from '../../shell';
+import { execSync } from 'child_process';
 
 export const getServerDetail: RequestHandler<
   ServerDetailParamsDictionary,
@@ -37,26 +36,17 @@ export const getServerDetail: RequestHandler<
   }
 
   if (isScreenshot) {
-    const imageFileName = `${serverUuid}_screenshot`;
-    const imageFilePath = path.join(SERVER_PATHS.tmp.self, imageFileName);
-
-    stdoutVar(
-      { imageFileName, imageFilePath },
-      `Server ${serverUuid} image file: `,
-    );
-
     const rsbody = { screenshot: '' };
 
-    if (existsSync(imageFilePath)) {
-      try {
-        rsbody.screenshot = readFileSync(imageFilePath, { encoding: 'utf-8' });
-      } catch (error) {
-        stderr(
-          `Failed to read image file at ${imageFilePath}; CAUSE: ${error}`,
-        );
+    try {
+      rsbody.screenshot = execSync(
+        `${SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self} --convert --resize 500x500 --server-uuid '${serverUuid}'`,
+        { encoding: 'utf-8' },
+      );
+    } catch (error) {
+      stderr(`Failed to server ${serverUuid} screenshot; CAUSE: ${error}`);
 
-        return response.status(500).send();
-      }
+      return response.status(500).send();
     }
 
     return response.send(rsbody);
