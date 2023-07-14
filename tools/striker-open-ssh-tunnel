@@ -2,8 +2,6 @@
 #
 # Open an SSH tunnel using the Net::OpenSSH module and keep it opened with an infinite loop.
 #
-# Note: this is a temporary solution to avoid directly calling the SSH command.
-#
 
 use strict;
 use warnings;
@@ -19,86 +17,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new();
-my $ssh_fh;
-
-sub open_ssh_tunnel
-{
-	my $parameters          = shift;
-
-	# Required parameters:
-	my $remote_user         = $parameters->{remote_user};
-	my $target              = $parameters->{target};
-	my $forward_local_port  = $parameters->{forward_local_port};
-	my $forward_remote_port = $parameters->{forward_remote_port};
-
-	if ((not defined $remote_user)
-		or (not defined $target)
-		or (not defined $forward_local_port)
-		or (not defined $forward_remote_port))
-	{
-		return 1;
-	}
-
-	# Optional parameters:
-	my $port                = $parameters->{port} ? $parameters->{port} : 22;
-
-	my $ssh_fh_key          = $remote_user."\@".$target.":".$port;
-	my $query               = "
-SELECT anv.anvil_password
-FROM hosts AS hos
-JOIN anvils AS anv
-ON hos.host_uuid = anv.anvil_node1_host_uuid
-OR hos.host_uuid = anv.anvil_node2_host_uuid
-WHERE hos.host_name = ".$anvil->Database->quote($target)."
-;";
-
-	my $password = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ })->[0]->[0];
-
-	my ($output, $error, $return_code) = $anvil->Remote->call({
-		remote_user => $remote_user,
-		target      => $target,
-		password    => $password,
-		shell_call  => $anvil->data->{path}{exe}{echo}." 1",
-		no_cache    => 1,
-	});
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		output      => $output,
-		error       => $error,
-		return_code => $return_code
-	} });
-
-	if ($output eq "1")
-	{
-		$ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-
-		delete $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			is_ssh_fh_defined => defined $ssh_fh ? 1 : 0
-		} });
-	}
-
-	$ssh_fh->system({ ssh_opts => [ "-O", "forward",
-		"-L0.0.0.0:".$forward_local_port.":0.0.0.0:".$forward_remote_port ] });
-
-	return 0;
-}
-
-sub close_ssh_tunnel
-{
-	if (defined $ssh_fh->disconnect)
-	{
-		$ssh_fh->disconnect();
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			message => "SSH tunnel disconnected."
-		} });
-	}
-}
-
-$SIG->{INT}  = \&close_ssh_tunnel;
-$SIG->{TERM} = \&close_ssh_tunnel;
+my $anvil = Anvil::Tools->new({ on_sig_int => \&close_ssh_tunnel, on_sig_term => \&close_ssh_tunnel });
 
 $anvil->Get->switches;
 
@@ -111,20 +30,29 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-if (open_ssh_tunnel({
-	remote_user         => $anvil->data->{switches}{'remote-user'},
-	target              => $anvil->data->{switches}{'target'},
-	port                => $anvil->data->{switches}{'port'},
-	forward_local_port  => $anvil->data->{switches}{'forward-local-port'},
-	forward_remote_port => $anvil->data->{switches}{'forward-remote-port'}
-}) > 0)
-{
-	$anvil->nice_exit({ exit_code => 1 });
-}
+my $ssh_forward_local_port  = $anvil->data->{switches}{'forward-local-port'};
+my $ssh_forward_remote_port = $anvil->data->{switches}{'forward-remote-port'};
+my $ssh_remote_forward      = $anvil->data->{switches}{'remote'};
+my $ssh_port                = $anvil->data->{switches}{'port'};
+my $ssh_target              = $anvil->data->{switches}{'target'};
+my $ssh_user                = $anvil->data->{switches}{'user'};
+
+my $ssh_fh;
+
+my ($open_rcode) = open_ssh_tunnel({
+	forward_local_port  => $ssh_forward_local_port,
+	forward_remote_port => $ssh_forward_remote_port,
+	port                => $ssh_port,
+	remote              => $ssh_remote_forward,
+	target              => $ssh_target,
+	user                => $ssh_user,
+});
+
+$anvil->nice_exit({ exit_code => 1 }) if ($open_rcode > 0);
 
 my $is_ssh_tunnel_alive = 1;
 
-while($is_ssh_tunnel_alive)
+while ($is_ssh_tunnel_alive)
 {
 	$is_ssh_tunnel_alive = $ssh_fh->test('echo');
 
@@ -134,3 +62,85 @@ while($is_ssh_tunnel_alive)
 close_ssh_tunnel();
 
 $anvil->nice_exit({ exit_code => 0 });
+
+#
+# Functions
+#
+
+sub open_ssh_tunnel
+{
+	my $parameters          = shift;
+
+	# Required parameters:
+	my $forward_local_port  = $parameters->{forward_local_port};
+	my $forward_remote_port = $parameters->{forward_remote_port};
+	my $target              = $parameters->{target};
+	# Optional parameters:
+	my $debug               = $parameters->{debug} // 3;
+	my $port                = $parameters->{port} // 22;
+	my $remote              = $parameters->{remote} ? 1 : 0;
+	my $user                = $parameters->{user} // "admin";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters });
+
+	return (1) if ( (not defined $user)
+		or (not defined $target)
+		or (not defined $forward_local_port)
+		or (not defined $forward_remote_port) );
+
+	my $ssh_fh_key          = "${user}\@${target}:${port}";
+
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		no_cache    => 1,
+		remote_user => $user,
+		shell_call  => $anvil->data->{path}{exe}{echo}." 1",
+		target      => $target,
+	});
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output      => $output,
+		error       => $error,
+		return_code => $return_code
+	} });
+
+	return (1) if ($output ne "1");
+
+	$ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+
+	delete $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		is_ssh_fh_defined => defined $ssh_fh ? 1 : 0
+	} });
+
+	my $forward_option = "L";
+	my $port_a         = $forward_local_port;
+	my $port_b         = $forward_remote_port;
+
+	# When remote forward, change the option and reverse the ports.
+	if ($remote)
+	{
+		$forward_option = "R";
+		$port_a         = $forward_remote_port;
+		$port_b         = $forward_local_port;
+	}
+
+	$ssh_fh->system({ ssh_opts => [ "-O", "forward", "-${forward_option} 0.0.0.0:${port_a}:0.0.0.0:${port_b}" ] });
+
+	return (0);
+}
+
+sub close_ssh_tunnel
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} // 3;
+
+	if (defined $ssh_fh->disconnect)
+	{
+		$ssh_fh->disconnect();
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			message => "SSH tunnel disconnected."
+		} });
+	}
+}
