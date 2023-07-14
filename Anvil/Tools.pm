@@ -195,6 +195,8 @@ sub new
 	
 	# Set passed parameters if needed.
 	my $debug = 3;
+	my $on_sig_int;
+	my $on_sig_term;
 	if (ref($parameter) eq "HASH")
 	{
 		# Local parameters...
@@ -210,6 +212,9 @@ sub new
 		{
 			$debug = $parameter->{debug};
 		}
+
+		$on_sig_int  = $parameter->{on_sig_int};
+		$on_sig_term = $parameter->{on_sig_term};
 	}
 	elsif ($parameter)
 	{
@@ -219,8 +224,16 @@ sub new
 	}
 	
 	# This will help clean up if we catch a signal.
-	$SIG{INT}  = sub { $anvil->catch_sig({signal => "INT"});  };
-	$SIG{TERM} = sub { $anvil->catch_sig({signal => "TERM"}); };
+	$SIG{INT}  = sub {
+		$on_sig_int->({ debug => $debug }) if (ref($on_sig_int) eq "CODE");
+
+		$anvil->catch_sig({signal => "INT"});
+	};
+	$SIG{TERM} = sub {
+		$on_sig_term->({ debug => $debug }) if (ref($on_sig_term) eq "CODE");
+
+		$anvil->catch_sig({signal => "TERM"});
+	};
 	
 	# This sets the environment this program is running in.
 	if ($ENV{SERVER_NAME})
