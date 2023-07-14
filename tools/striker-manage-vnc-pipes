@@ -20,41 +20,25 @@ my $anvil = Anvil::Tools->new();
 
 sub call
 {
-	my $parameters  = shift;
-	my $host_name   = $parameters->{host_name} // $anvil->data->{sys}{host_name};
-	my $remote_user = $parameters->{remote_user};
-	my $shell_call  = $parameters->{shell_call};
+	my $parameters         = shift;
+	my $call               = $parameters->{call};
+	my $debug              = $parameters->{debug} // 3;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "call" });
+
+	return (1) if ( (not defined $call) || ($call eq "") );
 
 	my $shell_output;
-	my $shell_error;
 	my $shell_return_code;
 
-	my $is_remote_call = is_remote_host_name($host_name);
+	my ($output, $rcode) = $anvil->System->call({ shell_call => $call });
 
-	if ($is_remote_call)
-	{
-		($shell_output, $shell_error, $shell_return_code) = $anvil->Remote->call({
-			target      => $host_name,
-			remote_user => $remote_user,
-			shell_call  => $shell_call
-		});
-	}
-	else
-	{
-		($shell_output, $shell_return_code) = $anvil->System->call({ shell_call => $shell_call });
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		host_name         => $host_name,
-		is_remote_call    => $is_remote_call,
-		remote_user       => $remote_user,
-		shell_call        => $shell_call,
-		shell_output      => $shell_output,
-		shell_error       => $shell_error,
-		shell_return_code => $shell_return_code
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output => $output,
+		rcode  => $rcode
 	}, prefix => "call" });
 
-	return ($shell_output, $shell_error, $shell_return_code);
+	return ($rcode, $output);
 }
 
 sub get_server_info
@@ -141,10 +125,10 @@ sub get_vnc_info
 		# Requires root to access VM information.
 		my $shell_call = "virsh vncdisplay \"$server_name\"";
 
-		my ($shell_output, $shell_error, $shell_return_code) = call({
-			host_name   => $host_name,
-			remote_user => "root",
-			shell_call  => $shell_call
+		my ($shell_return_code, $shell_output) = call({
+			call      => $shell_call,
+			host_name => $host_name,
+			user      => "root",
 		});
 
 		return if ($shell_return_code != 0);
@@ -183,7 +167,7 @@ sub get_available_port
 
 	my $shell_call = "ss_output=\$(ss --all --tcp --numeric) && port=".$start_port." && while egrep -q \":\${port}[[:space:]]+[^[:space:]]+\" <<<\$ss_output; do (( port ".$step_operator."= ".$step_size." )); done && echo \$port";
 
-	my ($shell_output, $shell_error, $shell_return_code) = call({ host_name => $host_name, shell_call => $shell_call });
+	my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
 
 	if ($shell_return_code == 0)
 	{
@@ -200,7 +184,7 @@ sub is_websockify_process
 	my $ws_pid     = $parameters->{ws_pid};
 	my $shell_call = "ps -e -o command -h -p ".$ws_pid;
 
-	my ($shell_output, $shell_error, $shell_return_code) = call({ host_name  => $host_name, shell_call => $shell_call });
+	my ($shell_return_code, $shell_output) = call({ host_name  => $host_name, call => $shell_call });
 
 	return $shell_output =~ /websockify/ ? 1 : 0;
 }
@@ -213,7 +197,7 @@ sub is_ssh_process
 
 	my $shell_call = "ps -e -o command -h -p ".$ssh_tunnel_pid;
 
-	my ($shell_output) = call({ host_name => $host_name, shell_call => $shell_call });
+	my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
 
 	return $shell_output =~ /striker-open-ssh-tunnel/ ? 1 : 0;
 }
@@ -468,10 +452,10 @@ sub start_websockify
 
 		my $shell_call = "websockify ".$source_port." :".$target_port." &>/dev/null & echo pid:\$!";
 
-		my ($shell_output, $shell_error, $shell_return_code) = call({
-			host_name   => $ws_host_name,
-			remote_user => "admin",
-			shell_call  => $shell_call
+		my ($shell_return_code, $shell_output) = call({
+			call      => $shell_call,
+			host_name => $ws_host_name,
+			user      => "admin",
 		});
 
 		return if ($shell_return_code != 0);
@@ -505,7 +489,7 @@ sub stop_websockify
 
 	return if (not is_websockify_process($parameters));
 
-	call({ host_name  => $host_name, shell_call => "kill $ws_pid || kill -9 $ws_pid" });
+	call({ host_name  => $host_name, call => "kill $ws_pid || kill -9 $ws_pid" });
 }
 
 sub start_ssh_tunnel
@@ -564,7 +548,7 @@ sub start_ssh_tunnel
 			." --forward-remote-port ".$ws_dest_port
 			." &>/dev/null & echo pid:\$!";
 
-		my ($shell_output, $shell_error, $shell_return_code) = call({ host_name => $host_name, shell_call => $shell_call });
+		my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
 
 		if ($shell_return_code == 0)
 		{
@@ -598,7 +582,7 @@ sub stop_ssh_tunnel
 
 	return if (not is_ssh_process($parameters));
 
-	call({ host_name => $host_name, shell_call => "kill $ssh_tunnel_pid || kill -9 $ssh_tunnel_pid" });
+	call({ host_name => $host_name, call => "kill $ssh_tunnel_pid || kill -9 $ssh_tunnel_pid" });
 }
 
 sub create_vnc_pipes_table
