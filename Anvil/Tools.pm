@@ -851,9 +851,6 @@ sub _set_defaults
 		},
 	};
 	$anvil->data->{sys} = {
-		apache				=>	{
-			user				=>	"admin",
-		},
 		daemon				=>	{
 			dhcpd				=>	"dhcpd.service",
 			firewalld			=>	"firewalld.service",

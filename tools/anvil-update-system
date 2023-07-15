@@ -36,10 +36,12 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-# Read switches
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches({list => [
+	"clear-cache",
+	"no-reboot"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Log that we've started.
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -90,7 +92,32 @@ my $reboot_needed = $anvil->System->reboot_needed({debug => 2});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 if ($reboot_needed)
 {
-	update_progress($anvil, 100, "message_0039");
+	if (not $anvil->data->{switches}{'no-reboot'})
+	{
+		# Record that we're going to reboot now.
+		update_progress($anvil, 100, "message_0317");
+
+		# Clear maintenance mode.
+		$anvil->System->maintenance_mode({set => 0});
+		
+		# Record that we're rebooting so that 'striker-update-cluster' knows to wait for a reboot.
+		my $query = "UPDATE jobs SET job_status = 'rebooted', modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		
+		sleep 2;
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	else
+	{
+		# Record that a reboot is needed.
+		update_progress($anvil, 100, "message_0039");
+	}
 }
 else
 {
@@ -140,17 +167,57 @@ sub run_os_update
 	# This needs to be set to avoid warnings when called without a job-uuid.
 	$anvil->data->{sys}{last_update} = 0;
 	
+	# Make sure that, if we're a node, we're out of the cluster.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
+	if ($host_type eq "node")
+	{
+		# Call anvil-safe-stop
+		update_progress($anvil, 3, "message_0314");
+		
+		my $problem = $anvil->Cluster->parse_cib({debug => 3});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+		if (not $problem)
+		{
+			# Call anvil-safe-stop
+			update_progress($anvil, 4, "message_0315");
+			
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+		}
+	}
+	
+	# Should we clear the cache?
+	if ($anvil->data->{switches}{'clear-cache'})
+	{
+		# Yes.
+		my $shell_call  = $anvil->data->{path}{exe}{dnf}." clean all";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		update_progress($anvil, 5, "message_0316");
+	}
+	
 	# NOTE: We run this directly to better monitor progress and update the progress.
 	my $transaction_shown = 0;
 	my $success           = 0;
 	my $to_update         = 0;
 	my $percent_step      = 0;
-	my $progress          = 5;
+	my $progress          = 6;
 	my $counted_lines     = 0;
 	my $next_step         = 0;
 	my $verifying         = 0;
 	my $output            = "";
-	my $shell_call        = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update --best --allowerasing; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
+	my $shell_call        = $anvil->data->{path}{exe}{dnf}." -y update --best --allowerasing; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
@@ -161,14 +228,6 @@ sub run_os_update
 		   $line   =  $anvil->Words->clean_spaces({string => $line});
 		   $anvil->data->{counts}{lines}++;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "counts::lines" => $anvil->data->{counts}{lines}, line => $line }});
-		
-		if ($line =~ /^kernel /)
-		{
-			# Reboot will be needed.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0690!#" }});
-			my $reboot_needed = $anvil->System->reboot_needed({set => 1});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { reboot_needed => $reboot_needed }});
-		}
 		
 		# If there were no updates, let the user know.
 		if ($line =~ /^Nothing to do/i)
@@ -285,6 +344,37 @@ sub run_os_update
 	# Reload daemons to pick up any changed systemctl daemons.
 	my ($systemctl_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{systemctl}." daemon-reload", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { systemctl_output => $systemctl_output, return_code => $return_code }});
+	
+	### See if the kernel has been updated.
+	# Get the newest installed kernel
+	my $shell_call = $anvil->data->{path}{exe}{rpm}." -q kernel | ".$anvil->data->{path}{exe}{'sort'}." | ".$anvil->data->{path}{exe}{tail}." -n 1";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($installed_kernel, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		installed_kernel => $installed_kernel, 
+		return_code      => $return_code, 
+	}});
+	$installed_kernel =~ s/^kernel-(\d+.\d+\.\d+-\d+)\..*$/$1/;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { installed_kernel => $installed_kernel }});
+	
+	# Get the running kernel
+	$shell_call  = $anvil->data->{path}{exe}{uname}." -r";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	(my $active_kernel, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		active_kernel => $active_kernel, 
+		return_code   => $return_code, 
+	}});
+	$active_kernel =~ s/(\d+.\d+\.\d+-\d+)\..*$/$1/;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { active_kernel => $active_kernel }});
+	
+	if ($installed_kernel ne $active_kernel)
+	{
+		# Reboot needed
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0690!#" }});
+		my $reboot_needed = $anvil->System->reboot_needed({set => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+	}
 	
 	# Did it work?
 	if (not $success)

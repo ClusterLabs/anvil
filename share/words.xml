@@ -1555,6 +1555,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0464">Calling select ScanCore scan agents to ensure the database is updated.</key>
 		<key name="job_0465">Reload (adjust) a DRBD resource</key>
 		<key name="job_0466">This job is to reload (adjust) a DRBD resource. It's run as a job as it blocks until the adjust is run on all nodes.</key>
+		<key name="job_0467">Update the base operating system.</key>
+		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2408,7 +2410,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0005">There was an unknown error while connecting as: [#!variable!user!#] to: [#!variable!remote_user!#@#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
 		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
-		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
+		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error:
+====
+#!variable!error!#
+====</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
@@ -2899,6 +2904,10 @@ Proceed? [y/N]</key>
 		<key name="message_0311">Picked up the special operation job.</key>
 		<key name="message_0312">Reloading (adjusting) the DRBD resource: [#!variable!resource!#]. This will not complete until all peers have also reloaded this resource.</key>
 		<key name="message_0313">DRBD resource: [#!variable!resource!#] has been reloaded.</key>
+		<key name="message_0314">Checking if the subnode is out of the node's cluster before updating the OS.</key>
+		<key name="message_0315">The subnode is in the node's cluster, asking it to withdraw. This could take some time if servers need to be migrated.</key>
+		<key name="message_0316">Cleared 'dnf' cache.</key>
+		<key name="message_0317">The kernel was updated, so a reboot is required. Rebooting now.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

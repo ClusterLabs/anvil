@@ -311,6 +311,7 @@ sub call
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		'close'    => $close, 
+		no_cache   => $no_cache,
 		password   => $anvil->Log->is_secure($password), 
 		secure     => $secure, 
 		shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
@@ -634,6 +635,19 @@ sub call
 		{
 			$error = $anvil->Words->string({key => $message_key, variables => $variables});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				'close'    => $close, 
+				password   => $anvil->Log->is_secure($password), 
+				secure     => $secure, 
+				shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+				ssh_fh     => $ssh_fh,
+				start_time => $start_time, 
+				timeout    => $timeout, 
+				port       => $port, 
+				target     => $target,
+				ssh_fh_key => $ssh_fh_key, 
+			}});
 		}
 	
 	}
@@ -676,6 +690,10 @@ sub call
 				error      => $ssh_fh->error,
 			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { error => $error }});
+			
+			# Close the connection.
+			$close = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'close' => $close }});
 		}
 		
 		# Take the last new line off.
@@ -923,6 +941,10 @@ This attempts to log into the target to verify that the target is up and reachab
 
 Parameters;
 
+=head3 close (optional, default '1')
+
+If set, the SSH connection used to test the access to the remote host wil be closed. This can be useful it there might be a delay between when the connecton is tested and when it is used again.
+
 =head3 password (optional)
 
 This is the password used to connect to the remote target as the given user.
@@ -950,12 +972,14 @@ sub test_access
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->test_access()" }});
 	
+	my $close    = defined $parameter->{'close'}  ? $parameter->{'close'}  : 1;
 	my $password = defined $parameter->{password} ? $parameter->{password} : "";
 	my $port     = defined $parameter->{port}     ? $parameter->{port}     : 22;
 	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
 	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
 	my $access   = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		'close'  => $close,
 		password => $anvil->Log->is_secure($password), 
 		port     => $port, 
 		target   => $target,
@@ -969,7 +993,7 @@ sub test_access
 		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
 		target      => $target,
 		remote_user => $user, 
-		'close'     => 1,
+		'close'     => $close,
 		no_cache    => 1,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

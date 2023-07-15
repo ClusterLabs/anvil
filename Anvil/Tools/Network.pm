@@ -1212,7 +1212,7 @@ Paramters;
 
 =head3 target (required)
 
-This is the host we're looking for connection options with.
+This is the host (name or UUID) we're looking for connection options with.
 
 =cut
 sub find_access

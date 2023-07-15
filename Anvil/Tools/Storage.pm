@@ -452,7 +452,7 @@ sub change_mode
 
 This changes the owner and/or group of a file or directory.
 
- $anvil->Storage->change_owner({path => "/tmp/foo", user => "apache", group => "apache" });
+ $anvil->Storage->change_owner({path => "/tmp/foo", user => "striker-ui-api", group => "striker-ui-api" });
 
 If it fails to write the file, an alert will be logged and 'C<< 1 >>' will be returned. Otherwise, 'C<< 0 >>' will be returned.
 
@@ -4972,11 +4972,11 @@ sub update_config
 			body        => $new_file,
 			debug       => $debug,
 			file        => $anvil->data->{path}{configs}{'anvil.conf'},
-			group       => "apache", 
+			group       => "striker-ui-api", 
 			mode        => "0640",
 			overwrite   => 1,
 			secure      => 1,
-			user        => "apache",
+			user        => "striker-ui-api",
 			password    => $password, 
 			port        => $port, 
 			target      => $target, 

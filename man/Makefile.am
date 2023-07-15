@@ -18,6 +18,7 @@ dist_man8_MANS		= \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \
 			  anvil-manage-keys.1 \
+			  anvil-manage-power.8 \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
@@ -27,4 +28,4 @@ dist_man8_MANS		= \
 			  striker-check-machines.8 \
 			  striker-collect-debug.8 \
 			  striker-initialize-host.8 \
-			  striker-update-cluster
+			  striker-update-cluster.8 
