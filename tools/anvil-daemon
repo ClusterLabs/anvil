@@ -252,8 +252,8 @@ sub check_ram
 	}});
 	if ($problem)
 	{
-		# See if an 'anvil-sync-shared' job is running and, if so, don't exit. The file copy is 
-		# counted and not an actual problem.
+		# See if an 'anvil-sync-shared', or an 'anvil-update-system' job is running and, if so, 
+		# don't exit. The file copy or OS update is counted and not an actual problem.
 		$anvil->Database->get_jobs({debug => 2});
 		foreach my $job_uuid (keys %{$anvil->data->{jobs}{running}})
 		{
@@ -264,7 +264,13 @@ sub check_ram
 				job_progress => $job_progress, 
 			}});
 			
-			if (($job_progress != 100) && ($job_command =~ /anvil-sync-shared/))
+			if (
+			    ($job_progress != 100) && 
+			    (
+			     ($job_command =~ /anvil-update-system/) or 
+			     ($job_command =~ /anvil-sync-shared/)
+			    )
+			   )
 			{
 				# Don't abort.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0139", variables => { 

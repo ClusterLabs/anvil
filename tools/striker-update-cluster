@@ -416,6 +416,14 @@ sub update_nodes
 						$rebooted = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rebooted => $rebooted }});
 					}
+					
+					# Did it fail?
+					if ($anvil->data->{jobs}{job_data} eq "failed")
+					{
+						# Abort!
+						print "[ Error ] - There was a problem updating the subnode! Anvil! cluster update aborted.\n";
+						$anvil->nice_exit({exit_code => 1});
+					}
 				}
 				else
 				{
@@ -477,6 +485,7 @@ sub update_nodes
 					}});
 					
 					my ($output, $error, $return_code) = $anvil->Remote->call({
+						debug      => 2,
 						shell_call => $shell_call, 
 						target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 					});
@@ -880,6 +889,14 @@ sub update_strikers_and_dr
 						{
 							$rebooted = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rebooted => $rebooted }});
+						}
+						
+						# Did it fail?
+						if ($anvil->data->{jobs}{job_data} eq "failed")
+						{
+							# Abort!
+							print "[ Error ] - There was a problem updating the system! Anvil! cluster update aborted.\n";
+							$anvil->nice_exit({exit_code => 1});
 						}
 					}
 					else

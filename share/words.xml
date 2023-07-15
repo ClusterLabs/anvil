@@ -603,6 +603,10 @@ The error was:
 		<key name="error_0417">There was a problem with finding a common storage network between: [#!variable!node1_name!#] and: [#!variable!node2_name!#]. Found node 1 to have the IP: [#!variable!node1_ip!#] and node 2: [#!variable!node2_ip!#]. Is there a problem with '/etc/hosts'?</key>
 		<key name="error_0418">Failed to find a network to use for storage replication. Is there a problem with '/etc/hosts'?</key>
 		<key name="error_0419"><![CDATA[[ Error ] - The resource to refresh must be provide with '--resource <res>'.]]></key>
+		<key name="error_0420">Failed to withdraw the subnode from the node's cluster. Expected the 'anvil-safe-stop' call to return '0', but got: [#!variable!return_code!#]. The output, if anything, was:
+========
+#!variable!output!#
+========</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
