@@ -1665,6 +1665,7 @@ sub get_company_from_mac
 	if ((not $company) && ($mac =~ /^52:54:00/))
 	{
 		$company = "KVM/qemu";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { company => $company }});
 	}
 	
 	return($company);

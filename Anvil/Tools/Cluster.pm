@@ -2603,6 +2603,7 @@ sub get_primary_host_uuid
 	my $node2_ram_in_use_by_servers = 0;
 	
 	# Loop through servers. 
+	$anvil->Database->get_servers({debug => $debug});
 	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 	{
 		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
