@@ -3,10 +3,13 @@ type EditFenceInputGroupOptionalProps = {
   loading?: boolean;
 };
 
-type EditFenceInputGroupProps = EditFenceInputGroupOptionalProps &
-  Required<
-    Pick<
-      CommonFenceInputGroupProps,
-      'fenceId' | 'previousFenceName' | 'previousFenceParameters'
-    >
-  >;
+type EditFenceInputGroupProps<M extends MapToInputTestID> =
+  EditFenceInputGroupOptionalProps &
+    Required<
+      Pick<
+        CommonFenceInputGroupProps,
+        'fenceId' | 'previousFenceName' | 'previousFenceParameters'
+      >
+    > & {
+      formUtils: FormUtils<M>;
+    };

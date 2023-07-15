@@ -2,7 +2,7 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
-import { SERVER_PATHS, PGID, PUID } from './consts';
+import { SERVER_PATHS, PGID, PUID, DEFAULT_JOB_PROGRESS } from './consts';
 
 import { formatSql } from './formatSql';
 import {
@@ -131,17 +131,21 @@ class Access extends EventEmitter {
 }
 
 const access = new Access();
+const rootAccess = new Access({ spawnOptions: { gid: 0, uid: 0 } });
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
     params = [],
     pre = ['Database'],
+    root,
   }: {
     params?: unknown[];
     pre?: string[];
+    root?: boolean;
   } = {},
 ) => {
+  const selectedAccess = root ? rootAccess : access;
   const chain = `${pre.join('->')}->${subroutine}`;
 
   const subParams: string[] = params.map<string>((p) => {
@@ -153,21 +157,19 @@ const subroutine = async <T extends unknown[]>(
       result = String(p);
     }
 
-    return `'${result}'`;
+    return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await access.interact<{ sub_results: T }>(
-    'x',
-    chain,
-    ...subParams,
-  );
+  const { sub_results: results } = await selectedAccess.interact<{
+    sub_results: T;
+  }>('x', chain, ...subParams);
 
   shvar(results, `${chain} results: `);
 
   return results;
 };
 
-const query = <T extends (number | null | string)[][]>(script: string) =>
+const query = <T extends QueryResult>(script: string) =>
   access.interact<T>('r', formatSql(script));
 
 const write = async (script: string) => {
@@ -180,12 +182,20 @@ const write = async (script: string) => {
 };
 
 const insertOrUpdateJob = async ({
-  job_progress = 0,
+  job_progress = DEFAULT_JOB_PROGRESS,
   line = 0,
   ...rest
 }: JobParams) => {
   const [uuid]: [string] = await subroutine('insert_or_update_jobs', {
     params: [{ job_progress, line, ...rest }],
+  });
+
+  return uuid;
+};
+
+const insertOrUpdateUser: InsertOrUpdateUserFunction = async (params) => {
+  const [uuid]: [string] = await subroutine('insert_or_update_users', {
+    params: [params],
   });
 
   return uuid;
@@ -238,6 +248,15 @@ const refreshTimestamp = () => {
   return result;
 };
 
+const encrypt: EncryptFunction = async (params) => {
+  const [result]: [Encrypted] = await subroutine('encrypt_password', {
+    params: [params],
+    pre: ['Account'],
+  });
+
+  return result;
+};
+
 const getData = async <T>(...keys: string[]) => {
   const chain = `data->${keys.join('->')}`;
 
@@ -250,10 +269,16 @@ const getData = async <T>(...keys: string[]) => {
   return data;
 };
 
+const getAnvilData = async () => {
+  await subroutine('get_anvils');
+
+  return getData<AnvilDataAnvilListHash>('anvils');
+};
+
 const getFenceSpec = async () => {
   await subroutine('get_fence_data', { pre: ['Striker'] });
 
-  return getData<unknown>('fence_data');
+  return getData<AnvilDataFenceHash>('fence_data');
 };
 
 const getHostData = async () => {
@@ -303,6 +328,25 @@ const getManifestData = async (manifestUuid?: string) => {
   return getData<AnvilDataManifestListHash>('manifests');
 };
 
+const getNetworkData = async (hostUuid: string, hostName?: string) => {
+  let replacementKey = hostName;
+
+  if (!replacementKey) {
+    ({
+      host_uuid: {
+        [hostUuid]: { short_host_name: replacementKey },
+      },
+    } = await getHostData());
+  }
+
+  await subroutine('load_interfces', {
+    params: [{ host: replacementKey, host_uuid: hostUuid }],
+    pre: ['Network'],
+  });
+
+  return getData<AnvilDataNetworkListHash>('network');
+};
+
 const getPeerData: GetPeerDataFunction = async (
   target,
   { password, port } = {},
@@ -340,20 +384,62 @@ const getUpsSpec = async () => {
   return getData<AnvilDataUPSHash>('ups_data');
 };
 
+const vncpipe = async (serverUuid: string, open?: boolean) => {
+  const [output, rReturnCode]: [string, string] = await subroutine('call', {
+    params: [
+      {
+        shell_call: `${
+          SERVER_PATHS.usr.sbin['striker-manage-vnc-pipes'].self
+        } --server-uuid ${serverUuid} --component st${open ? ' --open' : ''}`,
+      },
+    ],
+    pre: ['System'],
+    root: true,
+  });
+
+  const rcode = Number.parseInt(rReturnCode);
+
+  if (rcode !== 0) {
+    throw new Error(`VNC pipe call failed with code ${rcode}`);
+  }
+
+  const lines = output.split('\n');
+  const lastLine = lines[lines.length - 1];
+  const rVncPipeProps = lastLine
+    .split(',')
+    .reduce<Record<string, string>>((previous, pair) => {
+      const [key, value] = pair.trim().split(/\s*:\s*/, 2);
+
+      previous[key] = value;
+
+      return previous;
+    }, {});
+
+  const forwardPort = Number.parseInt(rVncPipeProps.forward_port);
+  const protocol = rVncPipeProps.protocol;
+
+  return { forwardPort, protocol };
+};
+
 export {
   insertOrUpdateJob as job,
+  insertOrUpdateUser,
   insertOrUpdateVariable as variable,
   anvilSyncShared,
   refreshTimestamp as timestamp,
+  encrypt,
   getData,
+  getAnvilData,
   getFenceSpec,
   getHostData,
   getLocalHostName,
   getLocalHostUuid as getLocalHostUUID,
   getManifestData,
+  getNetworkData,
   getPeerData,
   getUpsSpec,
   query,
   subroutine as sub,
+  vncpipe,
   write,
 };

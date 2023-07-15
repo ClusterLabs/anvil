@@ -1,11 +1,9 @@
 import cors from 'cors';
 import express, { json } from 'express';
 
-import { guardApi } from './lib/assertAuthentication';
-import passport from './passport';
+import { guardApi, passport, session } from './middlewares';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
-import session from './session';
 
 export default (async () => {
   const app = express();

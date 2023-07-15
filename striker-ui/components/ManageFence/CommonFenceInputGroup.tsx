@@ -1,5 +1,5 @@
 import { Box, styled, Tooltip } from '@mui/material';
-import { FC, ReactElement, ReactNode, useMemo } from 'react';
+import { ReactElement, ReactNode, useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -9,12 +9,91 @@ import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { ExpandablePanel } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
 import SwitchWithLabel from '../SwitchWithLabel';
+import {
+  buildIPAddressTestBatch,
+  buildNumberTestBatch,
+  buildPeacefulStringTestBatch,
+  testNotBlank,
+} from '../../lib/test_input';
 import { BodyText } from '../Text';
 
 const CHECKED_STATES: Array<string | undefined> = ['1', 'on'];
-const ID_SEPARATOR = '-';
 
-const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
+const INPUT_ID_SEPARATOR = '-';
+
+const getStringParamInputTestBatch = <M extends MapToInputTestID>({
+  formUtils: { buildFinishInputTestBatchFunction, setMessage },
+  id,
+  label,
+}: {
+  formUtils: FormUtils<M>;
+  id: string;
+  label: string;
+}) => {
+  const onFinishBatch = buildFinishInputTestBatchFunction(id);
+
+  const onSuccess = () => {
+    setMessage(id);
+  };
+
+  return label.toLowerCase() === 'ip'
+    ? buildIPAddressTestBatch(
+        label,
+        onSuccess,
+        { onFinishBatch },
+        (message) => {
+          setMessage(id, { children: message });
+        },
+      )
+    : {
+        defaults: {
+          onSuccess,
+        },
+        onFinishBatch,
+        tests: [{ test: testNotBlank }],
+      };
+};
+
+const buildNumberParamInput = <M extends MapToInputTestID>(
+  args: FenceParameterInputBuilderParameters<M>,
+): ReactElement => {
+  const { formUtils, id, isRequired, label = '', name = id, value } = args;
+
+  const {
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
+    setMessage,
+  } = formUtils;
+
+  return (
+    <InputWithRef
+      key={`${id}-wrapper`}
+      input={
+        <OutlinedInputWithLabel
+          id={id}
+          label={label}
+          name={name}
+          value={value}
+        />
+      }
+      inputTestBatch={buildNumberTestBatch(
+        label,
+        () => {
+          setMessage(id);
+        },
+        { onFinishBatch: buildFinishInputTestBatchFunction(id) },
+        (message) => {
+          setMessage(id, { children: message });
+        },
+      )}
+      onFirstRender={buildInputFirstRenderFunction(id)}
+      required={isRequired}
+      valueType="number"
+    />
+  );
+};
+
+const MAP_TO_INPUT_BUILDER: MapToInputBuilder<Record<string, string>> = {
   boolean: (args) => {
     const { id, isChecked = false, label, name = id } = args;
 
@@ -33,8 +112,11 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
       />
     );
   },
+  integer: buildNumberParamInput,
+  second: buildNumberParamInput,
   select: (args) => {
     const {
+      formUtils,
       id,
       isRequired,
       label,
@@ -42,6 +124,12 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
       selectOptions = [],
       value = '',
     } = args;
+
+    const {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      setMessage,
+    } = formUtils;
 
     return (
       <InputWithRef
@@ -55,12 +143,23 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
             value={value}
           />
         }
+        inputTestBatch={{
+          defaults: {
+            onSuccess: () => {
+              setMessage(id);
+            },
+          },
+          onFinishBatch: buildFinishInputTestBatchFunction(id),
+          tests: [{ test: testNotBlank }],
+        }}
+        onFirstRender={buildInputFirstRenderFunction(id)}
         required={isRequired}
       />
     );
   },
   string: (args) => {
     const {
+      formUtils,
       id,
       isRequired,
       isSensitive = false,
@@ -69,40 +168,54 @@ const MAP_TO_INPUT_BUILDER: MapToInputBuilder = {
       value,
     } = args;
 
+    const { buildInputFirstRenderFunction } = formUtils;
+
+    let inputType;
+
+    if (isSensitive) {
+      inputType = INPUT_TYPES.password;
+    }
+
     return (
       <InputWithRef
         key={`${id}-wrapper`}
         input={
           <OutlinedInputWithLabel
             id={id}
-            inputProps={{
-              inputProps: { 'data-sensitive': isSensitive },
-            }}
             label={label}
             name={name}
+            type={inputType}
             value={value}
-            type={isSensitive ? INPUT_TYPES.password : undefined}
           />
         }
+        inputTestBatch={getStringParamInputTestBatch({ formUtils, id, label })}
+        onFirstRender={buildInputFirstRenderFunction(id)}
         required={isRequired}
       />
     );
   },
 };
 
-const combineIds = (...pieces: string[]) => pieces.join(ID_SEPARATOR);
+const combineIds = (...pieces: string[]) => pieces.join(INPUT_ID_SEPARATOR);
 
 const FenceInputWrapper = styled(FlexBox)({
   margin: '.4em 0',
 });
 
-const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
+const CommonFenceInputGroup = <M extends Record<string, string>>({
   fenceId,
   fenceParameterTooltipProps,
   fenceTemplate,
+  formUtils,
   previousFenceName,
   previousFenceParameters,
-}) => {
+}: CommonFenceInputGroupProps<M>): ReactElement => {
+  const {
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
+    setMessage,
+  } = formUtils;
+
   const fenceParameterElements = useMemo(() => {
     let result: ReactNode;
 
@@ -147,69 +260,65 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
               const isParameterDeprecated =
                 String(rawParameterDeprecated) === '1';
 
-              if (!isParameterDeprecated) {
-                const { optional, required } = previous;
-                const buildInput =
-                  MAP_TO_INPUT_BUILDER[parameterType] ??
-                  MAP_TO_INPUT_BUILDER.string;
-                const fenceJoinParameterId = combineIds(fenceId, parameterId);
+              if (isParameterDeprecated) return previous;
 
-                const initialValue =
-                  mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
-                  parameterDefault;
-                const isParameterRequired =
-                  String(rawParameterRequired) === '1';
-                const isParameterSensitive = /passw/i.test(parameterId);
+              const { optional, required } = previous;
+              const buildInput =
+                MAP_TO_INPUT_BUILDER[parameterType] ??
+                MAP_TO_INPUT_BUILDER.string;
+              const fenceJoinParameterId = combineIds(fenceId, parameterId);
 
-                const parameterInput = buildInput({
-                  id: fenceJoinParameterId,
-                  isChecked: CHECKED_STATES.includes(initialValue),
-                  isRequired: isParameterRequired,
-                  isSensitive: isParameterSensitive,
-                  label: parameterId,
-                  selectOptions: parameterSelectOptions,
-                  value: initialValue,
-                });
-                const parameterInputWithTooltip = (
-                  <Tooltip
-                    componentsProps={{
-                      tooltip: {
-                        sx: {
-                          maxWidth: { md: '62.6em' },
-                        },
+              const initialValue =
+                mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
+                parameterDefault;
+              const isParameterRequired = String(rawParameterRequired) === '1';
+              const isParameterSensitive = /passw/i.test(parameterId);
+
+              const parameterInput = buildInput({
+                formUtils,
+                id: fenceJoinParameterId,
+                isChecked: CHECKED_STATES.includes(initialValue),
+                isRequired: isParameterRequired,
+                isSensitive: isParameterSensitive,
+                label: parameterId,
+                selectOptions: parameterSelectOptions,
+                value: initialValue,
+              });
+              const parameterInputWithTooltip = (
+                <Tooltip
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        maxWidth: { md: '62.6em' },
                       },
-                    }}
-                    disableInteractive
-                    key={`${fenceJoinParameterId}-tooltip`}
-                    placement="top-start"
-                    title={<BodyText>{parameterDescription}</BodyText>}
-                    {...fenceParameterTooltipProps}
-                  >
-                    <Box>{parameterInput}</Box>
-                  </Tooltip>
-                );
+                    },
+                  }}
+                  disableInteractive
+                  key={`${fenceJoinParameterId}-tooltip`}
+                  placement="top-start"
+                  title={<BodyText>{parameterDescription}</BodyText>}
+                  {...fenceParameterTooltipProps}
+                >
+                  <Box>{parameterInput}</Box>
+                </Tooltip>
+              );
 
-                if (isParameterRequired) {
-                  required.push(parameterInputWithTooltip);
-                } else {
-                  optional.push(parameterInputWithTooltip);
-                }
+              if (isParameterRequired) {
+                required.push(parameterInputWithTooltip);
+              } else {
+                optional.push(parameterInputWithTooltip);
               }
 
               return previous;
             },
             {
               optional: [],
-              required: [
-                MAP_TO_INPUT_BUILDER.string({
-                  id: combineIds(fenceId, 'name'),
-                  isRequired: true,
-                  label: 'Fence device name',
-                  value: previousFenceName,
-                }),
-              ],
+              required: [],
             },
           );
+
+      const inputIdFenceName = combineIds(fenceId, 'name');
+      const inputLabelFenceName = 'Fence device name';
 
       result = (
         <FlexBox
@@ -219,7 +328,35 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
           }}
         >
           <ExpandablePanel expandInitially header="Required parameters">
-            <FenceInputWrapper>{requiredInputs}</FenceInputWrapper>
+            <FenceInputWrapper>
+              <InputWithRef
+                key={`${inputIdFenceName}-wrapper`}
+                input={
+                  <OutlinedInputWithLabel
+                    id={inputIdFenceName}
+                    label={inputLabelFenceName}
+                    name={inputIdFenceName}
+                    value={previousFenceName}
+                  />
+                }
+                inputTestBatch={buildPeacefulStringTestBatch(
+                  inputLabelFenceName,
+                  () => {
+                    setMessage(inputIdFenceName);
+                  },
+                  {
+                    onFinishBatch:
+                      buildFinishInputTestBatchFunction(inputIdFenceName),
+                  },
+                  (message) => {
+                    setMessage(inputIdFenceName, { children: message });
+                  },
+                )}
+                onFirstRender={buildInputFirstRenderFunction(inputIdFenceName)}
+                required
+              />
+              {requiredInputs}
+            </FenceInputWrapper>
           </ExpandablePanel>
           <ExpandablePanel header="Optional parameters">
             <FenceInputWrapper>{optionalInputs}</FenceInputWrapper>
@@ -230,16 +367,20 @@ const CommonFenceInputGroup: FC<CommonFenceInputGroupProps> = ({
 
     return result;
   }, [
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
     fenceId,
     fenceParameterTooltipProps,
     fenceTemplate,
+    formUtils,
     previousFenceName,
     previousFenceParameters,
+    setMessage,
   ]);
 
   return <>{fenceParameterElements}</>;
 };
 
-export { ID_SEPARATOR };
+export { INPUT_ID_SEPARATOR };
 
 export default CommonFenceInputGroup;

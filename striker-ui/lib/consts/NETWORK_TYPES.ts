@@ -1,4 +1,4 @@
-const NETWORK_TYPES: Record<string, string> = {
+const NETWORK_TYPES: Record<NetworkType, string> & Record<string, string> = {
   bcn: 'Back-Channel Network',
   ifn: 'Internet-Facing Network',
   mn: 'Migration Network',

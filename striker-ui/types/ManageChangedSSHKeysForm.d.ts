@@ -3,7 +3,6 @@ type ChangedSSHKeys = {
     hostName: string;
     hostUUID: string;
     ipAddress: string;
-    isChecked?: boolean;
   };
 };
 

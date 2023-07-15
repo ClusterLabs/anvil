@@ -1,5 +1,6 @@
-import NODE_AND_DR_RESERVED_MEMORY_SIZE from '../../consts/NODE_AND_DR_RESERVED_MEMORY_SIZE';
-import { OS_LIST } from '../../consts/OS_LIST';
+import { dSize } from 'format-data-size';
+
+import { NODE_AND_DR_RESERVED_MEMORY_SIZE, OS_LIST } from '../../consts';
 
 import join from '../../join';
 import { stdoutVar } from '../../shell';
@@ -63,13 +64,13 @@ const buildQueryAnvilDetail = ({
       server_uuid,
       server_name,
       server_cpu_cores,
-      server_memory`;
+      server_memory_value,
+      server_memory_unit`;
     let groupByPhrase = '';
 
     if (isSummary) {
-      fieldsToSelect = `
-        SUM(server_cpu_cores) AS anvil_total_allocated_cpu_cores,
-        SUM(server_memory) AS anvil_total_allocated_memory`;
+      fieldsToSelect =
+        'SUM(server_cpu_cores) AS anvil_total_allocated_cpu_cores';
 
       groupByPhrase = 'GROUP BY server_anvil_uuid';
     }
@@ -82,29 +83,20 @@ const buildQueryAnvilDetail = ({
       JOIN (
         SELECT
           server_definition_server_uuid,
-          server_cpu_cores,
-          CASE server_memory_unit
-            WHEN 'KiB' THEN server_memory_value * 1024
-            ELSE server_memory_value
-          END AS server_memory
-        FROM (
-          SELECT
-            server_definition_server_uuid,
-            CAST(
-              SUBSTRING(
-                server_definition_xml, '%cores=''#"[0-9]+#"''%', '#'
-              ) AS INTEGER
-            ) AS server_cpu_cores,
-            CAST(
-              SUBSTRING(
-                server_definition_xml, '%memory%>#"[0-9]+#"</memory%', '#'
-              ) AS BIGINT
-            ) AS server_memory_value,
+          CAST(
             SUBSTRING(
-              server_definition_xml, '%memory%unit=''#"[A-Za-z]+#"''%', '#'
-            ) AS server_memory_unit
-          FROM server_definitions AS ser_def
-        ) AS ser_def_memory_converted
+              server_definition_xml, 'cores=''([\\d]*)'''
+            ) AS INTEGER
+          ) AS server_cpu_cores,
+          CAST(
+            SUBSTRING(
+              server_definition_xml, 'memory.*>([\\d]*)</memory'
+            ) AS BIGINT
+          ) AS server_memory_value,
+          SUBSTRING(
+            server_definition_xml, 'memory.*unit=''([A-Za-z]*)'''
+          ) AS server_memory_unit
+        FROM server_definitions AS ser_def
       ) AS pos_ser_def
         ON server_uuid = server_definition_server_uuid
       ${groupByPhrase}`;
@@ -129,7 +121,7 @@ const buildQueryAnvilDetail = ({
 
   const buildFileQuery = () => `
     SELECT
-      file_location_anvil_uuid,
+      file_location_host_uuid,
       file_uuid,
       file_name
     FROM file_locations as fil_loc
@@ -153,16 +145,12 @@ const buildQueryAnvilDetail = ({
       server_list.server_uuid,
       server_list.server_name,
       server_list.server_cpu_cores,
-      server_list.server_memory,
+      server_list.server_memory_value,
+      server_list.server_memory_unit,
       server_summary.anvil_total_allocated_cpu_cores,
-      server_summary.anvil_total_allocated_memory,
       (host_summary.anvil_total_cpu_cores
           - server_summary.anvil_total_allocated_cpu_cores
         ) AS anvil_total_available_cpu_cores,
-      (host_summary.anvil_total_memory
-          - server_summary.anvil_total_allocated_memory
-          - ${NODE_AND_DR_RESERVED_MEMORY_SIZE}
-        ) AS anvil_total_available_memory,
       storage_group_list.storage_group_uuid,
       storage_group_list.storage_group_name,
       storage_group_list.storage_group_size,
@@ -181,7 +169,11 @@ const buildQueryAnvilDetail = ({
     LEFT JOIN (${buildStorageGroupQuery()}) AS storage_group_list
       ON anv.anvil_uuid = storage_group_list.storage_group_anvil_uuid
     LEFT JOIN (${buildFileQuery()}) AS file_list
-      ON anv.anvil_uuid = file_list.file_location_anvil_uuid
+      ON file_list.file_location_host_uuid IN (
+        anv.anvil_node1_host_uuid,
+        anv.anvil_node2_host_uuid,
+        anv.anvil_dr1_host_uuid
+      )
     ;`;
 
   let query = `
@@ -195,15 +187,25 @@ const buildQueryAnvilDetail = ({
   if (isForProvisionServer) {
     query = buildQueryForProvisionServer();
 
-    afterQueryReturn = (queryStdout: unknown) => {
-      let results = queryStdout;
+    afterQueryReturn = (qoutput: unknown) => {
+      let results = qoutput;
 
-      if (queryStdout instanceof Array) {
-        let rowStage: AnvilDetailForProvisionServer | undefined;
+      if (qoutput instanceof Array) {
+        const lasti = qoutput.length - 1;
 
-        const anvils = queryStdout.reduce<AnvilDetailForProvisionServer[]>(
+        let puuid = '';
+
+        let anvilTotalAllocatedMemory = BigInt(0);
+        let files: Record<string, AnvilDetailFileForProvisionServer> = {};
+        let hosts: Record<string, AnvilDetailHostForProvisionServer> = {};
+        let servers: Record<string, AnvilDetailServerForProvisionServer> = {};
+        let stores: Record<string, AnvilDetailStoreForProvisionServer> = {};
+
+        const anvils = qoutput.reduce<
+          Record<string, AnvilDetailForProvisionServer>
+        >(
           (
-            reducedRows,
+            previous,
             [
               anvilUUID,
               anvilName,
@@ -217,11 +219,10 @@ const buildQueryAnvilDetail = ({
               serverUUID,
               serverName,
               serverCPUCores,
-              serverMemory,
+              serverMemoryValue,
+              serverMemoryUnit,
               anvilTotalAllocatedCPUCores,
-              anvilTotalAllocatedMemory,
               anvilTotalAvailableCPUCores,
-              anvilTotalAvailableMemory,
               storageGroupUUID,
               storageGroupName,
               storageGroupSize,
@@ -229,9 +230,31 @@ const buildQueryAnvilDetail = ({
               fileUUID,
               fileName,
             ],
+            index,
           ) => {
-            if (!rowStage || anvilUUID !== rowStage.anvilUUID) {
-              rowStage = {
+            if (index === lasti || (puuid.length && anvilUUID !== puuid)) {
+              const { [puuid]: p } = previous;
+
+              p.anvilTotalAllocatedMemory = String(anvilTotalAllocatedMemory);
+              p.anvilTotalAvailableMemory = String(
+                BigInt(p.anvilTotalMemory) -
+                  anvilTotalAllocatedMemory -
+                  BigInt(NODE_AND_DR_RESERVED_MEMORY_SIZE),
+              );
+              p.files = Object.values(files);
+              p.hosts = Object.values(hosts);
+              p.servers = Object.values(servers);
+              p.storageGroups = Object.values(stores);
+
+              anvilTotalAllocatedMemory = BigInt(0);
+              files = {};
+              hosts = {};
+              servers = {};
+              stores = {};
+            }
+
+            if (!previous[anvilUUID]) {
+              previous[anvilUUID] = {
                 anvilUUID,
                 anvilName,
                 anvilDescription,
@@ -240,73 +263,63 @@ const buildQueryAnvilDetail = ({
                 anvilTotalAllocatedCPUCores: parseInt(
                   anvilTotalAllocatedCPUCores,
                 ),
-                anvilTotalAllocatedMemory: String(anvilTotalAllocatedMemory),
                 anvilTotalAvailableCPUCores: parseInt(
                   anvilTotalAvailableCPUCores,
                 ),
-                anvilTotalAvailableMemory: String(anvilTotalAvailableMemory),
-                hosts: [],
-                servers: [],
-                storageGroups: [],
-                files: [],
-              };
+              } as AnvilDetailForProvisionServer;
 
-              reducedRows.push(rowStage);
+              puuid = anvilUUID;
             }
 
-            if (
-              !rowStage.hosts.find(({ hostUUID: added }) => added === hostUUID)
-            ) {
-              rowStage.hosts.push({
+            if (!hosts[hostUUID]) {
+              hosts[hostUUID] = {
                 hostUUID,
                 hostName,
                 hostCPUCores: parseInt(hostCPUCores),
                 hostMemory: String(hostMemory),
-              });
+              };
             }
 
-            if (
-              !rowStage.servers.find(
-                ({ serverUUID: added }) => added === serverUUID,
-              )
-            ) {
-              rowStage.servers.push({
+            if (!servers[serverUUID]) {
+              const serverMemory =
+                dSize(serverMemoryValue, {
+                  fromUnit: serverMemoryUnit,
+                  toUnit: 'B',
+                })?.value ?? '0';
+
+              anvilTotalAllocatedMemory += BigInt(serverMemory);
+
+              servers[serverUUID] = {
                 serverUUID,
                 serverName,
                 serverCPUCores: parseInt(serverCPUCores),
-                serverMemory: String(serverMemory),
-              });
+                serverMemory,
+              };
             }
 
-            if (
-              !rowStage.storageGroups.find(
-                ({ storageGroupUUID: added }) => added === storageGroupUUID,
-              )
-            ) {
-              rowStage.storageGroups.push({
+            if (!stores[storageGroupUUID]) {
+              stores[storageGroupUUID] = {
                 storageGroupUUID,
                 storageGroupName,
                 storageGroupSize: String(storageGroupSize),
                 storageGroupFree: String(storageGroupFree),
-              });
+              };
             }
 
-            if (
-              !rowStage.files.find(({ fileUUID: added }) => added === fileUUID)
-            ) {
-              rowStage.files.push({
+            if (!files[fileUUID]) {
+              files[fileUUID] = {
                 fileUUID,
                 fileName,
-              });
+              };
             }
 
-            return reducedRows;
+            return previous;
           },
-          [],
+          {},
         );
 
         results = {
-          anvils,
+          anvils: Object.values(anvils),
           osList: OS_LIST,
         };
       }

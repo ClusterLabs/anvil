@@ -5,6 +5,7 @@ import echoRouter from './echo';
 import fenceRouter from './fence';
 import fileRouter from './file';
 import hostRouter from './host';
+import initRouter from './init';
 import jobRouter from './job';
 import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
@@ -32,6 +33,7 @@ const routes = {
   public: {
     auth: authRouter,
     echo: echoRouter,
+    init: initRouter,
   },
   static: staticRouter,
 };

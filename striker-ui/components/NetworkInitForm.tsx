@@ -37,10 +37,12 @@ import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 import NETWORK_TYPES from '../lib/consts/NETWORK_TYPES';
 import { REP_IPV4, REP_IPV4_CSV } from '../lib/consts/REG_EXP_PATTERNS';
 
+import api from '../lib/api';
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
 import FlexBox from './FlexBox';
+import handleAPIError from '../lib/handleAPIError';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import { Message } from './MessageBox';
@@ -76,13 +78,13 @@ type NetworkInterfaceInputMap = Record<
 >;
 
 type NetworkInitFormValues = {
-  domainNameServerCSV?: string;
+  dns?: string;
   gateway?: string;
   gatewayInterface?: string;
   networks: Omit<NetworkInput, 'ipAddressInputRef' | 'subnetMaskInputRef'>[];
 };
 
-type NetworkInitFormForwardedRefContent = {
+type NetworkInitFormForwardedRefContent = MessageGroupForwardedRefContent & {
   get?: () => NetworkInitFormValues;
 };
 
@@ -106,6 +108,7 @@ const CLASSES = {
   ifaceNotApplied: `${CLASS_PREFIX}-network-interface-not-applied`,
 };
 const INITIAL_IFACES = [undefined, undefined];
+const MSG_ID_API = 'api';
 
 const STRIKER_REQUIRED_NETWORKS: NetworkInput[] = [
   {
@@ -145,7 +148,7 @@ const NODE_REQUIRED_NETWORKS: NetworkInput[] = [
 
 const MAX_INTERFACES_PER_NETWORK = 2;
 const IT_IDS = {
-  dnsCSV: 'domainNameServerCSV',
+  dnsCSV: 'dns',
   gateway: 'gateway',
   networkInterfaces: (prefix: string) => `${prefix}Interface`,
   networkIPAddress: (prefix: string) => `${prefix}IPAddress`,
@@ -574,16 +577,25 @@ NetworkForm.defaultProps = {
 const NetworkInitForm = forwardRef<
   NetworkInitFormForwardedRefContent,
   {
+    expectHostDetail?: boolean;
     hostDetail?: APIHostDetail;
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
->(({ hostDetail, toggleSubmitDisabled }, ref) => {
-  const {
-    dns: xDns,
-    gateway: xGateway,
-    hostType,
-    hostUUID = 'local',
-  }: APIHostDetail = hostDetail ?? ({} as APIHostDetail);
+>(({ expectHostDetail = false, hostDetail, toggleSubmitDisabled }, ref) => {
+  const { hostType, hostUUID = 'local' }: APIHostDetail =
+    hostDetail ?? ({} as APIHostDetail);
+
+  const uninitRequiredNetworks: NetworkInput[] = useMemo(
+    () =>
+      hostType === 'node' ? NODE_REQUIRED_NETWORKS : STRIKER_REQUIRED_NETWORKS,
+    [hostType],
+  );
+
+  const requiredNetworks = useMemo<Partial<Record<NetworkType, number>>>(
+    () =>
+      hostType === 'node' ? { bcn: 1, ifn: 1, sn: 1 } : { bcn: 1, ifn: 1 },
+    [hostType],
+  );
 
   const [dragMousePosition, setDragMousePosition] = useState<{
     x: number;
@@ -592,35 +604,45 @@ const NetworkInitForm = forwardRef<
   const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
     useState<NetworkInterfaceInputMap>({});
   const [networkInputs, setNetworkInputs] = useState<NetworkInput[]>(
-    hostType === 'node' ? NODE_REQUIRED_NETWORKS : STRIKER_REQUIRED_NETWORKS,
+    uninitRequiredNetworks,
   );
   const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
     NetworkInterfaceOverviewMetadata | undefined
   >();
   const [gatewayInterface, setGatewayInterface] = useState<string>('');
 
-  const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
+  const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
+  /** Avoid state here to prevent triggering multiple renders when reading
+   * host detail. */
+  const readHostDetailRef = useRef<boolean>(true);
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-  const { data: networkInterfaces = [], isLoading } = periodicFetch<
-    NetworkInterfaceOverviewMetadata[]
-  >(`${API_BASE_URL}/network-interface/${hostUUID}`, {
-    refreshInterval: 2000,
-    onSuccess: (data) => {
-      const map = data.reduce<NetworkInterfaceInputMap>((result, metadata) => {
-        const { networkInterfaceUUID } = metadata;
+  const {
+    data: networkInterfaces = [],
+    isLoading: isLoadingNetworkInterfaces,
+  } = periodicFetch<NetworkInterfaceOverviewMetadata[]>(
+    `${API_BASE_URL}/init/network-interface/${hostUUID}`,
+    {
+      refreshInterval: 2000,
+      onSuccess: (data) => {
+        const map = data.reduce<NetworkInterfaceInputMap>(
+          (result, metadata) => {
+            const { networkInterfaceUUID } = metadata;
 
-        result[networkInterfaceUUID] = networkInterfaceInputMap[
-          networkInterfaceUUID
-        ] ?? { metadata };
+            result[networkInterfaceUUID] = networkInterfaceInputMap[
+              networkInterfaceUUID
+            ] ?? { metadata };
 
-        return result;
-      }, {});
+            return result;
+          },
+          {},
+        );
 
-      setNetworkInterfaceInputMap(map);
+        setNetworkInterfaceInputMap(map);
+      },
     },
-  });
+  );
 
   const isDisableAddNetworkButton: boolean = useMemo(
     () =>
@@ -630,6 +652,10 @@ const NetworkInitForm = forwardRef<
       ) ||
       (hostType === 'node' && networkInterfaces.length <= 6),
     [hostType, networkInputs, networkInterfaces, networkInterfaceInputMap],
+  );
+  const isLoadingHostDetail: boolean = useMemo(
+    () => expectHostDetail && !hostDetail,
+    [expectHostDetail, hostDetail],
   );
 
   const setMessage = useCallback(
@@ -642,7 +668,7 @@ const NetworkInitForm = forwardRef<
       messageGroupRef.current.setMessageRe?.call(null, re, message),
     [],
   );
-  const setDomainNameServerCSVInputMessage = useCallback(
+  const setDnsInputMessage = useCallback(
     (message?: Message) => setMessage(IT_IDS.dnsCSV, message),
     [setMessage],
   );
@@ -716,19 +742,37 @@ const NetworkInitForm = forwardRef<
     [networkInputs],
   );
 
+  const setMapNetwork = useCallback(
+    (value: 0 | 1) => {
+      api.put('/init/set-map-network', { value }).catch((error) => {
+        const emsg = handleAPIError(error);
+
+        emsg.children = (
+          <>
+            Failed to {value ? 'enable' : 'disable'} network mapping.{' '}
+            {emsg.children}
+          </>
+        );
+
+        setMessage(MSG_ID_API, emsg);
+      });
+    },
+    [setMessage],
+  );
+
   const inputTests: InputTestBatches = useMemo(() => {
     const tests: InputTestBatches = {
       [IT_IDS.dnsCSV]: {
         defaults: {
           getValue: () => dnsCSVInputRef.current.getValue?.call(null),
           onSuccess: () => {
-            setDomainNameServerCSVInputMessage();
+            setDnsInputMessage();
           },
         },
         tests: [
           {
             onFailure: () => {
-              setDomainNameServerCSVInputMessage({
+              setDnsInputMessage({
                 children:
                   'Domain name servers should be a comma-separated list of IPv4 addresses without trailing comma(s).',
               });
@@ -937,7 +981,7 @@ const NetworkInitForm = forwardRef<
     return tests;
   }, [
     networkInputs,
-    setDomainNameServerCSVInputMessage,
+    setDnsInputMessage,
     setGatewayInputMessage,
     setMessage,
     subnetContains,
@@ -965,20 +1009,31 @@ const NetworkInitForm = forwardRef<
   const clearNetworkInterfaceHeld = useCallback(() => {
     setNetworkInterfaceHeld(undefined);
   }, []);
-  const createNetwork = useCallback(() => {
-    networkInputs.unshift({
-      inputUUID: uuidv4(),
-      interfaces: [...INITIAL_IFACES],
-      ipAddress: '',
-      name: 'Unknown Network',
-      subnetMask: '',
-      type: '',
-      typeCount: 0,
-    });
+  const createNetwork = useCallback(
+    ({
+      inputUUID = uuidv4(),
+      interfaces = [...INITIAL_IFACES],
+      ipAddress = '',
+      name = 'Unknown Network',
+      subnetMask = '',
+      type = '',
+      typeCount = 0,
+    }: Partial<NetworkInput> = {}) => {
+      networkInputs.unshift({
+        inputUUID,
+        interfaces,
+        ipAddress,
+        name,
+        subnetMask,
+        type,
+        typeCount,
+      });
 
-    toggleSubmitDisabled?.call(null, false);
-    setNetworkInputs([...networkInputs]);
-  }, [networkInputs, toggleSubmitDisabled]);
+      toggleSubmitDisabled?.call(null, false);
+      setNetworkInputs([...networkInputs]);
+    },
+    [networkInputs, toggleSubmitDisabled],
+  );
   const removeNetwork = useCallback(
     (networkIndex: number) => {
       const [{ inputUUID, interfaces }] = networkInputs.splice(networkIndex, 1);
@@ -1117,11 +1172,117 @@ const NetworkInitForm = forwardRef<
     [clearNetworkInterfaceHeld, networkInterfaceHeld],
   );
 
+  useEffect(() => {
+    if (
+      [
+        Object.keys(networkInterfaceInputMap).length > 0,
+        expectHostDetail,
+        hostDetail,
+        readHostDetailRef.current,
+        dnsCSVInputRef.current,
+        gatewayInputRef.current,
+      ].every((condition) => Boolean(condition))
+    ) {
+      readHostDetailRef.current = false;
+
+      const {
+        dns: pDns,
+        gateway: pGateway,
+        gatewayInterface: pGatewayInterface,
+        networks: pNetworks,
+      } = hostDetail as APIHostDetail;
+
+      dnsCSVInputRef.current.setValue?.call(null, pDns);
+      gatewayInputRef.current.setValue?.call(null, pGateway);
+
+      const applied: string[] = [];
+      const inputs = Object.values(pNetworks).reduce<NetworkInput[]>(
+        (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
+          const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
+          const isRequired = requiredNetworks[type] === typeCount;
+
+          const name = `${NETWORK_TYPES[type]} ${typeCount}`;
+
+          applied.push(link1Uuid, link2Uuid);
+
+          previous.push({
+            inputUUID: uuidv4(),
+            interfaces: [
+              networkInterfaceInputMap[link1Uuid]?.metadata,
+              networkInterfaceInputMap[link2Uuid]?.metadata,
+            ],
+            ipAddress: ip,
+            isRequired,
+            name,
+            subnetMask,
+            type,
+            typeCount,
+          });
+
+          return previous;
+        },
+        [],
+      );
+
+      setGatewayInterface(pGatewayInterface);
+
+      setNetworkInterfaceInputMap((previous) => {
+        const result = { ...previous };
+
+        applied.forEach((uuid) => {
+          if (result[uuid]) {
+            result[uuid].isApplied = true;
+          }
+        });
+
+        return result;
+      });
+
+      setNetworkInputs(inputs);
+
+      testInputToToggleSubmitDisabled();
+    }
+  }, [
+    createNetwork,
+    expectHostDetail,
+    getNetworkTypeCount,
+    hostDetail,
+    networkInputs,
+    networkInterfaceInputMap,
+    requiredNetworks,
+    testInputToToggleSubmitDisabled,
+  ]);
+
+  useEffect(() => {
+    // Enable network mapping on component mount.
+    setMapNetwork(1);
+
+    if (window) {
+      window.addEventListener(
+        'beforeunload',
+        () => {
+          // Cannot use async request (i.e., axios) because they won't be guaranteed to complete.
+          const request = new XMLHttpRequest();
+
+          request.open('PUT', `${API_BASE_URL}/init/set-map-network`, false);
+          request.send(null);
+        },
+        { once: true },
+      );
+    }
+
+    return () => {
+      // Disable network mapping on component unmount.
+      setMapNetwork(0);
+    };
+  }, [setMapNetwork]);
+
   useImperativeHandle(
     ref,
     () => ({
+      ...messageGroupRef.current,
       get: () => ({
-        domainNameServerCSV: dnsCSVInputRef.current.getValue?.call(null),
+        dns: dnsCSVInputRef.current.getValue?.call(null),
         gateway: gatewayInputRef.current.getValue?.call(null),
         gatewayInterface,
         networks: networkInputs.map(
@@ -1151,7 +1312,7 @@ const NetworkInitForm = forwardRef<
   const networkInputMinWidth = '13em';
   const networkInputWidth = '25%';
 
-  return isLoading ? (
+  return isLoadingNetworkInterfaces ? (
     <Spinner />
   ) : (
     <MUIBox
@@ -1243,65 +1404,67 @@ const NetworkInitForm = forwardRef<
             },
           }}
         />
-        <FlexBox
-          row
-          sx={{
-            '& > :first-child': {
-              alignSelf: 'start',
-              marginTop: '.7em',
-            },
-
-            '& > :last-child': {
-              flexGrow: 1,
-            },
-          }}
-        >
-          <MUIBox
+        {!isLoadingHostDetail && (
+          <FlexBox
+            row
             sx={{
-              alignItems: 'strech',
-              display: 'flex',
-              flexDirection: 'row',
-              overflowX: 'auto',
-              paddingLeft: '.3em',
-
-              '& > div': {
-                marginBottom: '.8em',
-                marginTop: '.4em',
-                minWidth: networkInputMinWidth,
-                width: networkInputWidth,
+              '& > :first-child': {
+                alignSelf: 'start',
+                marginTop: '.7em',
               },
 
-              '& > :not(:first-child)': {
-                marginLeft: '1em',
+              '& > :last-child': {
+                flexGrow: 1,
               },
             }}
           >
-            {networkInputs.map((networkInput, networkIndex) => {
-              const { inputUUID } = networkInput;
+            <MUIBox
+              sx={{
+                alignItems: 'strech',
+                display: 'flex',
+                flexDirection: 'row',
+                overflowX: 'auto',
+                paddingLeft: '.3em',
 
-              return (
-                <NetworkForm
-                  key={`network-${inputUUID}`}
-                  {...{
-                    createDropMouseUpHandler,
-                    getNetworkTypeCount,
-                    hostDetail,
-                    networkIndex,
-                    networkInput,
-                    networkInterfaceCount: networkInterfaces.length,
-                    networkInterfaceInputMap,
-                    removeNetwork,
-                    setMessageRe,
-                    setNetworkInputs,
-                    setNetworkInterfaceInputMap,
-                    testInput,
-                    testInputToToggleSubmitDisabled,
-                  }}
-                />
-              );
-            })}
-          </MUIBox>
-        </FlexBox>
+                '& > div': {
+                  marginBottom: '.8em',
+                  marginTop: '.4em',
+                  minWidth: networkInputMinWidth,
+                  width: networkInputWidth,
+                },
+
+                '& > :not(:first-child)': {
+                  marginLeft: '1em',
+                },
+              }}
+            >
+              {networkInputs.map((networkInput, networkIndex) => {
+                const { inputUUID } = networkInput;
+
+                return (
+                  <NetworkForm
+                    key={`network-${inputUUID}`}
+                    {...{
+                      createDropMouseUpHandler,
+                      getNetworkTypeCount,
+                      hostDetail,
+                      networkIndex,
+                      networkInput,
+                      networkInterfaceCount: networkInterfaces.length,
+                      networkInterfaceInputMap,
+                      removeNetwork,
+                      setMessageRe,
+                      setNetworkInputs,
+                      setNetworkInterfaceInputMap,
+                      testInput,
+                      testInputToToggleSubmitDisabled,
+                    }}
+                  />
+                );
+              })}
+            </MUIBox>
+          </FlexBox>
+        )}
         <FlexBox
           sm="row"
           sx={{
@@ -1315,7 +1478,9 @@ const NetworkInitForm = forwardRef<
         >
           <IconButton
             disabled={isDisableAddNetworkButton}
-            onClick={createNetwork}
+            onClick={() => {
+              createNetwork();
+            }}
           >
             <MUIAddIcon />
           </IconButton>
@@ -1336,7 +1501,6 @@ const NetworkInitForm = forwardRef<
                   setGatewayInputMessage();
                 }}
                 label="Gateway"
-                value={xGateway}
               />
             }
             ref={gatewayInputRef}
@@ -1355,10 +1519,9 @@ const NetworkInitForm = forwardRef<
                   testInputToToggleSubmitDisabled({
                     inputs: { [IT_IDS.dnsCSV]: { value } },
                   });
-                  setDomainNameServerCSVInputMessage();
+                  setDnsInputMessage();
                 }}
                 label="Domain name server(s)"
-                value={xDns}
               />
             }
             ref={dnsCSVInputRef}
@@ -1375,6 +1538,7 @@ const NetworkInitForm = forwardRef<
 });
 
 NetworkInitForm.defaultProps = {
+  expectHostDetail: false,
   hostDetail: undefined,
   toggleSubmitDisabled: undefined,
 };

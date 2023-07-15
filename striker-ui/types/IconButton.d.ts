@@ -3,6 +3,7 @@ type CreatableComponent = Parameters<typeof import('react').createElement>[0];
 type IconButtonPresetMapToStateIconBundle =
   | 'add'
   | 'close'
+  | 'delete'
   | 'edit'
   | 'play'
   | 'visibility';
@@ -14,7 +15,7 @@ type IconButtonStateIconBundle = {
 
 type IconButtonMapToStateIconBundle = Record<string, IconButtonStateIconBundle>;
 
-type IconButtonVariant = 'contained' | 'normal';
+type IconButtonVariant = 'contained' | 'normal' | 'redcontained';
 
 type IconButtonMouseEventHandler =
   import('@mui/material').IconButtonProps['onClick'];

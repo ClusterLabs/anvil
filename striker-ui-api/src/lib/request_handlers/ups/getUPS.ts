@@ -1,5 +1,7 @@
 import { RequestHandler } from 'express';
 
+import { DELETED } from '../../consts';
+
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
@@ -12,6 +14,7 @@ export const getUPS: RequestHandler = buildGetRequestHandler(
         ups_agent,
         ups_ip_address
       FROM upses
+      WHERE ups_ip_address != '${DELETED}'
       ORDER BY ups_name ASC;`;
     const afterQueryReturn: QueryResultModifierFunction | undefined =
       buildQueryResultReducer<{ [upsUUID: string]: UpsOverview }>(

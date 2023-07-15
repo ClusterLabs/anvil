@@ -1228,6 +1228,7 @@ sub _set_paths
 				modifyrepo_c			=>	"/usr/bin/modifyrepo_c",
 				modprobe			=>	"/usr/sbin/modprobe",
 				mv				=>	"/usr/bin/mv",
+				nc				=>	"/usr/bin/nc",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
 				ocf_alteeve			=>	"/usr/lib/ocf/resource.d/alteeve/server",

@@ -1498,7 +1498,9 @@ const ProvisionServerDialog = ({
 
         setOSAutocompleteOptions(
           data.osList.map((keyValuePair: string) => {
-            const [osKey, osValue] = keyValuePair.split(',');
+            const [osKey, osValue] = keyValuePair
+              .replace(/^key=([^\s]+),name=['"](.*)['"]$/, '$1,$2')
+              .split(',');
 
             return {
               label: osValue,
@@ -1728,6 +1730,11 @@ const ProvisionServerDialog = ({
               }}
               openOnFocus
               options={osAutocompleteOptions}
+              renderOption={(optionProps, option) => (
+                <li {...optionProps} key={`ps-optimize-for-os-${option.key}`}>
+                  {option.label} ({option.key})
+                </li>
+              )}
               value={inputOptimizeForOSValue}
             />
           </Box>

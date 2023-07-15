@@ -1,42 +1,133 @@
 import { useRouter } from 'next/router';
-import { FC, useCallback, useEffect, useMemo } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import api from '../lib/api';
+import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
-import handleAPIError from '../lib/handleAPIError';
 import FlexBox from './FlexBox';
+import FormSummary from './FormSummary';
 import getQueryParam from '../lib/getQueryParam';
+import handleAPIError from '../lib/handleAPIError';
 import InputWithRef from './InputWithRef';
 import MessageBox, { Message } from './MessageBox';
-import NetworkInitForm from './NetworkInitForm';
+import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
+import NetworkInitForm, {
+  NetworkInitFormForwardedRefContent,
+} from './NetworkInitForm';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
+import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import { HeaderText } from './Text';
-import useProtect from '../hooks/useProtect';
+import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
+import useFormUtils from '../hooks/useFormUtils';
 import useProtectedState from '../hooks/useProtectedState';
+
+const INPUT_ID_PREP_NET_HOST_NAME = 'prepare-network-host-name-input';
+
+const INPUT_GROUP_ID_PREP_NET_NETCONF = 'prepare-network-netconf-input-group';
+
+const INPUT_LABEL_PREP_NET_HOST_NAME = 'Host name';
+
+const getFormData = (
+  {
+    netconf,
+  }: {
+    netconf: NetworkInitFormForwardedRefContent;
+  },
+  ...[{ target }]: DivFormEventHandlerParameters
+) => {
+  const { elements } = target as HTMLFormElement;
+
+  const { value: hostName } = elements.namedItem(
+    INPUT_ID_PREP_NET_HOST_NAME,
+  ) as HTMLInputElement;
+
+  const data = {
+    hostName,
+    ...netconf.get?.call(null),
+  };
+
+  return data;
+};
+
+const toFormEntries = (body: ReturnType<typeof getFormData>): FormEntries => {
+  const { networks: nets = [], ...rest } = body;
+
+  const networks = nets.reduce<FormEntries>((previous, network) => {
+    const {
+      interfaces: ifaces,
+      ipAddress,
+      name = '',
+      type,
+      typeCount,
+      subnetMask,
+    } = network;
+    const networkId = `${type}${typeCount}`;
+
+    const interfaces = ifaces.reduce<FormEntries>((pIfaces, iface, index) => {
+      if (iface) {
+        const { networkInterfaceName } = iface;
+        const linkNumber = index + 1;
+
+        pIfaces[`link${linkNumber}`] = networkInterfaceName;
+      }
+
+      return pIfaces;
+    }, {});
+
+    previous[networkId] = {
+      name,
+      network: `${ipAddress}/${subnetMask}`,
+      ...interfaces,
+    };
+
+    return previous;
+  }, {});
+
+  return { ...rest, networks };
+};
 
 const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
   expectUUID: isExpectExternalHostUUID = false,
   hostUUID,
 }) => {
-  const { protect } = useProtect();
-
   const {
     isReady,
     query: { host_uuid: queryHostUUID },
   } = useRouter();
 
-  const [dataHostDetail, setDataHostDetail] = useProtectedState<
+  const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
+  const netconfFormRef = useRef<NetworkInitFormForwardedRefContent>({});
+
+  const generalInputMessageGroupRef = useRef<MessageGroupForwardedRefContent>(
+    {},
+  );
+
+  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
+
+  const [hostDetail, setHostDetail] = useProtectedState<
     APIHostDetail | undefined
-  >(undefined, protect);
+  >(undefined);
   const [fatalErrorMessage, setFatalErrorMessage] = useProtectedState<
     Message | undefined
-  >(undefined, protect);
-  const [isLoading, setIsLoading] = useProtectedState<boolean>(true, protect);
-  const [previousHostUUID, setPreviousHostUUID] = useProtectedState<
-    PrepareNetworkFormProps['hostUUID']
-  >(undefined, protect);
+  >(undefined);
+  const [isLoadingHostDetail, setIsLoadingHostDetail] =
+    useProtectedState<boolean>(true);
+  const [previousHostUUID, setPreviousHostUUID] =
+    useProtectedState<PrepareNetworkFormProps['hostUUID']>(undefined);
+
+  const {
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
+    isFormInvalid,
+    setMessage,
+    setValidity,
+    submitForm,
+  } = useFormUtils(
+    [INPUT_ID_PREP_NET_HOST_NAME, INPUT_GROUP_ID_PREP_NET_NETCONF],
+    generalInputMessageGroupRef,
+  );
 
   const isDifferentHostUUID = useMemo(
     () => hostUUID !== previousHostUUID,
@@ -50,17 +141,39 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
   const panelHeaderElement = useMemo(
     () => (
       <PanelHeader>
-        <HeaderText>
-          Prepare network on {dataHostDetail?.shortHostName}
-        </HeaderText>
+        <HeaderText>Prepare network on {hostDetail?.shortHostName}</HeaderText>
       </PanelHeader>
     ),
-    [dataHostDetail],
+    [hostDetail],
   );
+  const netconfForm = useMemo(
+    () => (
+      <NetworkInitForm
+        expectHostDetail
+        hostDetail={hostDetail}
+        ref={netconfFormRef}
+        toggleSubmitDisabled={(valid) => {
+          setValidity(INPUT_GROUP_ID_PREP_NET_NETCONF, valid);
+        }}
+      />
+    ),
+    [hostDetail, setValidity],
+  );
+  const generalInputMessageArea = useMemo(
+    () => (
+      <MessageGroup
+        count={1}
+        defaultMessageType="warning"
+        ref={generalInputMessageGroupRef}
+      />
+    ),
+    [],
+  );
+
   const contentElement = useMemo(() => {
     let result;
 
-    if (isLoading) {
+    if (isLoadingHostDetail) {
       result = <Spinner mt={0} />;
     } else if (fatalErrorMessage) {
       result = <MessageBox {...fatalErrorMessage} />;
@@ -68,21 +181,84 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
       result = (
         <>
           {panelHeaderElement}
-          <FlexBox>
+          <FlexBox
+            component="form"
+            onSubmit={(...args) => {
+              const [event] = args;
+
+              event.preventDefault();
+
+              const body = getFormData(
+                { netconf: netconfFormRef.current },
+                ...args,
+              );
+
+              setConfirmDialogProps({
+                actionProceedText: 'Prepare',
+                content: (
+                  <FormSummary
+                    entries={toFormEntries(body)}
+                    getEntryLabel={({ cap, key }) =>
+                      /^(dns|[a-z]+n\d+)/.test(key)
+                        ? key.toUpperCase()
+                        : cap(key)
+                    }
+                  />
+                ),
+                onProceedAppend: () => {
+                  submitForm({
+                    body,
+                    getErrorMsg: (parentMsg) => (
+                      <>Failed to prepare network. {parentMsg}</>
+                    ),
+                    method: 'put',
+                    setMsg: netconfFormRef?.current?.setMessage,
+                    successMsg: `Initiated prepare network on ${hostDetail?.shortHostName}`,
+                    url: `/host/${hostUUID}?handler=subnode-network`,
+                  });
+                },
+                titleText: `Prepare ${hostDetail?.shortHostName} network?`,
+              });
+
+              confirmDialogRef.current.setOpen?.call(null, true);
+            }}
+          >
             <InputWithRef
               input={
                 <OutlinedInputWithLabel
                   formControlProps={{ sx: { maxWidth: '20em' } }}
-                  id="prepare-network-host-name"
-                  label="Host name"
-                  value={dataHostDetail?.hostName}
+                  id={INPUT_ID_PREP_NET_HOST_NAME}
+                  label={INPUT_LABEL_PREP_NET_HOST_NAME}
+                  value={hostDetail?.hostName}
                 />
               }
+              inputTestBatch={buildPeacefulStringTestBatch(
+                INPUT_LABEL_PREP_NET_HOST_NAME,
+                () => {
+                  setMessage(INPUT_ID_PREP_NET_HOST_NAME);
+                },
+                {
+                  onFinishBatch: buildFinishInputTestBatchFunction(
+                    INPUT_ID_PREP_NET_HOST_NAME,
+                  ),
+                },
+                (message) => {
+                  setMessage(INPUT_ID_PREP_NET_HOST_NAME, {
+                    children: message,
+                  });
+                },
+              )}
+              onFirstRender={buildInputFirstRenderFunction(
+                INPUT_ID_PREP_NET_HOST_NAME,
+              )}
               required
             />
-            <NetworkInitForm hostDetail={dataHostDetail} />
+            {generalInputMessageArea}
+            {netconfForm}
             <FlexBox row justifyContent="flex-end">
-              <ContainedButton>Prepare network</ContainedButton>
+              <ContainedButton disabled={isFormInvalid} type="submit">
+                Prepare network
+              </ContainedButton>
             </FlexBox>
           </FlexBox>
         </>
@@ -90,18 +266,33 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     }
 
     return result;
-  }, [dataHostDetail, fatalErrorMessage, isLoading, panelHeaderElement]);
+  }, [
+    isLoadingHostDetail,
+    fatalErrorMessage,
+    panelHeaderElement,
+    hostDetail?.hostName,
+    hostDetail?.shortHostName,
+    buildFinishInputTestBatchFunction,
+    buildInputFirstRenderFunction,
+    generalInputMessageArea,
+    netconfForm,
+    isFormInvalid,
+    setConfirmDialogProps,
+    submitForm,
+    hostUUID,
+    setMessage,
+  ]);
 
   const getHostDetail = useCallback(
     (uuid: string) => {
-      setIsLoading(true);
+      setIsLoadingHostDetail(true);
 
-      if (isLoading) {
+      if (isLoadingHostDetail) {
         api
           .get<APIHostDetail>(`/host/${uuid}`)
           .then(({ data }) => {
             setPreviousHostUUID(data.hostUUID);
-            setDataHostDetail(data);
+            setHostDetail(data);
           })
           .catch((error) => {
             const { children } = handleAPIError(error);
@@ -112,15 +303,15 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
             });
           })
           .finally(() => {
-            setIsLoading(false);
+            setIsLoadingHostDetail(false);
           });
       }
     },
     [
-      setIsLoading,
-      isLoading,
+      setIsLoadingHostDetail,
+      isLoadingHostDetail,
       setPreviousHostUUID,
-      setDataHostDetail,
+      setHostDetail,
       setFatalErrorMessage,
     ],
   );
@@ -139,7 +330,7 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
           type: 'error',
         });
 
-        setIsLoading(false);
+        setIsLoadingHostDetail(false);
       }
     }
   }, [
@@ -150,12 +341,22 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     isReady,
     queryHostUUID,
     setFatalErrorMessage,
-    setDataHostDetail,
-    setIsLoading,
+    setHostDetail,
+    setIsLoadingHostDetail,
     isReloadHostDetail,
   ]);
 
-  return <Panel>{contentElement}</Panel>;
+  return (
+    <>
+      <Panel>{contentElement}</Panel>
+      <ConfirmDialog
+        closeOnProceed
+        scrollContent
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
+    </>
+  );
 };
 
 export default PrepareNetworkForm;

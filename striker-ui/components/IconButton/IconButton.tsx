@@ -1,4 +1,5 @@
 import {
+  Delete as MUIDeleteIcon,
   Add as MUIAddIcon,
   Close as MUICloseIcon,
   Done as MUIDoneIcon,
@@ -21,6 +22,7 @@ import {
   BORDER_RADIUS,
   DISABLED,
   GREY,
+  RED,
 } from '../../lib/consts/DEFAULT_THEME';
 
 type IconButtonProps = IconButtonOptionalProps & MUIIconButtonProps;
@@ -39,6 +41,15 @@ const ContainedIconButton = styled(MUIIconButton)({
   },
 });
 
+const RedContainedIconButton = styled(ContainedIconButton)({
+  backgroundColor: RED,
+  color: GREY,
+
+  '&:hover': {
+    backgroundColor: `${RED}F0`,
+  },
+});
+
 const NormalIconButton = styled(MUIIconButton)({
   color: GREY,
 });
@@ -49,6 +60,10 @@ const MAP_TO_ADD_ICON: IconButtonMapToStateIconBundle = {
 
 const MAP_TO_CLOSE_ICON: IconButtonMapToStateIconBundle = {
   none: { iconType: MUICloseIcon },
+};
+
+const MAP_TO_DELETE_ICON: IconButtonMapToStateIconBundle = {
+  none: { iconType: MUIDeleteIcon },
 };
 
 const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
@@ -71,6 +86,7 @@ const MAP_TO_MAP_PRESET: Record<
 > = {
   add: MAP_TO_ADD_ICON,
   close: MAP_TO_CLOSE_ICON,
+  delete: MAP_TO_DELETE_ICON,
   edit: MAP_TO_EDIT_ICON,
   play: MAP_TO_PLAY_ICON,
   visibility: MAP_TO_VISIBILITY_ICON,
@@ -79,6 +95,7 @@ const MAP_TO_MAP_PRESET: Record<
 const MAP_TO_VARIANT: Record<IconButtonVariant, CreatableComponent> = {
   contained: ContainedIconButton,
   normal: NormalIconButton,
+  redcontained: RedContainedIconButton,
 };
 
 const IconButton: FC<IconButtonProps> = ({

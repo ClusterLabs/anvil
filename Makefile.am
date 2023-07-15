@@ -20,7 +20,7 @@ TARFILES		= $(PACKAGE_NAME)-$(VERSION).tar.bz2 \
 
 ACLOCAL_AMFLAGS		= -I m4
 
-SUBDIRS			= Anvil cgi-bin html journald.conf.d man ocf \
+SUBDIRS			= Anvil cgi-bin html journald.conf.d libvirt man ocf \
 			  pxe scancore-agents scripts share striker-ui \
 			  striker-ui-api tools units
 

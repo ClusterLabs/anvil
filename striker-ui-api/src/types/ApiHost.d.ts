@@ -48,6 +48,7 @@ type HostOverview = {
 };
 
 type InitializeStrikerNetworkForm = {
+  createBridge?: StringBoolean;
   interfaces: Array<NetworkInterfaceOverview | null | undefined>;
   ipAddress: string;
   name: string;
@@ -57,11 +58,12 @@ type InitializeStrikerNetworkForm = {
 
 type InitializeStrikerForm = {
   adminPassword: string;
+  dns: string;
   domainName: string;
+  gateway: string;
+  gatewayInterface: string;
   hostName: string;
   hostNumber: number;
-  networkDNS: string;
-  networkGateway: string;
   networks: InitializeStrikerNetworkForm[];
   organizationName: string;
   organizationPrefix: string;
@@ -78,6 +80,14 @@ type PrepareHostRequestBody = {
   hostUUID?: string;
   redhatPassword: string;
   redhatUser: string;
+};
+
+type PrepareNetworkRequestBody = {
+  dns: string;
+  gateway: string;
+  gatewayInterface: string;
+  hostName: string;
+  networks: InitializeStrikerNetworkForm[];
 };
 
 type SetHostInstallTargetRequestBody = {

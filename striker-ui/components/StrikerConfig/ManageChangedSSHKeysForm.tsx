@@ -13,35 +13,30 @@ import MessageBox, { Message } from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { BodyText } from '../Text';
-import useProtect from '../../hooks/useProtect';
+import useChecklist from '../../hooks/useChecklist';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
   mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
   refreshInterval = 60000,
 }) => {
-  const { protect } = useProtect();
-
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-  const listRef = useRef<ListForwardedRefContent>({});
 
   const [apiMessage, setAPIMessage] = useProtectedState<Message | undefined>(
     undefined,
-    protect,
   );
   const [changedSSHKeys, setChangedSSHKeys] = useProtectedState<ChangedSSHKeys>(
     {},
-    protect,
   );
   const [confirmDialogProps, setConfirmDialogProps] =
-    useProtectedState<ConfirmDialogProps>(
-      {
-        actionProceedText: '',
-        content: '',
-        titleText: '',
-      },
-      protect,
-    );
+    useProtectedState<ConfirmDialogProps>({
+      actionProceedText: '',
+      content: '',
+      titleText: '',
+    });
+
+  const { checks, getCheck, hasAllChecks, hasChecks, setAllChecks, setCheck } =
+    useChecklist({ list: changedSSHKeys });
 
   const apiMessageElement = useMemo(
     () => apiMessage && <MessageBox {...apiMessage} />,
@@ -140,40 +135,40 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
             allowCheckItem
             allowDelete
             allowEdit={false}
+            disableDelete={!hasChecks}
             edit
+            getListCheckboxProps={() => ({
+              checked: hasAllChecks,
+            })}
             listEmpty={
               <BodyText align="center">No conflicting keys found.</BodyText>
             }
             listItems={changedSSHKeys}
-            onAllCheckboxChange={(event, isChecked) => {
-              Object.keys(changedSSHKeys).forEach((key) => {
-                changedSSHKeys[key].isChecked = isChecked;
-              });
-
-              setChangedSSHKeys((previous) => ({ ...previous }));
+            onAllCheckboxChange={(event, checked) => {
+              setAllChecks(checked);
             }}
             onDelete={() => {
-              let deleteCount = 0;
-
-              const deleteRequestBody = Object.entries(changedSSHKeys).reduce<{
+              const deleteRequestBody = checks.reduce<{
                 [hostUUID: string]: string[];
-              }>((previous, [stateUUID, { hostUUID, isChecked }]) => {
-                if (isChecked) {
-                  if (!previous[hostUUID]) {
-                    previous[hostUUID] = [];
-                  }
+              }>((previous, stateUUID) => {
+                const checked = getCheck(stateUUID);
 
-                  previous[hostUUID].push(stateUUID);
+                if (!checked) return previous;
 
-                  deleteCount += 1;
+                const { hostUUID } = changedSSHKeys[stateUUID];
+
+                if (!previous[hostUUID]) {
+                  previous[hostUUID] = [];
                 }
+
+                previous[hostUUID].push(stateUUID);
 
                 return previous;
               }, {});
 
               setConfirmDialogProps({
                 actionProceedText: 'Delete',
-                content: `Resolve ${deleteCount} SSH key conflicts. Please make sure the identity change(s) are expected to avoid MITM attacks.`,
+                content: `Resolve ${checks.length} SSH key conflicts. Please make sure the identity change(s) are expected to avoid MITM attacks.`,
                 onProceedAppend: () => {
                   api
                     .delete('/ssh-key/conflict', { data: deleteRequestBody })
@@ -186,22 +181,13 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
                     });
                 },
                 proceedColour: 'red',
-                titleText: `Delete ${deleteCount} conflicting SSH keys?`,
+                titleText: `Delete ${checks.length} conflicting SSH keys?`,
               });
 
               confirmDialogRef.current.setOpen?.call(null, true);
             }}
-            onItemCheckboxChange={(key, event, isChecked) => {
-              changedSSHKeys[key].isChecked = isChecked;
-
-              listRef.current.setCheckAll?.call(
-                null,
-                Object.values(changedSSHKeys).every(
-                  ({ isChecked: isItemChecked }) => isItemChecked,
-                ),
-              );
-
-              setChangedSSHKeys((previous) => ({ ...previous }));
+            onItemCheckboxChange={(key, event, checked) => {
+              setCheck(key, checked);
             }}
             renderListItem={(hostUUID, { hostName, ipAddress }) => (
               <FlexBox
@@ -214,10 +200,7 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
                 <BodyText>{ipAddress}</BodyText>
               </FlexBox>
             )}
-            renderListItemCheckboxState={(key, { isChecked }) =>
-              isChecked === true
-            }
-            ref={listRef}
+            renderListItemCheckboxState={(key) => getCheck(key)}
           />
         </FlexBox>
         {apiMessageElement}

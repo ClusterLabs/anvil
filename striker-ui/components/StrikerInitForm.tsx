@@ -1,5 +1,10 @@
+import { Assignment as AssignmentIcon } from '@mui/icons-material';
 import { Grid } from '@mui/material';
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import API_BASE_URL from '../lib/consts/API_BASE_URL';
+import { BLACK } from '../lib/consts/DEFAULT_THEME';
 
 import api from '../lib/api';
 import ConfirmDialog from './ConfirmDialog';
@@ -10,6 +15,12 @@ import GeneralInitForm, {
   GeneralInitFormValues,
 } from './GeneralInitForm';
 import handleAPIError from '../lib/handleAPIError';
+import IconButton from './IconButton';
+import IconWithIndicator, {
+  IconWithIndicatorForwardedRefContent,
+} from './IconWithIndicator';
+import JobSummary, { JobSummaryForwardedRefContent } from './JobSummary';
+import Link from './Link';
 import MessageBox, { Message } from './MessageBox';
 import NetworkInitForm, {
   NetworkInitFormForwardedRefContent,
@@ -18,8 +29,14 @@ import NetworkInitForm, {
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
+import useProtectedState from '../hooks/useProtectedState';
 
 const StrikerInitForm: FC = () => {
+  const {
+    isReady,
+    query: { re },
+  } = useRouter();
+
   const [submitMessage, setSubmitMessage] = useState<Message | undefined>();
   const [requestBody, setRequestBody] = useState<
     (GeneralInitFormValues & NetworkInitFormValues) | undefined
@@ -32,8 +49,19 @@ const StrikerInitForm: FC = () => {
     useState<boolean>(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
 
+  const [hostDetail, setHostDetail] = useProtectedState<
+    APIHostDetail | undefined
+  >(undefined);
+
+  const allowGetHostDetail = useRef<boolean>(true);
+
   const generalInitFormRef = useRef<GeneralInitFormForwardedRefContent>({});
   const networkInitFormRef = useRef<NetworkInitFormForwardedRefContent>({});
+
+  const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
+  const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
+
+  const reconfig = useMemo<boolean>(() => Boolean(re), [re]);
 
   const buildSubmitSection = useMemo(
     () =>
@@ -61,18 +89,64 @@ const StrikerInitForm: FC = () => {
     [isDisableSubmit, isSubmittingForm],
   );
 
+  const panelTitle = useMemo(() => {
+    let title = 'Loading...';
+
+    if (isReady) {
+      title = reconfig
+        ? `Reconfigure ${hostDetail?.shortHostName ?? 'striker'}`
+        : 'Initialize striker';
+    }
+
+    return title;
+  }, [hostDetail?.shortHostName, isReady, reconfig]);
+
   const toggleSubmitDisabled = useCallback((...testResults: boolean[]) => {
     setIsDisableSubmit(!testResults.every((testResult) => testResult));
   }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      if (reconfig && allowGetHostDetail.current) {
+        allowGetHostDetail.current = false;
+
+        api
+          .get<APIHostDetail>('/host/local')
+          .then(({ data }) => {
+            setHostDetail(data);
+          })
+          .catch((error) => {
+            const emsg = handleAPIError(error);
+
+            emsg.children = (
+              <>Failed to get host detail data. {emsg.children}</>
+            );
+
+            setSubmitMessage(emsg);
+          });
+      }
+    }
+  }, [isReady, reconfig, setHostDetail]);
 
   return (
     <>
       <Panel>
         <PanelHeader>
-          <HeaderText text="Initialize striker" />
+          <HeaderText>{panelTitle}</HeaderText>
+          <IconButton
+            onClick={({ currentTarget }) => {
+              jobSummaryRef.current.setAnchor?.call(null, currentTarget);
+              jobSummaryRef.current.setOpen?.call(null, true);
+            }}
+            variant="normal"
+          >
+            <IconWithIndicator icon={AssignmentIcon} ref={jobIconRef} />
+          </IconButton>
         </PanelHeader>
         <FlexBox>
           <GeneralInitForm
+            expectHostDetail={reconfig}
+            hostDetail={hostDetail}
             ref={generalInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isGeneralInitFormValid) {
@@ -82,6 +156,8 @@ const StrikerInitForm: FC = () => {
             }}
           />
           <NetworkInitForm
+            expectHostDetail={reconfig}
+            hostDetail={hostDetail}
             ref={networkInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isNetworkInitFormValid) {
@@ -206,7 +282,7 @@ const StrikerInitForm: FC = () => {
               <BodyText>Domain name server(s)</BodyText>
             </Grid>
             <Grid item xs={1}>
-              <MonoText>{requestBody?.domainNameServerCSV}</MonoText>
+              <MonoText>{requestBody?.dns}</MonoText>
             </Grid>
           </Grid>
         }
@@ -220,9 +296,26 @@ const StrikerInitForm: FC = () => {
           setIsOpenConfirm(false);
 
           api
-            .post('/host', requestBody)
+            .put('/init', requestBody)
             .then(() => {
               setIsSubmittingForm(false);
+              setSubmitMessage({
+                children: (
+                  <>
+                    Successfully registered the configuration job! You can check
+                    the progress at the top right icon. Once the job completes,
+                    you can access the{' '}
+                    <Link
+                      href="/login"
+                      sx={{ color: BLACK, display: 'inline-flex' }}
+                    >
+                      login page
+                    </Link>
+                    .
+                  </>
+                ),
+                type: 'info',
+              });
             })
             .catch((error) => {
               const errorMessage = handleAPIError(error);
@@ -232,6 +325,13 @@ const StrikerInitForm: FC = () => {
             });
         }}
         titleText="Confirm striker initialization"
+      />
+      <JobSummary
+        getJobUrl={(epoch) => `${API_BASE_URL}/init/job?start=${epoch}`}
+        onFetchSuccessAppend={(jobs) => {
+          jobIconRef.current.indicate?.call(null, Object.keys(jobs).length > 0);
+        }}
+        ref={jobSummaryRef}
       />
     </>
   );

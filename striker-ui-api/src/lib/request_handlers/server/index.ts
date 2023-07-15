@@ -1,3 +1,4 @@
-export { createServer } from './createServer';
-export { getServer } from './getServer';
-export { getServerDetail } from './getServerDetail';
+export * from './createServer';
+export * from './deleteServer';
+export * from './getServer';
+export * from './getServerDetail';

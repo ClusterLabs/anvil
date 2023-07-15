@@ -32,7 +32,9 @@ const SensitiveText: FC<SensitiveTextProps> = ({
   children,
   inline: isInline = false,
   monospaced: isMonospaced = false,
+  revealButtonProps,
   revealInitially: isRevealInitially = false,
+  textLineHeight = 2.8,
   textProps,
 }) => {
   const [isReveal, setIsReveal] = useState<boolean>(isRevealInitially);
@@ -42,8 +44,8 @@ const SensitiveText: FC<SensitiveTextProps> = ({
   }, []);
 
   const textSxLineHeight = useMemo<number | string | undefined>(
-    () => (isInline ? undefined : 2.8),
-    [isInline],
+    () => (isInline ? undefined : textLineHeight || undefined),
+    [isInline, textLineHeight],
   );
 
   const textElementType = useMemo(
@@ -101,10 +103,11 @@ const SensitiveText: FC<SensitiveTextProps> = ({
             state={String(isReveal)}
             sx={{ marginRight: '-.2em', padding: '.2em' }}
             variant="normal"
+            {...revealButtonProps}
           />
         </FlexBox>
       ),
-    [clickEventHandler, contentElement, isInline, isReveal],
+    [clickEventHandler, contentElement, revealButtonProps, isInline, isReveal],
   );
 
   return rootElement;

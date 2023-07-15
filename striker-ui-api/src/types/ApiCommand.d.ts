@@ -13,3 +13,7 @@ type GetHostSshResponseBody = {
   isInetConnected: boolean;
   isOSRegistered: boolean;
 };
+
+type SetMapNetworkRequestBody = {
+  value: number;
+};

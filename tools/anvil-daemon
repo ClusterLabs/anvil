@@ -553,7 +553,7 @@ sub handle_periodic_tasks
 		
 		# Check if anything is needed to be done in /mnt/shared.
 		check_incoming($anvil);
-		
+
 		# Check for stale db_in_use states.
 		check_db_in_use_states($anvil);
 	}

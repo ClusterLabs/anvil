@@ -6,3 +6,8 @@ type UserOverviewMetadata = {
 type UserOverviewMetadataList = {
   [userUUID: string]: UserOverviewMetadata;
 };
+
+type CreateUserRequestBody = {
+  userName: string;
+  password: string;
+};

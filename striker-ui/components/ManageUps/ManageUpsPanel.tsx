@@ -23,65 +23,73 @@ import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from '../Text';
+import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
 type UpsFormData = {
-  upsAgent: string;
-  upsBrand: string;
-  upsIPAddress: string;
-  upsName: string;
-  upsTypeId: string;
-  upsUUID: string;
+  agent: string;
+  brand: string;
+  ipAddress: string;
+  name: string;
+  typeId: string;
+  uuid: string;
 };
 
-const getUpsFormData = (
+const getFormData = (
   upsTemplate: APIUpsTemplate,
   ...[{ target }]: Parameters<FormEventHandler<HTMLDivElement>>
 ): UpsFormData => {
   const { elements } = target as HTMLFormElement;
 
-  const { value: upsName } = elements.namedItem(
+  const { value: name } = elements.namedItem(
     INPUT_ID_UPS_NAME,
   ) as HTMLInputElement;
-  const { value: upsIPAddress } = elements.namedItem(
+  const { value: ipAddress } = elements.namedItem(
     INPUT_ID_UPS_IP,
   ) as HTMLInputElement;
 
   const inputUpsTypeId = elements.namedItem(INPUT_ID_UPS_TYPE);
 
-  let upsAgent = '';
-  let upsBrand = '';
-  let upsTypeId = '';
+  let agent = '';
+  let brand = '';
+  let typeId = '';
 
   if (inputUpsTypeId) {
-    ({ value: upsTypeId } = inputUpsTypeId as HTMLInputElement);
-    ({ agent: upsAgent, brand: upsBrand } = upsTemplate[upsTypeId]);
+    ({ value: typeId } = inputUpsTypeId as HTMLInputElement);
+    ({ agent, brand } = upsTemplate[typeId]);
   }
 
   const inputUpsUUID = elements.namedItem(INPUT_ID_UPS_UUID);
 
-  let upsUUID = '';
+  let uuid = '';
 
   if (inputUpsUUID) {
-    ({ value: upsUUID } = inputUpsUUID as HTMLInputElement);
+    ({ value: uuid } = inputUpsUUID as HTMLInputElement);
   }
 
-  return { upsAgent, upsBrand, upsIPAddress, upsName, upsTypeId, upsUUID };
+  return {
+    agent,
+    brand,
+    ipAddress,
+    name,
+    typeId,
+    uuid,
+  };
 };
 
 const buildConfirmUpsFormData = ({
-  upsBrand,
-  upsIPAddress,
-  upsName,
-  upsUUID,
+  brand,
+  ipAddress,
+  name,
+  uuid,
 }: UpsFormData) => {
   const listItems: Record<string, { label: string; value: string }> = {
-    'ups-brand': { label: 'Brand', value: upsBrand },
-    'ups-name': { label: 'Host name', value: upsName },
-    'ups-ip-address': { label: 'IP address', value: upsIPAddress },
+    'ups-brand': { label: 'Brand', value: brand },
+    'ups-name': { label: 'Host name', value: name },
+    'ups-ip-address': { label: 'IP address', value: ipAddress },
   };
 
   return (
@@ -89,7 +97,7 @@ const buildConfirmUpsFormData = ({
       listItems={listItems}
       listItemProps={{ sx: { padding: 0 } }}
       renderListItem={(part, { label, value }) => (
-        <FlexBox fullWidth growFirst key={`confirm-ups-${upsUUID}-${part}`} row>
+        <FlexBox fullWidth growFirst key={`confirm-ups-${uuid}-${part}`} row>
           <BodyText>{label}</BodyText>
           <MonoText>{value}</MonoText>
         </FlexBox>
@@ -123,7 +131,12 @@ const ManageUpsPanel: FC = () => {
     [INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME, INPUT_ID_UPS_TYPE],
     messageGroupRef,
   );
-  const { isFormInvalid } = formUtils;
+  const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
+
+  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
+    useChecklist({
+      list: upsOverviews,
+    });
 
   const buildEditUpsFormDialogProps = useCallback<
     (args: APIUpsOverview[string]) => ConfirmDialogProps
@@ -155,12 +168,23 @@ const ManageUpsPanel: FC = () => {
             return;
           }
 
-          const editData = getUpsFormData(upsTemplate, event);
-          const { upsName: newUpsName } = editData;
+          const editData = getFormData(upsTemplate, event);
+          const { name: newUpsName } = editData;
 
           setConfirmDialogProps({
             actionProceedText: 'Update',
             content: buildConfirmUpsFormData(editData),
+            onProceedAppend: () => {
+              submitForm({
+                body: editData,
+                getErrorMsg: (parentMsg) => (
+                  <>Failed to update UPS. {parentMsg}</>
+                ),
+                method: 'put',
+                successMsg: `Successfully updated UPS ${upsName}`,
+                url: `/ups/${upsUUID}`,
+              });
+            },
             titleText: (
               <HeaderText>
                 Update{' '}
@@ -180,7 +204,7 @@ const ManageUpsPanel: FC = () => {
         ),
       };
     },
-    [formUtils, setConfirmDialogProps, upsTemplate],
+    [formUtils, setConfirmDialogProps, submitForm, upsTemplate],
   );
 
   const addUpsFormDialogProps = useMemo<ConfirmDialogProps>(
@@ -194,12 +218,21 @@ const ManageUpsPanel: FC = () => {
           return;
         }
 
-        const addData = getUpsFormData(upsTemplate, event);
-        const { upsBrand } = addData;
+        const addData = getFormData(upsTemplate, event);
+        const { brand: upsBrand, name: upsName } = addData;
 
         setConfirmDialogProps({
           actionProceedText: 'Add',
           content: buildConfirmUpsFormData(addData),
+          onProceedAppend: () => {
+            submitForm({
+              body: addData,
+              getErrorMsg: (parentMsg) => <>Failed to add UPS. {parentMsg}</>,
+              method: 'post',
+              successMsg: `Successfully added UPS ${upsName}`,
+              url: '/ups',
+            });
+          },
           titleText: (
             <HeaderText>
               Add a{' '}
@@ -213,7 +246,7 @@ const ManageUpsPanel: FC = () => {
       },
       titleText: 'Add a UPS',
     }),
-    [formUtils, setConfirmDialogProps, upsTemplate],
+    [formUtils, setConfirmDialogProps, submitForm, upsTemplate],
   );
 
   const listElement = useMemo(
@@ -221,6 +254,7 @@ const ManageUpsPanel: FC = () => {
       <List
         allowEdit
         allowItemButton={isEditUpses}
+        disableDelete={!hasChecks}
         edit={isEditUpses}
         header
         listEmpty="No Ups(es) registered."
@@ -229,13 +263,39 @@ const ManageUpsPanel: FC = () => {
           setFormDialogProps(addUpsFormDialogProps);
           formDialogRef.current.setOpen?.call(null, true);
         }}
+        onDelete={() => {
+          setConfirmDialogProps(
+            buildDeleteDialogProps({
+              getConfirmDialogTitle: (count) => `Delete ${count} UPSes?`,
+              onProceedAppend: () => {
+                submitForm({
+                  body: { uuids: checks },
+                  getErrorMsg: (parentMsg) => (
+                    <>Failed to delete UPS(es). {parentMsg}</>
+                  ),
+                  method: 'delete',
+                  url: '/ups',
+                });
+              },
+              renderEntry: ({ key }) => (
+                <BodyText>{upsOverviews?.[key].upsName}</BodyText>
+              ),
+            }),
+          );
+
+          confirmDialogRef.current.setOpen?.call(null, true);
+        }}
         onEdit={() => {
           setIsEditUpses((previous) => !previous);
+        }}
+        onItemCheckboxChange={(key, event, checked) => {
+          setCheck(key, checked);
         }}
         onItemClick={(value) => {
           setFormDialogProps(buildEditUpsFormDialogProps(value));
           formDialogRef.current.setOpen?.call(null, true);
         }}
+        renderListItemCheckboxState={(key) => getCheck(key)}
         renderListItem={(upsUUID, { upsAgent, upsIPAddress, upsName }) => (
           <FlexBox fullWidth row>
             <BodyText>{upsName}</BodyText>
@@ -247,9 +307,16 @@ const ManageUpsPanel: FC = () => {
     ),
     [
       addUpsFormDialogProps,
+      buildDeleteDialogProps,
       buildEditUpsFormDialogProps,
+      checks,
+      getCheck,
+      hasChecks,
       isEditUpses,
+      setCheck,
+      setConfirmDialogProps,
       setFormDialogProps,
+      submitForm,
       upsOverviews,
     ],
   );
@@ -257,6 +324,17 @@ const ManageUpsPanel: FC = () => {
     () =>
       isLoadingUpsTemplate || isUpsOverviewLoading ? <Spinner /> : listElement,
     [isLoadingUpsTemplate, isUpsOverviewLoading, listElement],
+  );
+
+  const messageArea = useMemo(
+    () => (
+      <MessageGroup
+        count={1}
+        defaultMessageType="warning"
+        ref={messageGroupRef}
+      />
+    ),
+    [],
   );
 
   if (isFirstRender) {
@@ -283,17 +361,16 @@ const ManageUpsPanel: FC = () => {
       </Panel>
       <FormDialog
         {...formDialogProps}
+        disableProceed={isFormInvalid}
+        loadingAction={isFormSubmitting}
+        preActionArea={messageArea}
         ref={formDialogRef}
-        preActionArea={
-          <MessageGroup
-            count={1}
-            defaultMessageType="warning"
-            ref={messageGroupRef}
-          />
-        }
-        proceedButtonProps={{ disabled: isFormInvalid }}
       />
-      <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />
+      <ConfirmDialog
+        closeOnProceed
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
     </>
   );
 };
