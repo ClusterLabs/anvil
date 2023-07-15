@@ -120,8 +120,6 @@ manage_daemons($anvil, "stop");
 # Update systems
 update_strikers_and_dr($anvil);
 
-die;
-
 # Update DR Host
 update_nodes($anvil);
 
@@ -342,10 +340,10 @@ sub update_nodes
 				{
 					if (time > $next_log)
 					{
-						$anvil->Database->get_job_details({job_uuid => $job_uuid});
+						$anvil->Job->get_job_details({job_uuid => $job_uuid});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							"jobs::job_progress" => $anvil->data->{jobs}{job_progress},
-							"jobs::job_status"   => $anvil->data->{jobs}{job_status},
+							"jobs::job_data"     => $anvil->data->{jobs}{job_data},
 						}});
 						if ($anvil->data->{jobs}{job_progress} == 0)
 						{
@@ -380,6 +378,7 @@ sub update_nodes
 			{
 				$shell_call .= " --clear-cache";
 			}
+			$shell_call .= $anvil->Log->switches();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			$job_uuid = "";
 			$job_uuid = $anvil->Database->insert_or_update_jobs({
@@ -400,10 +399,10 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 			while ($waiting)
 			{
-				$anvil->Database->get_job_details({job_uuid => $job_uuid});
+				$anvil->Job->get_job_details({job_uuid => $job_uuid});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"jobs::job_progress" => $anvil->data->{jobs}{job_progress},
-					"jobs::job_status"   => $anvil->data->{jobs}{job_status},
+					"jobs::job_data"     => $anvil->data->{jobs}{job_data},
 				}});
 				if ($anvil->data->{jobs}{job_progress} == 100)
 				{
@@ -412,7 +411,7 @@ sub update_nodes
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 					
 					# Did it reboot?
-					if ($anvil->data->{jobs}{job_status} eq "rebooted")
+					if ($anvil->data->{jobs}{job_data} eq "rebooted")
 					{
 						$rebooted = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rebooted => $rebooted }});
@@ -821,6 +820,7 @@ sub update_strikers_and_dr
 				{
 					$shell_call .= " --clear-cache";
 				}
+				$shell_call .= $anvil->Log->switches();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my $job_uuid = $anvil->Database->insert_or_update_jobs({
 					debug           => 2,
@@ -864,10 +864,10 @@ sub update_strikers_and_dr
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 				while ($waiting)
 				{
-					$anvil->Database->get_job_details({job_uuid => $job_uuid});
+					$anvil->Job->get_job_details({job_uuid => $job_uuid});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"jobs::job_progress" => $anvil->data->{jobs}{job_progress},
-						"jobs::job_status"   => $anvil->data->{jobs}{job_status},
+						"jobs::job_data"     => $anvil->data->{jobs}{job_data},
 					}});
 					if ($anvil->data->{jobs}{job_progress} == 100)
 					{
@@ -876,7 +876,7 @@ sub update_strikers_and_dr
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 						
 						# Did it reboot?
-						if ($anvil->data->{jobs}{job_status} eq "rebooted")
+						if ($anvil->data->{jobs}{job_data} eq "rebooted")
 						{
 							$rebooted = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rebooted => $rebooted }});

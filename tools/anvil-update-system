@@ -101,9 +101,20 @@ if ($reboot_needed)
 		$anvil->System->maintenance_mode({set => 0});
 		
 		# Record that we're rebooting so that 'striker-update-cluster' knows to wait for a reboot.
-		my $query = "UPDATE jobs SET job_status = 'rebooted', modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." WHERE job_uuid = ".$anvil->Database->quote($job_uuid).";";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		if ($anvil->data->{switches}{'job-uuid'})
+		{
+			my $query = "
+UPDATE 
+    jobs 
+SET 
+    job_data      = 'rebooted', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    job_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'job-uuid'})."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
 		
 		sleep 2;
 		my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
@@ -347,9 +358,9 @@ sub run_os_update
 	
 	### See if the kernel has been updated.
 	# Get the newest installed kernel
-	my $shell_call = $anvil->data->{path}{exe}{rpm}." -q kernel | ".$anvil->data->{path}{exe}{'sort'}." | ".$anvil->data->{path}{exe}{tail}." -n 1";
+	$shell_call = $anvil->data->{path}{exe}{rpm}." -q kernel | ".$anvil->data->{path}{exe}{'sort'}." | ".$anvil->data->{path}{exe}{tail}." -n 1";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($installed_kernel, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	(my $installed_kernel, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		installed_kernel => $installed_kernel, 
 		return_code      => $return_code, 
