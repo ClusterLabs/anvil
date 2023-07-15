@@ -17,7 +17,7 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-my $anvil = Anvil::Tools->new({ on_sig_int => \&close_ssh_tunnel, on_sig_term => \&close_ssh_tunnel });
+my $anvil = Anvil::Tools->new({ on_sig_int => \&close_connection, on_sig_term => \&close_connection });
 
 $anvil->Get->switches;
 
@@ -30,36 +30,87 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $ssh_forward_local_port  = $anvil->data->{switches}{'forward-local-port'};
-my $ssh_forward_remote_port = $anvil->data->{switches}{'forward-remote-port'};
-my $ssh_remote_forward      = $anvil->data->{switches}{'remote'};
-my $ssh_port                = $anvil->data->{switches}{'port'};
-my $ssh_target              = $anvil->data->{switches}{'target'};
-my $ssh_user                = $anvil->data->{switches}{'user'};
+my $connect_child     = $anvil->data->{switches}{'child'};
+my $switch_debug      = $anvil->data->{switches}{'debug'} || 3;
+my $ssh_ctl_cmd       = $anvil->data->{switches}{'ctl-cmd'};
+my $ssh_ctl_path      = $anvil->data->{switches}{'ctl-path'};
+my $ssh_forward       = $anvil->data->{switches}{'forward'};
+my $ssh_forward_lport = $anvil->data->{switches}{'forward-lport'};
+my $ssh_forward_rport = $anvil->data->{switches}{'forward-rport'};
+my $ssh_port          = $anvil->data->{switches}{'port'};
+my $ssh_target        = $anvil->data->{switches}{'target'};
+my $ssh_test_interval = $anvil->data->{switches}{'test-interval'};
+my $ssh_user          = $anvil->data->{switches}{'user'};
 
-my $ssh_fh;
+# Global for holding the SSH file handle; needed because it's hard to pass
+# params to signal handlers.
+my $ssh;
 
-my ($open_rcode) = open_ssh_tunnel({
-	forward_local_port  => $ssh_forward_local_port,
-	forward_remote_port => $ssh_forward_remote_port,
-	port                => $ssh_port,
-	remote              => $ssh_remote_forward,
-	target              => $ssh_target,
-	user                => $ssh_user,
-});
-
-$anvil->nice_exit({ exit_code => 1 }) if ($open_rcode > 0);
-
-my $is_ssh_tunnel_alive = 1;
-
-while ($is_ssh_tunnel_alive)
+if ($connect_child)
 {
-	$is_ssh_tunnel_alive = $ssh_fh->test('echo');
+	(my $open_rcode, $ssh) = open_connection({
+		ctl_path        => $ssh_ctl_path,
+		debug           => $switch_debug,
+		external_parent => 1,
+		port            => $ssh_port,
+		target          => $ssh_target,
+		user            => $ssh_user,
+	});
 
-	sleep(60);
+	$anvil->nice_exit({ exit_code => $open_rcode }) if ($open_rcode);
+
+	my ($manage_rcode) = manage_tunnel({
+		ctl_cmd       => $ssh_ctl_cmd,
+		debug         => $switch_debug,
+		forward       => $ssh_forward,
+		forward_lport => $ssh_forward_lport,
+		forward_rport => $ssh_forward_rport,
+		ssh_fh        => $ssh,
+	});
+
+	$anvil->nice_exit({ exit_code => $manage_rcode }) if ($manage_rcode);
 }
+else
+{
+	$ssh_test_interval = 60 if (not is_int($ssh_test_interval));
 
-close_ssh_tunnel();
+	(my $open_rcode, $ssh) = open_connection({
+		ctl_path => $ssh_ctl_path,
+		debug    => $switch_debug,
+		port     => $ssh_port,
+		target   => $ssh_target,
+		user     => $ssh_user,
+	});
+
+	$anvil->nice_exit({ exit_code => $open_rcode }) if ($open_rcode);
+
+	if (not defined $ssh_ctl_path)
+	{
+		# Not making an external parent connection; forward using
+		# internal parent connection.
+		my ($manage_rcode) = manage_tunnel({
+			ctl_cmd       => $ssh_ctl_cmd,
+			debug         => $switch_debug,
+			forward       => $ssh_forward,
+			forward_lport => $ssh_forward_lport,
+			forward_rport => $ssh_forward_rport,
+			ssh_fh        => $ssh,
+		});
+
+		$anvil->nice_exit({ exit_code => $manage_rcode }) if ($manage_rcode);
+	}
+
+	my $is_ssh_tunnel_alive = 1;
+
+	while ($is_ssh_tunnel_alive)
+	{
+		$is_ssh_tunnel_alive = $ssh->test("echo");
+
+		sleep($ssh_test_interval);
+	}
+
+	close_connection({ debug => $switch_debug });
+}
 
 $anvil->nice_exit({ exit_code => 0 });
 
@@ -67,80 +118,153 @@ $anvil->nice_exit({ exit_code => 0 });
 # Functions
 #
 
-sub open_ssh_tunnel
+sub build_ssh_fh_key
 {
-	my $parameters          = shift;
+	my ($user, $target, $port) = @_;
 
-	# Required parameters:
-	my $forward_local_port  = $parameters->{forward_local_port};
-	my $forward_remote_port = $parameters->{forward_remote_port};
-	my $target              = $parameters->{target};
-	# Optional parameters:
-	my $debug               = $parameters->{debug} // 3;
-	my $port                = $parameters->{port} // 22;
-	my $remote              = $parameters->{remote} ? 1 : 0;
-	my $user                = $parameters->{user} // "admin";
+	return "${user}\@${target}:${port}";
+}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters });
+sub close_connection
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+	my $ssh_fh     = $parameters->{ssh_fh} // $ssh;
 
-	return (1) if ( (not defined $user)
-		or (not defined $target)
-		or (not defined $forward_local_port)
-		or (not defined $forward_remote_port) );
+	return (1) if ( (not defined $ssh_fh) || (not $ssh_fh->can("disconnect")) );
 
-	my $ssh_fh_key          = "${user}\@${target}:${port}";
+	my $ctl_path = $ssh_fh->get_ctl_path();
+	my $pid      = $ssh_fh->get_master_pid();
 
-	my ($output, $error, $return_code) = $anvil->Remote->call({
+	$ssh_fh->disconnect();
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		message => "Parent connection [$pid] using [$ctl_path] disconnected."
+	} });
+
+	return (0);
+}
+
+sub is_valid_tunnel_ctl_command
+{
+	return defined $_[0] && $_[0] =~ /^(?:cancel|forward)$/;
+}
+
+sub is_valid_forward
+{
+	return defined $_[0] && $_[0] =~ /^(?:L|R)$/;
+}
+
+sub is_int
+{
+	return defined $_[0] && $_[0] =~ /^\d+$/;
+}
+
+sub is_ssh_fh_defined
+{
+	return defined $_[0] ? 1 : 0;
+}
+
+sub manage_tunnel
+{
+	my $parameters    = shift;
+	my $ctl_cmd       = $parameters->{ctl_cmd} // "forward";
+	my $debug         = $parameters->{debug} || 3;
+	my $forward       = $parameters->{forward} // "R";
+	my $forward_laddr = $parameters->{forward_laddr} // "0.0.0.0";
+	my $forward_lport = $parameters->{forward_lport};
+	my $forward_raddr = $parameters->{forward_raddr} // "0.0.0.0";
+	my $forward_rport = $parameters->{forward_rport};
+	my $ssh_fh        = $parameters->{ssh_fh};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "manage_tunnel" });
+
+	return (1) if ( (not is_ssh_fh_defined($ssh_fh))
+		|| (not is_valid_tunnel_ctl_command($ctl_cmd))
+		|| (not is_valid_forward($forward))
+		|| (not is_int($forward_lport))
+		|| (not is_int($forward_rport)) );
+
+	my $addr_a = $forward_laddr;
+	my $addr_b = $forward_raddr;
+	my $port_a = $forward_lport;
+	my $port_b = $forward_rport;
+
+	# When remote forward, change the option and reverse the addresses and ports.
+	if ($forward eq "R")
+	{
+		$addr_a = $forward_raddr;
+		$addr_b = $forward_laddr;
+		$port_a = $forward_rport;
+		$port_b = $forward_lport;
+	}
+
+	my $forward_opt = "-${forward}${addr_a}:${port_a}:${addr_b}:${port_b}";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { forward_opt => $forward_opt } });
+
+	$ssh_fh->system({ ssh_opts => [ "-O", $ctl_cmd, $forward_opt ] });
+
+	return (0);
+}
+
+sub open_connection
+{
+	my $parameters      = shift;
+	my $ctl_path        = $parameters->{ctl_path};
+	my $debug           = $parameters->{debug} || 3;
+	my $external_parent = $parameters->{external_parent} ? 1 : 0;
+	my $port            = $parameters->{port} || 22;
+	my $target          = $parameters->{target};
+	my $user            = $parameters->{user} // "root";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "open_connection" });
+
+	return (1) if ( (not defined $target) || ($target eq "") );
+
+	if (defined $ctl_path)
+	{
+		# 1. Control socket path must exist if we want to use an
+		#    external parent connection.
+		# 2. Control socket path mustn't exist if we want to establish
+		#    a new parent connection.
+		return (1) if ( ($ctl_path eq "")
+			|| ( $external_parent && (not -e $ctl_path) )
+			|| ( (not $external_parent) && (-e $ctl_path) ) );
+	}
+
+	my ($output, $error, $rcode) = $anvil->Remote->call({
+		# Start new connection; doesn't mean "don't cache the created connection".
 		no_cache    => 1,
+		ossh_opts   => [ ctl_path => $ctl_path, external_master => $external_parent ],
+		port        => $port,
 		remote_user => $user,
 		shell_call  => $anvil->data->{path}{exe}{echo}." 1",
 		target      => $target,
 	});
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		output      => $output,
-		error       => $error,
-		return_code => $return_code
+		error  => $error,
+		output => $output,
+		rcode  => $rcode,
 	} });
 
-	return (1) if ($output ne "1");
+	return (1) if ( $rcode || ($output ne "1") );
 
-	$ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+	my $ssh_fh_key = build_ssh_fh_key($user, $target, $port);
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_fh_key => $ssh_fh_key } });
+
+	my $ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+
+	return (1) if (not is_ssh_fh_defined($ssh_fh));
 
 	delete $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		is_ssh_fh_defined => defined $ssh_fh ? 1 : 0
+		ctl_path => $ssh_fh->get_ctl_path(),
+		pid      => $ssh_fh->get_master_pid(),
 	} });
 
-	my $forward_option = "L";
-	my $port_a         = $forward_local_port;
-	my $port_b         = $forward_remote_port;
-
-	# When remote forward, change the option and reverse the ports.
-	if ($remote)
-	{
-		$forward_option = "R";
-		$port_a         = $forward_remote_port;
-		$port_b         = $forward_local_port;
-	}
-
-	$ssh_fh->system({ ssh_opts => [ "-O", "forward", "-${forward_option} 0.0.0.0:${port_a}:0.0.0.0:${port_b}" ] });
-
-	return (0);
-}
-
-sub close_ssh_tunnel
-{
-	my $parameters = shift;
-	my $debug      = $parameters->{debug} // 3;
-
-	if (defined $ssh_fh->disconnect)
-	{
-		$ssh_fh->disconnect();
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-			message => "SSH tunnel disconnected."
-		} });
-	}
+	return (0, $ssh_fh);
 }
