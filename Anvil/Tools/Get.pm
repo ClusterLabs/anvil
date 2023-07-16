@@ -161,10 +161,10 @@ sub anvil_from_switch
 			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
 		}});
 	}
-	elsif (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_string})
+	elsif (exists $anvil->data->{anvils}{anvil_name}{$anvil_string})
 	{
 		$anvil->data->{switches}{anvil_name} = $anvil_string;
-		$anvil->data->{switches}{anvil_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_string}{anvil_uuid};
+		$anvil->data->{switches}{anvil_uuid} = $anvil->data->{anvils}{anvil_name}{$anvil_string}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"switches::anvil_name" => $anvil->data->{switches}{anvil_name},
 			"switches::anvil_uuid" => $anvil->data->{switches}{anvil_uuid},
@@ -326,7 +326,7 @@ sub anvil_version
 			schema_cache_file => $schema_cache_file, 
 			user              => $user,
 		}});
-		if ($user eq "apache")
+		if (($user eq "apache") or ($user eq "striker-ui-api"))
 		{
 			# Try to read the local cached version.
 			if (-e $anvil_cache_file)
@@ -1867,8 +1867,8 @@ sub host_uuid
 					debug     => $debug, 
 					file      => $anvil->data->{path}{data}{host_uuid}, 
 					body      => $uuid,
-					user      => "apache", 
-					group     => "apache",
+					user      => "striker-ui-api", 
+					group     => "striker-ui-api",
 					mode      => "0666",
 					overwrite => 0,
 				});
@@ -2529,7 +2529,7 @@ sub switches
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
 			if (not $found)
 			{
-				print "Switch '--".$set_switch." not recognized.\n";
+				print "Switch '--".$set_switch."' is not recognized.\n";
 				$problem = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			}

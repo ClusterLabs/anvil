@@ -602,6 +602,11 @@ The error was:
 		</key>
 		<key name="error_0417">There was a problem with finding a common storage network between: [#!variable!node1_name!#] and: [#!variable!node2_name!#]. Found node 1 to have the IP: [#!variable!node1_ip!#] and node 2: [#!variable!node2_ip!#]. Is there a problem with '/etc/hosts'?</key>
 		<key name="error_0418">Failed to find a network to use for storage replication. Is there a problem with '/etc/hosts'?</key>
+		<key name="error_0419"><![CDATA[[ Error ] - The resource to refresh must be provide with '--resource <res>'.]]></key>
+		<key name="error_0420">Failed to withdraw the subnode from the node's cluster. Expected the 'anvil-safe-stop' call to return '0', but got: [#!variable!return_code!#]. The output, if anything, was:
+========
+#!variable!output!#
+========</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1552,6 +1557,12 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
 		<key name="job_0463">Enabling the enable-safe-start daemon.</key>
 		<key name="job_0464">Calling select ScanCore scan agents to ensure the database is updated.</key>
+		<key name="job_0465">Reload (adjust) a DRBD resource</key>
+		<key name="job_0466">This job is to reload (adjust) a DRBD resource. It's run as a job as it blocks until the adjust is run on all nodes.</key>
+		<key name="job_0467">Update the base operating system.</key>
+		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
+		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
+		<key name="job_0470"></key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2405,7 +2416,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0005">There was an unknown error while connecting as: [#!variable!user!#] to: [#!variable!remote_user!#@#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
 		<key name="message_0007">An SSH session was successfully opened to: [#!variable!target!#].</key>
-		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error: [#!variable!error!#].</key>
+		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error:
+====
+#!variable!error!#
+====</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
@@ -2893,6 +2907,15 @@ Proceed? [y/N]</key>
 		<key name="message_0308">The DRBD config file was not found. A protect job needs to be run from the Anvil! node hosting the server to be protected.</key>
 		<key name="message_0309">Waiting a bit to make sure the file: [#!variable!file!#] is done uploading...</key>
 		<key name="message_0310">Upload complete.</key>
+		<key name="message_0311">Picked up the special operation job.</key>
+		<key name="message_0312">Reloading (adjusting) the DRBD resource: [#!variable!resource!#]. This will not complete until all peers have also reloaded this resource.</key>
+		<key name="message_0313">DRBD resource: [#!variable!resource!#] has been reloaded.</key>
+		<key name="message_0314">Checking if the subnode is out of the node's cluster before updating the OS.</key>
+		<key name="message_0315">The subnode is in the node's cluster, asking it to withdraw. This could take some time if servers need to be migrated.</key>
+		<key name="message_0316">Cleared 'dnf' cache.</key>
+		<key name="message_0317">The kernel was updated, so a reboot is required. Rebooting now.</key>
+		<key name="message_0318">Registering a job to reboot this host.</key>
+		<key name="message_0319">Preparing to update the entire Anvil! cluster.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3590,7 +3613,7 @@ We will sleep a bit and try again.
 		<key name="warning_0136">[ Warning ] - Failed to connect to the host: [#!variable!host!#]! Unable to up the resource, so the server may not start. If the peer can't be recovered, manually forcing the local resource(s) to UpToDate may be required.</key>
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
-		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
+		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, (progress is: [#!variable!job_progress!#]), which might be why the RAM is high. NOT exiting while this program is running.</key>
 		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] (used by: [#!variable!caller!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>

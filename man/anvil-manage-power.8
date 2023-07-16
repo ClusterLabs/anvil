@@ -1,0 +1,45 @@
+.\" Manpage for the Anvil! power management tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-power "8" "July 11 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-power \- This program can power off, reboot, or set a flag indicating one of these actions are required.
+.SH SYNOPSIS
+.B anvil-manage-power 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program can mark a machine as needing to be powered off or rebooted, or perform those actions directly or as a job. 
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-no-wait\fR
+.TP
+Normally, this program will not reboot a machine until the uptime is over five minutes. This is done to provide a chance for someone to log in and disable anvil-daemon in the case of a reboot loop. This switch prevents waiting for that 5 minute delay.
+.TP
+\fB\-\-poweroff\fR, \fB\-\-power\-off\fR
+.TP
+This powers off the host.
+.TP
+\fB\-\-reboot\fR
+.TP
+This reboots the host. 
+.TP
+\fB\-\-reboot\-needed\fR [0,1]
+.TP
+This sets (1) or clears (0) the 'reboot needed' flag for the host system. 
+.TP
+\fB\-\-y\fR, \fB\-\-yes\fR
+.TP
+If passed, requests to reboot or power off won't ask for confirmation.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

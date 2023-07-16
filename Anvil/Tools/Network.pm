@@ -1212,7 +1212,7 @@ Paramters;
 
 =head3 target (required)
 
-This is the host we're looking for connection options with.
+This is the host (name or UUID) we're looking for connection options with.
 
 =cut
 sub find_access
@@ -1659,6 +1659,12 @@ sub get_company_from_mac
 	{
 		$company = $results->[0]->[0];
 		$anvil->data->{cache}{mac_to_oui}{$mac} = $company;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { company => $company }});
+	}
+	
+	if ((not $company) && ($mac =~ /^52:54:00/))
+	{
+		$company = "KVM/qemu";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { company => $company }});
 	}
 	

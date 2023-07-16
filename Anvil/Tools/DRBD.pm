@@ -2146,6 +2146,10 @@ If any data for the host was stored in a previous call, it will be deleted befor
 
 Parameters;
 
+=head3 host (optional)
+
+By default, the hash key C<< host_name >> listed above is either the local system's short host name, or the C<< target >>. If you'd like to use a specific host name in the hash key, you can use this parameter to set it.
+
 =head3 password (optional)
 
 This is the password to use when connecting to a remote machine. If not set, but C<< target >> is, an attempt to connect without a password will be made.
@@ -2172,22 +2176,42 @@ sub get_status
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "DRBD->get_status()" }});
 	
+	my $host        = defined $parameter->{host}        ? $parameter->{host}        : "";
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : "";
 	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host        => $host, 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
 		remote_user => $remote_user, 
 		target      => $target, 
 	}});
 	
+	# If we weren't passed a host, use this machine's short host name.
+	my $is_local = $anvil->Network->is_local({host => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	if (not $host)
+	{
+		# Host not set, set one.
+		if ($is_local)
+		{
+			$host = $anvil->Get->short_host_name();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+		}
+		else
+		{
+			# Remote, using the target as the host.
+			$host = $target;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+		}
+	}
+	
 	# Is this a local call or a remote call?
 	my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status --json";
 	my $output     = "";
-	my $host       = $anvil->Get->short_host_name();
-	my $is_local   = $anvil->Network->is_local({host => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	if ($is_local)
 	{
 		# Local.
@@ -2200,7 +2224,6 @@ sub get_status
 	else
 	{
 		# Remote call.
-		$host = $target;
 		($output, my $error, $anvil->data->{drbd}{status}{$host}{return_code}) = $anvil->Remote->call({
 			debug       => $debug, 
 			shell_call  => $shell_call, 
@@ -2291,12 +2314,14 @@ sub get_status
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{congested}          = $hash_ref->{connections}->[$i]->{congested};
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'} = $hash_ref->{connections}->[$i]->{'connection-state'};
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'}     = $hash_ref->{connections}->[$i]->{'peer-node-id'};
+			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-role'}        = $hash_ref->{connections}->[$i]->{'peer-role'};
 			$anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'rs-in-flight'}     = $hash_ref->{connections}->[$i]->{'rs-in-flight'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::ap-in-flight"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'ap-in-flight'},
 				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::congested"        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{congested},
 				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::connection-state" => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'},
 				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::peer-node-id"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-node-id'},
+				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::peer-role"        => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'peer-role'},
 				"drbd::status::${host}::resource::${resource}::connection::${peer_name}::rs-in-flight"     => $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'rs-in-flight'},
 			}});
 			

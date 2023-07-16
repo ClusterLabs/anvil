@@ -274,9 +274,9 @@ sub process_servers
 		's2:progress_steps' => $progress_steps, 
 	}});
 	
-	# If we have one or more local servers, we need to know if both of us are in the cluster. If we're 
-	# not, or the peer isn't, we can't migrate.
-	my $can_migrate = 0;
+	# If we have one or more local servers, we need to know if both subnodes are in the node's cluster. 
+	# If we're not, or the peer isn't, we can't migrate.
+	my $can_migrate = 1;
 	if ($server_count)
 	{
 		my $problem = $anvil->Cluster->parse_cib({debug => 2});
@@ -287,18 +287,20 @@ sub process_servers
 		}});
 		if ($problem)
 		{
+			# We're not in the node's cluster, we can't migrate.
 			$can_migrate = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { can_migrate => $can_migrate }});
 		}
 		elsif ((not $anvil->data->{cib}{parsed}{'local'}{ready}) or (not $anvil->data->{cib}{parsed}{peer}{ready}))
 		{
+			# One of the subnodes is not in the cluster, so we can't migrate.
 			$can_migrate = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { can_migrate => $can_migrate }});
 		}
 		
 		if ((not $anvil->data->{switches}{'stop-servers'}) && (not $can_migrate))
 		{
-			# Abort.
+			# We would have to stop the servers, and the user didn't tell us to do that, abort.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0372"});
 			$anvil->Job->update_progress({progress => 100, message => "error_0372"});
 			$anvil->nice_exit({exit_code => 1});

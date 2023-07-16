@@ -37,6 +37,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-scan-network \
 			  anvil-show-local-ips \
 			  anvil-shutdown-server \
+			  anvil-special-operations \
 			  anvil-sync-shared \
 			  anvil-test-alerts \
 			  anvil-update-definition \
@@ -51,6 +52,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-auto-initialize-all \
 			  striker-boot-machine \
 			  striker-check-machines \
+			  striker-collect-debug \
 			  striker-db-report \
 			  striker-db-status \
 			  striker-file-manager \
@@ -65,7 +67,8 @@ dist_sbin_SCRIPTS	= \
 			  striker-prep-database \
 			  striker-purge-target \
 			  striker-scan-network \
-			  striker-show-db-counts 
+			  striker-show-db-counts \
+			  striker-update-cluster
 			  
 fencedir		= ${FASEXECPREFIX}/sbin
 

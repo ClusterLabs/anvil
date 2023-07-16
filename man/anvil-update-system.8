@@ -1,0 +1,39 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-update-system "8" "July 14 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-update-system \- This program updates the local operting system
+.SH SYNOPSIS
+.B anvil-update-system 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program updates the local operating system. If the kernel is updated, a reboot will be performed.
+.TP
+.B Note:
+.TP
+If the host is an Anvil! subnode, the subnode will be removed from the Anvil! node (and servers migrated off, or, shut down if the peer subnode is offline).
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-clear\-cache\fR
+.TP
+This will force the dnf cache to be cleared before the OS update is started. This slows the update down a bit, but ensures the latest updates are installed.
+.TP
+\fB\-\-no\-reboot\fR
+.TP
+If the kernel is updated, the system will normally be rebooted. This switch prevents the reboot from occuring.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

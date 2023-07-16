@@ -756,29 +756,6 @@ WHERE
 		$job_status =~ s/message_0058,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< job_status" => $job_status }});
 	}
-	# This is used by 'anvil-download-file'
-	if ($job_status =~ /message_0142/gs)
-	{
-		### NOTE: Is this needed anymore?
-# 		my $downloaded = $anvil->data->{counts}{downloaded} ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{downloaded}}) : 0;
-# 		my $installed  = $anvil->data->{counts}{installed}  ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{installed}})  : 0;
-# 		my $verified   = $anvil->data->{counts}{verified}   ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{verified}})   : 0;
-# 		my $lines      = $anvil->data->{counts}{lines}      ? $anvil->Convert->add_commas({number => $anvil->data->{counts}{lines}})      : 0;
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-# 			"s1:counts::downloaded" => $anvil->data->{counts}{downloaded},
-# 			"s2:downloaded"         => $downloaded, 
-# 			"s3:counts::installed"  => $anvil->data->{counts}{installed},
-# 			"s4:installed"          => $installed, 
-# 			"s5:counts::verified"   => $anvil->data->{counts}{verified},
-# 			"s6:verified"           => $verified, 
-# 			"s7:counts::lines"      => $anvil->data->{counts}{lines},
-# 			"s8:lines"              => $lines, 
-# 		}});
-# 		
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ">> job_status" => $job_status }});
-# 		$job_status =~ s/message_0142,!!downloaded!.*?!!,!!installed!.*?!!,!!verified!.*?!!,!!lines!.*?!!/message_0058,!!downloaded!$downloaded!!,!!installed!$installed!!,!!verified!$verified!!,!!lines!$lines!!/sm;
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "<< job_status" => $job_status }});
-	}
 	
 	$job_uuid = $anvil->Database->insert_or_update_jobs({
 		file                 => $THIS_FILE, 

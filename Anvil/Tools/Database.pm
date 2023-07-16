@@ -4491,6 +4491,7 @@ WHERE
 }
 
 
+### TODO: Delete this and convert over to Jobs->get_job_details()
 =head2 get_job_details
 
 This gets the details for a given job. If the job is found, a hash reference is returned containing the tables that were read in.

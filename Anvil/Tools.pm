@@ -851,9 +851,6 @@ sub _set_defaults
 		},
 	};
 	$anvil->data->{sys} = {
-		apache				=>	{
-			user				=>	"admin",
-		},
 		daemon				=>	{
 			dhcpd				=>	"dhcpd.service",
 			firewalld			=>	"firewalld.service",
@@ -1150,6 +1147,7 @@ sub _set_paths
 				'anvil-safe-start'		=>	"/usr/sbin/anvil-safe-start",
 				'anvil-safe-stop'		=>	"/usr/sbin/anvil-safe-stop",
 				'anvil-shutdown-server'		=>	"/usr/sbin/anvil-shutdown-server",
+				'anvil-special-operations'	=>	"/usr/sbin/anvil-special-operations",
 				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
 				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
@@ -1261,6 +1259,7 @@ sub _set_paths
 				'shutdown'			=>	"/usr/sbin/shutdown",
 				snmpget				=>	"/usr/bin/snmpget",
 				snmpset				=>	"/usr/bin/snmpset",
+				'sort'				=>	"/usr/bin/sort",
 				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				'stat'				=>	"/usr/bin/stat",
@@ -1282,6 +1281,8 @@ sub _set_paths
 				swapon				=>	"/usr/sbin/swapon",
 				sysctl				=>	"/usr/sbin/sysctl",
 				systemctl			=>	"/usr/bin/systemctl",
+				tail				=>	"/usr/bin/tail",
+				tar				=>	"/usr/bin/tar",
 				timeout				=>	"/usr/bin/timeout",
 				touch				=>	"/usr/bin/touch",
 				tput				=>	"/usr/bin/tput", 

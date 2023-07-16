@@ -2441,7 +2441,7 @@ sub get_peers
 
 =head2 get_primary_host_uuid
 
-This takes an Anvil! UUID and returns with node is currently the "primary" node. That is to say, which node has the most servers running on it, by allocated RAM. For example, if node 1 has two servers, each with 8 GiB of RAN and node 2 has one VM with 32 GiB of RAM, node 2 will be considered primary as it would take longest to migrate servers off.
+This takes an Anvil! UUID and returns with the node's host UUID that is currently the "primary" node. That is to say, which node has the most servers running on it, by allocated RAM. For example, if node 1 has two servers, each with 8 GiB of RAN and node 2 has one VM with 32 GiB of RAM, node 2 will be considered primary as it would take longest to migrate servers off.
 
 If all is equal, node 1 is considered primary. If only one node is a cluster member, it is considered primary. If neither node is up, an empty string is returned.
 
@@ -2478,8 +2478,11 @@ sub get_primary_host_uuid
 		return("");
 	}
 	
-	# Get the two node UUIDs. 
-	$anvil->Database->get_anvils({debug => $debug});
+	# Get the two node UUIDs, if not already loaded
+	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
+	{
+		$anvil->Database->get_anvils({debug => $debug});
+	}
 	
 	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
 	{
@@ -2600,6 +2603,7 @@ sub get_primary_host_uuid
 	my $node2_ram_in_use_by_servers = 0;
 	
 	# Loop through servers. 
+	$anvil->Database->get_servers({debug => $debug});
 	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 	{
 		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
