@@ -3613,7 +3613,7 @@ We will sleep a bit and try again.
 		<key name="warning_0136">[ Warning ] - Failed to connect to the host: [#!variable!host!#]! Unable to up the resource, so the server may not start. If the peer can't be recovered, manually forcing the local resource(s) to UpToDate may be required.</key>
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
-		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, which might be why the RAM is high. NOT exiting while this program is running.</key>
+		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, (progress is: [#!variable!job_progress!#]), which might be why the RAM is high. NOT exiting while this program is running.</key>
 		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] (used by: [#!variable!caller!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
