@@ -794,7 +794,7 @@ sub update_strikers_and_dr
 			print "-       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.\n";
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				my $shell_call  = $anvil->data->{path}{exe}{dnf}." -y update --best --allowerasing";
+				my $shell_call  = $anvil->data->{path}{exe}{dnf}." -y update";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
