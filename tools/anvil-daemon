@@ -252,8 +252,8 @@ sub check_ram
 	}});
 	if ($problem)
 	{
-		# See if an 'anvil-sync-shared', or an 'anvil-update-system' job is running and, if so, 
-		# don't exit. The file copy or OS update is counted and not an actual problem.
+		# See if any jobs are running, and if so, hold because those jobs might be doing things (like
+		# OS updates or file syncs) that could make anvil-daemon appear to be using more memory.
 		$anvil->Database->get_jobs({debug => 2});
 		foreach my $job_uuid (keys %{$anvil->data->{jobs}{running}})
 		{
@@ -264,17 +264,12 @@ sub check_ram
 				job_progress => $job_progress, 
 			}});
 			
-			if (
-			    ($job_progress != 100) && 
-			    (
-			     ($job_command =~ /anvil-update-system/) or 
-			     ($job_command =~ /anvil-sync-shared/)
-			    )
-			   )
+			if (($job_progress != 100) && ($job_progress != 0))
 			{
 				# Don't abort.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0139", variables => { 
 					job_command    => $job_command,
+					job_progress   => $job_progress, 
 					ram_used       => $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used}),
 					ram_used_bytes => $anvil->Convert->add_commas({number => $ram_used}),
 				}});

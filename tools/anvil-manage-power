@@ -186,6 +186,9 @@ sub do_poweroff
 	my ($anvil, $task) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
 	
+	# In case we're being called by another job, we'll sleep for a few second to let those close out.
+	sleep 3;
+	
 	# We'll wait until the system has at least 5 minutes of uptime, unless '--no-wait' was given.
 	my $uptime = $anvil->data->{switches}{'no-wait'} ? 0 : $anvil->Get->uptime;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

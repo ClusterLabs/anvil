@@ -1561,6 +1561,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0466">This job is to reload (adjust) a DRBD resource. It's run as a job as it blocks until the adjust is run on all nodes.</key>
 		<key name="job_0467">Update the base operating system.</key>
 		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
+		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
+		<key name="job_0470"></key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2912,6 +2914,8 @@ Proceed? [y/N]</key>
 		<key name="message_0315">The subnode is in the node's cluster, asking it to withdraw. This could take some time if servers need to be migrated.</key>
 		<key name="message_0316">Cleared 'dnf' cache.</key>
 		<key name="message_0317">The kernel was updated, so a reboot is required. Rebooting now.</key>
+		<key name="message_0318">Registering a job to reboot this host.</key>
+		<key name="message_0319">Preparing to update the entire Anvil! cluster.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
