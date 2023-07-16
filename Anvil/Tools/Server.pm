@@ -501,8 +501,9 @@ sub find_processes
 	my $self          = shift;
 	my $parameters    = shift;
 	my $anvil         = $self->parent;
-	my $base_vnc_port = $parameters->{base_vnc_port} // 5900;
-	my $debug         = $parameters->{debug} // 3;
+	my $base_vnc_port = $parameters->{base_vnc_port} || 5900;
+	my $debug         = $parameters->{debug} || 3;
+	my $ps_name       = $parameters->{ps_name} // "qemu-kvm";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters });
 
@@ -515,12 +516,11 @@ sub find_processes
 	# Servers only exist on non-striker
 	return (1) if ($anvil->data->{sys}{host_type} eq "striker");
 
-	my $grep = $anvil->data->{path}{exe}{'grep'};
-	my $nc   = $anvil->data->{path}{exe}{'nc'};
-	my $ps   = $anvil->data->{path}{exe}{'ps'};
-	my $sed  = $anvil->data->{path}{exe}{'sed'};
+	my $nc    = $anvil->data->{path}{exe}{'nc'};
+	my $pgrep = $anvil->data->{path}{exe}{'pgrep'};
+	my $sed   = $anvil->data->{path}{exe}{'sed'};
 
-	my $ps_call = "$ps -ef | $grep '[q]emu-kvm' | $sed -E 's/^.*guest=([^,]+).*-uuid[[:space:]]+([^[:space:]]+)(.*-vnc[[:space:]]+([[:digit:].:]+))?.*\$/\\2,\\1,\\4/'";
+	my $ps_call = "$pgrep -a '$ps_name' | $sed -E 's/^.*guest=([^,]+).*-uuid[[:space:]]+([^[:space:]]+)(.*-vnc[[:space:]]+([[:digit:].:]+))?.*\$/\\2,\\1,\\4/'";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ps_call => $ps_call }});
 
