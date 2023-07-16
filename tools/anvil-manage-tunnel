@@ -203,7 +203,7 @@ sub manage_tunnel
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { forward_opt => $forward_opt } });
 
-	$ssh_fh->system({ ssh_opts => [ "-O", $ctl_cmd, $forward_opt ] });
+	$ssh_fh->system({ ssh_opts => [ "-O", $ctl_cmd, $forward_opt ] }) or return (1);
 
 	return (0);
 }
