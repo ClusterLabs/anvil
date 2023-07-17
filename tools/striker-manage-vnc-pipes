@@ -20,6 +20,7 @@ my $anvil = Anvil::Tools->new();
 
 my $manage_tunnel = $anvil->data->{path}{exe}{'anvil-manage-tunnel'};
 my $echo          = $anvil->data->{path}{exe}{'echo'};
+my $grep          = $anvil->data->{path}{exe}{'grep'};
 my $kill          = $anvil->data->{path}{exe}{'kill'};
 my $pgrep         = $anvil->data->{path}{exe}{'pgrep'};
 my $ps            = $anvil->data->{path}{exe}{'ps'};
