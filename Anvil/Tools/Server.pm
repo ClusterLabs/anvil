@@ -540,7 +540,7 @@ sub find_processes
 			server_vnc  => $vnc,
 		}});
 
-		$result->{uuids}{$uuid} = { name => $name };
+		$result->{uuids}{$uuid} = { name => $name, uuid => $uuid };
 		# Record name to UUID mapping
 		$result->{names}{$name} = $uuid;
 
