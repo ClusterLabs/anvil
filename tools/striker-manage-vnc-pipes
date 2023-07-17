@@ -471,7 +471,7 @@ sub start_pipe
 
 	my $ws_process = $ws_processes->{pids}{$ws_pid};
 
-	foreach my $host_uuid (keys $hosts->{uuids})
+	foreach my $host_uuid (keys %{$hosts->{uuids}})
 	{
 		my $host_name = $hosts->{uuids}{$host_uuid}{name};
 
@@ -685,7 +685,7 @@ sub stop_pipe
 
 	return ($rcode) if ($rcode);
 
-	foreach my $host_uuid (keys $hosts->{uuids})
+	foreach my $host_uuid (keys %{$hosts->{uuids}})
 	{
 		my $host_name  = $hosts->{uuids}{$host_uuid}{name};
 		my $tp_pid     = $tp_processes->{targets}{$host_name};
