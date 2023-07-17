@@ -66,7 +66,7 @@ $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switc
 
 my $map_to_operation = { start => \&start_pipe, stop => \&stop_pipe };
 
-if (is_uuid_v4($server_uuid))
+if ($server_uuid)
 {
 	my $rcode;
 
