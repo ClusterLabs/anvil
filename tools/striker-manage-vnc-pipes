@@ -571,7 +571,7 @@ sub start_tunnel
 
 	return (1) if ($build_rcode);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { find_available_port_call => $call } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { find_available_port_call => $sh_call } });
 
 	my ($tunnel_rport, $find_error, $find_rcode) = $anvil->Remote->call({
 		no_cache    => 1,
