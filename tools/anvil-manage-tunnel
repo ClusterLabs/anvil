@@ -6,6 +6,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use File::Basename;
 use Net::OpenSSH;
 
 $| = 1;
@@ -19,6 +20,10 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new({ on_sig_int => \&close_connection, on_sig_term => \&close_connection });
 
+my $echo = $anvil->data->{path}{exe}{'echo'};
+my $rm   = $anvil->data->{path}{exe}{'rm'};
+my $sed  = $anvil->data->{path}{exe}{'sed'};
+
 $anvil->Get->switches;
 
 $anvil->Database->connect;
@@ -30,17 +35,26 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $connect_child     = $anvil->data->{switches}{'child'};
-my $switch_debug      = $anvil->data->{switches}{'debug'} || 3;
-my $ssh_ctl_cmd       = $anvil->data->{switches}{'ctl-cmd'};
-my $ssh_ctl_path      = $anvil->data->{switches}{'ctl-path'};
-my $ssh_forward       = $anvil->data->{switches}{'forward'};
-my $ssh_forward_lport = $anvil->data->{switches}{'forward-lport'};
-my $ssh_forward_rport = $anvil->data->{switches}{'forward-rport'};
-my $ssh_port          = $anvil->data->{switches}{'port'};
-my $ssh_target        = $anvil->data->{switches}{'target'};
-my $ssh_test_interval = $anvil->data->{switches}{'test-interval'};
-my $ssh_user          = $anvil->data->{switches}{'user'};
+my $connect_child        = $anvil->data->{switches}{'child'};
+my $switch_debug         = $anvil->data->{switches}{'debug'} || 3;
+my $ssh_ctl_cmd          = $anvil->data->{switches}{'ctl-cmd'};
+my $ssh_ctl_path         = $anvil->data->{switches}{'ctl-path'};
+my $ssh_forward          = $anvil->data->{switches}{'forward'};
+my $ssh_forward_lport    = $anvil->data->{switches}{'forward-lport'};
+my $ssh_forward_rport    = $anvil->data->{switches}{'forward-rport'};
+my $ssh_port             = $anvil->data->{switches}{'port'};
+my $ssh_target           = $anvil->data->{switches}{'target'};
+my $ssh_test_interval    = $anvil->data->{switches}{'test-interval'};
+my $ssh_tunnel_ls_path   = $anvil->data->{switches}{'tunnel-ls-path'};
+my $ssh_tunnel_ls_prefix = $anvil->data->{switches}{'tunnel-ls-prefix'};
+my $ssh_user             = $anvil->data->{switches}{'user'};
+
+if ( (defined $ssh_ctl_path) && (not $ssh_ctl_path =~ /^(?:#!SET!#|)$/) )
+{
+	my ($ssh_ctl_name) = fileparse($ssh_ctl_path);
+
+	$ssh_tunnel_ls_path //= $anvil->data->{path}{'directories'}{'tmp'}."/$ssh_ctl_name";
+}
 
 # Global for holding the SSH file handle; needed because it's hard to pass
 # params to signal handlers.
@@ -65,6 +79,8 @@ if ($connect_child)
 		forward       => $ssh_forward,
 		forward_lport => $ssh_forward_lport,
 		forward_rport => $ssh_forward_rport,
+		ls_path       => $ssh_tunnel_ls_path,
+		ls_prefix     => $ssh_tunnel_ls_prefix,
 		ssh_fh        => $ssh,
 	});
 
@@ -94,6 +110,8 @@ else
 			forward       => $ssh_forward,
 			forward_lport => $ssh_forward_lport,
 			forward_rport => $ssh_forward_rport,
+			ls_path       => $ssh_tunnel_ls_path,
+			ls_prefix     => $ssh_tunnel_ls_prefix,
 			ssh_fh        => $ssh,
 		});
 
@@ -104,7 +122,7 @@ else
 
 	while ($is_ssh_tunnel_alive)
 	{
-		$is_ssh_tunnel_alive = $ssh->test("echo");
+		$is_ssh_tunnel_alive = $ssh->test($echo);
 
 		sleep($ssh_test_interval);
 	}
@@ -127,9 +145,10 @@ sub build_ssh_fh_key
 
 sub close_connection
 {
-	my $parameters = shift;
-	my $debug      = $parameters->{debug} || 3;
-	my $ssh_fh     = $parameters->{ssh_fh} // $ssh;
+	my $parameters     = shift;
+	my $debug          = $parameters->{debug} || 3;
+	my $ssh_fh         = $parameters->{ssh_fh} // $ssh;
+	my $tunnel_ls_path = $parameters->{tunnel_ls_path} // $ssh_tunnel_ls_path;
 
 	return (1) if ( (not defined $ssh_fh) || (not $ssh_fh->can("disconnect")) );
 
@@ -141,6 +160,11 @@ sub close_connection
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		message => "Parent connection [$pid] using [$ctl_path] disconnected."
 	} });
+
+	if ( (defined $tunnel_ls_path) && (-e $tunnel_ls_path) )
+	{
+		$anvil->System->call({ shell_call => "$rm -f '$tunnel_ls_path'" });
+	}
 
 	return (0);
 }
@@ -175,6 +199,8 @@ sub manage_tunnel
 	my $forward_lport = $parameters->{forward_lport};
 	my $forward_raddr = $parameters->{forward_raddr} // "0.0.0.0";
 	my $forward_rport = $parameters->{forward_rport};
+	my $ls_path       = $parameters->{ls_path};
+	my $ls_prefix     = $parameters->{ls_prefix} // "";
 	my $ssh_fh        = $parameters->{ssh_fh};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "manage_tunnel" });
@@ -204,6 +230,15 @@ sub manage_tunnel
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { forward_opt => $forward_opt } });
 
 	$ssh_fh->system({ ssh_opts => [ "-O", $ctl_cmd, $forward_opt ] }) or return (1);
+
+	if (defined $ls_path)
+	{
+		my $write_call = $ctl_cmd eq "forward"
+			? "$echo '${ls_prefix}${forward_opt}' >>'$ls_path'"
+			: "$sed -i '/$forward_opt/d' '$ls_path'";
+
+		$anvil->System->call({ shell_call => $write_call });
+	}
 
 	return (0);
 }
@@ -246,7 +281,7 @@ sub open_connection
 		ossh_opts   => [ ctl_path => $ctl_path, external_master => $external_parent ],
 		port        => $port,
 		remote_user => $user,
-		shell_call  => $anvil->data->{path}{exe}{echo}." 1",
+		shell_call  => "$echo 1",
 		target      => $target,
 	});
 
