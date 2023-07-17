@@ -220,17 +220,24 @@ sub open_connection
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "open_connection" });
 
-	return (1) if ( (not defined $target) || ($target eq "") );
-
-	if (defined $ctl_path)
+	if ($external_parent)
 	{
-		# 1. Control socket path must exist if we want to use an
-		#    external parent connection.
-		# 2. Control socket path mustn't exist if we want to establish
-		#    a new parent connection.
-		return (1) if ( ($ctl_path eq "")
-			|| ( $external_parent && (not -e $ctl_path) )
-			|| ( (not $external_parent) && (-e $ctl_path) ) );
+		# Control socket path must exist if we want to use an
+		# external parent connection.
+		return (1) if ( (not defined $ctl_path) || (not -e $ctl_path) );
+
+		$target //= "0.0.0.0";
+	}
+	else
+	{
+		return (1) if ( (not defined $target) || ($target eq "") );
+
+		if (defined $ctl_path)
+		{
+			# Control socket path mustn't exist if we want to
+			# establish a new parent connection with it.
+			return (1) if ( ($ctl_path eq "") || (-e $ctl_path) );
+		}
 	}
 
 	my ($output, $error, $rcode) = $anvil->Remote->call({
