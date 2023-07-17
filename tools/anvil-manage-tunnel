@@ -26,15 +26,6 @@ my $sed  = $anvil->data->{path}{exe}{'sed'};
 
 $anvil->Get->switches;
 
-$anvil->Database->connect;
-$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
-if (not $anvil->data->{sys}{database}{connections})
-{
-	# No databases, exit.
-	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
-	$anvil->nice_exit({ exit_code => 1 });
-}
-
 my $connect_child        = $anvil->data->{switches}{'child'};
 my $switch_debug         = $anvil->data->{switches}{'debug'} || 3;
 my $ssh_ctl_cmd          = $anvil->data->{switches}{'ctl-cmd'};
