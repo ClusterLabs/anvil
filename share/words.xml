@@ -2916,6 +2916,10 @@ Proceed? [y/N]</key>
 		<key name="message_0317">The kernel was updated, so a reboot is required. Rebooting now.</key>
 		<key name="message_0318">Registering a job to reboot this host.</key>
 		<key name="message_0319">Preparing to update the entire Anvil! cluster.</key>
+		<key name="message_0320">It looks like there's a kmod-drbd package conflict. Removing old packages and trying to reinstall.</key>
+		<key name="message_0321">Removing the old drbd-kmod RPMs now.</key>
+		<key name="message_0322">Installing the latest DRBD kmod RPM now.</key>
+		<key name="message_0323">Retrying the OS update now.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

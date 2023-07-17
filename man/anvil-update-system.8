@@ -32,6 +32,10 @@ This will force the dnf cache to be cleared before the OS update is started. Thi
 \fB\-\-no\-reboot\fR
 .TP
 If the kernel is updated, the system will normally be rebooted. This switch prevents the reboot from occuring.
+.TP
+\fB\-\-reboot\fR
+.TP
+Normally, the system will only reboot if the kernel is updated. If this is used, and if any packages are updated, then a reboot will be performed. This is recommended in most cases.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
