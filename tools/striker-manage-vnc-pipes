@@ -57,7 +57,7 @@ if (defined $server)
 	$server_uuid //= is_uuid_v4($server) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
 }
 
-$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
 	open             => $open,
 	server           => $server,
 	server_uuid      => $server_uuid,
@@ -71,6 +71,8 @@ if (is_uuid_v4($server_uuid))
 	my $rcode;
 
 	my $operation = $open ? "start" : "stop";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => { operation => $operation } });
 
 	($rcode) = $map_to_operation->{$operation}({
 		debug        => $switch_debug,
