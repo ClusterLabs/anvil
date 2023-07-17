@@ -628,7 +628,7 @@ sub start_ws
 
 	return (1) if ($find_rcode);
 
-	my $ws_call = "$websockify $svr_vnc_port :$ws_sport &>/dev/null & $echo pid:\$!";
+	my $ws_call = "$websockify $ws_sport :$svr_vnc_port &>/dev/null & $echo pid:\$!";
 
 	my ($start_rcode, $start_output) = call({ call => $ws_call, debug => $debug });
 
