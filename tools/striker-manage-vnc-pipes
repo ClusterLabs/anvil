@@ -18,915 +18,20 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-sub call
-{
-	my $parameters         = shift;
-	my $call               = $parameters->{call};
-	my $debug              = $parameters->{debug} // 3;
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "call" });
-
-	return (1) if ( (not defined $call) || ($call eq "") );
-
-	my $shell_output;
-	my $shell_return_code;
-
-	my ($output, $rcode) = $anvil->System->call({ shell_call => $call });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		output => $output,
-		rcode  => $rcode
-	}, prefix => "call" });
-
-	return ($rcode, $output);
-}
-
-sub get_server_info
-{
-	my $parameters       = shift;
-	my $server_host_name = $parameters->{server_host_name};
-	my $server_host_uuid = $parameters->{server_host_uuid};
-	my $server_name      = $parameters->{server_name};
-	my $server_uuid      = $parameters->{server_uuid};
-
-	return if (not defined $server_uuid);
-
-	my $query;
-	my $server_info;
-
-	# When all required server info are provided, i.e., extracted from
-	# libvirt domain XML, simply return the values.
-	if (defined $server_host_name and defined $server_host_uuid and defined $server_name)
-	{
-		$server_info = {
-			host_name   => $server_host_name,
-			host_uuid   => $server_host_uuid,
-			server_name => $server_name
-		};
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $server_info, prefix => "get_server_info" });
-
-		return $server_info;
-	}
-
-	if (defined $server_host_uuid)
-	{
-		$query = "
-SELECT a.server_name, b.host_name, b.host_uuid
-FROM servers AS a, hosts AS b
-WHERE server_uuid = ".$anvil->Database->quote($server_uuid)."
-AND host_uuid = ".$anvil->Database->quote($server_host_uuid)."
-;";
-	}
-	else
-	{
-		$query = "
-SELECT a.server_name, b.host_name, b.host_uuid
-FROM servers AS a
-JOIN hosts AS b ON a.server_host_uuid = b.host_uuid
-WHERE server_uuid = ".$anvil->Database->quote($server_uuid)."
-;";
-	}
-
-	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-	my $count   = @{$results};
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query, count => $count }, prefix => "get_server_info" });
-
-	if ($count == 1)
-	{
-		my $row = $results->[0];
-
-		$server_info = {};
-		$server_info->{server_name} = $row->[0];
-		$server_info->{host_name}   = $row->[1];
-		$server_info->{host_uuid}   = $row->[2];
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $server_info, prefix => "get_server_info" });
-	}
-
-	return $server_info;
-}
-
-sub get_vnc_info
-{
-	my $parameters  = shift;
-	my $host_name   = $parameters->{host_name};
-	my $port        = $parameters->{port};
-	my $port_base   = $parameters->{port_base} // 5900;
-	my $server_name = $parameters->{server_name};
-	my $server_uuid = $parameters->{server_uuid};
-
-	my $port_offset;
-	my $vnc_info;
-
-	if ( (not defined $port) or (not $port =~ /^\d+$/) )
-	{
-		# Requires root to access VM information.
-		my $shell_call = "virsh vncdisplay \"$server_name\"";
-
-		my ($shell_return_code, $shell_output) = call({
-			call      => $shell_call,
-			host_name => $host_name,
-			user      => "root",
-		});
-
-		return if ($shell_return_code != 0);
-
-		($port_offset) = $shell_output =~ /:(\d+)$/;
-		$port          = $port_base + int($port_offset);
-	}
-	else
-	{
-		$port = int($port);
-	}
-
-	$vnc_info = { host_name => $host_name, port => $port };
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		port_offset => $port_offset,
-		vnc_port    => $vnc_info->{port}
-	}, prefix => "get_vnc_info" });
-
-	return $vnc_info;
-}
-
-sub get_available_port
-{
-	my $parameters    = shift;
-	my $start_port    = $parameters->{start_port};
-	my $host_name     = $parameters->{host_name};
-	my $step_operator = ((defined $parameters->{step_operator}) and ($parameters->{step_operator} =~ /^[+-]$/)) ? $parameters->{step_operator} : "+";
-	my $step_size     = (
-		(defined $parameters->{step_size})
-		and ($parameters->{step_size} =~ /^\d+$/)
-		and ($parameters->{step_size} > 0)
-	) ? $parameters->{step_size} : 1;
-
-	my $available_port;
-
-	my $shell_call = "ss_output=\$(ss --all --tcp --numeric) && port=".$start_port." && while egrep -q \":\${port}[[:space:]]+[^[:space:]]+\" <<<\$ss_output; do (( port ".$step_operator."= ".$step_size." )); done && echo \$port";
-
-	my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
-
-	if ($shell_return_code == 0)
-	{
-		$available_port = $shell_output;
-	}
-
-	return $available_port;
-}
-
-sub is_websockify_process
-{
-	my $parameters = shift;
-	my $host_name  = $parameters->{host_name};
-	my $ws_pid     = $parameters->{ws_pid};
-	my $shell_call = "ps -e -o command -h -p ".$ws_pid;
-
-	my ($shell_return_code, $shell_output) = call({ host_name  => $host_name, call => $shell_call });
-
-	return $shell_output =~ /websockify/ ? 1 : 0;
-}
-
-sub is_ssh_process
-{
-	my $parameters     = shift;
-	my $host_name      = $parameters->{host_name};
-	my $ssh_tunnel_pid = $parameters->{ssh_tunnel_pid};
-
-	my $shell_call = "ps -e -o command -h -p ".$ssh_tunnel_pid;
-
-	my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
-
-	return $shell_output =~ /anvil-manage-tunnel/ ? 1 : 0;
-}
-
-sub is_websockify_exists
-{
-	my $parameters      = shift;
-	my $server_uuid     = $parameters->{server_uuid};
-	my $host_uuid       = $parameters->{host_uuid};
-	my $ws_host_uuid    = $parameters->{ws_host_uuid};
-	my $server_vnc_port = $parameters->{server_vnc_port};
-
-	# Expect 0 to 1 record(s) because each VM server can only have 1
-	# websockify instance (not considering shared VNC sessions).
-	my $query = "
-SELECT
-	a.server_vnc_port,
-	b.host_name,
-	a.ws_host_uuid,
-	a.ws_pid,
-	a.ws_dest_port,
-	a.ssh_tunnel_host_uuid
-FROM vnc_pipes AS a
-JOIN hosts AS b ON a.ws_host_uuid = b.host_uuid
-WHERE
-	a.server_uuid = ".$anvil->Database->quote($server_uuid)."
-AND
-	a.ws_host_uuid = ".$anvil->Database->quote($ws_host_uuid)."
-AND
-	a.server_vnc_port IS NOT NULL
-ORDER BY a.ws_pid DESC
-;";
-
-	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-	my $count   = @{$results};
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query, count => $count }, prefix => "is_websockify_exists" });
-
-	my $ws_exists_info = { exists_code => 0 };
-
-	foreach my $row (@{$results})
-	{
-		my $server_vnc_port_in_record = $row->[0];
-		my $ws_host_name              = $row->[1];
-		my $ws_host_uuid_in_record    = $row->[2];
-		my $ws_pid                    = $row->[3];
-		my $ws_dest_port              = $row->[4];
-		my $ssh_tunnel_host_uuid      = $row->[5];
-		my $clean_up_parameters       = { host_name => $ws_host_name, ws_pid => $ws_pid };
-
-		$ws_exists_info->{exists_code} = 1;
-
-		if ($ws_host_uuid ne $ws_host_uuid_in_record)
-		{
-			# VNC server host mismatch; try to stop the recorded instance.
-			# Likely happens after a server migration.
-			stop_websockify($clean_up_parameters);
-
-			# No need to preserve the websockify source port in
-			# this case because the tunnel will need to be replaced
-			# as well.
-		}
-		elsif ($server_vnc_port != $server_vnc_port_in_record)
-		{
-			# VNC server port mismatch; try to stop the recorded instance.
-			stop_websockify($clean_up_parameters);
-
-			$ws_exists_info->{ws_dest_port} = $ws_dest_port;
-		}
-		elsif (not is_websockify_process($clean_up_parameters))
-		{
-			# The recorded instance died.
-			$ws_exists_info->{ws_dest_port} = $ws_dest_port;
-		}
-		else
-		{
-			# Found one websockify instance that passed all tests.
-			$ws_exists_info->{exists_code}  = 2;
-			$ws_exists_info->{ws_pid}       = $ws_pid;
-			$ws_exists_info->{ws_dest_port} = $ws_dest_port;
-		}
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_exists_info, prefix => "is_websockify_exists" });
-
-	return $ws_exists_info;
-}
-
-sub is_ssh_tunnel_exists
-{
-	my $parameters           = shift;
-	my $server_uuid          = $parameters->{server_uuid};
-	my $ssh_tunnel_host_uuid = $parameters->{ssh_tunnel_host_uuid};
-	my $ws_host_uuid         = $parameters->{ws_host_uuid};
-	my $ws_dest_port         = $parameters->{ws_dest_port};
-
-	# Expect 0 to n record(s), where n is the number of subnodes:
-	# n=0: no SSH tunnel connected to the server's ws instance
-	# n>0: at least one SSH tunnel is known, regardless of whether it is
-	#      actually alive
-	#
-	# Order by clause ensures NULL record(s) are at first.
-	my $query = "
-SELECT
-	a.ws_host_uuid,
-	a.ws_pid,
-	a.ws_dest_port,
-	a.ssh_tunnel_dest_port,
-	b.host_name,
-	a.ssh_tunnel_host_uuid,
-	a.ssh_tunnel_pid,
-	a.ssh_tunnel_source_port
-FROM vnc_pipes AS a
-JOIN hosts AS b ON a.ssh_tunnel_host_uuid = b.host_uuid
-WHERE
-	a.server_uuid = ".$anvil->Database->quote($server_uuid)."
-AND
-	a.ssh_tunnel_host_uuid IS NOT NULL
-ORDER BY a.ws_pid DESC
-;";
-
-	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-	my $count   = @{$results};
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query, count => $count }, prefix => "is_ssh_tunnel_exists" });
-
-	my $ssh_tunnel_exists_info = { exists_code => 0 };
-
-	foreach my $row (@{$results})
-	{
-		my $row                            = $results->[0];
-		my $ws_host_uuid_in_record         = $row->[0];
-		my $ws_pid_in_record               = $row->[1];
-		my $ws_dest_port_in_record         = $row->[2];
-		my $ssh_tunnel_dest_port           = $row->[3];
-		my $ssh_tunnel_host_name           = $row->[4];
-		my $ssh_tunnel_host_uuid_in_record = $row->[5];
-		my $ssh_tunnel_pid                 = $row->[6];
-		my $ssh_tunnel_source_port         = $row->[7];
-		my $clean_up_parameters            = { host_name => $ssh_tunnel_host_name, ssh_tunnel_pid => $ssh_tunnel_pid };
-
-		$ssh_tunnel_exists_info->{exists_code} = 1;
-
-		if (not defined $ws_pid_in_record and defined $ssh_tunnel_pid)
-		{
-			# Websockify instance doesn't exist but tunnel does.
-			# Remove the tunnel that's not connected to anything.
-			stop_ssh_tunnel($clean_up_parameters);
-
-			clear_vnc_pipe_st({ server_uuid => $server_uuid, ws_host_uuid => $ws_host_uuid_in_record });
-
-			# No need to preserve any tunnel info because this
-			# tunnel doesn't need to be recreated.
-		}
-		elsif ($ssh_tunnel_source_port != $ws_dest_port_in_record)
-		{
-			# Tunnel is not pointing to the destination port of the
-			# websockify instance; stop it and recreate.
-			stop_ssh_tunnel($clean_up_parameters);
-
-			# Port mismatch means we need to recreate the tunnel.
-			$ssh_tunnel_exists_info->{ssh_tunnel_dest_port} = $ssh_tunnel_dest_port;
-		}
-		elsif (not is_ssh_process($clean_up_parameters))
-		{
-			# The tunnel pid doesn't point to an active tunnel;
-			# mark as need-to-be recreated.
-			$ssh_tunnel_exists_info->{ssh_tunnel_dest_port} = $ssh_tunnel_dest_port;
-		}
-		else
-		{
-			# Passed all tests; tunnel considered exists.
-			$ssh_tunnel_exists_info->{exists_code}          = 2;
-			$ssh_tunnel_exists_info->{ssh_tunnel_dest_port} = $ssh_tunnel_dest_port;
-			$ssh_tunnel_exists_info->{ssh_tunnel_pid}       = $ssh_tunnel_pid;
-		}
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_exists_info, prefix => "is_ssh_tunnel_exists" });
-
-	return $ssh_tunnel_exists_info;
-}
-
-sub is_websockify_in_use_by_others
-{
-	my $parameters = shift;
-	my $ws_pid     = $parameters->{ws_pid};
-
-	my $query = "SELECT COUNT(*) FROM public.vnc_pipes WHERE ws_pid = ".$anvil->Database->quote($ws_pid).";";
-
-	my $count = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ })->[0]->[0];
-
-	return $count > 1 ? 1 : 0;
-}
-
-sub is_remote_host_name
-{
-	my $host_name = shift;
-
-	return ((defined $host_name) and ($host_name ne $anvil->data->{sys}{host_name})) ? 1 : 0;
-}
-
-sub start_websockify
-{
-	my $parameters   = shift;
-	my $server_uuid  = $parameters->{server_uuid};
-	my $host_uuid    = $parameters->{host_uuid};
-	my $ws_host_name = $parameters->{ws_host_name};
-	my $ws_host_uuid = $parameters->{ws_host_uuid};
-	my $target_port  = $parameters->{target_port};
-	my $source_port  = $parameters->{source_port};
-	my $ws_info;
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "start_websockify" });
-
-	my $ws_exists_info = is_websockify_exists({
-		server_uuid     => $server_uuid,
-		host_uuid       => $host_uuid,
-		ws_host_uuid    => $ws_host_uuid,
-		server_vnc_port => $target_port
-	});
-
-	if ($ws_exists_info->{exists_code} == 2)
-	{
-		$ws_info                = {};
-		$ws_info->{pid}         = $ws_exists_info->{ws_pid};
-		$ws_info->{source_port} = $ws_exists_info->{ws_dest_port};
-	}
-	else
-	{
-		if (not defined $source_port)
-		{
-			if (defined $ws_exists_info->{ws_dest_port})
-			{
-				$source_port = $ws_exists_info->{ws_dest_port};
-			}
-			else
-			{
-				my $source_port_base = 10000;
-
-				$source_port = $source_port_base + $target_port;
-			}
-		}
-
-		$source_port = get_available_port({ start_port => $source_port, host_name => $ws_host_name });
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			source_port => $source_port
-		}, prefix => "start_websockify" });
-
-		return if (not defined $source_port);
-
-		my $shell_call = "websockify ".$source_port." :".$target_port." &>/dev/null & echo pid:\$!";
-
-		my ($shell_return_code, $shell_output) = call({
-			call      => $shell_call,
-			host_name => $ws_host_name,
-			user      => "admin",
-		});
-
-		return if ($shell_return_code != 0);
-
-		my ($ws_pid) = $shell_output =~ /pid:(\d+)$/;
-
-		$ws_info                = {};
-		$ws_info->{pid}         = $ws_pid;
-		$ws_info->{source_port} = $source_port;
-
-		if ($ws_exists_info->{exists_code} == 1)
-		{
-			$ws_info->{is_update} = 1;
-		}
-		else
-		{
-			$ws_info->{is_new} = 1;
-		}
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ws_info, prefix => "start_websockify" });
-
-	return $ws_info;
-}
-
-sub stop_websockify
-{
-	my $parameters = shift;
-	my $host_name  = $parameters->{host_name};
-	my $ws_pid     = $parameters->{ws_pid};
-
-	return if (not is_websockify_process($parameters));
-
-	call({ host_name  => $host_name, call => "kill $ws_pid || kill -9 $ws_pid" });
-}
-
-sub start_ssh_tunnel
-{
-	my $parameters           = shift;
-	my $server_uuid          = $parameters->{server_uuid};
-	my $host_name            = $parameters->{host_name};
-	my $host_uuid            = $parameters->{host_uuid};
-	my $ws_host_name         = $parameters->{ws_host_name};
-	my $ws_host_uuid         = $parameters->{ws_host_uuid};
-	my $ws_dest_port         = $parameters->{ws_dest_port};
-	my $ssh_tunnel_dest_port = $parameters->{ssh_tunnel_dest_port};
-	my $ssh_tunnel_info;
-
-	my $ssh_tunnel_exists_info = is_ssh_tunnel_exists({
-		server_uuid          => $server_uuid,
-		ssh_tunnel_host_uuid => $host_uuid,
-		ws_host_uuid         => $ws_host_uuid,
-		ws_dest_port         => $ws_dest_port
-	});
-
-	if ($ssh_tunnel_exists_info->{exists_code} == 2)
-	{
-		$ssh_tunnel_info                 = {};
-		$ssh_tunnel_info->{pid}          = $ssh_tunnel_exists_info->{ssh_tunnel_pid};
-		$ssh_tunnel_info->{forward_port} = $ssh_tunnel_exists_info->{ssh_tunnel_dest_port};
-	}
-	else
-	{
-		if (not defined $ssh_tunnel_dest_port)
-		{
-			if (defined $ssh_tunnel_exists_info->{ssh_tunnel_dest_port})
-			{
-				$ssh_tunnel_dest_port = $ssh_tunnel_exists_info->{ssh_tunnel_dest_port};
-			}
-			else
-			{
-				$ssh_tunnel_dest_port = $ws_dest_port;
-			}
-		}
-
-		$ssh_tunnel_dest_port = get_available_port({ start_port => $ssh_tunnel_dest_port });
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			ssh_tunnel_dest_port => $ssh_tunnel_dest_port
-		}, prefix => "start_ssh_tunnel" });
-
-		if (not defined $ssh_tunnel_dest_port)
-		{
-			return;
-		}
-
-		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-tunnel'}
-			." --remote-user admin --target ".$ws_host_name
-			." --forward-local-port ".$ssh_tunnel_dest_port
-			." --forward-remote-port ".$ws_dest_port
-			." &>/dev/null & echo pid:\$!";
-
-		my ($shell_return_code, $shell_output) = call({ host_name => $host_name, call => $shell_call });
-
-		if ($shell_return_code == 0)
-		{
-			my ($ssh_tunnel_pid) = $shell_output =~ /pid:(\d+)$/;
-
-			$ssh_tunnel_info                 = {};
-			$ssh_tunnel_info->{pid}          = $ssh_tunnel_pid;
-			$ssh_tunnel_info->{forward_port} = $ssh_tunnel_dest_port;
-
-			if ($ssh_tunnel_exists_info->{exists_code} == 1)
-			{
-				$ssh_tunnel_info->{is_update} = 1;
-			}
-			else
-			{
-				$ssh_tunnel_info->{is_new} = 1;
-			}
-		}
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ssh_tunnel_info, prefix => "start_ssh_tunnel" });
-
-	return $ssh_tunnel_info;
-}
-
-sub stop_ssh_tunnel
-{
-	my $parameters     = shift;
-	my $host_name      = $parameters->{host_name};
-	my $ssh_tunnel_pid = $parameters->{ssh_tunnel_pid};
-
-	return if (not is_ssh_process($parameters));
-
-	call({ host_name => $host_name, call => "kill $ssh_tunnel_pid || kill -9 $ssh_tunnel_pid" });
-}
-
-sub create_vnc_pipes_table
-{
-	my $query = "
-CREATE TABLE IF NOT EXISTS public.vnc_pipes (
-	uuid			uuid				not null	primary key,
-	server_uuid		uuid				not null,
-	server_vnc_port		numeric,
-	ws_host_uuid		uuid,
-	ws_pid			numeric,
-	ws_dest_port		numeric,
-	ssh_tunnel_dest_port	numeric,
-	ssh_tunnel_host_uuid	uuid,
-	ssh_tunnel_pid		numeric,
-	ssh_tunnel_source_port	numeric,
-	modified_date		timestamp with time zone	not null,
-	unique(server_uuid, ws_host_uuid)
-);";
-
-	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
-}
+my $manage_tunnel = $anvil->data->{path}{exe}{'anvil-manage-tunnel'};
+my $echo          = $anvil->data->{path}{exe}{'echo'};
+my $kill          = $anvil->data->{path}{exe}{'kill'};
+my $pgrep         = $anvil->data->{path}{exe}{'pgrep'};
+my $ps            = $anvil->data->{path}{exe}{'ps'};
+my $ss            = $anvil->data->{path}{exe}{'ss'};
+my $sed           = $anvil->data->{path}{exe}{'sed'};
+my $websockify    = $anvil->data->{path}{exe}{'websockify'};
 
 sub drop_vnc_pipes_table
 {
 	my $query = "DROP TABLE IF EXISTS public.vnc_pipes;";
 
 	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
-}
-
-sub insert_or_update_vnc_pipe
-{
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
-
-	return (1) if (not defined $server_uuid);
-
-	my $server_vnc_port        = $parameters->{server_vnc_port};
-	my $ssh_tunnel_dest_port   = $parameters->{ssh_tunnel_dest_port};
-	my $ssh_tunnel_host_uuid   = $parameters->{ssh_tunnel_host_uuid};
-	my $ssh_tunnel_pid         = $parameters->{ssh_tunnel_pid};
-	my $ssh_tunnel_source_port = $parameters->{ssh_tunnel_source_port};
-	my $vnc_pipe_uuid          = $parameters->{vnc_pipe_uuid} // $anvil->Get->uuid();
-	my $ws_host_uuid           = $parameters->{ws_host_uuid};
-	my $ws_pid                 = $parameters->{ws_pid};
-	my $ws_dest_port           = $parameters->{ws_dest_port};
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "insert_or_update_vnc_pipe" });
-
-	my $vnc_pipe_mdate        = $anvil->Database->refresh_timestamp();
-	my $quoted_vnc_pipe_mdate = $anvil->Database->quote($vnc_pipe_mdate);
-
-	my $insert_columns = "";
-	my $insert_values  = "";
-	my $update_values  = "";
-
-	foreach my $column_name (
-		"server_vnc_port",
-		"ws_host_uuid",
-		"ws_pid",
-		"ws_dest_port",
-		"ssh_tunnel_dest_port",
-		"ssh_tunnel_host_uuid",
-		"ssh_tunnel_pid",
-		"ssh_tunnel_source_port"
-	)
-	{
-		my $column_value = $parameters->{$column_name};
-
-		next if (not defined $column_value);
-
-		my $quoted_value = ($column_value eq "NULL")
-			? $column_value
-			: $anvil->Database->quote($column_value);
-
-		$insert_columns .= "$column_name,\n\t";
-		$insert_values  .= "$quoted_value,\n\t";
-		$update_values  .= "$column_name = $quoted_value,\n\t";
-	}
-
-	my $query = "
-INSERT INTO public.vnc_pipes (
-	uuid,
-	server_uuid,
-	$insert_columns
-	modified_date
-) VALUES (
-	".$anvil->Database->quote($vnc_pipe_uuid).",
-	".$anvil->Database->quote($server_uuid).",
-	$insert_values
-	$quoted_vnc_pipe_mdate
-) ON CONFLICT (server_uuid, ws_host_uuid) DO UPDATE SET
-	$update_values
-	modified_date = $quoted_vnc_pipe_mdate;";
-
-	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
-
-	return (0);
-}
-
-sub clear_vnc_pipe_ws
-{
-	my $parameters   = shift;
-	my $server_uuid  = $parameters->{server_uuid};
-	my $ws_host_uuid = $parameters->{ws_host_uuid};
-
-	return (1) if (not defined $ws_host_uuid);
-
-	insert_or_update_vnc_pipe({
-		server_uuid     => $server_uuid,
-		server_vnc_port => "NULL",
-		ws_dest_port    => "NULL",
-		ws_host_uuid    => $ws_host_uuid,
-		ws_pid          => "NULL"
-	});
-
-	return (0);
-}
-
-sub clear_vnc_pipe_st
-{
-	my $parameters = shift;
-	my $server_uuid  = $parameters->{server_uuid};
-	my $ws_host_uuid = $parameters->{ws_host_uuid};
-
-	return (1) if (not defined $ws_host_uuid);
-
-	insert_or_update_vnc_pipe({
-		server_uuid            => $server_uuid,
-		ssh_tunnel_dest_port   => "NULL",
-		ssh_tunnel_host_uuid   => "NULL",
-		ssh_tunnel_pid         => "NULL",
-		ssh_tunnel_source_port => "NULL",
-		ws_host_uuid           => $ws_host_uuid
-	});
-}
-
-sub get_vnc_pipe
-{
-	my $parameters  = shift;
-	my $server_uuid = $parameters->{server_uuid};
-
-	return if (not defined $server_uuid);
-
-	my $is_ws_pid            = $parameters->{is_ws_pid};
-	my $ssh_tunnel_host_uuid = $parameters->{ssh_tunnel_host_uuid};
-	my $ws_host_uuid         = $parameters->{ws_host_uuid};
-
-	my $vnc_pipe_info;
-
-	my $cond_ws_pid     = defined $is_ws_pid
-		? "AND a.ws_pid IS NOT NULL" : "";
-	my $cond_ssht_huuid = defined $ssh_tunnel_host_uuid
-		? "AND a.ssh_tunnel_host_uuid = ".$anvil->Database->quote($ssh_tunnel_host_uuid) : "";
-	my $cond_ws_huuid   = defined $ws_host_uuid
-		? "AND a.ws_host_uuid = ".$anvil->Database->quote($ws_host_uuid) : "";
-
-	my $query = "
-SELECT
-	a.server_vnc_port,
-	b.host_name,
-	a.ws_host_uuid,
-	a.ws_pid,
-	a.ws_dest_port,
-	a.ssh_tunnel_host_uuid,
-	a.ssh_tunnel_pid,
-	a.ssh_tunnel_dest_port
-FROM
-	public.vnc_pipes AS a
-JOIN
-	public.hosts AS b
-ON
-	a.ws_host_uuid = b.host_uuid
-WHERE
-	server_uuid = ".$anvil->Database->quote($server_uuid)."
-	$cond_ws_pid
-	$cond_ssht_huuid
-	$cond_ws_huuid
-ORDER BY
-	a.modified_date DESC
-;";
-
-	my $results = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
-	my $count   = @{$results};
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query, count => $count }, prefix => "get_vnc_pipe" });
-
-	if ($count == 1)
-	{
-		my $row = $results->[0];
-
-		$vnc_pipe_info                         = {};
-		$vnc_pipe_info->{server_vnc_port}      = $row->[0];
-		$vnc_pipe_info->{host_name}            = $row->[1];
-		$vnc_pipe_info->{ws_host_uuid}         = $row->[2];
-		$vnc_pipe_info->{ws_pid}               = $row->[3];
-		$vnc_pipe_info->{ws_dest_port}         = $row->[4];
-		$vnc_pipe_info->{ssh_tunnel_host_uuid} = $row->[5];
-		$vnc_pipe_info->{ssh_tunnel_pid}       = $row->[6];
-		$vnc_pipe_info->{ssh_tunnel_dest_port} = $row->[7];
-	}
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $vnc_pipe_info, prefix => "get_vnc_pipe" });
-
-	return $vnc_pipe_info;
-}
-
-sub open_ws
-{
-	my $parameters       = shift;
-	my $server_host_name = $parameters->{server_host_name};
-	my $server_host_uuid = $parameters->{server_host_uuid};
-	my $server_name      = $parameters->{server_name};
-	my $server_uuid      = $parameters->{server_uuid};
-	my $server_vnc_port  = $parameters->{server_vnc_port};
-
-	my $server_info = $parameters->{server_info} // get_server_info($parameters);
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "open_ws" });
-
-	return (1, "error_0313") if (not defined $server_info);
-
-	my $vnc_info = get_vnc_info({
-		host_name   => $server_info->{host_name},
-		port        => $server_vnc_port,
-		server_name => $server_info->{server_name},
-		server_uuid => $server_uuid
-	});
-
-	return (1, "error0314") if (not defined $vnc_info);
-
-	my $ws_info = start_websockify({
-		server_uuid  => $server_uuid,
-		target_port  => $vnc_info->{port},
-		ws_host_name => $server_info->{host_name},
-		ws_host_uuid => $server_info->{host_uuid}
-	});
-
-	return (1, "error_0315") if (not defined $ws_info);
-
-	if ($ws_info->{is_new} or $ws_info->{is_update})
-	{
-		insert_or_update_vnc_pipe({
-			server_uuid     => $server_uuid,
-			server_vnc_port => $vnc_info->{port},
-			ws_host_uuid    => $server_info->{host_uuid},
-			ws_pid          => $ws_info->{pid},
-			ws_dest_port    => $ws_info->{source_port}
-		});
-	}
-
-	return (0, $ws_info);
-}
-
-sub close_ws
-{
-	my $parameters  = shift;
-	my $host_uuid   = $parameters->{host_uuid};
-	my $server_uuid = $parameters->{server_uuid};
-
-	my $vnc_pipe_info = $parameters->{vnc_pipe_info} // get_vnc_pipe({ server_uuid => $server_uuid, ws_host_uuid => $host_uuid });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "close_ws" });
-
-	return (1, "error_0317") if (not defined $vnc_pipe_info);
-
-	return (0) if is_websockify_in_use_by_others({ ws_pid => $vnc_pipe_info->{ws_pid} });
-
-	stop_websockify({ host_name => $vnc_pipe_info->{host_name}, ws_pid => $vnc_pipe_info->{ws_pid} });
-
-	clear_vnc_pipe_ws({ server_uuid  => $server_uuid, ws_host_uuid => $vnc_pipe_info->{ws_host_uuid} });
-
-	return (0);
-}
-
-sub open_st
-{
-	my $parameters       = shift;
-	my $host_uuid        = $parameters->{host_uuid};
-	my $is_print         = $parameters->{print} // (not $anvil->data->{switches}{'job-uuid'});
-	my $server_host_uuid = $parameters->{server_host_uuid};
-	my $server_uuid      = $parameters->{server_uuid};
-
-	my $server_info = $parameters->{server_info} // get_server_info($parameters);
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "open_st" });
-
-	return (1, "error_0313") if (not defined $server_info);
-
-	my $vnc_pipe_info = get_vnc_pipe({ is_ws_pid => 1, server_uuid => $server_uuid, ws_host_uuid => $server_info->{host_uuid} });
-
-	return (1, "error_0317") if (not defined $vnc_pipe_info);
-
-	my $ssh_tunnel_info = start_ssh_tunnel({
-		server_uuid  => $server_uuid,
-		host_uuid    => $host_uuid,
-		ws_host_name => $vnc_pipe_info->{host_name},
-		ws_host_uuid => $vnc_pipe_info->{ws_host_uuid},
-		ws_dest_port => $vnc_pipe_info->{ws_dest_port}
-	});
-
-	return (1, "error_0316") if (not defined $ssh_tunnel_info);
-
-	if ($ssh_tunnel_info->{is_new} or $ssh_tunnel_info->{is_update})
-	{
-		insert_or_update_vnc_pipe({
-			server_uuid            => $server_uuid,
-			ssh_tunnel_dest_port   => $ssh_tunnel_info->{forward_port},
-			ssh_tunnel_host_uuid   => $host_uuid,
-			ssh_tunnel_pid         => $ssh_tunnel_info->{pid},
-			ssh_tunnel_source_port => $vnc_pipe_info->{ws_dest_port},
-			ws_host_uuid           => $vnc_pipe_info->{ws_host_uuid}
-		});
-	}
-
-	my $forward_port = $ssh_tunnel_info->{forward_port} // "";
-
-	$ssh_tunnel_info->{forward_port} = $forward_port;
-
-	print "protocol:ws,forward_port:$forward_port\n" if ($is_print);
-
-	return (0, $ssh_tunnel_info);
-}
-
-sub close_st
-{
-	my $parameters  = shift;
-	my $host_uuid   = $parameters->{host_uuid};
-	my $server_uuid = $parameters->{server_uuid};
-
-	my $vnc_pipe_info = $parameters->{vnc_pipe_info} // get_vnc_pipe({
-		server_uuid          => $server_uuid,
-		ssh_tunnel_host_uuid => $host_uuid
-	});
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $parameters, prefix => "close_st" });
-
-	return (1, "error_0317") if (not defined $vnc_pipe_info);
-
-	stop_ssh_tunnel({ ssh_tunnel_pid => $vnc_pipe_info->{ssh_tunnel_pid} });
-
-	clear_vnc_pipe_st({ server_uuid => $server_uuid, ws_host_uuid => $vnc_pipe_info->{ws_host_uuid} });
-
-	return (0);
 }
 
 $anvil->Get->switches;
@@ -940,158 +45,714 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-# Try to get a job UUID if not given.
-if (not $anvil->data->{switches}{'job-uuid'})
+my $switch_debug    = $anvil->data->{switches}{'debug'};
+my $open            = $anvil->data->{switches}{'open'};
+my $server          = $anvil->data->{switches}{'server'};
+my $server_uuid     = $anvil->data->{switches}{'server-uuid'};
+my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
+
+if (defined $server)
 {
-	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({ program => $THIS_FILE });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}
-	} });
-}
-
-# Handle this script as a job when job UUID is provided.
-if ($anvil->data->{switches}{'job-uuid'})
-{
-	$anvil->Job->clear();
-	$anvil->Job->get_job_details();
-	$anvil->Job->update_progress({
-		progress         => 1,
-		job_picked_up_by => $$,
-		job_picked_up_at => time,
-		message          => "message_0259"
-	});
-
-	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
-	{
-		if ($line =~ /server-uuid=(.*?)$/)
-		{
-			$anvil->data->{switches}{'server-uuid'} = $1;
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'}
-			} });
-		}
-
-		if ($line =~ /open=(.*?)$/)
-		{
-			$anvil->data->{switches}{'open'} = $1;
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				'switches::open' => $anvil->data->{switches}{'open'}
-			} });
-		}
-
-		if ($line =~ /drop-table=(.*?)$/)
-		{
-			$anvil->data->{switches}{'drop-table'} = $1;
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				'switches::drop-table' => $anvil->data->{switches}{'drop-table'}
-			} });
-		}
-	}
-}
-
-$anvil->Database->get_hosts();
-$anvil->Database->get_anvils();
-
-my $component        = $anvil->data->{switches}{'component'} // "all";
-my $is_drop_table    = $anvil->data->{switches}{'drop-table'};
-my $is_open          = $anvil->data->{switches}{'open'};
-my $server           = $anvil->data->{switches}{'server'};
-my $server_host_uuid = $anvil->data->{switches}{'server-host-uuid'};
-my $server_uuid      = $anvil->data->{switches}{'server-uuid'} // $anvil->Get->server_uuid_from_name({ server_name => $server });
-my $server_vnc_port  = $anvil->data->{switches}{'server-vnc-port'};
-
-my $server_host_name;
-
-if (defined $server_host_uuid)
-{
-	if ($server_host_uuid eq "local")
-	{
-		$server_host_uuid = $anvil->data->{sys}{host_uuid};
-		$server_host_name = $anvil->data->{sys}{host_name};
-	}
-	else
-	{
-		$server_host_name = $anvil->Get->host_name_from_uuid({ host_uuid => $server_host_uuid });
-	}
+	$server_uuid //= is_uuid_v4($server) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
 }
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-	component        => $component,
-	is_open          => $is_open,
-	is_drop_table    => $is_drop_table,
+	open             => $open,
 	server           => $server,
-	server_host_name => $server_host_name,
-	server_host_uuid => $server_host_uuid,
 	server_uuid      => $server_uuid,
 	server_vnc_port  => $server_vnc_port
 } });
 
-my $map_to_operation = {
-	st  => { close => \&close_st, open => \&open_st },
-	ws  => { close => \&close_ws, open => \&open_ws },
-};
+my $map_to_operation = { start => \&start_pipe, stop => \&stop_pipe };
 
-if ($server_uuid =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/)
+if (is_uuid_v4($server_uuid))
 {
-	create_vnc_pipes_table();
+	my $rcode;
 
-	my $ops = $map_to_operation->{$component};
+	my $operation = $open ? "start" : "stop";
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $ops });
-
-	$anvil->nice_exit({ exit_code => 1 }) if (not defined $ops);
-
-	my $op = ($is_open) ? "open" : "close";
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { operation => $op } });
-
-	my $host_uuid = $anvil->data->{sys}{host_uuid};
-
-	my ($is_error, $error) = $ops->{$op}({
-		host_uuid        => $host_uuid,
-		server_host_name => $server_host_name,
-		server_host_uuid => $server_host_uuid,
-		server_name      => $server,
-		server_uuid      => $server_uuid,
-		server_vnc_port  => $server_vnc_port
+	($rcode) = $map_to_operation->{$operation}({
+		debug        => $switch_debug,
+		svr_uuid     => $server_uuid,
+		svr_vnc_port => $server_vnc_port,
 	});
 
-	if ($is_error)
-	{
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 1, list => {
-			error       => $error,
-			host_uuid   => $host_uuid,
-			server_uuid => $server_uuid
-		} });
-
-		if (defined $error and $error =~ /^error_/)
-		{
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "$error,!!server_uuid!$server_uuid!!,!!host_uuid!$host_uuid!!",
-				job_status => "failed"
-			});
-		}
-
-		$anvil->nice_exit({ exit_code => 2 });
-	}
-
-	$anvil->Job->update_progress({
-		progress => 100,
-		message  => "message_0260,!!operation!$op!!,!!server_uuid!$server_uuid!!,!!host_uuid!$host_uuid!!"
-	});
-}
-elsif ($is_drop_table)
-{
-	drop_vnc_pipes_table();
-
-	$anvil->Job->update_progress({ progress => 100, message => "message_0261" });
-}
-else
-{
-	$anvil->Job->update_progress({ progress => 100, message => "message_0262" });
-
-	$anvil->nice_exit({ exit_code => 3 });
+	$anvil->nice_exit({ exit_code => $rcode });
 }
 
 $anvil->nice_exit({ exit_code => 0 });
+
+#
+# Functions
+#
+
+sub build_find_available_port_call
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $start         = $parameters->{start};
+	my $step_operator = $parameters->{step_operator} // "+";
+	my $step_size     = $parameters->{step_size} || 1;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "build_find_available_port_call" });
+
+	return (1) if ( (not $step_operator =~ /^[+-]$/)
+		|| (not is_int($step_size)) || ($step_size < 1) );
+
+	my $call = "ss_output=\$($ss -ant) && port=${start} && while $grep -Eq \":\${port}[[:space:]]+[^[:space:]]+\" <<<\$ss_output; do (( port ${step_operator}= $step_size )); done && $echo \$port";
+
+	return (0, $call);
+}
+
+sub build_tunnel_call
+{
+	my $parameters = shift;
+	my $ctl_cmd    = $parameters->{ctl_cmd} // "forward";
+	my $ctl_path   = $parameters->{ctl_path};
+	my $debug      = $parameters->{debug} || 3;
+	my $lport      = $parameters->{lport};
+	my $rport      = $parameters->{rport};
+	my $svr_uuid   = $parameters->{svr_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "build_tunnel_call" });
+
+	return (1) if ( (not defined $ctl_path)
+		|| (not defined $lport)
+		|| (not defined $rport) );
+
+	my $ls_prefix_opt = defined $svr_uuid ? "--tunnel-ls-prefix '$svr_uuid'" : "";
+
+	my $call = "$manage_tunnel --child --ctl-cmd $ctl_cmd --ctl-path '$ctl_path' --debug $debug --forward-lport $lport --forward-rport $rport $ls_prefix_opt";
+
+	return (0, $call);
+}
+
+sub build_tunnel_variable_name
+{
+	my ($svr_uuid, $tp_target_uuid) = @_;
+
+	return "sshctl::${svr_uuid}::${tp_target_uuid}";
+}
+
+sub call
+{
+	my $parameters = shift;
+	my $call       = $parameters->{call};
+	my $debug      = $parameters->{debug} || 3;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "call" });
+
+	return (1) if ( (not defined $call) || ($call eq "") );
+
+	my ($output, $rcode) = $anvil->System->call({ shell_call => $call });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output => $output,
+		rcode  => $rcode
+	} });
+
+	return ($rcode, $output);
+}
+
+sub find_available_port
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_available_port" });
+
+	my ($build_rcode, $call) = build_find_available_port_call($parameters);
+
+	return (1) if ($build_rcode);
+
+	return call({ call => $call, debug => $debug });
+}
+
+sub find_ws_processes
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+	my $ps_name    = $parameters->{ps_name} // "websockify";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_ws_processes" });
+
+	my $ps_call = "$pgrep -a '$ps_name' | $sed -E 's/^([[:digit:]]+).*${ps_name}[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\2,\\3/'";
+
+	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
+
+	return (1) if ($rcode);
+
+	my $result = { pids => {}, sources => {}, targets => {} };
+
+	foreach my $line (split(/\n/, $output))
+	{
+		chomp($line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ws_line => $line } });
+
+		my ($pid, $sport, $tport) = split(/,/, $line);
+
+		my $process = { pid => $pid, sport => $sport, tport => $tport };
+
+		set_ws_process({ debug => $debug, process => $process, processes => $result });
+	}
+
+	return (0, $result);
+}
+
+sub find_tp_processes
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+	my $ps_name    = $parameters->{ps_name} // "anvil-manage-tunnel";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_tp_processes" });
+
+	my $ps_call = "$pgrep -a '$ps_name' | $sed - E 's/^([[:digit:]]+).*--target[[:space:]]+([^[:space:]]+).*--ctl-path[[:space:]]+([^[:space:]]+).*--tunnel-ls-path[[:space:]]+([^[:space:]]+).*\$/\\1,\\2,\\3,\\4/'";
+
+	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
+
+	return (1) if ($rcode);
+
+	my $result = { pids => {}, targets => {} };
+
+	foreach my $line (split(/\n/, $output))
+	{
+		chomp($line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { tp_line => $line } });
+
+		my ($pid, $target, $ctl_path, $tunnel_ls_path) = split(/,/, $line);
+
+		my $process = { ctl_path => $ctl_path, pid => $pid, target => $target, tunnel_ls_path => $tunnel_ls_path };
+
+		set_tp_process({ debug => $debug, process => $process, processes => $result });
+	}
+
+	return (0, $result);
+}
+
+sub find_tunnel
+{
+	my $parameters     = shift;
+	my $debug          = $parameters->{debug} || 3;
+	my $svr_uuid       = $parameters->{svr_uuid};
+	my $tunnel_ls_path = $parameters->{tunnel_ls_path};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_tunnel" });
+
+	return (1) if ( (not defined $svr_uuid) || (not defined $tunnel_ls_path) );
+
+	my $call = "$sed -En 's/^${svr_uuid}.*:([[:digit:]]+):.*:([[:digit:]]+)\$/\\1,\\2/p' '$tunnel_ls_path'";
+
+	my ($rcode, $output) = call({ call => $call, debug => $debug });
+
+	return (1) if ($rcode);
+
+	chomp($output);
+
+	my ($lport, $rport) = split(/,/, $output);
+
+	return (0, { lport => $lport, rport => $rport });
+}
+
+sub get_strikers
+{
+	my $query = "
+SELECT host_name, host_uuid
+FROM hosts
+WHERE host_status = 'online' AND host_type = 'striker'
+;";
+	my $rows = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
+
+	my $strikers = { names => {}, uuids => {} };
+
+	foreach my $row (@{$rows})
+	{
+		my $host_name = $row->[0];
+		my $host_uuid = $row->[1];
+
+		$strikers->{uuids}{$host_uuid} = { name => $host_name, uuid => $host_uuid };
+		$strikers->{names}{$host_name} = $host_uuid;
+	}
+
+	return (0, $strikers);
+}
+
+sub get_tunnel_variable
+{
+	my $parameters     = shift;
+	my $svr_uuid       = $parameters->{svr_uuid};
+	my $tp_target_uuid = $parameters->{tp_target_uuid};
+
+	my $variable_name = build_tunnel_variable_name($svr_uuid, $tp_target_uuid);
+
+	my $query = "
+SELECT variable_value
+FROM variables
+WHERE
+	variable_name = ".$anvil->Database->quote($variable_name)."
+AND
+	variable_source_table = 'hosts'
+AND
+	variable_source_uuid = ".$anvil->Database->quote($tp_target_uuid)."
+;";
+	my $rows = $anvil->Database->query({ query => $query, source => $THIS_FILE, line => __LINE__ });
+
+	return (1) if (not @{$rows});
+
+	my $end_port = $rows->[0]->[0];
+
+	return (0, int($end_port));
+}
+
+sub is_int
+{
+	return $_[0] =~ /^\d+$/;
+}
+
+sub is_uuid_v4
+{
+	return $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
+}
+
+sub set_process
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $handle_delete = $parameters->{handle_delete};
+	my $handle_set    = $parameters->{handle_set};
+	my $pid           = $parameters->{pid};
+	my $process       = $parameters->{process};
+	my $processes     = $parameters->{processes};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $process, prefix => "process" });
+
+	return (1) if (not defined $processes);
+
+	if (defined $process)
+	{
+		$pid = $process->{pid};
+
+		$handle_set->($pid, $process, $processes);
+	}
+	elsif (defined $pid)
+	{
+		$process = $processes->{pids}{$pid};
+
+		$handle_delete->($pid, $process, $processes);
+	}
+
+	return (0);
+}
+
+sub set_tp_process
+{
+	my $parameters = shift;
+
+	$parameters->{handle_delete} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		my $target = $process->{target};
+
+		$processes->{pids}{$pid}       = $process;
+		$processes->{targets}{$target} = $pid;
+	};
+
+	$parameters->{handle_set} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		my $target = $process->{target};
+
+		delete $processes->{pids}{$pid};
+		delete $processes->{targets}{$target};
+	};
+
+	return set_process($parameters);
+}
+
+sub set_tunnel_variable
+{
+	my $parameters     = shift;
+	my $debug          = $parameters->{debug} || 3;
+	my $end_port       = $parameters->{end_port};
+	my $svr_uuid       = $parameters->{svr_uuid};
+	my $tp_target_uuid = $parameters->{tp_target_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_tunnel_variable" });
+
+	my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+		file                  => $THIS_FILE,
+		line                  => __LINE__,
+		variable_name         => build_tunnel_variable_name($svr_uuid, $tp_target_uuid),
+		variable_source_table => "hosts",
+		variable_source_uuid  => $tp_target_uuid,
+		variable_value        => $end_port,
+	});
+
+	return (1) if (not is_uuid_v4($variable_uuid));
+
+	return (0);
+}
+
+sub set_ws_process
+{
+	my $parameters = shift;
+
+	$parameters->{handle_delete} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		my $sport = $process->{sport};
+		my $tport = $process->{tport};
+
+		$processes->{pids}{$pid}      = $process;
+		$processes->{sources}($sport) = $pid;
+		$processes->{targets}{$tport} = $pid;
+	};
+
+	$parameters->{handle_set} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		my $sport = $process->{sport};
+		my $tport = $process->{tport};
+
+		delete $processes->{pids}{$pid};
+		delete $processes->{sources}($sport);
+		delete $processes->{targets}{$tport};
+	};
+
+	return set_process($parameters);
+}
+
+sub start_pipe
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	return (1) if (not is_uuid_v4($svr_uuid));
+
+	my $common_params = { debug => $debug };
+
+	my $rcode;
+
+	# If we don't have the server's VNC port, find it in its qemu-kvm process.
+	if ( (not defined $svr_vnc_port) || (not is_int($svr_vnc_port)) )
+	{
+		($rcode, my $svr_processes) = $anvil->Server->find_processes($common_params);
+
+		my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
+		my $svr_vnc_alive = $svr_process->{vnc_alive};
+
+		return (1) if (not $svr_vnc_alive);
+
+		$svr_vnc_port = $svr_process->{vnc_port};
+	}
+
+	($rcode, my $ws_processes) = find_ws_processes($common_params);
+
+	return ($rcode) if ($rcode);
+
+	($rcode, my $ws_pid) = start_ws({ svr_vnc_port => $svr_vnc_port, ws_processes => $ws_processes, %$common_params });
+
+	return ($rcode) if ($rcode);
+
+	($rcode, my $hosts) = get_strikers($common_params);
+
+	return ($rcode) if ($rcode);
+
+	($rcode, my $tp_processes) = find_tp_processes($common_params);
+
+	return ($rcode) if ($rcode);
+
+	my $ws_process = $ws_processes->{pids}{$ws_pid};
+
+	foreach my $host_uuid (keys $hosts->{uuids})
+	{
+		my $host_name = $hosts->{uuids}{$host_uuid}{name};
+
+		($rcode, my $tp_pid) = start_tp({ tp_processes => $tp_processes, tp_target => $host_name, %$common_params });
+
+		next if ($rcode);
+
+		my $tp_process = $tp_processes->{pids}{$tp_pid};
+
+		($rcode, my $tunnel) = start_tunnel({
+			svr_uuid       => $svr_uuid,
+			tp_ctl_path    => $tp_process->{ctl_path},
+			tp_target      => $host_name,
+			tp_target_uuid => $host_uuid,
+			ws_sport       => $ws_process->{sport},
+			%$common_params,
+		});
+
+		next if ($rcode);
+
+		($rcode) = set_tunnel_variable($tunnel);
+
+		if ($rcode)
+		{
+			stop_tunnel({
+				lport       => $ws_process->{sport},
+				rport       => $tunnel->{end_port},
+				tp_ctl_path => $tp_process->{ctl_path},
+				%$common_params,
+			});
+		}
+	}
+
+	return (0);
+}
+
+sub start_tp
+{
+	my $parameters        = shift;
+	my $debug             = $parameters->{debug} || 3;
+	my $tp_ctl_path       = $parameters->{tp_ctl_path};
+	my $tp_processes      = $parameters->{tp_processes};
+	my $tp_target         = $parameters->{tp_target};
+	my $tp_tunnel_ls_path = $parameters->{tp_tunnel_ls_path};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_tp" });
+
+	return (1) if ( (not defined $tp_processes) || (not defined $tp_target) );
+
+	my $tp_ctl_name = "sshctl-${tp_target}";
+
+	$tp_ctl_path       //= "~/.libnet-openssh-perl/${tp_ctl_name}";
+	$tp_tunnel_ls_path //= $anvil->data->{path}{'directories'}{'tmp'}."/${tp_ctl_name}-tunnel-ls";
+
+	my $existing_tp_pid = $tp_processes->{targets}{$tp_target};
+
+	return (0, $existing_tp_pid) if (defined $existing_tp_pid);
+
+	my $tp_call = "$manage_tunnel --debug $debug --target $tp_target --ctl-path '$tp_ctl_path' --tunnel-ls-path '$tp_tunnel_ls_path' & $echo pid:\$!";
+
+	my ($start_rcode, $start_output) = call({ call => $tp_call, debug => $debug });
+
+	return (1) if ($start_rcode);
+
+	my ($tp_pid) = $start_output =~ /pid:(\d+)$/;
+
+	my $tp_process = { ctl_path => $tp_ctl_path, pid => $tp_pid, target => $tp_target, tunnel_ls_path => $tp_tunnel_ls_path };
+
+	set_tp_process({ debug => $debug, process => $tp_process, processes => $tp_processes });
+
+	return (0, $tp_pid);
+}
+
+sub start_tunnel
+{
+	my $parameters     = shift;
+	my $debug          = $parameters->{debug};
+	my $svr_uuid       = $parameters->{svr_uuid};
+	my $tp_ctl_path    = $parameters->{tp_ctl_path};
+	my $tp_target      = $parameters->{tp_target};
+	my $tp_target_uuid = $parameters->{tp_target_uuid};
+	my $ws_sport       = $parameters->{ws_sport};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_tunnel" });
+
+	return (1) if ( (not defined $svr_uuid)
+		|| (not defined $tp_target)
+		|| (not defined $tp_target_uuid)
+		|| (not defined $tp_ctl_path) || ($tp_ctl_path eq "") || (not -e $tp_ctl_path)
+		|| (not defined $ws_sport) );
+
+	my $build_rcode;
+	my $sh_call;
+
+	# ----- Try to find a usable port on the target host.
+	($build_rcode, $sh_call) = build_find_available_port_call({ start => $ws_sport });
+
+	return (1) if ($build_rcode);
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { find_available_port_call => $call } });
+
+	my ($tunnel_rport, $find_error, $find_rcode) = $anvil->Remote->call({
+		no_cache    => 1,
+		ossh_opts   => [ ctl_path => $tp_ctl_path, external_master => 1 ],
+		shell_call  => $sh_call,
+		target      => "0.0.0.0",
+	});
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		find_error   => $find_error,
+		find_rcode   => $find_rcode,
+		tunnel_rport => $tunnel_rport,
+	} });
+
+	return (1) if ($find_rcode);
+	# -----
+
+	($build_rcode, $sh_call) = build_tunnel_call({
+		ctl_path => $tp_ctl_path,
+		debug    => $debug,
+		lport    => $ws_sport,
+		rport    => $tunnel_rport,
+		svr_uuid => $svr_uuid,
+	});
+
+	return (1) if ($build_rcode);
+
+	my ($start_rcode) = call({ call => $sh_call, debug => $debug });
+
+	return (1) if ($start_rcode);
+
+	return (0, { debug => $debug, end_port => $tunnel_rport, svr_uuid => $svr_uuid, tp_target_uuid => $tp_target_uuid });
+}
+
+sub start_ws
+{
+	my $parameters      = shift;
+	my $debug           = $parameters->{debug} || 3;
+	my $svr_vnc_port    = $parameters->{svr_vnc_port};
+	my $ws_processes    = $parameters->{ws_processes};
+	my $ws_sport_offset = $parameters->{ws_sport_offset} || 10000;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_ws" });
+
+	return (1) if ( (not defined $ws_processes)
+		|| (not defined $svr_vnc_port) || (not is_int($svr_vnc_port))
+		|| (not is_int($ws_sport_offset)) );
+
+	my $existing_ws_pid = $ws_processes->{targets}{$svr_vnc_port};
+
+	return (0, $existing_ws_pid) if (defined $existing_ws_pid);
+
+	my ($find_rcode, $ws_sport) = find_available_port({ debug => $debug, start => int($svr_vnc_port) + int($ws_sport_offset) });
+
+	return (1) if ($find_rcode);
+
+	my $ws_call = "$websockify $svr_vnc_port :$ws_sport &>/dev/null & $echo pid:\$!";
+
+	my ($start_rcode, $start_output) = call({ call => $ws_call, debug => $debug });
+
+	return (1) if ($start_rcode);
+
+	my ($ws_pid) = $start_output =~ /pid:(\d+)$/;
+
+	my $ws_process = { pid => $ws_pid, sport => $ws_sport, tport => $svr_vnc_port };
+
+	set_ws_process({ debug => $debug, process => $ws_process, processes => $ws_processes });
+
+	return (0, $ws_pid);
+}
+
+sub stop_pipe
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	return (1) if (not is_uuid_v4($svr_uuid));
+
+	my $common_params = { debug => $debug };
+
+	my $rcode;
+
+	# If we don't have the server's VNC port, find it in its qemu-kvm process.
+	if ( (not defined $svr_vnc_port) || (not is_int($svr_vnc_port)) )
+	{
+		($rcode, my $svr_processes) = $anvil->Server->find_processes($common_params);
+
+		my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
+		my $svr_vnc_alive = $svr_process->{vnc_alive};
+
+		return (1) if (not $svr_vnc_alive);
+
+		$svr_vnc_port = $svr_process->{vnc_port};
+	}
+
+	($rcode, my $ws_processes) = find_ws_processes($common_params);
+
+	return ($rcode) if ($rcode);
+
+	my $ws_pid = $ws_processes->{targets}{$svr_vnc_port};
+
+	stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes });
+
+	($rcode, my $hosts) = get_strikers($common_params);
+
+	return ($rcode) if ($rcode);
+
+	($rcode, my $tp_processes) = find_tp_processes($common_params);
+
+	return ($rcode) if ($rcode);
+
+	foreach my $host_uuid (keys $hosts->{uuids})
+	{
+		my $host_name  = $hosts->{uuids}{$host_uuid}{name};
+		my $tp_pid     = $tp_processes->{targets}{$host_name};
+		my $tp_process = $tp_processes->{pids}{$tp_pid};
+
+		($rcode, my $tunnel_ports) = find_tunnel({
+			svr_uuid       => $svr_uuid,
+			tunnel_ls_path => $tp_process->{tunnel_ls_path},
+			%$common_params,
+		});
+
+		next if ($rcode);
+
+		stop_tunnel({ %$tunnel_ports, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
+	}
+
+	return (0);
+}
+
+sub stop_tp
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $tp_pid       = $parameters->{tp_pid};
+	my $tp_processes = $parameters->{tp_processes};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_tp" });
+
+	call({ debug => $debug, call => "$kill $tp_pid || $kill -9 $tp_pid" });
+
+	set_tp_process({ debug => $debug, pid => $tp_pid, processes => $tp_processes });
+}
+
+sub stop_tunnel
+{
+	my $parameters  = shift;
+	my $debug       = $parameters->{debug} || 3;
+	my $lport       = $parameters->{lport};
+	my $rport       = $parameters->{rport};
+	my $tp_ctl_path = $parameters->{tp_ctl_path};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_tunnel" });
+
+	my ($build_rcode, $call) = build_tunnel_call({
+		ctl_cmd  => "cancel",
+		ctl_path => $tp_ctl_path,
+		debug    => $debug,
+		lport    => $lport,
+		rport    => $rport,
+	});
+
+	return (1) if ($build_rcode);
+
+	my ($stop_rcode) = call({ call => $call, debug => $debug });
+
+	return (1) if ($stop_rcode);
+
+	return (0);
+}
+
+sub stop_ws
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $ws_pid       = $parameters->{ws_pid};
+	my $ws_processes = $parameters->{ws_processes};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_ws" });
+
+	call({ debug => $debug, call => "$kill $ws_pid || $kill -9 $ws_pid" });
+
+	set_ws_process({ debug => $debug, pid => $ws_pid, processes => $ws_processes });
+}
