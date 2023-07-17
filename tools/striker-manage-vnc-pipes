@@ -409,7 +409,7 @@ sub set_ws_process
 		my $tport = $process->{tport};
 
 		$processes->{pids}{$pid}      = $process;
-		$processes->{sources}($sport) = $pid;
+		$processes->{sources}{$sport} = $pid;
 		$processes->{targets}{$tport} = $pid;
 	};
 
@@ -420,7 +420,7 @@ sub set_ws_process
 		my $tport = $process->{tport};
 
 		delete $processes->{pids}{$pid};
-		delete $processes->{sources}($sport);
+		delete $processes->{sources}{$sport};
 		delete $processes->{targets}{$tport};
 	};
 
