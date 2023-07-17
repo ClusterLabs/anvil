@@ -358,8 +358,8 @@ sub set_tp_process
 
 		my $target = $process->{target};
 
-		$processes->{pids}{$pid}       = $process;
-		$processes->{targets}{$target} = $pid;
+		delete $processes->{pids}{$pid};
+		delete $processes->{targets}{$target};
 	};
 
 	$parameters->{handle_set} = sub {
@@ -367,8 +367,8 @@ sub set_tp_process
 
 		my $target = $process->{target};
 
-		delete $processes->{pids}{$pid};
-		delete $processes->{targets}{$target};
+		$processes->{pids}{$pid}       = $process;
+		$processes->{targets}{$target} = $pid;
 	};
 
 	return set_process($parameters);
@@ -408,9 +408,9 @@ sub set_ws_process
 		my $sport = $process->{sport};
 		my $tport = $process->{tport};
 
-		$processes->{pids}{$pid}      = $process;
-		$processes->{sources}{$sport} = $pid;
-		$processes->{targets}{$tport} = $pid;
+		delete $processes->{pids}{$pid};
+		delete $processes->{sources}{$sport};
+		delete $processes->{targets}{$tport};
 	};
 
 	$parameters->{handle_set} = sub {
@@ -419,9 +419,9 @@ sub set_ws_process
 		my $sport = $process->{sport};
 		my $tport = $process->{tport};
 
-		delete $processes->{pids}{$pid};
-		delete $processes->{sources}{$sport};
-		delete $processes->{targets}{$tport};
+		$processes->{pids}{$pid}      = $process;
+		$processes->{sources}{$sport} = $pid;
+		$processes->{targets}{$tport} = $pid;
 	};
 
 	return set_process($parameters);
