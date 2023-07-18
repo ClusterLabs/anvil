@@ -12,6 +12,17 @@ type ServerDetailParamsDictionary = {
 };
 
 type ServerDetailParsedQs = {
-  ss: boolean | number | string;
   resize: string;
+  ss: boolean | number | string;
+  vnc: boolean | number | string;
+};
+
+type ServerDetailScreenshot = {
+  screenshot: string;
+};
+
+type ServerDetailVncInfo = {
+  domain: string;
+  forwardPort: number;
+  protocol: string;
 };
