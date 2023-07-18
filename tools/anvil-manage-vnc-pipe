@@ -101,7 +101,7 @@ sub build_vncinfo_variable_name
 {
 	my ($svr_uuid) = @_;
 
-	return "server::${svr_uuid}::vncport";
+	return "server::${svr_uuid}::vncinfo";
 }
 
 sub call
