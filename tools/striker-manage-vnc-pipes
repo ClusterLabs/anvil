@@ -264,9 +264,18 @@ sub find_tunnels
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { tunnel_line => $line } });
 
-		my ($svr_uuid, $tunnel_lport, $tunnel_rport) = $line =~ /^([^\s]+)-[L|R].*:(\d+):.*:(\d+)$/;
+		my ($svr_uuid, $forward, $port_a, $port_b) = $line =~ /^([^\s]+)-([L|R]).*:(\d+):.*:(\d+)$/;
 
-		my $tunnel = { lport => $tunnel_lport, rport => $tunnel_rport, server_uuid => $svr_uuid };
+		my $lport = $port_a;
+		my $rport = $port_b;
+
+		if ($forward eq "R")
+		{
+			$lport = $port_b;
+			$rport = $port_a;
+		}
+
+		my $tunnel = { lport => $lport, rport => $rport, server_uuid => $svr_uuid };
 
 		set_tunnel({ debug => $debug, entry => $tunnel, entries => $result });
 	}
