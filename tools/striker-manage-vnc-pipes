@@ -248,7 +248,7 @@ sub find_tunnels
 
 		my ($svr_uuid, $tunnel_lport, $tunnel_rport) = $line =~ /^([^\s]+)-[L|R].*:(\d+):.*:(\d+)$/;
 
-		my $tunnel = { lport => $lport, rport => $rport, server_uuid => $svr_uuid };
+		my $tunnel = { lport => $tunnel_lport, rport => $tunnel_rport, server_uuid => $svr_uuid };
 
 		set_tunnel({ debug => $debug, entry => $tunnel, entries => $result });
 	}
@@ -528,9 +528,11 @@ sub start_pipe
 
 		next if ($rcode);
 
+		my $tunnel = $tunnels->{server_uuids}{$svr_uuid};
+
 		($rcode) = set_tunnel_variable({
 			debug          => $debug,
-			end_port       => $tunnel_rport,
+			end_port       => $tunnel->{rport},
 			svr_uuid       => $svr_uuid,
 			tp_target_uuid => $host_uuid
 		});
@@ -538,8 +540,7 @@ sub start_pipe
 		if ($rcode)
 		{
 			stop_tunnel({
-				lport       => $ws_process->{sport},
-				rport       => $tunnel->{end_port},
+				%$tunnel,
 				tp_ctl_path => $tp_process->{ctl_path},
 				%$common_params,
 			});
