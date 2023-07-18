@@ -97,7 +97,7 @@ sub build_find_available_port_call
 	return (0, $call);
 }
 
-sub build_vncport_variable_name
+sub build_vncinfo_variable_name
 {
 	my ($svr_uuid) = @_;
 
@@ -250,20 +250,22 @@ sub set_entry
 	return (0);
 }
 
-sub set_vncport_variable
+sub set_vncinfo_variable
 {
 	my $parameters     = shift;
 	my $debug          = $parameters->{debug} || 3;
 	my $end_port       = $parameters->{end_port};
 	my $svr_uuid       = $parameters->{svr_uuid};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_vncport_variable" });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_vncinfo_variable" });
+
+	my $local_host_name = $anvil->data->{sys}{host_name};
 
 	my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
 		file           => $THIS_FILE,
 		line           => __LINE__,
-		variable_name  => build_vncport_variable_name($svr_uuid),
-		variable_value => $end_port,
+		variable_name  => build_vncinfo_variable_name($svr_uuid),
+		variable_value => "${local_host_name}:${end_port}",
 	});
 
 	return (1) if (not is_uuid_v4($variable_uuid));
@@ -331,7 +333,7 @@ sub start_pipe
 
 	my $ws_process = $ws_processes->{pids}{$ws_pid};
 
-	($rcode) = set_vncport_variable({ end_port => $ws_process->{sport}, svr_uuid => $svr_uuid, %$common_params });
+	set_vncinfo_variable({ end_port => $ws_process->{sport}, svr_uuid => $svr_uuid, %$common_params });
 
 	return (0);
 }
