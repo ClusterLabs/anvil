@@ -598,7 +598,7 @@ sub start_tp
 
 	my $tp_ctl_name = "sshctl-${tp_target}";
 
-	$tp_ctl_path       //= "~/.libnet-openssh-perl/${tp_ctl_name}";
+	$tp_ctl_path       //= $ENV{HOME}."/.libnet-openssh-perl/${tp_ctl_name}";
 	$tp_tunnel_ls_path //= $anvil->data->{path}{'directories'}{'tmp'}."/${tp_ctl_name}-tunnel-ls";
 
 	my $existing_tp_pid = $tp_processes->{targets}{$tp_target};
