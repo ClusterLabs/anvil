@@ -208,6 +208,27 @@ sub find_ws_processes
 	return (0, $result);
 }
 
+sub find_server_vnc_port
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug};
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	return (0, $svr_vnc_port) if ( defined $svr_vnc_port || is_int($svr_vnc_port) );
+
+	# If we don't have the server's VNC port, find it in its qemu-kvm process.
+
+	($rcode, my $svr_processes) = $anvil->Server->find_processes({ debug => $debug });
+
+	my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
+	my $svr_vnc_alive = $svr_process->{vnc_alive};
+
+	return (1) if (not $svr_vnc_alive);
+
+	return (0, $svr_process->{vnc_port});
+}
+
 sub find_tp_processes
 {
 	my $parameters = shift;
@@ -552,18 +573,9 @@ sub start_pipe
 
 	my $rcode;
 
-	# If we don't have the server's VNC port, find it in its qemu-kvm process.
-	if ( (not defined $svr_vnc_port) || (not is_int($svr_vnc_port)) )
-	{
-		($rcode, my $svr_processes) = $anvil->Server->find_processes($common_params);
+	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
 
-		my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
-		my $svr_vnc_alive = $svr_process->{vnc_alive};
-
-		return (1) if (not $svr_vnc_alive);
-
-		$svr_vnc_port = $svr_process->{vnc_port};
-	}
+	return ($rcode) if ($rcode);
 
 	($rcode, my $ws_processes) = find_ws_processes($common_params);
 
@@ -797,18 +809,9 @@ sub stop_pipe
 
 	my $rcode;
 
-	# If we don't have the server's VNC port, find it in its qemu-kvm process.
-	if ( (not defined $svr_vnc_port) || (not is_int($svr_vnc_port)) )
-	{
-		($rcode, my $svr_processes) = $anvil->Server->find_processes($common_params);
+	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
 
-		my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
-		my $svr_vnc_alive = $svr_process->{vnc_alive};
-
-		return (1) if (not $svr_vnc_alive);
-
-		$svr_vnc_port = $svr_process->{vnc_port};
-	}
+	return ($rcode) if ($rcode);
 
 	($rcode, my $ws_processes) = find_ws_processes($common_params);
 
