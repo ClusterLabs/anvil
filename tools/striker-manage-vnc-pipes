@@ -171,7 +171,7 @@ sub find_ws_processes
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_ws_processes" });
 
-	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*${ps_name}[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\2,\\3/p'";
+	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*${ps_name}([[:space:]]+(--?[^[:space:]]+))*[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\4,\\5/p'";
 
 	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
 
@@ -358,20 +358,27 @@ sub start_ws
 
 	return (0, $existing_ws_pid) if (defined $existing_ws_pid);
 
-	my ($find_rcode, $ws_sport) = find_available_port({ debug => $debug, start => int($svr_vnc_port) + int($ws_sport_offset) });
+	my $rcode;
 
-	return (1) if ($find_rcode);
+	($rcode, my $ws_sport) = find_available_port({ debug => $debug, start => int($svr_vnc_port) + int($ws_sport_offset) });
 
-	my $ws_call = "$websockify $ws_sport :$svr_vnc_port &>/dev/null";
+	return ($rcode) if ($rcode);
 
-	my ($start_rcode, $start_ps) = call({ background => 1, call => $ws_call, debug => $debug });
+	my $ws_call = "$websockify -D $ws_sport :$svr_vnc_port &>/dev/null";
 
-	return (1) if ($start_rcode);
+	($rcode) = call({ call => $ws_call, debug => $debug });
 
-	my $ws_pid = $start_ps->pid;
+	return ($rcode) if ($rcode);
 
-	my $ws_process = { pid => $ws_pid, sport => $ws_sport, tport => $svr_vnc_port };
+	# Re-find to locate the new daemon.
+	($rcode, my $re_ws_processes) = find_ws_processes({ debug => $debug });
 
+	return ($rcode) if ($rcode);
+
+	my $ws_pid     = $re_ws_processes->{targets}{$svr_vnc_port};
+	my $ws_process = $re_ws_processes->{pids}{$ws_pid};
+
+	# Remember the started daemon.
 	set_ws_process({ debug => $debug, entry => $ws_process, entries => $ws_processes });
 
 	return (0, $ws_pid);
