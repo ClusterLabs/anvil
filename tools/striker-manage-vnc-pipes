@@ -108,13 +108,14 @@ sub build_find_available_port_call
 
 sub build_tunnel_call
 {
-	my $parameters = shift;
-	my $ctl_cmd    = $parameters->{ctl_cmd} // "forward";
-	my $ctl_path   = $parameters->{ctl_path};
-	my $debug      = $parameters->{debug} || 3;
-	my $lport      = $parameters->{lport};
-	my $rport      = $parameters->{rport};
-	my $svr_uuid   = $parameters->{svr_uuid};
+	my $parameters     = shift;
+	my $ctl_cmd        = $parameters->{ctl_cmd} // "forward";
+	my $ctl_path       = $parameters->{ctl_path};
+	my $debug          = $parameters->{debug} || 3;
+	my $lport          = $parameters->{lport};
+	my $rport          = $parameters->{rport};
+	my $svr_uuid       = $parameters->{svr_uuid};
+	my $tunnel_ls_path = $parameters->{tunnel_ls_path};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "build_tunnel_call" });
 
@@ -122,9 +123,10 @@ sub build_tunnel_call
 		|| (not defined $lport)
 		|| (not defined $rport) );
 
-	my $ls_prefix_opt = defined $svr_uuid ? "--tunnel-ls-prefix '$svr_uuid'" : "";
+	my $ls_path_opt   = defined $tunnel_ls_path ? "--tunnel-ls-path '$tunnel_ls_path'" : "";
+	my $ls_prefix_opt = defined $svr_uuid       ? "--tunnel-ls-prefix '$svr_uuid'"     : "";
 
-	my $call = "$manage_tunnel --child --ctl-cmd $ctl_cmd --ctl-path '$ctl_path' --debug $debug --forward-lport $lport --forward-rport $rport $ls_prefix_opt";
+	my $call = "$manage_tunnel --child --ctl-cmd $ctl_cmd --ctl-path '$ctl_path' --debug $debug --forward-lport $lport --forward-rport $rport $ls_path_opt $ls_prefix_opt";
 
 	return (0, $call);
 }
@@ -586,12 +588,13 @@ sub start_pipe
 		return ($rcode) if ($rcode);
 
 		($rcode) = start_tunnel({
-			svr_uuid       => $svr_uuid,
-			tp_ctl_path    => $tp_process->{ctl_path},
-			tp_target      => $host_name,
-			tp_target_uuid => $host_uuid,
-			tunnels        => $tunnels,
-			ws_sport       => $ws_process->{sport},
+			svr_uuid          => $svr_uuid,
+			tp_ctl_path       => $tp_process->{ctl_path},
+			tp_target         => $host_name,
+			tp_target_uuid    => $host_uuid,
+			tp_tunnel_ls_path => $tp_process->{tunnel_ls_path},
+			tunnels           => $tunnels,
+			ws_sport          => $ws_process->{sport},
 			%$common_params,
 		});
 
@@ -659,14 +662,15 @@ sub start_tp
 
 sub start_tunnel
 {
-	my $parameters     = shift;
-	my $debug          = $parameters->{debug};
-	my $svr_uuid       = $parameters->{svr_uuid};
-	my $tp_ctl_path    = $parameters->{tp_ctl_path};
-	my $tp_target      = $parameters->{tp_target};
-	my $tp_target_uuid = $parameters->{tp_target_uuid};
-	my $tunnels        = $parameters->{tunnels};
-	my $ws_sport       = $parameters->{ws_sport};
+	my $parameters        = shift;
+	my $debug             = $parameters->{debug};
+	my $svr_uuid          = $parameters->{svr_uuid};
+	my $tp_ctl_path       = $parameters->{tp_ctl_path};
+	my $tp_target         = $parameters->{tp_target};
+	my $tp_target_uuid    = $parameters->{tp_target_uuid};
+	my $tp_tunnel_ls_path = $parameters->{tp_tunnel_ls_path};
+	my $tunnels           = $parameters->{tunnels};
+	my $ws_sport          = $parameters->{ws_sport};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_tunnel" });
 
@@ -710,11 +714,12 @@ sub start_tunnel
 	# -----
 
 	($build_rcode, $sh_call) = build_tunnel_call({
-		ctl_path => $tp_ctl_path,
-		debug    => $debug,
-		lport    => $ws_sport,
-		rport    => $tunnel_rport,
-		svr_uuid => $svr_uuid,
+		ctl_path       => $tp_ctl_path,
+		debug          => $debug,
+		lport          => $ws_sport,
+		rport          => $tunnel_rport,
+		svr_uuid       => $svr_uuid,
+		tunnel_ls_path => $tp_tunnel_ls_path,
 	});
 
 	return (1) if ($build_rcode);
@@ -822,7 +827,12 @@ sub stop_pipe
 
 		next if (not defined $tunnel);
 
-		stop_tunnel({ %$tunnel, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
+		stop_tunnel({
+			%$tunnel,
+			tp_ctl_path       => $tp_process->{ctl_path},
+			tp_tunnel_ls_path => $tp_process->{tunnel_ls_path},
+			%$common_params
+		});
 	}
 
 	return (0);
@@ -844,20 +854,22 @@ sub stop_tp
 
 sub stop_tunnel
 {
-	my $parameters  = shift;
-	my $debug       = $parameters->{debug} || 3;
-	my $lport       = $parameters->{lport};
-	my $rport       = $parameters->{rport};
-	my $tp_ctl_path = $parameters->{tp_ctl_path};
+	my $parameters        = shift;
+	my $debug             = $parameters->{debug} || 3;
+	my $lport             = $parameters->{lport};
+	my $rport             = $parameters->{rport};
+	my $tp_ctl_path       = $parameters->{tp_ctl_path};
+	my $tp_tunnel_ls_path = $parameters->{tp_tunnel_ls_path};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_tunnel" });
 
 	my ($build_rcode, $call) = build_tunnel_call({
-		ctl_cmd  => "cancel",
-		ctl_path => $tp_ctl_path,
-		debug    => $debug,
-		lport    => $lport,
-		rport    => $rport,
+		ctl_cmd        => "cancel",
+		ctl_path       => $tp_ctl_path,
+		debug          => $debug,
+		lport          => $lport,
+		rport          => $rport,
+		tunnel_ls_path => $tp_tunnel_ls_path,
 	});
 
 	return (1) if ($build_rcode);
