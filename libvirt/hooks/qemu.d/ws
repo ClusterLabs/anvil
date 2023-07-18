@@ -4,52 +4,40 @@
 #       operations, i.e., started, stopped.
 #
 
-# TODO: re-enable after the possible libvirt deadlock is fixed.
-exit 0
+function log {
+	echo "$(date -Is):libvirt_hooks:ws; $@" >>/var/log/anvil.log;
+}
 
-{
-	echo "wsargs=$@"
+log "wsargs=$@"
 
-	domain_xml=$(</dev/stdin)
-	guest_name="$1"
-	operation="$2"
+domain_xml=$(</dev/stdin)
+guest_name="$1"
+operation="$2"
 
-	# Operation migrate will:
-	# 1. Trigger migrate->prepare->start->started operation on the destination host.
-	# 2. Trigger stopped->release operations on the source host.
-	if [[ "$operation" == "started" || "$operation" == "stopped" ]]
-	then
-		ws_open_flag=""
-		ws_port_flag=""
-		ws_suuid_flag=""
+# Operation migrate will:
+# 1. Trigger migrate->prepare->start->started operation on the destination host.
+# 2. Trigger stopped->release operations on the source host.
+if [[ ! $operation =~ ^(started|stopped)$ ]]
+then
+	exit
+fi
 
-		if [[ "$operation" == "started" ]]
-		then
-			ws_open_flag="--open"
+ws_open_flag=""
+ws_port_flag=""
 
-			# Cannot call $ virsh vncdisplay... because libvirt hooks
-			# cannot call anything related to libvirt, i.e., virsh, because
-			# a deadlock will happen.
-			server_vnc_port=$( grep "<graphics.*type=['\"]vnc['\"]" <<<$domain_xml | grep -oPm1 "(?<=port=['\"])\d+" )
-			ws_port_flag="--server-vnc-port ${server_vnc_port}"
+if [[ $operation == "started" ]]
+then
+	ws_open_flag="--open"
 
-			server_uuid=$( grep -oPm1 "(?<=<uuid>)[^\s]+(?=<)" <<<$domain_xml )
-			ws_suuid_flag="--server-uuid ${server_uuid}"
+	# Cannot call $ virsh vncdisplay... because libvirt hooks
+	# cannot call anything related to libvirt, i.e., virsh, because
+	# a deadlock will happen.
+	server_vnc_port=$( grep "<graphics.*type=['\"]vnc['\"]" <<<$domain_xml | grep -oPm1 "(?<=port=['\"])\d+" )
+	ws_port_flag="--server-vnc-port ${server_vnc_port}"
+fi
 
-			local_host_uuid=$(</etc/anvil/host.uuid)
+ws_command_args="--server \"$guest_name\" $ws_port_flag $ws_open_flag"
 
-			update_sql="UPDATE servers SET server_host_uuid = '$local_host_uuid' WHERE server_name = '$guest_name';"
-			echo "wsupdate=$update_sql"
-			anvil-access-module --query "$update_sql" --mode write
-		fi
+log "wscmd=$ws_command_args"
 
-		ws_command_args="--server \"$guest_name\" $ws_suuid_flag --server-host-uuid local $ws_port_flag --component ws $ws_open_flag"
-		echo "wscmd=$ws_command_args"
-		striker-manage-vnc-pipes --server "$guest_name" $ws_suuid_flag --server-host-uuid local $ws_port_flag --component ws $ws_open_flag
-		echo "wscmd_exit=$?"
-
-		# Don't interrupt libvirt regardless of whether websockify gets setup
-		# successfully.
-		exit 0
-	fi
-} >>/var/log/anvil.log
+striker-manage-vnc-pipes $ws_command_args &
