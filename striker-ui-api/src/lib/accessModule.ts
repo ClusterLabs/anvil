@@ -389,7 +389,7 @@ const vncpipe = async (serverUuid: string, open?: boolean) => {
     params: [
       {
         shell_call: `${
-          SERVER_PATHS.usr.sbin['striker-manage-vnc-pipes'].self
+          SERVER_PATHS.usr.sbin['anvil-manage-vnc-pipe'].self
         } --server-uuid ${serverUuid} --component st${open ? ' --open' : ''}`,
       },
     ],

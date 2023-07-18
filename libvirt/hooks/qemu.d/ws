@@ -40,4 +40,4 @@ ws_command_args="--server \"$guest_name\" $ws_port_flag $ws_open_flag"
 
 log "wscmd=$ws_command_args"
 
-striker-manage-vnc-pipes $ws_command_args &
+anvil-manage-vnc-pipe $ws_command_args &
