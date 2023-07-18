@@ -240,7 +240,7 @@ sub find_tunnels
 
 	my $result = { server_uuids => {}, lports => {} };
 
-	while my $line (<$tunnel_ls_fh>)
+	while (my $line = <$tunnel_ls_fh>)
 	{
 		chomp($line);
 
