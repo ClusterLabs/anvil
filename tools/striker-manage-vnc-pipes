@@ -548,7 +548,9 @@ sub start_pipe
 
 		my $tp_process = $tp_processes->{pids}{$tp_pid};
 
-		my $tunnels = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path}, %$common_params });
+		($rcode, my $tunnels) = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path}, %$common_params });
+
+		next if ($rcode);
 
 		($rcode) = start_tunnel({
 			svr_uuid       => $svr_uuid,
