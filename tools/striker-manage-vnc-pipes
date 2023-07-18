@@ -6,6 +6,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
 
 $| = 1;
 
@@ -193,6 +194,8 @@ sub find_ws_processes
 		set_ws_process({ debug => $debug, entry => $process, entries => $result });
 	}
 
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($result, "ws_processes") });
+
 	return (0, $result);
 }
 
@@ -225,6 +228,8 @@ sub find_tp_processes
 		set_tp_process({ debug => $debug, entry => $process, entries => $result });
 	}
 
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($result, "tp_processes") });
+
 	return (0, $result);
 }
 
@@ -255,11 +260,16 @@ sub find_tunnels
 
 	close($tunnel_ls_fh) or return (1);
 
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($result, "tunnels") });
+
 	return (0, $result);
 }
 
 sub get_strikers
 {
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+
 	my $query = "
 SELECT host_name, host_uuid
 FROM hosts
@@ -277,6 +287,8 @@ WHERE host_status = 'online' AND host_type = 'striker'
 		$strikers->{uuids}{$host_uuid} = { name => $host_name, uuid => $host_uuid };
 		$strikers->{names}{$host_name} = $host_uuid;
 	}
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($strikers, "strikers") });
 
 	return (0, $strikers);
 }
@@ -318,6 +330,17 @@ sub is_uuid_v4
 	return $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
 }
 
+sub prettify
+{
+	my $var_value = shift;
+	my $var_name  = shift;
+
+	local $Data::Dumper::Indent  = 1;
+	local $Data::Dumper::Varname = $var_name;
+
+	return Dumper($var_value);
+}
+
 sub set_entry
 {
 	my $parameters    = shift;
@@ -328,8 +351,11 @@ sub set_entry
 	my $entry         = $parameters->{entry};
 	my $entries       = $parameters->{entries};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_entry" });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $entry });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		%$parameters,
+		p_entry   => prettify($entry),
+		p_entries => prettify($entries),
+	}, prefix => "set_entry" });
 
 	return (1) if (not defined $entries);
 
@@ -341,6 +367,8 @@ sub set_entry
 	{
 		$handle_delete->($id, $entry, $entries);
 	}
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($entries, "entries") });
 
 	return (0);
 }
