@@ -1,11 +1,12 @@
 import assert from 'assert';
+import { execSync } from 'child_process';
 import { RequestHandler } from 'express';
 
 import { REP_UUID, SERVER_PATHS } from '../../consts';
 
+import { getVncinfo } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stderr, stdout } from '../../shell';
-import { execSync } from 'child_process';
 
 export const getServerDetail: RequestHandler<
   ServerDetailParamsDictionary,
@@ -15,12 +16,13 @@ export const getServerDetail: RequestHandler<
 > = async (request, response) => {
   const {
     params: { serverUUID: serverUuid },
-    query: { ss },
+    query: { ss: rSs, vnc: rVnc },
   } = request;
 
-  const isScreenshot = sanitize(ss, 'boolean');
+  const ss = sanitize(rSs, 'boolean');
+  const vnc = sanitize(rVnc, 'boolean');
 
-  stdout(`serverUUID=[${serverUuid}],isScreenshot=[${isScreenshot}]`);
+  stdout(`serverUUID=[${serverUuid}],isScreenshot=[${ss}]`);
 
   try {
     assert(
@@ -35,8 +37,8 @@ export const getServerDetail: RequestHandler<
     return response.status(500).send();
   }
 
-  if (isScreenshot) {
-    const rsbody = { screenshot: '' };
+  if (ss) {
+    const rsbody: ServerDetailScreenshot = { screenshot: '' };
 
     try {
       rsbody.screenshot = execSync(
@@ -45,6 +47,18 @@ export const getServerDetail: RequestHandler<
       );
     } catch (error) {
       stderr(`Failed to server ${serverUuid} screenshot; CAUSE: ${error}`);
+
+      return response.status(500).send();
+    }
+
+    return response.send(rsbody);
+  } else if (vnc) {
+    let rsbody: ServerDetailVncInfo;
+
+    try {
+      rsbody = await getVncinfo(serverUuid);
+    } catch (error) {
+      stderr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

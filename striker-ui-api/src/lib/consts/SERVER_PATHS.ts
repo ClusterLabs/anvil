@@ -31,7 +31,6 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-join-anvil': {},
       'anvil-manage-keys': {},
       'anvil-manage-power': {},
-      'anvil-manage-vnc-pipe': {},
       'anvil-provision-server': {},
       'anvil-safe-start': {},
       'anvil-safe-stop': {},

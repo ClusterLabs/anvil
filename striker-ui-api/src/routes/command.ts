@@ -4,7 +4,6 @@ import {
   getHostSSH,
   joinAn,
   leaveAn,
-  manageVncSshTunnel,
   poweroffStriker,
   rebootStriker,
   runManifest,
@@ -24,7 +23,6 @@ router
   .put('/inquire-host', getHostSSH)
   .put('/join-an/:uuid', joinAn)
   .put('/leave-an/:uuid', leaveAn)
-  .put('/vnc-pipe', manageVncSshTunnel)
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
   .put('/run-manifest/:manifestUuid', runManifest)

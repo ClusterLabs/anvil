@@ -384,41 +384,22 @@ const getUpsSpec = async () => {
   return getData<AnvilDataUPSHash>('ups_data');
 };
 
-const vncpipe = async (serverUuid: string, open?: boolean) => {
-  const [output, rReturnCode]: [string, string] = await subroutine('call', {
-    params: [
-      {
-        shell_call: `${
-          SERVER_PATHS.usr.sbin['anvil-manage-vnc-pipe'].self
-        } --server-uuid ${serverUuid} --component st${open ? ' --open' : ''}`,
-      },
-    ],
-    pre: ['System'],
-    root: true,
-  });
+const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
+  const rows: [[string]] = await query(
+    `SELECT variable_value FROM variables WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
+  );
 
-  const rcode = Number.parseInt(rReturnCode);
-
-  if (rcode !== 0) {
-    throw new Error(`VNC pipe call failed with code ${rcode}`);
+  if (rows.length) {
+    throw new Error('No record found');
   }
 
-  const lines = output.split('\n');
-  const lastLine = lines[lines.length - 1];
-  const rVncPipeProps = lastLine
-    .split(',')
-    .reduce<Record<string, string>>((previous, pair) => {
-      const [key, value] = pair.trim().split(/\s*:\s*/, 2);
+  const [[vncinfo]] = rows;
+  const [domain, port] = vncinfo.split(':');
 
-      previous[key] = value;
+  const forwardPort = Number.parseInt(port);
+  const protocol = 'ws';
 
-      return previous;
-    }, {});
-
-  const forwardPort = Number.parseInt(rVncPipeProps.forward_port);
-  const protocol = rVncPipeProps.protocol;
-
-  return { forwardPort, protocol };
+  return { domain, forwardPort, protocol };
 };
 
 export {
@@ -438,8 +419,8 @@ export {
   getNetworkData,
   getPeerData,
   getUpsSpec,
+  getVncinfo,
   query,
   subroutine as sub,
-  vncpipe,
   write,
 };
