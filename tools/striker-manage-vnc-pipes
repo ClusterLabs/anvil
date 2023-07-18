@@ -134,6 +134,7 @@ sub build_tunnel_variable_name
 sub call
 {
 	my $parameters = shift;
+	my $background = $parameters->{background} || 0;
 	my $call       = $parameters->{call};
 	my $debug      = $parameters->{debug} || 3;
 
@@ -141,13 +142,14 @@ sub call
 
 	return (1) if ( (not defined $call) || ($call eq "") );
 
-	my ($output, $rcode) = $anvil->System->call({ shell_call => $call });
+	my ($output, $rcode) = $anvil->System->call({ background => $background, shell_call => $call });
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		output => $output,
 		rcode  => $rcode
 	} });
 
+	# Output order reversed keep returns consistent.
 	return ($rcode, $output);
 }
 
@@ -602,13 +604,13 @@ sub start_tp
 
 	return (0, $existing_tp_pid) if (defined $existing_tp_pid);
 
-	my $tp_call = "$manage_tunnel --debug $debug --target $tp_target --ctl-path '$tp_ctl_path' --tunnel-ls-path '$tp_tunnel_ls_path' & $echo pid:\$!";
+	my $tp_call = "$manage_tunnel --debug $debug --target $tp_target --ctl-path '$tp_ctl_path' --tunnel-ls-path '$tp_tunnel_ls_path'";
 
-	my ($start_rcode, $start_output) = call({ call => $tp_call, debug => $debug });
+	my ($start_rcode, $start_ps) = call({ background => 1, call => $tp_call, debug => $debug });
 
 	return (1) if ($start_rcode);
 
-	my ($tp_pid) = $start_output =~ /pid:(\d+)$/;
+	my $tp_pid = $start_ps->pid;
 
 	my $tp_process = { ctl_path => $tp_ctl_path, pid => $tp_pid, target => $tp_target, tunnel_ls_path => $tp_tunnel_ls_path };
 
@@ -714,13 +716,13 @@ sub start_ws
 
 	return (1) if ($find_rcode);
 
-	my $ws_call = "$websockify $ws_sport :$svr_vnc_port &>/dev/null & $echo pid:\$!";
+	my $ws_call = "$websockify $ws_sport :$svr_vnc_port &>/dev/null";
 
-	my ($start_rcode, $start_output) = call({ call => $ws_call, debug => $debug });
+	my ($start_rcode, $start_ps) = call({ background => 1, call => $ws_call, debug => $debug });
 
 	return (1) if ($start_rcode);
 
-	my ($ws_pid) = $start_output =~ /pid:(\d+)$/;
+	my $ws_pid = $start_ps->pid;
 
 	my $ws_process = { pid => $ws_pid, sport => $ws_sport, tport => $svr_vnc_port };
 
