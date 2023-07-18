@@ -241,11 +241,15 @@ sub find_tunnels
 	my $debug          = $parameters->{debug} || 3;
 	my $tunnel_ls_path = $parameters->{tunnel_ls_path};
 
-	return (1) if ( (not defined $tunnel_ls_path) || (not -e $tunnel_ls_path) );
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_tunnels" });
 
-	open(my $tunnel_ls_fh, "< :encoding(UTF-8)", $tunnel_ls_path) or return (1);
+	return (1) if (not defined $tunnel_ls_path);
 
 	my $result = { server_uuids => {}, lports => {} };
+
+	return (0, $result) if (not -e $tunnel_ls_path);
+
+	open(my $tunnel_ls_fh, "< :encoding(UTF-8)", $tunnel_ls_path) or return (1);
 
 	while (my $line = <$tunnel_ls_fh>)
 	{
