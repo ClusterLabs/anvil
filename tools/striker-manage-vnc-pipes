@@ -692,7 +692,7 @@ sub start_tunnel
 
 	my $existing_tunnel = $tunnels->{server_uuids}{$svr_uuid};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { existing_tunnel => $existing_tunnel } });
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($existing_tunnel, "existing_tunnel") });
 
 	return (0, $svr_uuid) if (defined $existing_tunnel);
 
