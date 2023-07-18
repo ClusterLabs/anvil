@@ -1050,6 +1050,7 @@ sub manage_disk_add
 			}});
 			foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}})
 			{
+				next if not defined $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'peer-disk-state'};
 				my $peer_disk_state   = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'peer-disk-state'};
 				my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'replication-state'};
 				my $role              = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'peer-role'};
@@ -1059,6 +1060,22 @@ sub manage_disk_add
 					's3:replication_state' => $replication_state,
 					's4:role'              => $role, 
 				}});
+				
+				# If the volume is 'Negotiating', disconnect and reconnect the peer.
+				if (lc($peer_disk_state) eq "negotiating")
+				{
+					print "Problem!\n";
+					($peer_disk_state, $role) = reconnect_resource($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						peer_disk_state => $peer_disk_state,
+						role            => $role,
+					}});
+					
+					$disks_ready = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
+				}
+				
+				# If it's not established, keep waiting
 				if (lc($replication_state) ne "established")
 				{
 					$disks_ready = 0;
@@ -1108,6 +1125,7 @@ sub manage_disk_add
 			disk_state => $disk_state,
 			role       => $role, 
 		}});
+		
 		if (lc($disk_state) ne "inconsistent")
 		{
 			$all_inconsistent = 0;
@@ -1123,11 +1141,9 @@ sub manage_disk_add
 	if ($all_inconsistent)
 	{
 		print "- Initial sync required!\n";
-		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." primary ".$drbd_resource." --force";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
-		print Dumper %{$anvil->data->{peers}};
-		die;
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." new-current-uuid --force-resync ".$drbd_resource."/".$next_drbd_volume;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		# Which node should be forced primary?
 		my $already_primary = 1;
@@ -1227,7 +1243,7 @@ sub manage_disk_add
 	}
 	else
 	{
-		print "Initial sync does not appear to be required.\n";
+		print "- Initial sync does not appear to be required.\n";
 	}
 	
 	# Is the server running? If so, where.
@@ -1397,6 +1413,127 @@ sub manage_disk_add
 	}
 	
 	return(0);
+}
+
+sub reconnect_resource
+{
+	my ($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		short_host_name  => $short_host_name, 
+		peer_name        => $peer_name, 
+		drbd_resource    => $drbd_resource, 
+		next_drbd_volume => $next_drbd_volume, 
+	}});
+	
+	my $peer_disk_state = "";
+	my $role            = "";
+	
+	# Log into the peer and disconnect, then reconnect. Then wait for the disk state to update, and 
+	# return the disk state.
+	print " - The peer: [".$peer_name."], is stuck 'Negotiating'; disconnecting... ";
+	my $use_ip     = $anvil->data->{peer}{$peer_name}{access}{ip};
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." disconnect ".$drbd_resource;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		use_ip     => $use_ip,
+		shell_call => $shell_call, 
+	}});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		shell_call => $shell_call, 
+		target     => $use_ip,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		error       => $error, 
+		return_code => $return_code, 
+	}});
+	
+	print " reconnecting... ";
+	sleep 1;
+	$shell_call = $anvil->data->{path}{exe}{drbdadm}." connect ".$drbd_resource;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		use_ip     => $use_ip,
+		shell_call => $shell_call, 
+	}});
+	($output, $error, $return_code) = $anvil->Remote->call({
+		shell_call => $shell_call, 
+		target     => $use_ip,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		error       => $error, 
+		return_code => $return_code, 
+	}});
+	print " Done.\n";
+	
+	# Now wait
+	print "- Waiting for the disk state to be updated:\n";
+	my $waiting    = 1;
+	my $wait_until = time + 300;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
+	while ($waiting)
+	{
+		$anvil->DRBD->get_status({debug => 2});
+		my $disks_ready      = 1;
+		my $connection_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'connection-state'};
+		if (not defined $connection_state)
+		{
+			print "Short host name: [".$short_host_name."], resource: [".$drbd_resource."], peer: [".$peer_name."]\n";
+			print Dumper %{$anvil->data->{drbd}{status}};
+			die;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+		if (lc($connection_state) eq "connected")
+		{
+			# Connected, what's the disk state for the new volume now?
+			print " - Connected, checking volume: [".$drbd_resource."/".$next_drbd_volume."] disk state: ";
+			   $peer_disk_state   = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'peer-disk-state'};
+			my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'replication-state'};
+			    $role              = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'peer-role'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:peer_disk_state'   => $peer_disk_state, 
+				's2:replication_state' => $replication_state,
+				's3:role'              => $role, 
+			}});
+			
+			if (lc($replication_state) ne "established")
+			{
+				print "Not Connected yet.\n";
+				$disks_ready = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
+			}
+			elsif ((not $peer_disk_state) or (lc($peer_disk_state) eq "diskless"))
+			{
+				print "Disk not ready yet.\n";
+				$disks_ready = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
+			}
+			
+			if ($disks_ready)
+			{
+				print "Ready!\n- Disk state is: [".$peer_disk_state."]\n";
+				$waiting                                      = 0;
+				$anvil->data->{peers}{$peer_name}{disk_state} = $peer_disk_state;
+				$anvil->data->{peers}{$peer_name}{role}       = $role;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					waiting                           => 0,
+					"peers::${peer_name}::disk_state" => $anvil->data->{peers}{$peer_name}{disk_state},
+					"peers::${peer_name}::role"       => $anvil->data->{peers}{$peer_name}{role},
+				}});
+				
+				return($peer_disk_state, $role);
+			}
+		}
+		
+		if (time > $wait_until)
+		{
+			$waiting = 0;
+			print "- Timed out waiting for the peer to connect.\n";
+			return($peer_disk_state, $role);
+		}
+		sleep 3;
+	}
+	
+	return($peer_disk_state, $role);
 }
 
 sub manage_disk_grow
