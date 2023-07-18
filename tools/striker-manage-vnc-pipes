@@ -548,7 +548,7 @@ sub start_pipe
 
 		my $tp_process = $tp_processes->{pids}{$tp_pid};
 
-		my $tunnels = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path} });
+		my $tunnels = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path}, %$common_params });
 
 		($rcode) = start_tunnel({
 			svr_uuid       => $svr_uuid,
@@ -568,16 +568,13 @@ sub start_pipe
 			debug          => $debug,
 			end_port       => $tunnel->{rport},
 			svr_uuid       => $svr_uuid,
-			tp_target_uuid => $host_uuid
+			tp_target_uuid => $host_uuid,
+			%$common_params,
 		});
 
 		if ($rcode)
 		{
-			stop_tunnel({
-				%$tunnel,
-				tp_ctl_path => $tp_process->{ctl_path},
-				%$common_params,
-			});
+			stop_tunnel({ %$tunnel, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
 		}
 	}
 
