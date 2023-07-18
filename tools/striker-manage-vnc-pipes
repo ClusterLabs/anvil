@@ -329,7 +329,8 @@ sub set_process
 	my $process       = $parameters->{process};
 	my $processes     = $parameters->{processes};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $process, prefix => "process" });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_process" });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $process });
 
 	return (1) if (not defined $processes);
 
@@ -528,6 +529,8 @@ sub start_tp
 
 	my $existing_tp_pid = $tp_processes->{targets}{$tp_target};
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { existing_tp_pid => $existing_tp_pid } });
+
 	return (0, $existing_tp_pid) if (defined $existing_tp_pid);
 
 	my $tp_call = "$manage_tunnel --debug $debug --target $tp_target --ctl-path '$tp_ctl_path' --tunnel-ls-path '$tp_tunnel_ls_path' & $echo pid:\$!";
@@ -621,6 +624,8 @@ sub start_ws
 		|| (not is_int($ws_sport_offset)) );
 
 	my $existing_ws_pid = $ws_processes->{targets}{$svr_vnc_port};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { existing_ws_pid => $existing_ws_pid } });
 
 	return (0, $existing_ws_pid) if (defined $existing_ws_pid);
 
