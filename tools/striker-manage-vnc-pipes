@@ -28,13 +28,6 @@ my $ss            = $anvil->data->{path}{exe}{'ss'};
 my $sed           = $anvil->data->{path}{exe}{'sed'};
 my $websockify    = $anvil->data->{path}{exe}{'websockify'};
 
-sub drop_vnc_pipes_table
-{
-	my $query = "DROP TABLE IF EXISTS public.vnc_pipes;";
-
-	$anvil->Database->write({ query => $query, source => $THIS_FILE, line => __LINE__ });
-}
-
 $anvil->Get->switches;
 
 $anvil->Database->connect;
@@ -197,7 +190,7 @@ sub find_ws_processes
 
 		my $process = { pid => $pid, sport => $sport, tport => $tport };
 
-		set_ws_process({ debug => $debug, process => $process, processes => $result });
+		set_ws_process({ debug => $debug, entry => $process, entries => $result });
 	}
 
 	return (0, $result);
@@ -229,34 +222,40 @@ sub find_tp_processes
 
 		my $process = { ctl_path => $ctl_path, pid => $pid, target => $target, tunnel_ls_path => $tunnel_ls_path };
 
-		set_tp_process({ debug => $debug, process => $process, processes => $result });
+		set_tp_process({ debug => $debug, entry => $process, entries => $result });
 	}
 
 	return (0, $result);
 }
 
-sub find_tunnel
+sub find_tunnels
 {
 	my $parameters     = shift;
 	my $debug          = $parameters->{debug} || 3;
-	my $svr_uuid       = $parameters->{svr_uuid};
 	my $tunnel_ls_path = $parameters->{tunnel_ls_path};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_tunnel" });
+	return (1) if (not defined $tunnel_ls_path);
 
-	return (1) if ( (not defined $svr_uuid) || (not defined $tunnel_ls_path) );
+	open(my $tunnel_ls_fh, "< :encoding(UTF-8)", $tunnel_ls_path) or return (1);
 
-	my $call = "$sed -En 's/^${svr_uuid}.*:([[:digit:]]+):.*:([[:digit:]]+)\$/\\1,\\2/p' '$tunnel_ls_path'";
+	my $result = { server_uuids => {}, lports => {} };
 
-	my ($rcode, $output) = call({ call => $call, debug => $debug });
+	while my $line (<$tunnel_ls_fh>)
+	{
+		chomp($line);
 
-	return (1) if ($rcode);
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { tunnel_line => $line } });
 
-	chomp($output);
+		my ($svr_uuid, $tunnel_lport, $tunnel_rport) = $line =~ /^([^\s]+)-[L|R].*:(\d+):.*:(\d+)$/;
 
-	my ($lport, $rport) = split(/,/, $output);
+		my $tunnel = { lport => $lport, rport => $rport, server_uuid => $svr_uuid };
 
-	return (0, { lport => $lport, rport => $rport });
+		set_tunnel({ debug => $debug, entry => $tunnel, entries => $result });
+	}
+
+	close($tunnel_ls_fh) or return (1);
+
+	return (0, $result);
 }
 
 sub get_strikers
@@ -319,32 +318,28 @@ sub is_uuid_v4
 	return $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
 }
 
-sub set_process
+sub set_entry
 {
 	my $parameters    = shift;
 	my $debug         = $parameters->{debug} || 3;
 	my $handle_delete = $parameters->{handle_delete};
 	my $handle_set    = $parameters->{handle_set};
-	my $pid           = $parameters->{pid};
-	my $process       = $parameters->{process};
-	my $processes     = $parameters->{processes};
+	my $id            = $parameters->{id};
+	my $entry         = $parameters->{entry};
+	my $entries       = $parameters->{entries};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_process" });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $process });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_entry" });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $entry });
 
-	return (1) if (not defined $processes);
+	return (1) if (not defined $entries);
 
-	if (defined $process)
+	if (defined $entry)
 	{
-		$pid = $process->{pid};
-
-		$handle_set->($pid, $process, $processes);
+		$handle_set->($id, $entry, $entries);
 	}
-	elsif (defined $pid)
+	elsif (defined $id)
 	{
-		$process = $processes->{pids}{$pid};
-
-		$handle_delete->($pid, $process, $processes);
+		$handle_delete->($id, $entry, $entries);
 	}
 
 	return (0);
@@ -357,6 +352,8 @@ sub set_tp_process
 	$parameters->{handle_delete} = sub {
 		my ($pid, $process, $processes) = @_;
 
+		$process = $processes->{pids}{$pid};
+
 		my $target = $process->{target};
 
 		delete $processes->{pids}{$pid};
@@ -366,13 +363,44 @@ sub set_tp_process
 	$parameters->{handle_set} = sub {
 		my ($pid, $process, $processes) = @_;
 
+		$pid = $process->{pid};
+
 		my $target = $process->{target};
 
 		$processes->{pids}{$pid}       = $process;
 		$processes->{targets}{$target} = $pid;
 	};
 
-	return set_process($parameters);
+	return set_entry($parameters);
+}
+
+sub set_tunnel
+{
+	my $parameters = shift;
+
+	$parameters->{handle_delete} = sub {
+		my ($svr_uuid, $tunnel, $tunnels) = @_;
+
+		$tunnel = $tunnels->{server_uuids}{$svr_uuid};
+
+		my $lport = $tunnel->{lport};
+
+		delete $tunnels->{server_uuids}{$svr_uuid};
+		delete $tunnels->{lports}{$lport};
+	};
+
+	$parameters->{handle_set} = sub {
+		my ($svr_uuid, $tunnel, $tunnels) = @_;
+
+		$svr_uuid = $tunnel->{server_uuid};
+
+		my $lport = $tunnel->{lport};
+
+		$tunnels->{server_uuids}{$svr_uuid} = $tunnel;
+		$tunnels->{lports}{$lport}          = $svr_uuid;
+	};
+
+	return set_entry($parameters);
 }
 
 sub set_tunnel_variable
@@ -406,6 +434,8 @@ sub set_ws_process
 	$parameters->{handle_delete} = sub {
 		my ($pid, $process, $processes) = @_;
 
+		$process = $processes->{pids}{$pid};
+
 		my $sport = $process->{sport};
 		my $tport = $process->{tport};
 
@@ -417,6 +447,8 @@ sub set_ws_process
 	$parameters->{handle_set} = sub {
 		my ($pid, $process, $processes) = @_;
 
+		$pid = $process->{pid};
+
 		my $sport = $process->{sport};
 		my $tport = $process->{tport};
 
@@ -425,7 +457,7 @@ sub set_ws_process
 		$processes->{targets}{$tport} = $pid;
 	};
 
-	return set_process($parameters);
+	return set_entry($parameters);
 }
 
 sub start_pipe
@@ -482,18 +514,26 @@ sub start_pipe
 
 		my $tp_process = $tp_processes->{pids}{$tp_pid};
 
-		($rcode, my $tunnel) = start_tunnel({
+		my $tunnels = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path} });
+
+		($rcode) = start_tunnel({
 			svr_uuid       => $svr_uuid,
 			tp_ctl_path    => $tp_process->{ctl_path},
 			tp_target      => $host_name,
 			tp_target_uuid => $host_uuid,
+			tunnels        => $tunnels,
 			ws_sport       => $ws_process->{sport},
 			%$common_params,
 		});
 
 		next if ($rcode);
 
-		($rcode) = set_tunnel_variable($tunnel);
+		($rcode) = set_tunnel_variable({
+			debug          => $debug,
+			end_port       => $tunnel_rport,
+			svr_uuid       => $svr_uuid,
+			tp_target_uuid => $host_uuid
+		});
 
 		if ($rcode)
 		{
@@ -543,7 +583,7 @@ sub start_tp
 
 	my $tp_process = { ctl_path => $tp_ctl_path, pid => $tp_pid, target => $tp_target, tunnel_ls_path => $tp_tunnel_ls_path };
 
-	set_tp_process({ debug => $debug, process => $tp_process, processes => $tp_processes });
+	set_tp_process({ debug => $debug, entry => $tp_process, entries => $tp_processes });
 
 	return (0, $tp_pid);
 }
@@ -556,6 +596,7 @@ sub start_tunnel
 	my $tp_ctl_path    = $parameters->{tp_ctl_path};
 	my $tp_target      = $parameters->{tp_target};
 	my $tp_target_uuid = $parameters->{tp_target_uuid};
+	my $tunnels        = $parameters->{tunnels};
 	my $ws_sport       = $parameters->{ws_sport};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_tunnel" });
@@ -564,7 +605,14 @@ sub start_tunnel
 		|| (not defined $tp_target)
 		|| (not defined $tp_target_uuid)
 		|| (not defined $tp_ctl_path) || ($tp_ctl_path eq "") || (not -e $tp_ctl_path)
+		|| (not defined $tunnels)
 		|| (not defined $ws_sport) );
+
+	my $existing_tunnel = $tunnels->{server_uuids}{$svr_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { existing_tunnel => $existing_tunnel } });
+
+	return (0, $svr_uuid) if (defined $existing_tunnel);
 
 	my $build_rcode;
 	my $sh_call;
@@ -606,7 +654,11 @@ sub start_tunnel
 
 	return (1) if ($start_rcode);
 
-	return (0, { debug => $debug, end_port => $tunnel_rport, svr_uuid => $svr_uuid, tp_target_uuid => $tp_target_uuid });
+	my $tunnel = { lport => $ws_sport, rport => $tunnel_rport, server_uuid => $svr_uuid };
+
+	set_tunnel({ debug => $debug, entry => $tunnel, entries => $tunnels });
+
+	return (0, $svr_uuid);
 }
 
 sub start_ws
@@ -643,7 +695,7 @@ sub start_ws
 
 	my $ws_process = { pid => $ws_pid, sport => $ws_sport, tport => $svr_vnc_port };
 
-	set_ws_process({ debug => $debug, process => $ws_process, processes => $ws_processes });
+	set_ws_process({ debug => $debug, entry => $ws_process, entries => $ws_processes });
 
 	return (0, $ws_pid);
 }
@@ -654,8 +706,9 @@ sub stop_pipe
 	my $debug        = $parameters->{debug} || 3;
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
+	my $tunnels      = $parameters->{tunnels};
 
-	return (1) if (not is_uuid_v4($svr_uuid));
+	return (1) if ( (not is_uuid_v4($svr_uuid)) || (not defined $tunnels) );
 
 	my $common_params = { debug => $debug };
 
@@ -696,15 +749,11 @@ sub stop_pipe
 		my $tp_pid     = $tp_processes->{targets}{$host_name};
 		my $tp_process = $tp_processes->{pids}{$tp_pid};
 
-		($rcode, my $tunnel_ports) = find_tunnel({
-			svr_uuid       => $svr_uuid,
-			tunnel_ls_path => $tp_process->{tunnel_ls_path},
-			%$common_params,
-		});
+		my $tunnel = $tunnels->{server_uuids}{$svr_uuid};
 
-		next if ($rcode);
+		next if (not defined $tunnel);
 
-		stop_tunnel({ %$tunnel_ports, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
+		stop_tunnel({ %$tunnel, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
 	}
 
 	return (0);
@@ -721,7 +770,7 @@ sub stop_tp
 
 	call({ debug => $debug, call => "$kill $tp_pid || $kill -9 $tp_pid" });
 
-	set_tp_process({ debug => $debug, pid => $tp_pid, processes => $tp_processes });
+	set_tp_process({ debug => $debug, id => $tp_pid, entries => $tp_processes });
 }
 
 sub stop_tunnel
@@ -762,5 +811,5 @@ sub stop_ws
 
 	call({ debug => $debug, call => "$kill $ws_pid || $kill -9 $ws_pid" });
 
-	set_ws_process({ debug => $debug, pid => $ws_pid, processes => $ws_processes });
+	set_ws_process({ debug => $debug, id => $ws_pid, entries => $ws_processes });
 }
