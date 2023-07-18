@@ -209,7 +209,7 @@ sub find_tp_processes
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_tp_processes" });
 
-	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*--target[[:space:]]+([^[:space:]]+).*--ctl-path[[:space:]]+([^[:space:]]+).*--tunnel-ls-path[[:space:]]+([^[:space:]]+).*\$/\\1,\\2,\\3,\\4/p'";
+	my $ps_call = "$pgrep -af '$ps_name' | $sed -En 's/^([[:digit:]]+).*--target[[:space:]]+([^[:space:]]+).*--ctl-path[[:space:]]+([^[:space:]]+).*--tunnel-ls-path[[:space:]]+([^[:space:]]+).*\$/\\1,\\2,\\3,\\4/p'";
 
 	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
 
