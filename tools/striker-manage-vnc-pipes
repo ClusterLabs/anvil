@@ -42,6 +42,7 @@ if (not $anvil->data->{sys}{database}{connections})
 
 my $switch_debug    = $anvil->data->{switches}{'debug'};
 my $open            = $anvil->data->{switches}{'open'};
+my $prepare         = $anvil->data->{switches}{'prepare'};
 my $server          = $anvil->data->{switches}{'server'};
 my $server_uuid     = $anvil->data->{switches}{'server-uuid'};
 my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
@@ -62,17 +63,21 @@ my $map_to_operation = { start => \&start_pipe, stop => \&stop_pipe };
 
 if ($server_uuid)
 {
-	my $rcode;
-
 	my $operation = $open ? "start" : "stop";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => { operation => $operation } });
 
-	($rcode) = $map_to_operation->{$operation}({
+	my ($rcode) = $map_to_operation->{$operation}({
 		debug        => $switch_debug,
 		svr_uuid     => $server_uuid,
 		svr_vnc_port => $server_vnc_port,
 	});
+
+	$anvil->nice_exit({ exit_code => $rcode });
+}
+elsif ($prepare)
+{
+	my ($rcode) = prepare_tp_processes({ debug => $switch_debug });
 
 	$anvil->nice_exit({ exit_code => $rcode });
 }
@@ -336,6 +341,35 @@ sub is_uuid_v4
 	return $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
 }
 
+sub prepare_tp_processes
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+
+	my $common_params = { debug => $debug };
+
+	my $rcode;
+
+	($rcode, my $hosts) = get_strikers($common_params);
+
+	return ($rcode) if ($rcode);
+
+	($rcode, my $tp_processes) = find_tp_processes($common_params);
+
+	return ($rcode) if ($rcode);
+
+	foreach my $host_uuid (keys %{$hosts->{uuids}})
+	{
+		my $host_name = $hosts->{uuids}{$host_uuid}{name};
+
+		($rcode, my $tp_pid) = start_tp({ tp_processes => $tp_processes, tp_target => $host_name, %$common_params });
+
+		return ($rcode) if ($rcode);
+	}
+
+	return (0);
+}
+
 sub prettify
 {
 	my $var_value = shift;
@@ -541,16 +575,15 @@ sub start_pipe
 	foreach my $host_uuid (keys %{$hosts->{uuids}})
 	{
 		my $host_name = $hosts->{uuids}{$host_uuid}{name};
+		my $tp_pid    = $tp_processes->{targets}{$host_name};
 
-		($rcode, my $tp_pid) = start_tp({ tp_processes => $tp_processes, tp_target => $host_name, %$common_params });
-
-		next if ($rcode);
+		return (1) if (not defined $tp_pid);
 
 		my $tp_process = $tp_processes->{pids}{$tp_pid};
 
 		($rcode, my $tunnels) = find_tunnels({ tunnel_ls_path => $tp_process->{tunnel_ls_path}, %$common_params });
 
-		next if ($rcode);
+		return ($rcode) if ($rcode);
 
 		($rcode) = start_tunnel({
 			svr_uuid       => $svr_uuid,
@@ -562,7 +595,7 @@ sub start_pipe
 			%$common_params,
 		});
 
-		next if ($rcode);
+		return ($rcode) if ($rcode);
 
 		my $tunnel = $tunnels->{server_uuids}{$svr_uuid};
 
@@ -577,6 +610,8 @@ sub start_pipe
 		if ($rcode)
 		{
 			stop_tunnel({ %$tunnel, tp_ctl_path => $tp_process->{ctl_path}, %$common_params });
+
+			return ($rcode);
 		}
 	}
 
