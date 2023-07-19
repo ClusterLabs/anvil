@@ -23,6 +23,6 @@ type ServerDetailScreenshot = {
 
 type ServerDetailVncInfo = {
   domain: string;
-  forwardPort: number;
+  port: number;
   protocol: string;
 };
