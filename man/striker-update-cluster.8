@@ -45,7 +45,15 @@ If the kernel is updated on a remote system, the system will normally be reboote
 .TP
 \fB\-\-reboot\-self\fR
 .TP
-By default, if the local system needs to be updated, a message is printed but the local system is NOT rebooted. This switch will instead cause this host to reboot at the end of the cluster update.
+By default, if the kenrel on the local system is updated, and so a reboot is needed, a message is printed but the local system is NOT rebooted. This switch will instead cause this host to reboot at the end of the cluster update.
+.TP
+See \fB\-\-reboot\fR for rebooting if anything is updated.
+.TP
+\fB\-\-reboot\fR
+.TP
+Normally, the system will only reboot if the kernel is updated. If this is used, and if any packages are updated, then a reboot will be performed. This is recommended in most cases. 
+.TP
+Must be used with \fB\-\-reboot\-self\fR to reboot the local system. Otherwise, it is passed along to target machines via their anvil-update-system calls.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

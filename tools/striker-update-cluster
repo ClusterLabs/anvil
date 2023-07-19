@@ -44,6 +44,7 @@ $anvil->Get->switches({list => [
 	"clear-cache", 
 	"force", 
 	"no-reboot", 
+	"reboot", 
 	"reboot-self", 
 	"y", 
 	"yes"], man => $THIS_FILE});
@@ -407,6 +408,10 @@ sub update_nodes
 			{
 				$shell_call .= " --clear-cache";
 			}
+			if ($anvil->data->{switches}{reboot})
+			{
+				$shell_call .= " --reboot";
+			}
 			$shell_call .= $anvil->Log->switches();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			$job_uuid = "";
@@ -757,36 +762,16 @@ sub update_strikers_and_dr
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_time => $reboot_time }});
 			
 			print "- Beginning OS update of: [".$short_host_name."]\n";
-			my $rebooted    = 0;
-			my $output      = "";
-			my $error       = "";
-			my $return_code = "";
-			if ($anvil->data->{switches}{'clear-cache'})
+			my $rebooted = 0;
+			if (($anvil->data->{switches}{'clear-cache'}) && ($host_uuid eq $anvil->Get->host_uuid))
 			{
-				my $shell_call  = $anvil->data->{path}{exe}{dnf}." clean all";
+				my $shell_call = $anvil->data->{path}{exe}{dnf}." clean all";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				if ($host_uuid eq $anvil->Get->host_uuid)
-				{
-					($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output, 
-						return_code => $return_code, 
-					}});
-				}
-				else
-				{
-					($output, $error, $return_code) = $anvil->Remote->call({
-						timeout    => 0,
-						no_cache   => 1,
-						shell_call => $shell_call, 
-						target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output, 
-						error       => $error,
-						return_code => $return_code,
-					}});
-				}
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
 				print "- Cache cleared.\n";
 			}
 			print "- Calling update now.\n";
@@ -794,7 +779,7 @@ sub update_strikers_and_dr
 			print "-       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.\n";
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				my $shell_call  = $anvil->data->{path}{exe}{dnf}." -y update";
+				my $shell_call = $anvil->data->{path}{exe}{dnf}." -y update";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -808,6 +793,31 @@ sub update_strikers_and_dr
 					print "==] Output [==\n";
 					print $output."\n";
 					print "==============\n";
+				}
+				
+				# Loop through the output.
+				my $package_changes = 0;
+				foreach my $line (split/\n/, $output)
+				{
+					$line = $anvil->Words->clean_spaces({string => $line});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					
+					if ($line =~ / (\d+) Packages$/i)
+					{
+						$package_changes += $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { package_changes => $package_changes }});
+					}
+				}
+				
+				# Did the user want to reboot on any update?
+				if (($package_changes) && ($anvil->data->{switches}{reboot}) && ($anvil->data->{switches}{'reboot-self'}))
+				{
+					# Reboot needed
+					print "- Updated: [".$package_changes."] packages, and '--reboot --reboot-self' used, reboot needed!\n";
+					$anvil->data->{sys}{reboot_needed} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"sys::reboot_needed" => $anvil->data->{sys}{reboot_needed},
+					}});
 				}
 				
 				# Get the newest installed kernel
@@ -857,6 +867,10 @@ sub update_strikers_and_dr
 				if ($anvil->data->{switches}{'clear-cache'})
 				{
 					$shell_call .= " --clear-cache";
+				}
+				if ($anvil->data->{switches}{reboot})
+				{
+					$shell_call .= " --reboot";
 				}
 				$shell_call .= $anvil->Log->switches();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -961,9 +975,9 @@ sub update_strikers_and_dr
 			
 			# Run anvil-version-change
 			print "- Running 'anvil-version-changes' now.\n";
-			   $output      = "";
-			   $error       = "";
-			   $return_code = "";
+			my $output      = "";
+			my $error       = "";
+			my $return_code = "";
 			my $shell_call  = $anvil->data->{path}{exe}{'anvil-version-changes'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			if ($host_uuid eq $anvil->Get->host_uuid)

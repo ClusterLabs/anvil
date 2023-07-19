@@ -40,7 +40,8 @@ my $anvil = Anvil::Tools->new();
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
 	"clear-cache",
-	"no-reboot"], man => $THIS_FILE});
+	"no-reboot",
+	"reboot"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -86,7 +87,7 @@ update_progress($anvil, 2, "message_0033");
 $anvil->System->maintenance_mode({set => 1});
 
 # Run the update
-run_os_update($anvil);
+run_os_update($anvil, 1, 3);
 
 # We're done updating
 my $reboot_needed = $anvil->System->reboot_needed({debug => 2});
@@ -168,6 +169,7 @@ sub update_progress
 	{
 		$anvil->Job->update_progress({
 			debug    => 3, 
+			'print'  => 1,
 			progress => $progress, 
 			message  => $message, 
 			job_uuid => $anvil->data->{jobs}{job_uuid},
@@ -180,7 +182,11 @@ sub update_progress
 # This updates the OS.
 sub run_os_update
 {
-	my ($anvil) = @_;
+	my ($anvil, $try, $progress) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		try      => $try,
+		progress => $progress, 
+	}});
 	
 	# This needs to be set to avoid warnings when called without a job-uuid.
 	$anvil->data->{sys}{last_update} = 0;
@@ -191,14 +197,14 @@ sub run_os_update
 	if ($host_type eq "node")
 	{
 		# Call anvil-safe-stop
-		update_progress($anvil, 3, "message_0314");
+		update_progress($anvil, $progress++, "message_0314");
 		
 		my $problem = $anvil->Cluster->parse_cib({debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
 		if (not $problem)
 		{
 			# Call anvil-safe-stop
-			update_progress($anvil, 4, "message_0315");
+			update_progress($anvil, $progress++, "message_0315");
 			
 			my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -251,11 +257,11 @@ WHERE
 	}
 	
 	# NOTE: We run this directly to better monitor progress and update the progress.
+	my $package_changes   = 0;
 	my $transaction_shown = 0;
 	my $success           = 0;
 	my $to_update         = 0;
 	my $percent_step      = 0;
-	my $progress          = 6;
 	my $counted_lines     = 0;
 	my $next_step         = 0;
 	my $verifying         = 0;
@@ -308,11 +314,13 @@ WHERE
 		
 		if ($line =~ / (\d+) Packages$/i)
 		{
-			my $counted_lines =  $1;
-			   $to_update     += $counted_lines;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				counted_lines => $counted_lines,
-				to_update     => $to_update, 
+			my $counted_lines   =  $1;
+			   $package_changes =  $counted_lines;
+			   $to_update       += $counted_lines;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				package_changes => $package_changes, 
+				counted_lines   => $counted_lines,
+				to_update       => $to_update, 
 			}});
 		}
 		
@@ -384,6 +392,76 @@ WHERE
 	}
 	close $file_handle;
 	
+	# If this is the first try and it failed, see if it's a DRBD issue.
+	if ((not $success) && ($try == 1))
+	{
+		# Is this the DRBD kmod issue?
+		my $remove_drbd_kmod = 0;
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /kmod-drbd/)
+			{
+				# Looks like it.
+				$remove_drbd_kmod = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { remove_drbd_kmod => $remove_drbd_kmod }});
+				last;
+			}
+		}
+		
+		# Clear the old kmod and try the update again.
+		if ($remove_drbd_kmod)
+		{
+			update_progress($anvil, $progress++, "message_0320");
+			
+			my $versions_to_remove = "";
+			my $shell_call         = $anvil->data->{path}{exe}{dnf}." list installed";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /(kmod-drbd-\d+.*?)\s/)
+				{
+					$versions_to_remove .= $1." ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { versions_to_remove	 => $versions_to_remove }});
+				}
+			}
+			
+			# Now remove those packages.
+			update_progress($anvil, $progress++, "message_0321");
+			$shell_call = $anvil->data->{path}{exe}{dnf}." -y remove ".$versions_to_remove;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			# Now install the new packages.
+			update_progress($anvil, $progress++, "message_0322");
+			$shell_call = $anvil->data->{path}{exe}{dnf}." -y install kmod-drbd";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			# Now try again.
+			update_progress($anvil, $progress++, "message_0323");
+			run_os_update($anvil, 2, $progress);
+			return(0);
+		}
+	}
+	
 	# Reload daemons to pick up any changed systemctl daemons.
 	my ($systemctl_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{systemctl}." daemon-reload", source => $THIS_FILE, line => __LINE__});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { systemctl_output => $systemctl_output, return_code => $return_code }});
@@ -419,6 +497,15 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
 	}
 	
+	# If we installed and packages, and '--reboot' was given, reboot anyway.
+	if (($package_changes) && ($anvil->data->{switches}{reboot}))
+	{
+		# Reboot needed
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0690!#" }});
+		my $reboot_needed = $anvil->System->reboot_needed({set => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_needed => $reboot_needed }});
+	}
+	
 	# Did it work?
 	if (not $success)
 	{
@@ -426,6 +513,7 @@ WHERE
 		update_progress($anvil, 0, "message_0036");
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, key => "error_0035", variables => { output => $output } });
+		sleep 5;
 		$anvil->nice_exit({exit_code => 3});
 	}
 	
