@@ -389,7 +389,7 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
     `SELECT variable_value FROM variables WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
   );
 
-  if (rows.length) {
+  if (!rows.length) {
     throw new Error('No record found');
   }
 
