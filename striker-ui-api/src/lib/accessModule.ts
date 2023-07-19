@@ -394,12 +394,12 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   }
 
   const [[vncinfo]] = rows;
-  const [domain, port] = vncinfo.split(':');
+  const [domain, rPort] = vncinfo.split(':');
 
-  const forwardPort = Number.parseInt(port);
+  const port = Number.parseInt(rPort);
   const protocol = 'ws';
 
-  return { domain, forwardPort, protocol };
+  return { domain, port, protocol };
 };
 
 export {
