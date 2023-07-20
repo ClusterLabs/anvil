@@ -55,15 +55,35 @@ const rfbDisconnect: RfbDisconnectFunction = (rfb) => {
 };
 
 const VncDisplay = (props: VncDisplayProps): JSX.Element => {
-  const { rfb, rfbConnectPartialArgs, rfbScreen } = props;
+  const {
+    onConnect,
+    onDisconnect,
+    rfb,
+    rfbConnectArgs,
+    rfbScreen,
+    url: initUrl,
+  } = props;
 
   useEffect(() => {
-    if (rfbConnectPartialArgs) {
-      rfbConnect({ rfb, rfbScreen, ...rfbConnectPartialArgs });
+    if (rfbConnectArgs) {
+      const { url = initUrl } = rfbConnectArgs;
+
+      if (!url) return;
+
+      const args: RfbConnectArgs = {
+        onConnect,
+        onDisconnect,
+        rfb,
+        rfbScreen,
+        url,
+        ...rfbConnectArgs,
+      };
+
+      rfbConnect(args);
     } else {
       rfbDisconnect(rfb);
     }
-  }, [rfb, rfbConnectPartialArgs, rfbScreen]);
+  }, [initUrl, onConnect, onDisconnect, rfb, rfbConnectArgs, rfbScreen]);
 
   useEffect(
     () => () => {
