@@ -1,83 +1,76 @@
-import { useEffect, useRef, MutableRefObject, memo } from 'react';
 import RFB from '@novnc/novnc/core/rfb';
+import { useEffect } from 'react';
 
-type Props = {
-  rfb: MutableRefObject<typeof RFB | undefined>;
-  url: string;
-  viewOnly: boolean;
-  focusOnClick: boolean;
-  clipViewport: boolean;
-  dragViewport: boolean;
-  scaleViewport: boolean;
-  resizeSession: boolean;
-  showDotCursor: boolean;
-  background: string;
-  qualityLevel: number;
-  compressionLevel: number;
-  onDisconnect: (event: { detail: { clean: boolean } }) => void;
+const rfbConnect: RfbConnectFunction = ({
+  background = '',
+  clipViewport = false,
+  compressionLevel = 2,
+  dragViewport = false,
+  focusOnClick = false,
+  onConnect,
+  onDisconnect,
+  qualityLevel = 6,
+  resizeSession = true,
+  rfb,
+  rfbScreen,
+  scaleViewport = true,
+  showDotCursor = false,
+  url,
+  viewOnly = false,
+}) => {
+  if (!rfbScreen?.current || rfb?.current) return;
+
+  rfbScreen.current.innerHTML = '';
+
+  rfb.current = new RFB(rfbScreen.current, url);
+
+  rfb.current.background = background;
+  rfb.current.clipViewport = clipViewport;
+  rfb.current.compressionLevel = compressionLevel;
+  rfb.current.dragViewport = dragViewport;
+  rfb.current.focusOnClick = focusOnClick;
+  rfb.current.qualityLevel = qualityLevel;
+  rfb.current.resizeSession = resizeSession;
+  rfb.current.scaleViewport = scaleViewport;
+  rfb.current.showDotCursor = showDotCursor;
+  rfb.current.viewOnly = viewOnly;
+
+  // RFB extends custom class EventTargetMixin;
+  // the usual .on or .once doesn't exist.
+
+  if (onConnect) {
+    rfb.current.addEventListener('connect', onConnect);
+  }
+
+  if (onDisconnect) {
+    rfb.current.addEventListener('disconnect', onDisconnect);
+  }
 };
 
-const VncDisplay = (props: Props): JSX.Element => {
-  const screen = useRef<HTMLDivElement>(null);
+const rfbDisconnect: RfbDisconnectFunction = (rfb) => {
+  if (!rfb?.current) return;
 
-  const {
-    rfb,
-    url,
-    viewOnly,
-    focusOnClick,
-    clipViewport,
-    dragViewport,
-    scaleViewport,
-    resizeSession,
-    showDotCursor,
-    background,
-    qualityLevel,
-    compressionLevel,
-    onDisconnect,
-  } = props;
+  rfb.current.disconnect();
+  rfb.current = null;
+};
+
+const VncDisplay = (props: VncDisplayProps): JSX.Element => {
+  const { rfb, rfbConnectPartialArgs, rfbScreen } = props;
 
   useEffect(() => {
-    if (!screen.current) {
-      return (): void => {
-        if (rfb.current) {
-          rfb?.current.disconnect();
-          rfb.current = undefined;
-        }
-      };
+    if (rfbConnectPartialArgs) {
+      rfbConnect({ rfb, rfbScreen, ...rfbConnectPartialArgs });
+    } else {
+      rfbDisconnect(rfb);
     }
+  }, [rfb, rfbConnectPartialArgs, rfbScreen]);
 
-    if (!rfb.current) {
-      screen.current.innerHTML = '';
-
-      rfb.current = new RFB(screen.current, url);
-
-      rfb.current.viewOnly = viewOnly;
-      rfb.current.focusOnClick = focusOnClick;
-      rfb.current.clipViewport = clipViewport;
-      rfb.current.dragViewport = dragViewport;
-      rfb.current.resizeSession = resizeSession;
-      rfb.current.scaleViewport = scaleViewport;
-      rfb.current.showDotCursor = showDotCursor;
-      rfb.current.background = background;
-      rfb.current.qualityLevel = qualityLevel;
-      rfb.current.compressionLevel = compressionLevel;
-
-      // RFB extends custom class EventTargetMixin;
-      // the usual .on or .once doesn't exist.
-      rfb.current.addEventListener('disconnect', onDisconnect);
-    }
-
-    /* eslint-disable consistent-return */
-    if (!rfb.current) return;
-
-    return (): void => {
-      if (rfb.current) {
-        rfb.current.disconnect();
-        rfb.current = undefined;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rfb]);
+  useEffect(
+    () => () => {
+      rfbDisconnect(rfb);
+    },
+    [rfb],
+  );
 
   const handleMouseEnter = () => {
     if (
@@ -93,10 +86,12 @@ const VncDisplay = (props: Props): JSX.Element => {
   return (
     <div
       style={{ width: '100%', height: '75vh' }}
-      ref={screen}
+      ref={rfbScreen}
       onMouseEnter={handleMouseEnter}
     />
   );
 };
 
-export default memo(VncDisplay);
+VncDisplay.displayName = 'VncDisplay';
+
+export default VncDisplay;
