@@ -1153,7 +1153,6 @@ sub _set_paths
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
-				'anvil-manage-tunnel'		=>	"/usr/sbin/anvil-manage-tunnel",
 				'anvil-manage-vnc-pipe'		=>	"/usr/sbin/anvil-manage-vnc-pipe",
 				'anvil-migrate-server'		=>	"/usr/sbin/anvil-migrate-server",
 				'anvil-parse-fence-agents'	=>	"/usr/sbin/anvil-parse-fence-agents",
