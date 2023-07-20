@@ -42,8 +42,8 @@ const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 // Unit: seconds
 const DEFAULT_VNC_RECONNECT_TIMER_START = 5;
 
-const buildServerVncUrl = (hostname: string, serverUuid: string) =>
-  `ws://${hostname}/ws/server/vnc/${serverUuid}`;
+const buildServerVncUrl = (host: string, serverUuid: string) =>
+  `ws://${host}/ws/server/vnc/${serverUuid}`;
 
 const FullSize: FC<FullSizeProps> = ({
   onClickCloseButton,
@@ -95,7 +95,7 @@ const FullSize: FC<FullSizeProps> = ({
     setVncError(false);
 
     setRfbConnectArgs({
-      url: buildServerVncUrl(window.location.hostname, serverUUID),
+      url: buildServerVncUrl(window.location.host, serverUUID),
     });
   }, [serverUUID]);
 
