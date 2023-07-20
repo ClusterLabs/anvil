@@ -4,7 +4,6 @@ import {
 } from '@mui/icons-material';
 import {
   Box,
-  IconButton,
   IconButtonProps,
   Menu,
   MenuItem,
@@ -12,19 +11,18 @@ import {
   Typography,
 } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
-import { useState, useRef, useEffect, FC, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-import { BLACK, RED, TEXT } from '../../lib/consts/DEFAULT_THEME';
+import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 
 import ContainedButton from '../ContainedButton';
-import { HeaderText } from '../Text';
+import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
-import { Panel } from '../Panels';
-import putFetch from '../../lib/fetchers/putFetch';
-import putFetchWithTimeout from '../../lib/fetchers/putFetchWithTimeout';
+import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
+import { HeaderText } from '../Text';
+import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const PREFIX = 'FullSize';
@@ -32,9 +30,6 @@ const PREFIX = 'FullSize';
 const classes = {
   displayBox: `${PREFIX}-displayBox`,
   spinnerBox: `${PREFIX}-spinnerBox`,
-  closeButton: `${PREFIX}-closeButton`,
-  keyboardButton: `${PREFIX}-keyboardButton`,
-  closeBox: `${PREFIX}-closeBox`,
   buttonsBox: `${PREFIX}-buttonsBox`,
   keysItem: `${PREFIX}-keysItem`,
 };
@@ -43,10 +38,6 @@ const StyledDiv = styled('div')(() => ({
   [`& .${classes.displayBox}`]: {
     width: '75vw',
     height: '75vh',
-    paddingTop: '1em',
-    paddingBottom: 0,
-    paddingLeft: 0,
-    paddingRight: 0,
   },
 
   [`& .${classes.spinnerBox}`]: {
@@ -55,28 +46,6 @@ const StyledDiv = styled('div')(() => ({
     height: '75vh',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  [`& .${classes.closeButton}`]: {
-    borderRadius: 8,
-    backgroundColor: RED,
-    '&:hover': {
-      backgroundColor: RED,
-    },
-  },
-
-  [`& .${classes.keyboardButton}`]: {
-    borderRadius: 8,
-    backgroundColor: TEXT,
-    '&:hover': {
-      backgroundColor: TEXT,
-    },
-  },
-
-  [`& .${classes.closeBox}`]: {
-    paddingBottom: '1em',
-    paddingLeft: '.7em',
-    paddingRight: 0,
   },
 
   [`& .${classes.buttonsBox}`]: {
@@ -92,8 +61,6 @@ const StyledDiv = styled('div')(() => ({
   },
 }));
 
-const CMD_VNC_PIPE_URL = `${API_BASE_URL}/command/vnc-pipe`;
-
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
 type FullSizeOptionalProps = {
@@ -105,11 +72,6 @@ type FullSizeProps = FullSizeOptionalProps & {
   serverName: string | string[] | undefined;
 };
 
-type VncConnectionProps = {
-  protocol: string;
-  forwardPort: number;
-};
-
 const FULL_SIZE_DEFAULT_PROPS: Required<
   Omit<FullSizeOptionalProps, 'onClickCloseButton'>
 > &
@@ -117,64 +79,31 @@ const FULL_SIZE_DEFAULT_PROPS: Required<
   onClickCloseButton: undefined,
 };
 
+const buildServerVncUrl = (hostname: string, serverUuid: string) =>
+  `ws://${hostname}/ws/server/vnc/${serverUuid}`;
+
 const FullSize: FC<FullSizeProps> = ({
   onClickCloseButton,
   serverUUID,
   serverName,
 }): JSX.Element => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const rfb = useRef<typeof RFB>();
-  const hostname = useRef<string | undefined>(undefined);
-  const [vncConnection, setVncConnection] = useProtectedState<
-    VncConnectionProps | undefined
+  const isFirstRender = useIsFirstRender();
+
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+  const [rfbConnectArgs, setRfbConnectArgs] = useProtectedState<
+    RfbConnectArgs | undefined
   >(undefined);
   const [vncConnecting, setVncConnecting] = useProtectedState<boolean>(false);
-  const [isError, setIsError] = useProtectedState<boolean>(false);
+  const [vncError, setVncError] = useProtectedState<boolean>(false);
 
-  const connectVnc = useCallback(async () => {
-    if (vncConnection || vncConnecting) return;
+  const rfb = useRef<typeof RFB | null>(null);
+  const rfbScreen = useRef<HTMLDivElement | null>(null);
 
-    setVncConnecting(true);
-
-    try {
-      const res = await putFetchWithTimeout(
-        CMD_VNC_PIPE_URL,
-        {
-          serverUuid: serverUUID,
-          open: true,
-        },
-        120000,
-      );
-
-      setVncConnection(await res.json());
-    } catch {
-      setIsError(true);
-    } finally {
-      setVncConnecting(false);
-    }
-  }, [
-    serverUUID,
-    setIsError,
-    setVncConnecting,
-    setVncConnection,
-    vncConnecting,
-    vncConnection,
-  ]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      hostname.current = window.location.hostname;
-    }
-
-    connectVnc();
-  }, [connectVnc]);
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
+  const handleClickKeyboard = (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ): void => {
     setAnchorEl(event.currentTarget);
-  };
-
-  const handleClickClose = async () => {
-    await putFetch(CMD_VNC_PIPE_URL, { serverUuid: serverUUID });
   };
 
   const handleSendKeys = (scans: string[]) => {
@@ -195,98 +124,156 @@ const FullSize: FC<FullSizeProps> = ({
     }
   };
 
+  // 'connect' event emits when a connection successfully completes.
+  const rfbConnectEventHandler = useCallback(() => {
+    setVncConnecting(false);
+  }, [setVncConnecting]);
+
+  // 'disconnect' event emits when a connection fails,
+  // OR when a user closes the existing connection.
+  const rfbDisconnectEventHandler = useCallback(
+    ({ detail: { clean } }) => {
+      if (!clean) {
+        setVncConnecting(false);
+        setVncError(true);
+      }
+    },
+    [setVncConnecting, setVncError],
+  );
+
+  const connectServerVnc = useCallback(() => {
+    setVncConnecting(true);
+    setVncError(false);
+
+    setRfbConnectArgs({
+      onConnect: rfbConnectEventHandler,
+      onDisconnect: rfbDisconnectEventHandler,
+      rfb,
+      rfbScreen,
+      url: buildServerVncUrl(window.location.hostname, serverUUID),
+    });
+  }, [
+    rfbConnectEventHandler,
+    rfbDisconnectEventHandler,
+    serverUUID,
+    setRfbConnectArgs,
+    setVncConnecting,
+    setVncError,
+  ]);
+
+  const disconnectServerVnc = useCallback(() => {
+    setRfbConnectArgs(undefined);
+  }, [setRfbConnectArgs]);
+
+  const reconnectServerVnc = useCallback(() => {
+    if (!rfb?.current) return;
+
+    rfb.current.disconnect();
+    rfb.current = null;
+
+    connectServerVnc();
+  }, [connectServerVnc]);
+
+  const showScreen = useMemo(
+    () => !vncConnecting && !vncError,
+    [vncConnecting, vncError],
+  );
+
+  const keyboardMenuElement = useMemo(
+    () => (
+      <Box>
+        <IconButton onClick={handleClickKeyboard}>
+          <KeyboardIcon />
+        </IconButton>
+        <Menu
+          anchorEl={anchorEl}
+          keepMounted
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+        >
+          {keyCombinations.map(({ keys, scans }) => (
+            <MenuItem
+              onClick={() => handleSendKeys(scans)}
+              className={classes.keysItem}
+              key={keys}
+            >
+              <Typography variant="subtitle1">{keys}</Typography>
+            </MenuItem>
+          ))}
+        </Menu>
+      </Box>
+    ),
+    [anchorEl],
+  );
+
+  const vncDisconnectElement = useMemo(
+    () => (
+      <IconButton
+        onClick={(...args) => {
+          disconnectServerVnc();
+          onClickCloseButton?.call(null, ...args);
+        }}
+        variant="redcontained"
+      >
+        <CloseIcon />
+      </IconButton>
+    ),
+    [disconnectServerVnc, onClickCloseButton],
+  );
+
+  const vncToolbarElement = useMemo(
+    () =>
+      showScreen && (
+        <>
+          {keyboardMenuElement}
+          {vncDisconnectElement}
+        </>
+      ),
+    [keyboardMenuElement, showScreen, vncDisconnectElement],
+  );
+
+  useEffect(() => {
+    if (isFirstRender) {
+      connectServerVnc();
+    }
+  }, [connectServerVnc, isFirstRender]);
+
   return (
     <Panel>
+      <PanelHeader>
+        <HeaderText text={`Server: ${serverName}`} />
+        {vncToolbarElement}
+      </PanelHeader>
       <StyledDiv>
-        <Box flexGrow={1}>
-          <HeaderText text={`Server: ${serverName}`} />
+        <Box
+          display={showScreen ? 'flex' : 'none'}
+          className={classes.displayBox}
+        >
+          <VncDisplay
+            rfb={rfb}
+            rfbConnectPartialArgs={rfbConnectArgs}
+            rfbScreen={rfbScreen}
+          />
         </Box>
-        {vncConnection ? (
-          <Box display="flex" className={classes.displayBox}>
-            <VncDisplay
-              rfb={rfb}
-              url={`${vncConnection.protocol}://${hostname.current}:${vncConnection.forwardPort}`}
-              viewOnly={false}
-              focusOnClick={false}
-              clipViewport={false}
-              dragViewport={false}
-              scaleViewport
-              resizeSession
-              showDotCursor={false}
-              background=""
-              qualityLevel={6}
-              compressionLevel={2}
-              onDisconnect={({ detail: { clean } }) => {
-                if (!clean) {
-                  setVncConnection(undefined);
-                  connectVnc();
-                }
-              }}
-            />
-            <Box>
-              <Box className={classes.closeBox}>
-                <IconButton
-                  className={classes.closeButton}
-                  style={{ color: TEXT }}
-                  component="span"
-                  onClick={(
-                    ...args: Parameters<
-                      Exclude<IconButtonProps['onClick'], undefined>
-                    >
-                  ) => {
-                    handleClickClose();
-                    onClickCloseButton?.call(null, ...args);
-                  }}
-                >
-                  <CloseIcon />
-                </IconButton>
-              </Box>
-              <Box className={classes.closeBox}>
-                <IconButton
-                  className={classes.keyboardButton}
-                  style={{ color: BLACK }}
-                  component="span"
-                  onClick={handleClick}
-                >
-                  <KeyboardIcon />
-                </IconButton>
-                <Menu
-                  anchorEl={anchorEl}
-                  keepMounted
-                  open={Boolean(anchorEl)}
-                  onClose={() => setAnchorEl(null)}
-                >
-                  {keyCombinations.map(({ keys, scans }) => (
-                    <MenuItem
-                      onClick={() => handleSendKeys(scans)}
-                      className={classes.keysItem}
-                      key={keys}
-                    >
-                      <Typography variant="subtitle1">{keys}</Typography>
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </Box>
-            </Box>
-          </Box>
-        ) : (
+        {!showScreen && (
           <Box display="flex" className={classes.spinnerBox}>
-            {!isError ? (
+            {vncConnecting && (
               <>
-                <HeaderText
-                  text={`Establishing connection with ${serverName}`}
-                />
-                <HeaderText text="This may take a few minutes" />
+                <HeaderText>Connecting to {serverName}...</HeaderText>
                 <Spinner />
               </>
-            ) : (
+            )}
+            {vncError && (
               <>
                 <Box style={{ paddingBottom: '2em' }}>
-                  <HeaderText text="There was a problem connecting to the server, please try again" />
+                  <HeaderText textAlign="center">
+                    There was a problem connecting to the server, please try
+                    again
+                  </HeaderText>
                 </Box>
                 <ContainedButton
                   onClick={() => {
-                    setIsError(false);
+                    reconnectServerVnc();
                   }}
                 >
                   Reconnect
