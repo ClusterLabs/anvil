@@ -11,7 +11,6 @@ function log {
 log "wsargs=$@"
 
 domain_xml=$(</dev/stdin)
-guest_name="$1"
 operation="$2"
 
 # Operation migrate will:
@@ -21,6 +20,9 @@ if [[ ! $operation =~ ^(started|stopped)$ ]]
 then
 	exit
 fi
+
+guest_uuid=$( sed -En "s/^.*<uuid>([^[:space:]]+)<.*$/\1/p" <<<"$domain_xml" )
+ws_server_uuid_flag="--server-uuid $guest_uuid"
 
 ws_open_flag=""
 ws_port_flag=""
@@ -32,11 +34,11 @@ then
 	# Cannot call $ virsh vncdisplay... because libvirt hooks
 	# cannot call anything related to libvirt, i.e., virsh, because
 	# a deadlock will happen.
-	server_vnc_port=$( grep "<graphics.*type=['\"]vnc['\"]" <<<$domain_xml | grep -oPm1 "(?<=port=['\"])\d+" )
-	ws_port_flag="--server-vnc-port ${server_vnc_port}"
+	server_vnc_port=$( sed -En "s/^.*<graphics.*type=['\"]vnc['\"].*port=['\"]([[:digit:]]+)['\"].*$/\1/p" <<<"$domain_xml" )
+	ws_port_flag="--server-vnc-port $server_vnc_port"
 fi
 
-ws_command_args="--server \"$guest_name\" $ws_port_flag $ws_open_flag"
+ws_command_args="$ws_server_uuid_flag $ws_port_flag $ws_open_flag"
 
 log "wscmd=$ws_command_args"
 
