@@ -26,7 +26,6 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-server \
 			  anvil-manage-server-storage \
 			  anvil-manage-storage-groups \
-			  anvil-manage-tunnel \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
 			  anvil-network-profiler \
