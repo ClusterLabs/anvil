@@ -26,8 +26,7 @@ type RfbConnectFunction = (args: RfbConnectArgs) => void;
 
 type RfbDisconnectFunction = (rfb: RfbRef) => void;
 
-type VncDisplayProps = {
-  rfb: RfbRef;
-  rfbConnectPartialArgs?: Omit<RfbConnectArgs, 'rfb' | 'rfbScreen'>;
-  rfbScreen: RfbScreenRef;
-};
+type VncDisplayProps = Pick<RfbConnectArgs, 'rfb' | 'rfbScreen'> &
+  Partial<RfbConnectArgs> & {
+    rfbConnectArgs?: Partial<RfbConnectArgs>;
+  };

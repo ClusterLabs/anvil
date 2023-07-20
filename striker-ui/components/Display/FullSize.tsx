@@ -16,14 +16,12 @@ import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
 
 import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 
-import ContainedButton from '../ContainedButton';
 import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const PREFIX = 'FullSize';
 
@@ -68,6 +66,7 @@ type FullSizeOptionalProps = {
 };
 
 type FullSizeProps = FullSizeOptionalProps & {
+  vncReconnectTimerStart: number;
   serverUUID: string;
   serverName: string | string[] | undefined;
 };
@@ -78,6 +77,8 @@ const FULL_SIZE_DEFAULT_PROPS: Required<
   Pick<FullSizeOptionalProps, 'onClickCloseButton'> = {
   onClickCloseButton: undefined,
 };
+// Unit: seconds
+const DEFAULT_VNC_RECONNECT_TIMER_START = 5;
 
 const buildServerVncUrl = (hostname: string, serverUuid: string) =>
   `ws://${hostname}/ws/server/vnc/${serverUuid}`;
@@ -86,16 +87,19 @@ const FullSize: FC<FullSizeProps> = ({
   onClickCloseButton,
   serverUUID,
   serverName,
+  vncReconnectTimerStart = DEFAULT_VNC_RECONNECT_TIMER_START,
 }): JSX.Element => {
   const isFirstRender = useIsFirstRender();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-
-  const [rfbConnectArgs, setRfbConnectArgs] = useProtectedState<
-    RfbConnectArgs | undefined
+  const [rfbConnectArgs, setRfbConnectArgs] = useState<
+    Partial<RfbConnectArgs> | undefined
   >(undefined);
-  const [vncConnecting, setVncConnecting] = useProtectedState<boolean>(false);
-  const [vncError, setVncError] = useProtectedState<boolean>(false);
+  const [vncConnecting, setVncConnecting] = useState<boolean>(false);
+  const [vncError, setVncError] = useState<boolean>(false);
+  const [vncReconnectTimer, setVncReconnectTimer] = useState<number>(
+    vncReconnectTimerStart,
+  );
 
   const rfb = useRef<typeof RFB | null>(null);
   const rfbScreen = useRef<HTMLDivElement | null>(null);
@@ -124,46 +128,18 @@ const FullSize: FC<FullSizeProps> = ({
     }
   };
 
-  // 'connect' event emits when a connection successfully completes.
-  const rfbConnectEventHandler = useCallback(() => {
-    setVncConnecting(false);
-  }, [setVncConnecting]);
-
-  // 'disconnect' event emits when a connection fails,
-  // OR when a user closes the existing connection.
-  const rfbDisconnectEventHandler = useCallback(
-    ({ detail: { clean } }) => {
-      if (!clean) {
-        setVncConnecting(false);
-        setVncError(true);
-      }
-    },
-    [setVncConnecting, setVncError],
-  );
-
   const connectServerVnc = useCallback(() => {
     setVncConnecting(true);
     setVncError(false);
 
     setRfbConnectArgs({
-      onConnect: rfbConnectEventHandler,
-      onDisconnect: rfbDisconnectEventHandler,
-      rfb,
-      rfbScreen,
       url: buildServerVncUrl(window.location.hostname, serverUUID),
     });
-  }, [
-    rfbConnectEventHandler,
-    rfbDisconnectEventHandler,
-    serverUUID,
-    setRfbConnectArgs,
-    setVncConnecting,
-    setVncError,
-  ]);
+  }, [serverUUID]);
 
   const disconnectServerVnc = useCallback(() => {
     setRfbConnectArgs(undefined);
-  }, [setRfbConnectArgs]);
+  }, []);
 
   const reconnectServerVnc = useCallback(() => {
     if (!rfb?.current) return;
@@ -173,6 +149,39 @@ const FullSize: FC<FullSizeProps> = ({
 
     connectServerVnc();
   }, [connectServerVnc]);
+
+  const updateVncReconnectTimer = useCallback((): void => {
+    const intervalId = setInterval((): void => {
+      setVncReconnectTimer((previous) => {
+        const current = previous - 1;
+
+        if (current < 1) {
+          clearInterval(intervalId);
+        }
+
+        return current;
+      });
+    }, 1000);
+  }, []);
+
+  // 'connect' event emits when a connection successfully completes.
+  const rfbConnectEventHandler = useCallback(() => {
+    setVncConnecting(false);
+  }, []);
+
+  // 'disconnect' event emits when a connection fails,
+  // OR when a user closes the existing connection.
+  const rfbDisconnectEventHandler = useCallback(
+    ({ detail: { clean } }) => {
+      if (!clean) {
+        setVncConnecting(false);
+        setVncError(true);
+
+        updateVncReconnectTimer();
+      }
+    },
+    [updateVncReconnectTimer],
+  );
 
   const showScreen = useMemo(
     () => !vncConnecting && !vncError,
@@ -233,6 +242,14 @@ const FullSize: FC<FullSizeProps> = ({
   );
 
   useEffect(() => {
+    if (vncReconnectTimer === 0) {
+      setVncReconnectTimer(vncReconnectTimerStart);
+
+      reconnectServerVnc();
+    }
+  }, [reconnectServerVnc, vncReconnectTimer, vncReconnectTimerStart]);
+
+  useEffect(() => {
     if (isFirstRender) {
       connectServerVnc();
     }
@@ -250,8 +267,10 @@ const FullSize: FC<FullSizeProps> = ({
           className={classes.displayBox}
         >
           <VncDisplay
+            onConnect={rfbConnectEventHandler}
+            onDisconnect={rfbDisconnectEventHandler}
             rfb={rfb}
-            rfbConnectPartialArgs={rfbConnectArgs}
+            rfbConnectArgs={rfbConnectArgs}
             rfbScreen={rfbScreen}
           />
         </Box>
@@ -259,25 +278,20 @@ const FullSize: FC<FullSizeProps> = ({
           <Box display="flex" className={classes.spinnerBox}>
             {vncConnecting && (
               <>
-                <HeaderText>Connecting to {serverName}...</HeaderText>
+                <HeaderText textAlign="center">
+                  Connecting to {serverName}.
+                </HeaderText>
                 <Spinner />
               </>
             )}
             {vncError && (
               <>
-                <Box style={{ paddingBottom: '2em' }}>
-                  <HeaderText textAlign="center">
-                    There was a problem connecting to the server, please try
-                    again
-                  </HeaderText>
-                </Box>
-                <ContainedButton
-                  onClick={() => {
-                    reconnectServerVnc();
-                  }}
-                >
-                  Reconnect
-                </ContainedButton>
+                <HeaderText textAlign="center">
+                  There was a problem connecting to the server.
+                </HeaderText>
+                <HeaderText textAlign="center" mt="1em">
+                  Retrying in {vncReconnectTimer}.
+                </HeaderText>
               </>
             )}
           </Box>
