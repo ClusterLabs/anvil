@@ -2,22 +2,14 @@ import {
   Close as CloseIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
-import {
-  Box,
-  IconButtonProps,
-  Menu,
-  MenuItem,
-  styled,
-  Typography,
-} from '@mui/material';
+import { Box, IconButtonProps, Menu, styled, Typography } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
 
-import { TEXT } from '../../lib/consts/DEFAULT_THEME';
-
 import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
+import MenuItem from '../MenuItem';
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
@@ -28,8 +20,6 @@ const PREFIX = 'FullSize';
 const classes = {
   displayBox: `${PREFIX}-displayBox`,
   spinnerBox: `${PREFIX}-spinnerBox`,
-  buttonsBox: `${PREFIX}-buttonsBox`,
-  keysItem: `${PREFIX}-keysItem`,
 };
 
 const StyledDiv = styled('div')(() => ({
@@ -44,18 +34,6 @@ const StyledDiv = styled('div')(() => ({
     height: '75vh',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  [`& .${classes.buttonsBox}`]: {
-    paddingTop: 0,
-  },
-
-  [`& .${classes.keysItem}`]: {
-    backgroundColor: TEXT,
-    paddingRight: '3em',
-    '&:hover': {
-      backgroundColor: TEXT,
-    },
   },
 }));
 
@@ -201,11 +179,7 @@ const FullSize: FC<FullSizeProps> = ({
           onClose={() => setAnchorEl(null)}
         >
           {keyCombinations.map(({ keys, scans }) => (
-            <MenuItem
-              onClick={() => handleSendKeys(scans)}
-              className={classes.keysItem}
-              key={keys}
-            >
+            <MenuItem key={keys} onClick={() => handleSendKeys(scans)}>
               <Typography variant="subtitle1">{keys}</Typography>
             </MenuItem>
           ))}
