@@ -2,7 +2,7 @@ import {
   Close as CloseIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
-import { Box, IconButtonProps, Menu, styled, Typography } from '@mui/material';
+import { Box, Menu, styled, Typography } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
@@ -39,22 +39,6 @@ const StyledDiv = styled('div')(() => ({
 
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
-type FullSizeOptionalProps = {
-  onClickCloseButton?: IconButtonProps['onClick'];
-};
-
-type FullSizeProps = FullSizeOptionalProps & {
-  vncReconnectTimerStart: number;
-  serverUUID: string;
-  serverName: string | string[] | undefined;
-};
-
-const FULL_SIZE_DEFAULT_PROPS: Required<
-  Omit<FullSizeOptionalProps, 'onClickCloseButton'>
-> &
-  Pick<FullSizeOptionalProps, 'onClickCloseButton'> = {
-  onClickCloseButton: undefined,
-};
 // Unit: seconds
 const DEFAULT_VNC_RECONNECT_TIMER_START = 5;
 
@@ -274,7 +258,5 @@ const FullSize: FC<FullSizeProps> = ({
     </Panel>
   );
 };
-
-FullSize.defaultProps = FULL_SIZE_DEFAULT_PROPS;
 
 export default FullSize;
