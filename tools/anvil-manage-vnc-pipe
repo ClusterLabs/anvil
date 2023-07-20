@@ -298,9 +298,16 @@ sub set_ws_process
 		my $sport = $process->{sport};
 		my $tport = $process->{tport};
 
+		# The websockify daemon wrapper may remain alive, hence each
+		# port can map to mutiple pids.
+		my $spids = $processes->{sources}{$sport} // [];
+		my $tpids = $processes->{targets}{$tport} // [];
+
 		$processes->{pids}{$pid}      = $process;
-		$processes->{sources}{$sport} = $pid;
-		$processes->{targets}{$tport} = $pid;
+		# Process identifiers are already ordered by pgrep, record them
+		# in ascending order.
+		$processes->{sources}{$sport} = [@{$spids}, $pid];
+		$processes->{targets}{$tport} = [@{$tpids}, $pid];
 	};
 
 	return set_entry($parameters);
@@ -352,11 +359,11 @@ sub start_ws
 		|| (not is_int($svr_vnc_port))
 		|| (not is_int($ws_sport_offset)) );
 
-	my $existing_ws_pid = $ws_processes->{targets}{$svr_vnc_port};
+	my $existing_ws_pids = $ws_processes->{targets}{$svr_vnc_port};
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { existing_ws_pid => $existing_ws_pid } });
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($existing_ws_pids, "existing_ws_pids") });
 
-	return (0, $existing_ws_pid) if (defined $existing_ws_pid);
+	return (0, $existing_ws_pids->[0]) if (defined $existing_ws_pids);
 
 	my $rcode;
 
@@ -364,6 +371,8 @@ sub start_ws
 
 	return ($rcode) if ($rcode);
 
+	# The daemon wrapper can tell us whether the daemon started correctly;
+	# we won't know this if the process is started in the background.
 	my $ws_call = "$websockify -D $ws_sport :$svr_vnc_port &>/dev/null";
 
 	($rcode) = call({ call => $ws_call, debug => $debug });
@@ -375,7 +384,7 @@ sub start_ws
 
 	return ($rcode) if ($rcode);
 
-	my $ws_pid     = $re_ws_processes->{targets}{$svr_vnc_port};
+	my $ws_pid     = $re_ws_processes->{targets}{$svr_vnc_port}->[0];
 	my $ws_process = $re_ws_processes->{pids}{$ws_pid};
 
 	# Remember the started daemon.
@@ -405,9 +414,12 @@ sub stop_pipe
 
 	return ($rcode) if ($rcode);
 
-	my $ws_pid = $ws_processes->{targets}{$svr_vnc_port};
+	my $ws_pids = $ws_processes->{targets}{$svr_vnc_port};
 
-	stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes, %$common_params });
+	foreach my $ws_pid (@{$ws_pids})
+	{
+		stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes, %$common_params });
+	}
 
 	return (0);
 }
