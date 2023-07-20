@@ -140,12 +140,58 @@ sub find_available_port
 	return call({ call => $call, debug => $debug });
 }
 
+sub find_end_port
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $svr_host_name = $parameters->{svr_host_name} // $anvil->data->{sys}{host_name};
+	my $svr_uuid      = $parameters->{svr_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_end_port" });
+
+	return (1) if (not defined $svr_uuid);
+
+	my $variable_name          = build_vncinfo_variable_name($svr_uuid);
+	my $variable_value_pattern = "$svr_host_name:%";
+
+	# Look in the history variables table because libvirt hook operation
+	# 'stopped' gets triggered **after** the 'started' operation on the
+	# peer host during server migration.
+	my $query = "
+SELECT
+	SUBSTRING(variable_value, ".$anvil->Database->quote("(\\d+)\$").")
+FROM
+	history.variables
+WHERE
+	variable_name = ".$anvil->Database->quote($variable_name)."
+AND
+	variable_value LIKE ".$anvil->Database->quote($variable_value_pattern)."
+ORDER BY
+	modified_date DESC
+LIMIT 1
+;";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query } });
+
+	my $results = $anvil->Database->query({ source => $THIS_FILE, line => __LINE__, query => $query });
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($results, "results") });
+
+	return (1) if (not @{$results});
+
+	return (0, int($results->[0]->[0]));
+}
+
 sub find_server_vnc_port
 {
 	my $parameters   = shift;
-	my $debug        = $parameters->{debug};
+	my $debug        = $parameters->{debug} || 3;
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_server_vnc_port" });
+
+	return (1) if (not defined $svr_uuid);
 
 	return (0, $svr_vnc_port) if (is_int($svr_vnc_port));
 
@@ -406,15 +452,29 @@ sub stop_pipe
 
 	my $rcode;
 
-	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
-
-	return ($rcode) if ($rcode);
-
 	($rcode, my $ws_processes) = find_ws_processes($common_params);
 
 	return ($rcode) if ($rcode);
 
-	my $ws_pids = $ws_processes->{targets}{$svr_vnc_port};
+	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
+
+	my $ws_pids;
+
+	if ($rcode)
+	{
+		# The server VNC port is not available during the libvirt hook
+		# operation 'stopped'. Try to locate the websockify daemon by
+		# its source port.
+		($rcode, my $end_port) = find_end_port({ svr_uuid => $svr_uuid, %$common_params });
+
+		return ($rcode) if ($rcode);
+
+		$ws_pids = $ws_processes->{sources}{$end_port};
+	}
+	else
+	{
+		$ws_pids = $ws_processes->{targets}{$svr_vnc_port};
+	}
 
 	foreach my $ws_pid (@{$ws_pids})
 	{
