@@ -5,7 +5,7 @@
 #
 
 function log {
-	echo "$(date -Is):libvirt_hooks:ws; $@" >>/var/log/anvil.log;
+	echo "$(date +"%Y/%m/%d %T"):libvirt_hooks:ws; $@" >>/var/log/anvil.log;
 }
 
 log "wsargs=$@"
@@ -40,6 +40,6 @@ fi
 
 ws_command_args="$ws_server_uuid_flag $ws_port_flag $ws_open_flag"
 
-log "wscmd=$ws_command_args"
+log "wscmd_args=$ws_command_args"
 
 anvil-manage-vnc-pipe $ws_command_args &
