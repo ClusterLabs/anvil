@@ -64,11 +64,21 @@ if ($server_uuid)
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => { operation => $operation } });
 
-	my ($rcode) = $map_to_operation->{$operation}({
+	my ($rcode, $err_msg) = $map_to_operation->{$operation}({
 		debug        => $switch_debug,
 		svr_uuid     => $server_uuid,
 		svr_vnc_port => $server_vnc_port,
 	});
+
+	if ($rcode)
+	{
+		$anvil->Log->entry({
+			source => $THIS_FILE,
+			line   => __LINE__,
+			level  => $switch_debug || 2,
+			raw    => "[ Error ] - Operation $operation failed; CAUSE: $err_msg",
+		});
+	}
 
 	$anvil->nice_exit({ exit_code => $rcode });
 }
@@ -260,6 +270,7 @@ sub prettify
 
 	local $Data::Dumper::Indent  = 1;
 	local $Data::Dumper::Varname = $var_name;
+	local $Data::Dumper::Terse = (defined $var_name) ? 0 : 1;
 
 	return Dumper($var_value);
 }
@@ -366,7 +377,7 @@ sub start_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1) if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
 
 	my $common_params = { debug => $debug };
 
@@ -374,19 +385,22 @@ sub start_pipe
 
 	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
 
-	return ($rcode) if ($rcode);
+	return ($rcode, __LINE__.": $rcode,[$svr_vnc_port]") if ($rcode);
 
 	($rcode, my $ws_processes) = find_ws_processes($common_params);
 
-	return ($rcode) if ($rcode);
+	return ($rcode, __LINE__.": $rcode,[".prettify($ws_processes)."]") if ($rcode);
 
 	($rcode, my $ws_pid) = start_ws({ svr_vnc_port => $svr_vnc_port, ws_processes => $ws_processes, %$common_params });
 
-	return ($rcode) if ($rcode);
+	return ($rcode, __LINE__.": $rcode,[$ws_pid]") if ($rcode);
 
 	my $ws_process = $ws_processes->{pids}{$ws_pid};
+	my $ws_sport   = $ws_process->{sport};
 
-	set_vncinfo_variable({ end_port => $ws_process->{sport}, svr_uuid => $svr_uuid, %$common_params });
+	($rcode) = set_vncinfo_variable({ end_port => $ws_sport, svr_uuid => $svr_uuid, %$common_params });
+
+	return ($rcode, __LINE__.": [$svr_uuid:$ws_sport],$rcode") if ($rcode);
 
 	return (0);
 }
@@ -446,7 +460,7 @@ sub stop_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1) if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
 
 	my $common_params = { debug => $debug };
 
@@ -454,7 +468,7 @@ sub stop_pipe
 
 	($rcode, my $ws_processes) = find_ws_processes($common_params);
 
-	return ($rcode) if ($rcode);
+	return ($rcode, __LINE__.": $rcode,[".prettify($ws_processes)."]") if ($rcode);
 
 	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
 
@@ -467,7 +481,7 @@ sub stop_pipe
 		# its source port.
 		($rcode, my $end_port) = find_end_port({ svr_uuid => $svr_uuid, %$common_params });
 
-		return ($rcode) if ($rcode);
+		return ($rcode, __LINE__.": $rcode,[$end_port]") if ($rcode);
 
 		$ws_pids = $ws_processes->{sources}{$end_port};
 	}
@@ -478,7 +492,9 @@ sub stop_pipe
 
 	foreach my $ws_pid (@{$ws_pids})
 	{
-		stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes, %$common_params });
+		($rcode) = stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes, %$common_params });
+
+		return ($rcode, __LINE__.": [$ws_pid],$rcode") if ($rcode);
 	}
 
 	return (0);
