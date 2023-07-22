@@ -25,6 +25,18 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 This is the task being requested. Current optiopns are:
 .IP refresh-drbd-resource
 This requires \fB\-\-resource <new name>\fR, and will call 'drbdadm adjust <resource>' as a background task and then return immediately. This is required when adding a new volume to an existing resource as 'drbdadm adjust <res>' will hold until it is called on all active DRBD nodes. This blocks the caller after the first remote host call.
+.TP
+.IP safe-stop
+This implies \fB\-\-no\-db\fR, and will call 'anvil-safe-stop' as a background task. This is designed to ensure that a nodes leave the subcluster, and for DR host to shut down servers. This is done when the host is not yet updated, and the Striker dashboards have been upgraded with a new database schema.
+.TP
+.IP update-system
+This implies \fB\-\-no\-db\fR, and will call 'anvil-update-system' as a background task. This allows remote machines to call for the update without risk of timing out the network connection. 
+.TP
+Note: \fB\-\-no\-reboot\fR, \fB\-\-clear\-cache\fR, and \fB\-\-reboot\fR are all available here and passed to 'anvil-update-system'. See it's manpage for usage information.
+.TP
+\fB\-\-no\-db\fR
+.TP
+This tells the program to run without a database connection.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

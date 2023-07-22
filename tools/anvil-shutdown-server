@@ -27,30 +27,41 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->data->{switches}{'job-uuid'}    = "";
-$anvil->data->{switches}{'no-wait'}     = "";	# When set, we'll not wait when we shut down a single server
-$anvil->data->{switches}{'server'}      = "";
-$anvil->data->{switches}{'server-uuid'} = "";
-$anvil->data->{switches}{'wait'}        = "";	# When set, we'll wait for each server to shut down when using '--all'
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::job-uuid'    => $anvil->data->{switches}{'job-uuid'},
-	'switches::no-wait'     => $anvil->data->{switches}{'no-wait'}, 
-	'switches::server'      => $anvil->data->{switches}{'server'},
-	'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'}, 
-	'switches::wait'        => $anvil->data->{switches}{'wait'}, 
-}});
+# Read switches (target ([user@]host[:port]) and the file with the target's password.
+$anvil->Get->switches({list => [
+	"no-db", 
+	"no-wait", 
+	"server", 
+	"server-uuid", 
+	"wait"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-$anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{database}{connections})
+# Connect to DBs.
+if ($anvil->data->{switches}{'no-db'})
 {
-	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
-	# again after we exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0075"});
-	sleep 10;
-	$anvil->nice_exit({exit_code => 1});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "log_0743"});
+	
+	# If there was a job-uuid, clear it.
+	$anvil->data->{sys}{database}{connections} = 0;
+	$anvil->data->{switches}{'job-uuid'}       = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::database::connections' => $anvil->data->{sys}{database}{connections},
+		'switches::job-uuid'         => $anvil->data->{switches}{'job-uuid'},
+	}});
+}
+else
+{
+	$anvil->Database->connect();
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+		# again after we exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0075"});
+		sleep 10;
+		$anvil->nice_exit({exit_code => 1});
+	}
 }
 
 if ($anvil->data->{switches}{'job-uuid'})
@@ -88,6 +99,14 @@ if ($anvil->data->{switches}{'job-uuid'})
 # Now check that we have a server. If it's a server_uuid, read the server name.
 if ($anvil->data->{switches}{'server-uuid'})
 {
+	# DO we have DB connection(s)?
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0265"});
+		$anvil->Job->update_progress({progress => 100, message => "error_0265"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
 	# Convert the server_uuid to a server_name.
 	my $query = "SELECT server_name FROM servers WHERE server_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'server-uuid'}).";";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
@@ -125,6 +144,9 @@ if (not $anvil->data->{switches}{'server'})
 
 # Are we a node or DR host?
 $anvil->data->{sys}{host_type} = $anvil->Get->host_type();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'sys::host_type' => $anvil->data->{sys}{host_type},
+}});
 if (($anvil->data->{sys}{host_type} ne "node") && ($anvil->data->{sys}{host_type} ne "dr"))
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0264"});
@@ -132,26 +154,28 @@ if (($anvil->data->{sys}{host_type} ne "node") && ($anvil->data->{sys}{host_type
 	$anvil->nice_exit({exit_code => 1});
 }
 
-### TODO: Add DR support. For now, this only works on Nodes in a cluster
-if ($anvil->data->{sys}{host_type} eq "dr")
-{
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0265"});
-	$anvil->Job->update_progress({progress => 100, message => "error_0265"});
-	$anvil->nice_exit({exit_code => 1});
-}
-
 # Make sure that we're in an Anvil! system.
-$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
-if (not $anvil->data->{sys}{anvil_uuid})
+$anvil->data->{sys}{anvil_uuid} = "";
+if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}{connections}))
 {
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
-	$anvil->Job->update_progress({progress => 100, message => "error_0260"});
-	$anvil->nice_exit({exit_code => 1});
+	$anvil->data->{sys}{anvil_uuid} = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid},
+	}});
+	if (not $anvil->data->{sys}{anvil_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
+		$anvil->Job->update_progress({progress => 100, message => "error_0260"});
+		$anvil->nice_exit({exit_code => 1});
+	}
 }
 
 # This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 
 # being up.
-wait_for_pacemaker($anvil);
+if ($anvil->data->{sys}{host_type} eq "node")
+{
+	wait_for_pacemaker($anvil);
+}
 
 # If 'server' is 'all', shut down all servers.
 if (lc($anvil->data->{switches}{'server'}) eq "all")
@@ -165,7 +189,7 @@ else
 }
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
-$anvil->Job->update_progress({progress => 100, message => "job_0281"});
+$anvil->Job->update_progress({progress => 100, message => "job_0281"}) if $anvil->data->{switches}{'job-uuid'};
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -195,20 +219,20 @@ sub wait_for_pacemaker
 				$waiting = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0279"});
-				$anvil->Job->update_progress({progress => 15, message => "job_0279"});
+				$anvil->Job->update_progress({progress => 15, message => "job_0279"}) if $anvil->data->{switches}{'job-uuid'};
 			}
 			else
 			{
 				# Node isn't ready yet.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0278"});
-				$anvil->Job->update_progress({progress => 10, message => "job_0278"});
+				$anvil->Job->update_progress({progress => 10, message => "job_0278"}) if $anvil->data->{switches}{'job-uuid'};
 			}
 		}
 		else
 		{
 			# Cluster hasn't started.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0277"});
-			$anvil->Job->update_progress({progress => 5, message => "job_0277"});
+			$anvil->Job->update_progress({progress => 5, message => "job_0277"}) if $anvil->data->{switches}{'job-uuid'};
 		}
 		if ($waiting)
 		{
@@ -233,7 +257,7 @@ sub shutdown_server
 	{
 		# Nope.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0548", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"});
+		$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -243,24 +267,42 @@ sub shutdown_server
 	{
 		# It's off already
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0284", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => $progress, message => "job_0284,!!server!".$server."!!"});
+		$anvil->Job->update_progress({progress => $progress, message => "job_0284,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
 		return(0);
 	}
 	
 	# Now shut down.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0289", variables => { server => $server }});
-	$anvil->Job->update_progress({progress => $progress, message => "job_0289,!!server!".$server."!!"});
-	my $problem = $anvil->Cluster->shutdown_server({
-		debug  => 2, 
-		server => $server, 
-		'wait' => $wait,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	$anvil->Job->update_progress({progress => $progress, message => "job_0289,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+	
+	my $problem = 0;
+	if ($anvil->Get->host_type eq "dr")
+	{
+		# Shut down using virsh. Invert the return.
+		my $success = $anvil->Server->shutdown_virsh({
+			debug     => 2,
+			wait_time => $wait ? 0 : 1,
+		});
+		$problem = $success ? 0 : 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			success => $success,
+			problem => $problem, 
+		}});
+	}
+	else
+	{
+		$problem = $anvil->Cluster->shutdown_server({
+			debug  => 2, 
+			server => $server, 
+			'wait' => $wait,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	}
 	if ($problem)
 	{
 		# Failed, abort.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0268", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => 100, message => "error_0268,!!server!".$server."!!"});
+		$anvil->Job->update_progress({progress => 100, message => "error_0268,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
 		$anvil->nice_exit({exit_code => 1});
 	}
 	else
@@ -269,13 +311,13 @@ sub shutdown_server
 		{
 			# Stopped!
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0285", variables => { server => $server }});
-			$anvil->Job->update_progress({progress => $progress, message => "job_0285,!!server!".$server."!!"});
+			$anvil->Job->update_progress({progress => $progress, message => "job_0285,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
 		}
 		else
 		{
 			# Stop requested.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0286", variables => { server => $server }});
-			$anvil->Job->update_progress({progress => $progress, message => "job_0286,!!server!".$server."!!"});
+			$anvil->Job->update_progress({progress => $progress, message => "job_0286,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
 		}
 	}
 	
@@ -289,7 +331,7 @@ sub shutdown_all_servers
 	### TODO: Manage the stop order here, inverse of boot order.
 	# We top out at 90, bottom is 20. 
 	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
-	my $increment    = int(70 / $server_count);
+	my $increment    = $server_count ? int(70 / $server_count) : 70;
 	my $percent      = 15;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_count => $server_count, 

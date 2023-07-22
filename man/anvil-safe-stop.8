@@ -1,0 +1,45 @@
+.\" Manpage for the Anvil! safely stopping Anvil! node hosts
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-safe-stop "8" "July 22 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-safe-stop \- This program safely stop a subnode in an Anvil! node, and DR hosts
+.SH SYNOPSIS
+.B anvil-safe-stop 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program will safely withdraw a subnode from an Anvil! node, and safely stop DR hosts. Optionally, it can also power off the machine.
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-no\-db\fR
+.TP
+This tells this program to run without connecting to the Striker databases. This should only be used if the Strikers are not available (either they're off, or they've been updated and this host hasn't been, and can't use them until this host is also updated).
+.TP
+NOTE: This is generally only used by 'striker-update-cluster'. 
+.TP
+\fB\-\-poweroff\fR, \fB\-\-power\-off\fR
+.TP
+By default, the host will remain powered on when this program exits. Using this switch will have the host power off once the host is safely stopped.
+.TP
+\fB\-\-stop\-reason\fR <user, power, thermal>
+.TP
+Optionally used to set 'system::stop_reason' reason for this host. Valid values are 'user' (default), 'power' and 'thermal'. If set to 'user', ScanCore will not turn this host back on. If 'power', then ScanCore will reboot the host once the power under the host looks safe again. If thermal, then ScanCore will reboot the host once themperatures are back into safe levels.
+.TP
+\fB\-\-stop\-servers\fR
+.TP
+By default, on Anvil! sub-nodes, any servers running on this host will be migrated to the peer subnode. If the peer isn't available, this will refuse to stop. Using this switch will instead tell the system to stop all servers running on this host.
+.TP
+NOTE: On DR hosts, any running servers are always stopped.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

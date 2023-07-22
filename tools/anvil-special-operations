@@ -29,21 +29,27 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
-	"task", 
+	"clear-cache",
+	"no-db",
+	"no-reboot", 
+	"reboot",
 	"resource", 
-	], man => $THIS_FILE});
+	"task"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-$anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
-if (not $anvil->data->{sys}{database}{connections})
+if ((not $anvil->data->{switches}{'no-db'}) && ($anvil->data->{switches}{task} eq "stop-target"))
 {
-	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
-	# again after we exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
-	sleep 10;
-	$anvil->nice_exit({exit_code => 1});
+	$anvil->Database->connect();
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+		# again after we exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
+		sleep 10;
+		$anvil->nice_exit({exit_code => 1});
+	}
 }
 
 if ($anvil->data->{switches}{'job-uuid'})
@@ -57,9 +63,18 @@ if ($anvil->data->{switches}{'job-uuid'})
 		message          => "message_0311", 
 	});
 }
+
 if ($anvil->data->{switches}{task} eq "refresh-drbd-resource")
 {
 	refresh_drbd_resource($anvil);
+}
+elsif ($anvil->data->{switches}{task} eq "safe-stop")
+{
+	stop_target($anvil);
+}
+elsif ($anvil->data->{switches}{task} eq "update-system")
+{
+	stop_target($anvil);
 }
 
 $anvil->nice_exit({exit_code => 0});
@@ -115,6 +130,60 @@ sub refresh_drbd_resource
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0313", variables => { resource => $resource }});
 	
 	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
+
+# This calls 'anvil-safe-stop' on the local host as a background process. This is designed to allow remote 
+# machines to withdraw the system from a subcluster, or stop servers on a DR host, when the Strikers may have
+# already updated and could prevent the local system from connecting to any databases.
+sub stop_target
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --no-db -vv --log-secure";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({
+		shell_call => $shell_call,
+		background => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	return(0);
+}
+
+# This calls 'anvil-safe-stop' on the local host as a background process. This is designed to allow remote 
+# machines to withdraw the system from a subcluster, or stop servers on a DR host, when the Strikers may have
+# already updated and could prevent the local system from connecting to any databases.
+sub update_target
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-system'}." --no-db -vv --log-secure";
+	if ($anvil->data->{switches}{'clear-cache'})
+	{
+		$shell_call .= " --clear-cache";
+	}
+	if ($anvil->data->{switches}{'no-reboot'})
+	{
+		$shell_call .= " --no-reboot";
+	}
+	if ($anvil->data->{switches}{'reboot'})
+	{
+		$shell_call .= " --reboot";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({
+		shell_call => $shell_call,
+		background => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }

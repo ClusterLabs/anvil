@@ -366,12 +366,12 @@ The attempt to start the cluster appears to have failed. The return code '0' was
 		<key name="error_0257"><![CDATA[No server specified to boot. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0258">This host is not a node or DR, unable to boot servers.</key>
 		<key name="error_0259">The definition file: [#!variable!definition_file!#] doesn't exist, unable to boot the server.</key>
-		<key name="error_0260">This host is not in an Anvil! system, aborting.</key>
+		<key name="error_0260">This subnode is not in an Anvil! node yet, aborting.</key>
 		<key name="error_0261">The definition file: [#!variable!definition_file!#] exists, but the server: [#!variable!server!#] does not appear to be in the cluster. Unable to boot it.</key>
 		<key name="error_0262">The server: [#!variable!server!#] status is: [#!variable!status!#]. We can only boot servers that are off, not booting it.</key>
 		<key name="error_0263"><![CDATA[No server specified to shut down. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0264">This host is not a node or DR, unable to shut down servers.</key>
-		<key name="error_0265">This feature isn't enabled on DR hosts yet.</key>
+		<key name="error_0265">Specifying a server to shutdown using a UUID is not available when there are no DB connections.</key>
 		<key name="error_0266">The server: [#!variable!server!#] does not appear to be in the cluster. Unable to shut it down.</key>
 		<key name="error_0267">The server: [#!variable!server!#] failed to boot. The reason why should be in the logs.</key>
 		<key name="error_0268">The server: [#!variable!server!#] failed to shut down. The reason why should be in the logs.</key>
@@ -1562,7 +1562,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0467">Update the base operating system.</key>
 		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
 		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
-		<key name="job_0470"></key>
+		<key name="job_0470">This is a DR host, no migration possible.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2254,7 +2254,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		<key name="log_0596">The host: [#!variable!host_name!#] last updated the database: [#!variable!difference!#] seconds ago, skipping power checks.</key>
 		<key name="log_0597">The host: [#!variable!host_name!#] has no entries in the 'updated' table, so ScanCore has likely never run. Skipping this host for now.</key>
-		<key name="log_0598">This host is not a node, this program isn't designed to run here.</key>
+		<key name="log_0598">This host is not an Anvil! sub node, this program isn't designed to run here.</key>
 		<key name="log_0599">Enabled 'anvil-safe-start' locally on this node.</key>
 		<key name="log_0600">Enabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
@@ -2407,6 +2407,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 		<key name="log_0742">The job with the command: [#!variable!command!#] and job UUID: [#!variable!job_uuid!#] is restarting.</key>
+		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2920,6 +2921,7 @@ Proceed? [y/N]</key>
 		<key name="message_0321">Removing the old drbd-kmod RPMs now.</key>
 		<key name="message_0322">Installing the latest DRBD kmod RPM now.</key>
 		<key name="message_0323">Retrying the OS update now.</key>
+		<key name="message_0324">Update almost complete. Picked this job up after a '--no-db' run, and now we have database access again.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
