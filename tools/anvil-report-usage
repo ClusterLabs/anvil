@@ -277,6 +277,8 @@ sub show_anvils_machine
 	{
 		my $anvil_uuid        =  $anvil->data->{anvil_data}{$anvil_name}{anvil_uuid};
 		my $anvil_description =  $anvil->data->{anvil_data}{$anvil_name}{description};
+		   $anvil_description =~ s/^"//;
+		   $anvil_description =~ s/"$//;
 		   $anvil_description =~ s/"/\"/g;
 		my $cpu_cores         =  $anvil->data->{anvil_data}{$anvil_name}{cpu_cores};
 		my $cpu_threads       =  $anvil->data->{anvil_data}{$anvil_name}{cpu_threads};
