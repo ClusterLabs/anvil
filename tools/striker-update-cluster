@@ -261,7 +261,7 @@ sub update_nodes
 							"s1:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
 							"s2:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
 						}});
-						print "- Access found uver the: [".$network_name."] networking using the IP: [".$target_ip."]\n";
+						print "- Access found over the: [".$network_name."] networking using the IP: [".$target_ip."]\n";
 						last;
 					}
 				}
