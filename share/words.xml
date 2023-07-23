@@ -2742,7 +2742,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0230">The 'anvil-safe-start' tool is disabled on this node and enabled on the peer.</key>
 		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
 		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
-		<key name="message_0233">It appears that another instance of 'anvil-safe-start' is already runing. Please wait for it to complete (or kill it manually if needed).</key>
+		<key name="message_0233">It appears that another instance of: [#!variable!program!#] is already runing. Please wait for it to complete (or kill it manually if needed).</key>
 		<key name="message_0234">Preparing to rename a server.</key>
 		<key name="message_0235">Preparing to rename stop this node.</key>
 		<key name="message_0236">This records how long it took to migrate a given server. The average of the last five migations is used to guess how long future migrations will take.</key>

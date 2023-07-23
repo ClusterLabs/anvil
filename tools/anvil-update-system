@@ -46,9 +46,6 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-# Log that we've started.
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-
 # Connect to DBs.
 if ($anvil->data->{switches}{'no-db'})
 {
@@ -76,6 +73,22 @@ else
 
 if ($anvil->data->{switches}{'job-uuid'})
 {
+	# See if another instance is running. If so, sleep for 10 seconds and then exit. The other instance 
+	# could be the '--no-db' run we're about to clobber.
+	my $pids = $anvil->System->pids({
+		ignore_me    => 1,
+		program_name => $THIS_FILE,
+	});
+	my $other_instances = @{$pids};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { other_instances => $other_instances }});
+	
+	if ($other_instances)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0233", variables => { program => $THIS_FILE }});
+		sleep 10;
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
 	# Load the job details. If anything is returned, there was a problem.
 	my $return = $anvil->Job->get_job_details({job_uuid => $anvil->data->{switches}{'job-uuid'}});
 	if ($return)
