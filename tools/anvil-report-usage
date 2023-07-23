@@ -554,12 +554,12 @@ sub show_servers_machine
 						$anvil->data->{show}{xml} .= "				<mac alias=\"".$alias."\" address=\"".$mac."\" model=\"".$model."\" ip=\"".$ip."\" />\n";
 					}
 				}
-				$anvil->data->{show}{xml} .= "			</network>
-		</server>\n";
+				$anvil->data->{show}{xml} .= "			</network>\n";
 			}
-			$anvil->data->{show}{xml} .= "	</server>\n";
+			$anvil->data->{show}{xml} .= "		</server>\n";
 		}
 	}
+	$anvil->data->{show}{xml} .= "	</servers>\n";
 	
 	return(0);
 }
