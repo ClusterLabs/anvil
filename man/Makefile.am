@@ -22,6 +22,7 @@ dist_man8_MANS		= \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
+			  anvil-report-usage.8 \
 			  anvil-safe-start.8 \
 			  anvil-safe-stop.8 \
 			  anvil-shutdown-server.8 \

@@ -17,11 +17,12 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->data->{switches}{detailed} = 0;
-$anvil->Get->switches();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"switches::detailed" => $anvil->data->{switches}{detailed}, 
-}});
+# Read switches
+$anvil->Get->switches({list => [
+	"detailed",
+	"machine"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
@@ -70,13 +71,15 @@ sub collect_anvil_data
 			"s2:anvil_uuid" => $anvil_uuid, 
 		}});
 		
+		$anvil->data->{anvil_data}{$anvil_name}{anvil_uuid}        = $anvil_uuid;
 		$anvil->data->{anvil_data}{$anvil_name}{description}       = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
 		$anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
 		$anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:anvil_data::${anvil_name}::anvil_description" => $anvil->data->{anvil_data}{$anvil_name}{description}, 
-			"s2:anvil_data::${anvil_name}::node1_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}, 
-			"s3:anvil_data::${anvil_name}::node2_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}, 
+			"s1:anvil_data::${anvil_name}::anvil_uuid"        => $anvil->data->{anvil_data}{$anvil_name}{anvil_uuid}, 
+			"s2:anvil_data::${anvil_name}::anvil_description" => $anvil->data->{anvil_data}{$anvil_name}{description}, 
+			"s3:anvil_data::${anvil_name}::node1_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node1_host_uuid}, 
+			"s4:anvil_data::${anvil_name}::node2_host_uuid"   => $anvil->data->{anvil_data}{$anvil_name}{node2_host_uuid}, 
 		}});
 		
 		if (length($anvil_name) > $anvil->data->{longest}{anvil_name})
@@ -141,15 +144,25 @@ sub collect_anvil_data
 		$bridges =~ s/, $//;
 		
 		# Store
+		$anvil->data->{anvil_data}{$anvil_name}{cpu_cores}       = $cpu_cores;
+		$anvil->data->{anvil_data}{$anvil_name}{cpu_threads}     = $cpu_threads;
 		$anvil->data->{anvil_data}{$anvil_name}{cpu_string}      = $say_cpu;
 		$anvil->data->{anvil_data}{$anvil_name}{ram_used_string} = $say_ram_hardware;
+		$anvil->data->{anvil_data}{$anvil_name}{ram_available}   = $ram_available;
+		$anvil->data->{anvil_data}{$anvil_name}{ram_used}        = $ram_used;
+		$anvil->data->{anvil_data}{$anvil_name}{ram_hardware}    = $ram_hardware;
 		$anvil->data->{anvil_data}{$anvil_name}{ram_free_string} = $say_ram_available;
 		$anvil->data->{anvil_data}{$anvil_name}{bridge_string}   = $bridges;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:anvil_data::${anvil_name}::cpu_string"      => $anvil->data->{anvil_data}{$anvil_name}{cpu_string}, 
-			"s2:anvil_data::${anvil_name}::ram_used_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_used_string}, 
-			"s3:anvil_data::${anvil_name}::ram_free_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_free_string}, 
-			"s4:anvil_data::${anvil_name}::bridge_string"   => $anvil->data->{anvil_data}{$anvil_name}{bridge_string}, 
+			"s1:anvil_data::${anvil_name}::cpu_cores"       => $anvil->data->{anvil_data}{$anvil_name}{cpu_cores}, 
+			"s2:anvil_data::${anvil_name}::cpu_threads"     => $anvil->data->{anvil_data}{$anvil_name}{cpu_threads}, 
+			"s3:anvil_data::${anvil_name}::cpu_string"      => $anvil->data->{anvil_data}{$anvil_name}{cpu_string}, 
+			"s4:anvil_data::${anvil_name}::ram_used_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_used_string}, 
+			"s5:anvil_data::${anvil_name}::ram_available"   => $anvil->data->{anvil_data}{$anvil_name}{ram_available}, 
+			"s6:anvil_data::${anvil_name}::ram_used"        => $anvil->data->{anvil_data}{$anvil_name}{ram_used}, 
+			"s7:anvil_data::${anvil_name}::ram_hardware"    => $anvil->data->{anvil_data}{$anvil_name}{ram_hardware}, 
+			"s8:anvil_data::${anvil_name}::ram_free_string" => $anvil->data->{anvil_data}{$anvil_name}{ram_free_string}, 
+			"s9:anvil_data::${anvil_name}::bridge_string"   => $anvil->data->{anvil_data}{$anvil_name}{bridge_string}, 
 		}});
 		
 		if (length($anvil->data->{anvil_data}{$anvil_name}{cpu_string}) > $anvil->data->{longest}{host_cpu_string})
@@ -199,11 +212,17 @@ sub collect_anvil_data
 				's5:sg_used'            => $anvil->Convert->add_commas({number => $sg_used})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used}).")", 
 			}});
 			
-			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used});
-			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size} = $anvil->Convert->bytes_to_human_readable({'bytes' => $free_size});
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{used_size}          = $sg_used;
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{free_size}          = $free_size;
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size}      = $anvil->Convert->bytes_to_human_readable({'bytes' => $sg_used});
+			$anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size}      = $anvil->Convert->bytes_to_human_readable({'bytes' => $free_size});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_used_size" => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size},
-				"s2:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_free_size" => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size},
+				"s1:anvil_data::${anvil_name}::storage_group::${storage_group_name}::storage_group_uuid" => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{storage_group_uuid},
+				"s2:anvil_data::${anvil_name}::storage_group::${storage_group_name}::used_size"          => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{used_size},
+				"s3:anvil_data::${anvil_name}::storage_group::${storage_group_name}::free_size"          => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{free_size},
+				"s4:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_used_size"      => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size},
+				"s5:anvil_data::${anvil_name}::storage_group::${storage_group_name}::say_free_size"      => $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size},
 			}});
 			
 			if (length($storage_group_name) > $anvil->data->{longest}{storage_group})
@@ -234,6 +253,74 @@ sub collect_anvil_data
 }
 
 sub show_anvils
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{switches}{machine})
+	{
+		show_anvils_machine($anvil);
+	}
+	else
+	{
+		show_anvils_human($anvil);
+	}
+	
+	return(0);
+}
+
+sub show_anvils_machine
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{show}{xml} .= "	<nodes>\n";
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_data}})
+	{
+		my $anvil_uuid        = $anvil->data->{anvil_data}{$anvil_name}{anvil_uuid};
+		my $anvil_description = $anvil->data->{anvil_data}{$anvil_name}{description};
+		my $cpu_cores         = $anvil->data->{anvil_data}{$anvil_name}{cpu_cores};
+		my $cpu_threads       = $anvil->data->{anvil_data}{$anvil_name}{cpu_threads};
+		my $ram_available     = $anvil->data->{anvil_data}{$anvil_name}{ram_available};
+		my $ram_available_hr  = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available});
+		my $ram_used          = $anvil->data->{anvil_data}{$anvil_name}{ram_used};
+		my $ram_used_hr       = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used});
+		my $ram_hardware      = $anvil->data->{anvil_data}{$anvil_name}{ram_hardware};
+		my $ram_hardware_hr   = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_hardware});
+		my $bridge_string     = $anvil->data->{anvil_data}{$anvil_name}{bridge_string};
+		
+		$anvil->data->{show}{xml} .= "		<node name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" description=\"".$anvil_description."\">
+			<cpu cores=\"".$cpu_cores."\" threads=\"".$cpu_threads."\" />
+			<ram hardware=\"".$ram_hardware."\" hardware-hr=\"".$ram_available_hr."\" used=\"".$ram_used."\" used-hr=\"".$ram_used_hr."\" available=\"".$ram_available."\" available-hr=\"".$ram_available_hr."\" />
+			<bridges available=\"".$bridge_string."\" />
+";
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_data}{$anvil_name}{storage_group}})
+		{
+			my $storage_group_uuid = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{storage_group_uuid};
+			my $used_bytes         = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{used_size};
+			my $free_bytes         = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{free_size};
+			my $say_used_size      = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_used_size};
+			my $say_free_size      = $anvil->data->{anvil_data}{$anvil_name}{storage_group}{$storage_group_name}{say_free_size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:storage_group_name' => $storage_group_name, 
+				's2:storage_group_uuid' => $storage_group_uuid, 
+				's3:used_bytes'         => $used_bytes, 
+				's4:free_bytes'         => $free_bytes, 
+				's5:say_used_size'      => $say_used_size, 
+				's6:say_free_size'      => $say_free_size, 
+			}});
+			
+			$anvil->data->{show}{xml} .= "			<storage-group name=\"".$storage_group_name."\" uuid=\"".$storage_group_uuid."\" used-bytes=\"".$used_bytes."\" used-hr=\"".$say_used_size."\" free-bytes=\"".$free_bytes."\" free-hr=\"".$say_free_size."\" />\n";
+		}
+		$anvil->data->{show}{xml} .= "		</node>\n";
+	}
+	$anvil->data->{show}{xml} .= "	</nodes>
+</resources>
+";
+	print $anvil->data->{show}{xml};
+	
+	return(0);
+}
+
+sub show_anvils_human
 {
 	my ($anvil) = @_;
 	
@@ -381,7 +468,6 @@ sub show_anvils
 				push @{$anvil->data->{display}{lines}}, $blank_lead.$storage_groups->[$i];
 			}
 		}
-		
 	}
 	push @{$anvil->data->{display}{lines}}, $break_line;
 	
@@ -389,6 +475,96 @@ sub show_anvils
 }
 
 sub show_servers
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{switches}{machine})
+	{
+		show_servers_machine($anvil);
+	}
+	else
+	{
+		show_servers_human($anvil);
+	}
+	
+	return(0);
+}
+
+sub show_servers_machine
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{show}{xml} = "<?xml version=\"1.0\" ?>
+<resources>
+	<servers>\n";
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_data}})
+	{
+		foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}})
+		{
+			my $anvil_name      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_name};
+			my $anvil_uuid      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{anvil_uuid};
+			my $cpu_sockets     = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{sockets};
+			my $cpu_cores       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{cores};
+			my $cpu_threads     = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{threads};
+			my $cpu_model       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name}     ? $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_name}     : "";
+			my $cpu_fallback    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback} ? $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{model_fallback} : "";
+			my $cpu_match       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match}          ? $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{match}          : "";
+			my $cpu_vendor      = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor}         ? $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{vendor}         : "";
+			my $cpu_mode        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode}           ? $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{cpu}{mode}           : "";
+			my $ram_used        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{ram_used};
+			my $ram_used_hr     = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{say_ram_used};
+			$anvil->data->{show}{xml} .= "		<server name=\"".$server_name."\" uuid=\"".$server_uuid."\">
+			<anvil name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" />
+			<cpu cores=\"".$cpu_cores."\" threads=\"".$cpu_threads."\" sockets=\"".$cpu_sockets."\" model=\"".$cpu_model."\" fallback=\"".$cpu_fallback."\" match=\"".$cpu_match."\" vendor=\"".$cpu_vendor."\" mode=\"".$cpu_mode."\" />
+			<ram used_bytes=\"".$ram_used."\" used_hr=\"".$ram_used_hr."\" />
+";
+			foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}})
+			{
+				$anvil->data->{show}{xml} .= "			<storage resource=\"".$resource."\">\n";
+				foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}})
+				{
+					my $size          =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{size};
+					my $say_size      =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{say_size};
+					my $storage_group =  $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{storage_group};
+					$anvil->data->{show}{xml} .= "				<volume number=\"".$volume."\" size-bytes=\"".$size."\" size-hr=\"".$say_size."\" storage-group=\"".$storage_group."\">\n";
+					foreach my $drbd_node (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}})
+					{
+						my $drbd_path        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path};
+						my $drbd_path_by_res = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_path_by_res};
+						my $drbd_minor       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{drbd_minor};
+						my $meta_disk        = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{'meta-disk'};
+						my $backing_lv       = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{backing_lv};
+						my $node_host_uuid   = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{disk}{$resource}{$volume}{node}{$drbd_node}{host_uuid};
+						$anvil->data->{show}{xml} .= "					<subnode name=\"".$drbd_node."\" host-uuid=\"".$node_host_uuid."\" path=\"".$drbd_path."\" res-path=\"".$drbd_path_by_res."\" minor=\"".$drbd_minor."\" meta-data=\"".$meta_disk."\" lv=\"".$backing_lv."\" />\n";
+					}
+					$anvil->data->{show}{xml} .= "				</volume>\n";
+				}
+				$anvil->data->{show}{xml} .= "			</storage>\n";
+			}
+			
+			foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}})
+			{
+				$anvil->data->{show}{xml} .= "			<network bridge=\"".$bridge."\">\n";
+				foreach my $alias (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}})
+				{
+					foreach my $mac (sort {$a cmp $b} keys %{$anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}})
+					{
+						my $model = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{model};
+						my $ip    = $anvil->data->{server_data}{$server_name}{server_uuid}{$server_uuid}{net}{$bridge}{$alias}{$mac}{ip};
+						$anvil->data->{show}{xml} .= "				<mac alias=\"".$alias."\" address=\"".$mac."\" model=\"".$model."\" ip=\"".$ip."\" />\n";
+					}
+				}
+				$anvil->data->{show}{xml} .= "			</network>
+		</server>\n";
+			}
+			$anvil->data->{show}{xml} .= "	</server>\n";
+		}
+	}
+	
+	return(0);
+}
+
+sub show_servers_human
 {
 	my ($anvil) = @_;
 	

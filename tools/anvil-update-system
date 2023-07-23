@@ -124,6 +124,7 @@ if (not $anvil->data->{sys}{database}{connections})
 	# Start the anvil-daemon, the caller likely called without a DB because we're being updated by 
 	# striker-update-cluster, and so there will be a job waiting for us.
 	$anvil->System->enable_daemon({now => 1, daemon => "anvil-daemon"});
+	$anvil->System->enable_daemon({now => 1, daemon => "scancore"});
 	
 	$anvil->Database->connect;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
