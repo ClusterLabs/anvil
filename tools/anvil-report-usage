@@ -275,17 +275,18 @@ sub show_anvils_machine
 	$anvil->data->{show}{xml} .= "	<nodes>\n";
 	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvil_data}})
 	{
-		my $anvil_uuid        = $anvil->data->{anvil_data}{$anvil_name}{anvil_uuid};
-		my $anvil_description = $anvil->data->{anvil_data}{$anvil_name}{description};
-		my $cpu_cores         = $anvil->data->{anvil_data}{$anvil_name}{cpu_cores};
-		my $cpu_threads       = $anvil->data->{anvil_data}{$anvil_name}{cpu_threads};
-		my $ram_available     = $anvil->data->{anvil_data}{$anvil_name}{ram_available};
-		my $ram_available_hr  = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available});
-		my $ram_used          = $anvil->data->{anvil_data}{$anvil_name}{ram_used};
-		my $ram_used_hr       = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used});
-		my $ram_hardware      = $anvil->data->{anvil_data}{$anvil_name}{ram_hardware};
-		my $ram_hardware_hr   = $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_hardware});
-		my $bridge_string     = $anvil->data->{anvil_data}{$anvil_name}{bridge_string};
+		my $anvil_uuid        =  $anvil->data->{anvil_data}{$anvil_name}{anvil_uuid};
+		my $anvil_description =  $anvil->data->{anvil_data}{$anvil_name}{description};
+		   $anvil_description =~ s/"/\"/g;
+		my $cpu_cores         =  $anvil->data->{anvil_data}{$anvil_name}{cpu_cores};
+		my $cpu_threads       =  $anvil->data->{anvil_data}{$anvil_name}{cpu_threads};
+		my $ram_available     =  $anvil->data->{anvil_data}{$anvil_name}{ram_available};
+		my $ram_available_hr  =  $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available});
+		my $ram_used          =  $anvil->data->{anvil_data}{$anvil_name}{ram_used};
+		my $ram_used_hr       =  $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_used});
+		my $ram_hardware      =  $anvil->data->{anvil_data}{$anvil_name}{ram_hardware};
+		my $ram_hardware_hr   =  $anvil->Convert->bytes_to_human_readable({'bytes' => $ram_hardware});
+		my $bridge_string     =  $anvil->data->{anvil_data}{$anvil_name}{bridge_string};
 		
 		$anvil->data->{show}{xml} .= "		<node name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" description=\"".$anvil_description."\">
 			<cpu cores=\"".$cpu_cores."\" threads=\"".$cpu_threads."\" />
