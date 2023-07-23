@@ -17,7 +17,6 @@ dist_man8_MANS		= \
 			  anvil-manage-alerts.8 \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \
-			  anvil-manage-keys.1 \
 			  anvil-manage-power.8 \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
