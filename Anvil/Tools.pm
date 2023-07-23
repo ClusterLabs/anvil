@@ -195,6 +195,8 @@ sub new
 	
 	# Set passed parameters if needed.
 	my $debug = 3;
+	my $on_sig_int;
+	my $on_sig_term;
 	if (ref($parameter) eq "HASH")
 	{
 		# Local parameters...
@@ -210,6 +212,9 @@ sub new
 		{
 			$debug = $parameter->{debug};
 		}
+
+		$on_sig_int  = $parameter->{on_sig_int};
+		$on_sig_term = $parameter->{on_sig_term};
 	}
 	elsif ($parameter)
 	{
@@ -219,8 +224,16 @@ sub new
 	}
 	
 	# This will help clean up if we catch a signal.
-	$SIG{INT}  = sub { $anvil->catch_sig({signal => "INT"});  };
-	$SIG{TERM} = sub { $anvil->catch_sig({signal => "TERM"}); };
+	$SIG{INT}  = sub {
+		$on_sig_int->({ debug => $debug }) if (ref($on_sig_int) eq "CODE");
+
+		$anvil->catch_sig({signal => "INT"});
+	};
+	$SIG{TERM} = sub {
+		$on_sig_term->({ debug => $debug }) if (ref($on_sig_term) eq "CODE");
+
+		$anvil->catch_sig({signal => "TERM"});
+	};
 	
 	# This sets the environment this program is running in.
 	if ($ENV{SERVER_NAME})
@@ -1140,6 +1153,7 @@ sub _set_paths
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",
+				'anvil-manage-vnc-pipe'		=>	"/usr/sbin/anvil-manage-vnc-pipe",
 				'anvil-migrate-server'		=>	"/usr/sbin/anvil-migrate-server",
 				'anvil-parse-fence-agents'	=>	"/usr/sbin/anvil-parse-fence-agents",
 				'anvil-provision-server'	=>	"/usr/sbin/anvil-provision-server",
@@ -1260,6 +1274,7 @@ sub _set_paths
 				snmpget				=>	"/usr/bin/snmpget",
 				snmpset				=>	"/usr/bin/snmpset",
 				'sort'				=>	"/usr/bin/sort",
+				ss				=>	"/usr/sbin/ss",
 				'ssh-keygen'			=>	"/usr/bin/ssh-keygen",
 				'ssh-keyscan'			=>	"/usr/bin/ssh-keyscan",
 				'stat'				=>	"/usr/bin/stat",
@@ -1270,8 +1285,6 @@ sub _set_paths
 				'striker-initialize-host'	=>	"/usr/sbin/striker-initialize-host",
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
 				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
-				'striker-manage-vnc-pipes'	=>	"/usr/sbin/striker-manage-vnc-pipes",
-				'striker-open-ssh-tunnel'	=>	"/usr/sbin/striker-open-ssh-tunnel",
 				'striker-parse-oui'		=>	"/usr/sbin/striker-parse-oui",
 				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				'striker-scan-network'		=>	"/usr/sbin/striker-scan-network",
@@ -1295,6 +1308,7 @@ sub _set_paths
 				uuidgen				=>	"/usr/bin/uuidgen",
 				virsh				=>	"/usr/bin/virsh",
 				'virt-install'			=>	"/usr/bin/virt-install",
+				websockify			=>	"/usr/bin/websockify",
 				wipefs				=>	"/usr/sbin/wipefs", 
 				vgs				=>	"/usr/sbin/vgs",
 				vgscan				=>	"/usr/sbin/vgscan",

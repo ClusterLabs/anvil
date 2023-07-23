@@ -1,7 +1,6 @@
 export * from './getHostSSH';
 export * from './joinAn';
 export * from './leaveAn';
-export * from './manageVncSshTunnel';
 export * from './poweroffStriker';
 export * from './rebootStriker';
 export * from './runManifest';

@@ -1,0 +1,519 @@
+#!/usr/bin/perl
+#
+# Manages VNC ports for server VMs that have VNC enabled.
+#
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+my $echo          = $anvil->data->{path}{exe}{'echo'};
+my $grep          = $anvil->data->{path}{exe}{'grep'};
+my $kill          = $anvil->data->{path}{exe}{'kill'};
+my $pgrep         = $anvil->data->{path}{exe}{'pgrep'};
+my $ss            = $anvil->data->{path}{exe}{'ss'};
+my $sed           = $anvil->data->{path}{exe}{'sed'};
+my $websockify    = $anvil->data->{path}{exe}{'websockify'};
+
+$anvil->Get->switches;
+
+$anvil->Database->connect;
+$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
+my $switch_debug    = $anvil->data->{switches}{'debug'};
+my $open            = $anvil->data->{switches}{'open'};
+my $server          = $anvil->data->{switches}{'server'};
+my $server_uuid     = $anvil->data->{switches}{'server-uuid'};
+my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
+
+if (defined $server)
+{
+	$server_uuid //= is_uuid_v4($server) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
+}
+
+$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
+	open             => $open,
+	server           => $server,
+	server_uuid      => $server_uuid,
+	server_vnc_port  => $server_vnc_port
+} });
+
+my $map_to_operation = { start => \&start_pipe, stop => \&stop_pipe };
+
+if ($server_uuid)
+{
+	my $operation = $open ? "start" : "stop";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => { operation => $operation } });
+
+	my ($rcode, $err_msg) = $map_to_operation->{$operation}({
+		debug        => $switch_debug,
+		svr_uuid     => $server_uuid,
+		svr_vnc_port => $server_vnc_port,
+	});
+
+	if ($rcode)
+	{
+		$anvil->Log->entry({
+			source => $THIS_FILE,
+			line   => __LINE__,
+			level  => $switch_debug || 2,
+			raw    => "[ Error ] - Operation $operation failed; CAUSE: $err_msg",
+		});
+	}
+
+	$anvil->nice_exit({ exit_code => $rcode });
+}
+
+$anvil->nice_exit({ exit_code => 0 });
+
+#
+# Functions
+#
+
+sub build_find_available_port_call
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $start         = $parameters->{start};
+	my $step_operator = $parameters->{step_operator} // "+";
+	my $step_size     = $parameters->{step_size} || 1;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "build_find_available_port_call" });
+
+	return (1) if ( (not $step_operator =~ /^[+-]$/)
+		|| (not is_int($step_size)) || ($step_size < 1) );
+
+	my $call = "ss_output=\$($ss -ant) && port=${start} && while $grep -Eq \":\${port}[[:space:]]+[^[:space:]]+\" <<<\$ss_output; do (( port ${step_operator}= $step_size )); done && $echo \$port";
+
+	return (0, $call);
+}
+
+sub build_vncinfo_variable_name
+{
+	my ($svr_uuid) = @_;
+
+	return "server::${svr_uuid}::vncinfo";
+}
+
+sub call
+{
+	my $parameters = shift;
+	my $background = $parameters->{background} || 0;
+	my $call       = $parameters->{call};
+	my $debug      = $parameters->{debug} || 3;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "call" });
+
+	return (1) if ( (not defined $call) || ($call eq "") );
+
+	my ($output, $rcode) = $anvil->System->call({ background => $background, shell_call => $call });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output => $output,
+		rcode  => $rcode
+	} });
+
+	# Output order reversed keep returns consistent.
+	return ($rcode, $output);
+}
+
+sub find_available_port
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_available_port" });
+
+	my ($build_rcode, $call) = build_find_available_port_call($parameters);
+
+	return (1) if ($build_rcode);
+
+	return call({ call => $call, debug => $debug });
+}
+
+sub find_end_port
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $svr_host_name = $parameters->{svr_host_name} // $anvil->data->{sys}{host_name};
+	my $svr_uuid      = $parameters->{svr_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_end_port" });
+
+	return (1) if (not defined $svr_uuid);
+
+	my $variable_name          = build_vncinfo_variable_name($svr_uuid);
+	my $variable_value_pattern = "$svr_host_name:%";
+
+	# Look in the history variables table because libvirt hook operation
+	# 'stopped' gets triggered **after** the 'started' operation on the
+	# peer host during server migration.
+	my $query = "
+SELECT
+	SUBSTRING(variable_value, ".$anvil->Database->quote("(\\d+)\$").")
+FROM
+	history.variables
+WHERE
+	variable_name = ".$anvil->Database->quote($variable_name)."
+AND
+	variable_value LIKE ".$anvil->Database->quote($variable_value_pattern)."
+ORDER BY
+	modified_date DESC
+LIMIT 1
+;";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query } });
+
+	my $results = $anvil->Database->query({ source => $THIS_FILE, line => __LINE__, query => $query });
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($results, "results") });
+
+	return (1) if (not @{$results});
+
+	return (0, int($results->[0]->[0]));
+}
+
+sub find_server_vnc_port
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_server_vnc_port" });
+
+	return (1) if (not defined $svr_uuid);
+
+	return (0, $svr_vnc_port) if (is_int($svr_vnc_port));
+
+	# If we don't have the server's VNC port, find it in its qemu-kvm process.
+
+	my ($rcode, $svr_processes) = $anvil->Server->find_processes({ debug => $debug });
+
+	return (1) if ($rcode);
+
+	my $svr_process   = $svr_processes->{uuids}{$svr_uuid};
+	my $svr_vnc_alive = $svr_process->{vnc_alive};
+
+	return (1) if (not $svr_vnc_alive);
+
+	return (0, $svr_process->{vnc_port});
+}
+
+sub find_ws_processes
+{
+	my $parameters = shift;
+	my $debug      = $parameters->{debug} || 3;
+	my $ps_name    = $parameters->{ps_name} // "websockify";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_ws_processes" });
+
+	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*${ps_name}([[:space:]]+(--?[^[:space:]]+))*[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\4,\\5/p'";
+
+	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
+
+	return (1) if ($rcode);
+
+	my $result = { pids => {}, sources => {}, targets => {} };
+
+	foreach my $line (split(/\n/, $output))
+	{
+		chomp($line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ws_line => $line } });
+
+		my ($pid, $sport, $tport) = split(/,/, $line);
+
+		my $process = { pid => $pid, sport => $sport, tport => $tport };
+
+		set_ws_process({ debug => $debug, entry => $process, entries => $result });
+	}
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($result, "ws_processes") });
+
+	return (0, $result);
+}
+
+sub is_int
+{
+	return defined $_[0] && $_[0] =~ /^\d+$/;
+}
+
+sub is_uuid_v4
+{
+	return defined $_[0] && $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
+}
+
+sub prettify
+{
+	my $var_value = shift;
+	my $var_name  = shift;
+
+	local $Data::Dumper::Indent  = 1;
+	local $Data::Dumper::Varname = $var_name;
+	local $Data::Dumper::Terse = (defined $var_name) ? 0 : 1;
+
+	return Dumper($var_value);
+}
+
+sub set_entry
+{
+	my $parameters    = shift;
+	my $debug         = $parameters->{debug} || 3;
+	my $handle_delete = $parameters->{handle_delete};
+	my $handle_set    = $parameters->{handle_set};
+	my $id            = $parameters->{id};
+	my $entry         = $parameters->{entry};
+	my $entries       = $parameters->{entries};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		%$parameters,
+		p_entry   => prettify($entry),
+		p_entries => prettify($entries),
+	}, prefix => "set_entry" });
+
+	return (1) if (not defined $entries);
+
+	if (defined $entry)
+	{
+		$handle_set->($id, $entry, $entries);
+	}
+	elsif (defined $id)
+	{
+		$handle_delete->($id, $entry, $entries);
+	}
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($entries, "entries") });
+
+	return (0);
+}
+
+sub set_vncinfo_variable
+{
+	my $parameters     = shift;
+	my $debug          = $parameters->{debug} || 3;
+	my $end_port       = $parameters->{end_port};
+	my $svr_uuid       = $parameters->{svr_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "set_vncinfo_variable" });
+
+	my $local_host_name = $anvil->data->{sys}{host_name};
+
+	my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
+		file           => $THIS_FILE,
+		line           => __LINE__,
+		variable_name  => build_vncinfo_variable_name($svr_uuid),
+		variable_value => "${local_host_name}:${end_port}",
+	});
+
+	return (1) if (not is_uuid_v4($variable_uuid));
+
+	return (0);
+}
+
+sub set_ws_process
+{
+	my $parameters = shift;
+
+	$parameters->{handle_delete} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		$process = $processes->{pids}{$pid};
+
+		my $sport = $process->{sport};
+		my $tport = $process->{tport};
+
+		delete $processes->{pids}{$pid};
+		delete $processes->{sources}{$sport};
+		delete $processes->{targets}{$tport};
+	};
+
+	$parameters->{handle_set} = sub {
+		my ($pid, $process, $processes) = @_;
+
+		$pid = $process->{pid};
+
+		my $sport = $process->{sport};
+		my $tport = $process->{tport};
+
+		# The websockify daemon wrapper may remain alive, hence each
+		# port can map to mutiple pids.
+		my $spids = $processes->{sources}{$sport} // [];
+		my $tpids = $processes->{targets}{$tport} // [];
+
+		$processes->{pids}{$pid}      = $process;
+		# Process identifiers are already ordered by pgrep, record them
+		# in ascending order.
+		$processes->{sources}{$sport} = [@{$spids}, $pid];
+		$processes->{targets}{$tport} = [@{$tpids}, $pid];
+	};
+
+	return set_entry($parameters);
+}
+
+sub start_pipe
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+
+	my $common_params = { debug => $debug };
+
+	my $rcode;
+
+	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
+
+	return ($rcode, __LINE__.": $rcode,[$svr_vnc_port]") if ($rcode);
+
+	($rcode, my $ws_processes) = find_ws_processes($common_params);
+
+	return ($rcode, __LINE__.": $rcode,[".prettify($ws_processes)."]") if ($rcode);
+
+	($rcode, my $ws_pid) = start_ws({ svr_vnc_port => $svr_vnc_port, ws_processes => $ws_processes, %$common_params });
+
+	return ($rcode, __LINE__.": $rcode,[$ws_pid]") if ($rcode);
+
+	my $ws_process = $ws_processes->{pids}{$ws_pid};
+	my $ws_sport   = $ws_process->{sport};
+
+	($rcode) = set_vncinfo_variable({ end_port => $ws_sport, svr_uuid => $svr_uuid, %$common_params });
+
+	return ($rcode, __LINE__.": [$svr_uuid:$ws_sport],$rcode") if ($rcode);
+
+	return (0);
+}
+
+sub start_ws
+{
+	my $parameters      = shift;
+	my $debug           = $parameters->{debug} || 3;
+	my $svr_vnc_port    = $parameters->{svr_vnc_port};
+	my $ws_processes    = $parameters->{ws_processes};
+	my $ws_sport_offset = $parameters->{ws_sport_offset} || 10000;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_ws" });
+
+	return (1) if ( (not defined $ws_processes)
+		|| (not is_int($svr_vnc_port))
+		|| (not is_int($ws_sport_offset)) );
+
+	my $existing_ws_pids = $ws_processes->{targets}{$svr_vnc_port};
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($existing_ws_pids, "existing_ws_pids") });
+
+	return (0, $existing_ws_pids->[0]) if (defined $existing_ws_pids);
+
+	my $rcode;
+
+	($rcode, my $ws_sport) = find_available_port({ debug => $debug, start => int($svr_vnc_port) + int($ws_sport_offset) });
+
+	return ($rcode) if ($rcode);
+
+	# The daemon wrapper can tell us whether the daemon started correctly;
+	# we won't know this if the process is started in the background.
+	my $ws_call = "$websockify -D $ws_sport :$svr_vnc_port &>/dev/null";
+
+	($rcode) = call({ call => $ws_call, debug => $debug });
+
+	return ($rcode) if ($rcode);
+
+	# Re-find to locate the new daemon.
+	($rcode, my $re_ws_processes) = find_ws_processes({ debug => $debug });
+
+	return ($rcode) if ($rcode);
+
+	my $ws_pid     = $re_ws_processes->{targets}{$svr_vnc_port}->[0];
+	my $ws_process = $re_ws_processes->{pids}{$ws_pid};
+
+	# Remember the started daemon.
+	set_ws_process({ debug => $debug, entry => $ws_process, entries => $ws_processes });
+
+	return (0, $ws_pid);
+}
+
+sub stop_pipe
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $svr_uuid     = $parameters->{svr_uuid};
+	my $svr_vnc_port = $parameters->{svr_vnc_port};
+
+	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+
+	my $common_params = { debug => $debug };
+
+	my $rcode;
+
+	($rcode, my $ws_processes) = find_ws_processes($common_params);
+
+	return ($rcode, __LINE__.": $rcode,[".prettify($ws_processes)."]") if ($rcode);
+
+	($rcode, $svr_vnc_port) = find_server_vnc_port($parameters);
+
+	my $ws_pids;
+
+	if ($rcode)
+	{
+		# The server VNC port is not available during the libvirt hook
+		# operation 'stopped'. Try to locate the websockify daemon by
+		# its source port.
+		($rcode, my $end_port) = find_end_port({ svr_uuid => $svr_uuid, %$common_params });
+
+		return ($rcode, __LINE__.": $rcode,[$end_port]") if ($rcode);
+
+		$ws_pids = $ws_processes->{sources}{$end_port};
+	}
+	else
+	{
+		$ws_pids = $ws_processes->{targets}{$svr_vnc_port};
+	}
+
+	foreach my $ws_pid (@{$ws_pids})
+	{
+		($rcode) = stop_ws({ ws_pid => $ws_pid, ws_processes => $ws_processes, %$common_params });
+
+		return ($rcode, __LINE__.": [$ws_pid],$rcode") if ($rcode);
+	}
+
+	return (0);
+}
+
+sub stop_ws
+{
+	my $parameters   = shift;
+	my $debug        = $parameters->{debug} || 3;
+	my $ws_pid       = $parameters->{ws_pid};
+	my $ws_processes = $parameters->{ws_processes};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_ws" });
+
+	return (1) if ( (not is_int($ws_pid)) || (not defined $ws_processes) );
+
+	call({ debug => $debug, call => "$kill $ws_pid || $kill -9 $ws_pid" });
+
+	set_ws_process({ debug => $debug, id => $ws_pid, entries => $ws_processes });
+
+	return (0);
+}

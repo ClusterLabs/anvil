@@ -26,6 +26,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-server \
 			  anvil-manage-server-storage \
 			  anvil-manage-storage-groups \
+			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
@@ -60,8 +61,6 @@ dist_sbin_SCRIPTS	= \
 			  striker-initialize-host \
 			  striker-manage-install-target \
 			  striker-manage-peers \
-			  striker-manage-vnc-pipes \
-			  striker-open-ssh-tunnel \
 			  striker-parse-os-list \
 			  striker-parse-oui \
 			  striker-prep-database \

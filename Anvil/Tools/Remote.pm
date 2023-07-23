@@ -236,6 +236,10 @@ If set, the method will use the given log level. Valid values are integers betwe
 
 If set, and if an existing cached connection is open, it will be closed and a new connection to the target will be established.
 
+=head3 ossh_opts (optional, default [])
+
+This is a ref to an array of named elements which extends the options passed to Net:OpenSSH->new().
+
 =head3 password (optional)
 
 This is the password used to connect to the remote target as the given user.
@@ -284,15 +288,17 @@ sub call
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->call()" }});
 	# Get the target and port so that we can create the ssh_fh key
-	my $port        =         $parameter->{port}        ? $parameter->{port}        : 22;
-	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
-	my $remote_user = defined $parameter->{remote_user} ? $parameter->{remote_user} : "root";
+	my $port        =         $parameter->{port}              ? $parameter->{port}        : 22;
+	my $target      = defined $parameter->{target}            ? $parameter->{target}      : "";
+	my $remote_user = defined $parameter->{remote_user}       ? $parameter->{remote_user} : "root";
+	my $ossh_opts   = ref($parameter->{ossh_opts}) eq "ARRAY" ? $parameter->{ossh_opts}   : [];
 	my $ssh_fh_key  = $remote_user."\@".$target.":".$port;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		's1:remote_user' => $remote_user,
 		's2:target'      => $target,
 		's3:port'        => $port, 
 		's4:ssh_fh_key'  => $ssh_fh_key, 
+		's5:ossh_opts'   => $ossh_opts,
 	}});
 	
 	# This will store the SSH file handle for the given target after the initial connection.
@@ -477,6 +483,7 @@ sub call
 					user       => $remote_user,
 					port       => $port, 
 					batch_mode => 1,
+					@$ossh_opts,
 				);
 			};
 			$connect_output =~ s/\r//gs;
@@ -574,6 +581,7 @@ sub call
 						port       => $port, 
 						passwd     => $password,
 						batch_mode => 1,
+						@$ossh_opts,
 					);
 				};
 				$connect_output =~ s/\n$//; 

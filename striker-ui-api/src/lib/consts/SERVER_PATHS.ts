@@ -41,7 +41,6 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'striker-initialize-host': {},
       'striker-manage-install-target': {},
       'striker-manage-peers': {},
-      'striker-manage-vnc-pipes': {},
       'striker-parse-os-list': {},
     },
   },

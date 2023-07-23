@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import { Box, styled } from '@mui/material';
 import Head from 'next/head';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 
 import { FullSize, Preview } from '../../components/Display';
 import Header from '../../components/Header';
