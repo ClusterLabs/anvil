@@ -296,11 +296,17 @@ sub collect_remote_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
 	$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
 	$anvil->data->{peer}{$short_host_name}{access}{network} = "";
-	foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+	foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+			if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+			{
+				next;
+			}
+			
 			next if $network_name !~ /^$preferred_network/;
 			my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 			my $test_access = $anvil->Remote->test_access({target => $target_ip});

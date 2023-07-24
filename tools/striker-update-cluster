@@ -238,18 +238,21 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
 			$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
 			$anvil->data->{peer}{$short_host_name}{access}{network} = "";
-			foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+			foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 				foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 				{
-					next if $network_name !~ /^$preferred_network/;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+					if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+					{
+						next;
+					}
 					my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 					my $test_access = $anvil->Remote->test_access({target => $target_ip});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:network_name' => $network_name, 
-						's2:target_ip'    => $target_ip, 
-						's3:test_access'  => $test_access, 
+						's1:target_ip'   => $target_ip, 
+						's2:test_access' => $test_access, 
 					}});
 					
 					if ($test_access)
@@ -1348,14 +1351,17 @@ sub verify_access
 			
 			$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
 			$anvil->data->{peer}{$short_host_name}{access}{network} = "";
-			foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+			foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 			{
 				next if $anvil->data->{peer}{$short_host_name}{access}{ip};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 				foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
-					next if $network_name !~ /^$preferred_network/;
+					if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+					{
+						next;
+					}
 					
 					my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 					my $test_access = $anvil->Remote->test_access({

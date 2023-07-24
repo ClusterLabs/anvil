@@ -2242,13 +2242,16 @@ sub check_drbd_peer_access
 			target => $this_host, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
-		foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+		foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 			foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 			{
 				next if $access;
-				next if $network_name !~ /^$preferred_network/;
+				if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+				{
+					next;
+				}
 				my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 				my $test_access = $anvil->Remote->test_access({target => $target_ip});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
