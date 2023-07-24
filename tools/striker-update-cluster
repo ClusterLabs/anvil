@@ -205,6 +205,7 @@ sub update_nodes
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $primary_host_uuid     = $anvil->Cluster->get_primary_host_uuid({anvil_uuid => $anvil_uuid});
+		   $primary_host_uuid     = $anvil_node1_host_uuid if not $primary_host_uuid;
 		my $secondary_host_uuid   = $primary_host_uuid eq $anvil_node1_host_uuid ? $anvil_node2_host_uuid : $anvil_node1_host_uuid;
 		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name};
 		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name};
