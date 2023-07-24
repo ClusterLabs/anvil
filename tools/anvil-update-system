@@ -191,6 +191,9 @@ WHERE
 		# Register a job to reboot.
 		update_progress($anvil, 98, "message_0318");
 		
+		# Record that we're going to reboot now.
+		update_progress($anvil, 100, "message_0317");
+		
 		if ($anvil->data->{sys}{database}{connections})
 		{
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
@@ -202,12 +205,16 @@ WHERE
 				job_title       => "job_0009", 
 				job_description => "job_0006", 
 				job_progress    => 0,
+				job_status      => "anvil_startup",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			
+			# If we got a job UUID, unlink the cache file.
+			if (-e $anvil->data->{path}{data}{reboot_cache})
+			{
+				unlink $anvil->data->{path}{data}{reboot_cache};
+			}
 		}
-		
-		# Record that we're going to reboot now.
-		update_progress($anvil, 100, "message_0317");
 	}
 	else
 	{
@@ -242,6 +249,12 @@ sub update_progress
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid}, 
 	}});
 	
+	if ($progress > 100)
+	{
+		$progress = 100;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { progress => $progress }});
+	}
+	
 	if ($anvil->data->{jobs}{job_uuid})
 	{
 		$anvil->Job->update_progress({
@@ -260,24 +273,21 @@ sub update_progress
 sub run_os_update
 {
 	my ($anvil, $progress) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		try      => $try,
-		progress => $progress, 
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { progress => $progress }});
 	
 	# This needs to be set to avoid warnings when called without a job-uuid.
 	$anvil->data->{sys}{last_update} = 0;
 	
 	# Make sure that, if we're a node, we're out of the cluster.
 	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "node")
 	{
 		# Call anvil-safe-stop
 		update_progress($anvil, $progress++, "message_0314");
 		
-		my $problem = $anvil->Cluster->parse_cib({debug => 3});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+		my $problem = $anvil->Cluster->parse_cib();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if (not $problem)
 		{
 			# Call anvil-safe-stop
@@ -334,15 +344,14 @@ WHERE
 	}
 	
 	# Before we start, do we need to remove our locally build DRBD kernel modules?
+	my $package_changes  = 0;
 	my $remove_drbd_kmod = 0;
 	my $shell_call       = $anvil->data->{path}{exe}{dnf}." check-update";
 	open (my $file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
 		chomp;
-		my $line   =  $_;
-		   $output .= $line."\n";
-		   $line   =  $anvil->Words->clean_spaces({string => $line});
+		my $line = $anvil->Words->clean_spaces({string => $_});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		
 		if (($line =~ /kmod-drbd/) or ($line =~ /kernel/))
@@ -359,6 +368,7 @@ WHERE
 	# So, shall we?
 	if ($remove_drbd_kmod)
 	{
+		# Yes, remove
 		update_progress($anvil, $progress++, "message_0320");
 		my $versions_to_remove = "";
 		my $shell_call         = $anvil->data->{path}{exe}{dnf}." list installed";
@@ -375,7 +385,11 @@ WHERE
 			if ($line =~ /(kmod-drbd-\d+.*?)\s/)
 			{
 				$versions_to_remove .= $1." ";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { versions_to_remove	 => $versions_to_remove }});
+				$package_changes++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					versions_to_remove => $versions_to_remove,
+					package_changes    => $package_changes, 
+				}});
 			}
 		}
 		
@@ -384,26 +398,17 @@ WHERE
 		$shell_call = $anvil->data->{path}{exe}{dnf}." -y remove ".$versions_to_remove;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
-		
-# 		# Now install the new packages.
-# 		update_progress($anvil, $progress++, "message_0322");
-# 		$shell_call = $anvil->data->{path}{exe}{dnf}." -y install kmod-drbd";
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-# 		
-# 		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 			output      => $output, 
-# 			return_code => $return_code, 
-# 		}});
+		open ($file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
+		while(<$file_handle>)
+		{
+			chomp;
+			my $line = $anvil->Words->clean_spaces({string => $_});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		}
+		close $file_handle;
 	}
 	
 	# NOTE: We run this directly to better monitor progress and update the progress.
-	my $package_changes   = 0;
 	my $transaction_shown = 0;
 	my $success           = 0;
 	my $to_update         = 0;
@@ -434,7 +439,7 @@ WHERE
 		{
 			# Update done, verifying now.
 			$verifying = 1;
-			update_progress($anvil, $progress, "message_0038");
+			update_progress($anvil, $progress++, "message_0038");
 		}
 		
 		if ($line =~ /Running transaction/i)
@@ -442,7 +447,7 @@ WHERE
 			# Done downloading
 			if (not $transaction_shown)
 			{
-				update_progress($anvil, $progress, "message_0037");
+				update_progress($anvil, $progress++, "message_0037");
 				$transaction_shown = 1;
 			}
 		}
@@ -458,7 +463,7 @@ WHERE
 			}
 		}
 		
-		if ($line =~ / (\d+) Packages$/i)
+		if (($line =~ / (\d+) Packages$/i) or ($line =~ / (\d+) Package$/i))
 		{
 			my $counted_lines   =  $1;
 			   $package_changes =  $counted_lines;
@@ -476,7 +481,7 @@ WHERE
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_size => $update_size }});
 			
 			# Ready to install, update to 5%. The next step will count up to 95%.
-			update_progress($anvil, $progress, "message_0035,!!size!$update_size!!");
+			update_progress($anvil, $progress++, "message_0035,!!size!$update_size!!");
 			
 			# The total (reliable) count of events is (to_update * 3), counting '(x/y): ' 
 			# (download), 'Upgrading '/'Installing ' and 'Verifying '. We ignore the scriplet
@@ -539,8 +544,10 @@ WHERE
 	close $file_handle;
 	
 	# Reload daemons to pick up any changed systemctl daemons.
-	my ($systemctl_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{systemctl}." daemon-reload", source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { systemctl_output => $systemctl_output, return_code => $return_code }});
+	$shell_call = $anvil->data->{path}{exe}{systemctl}." daemon-reload";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($systemctl_output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { systemctl_output => $systemctl_output, return_code => $return_code }});
 	
 	### See if the kernel has been updated.
 	# Get the newest installed kernel

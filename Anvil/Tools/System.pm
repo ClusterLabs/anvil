@@ -4460,7 +4460,7 @@ sub reboot_needed
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
-	my $cache_file = $anvil->data->{paths}{data}{reboot_cache};
+	my $cache_file = $anvil->data->{path}{data}{reboot_cache};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cache_file => $cache_file }});
 	if (($set) or ($set eq "0"))
 	{

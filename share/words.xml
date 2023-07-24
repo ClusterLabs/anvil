@@ -2408,6 +2408,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 		<key name="log_0742">The job with the command: [#!variable!command!#] and job UUID: [#!variable!job_uuid!#] is restarting.</key>
 		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
+		<key name="log_0744">A cached request to reboot this host was found (likely from a --no-db update). Registering a job to reboot now!</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

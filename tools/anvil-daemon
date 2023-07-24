@@ -266,7 +266,7 @@ sub wait_on_dnf
 	}});
 	while ($waiting)
 	{
-		my $pids = $anvil->System->pids({program_name => "dnf"});
+		my $pids = $anvil->System->pids({program_name => $anvil->data->{path}{exe}{dnf}});
 		my $dnf_instances = @{$pids};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dnf_instances => $dnf_instances }});
 		
