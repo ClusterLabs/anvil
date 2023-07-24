@@ -1585,6 +1585,9 @@ sub run_jobs
 	# changed on disk.
 	$anvil->data->{sys}{jobs_running} = 0;
 	
+	# If we're not configured, we won't hold on starting jobs
+	my $configured = $anvil->System->check_if_configured;
+	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
 	
@@ -1659,7 +1662,7 @@ sub run_jobs
 			}
 			
 			# If this is a start-up call, only start jobs whose status is 'anvil_startup'.
-			if (($startup) && ($job_status ne "anvil_startup"))
+			if (($startup) && ($configured) && ($job_status ne "anvil_startup"))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0639", variables => { 
 					job_uuid    => $job_uuid,
