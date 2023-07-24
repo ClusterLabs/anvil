@@ -2922,6 +2922,8 @@ Proceed? [y/N]</key>
 		<key name="message_0322">Installing the latest DRBD kmod RPM now.</key>
 		<key name="message_0323">Retrying the OS update now.</key>
 		<key name="message_0324">Update almost complete. Picked this job up after a '--no-db' run, and now we have database access again.</key>
+		<key name="message_0325">[ Note ] - It looks like 'dnf' (pid(s): [#!variable!pids!#]) is running, holding our start up until it's done (in case the system is being updated now).</key>
+		<key name="message_0326">This daemon just started. Holding off starting jobs for another: [#!variable!will_start_in!#] second(s).</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3268,6 +3270,11 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0299">Migration Network link #!variable!number!#</key>
 		<key name="striker_0300">This is where you configure the optional network dedicated to RAM-copy during live migrations.</key>
 		<key name="striker_0301">This puts a temporary hold on a DRBD minor number or TCP port so that it isn't used again in the time between when it was queried as the next free number, and before it can be used.</key>
+		<key name="striker_0302">This indicates when, in unix time, the database was last aged-out.</key>
+		<key name="striker_0303">This indicates when, in unix time, the database was last archived.</key>
+		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
+		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
+		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! cluster, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
