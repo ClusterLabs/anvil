@@ -562,7 +562,7 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { installed_kernel => $installed_kernel }});
 	
 	# Get the running kernel
-	$shell_call  = $anvil->data->{path}{exe}{uname}." -r";
+	$shell_call = $anvil->data->{path}{exe}{uname}." -r";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	(my $active_kernel, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -583,6 +583,7 @@ WHERE
 	if (($package_changes) && ($anvil->data->{switches}{reboot}))
 	{
 		# Reboot needed
+		$anvil->data->{sys}{reboot} = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::reboot' => $anvil->data->{sys}{reboot} }});
 		my $reboot_needed = $anvil->System->reboot_needed({set => 1});
 	}
