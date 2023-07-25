@@ -334,10 +334,9 @@ sub update_nodes
 			
 			# Now wait for DRBD resources to stop (which requires VMs be off).
 			print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
-			my $wait_until =  $anvil->data->{switches}{timeout} ? $anvil->data->{switches}{timeout} : 3600;
-			   $wait_until += time;
-			my $next_log   =  time + 60;
-			my $waiting    =  1;
+			my $wait_until = time + $anvil->data->{switches}{timeout};
+			my $next_log   = time + 60;
+			my $waiting    = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				wait_until => $wait_until, 
 				next_log   => $next_log,
@@ -399,9 +398,19 @@ sub update_nodes
 						{
 							print "[ Note ] - [".$say_time."] - The resource: [".$resource."] is still up.\n";
 						}
-						$next_log = time + 60;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
-						print "- Will check again shortly\n";
+						   $next_log      = time + 60;
+						my $time_left     = $wait_until - time;
+						my $say_time_left = $anvil->Convert->time({
+							'time'    => $time_left,
+							translate => 1,
+							long      => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							next_log      => $next_log,
+							time_left     => $time_left, 
+							say_time_left => $say_time_left, 
+						}});
+						print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
 					}
 					if (time > $wait_until)
 					{
@@ -476,9 +485,13 @@ sub update_nodes
 			}});
 			
 			# Verify that the node is no longer in the cluster.
-			$waiting  = 1;
-			$next_log = time + 60;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+			$wait_until = time + $anvil->data->{switches}{timeout};
+			$waiting    = 1;
+			$next_log   = time + 60;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				wait_until => $wait_until, 
+				next_log   => $next_log,
+			}});
 			while ($waiting)
 			{
 				$anvil->Job->get_job_details({job_uuid => $job_uuid});
@@ -510,6 +523,7 @@ sub update_nodes
 				else
 				{
 					my $say_date = $anvil->Get->date_and_time({time_only => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_date => $say_date }});
 					if (time > $next_log)
 					{
 						print "[ Note ] - [".$say_date."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
@@ -517,8 +531,25 @@ sub update_nodes
 						{
 							print "[ Note ] - [".$say_date."] - It is expected for the job to stay at '0' for a while.\n";
 						}
-						$next_log = time + 60;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+						   $next_log      = time + 60;
+						my $time_left     = $wait_until - time;
+						my $say_time_left = $anvil->Convert->time({
+							'time'    => $time_left,
+							translate => 1,
+							long      => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							next_log      => $next_log,
+							time_left     => $time_left, 
+							say_time_left => $say_time_left, 
+						}});
+						print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+					}
+					if (time > $wait_until)
+					{
+						# Timeout.
+						print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to update. Aborting the update.\n";
+						$anvil->nice_exit({exit_code => 1});
 					}
 					sleep 5;
 				}
@@ -541,15 +572,16 @@ sub update_nodes
 			# Wait for the node to rejoin the cluster. As before, this is a time 
 			# unrestricted wait loop.
 			print "- Waiting for the subnode to rejoin the node.\n";
+			   $wait_until   = time + $anvil->data->{switches}{timeout};
 			   $waiting      = 1;
 			my $start_called = 0; 
 			   $next_log     = time + 60;
 			my $manual_start = time + 60; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				next_log     => $next_log,
-				manual_start => $manual_start, 
+				's1:wait_until'   => $wait_until, 
+				's2:next_log'     => $next_log,
+				's3:manual_start' => $manual_start, 
 			}});
-			
 			while($waiting)
 			{
 				# Should we call a start to the cluster?
@@ -704,8 +736,30 @@ sub update_nodes
 				
 				if (time > $next_log)
 				{
-					$next_log = time + 60;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+					my $say_time      = $anvil->Get->date_and_time({time_only => 1});
+					   $next_log      = time + 60;
+					my $time_left     = $wait_until - time;
+					my $say_time_left = $anvil->Convert->time({
+						'time'    => $time_left,
+						translate => 1,
+						long      => 0,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:say_time'      => $say_time, 
+						's2:next_log'      => $next_log,
+						's3:time_left'     => $time_left, 
+						's4:say_time_left' => $say_time_left, 
+					}});
+					
+					# Tell the user we're still waiting.
+					print "- [".$say_time."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
+					print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+				}
+				if (time > $wait_until)
+				{
+					# Timeout.
+					print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to join the subcluster. Aborting the update.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 				
 				if ($waiting)
@@ -751,6 +805,45 @@ sub update_nodes
 sub update_strikers_and_dr
 {
 	my ($anvil) = @_;
+	
+	# Before we start, set the timeouts.
+	if ($anvil->data->{switches}{timeout})
+	{
+		if ($anvil->data->{switches}{timeout} =~ /^(\d+)h/i)
+		{
+			my $hours                            = $1;
+			   $anvil->data->{switches}{timeout} = $hours * 3600;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				hours               => $hours,
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+		elsif ($anvil->data->{switches}{timeout} =~ /^(\d+)m/i)
+		{
+			my $minutes                          = $1;
+			   $anvil->data->{switches}{timeout} = $minutes * 60;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				minutes             => $minutes,
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+		else
+		{
+			# Set the default.
+			print "[ Warning ] - The passed timeout: [".$anvil->data->{switches}{timeout}."] is invalid, setting it to 24 hours.\n";
+			$anvil->data->{switches}{timeout} = 86400;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+	}
+	else
+	{
+		$anvil->data->{switches}{timeout} = 86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::timeout" => $anvil->data->{switches}{timeout},
+		}});
+	}
 	
 	# Make sure the timeout, if set, is valid.
 	if ($anvil->data->{switches}{timeout})
@@ -929,10 +1022,9 @@ sub update_strikers_and_dr
 					
 					# Now wait for DRBD resources to stop (which requires VMs be off).
 					print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
-					my $wait_until =  $anvil->data->{switches}{timeout} ? $anvil->data->{switches}{timeout} : 3600;
-					   $wait_until += time;
-					my $next_log   =  time + 60;
-					my $waiting    =  1;
+					my $wait_until = time + $anvil->data->{switches}{timeout};
+					my $next_log   = time + 60;
+					my $waiting    = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						wait_until => $wait_until, 
 						next_log   => $next_log,
@@ -966,9 +1058,19 @@ sub update_strikers_and_dr
 								{
 									print "[ Note ] - [".$anvil->Get->date_and_time({time_only => 1})."] - The resource: [".$resource."] is still up.\n";
 								}
-								$next_log = time + 60;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
-								print "- Will check again shortly\n";
+								   $next_log      = time + 60;
+								my $time_left     = $wait_until - time;
+								my $say_time_left = $anvil->Convert->time({
+									'time'    => $time_left,
+									translate => 1,
+						  			long      => 0,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									next_log      => $next_log,
+									time_left     => $time_left, 
+									say_time_left => $say_time_left, 
+								}});
+								print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
 							}
 							if (time > $wait_until)
 							{
@@ -1033,10 +1135,9 @@ sub update_strikers_and_dr
 				}});
 				
 				# Verify / wait until the update is done.
-				my $wait_until =  $anvil->data->{switches}{timeout} ? $anvil->data->{switches}{timeout} : 3600;
-				   $wait_until += time;
-				my $waiting  = 1;
-				my $next_log = time + 60;
+				my $wait_until = time + $anvil->data->{switches}{timeout};
+				my $waiting    = 1;
+				my $next_log   = time + 60;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 				while ($waiting)
 				{
@@ -1076,8 +1177,19 @@ sub update_strikers_and_dr
 							{
 								print "[ Note ] - [".$say_date."] - It is normal for the job to show '0' progress until the database access is restored.\n";
 							}
-							$next_log = time + 60;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+							   $next_log      = time + 60;
+							my $time_left     = $wait_until - time;
+							my $say_time_left = $anvil->Convert->time({
+								'time'    => $time_left,
+								translate => 1,
+								long      => 0,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								next_log      => $next_log,
+								time_left     => $time_left, 
+								say_time_left => $say_time_left, 
+							}});
+							print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
 						}
 						if (time > $wait_until)
 						{
@@ -1155,8 +1267,9 @@ sub wait_for_reboot
 	print "- The target has been rebooted. We'll wait for the target to come back online.\n";
 	
 	# This is an infinite loop, there is no timeout for this.
-	my $waiting  = 1;
-	my $next_log = time + 60;
+	my $wait_until = time + $anvil->data->{switches}{timeout};
+	my $waiting    = 1;
+	my $next_log   = time + 60;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 	while($waiting)
 	{
@@ -1194,10 +1307,30 @@ sub wait_for_reboot
 		{
 			if (time > $next_log)
 			{
+				my $say_time      = $anvil->Get->date_and_time({time_only => 1});
+				   $next_log      = time + 60;
+				my $time_left     = $wait_until - time;
+				my $say_time_left = $anvil->Convert->time({
+					'time'    => $time_left,
+					translate => 1,
+					long      => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:say_time'      => $say_time, 
+					's2:next_log'      => $next_log,
+					's3:time_left'     => $time_left, 
+					's4:say_time_left' => $say_time_left, 
+				}});
+				
 				# Tell the user we're still waiting.
-				print "- [".$anvil->Get->date_and_time({time_only => 1})."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
-				$next_log = time + 60;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+				print "- [".$say_time."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
+				print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+			}
+			if (time > $wait_until)
+			{
+				# Timeout.
+				print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to reboot. Aborting the update.\n";
+				$anvil->nice_exit({exit_code => 1});
 			}
 			
 			sleep 5;

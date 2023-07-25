@@ -1176,7 +1176,7 @@ sub _check_known_hosts_for_target
 	if (not $known_hosts)
 	{
 		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0163", variables => { file => $$known_hosts }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0163", variables => { file => $known_hosts }});
 		return($known_machine)
 	}
 	

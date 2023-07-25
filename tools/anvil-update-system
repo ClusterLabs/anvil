@@ -76,6 +76,7 @@ else
 	}
 }
 
+$anvil->data->{jobs}{job_uuid} = "";
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# See if another instance is running. If so, sleep for 10 seconds and then exit. The other instance 

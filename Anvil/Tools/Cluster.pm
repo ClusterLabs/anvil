@@ -698,7 +698,7 @@ ORDER BY
 				foreach my $this_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}})
 				{
 					next if $this_host_uuid eq $dr_link_host_uuid;
-					my $storage_group_member_note    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$$this_host_uuid}{storage_group_member_note};
+					my $storage_group_member_note    = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{storage_group_member_note};
 					my $storage_group_member_vg_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_internal_uuid};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						's1:this_host_uuid'               => $this_host_uuid, 
