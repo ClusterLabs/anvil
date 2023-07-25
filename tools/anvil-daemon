@@ -68,7 +68,7 @@ if (($< != 0) && ($> != 0))
 $anvil->System->_check_anvil_conf();
 
 # If dnf is running, hold.
-wait_on_dnf($anvil);
+$anvil->System->wait_on_dnf();
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
@@ -251,49 +251,6 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
-
-# This checks to see if dnf is running when this daemon starts (as happens during an OS update) and hold 
-# until the dnf update is complete.
-sub wait_on_dnf
-{
-	my ($anvil) = @_;
-	
-	my $next_log = time - 1;
-	my $waiting  = 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		next_log => $next_log, 
-		waiting  => $waiting,
-	}});
-	while ($waiting)
-	{
-		my $pids = $anvil->System->pids({program_name => $anvil->data->{path}{exe}{dnf}});
-		my $dnf_instances = @{$pids};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dnf_instances => $dnf_instances }});
-		
-		if ($dnf_instances)
-		{
-			if (time > $next_log)
-			{
-				my $say_pids = "";
-				foreach my $pid (@{$pids})
-				{
-					$say_pids .= $pid.", ";
-				}
-				$say_pids =~ s/, $//;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0325", variables => { pids => $say_pids }});
-				
-				$next_log = time + 60;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
-			}
-			sleep 10;
-		}
-		else
-		{
-			$waiting = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-		}
-	}
-}
 
 # If we're using too much ram, send an alert and exit.
 sub check_ram

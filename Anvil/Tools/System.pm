@@ -46,6 +46,7 @@ my $THIS_FILE = "System.pm";
 # stop_daemon
 # stty_echo
 # update_hosts
+# wait_on_dnf
 # _check_anvil_conf
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
@@ -5384,6 +5385,60 @@ sub update_hosts
 			mode      => "0644", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+	}
+	
+	return(0);
+}
+
+=head2 wait_on_dnf
+
+This method checks to see if 'dnf' is running and, if so, won't return until it finishes. This is useful when holding off doing certain tasks, like building kernel modules, while an OS update is under way.
+
+This method takes no parameters.
+
+=cut
+sub wait_on_dnf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->wait_on_dnf()" }});
+	
+	my $next_log = time - 1;
+	my $waiting  = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		next_log => $next_log, 
+		waiting  => $waiting,
+	}});
+	while ($waiting)
+	{
+		my $pids = $anvil->System->pids({program_name => $anvil->data->{path}{exe}{dnf}, debug => $debug});
+		my $dnf_instances = @{$pids};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dnf_instances => $dnf_instances }});
+		
+		if ($dnf_instances)
+		{
+			if (time > $next_log)
+			{
+				my $say_pids = "";
+				foreach my $pid (@{$pids})
+				{
+					$say_pids .= $pid.", ";
+				}
+				$say_pids =~ s/, $//;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0325", variables => { pids => $say_pids }});
+				
+				$next_log = time + 60;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { next_log => $next_log }});
+			}
+			sleep 10;
+		}
+		else
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+		}
 	}
 	
 	return(0);
