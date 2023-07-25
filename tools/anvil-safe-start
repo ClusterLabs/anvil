@@ -44,6 +44,11 @@ $anvil->Get->switches({list => [], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
+
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
 if (($< != 0) && ($> != 0))
@@ -126,11 +131,11 @@ sub check_drbd
 	my $peer_password        = $anvil->data->{sys}{peer_password};
 	my $peer_ip_address      = $anvil->data->{sys}{peer_target_ip};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		short_host_name      => $short_host_name, 
-		peer_host_uuid       => $peer_host_uuid, 
-		peer_short_host_name => $peer_short_host_name, 
-		peer_password        => $anvil->Log->is_secure($peer_password), 
-		peer_ip_address      => $peer_ip_address, 
+		's1:short_host_name'      => $short_host_name, 
+		's2:peer_host_uuid'       => $peer_host_uuid, 
+		's3:peer_short_host_name' => $peer_short_host_name, 
+		's4:peer_password'        => $anvil->Log->is_secure($peer_password), 
+		's5:peer_ip_address'      => $peer_ip_address, 
 	}});
 	
 	# Get the list of resources up on the peer.
@@ -143,21 +148,20 @@ sub check_drbd
 	
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$peer_ip_address}{resource}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
 		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$peer_ip_address}{resource}{$resource}{connection}})
 		{
 			my $peer_is_me = $anvil->Network->is_local({host => $peer_name});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				peer_host_uuid       => $peer_host_uuid, 
-				peer_short_host_name => $peer_short_host_name, 
-				peer_password        => $anvil->Log->is_secure($peer_password), 
-				peer_ip_address      => $peer_ip_address, 
+				's1:peer_name'  => $peer_name,
+				's2:peer_is_me' => $peer_is_me, 
 			}});
 			
 			my $peer_connection_state  = $anvil->data->{drbd}{status}{$peer_ip_address}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
 			my $local_connection_state = exists $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{'connection-state'} ? $anvil->data->{drbd}{status}{$short_host_name}{resource}{$resource}{connection}{$peer_name}{'connection-state'} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				peer_connection_state  => $peer_connection_state, 
-				local_connection_state => $local_connection_state, 
+				's1:peer_connection_state'  => $peer_connection_state, 
+				's2:local_connection_state' => $local_connection_state, 
 			}});
 			
 			if (($peer_connection_state =~ /Connecting/i) && ($local_connection_state !~ /StandAlone/i))

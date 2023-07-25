@@ -34,11 +34,6 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-### TODO: Remove this before final release
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-##########################################
-
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
 	"clear-cache", 
@@ -51,6 +46,11 @@ $anvil->Get->switches({list => [
 	"yes"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
