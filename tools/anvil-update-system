@@ -151,8 +151,10 @@ AND
 		
 		if ($job_uuid)
 		{
+			$anvil->data->{jobs}{job_uuid}       = $job_uuid;
 			$anvil->data->{switches}{'job-uuid'} = $job_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				'jobs::job_uuid'     => $anvil->data->{jobs}{job_uuid},
 				'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'},
 			}});
 			
@@ -243,7 +245,7 @@ sub update_progress
 	my ($anvil, $progress, $message) = @_;
 	
 	# Log the progress percentage.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		progress         => $progress,
 		message          => $message, 
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid}, 
@@ -252,13 +254,13 @@ sub update_progress
 	if ($progress > 100)
 	{
 		$progress = 100;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { progress => $progress }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { progress => $progress }});
 	}
 	
 	if ($anvil->data->{jobs}{job_uuid})
 	{
 		$anvil->Job->update_progress({
-			debug    => 3, 
+			debug    => 2, 
 			'print'  => 1,
 			progress => $progress, 
 			message  => $message, 
@@ -598,6 +600,16 @@ WHERE
 		sleep 5;
 		$anvil->nice_exit({exit_code => 3});
 	}
+	
+	# Run anvil-version-changes.
+	$shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'}.$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 };
