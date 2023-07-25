@@ -2925,6 +2925,7 @@ Proceed? [y/N]</key>
 		<key name="message_0324">Update almost complete. Picked this job up after a '--no-db' run, and now we have database access again.</key>
 		<key name="message_0325">[ Note ] - It looks like 'dnf' (pid(s): [#!variable!pids!#]) is running, holding our start up until it's done (in case the system is being updated now).</key>
 		<key name="message_0326">This daemon just started. Holding off starting jobs for another: [#!variable!will_start_in!#] second(s).</key>
+		<key name="message_0327">[ Note ] - It looks like 'anvil-version-changes' (pid(s): [#!variable!pids!#]) is running, holding off on power action until it's done (in case the system is being updated now or kernel modules are being built).</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
