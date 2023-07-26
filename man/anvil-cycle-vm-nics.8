@@ -4,15 +4,15 @@
 .SH NAME
 anvil-cycle-vm-nics \- Tool used to unplug and plug virtual network cables into kvm/qemu VM network interfaces
 .SH SYNOPSIS
-.B anvil-cycle-vm-nics <server_name>
-\fI\,<command> \/\fR[\fI\,options\/\fR]
+.B anvil-cycle-vm-nics
+\fI\,<server_name> \/\fR
 .SH DESCRIPTION
 anvil-cycle-vm-nics \- This tool makes it easier to map virtual network interfaces during the configuration of VMs in a virtual Anvil! cluster.
-.SH OPTIONS
 .TP
 The tool takes the name of the server (as displayed in virsh) and the sole argument. There are no other commands.
+.SH NOTE
 .TP
-Note: This cycles NICs connected to bridges with the prefix, in order, 'bcn', 'sn', 'ifn', and 'mn'. 
+This cycles NICs connected to bridges with the prefix, in order, 'bcn', 'sn', 'ifn', and 'mn'. 
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
