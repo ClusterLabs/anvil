@@ -67,6 +67,9 @@ if (($< != 0) && ($> != 0))
 # If, so some reason, anvil.conf is lost, create it.
 $anvil->System->_check_anvil_conf();
 
+# If dnf is running, hold.
+$anvil->System->wait_on_dnf();
+
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
 $anvil->Database->connect({
@@ -117,7 +120,13 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Read switches
-$anvil->Get->switches({list => ["clear-mapping", "refresh-json", "run-once", "main-loop-only", "no-start", "startup-only"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"clear-mapping", 
+	"refresh-json", 
+	"run-once", 
+	"main-loop-only", 
+	"no-start", 
+	"startup-only"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -135,6 +144,10 @@ if ($anvil->data->{switches}{'refresh-json'})
 
 # This is used to track initial checkes / repairs of network issues.
 $anvil->data->{sys}{network}{initial_checks} = 0;
+
+# We use this to delay starting jobs for a short time.
+our $start_time = time;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 
 # There are some things we only want to run on (re)start and don't need to always run.
 run_once($anvil) if not $anvil->data->{switches}{'main-loop-only'};
@@ -668,54 +681,158 @@ sub handle_periodic_tasks
 		###       recently enough.
 		if ($host_type eq "striker")
 		{
-			# Age out old data. This takes up to a minute. 
-			$anvil->Database->_age_out_data();
-			
-			# Archive old data
-			$anvil->Database->archive_database();
-			
 			### TODO: This is here only to handle the period of time where we disabled postgres 
 			###       on boot. This should be removed sometime after 2022-08-01
-			$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
+			#$anvil->System->enable_daemon({daemon => $anvil->data->{sys}{daemon}{postgresql}});
 			
 			# Record a job, don't call it directly. It takes too long to run.
-			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh".$anvil->Log->switches, 
-				job_data        => "", 
-				job_name        => "install-target::refresh", 
-				job_title       => "job_0015", 
-				job_description => "job_0017", 
-				job_progress    => 0,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { job_uuid => $job_uuid }});
+			my $host_uuid                    = $anvil->Get->host_uuid();
+			my ($last_age_out, undef, undef) = $anvil->Database->read_variable({variable_name => "database::".$host_uuid."::aged-out"});
+			my $time_since_last_age_out      = $last_age_out =~ /^\d+$/ ? time - $last_age_out : 100000;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_uuid'               => $host_uuid, 
+				's2:last_age_out'            => $last_age_out,
+				's3:time_since_last_age_out' => $time_since_last_age_out, 
+			}});
 			
-			# Update the OUI data.
-			($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}.$anvil->Log->switches, 
-				job_data        => "", 
-				job_name        => "oui-data::refresh", 
-				job_title       => "job_0064", 
-				job_description => "job_0065", 
-				job_progress    => 0,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			# Run an age-out?
+			if ($time_since_last_age_out > 86400)
+			{
+				# Age out old data. This takes up to a minute. 
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					variable_name         => "database::".$host_uuid."::aged-out",
+					variable_value        => time,
+					variable_default      => "0", 
+					variable_description  => "striker_0302", 
+					variable_section      => "database", 
+					variable_source_uuid  => "NULL", 
+					variable_source_table => "", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				$anvil->Database->_age_out_data();
+			}
 			
-			# Scan the networks
-			($job_uuid) = $anvil->Database->insert_or_update_jobs({
-				file            => $THIS_FILE, 
-				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'striker-scan-network'}.$anvil->Log->switches, 
-				job_data        => "", 
-				job_name        => "scan-network::refresh", 
-				job_title       => "job_0066", 
-				job_description => "job_0067", 
-				job_progress    => 0,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			# Run an archive?
+			my ($last_archive, undef, undef) = $anvil->Database->read_variable({variable_name => "database::".$host_uuid."::archived"});
+			my $time_since_last_archive      = $last_archive =~ /^\d+$/ ? time - $last_archive : 100000;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:last_archive'            => $last_archive, 
+				's2:time_since_last_archive' => $time_since_last_archive,
+			}});
+			if ($time_since_last_archive > 86400)
+			{
+				# Archive old data
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					variable_name         => "database::".$host_uuid."::archived",
+					variable_value        => time,
+					variable_default      => "0", 
+					variable_description  => "striker_0303", 
+					variable_section      => "database", 
+					variable_source_uuid  => "NULL", 
+					variable_source_table => "", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				$anvil->Database->archive_database();
+			}
+			
+			# Run the install target update?
+			my ($last_mit, undef, undef) = $anvil->Database->read_variable({variable_name => "jobs::last-ran::".$host_uuid."::manage-install-target"});
+			my $time_since_last_mit      = $last_mit =~ /^\d+$/ ? time - $last_mit : 100000;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:last_mit'            => $last_mit,
+				's2:time_since_last_mit' => $time_since_last_mit, 
+			}});
+			if ($time_since_last_mit > 86400)
+			{
+				# Update the local install target data.
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					variable_name         => "jobs::last-ran::".$host_uuid."::manage-install-target",
+					variable_value        => time,
+					variable_default      => "0", 
+					variable_description  => "striker_0304", 
+					variable_section      => "jobs", 
+					variable_source_uuid  => "NULL", 
+					variable_source_table => "", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'striker-manage-install-target'}." --refresh".$anvil->Log->switches, 
+					job_data        => "", 
+					job_name        => "install-target::refresh", 
+					job_title       => "job_0015", 
+					job_description => "job_0017", 
+					job_progress    => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { job_uuid => $job_uuid }});
+			}
+			
+			# Update the OUI data?
+			my ($last_parse_oui, undef, undef) = $anvil->Database->read_variable({variable_name => "jobs::last-ran::striker-parse-oui"});
+			my $time_since_last_parse_oui      = $last_parse_oui =~ /^\d+$/ ? time - $last_parse_oui : 100000;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:last_parse_oui'            => $last_parse_oui, 
+				's2:time_since_last_parse_oui' => $time_since_last_parse_oui, 
+			}});
+			if ($time_since_last_parse_oui > 86400)
+			{
+				# Yup.
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					variable_name         => "jobs::last-ran::striker-parse-oui",
+					variable_value        => time,
+					variable_default      => "0", 
+					variable_description  => "striker_0305", 
+					variable_section      => "jobs", 
+					variable_source_uuid  => "NULL", 
+					variable_source_table => "", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'striker-parse-oui'}.$anvil->Log->switches, 
+					job_data        => "", 
+					job_name        => "oui-data::refresh", 
+					job_title       => "job_0064", 
+					job_description => "job_0065", 
+					job_progress    => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			}
+			
+			# Scan the network?
+			my ($last_network_scan, undef, undef) = $anvil->Database->read_variable({variable_name => "jobs::last-ran::striker-scan-network"});
+			my $time_since_last_network_scan      = $last_network_scan =~ /^\d+$/ ? time - $last_network_scan : 100000;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:last_network_scan'            => $last_network_scan,
+				's2:time_since_last_network_scan' => $time_since_last_network_scan, 
+			}});
+			if ($time_since_last_parse_oui > 86400)
+			{
+				# Yup.
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					variable_name         => "jobs::last-ran::striker-scan-network",
+					variable_value        => time,
+					variable_default      => "0", 
+					variable_description  => "striker_0306", 
+					variable_section      => "jobs", 
+					variable_source_uuid  => "NULL", 
+					variable_source_table => "", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					file            => $THIS_FILE, 
+					line            => __LINE__, 
+					job_command     => $anvil->data->{path}{exe}{'striker-scan-network'}.$anvil->Log->switches, 
+					job_data        => "", 
+					job_name        => "scan-network::refresh", 
+					job_title       => "job_0066", 
+					job_description => "job_0067", 
+					job_progress    => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			}
 		}
 		
 		# Update the next check time.
@@ -1402,11 +1519,31 @@ sub keep_running
 sub run_jobs
 {
 	my ($anvil, $startup) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { startup => $startup }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup => $startup }});
+	
+	# Don't start jobs for 30 seconds after startup.
+	if (not $startup)
+	{
+		my $time_since_start = time - $start_time;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			time_since_start => $time_since_start,
+			start_time       => $start_time,
+		}});
+		if ($time_since_start < 60)
+		{
+			# Log that we'll start jobs in X seconds.
+			my $will_start_in = 60 - $time_since_start;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0326", variables => { will_start_in => $will_start_in }});
+			return(0);
+		}
+	}
 	
 	# This will be set to 1 if any jobs are not complete, preventing a restart of the daemon if it's 
 	# changed on disk.
 	$anvil->data->{sys}{jobs_running} = 0;
+	
+	# If we're not configured, we won't hold on starting jobs
+	my $configured = $anvil->System->check_if_configured;
 	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
@@ -1482,7 +1619,7 @@ sub run_jobs
 			}
 			
 			# If this is a start-up call, only start jobs whose status is 'anvil_startup'.
-			if (($startup) && ($job_status ne "anvil_startup"))
+			if (($startup) && ($configured) && ($job_status ne "anvil_startup"))
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0639", variables => { 
 					job_uuid    => $job_uuid,

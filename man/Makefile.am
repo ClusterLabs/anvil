@@ -17,15 +17,23 @@ dist_man8_MANS		= \
 			  anvil-manage-alerts.8 \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \
-			  anvil-manage-keys.1 \
 			  anvil-manage-power.8 \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
+			  anvil-report-usage.8 \
+			  anvil-safe-start.8 \
+			  anvil-safe-stop.8 \
+			  anvil-shutdown-server.8 \
 			  anvil-special-operations.8 \
+			  anvil-update-system.8 \
 			  anvil-watch-drbd.8 \
 			  scancore.8 \
 			  striker-check-machines.8 \
 			  striker-collect-debug.8 \
 			  striker-initialize-host.8 \
 			  striker-update-cluster.8 
+
+
+
+

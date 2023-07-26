@@ -29,6 +29,12 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .TP
 This will force the dnf cache to be cleared before the OS update is started. This slows the update down a bit, but ensures the latest updates are installed.
 .TP
+\fB\-\-no\-db\fR
+.TP
+This tells the update tool to run without a database connection. This is needed if the Striker dashboards are already updated, and the local system may no longer be able to talk to them.
+.TP
+NOTE: After the OS update is complete, an attempt will be made to connect to the database(s). This allows for registering a request to reboot if needed.
+.TP
 \fB\-\-no\-reboot\fR
 .TP
 If the kernel is updated, the system will normally be rebooted. This switch prevents the reboot from occuring.

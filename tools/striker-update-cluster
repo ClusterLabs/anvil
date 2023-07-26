@@ -34,11 +34,6 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-### TODO: Remove this before final release
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-##########################################
-
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
 	"clear-cache", 
@@ -46,10 +41,16 @@ $anvil->Get->switches({list => [
 	"no-reboot", 
 	"reboot", 
 	"reboot-self", 
+	"timeout", 
 	"y", 
 	"yes"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+### TODO: Remove this before final release
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+##########################################
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
@@ -145,6 +146,8 @@ update_strikers_and_dr($anvil);
 # Update DR Host
 update_nodes($anvil);
 
+manage_daemons($anvil, "start");
+
 print "Updates complete!\n";
 
 my $host_uuid       = $anvil->Get->host_uuid;
@@ -202,6 +205,7 @@ sub update_nodes
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		my $primary_host_uuid     = $anvil->Cluster->get_primary_host_uuid({anvil_uuid => $anvil_uuid});
+		   $primary_host_uuid     = $anvil_node1_host_uuid if not $primary_host_uuid;
 		my $secondary_host_uuid   = $primary_host_uuid eq $anvil_node1_host_uuid ? $anvil_node2_host_uuid : $anvil_node1_host_uuid;
 		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name};
 		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node2_host_uuid}{short_host_name};
@@ -235,18 +239,21 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
 			$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
 			$anvil->data->{peer}{$short_host_name}{access}{network} = "";
-			foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+			foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 				foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 				{
-					next if $network_name !~ /^$preferred_network/;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+					if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+					{
+						next;
+					}
 					my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 					my $test_access = $anvil->Remote->test_access({target => $target_ip});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:network_name' => $network_name, 
-						's2:target_ip'    => $target_ip, 
-						's3:test_access'  => $test_access, 
+						's1:target_ip'   => $target_ip, 
+						's2:test_access' => $test_access, 
 					}});
 					
 					if ($test_access)
@@ -258,7 +265,7 @@ sub update_nodes
 							"s1:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
 							"s2:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
 						}});
-						print "- Access found uver the: [".$network_name."] networking using the IP: [".$target_ip."]\n";
+						print "- Access found over the: [".$network_name."] networking using the IP: [".$target_ip."]\n";
 						last;
 					}
 				}
@@ -310,26 +317,12 @@ sub update_nodes
 			print "- [ Note ] - If the node has servers that need to be migrated off, or if the node is SyncSource for storage,\n";
 			print "- [ Note ] - this could take some time to complete.\n";
 			
-			# Register an anvil-safe-stop job and then wait.
-			my $job_uuid = $anvil->Database->insert_or_update_jobs({
-				debug           => 2,
-				job_command     => $anvil->data->{path}{exe}{'anvil-safe-stop'},
-				job_host_uuid   => $host_uuid,
-				job_description => "job_0339",
-				job_name        => "cgi-bin::set_membership::leave",
-				job_progress    => 0,
-				job_title       => "job_0338"
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-			print "- [ Note ] - Job registered with UUID: [".$job_uuid."], waiting for it to complete.\n";
-			
-			# Log into the target machine and make sure anvil-daemon is running.
-			print "- Making sure anvil-daemon is running... ";
-			my $shell_call = $anvil->data->{path}{exe}{systemctl}." enable --now anvil-daemon.service";
+			# Make sure VMs are off, DRBD is down and the node is out of the cluster. Call this 
+			# with nohup so it doesn't get killed by the loss of the SSH connection.
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --no-db".$anvil->Log->switches()." >/dev/null 2>&1 &";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
 			my ($output, $error, $return_code) = $anvil->Remote->call({
-				'close'    => 1,
-				no_cache   => 1,
 				shell_call => $shell_call, 
 				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 			});
@@ -338,84 +331,115 @@ sub update_nodes
 				error       => $error,
 				return_code => $return_code,
 			}});
-			if (not $return_code)
-			{
-				print " running.\n";
-			}
-			else
-			{
-				print " not running!\n";
-			}
 			
-			# Verify that the node is no longer in the cluster.
-			my $waiting  = 1;
-			my $next_log = time + 60;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+			# Now wait for DRBD resources to stop (which requires VMs be off).
+			print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+			my $wait_until = time + $anvil->data->{switches}{timeout};
+			my $next_log   = time + 60;
+			my $waiting    = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				wait_until => $wait_until, 
+				next_log   => $next_log,
+				waiting    => $waiting,
+			}});
 			while ($waiting)
 			{
+				my $drbd_up      = 0;
+				my $pacemaker_up = 0;
+				$anvil->DRBD->get_status({
+					host   => $short_host_name, 
+					target => $anvil->data->{peer}{$short_host_name}{access}{ip},
+				});
+				
+				# How may resources are up?
+				my $resource_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_count => $resource_count }});
+				
+				if ($resource_count)
+				{
+					# DRBD is still up.
+					$drbd_up = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_up => $drbd_up }});
+				}
+				
+				# Is pacemaker down?
 				my $problem = $anvil->Cluster->parse_cib({target => $anvil->data->{peer}{$short_host_name}{access}{ip}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				
-				if ($problem)
+				if (not $problem)
 				{
-					# This is good, it didn't parse so it's out of the cluster.
-					print "- The subnode is out of the node cluster. Proceeding.\n";
+					# Node is still in the cluster.
+					$pacemaker_up = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pacemaker_up => $pacemaker_up }});
+				}
+				
+				if ((not $pacemaker_up) && (not $drbd_up))
+				{
 					$waiting = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 				}
-				else
+				
+				if ($waiting)
 				{
+					# Log which resources are still up
 					if (time > $next_log)
 					{
-						$anvil->Job->get_job_details({job_uuid => $job_uuid});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"jobs::job_progress" => $anvil->data->{jobs}{job_progress},
-							"jobs::job_data"     => $anvil->data->{jobs}{job_data},
-						}});
-						if ($anvil->data->{jobs}{job_progress} == 0)
+						my $say_time = $anvil->Get->date_and_time({time_only => 1});
+						if ($pacemaker_up)
 						{
-							print "[ Warning ] - The job has not been picked up yet. Is 'anvil-daemon' running on: [".$short_host_name."]?\n";
+							print "[ Note ] - [".$say_time."] - The subnode is still in the cluster.\n";
 						}
 						else
 						{
-							print "[ Note ] - [".$anvil->Get->date_and_time({time_only => 1})."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
+							print "[ Note ] - [".$say_time."] - The subnode is no longer in the cluster, good.\n";
 						}
-						$next_log = time + 60;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+						
+						foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
+						{
+							print "[ Note ] - [".$say_time."] - The resource: [".$resource."] is still up.\n";
+						}
+						   $next_log      = time + 60;
+						my $time_left     = $wait_until - time;
+						my $say_time_left = $anvil->Convert->time({
+							'time'    => $time_left,
+							translate => 1,
+							long      => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							next_log      => $next_log,
+							time_left     => $time_left, 
+							say_time_left => $say_time_left, 
+						}});
+						print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
 					}
-					sleep 5;
+					if (time > $wait_until)
+					{
+						# Timeout.
+						print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to stop all DRBD resources nad leave the cluster. Aborting the update.\n";
+						$anvil->nice_exit({exit_code => 1});
+					}
+					
+					sleep 10;
 				}
 			}
 			
-			# Record the start time so that we can be sure the subnode has rebooted (uptime is 
-			# less than the current time minus this start time), if the host reboots as part of 
-			# the update.
-			my $reboot_time = time;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				reboot_time     => $reboot_time,
-				short_host_name => $short_host_name, 
-			}});
-			
-			# Do the OS update.
-			print "- Beginning OS update of: [".$short_host_name."]\n";
-			my $rebooted   = 0;
-			   $shell_call = $anvil->data->{path}{exe}{'anvil-update-system'};
+			my $update_switches = "";
 			if ($anvil->data->{switches}{'no-reboot'})
 			{
-				$shell_call .= " --no-reboot";
-			}
-			if ($anvil->data->{switches}{'clear-cache'})
-			{
-				$shell_call .= " --clear-cache";
+				$update_switches .= " --no-reboot";
 			}
 			if ($anvil->data->{switches}{reboot})
 			{
-				$shell_call .= " --reboot";
+				$update_switches .= " --reboot";
 			}
-			$shell_call .= $anvil->Log->switches();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_switches => $update_switches }});
+			
+			# We register a job, even though anvil-daemon isn't running. This will get picked up 
+			# by 'anvil-update-systems --no-db' towards the end of it's run.
+			print "- Registering a job to update the subnode, which we can track to confirm when the update is done.\n";
+			$shell_call = $anvil->data->{path}{exe}{'anvil-update-system'}.$update_switches.$anvil->Log->switches();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			$job_uuid = "";
-			$job_uuid = $anvil->Database->insert_or_update_jobs({
+			my $job_uuid = $anvil->Database->insert_or_update_jobs({
 				debug           => 2,
 				job_command     => $shell_call,
 				job_description => "job_0468",
@@ -427,10 +451,47 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			print "- [ Note ] - Job registered with UUID: [".$job_uuid."], waiting for it to complete.\n";
 			
+			# Now call anvil-update-system with --no-db and background it so we can close
+			# the DB connection without killing the process.
+			print "- Calling the no-database update of: [".$short_host_name."]\n";
+			$shell_call = $anvil->data->{path}{exe}{nohup}." ".$anvil->data->{path}{exe}{'anvil-update-system'}." --no-db".$update_switches;
+			if ($anvil->data->{switches}{'clear-cache'})
+			{
+				# We'll only call clear-cache on this one.
+				$shell_call .= " --clear-cache";
+			}
+			$shell_call .= $anvil->Log->switches()." >/dev/null 2>&1 &";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $error, $return_code) = $anvil->Remote->call({
+				shell_call => $shell_call, 
+				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				error       => $error,
+				return_code => $return_code,
+			}});
+			
+			# Record the start time so that we can be sure the subnode has rebooted (uptime is 
+			# less than the current time minus this start time), if the host reboots as part of 
+			# the update.
+			my $rebooted    = 0;
+			my $reboot_time = time;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				rebooted        => $rebooted, 
+				reboot_time     => $reboot_time,
+				short_host_name => $short_host_name, 
+			}});
+			
 			# Verify that the node is no longer in the cluster.
-			$waiting  = 1;
-			$next_log = time + 60;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+			$wait_until = time + $anvil->data->{switches}{timeout};
+			$waiting    = 1;
+			$next_log   = time + 60;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				wait_until => $wait_until, 
+				next_log   => $next_log,
+			}});
 			while ($waiting)
 			{
 				$anvil->Job->get_job_details({job_uuid => $job_uuid});
@@ -440,7 +501,7 @@ sub update_nodes
 				}});
 				if ($anvil->data->{jobs}{job_progress} == 100)
 				{
-					print "- Done! The host: [".$short_host_name."] has been updated\n";
+					print "- Done! The subnode: [".$short_host_name."] has been updated\n";
 					$waiting = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 					
@@ -461,18 +522,34 @@ sub update_nodes
 				}
 				else
 				{
+					my $say_date = $anvil->Get->date_and_time({time_only => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_date => $say_date }});
 					if (time > $next_log)
 					{
-						if ($anvil->data->{jobs}{job_progress} == 0)
+						print "[ Note ] - [".$say_date."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
+						if ($anvil->data->{jobs}{job_progress} eq "0")
 						{
-							print "[ Warning ] - The job has not been picked up yet. Is 'anvil-daemon' running on: [".$short_host_name."]?\n";
+							print "[ Note ] - [".$say_date."] - It is expected for the job to stay at '0' for a while.\n";
 						}
-						else
-						{
-							print "[ Note ] - [".$anvil->Get->date_and_time({time_only => 1})."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
-						}
-						$next_log = time + 60;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+						   $next_log      = time + 60;
+						my $time_left     = $wait_until - time;
+						my $say_time_left = $anvil->Convert->time({
+							'time'    => $time_left,
+							translate => 1,
+							long      => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							next_log      => $next_log,
+							time_left     => $time_left, 
+							say_time_left => $say_time_left, 
+						}});
+						print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+					}
+					if (time > $wait_until)
+					{
+						# Timeout.
+						print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to update. Aborting the update.\n";
+						$anvil->nice_exit({exit_code => 1});
 					}
 					sleep 5;
 				}
@@ -488,7 +565,6 @@ sub update_nodes
 			else
 			{
 				print "- Reboot not needed, kernel appears to be up to date.\n";
-				
 				$run_anvil_safe_start = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { run_anvil_safe_start => $run_anvil_safe_start }});
 			}
@@ -496,15 +572,16 @@ sub update_nodes
 			# Wait for the node to rejoin the cluster. As before, this is a time 
 			# unrestricted wait loop.
 			print "- Waiting for the subnode to rejoin the node.\n";
+			   $wait_until   = time + $anvil->data->{switches}{timeout};
 			   $waiting      = 1;
 			my $start_called = 0; 
 			   $next_log     = time + 60;
 			my $manual_start = time + 60; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				next_log     => $next_log,
-				manual_start => $manual_start, 
+				's1:wait_until'   => $wait_until, 
+				's2:next_log'     => $next_log,
+				's3:manual_start' => $manual_start, 
 			}});
-			
 			while($waiting)
 			{
 				# Should we call a start to the cluster?
@@ -512,7 +589,7 @@ sub update_nodes
 				{
 					print "- Calling 'anvil-safe-start' to rejoin the subnode to the node.\n";
 					   $start_called = 1;
-					my $shell_call   = $anvil->data->{path}{exe}{'anvil-safe-start'};
+					my $shell_call   = $anvil->data->{path}{exe}{'anvil-safe-start'}.$anvil->Log->switches()." >/dev/null 2>&1 &";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						start_called => $start_called,
 						shell_call   => $shell_call,
@@ -659,8 +736,30 @@ sub update_nodes
 				
 				if (time > $next_log)
 				{
-					$next_log = time + 60;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+					my $say_time      = $anvil->Get->date_and_time({time_only => 1});
+					   $next_log      = time + 60;
+					my $time_left     = $wait_until - time;
+					my $say_time_left = $anvil->Convert->time({
+						'time'    => $time_left,
+						translate => 1,
+						long      => 0,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:say_time'      => $say_time, 
+						's2:next_log'      => $next_log,
+						's3:time_left'     => $time_left, 
+						's4:say_time_left' => $say_time_left, 
+					}});
+					
+					# Tell the user we're still waiting.
+					print "- [".$say_time."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
+					print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+				}
+				if (time > $wait_until)
+				{
+					# Timeout.
+					print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to join the subcluster. Aborting the update.\n";
+					$anvil->nice_exit({exit_code => 1});
 				}
 				
 				if ($waiting)
@@ -707,13 +806,58 @@ sub update_strikers_and_dr
 {
 	my ($anvil) = @_;
 	
+	# Before we start, set the timeouts.
+	if ($anvil->data->{switches}{timeout})
+	{
+		if ($anvil->data->{switches}{timeout} =~ /^(\d+)h/i)
+		{
+			my $hours                            = $1;
+			   $anvil->data->{switches}{timeout} = $hours * 3600;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				hours               => $hours,
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+		elsif ($anvil->data->{switches}{timeout} =~ /^(\d+)m/i)
+		{
+			my $minutes                          = $1;
+			   $anvil->data->{switches}{timeout} = $minutes * 60;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				minutes             => $minutes,
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+		else
+		{
+			# Set the default.
+			print "[ Warning ] - The passed timeout: [".$anvil->data->{switches}{timeout}."] is invalid, setting it to 24 hours.\n";
+			$anvil->data->{switches}{timeout} = 86400;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"switches::timeout" => $anvil->data->{switches}{timeout},
+			}});
+		}
+	}
+	else
+	{
+		$anvil->data->{switches}{timeout} = 86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::timeout" => $anvil->data->{switches}{timeout},
+		}});
+	}
+	
+	# Make sure the timeout, if set, is valid.
+	if ($anvil->data->{switches}{timeout})
+	{
+		if ($anvil->data->{switches}{timeout} =~ /\D/)
+		{
+			# Invalid, error out.
+			print "The --timeout switch was used: [".$anvil->data->{switches}{timeout}."], but the value isn't a number of seconds.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
 	foreach my $host_type ("striker", "dr")
 	{
-		if ($host_type eq "dr")
-		{
-			# Restart daemons.
-			manage_daemons($anvil, "start");
-		}
 		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
 			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
@@ -859,20 +1003,102 @@ sub update_strikers_and_dr
 			{
 				# Call anvil-update-system and then wait.
 				print "- Beginning OS update of: [".$short_host_name."]\n";
-				my $shell_call = $anvil->data->{path}{exe}{'anvil-update-system'};
+				if ($host_type eq "dr")
+				{
+					# Make sure VMs are off and DRBD is down. Call this with nohup so it 
+					# doesn't get killed by the loss of the SSH connection.
+					my $shell_call = $anvil->data->{path}{exe}{'anvil-safe-stop'}." --no-db".$anvil->Log->switches()." >/dev/null 2>&1 &";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $error, $return_code) = $anvil->Remote->call({
+						shell_call => $shell_call, 
+						target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						error       => $error,
+						return_code => $return_code,
+					}});
+					
+					# Now wait for DRBD resources to stop (which requires VMs be off).
+					print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+					my $wait_until = time + $anvil->data->{switches}{timeout};
+					my $next_log   = time + 60;
+					my $waiting    = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						wait_until => $wait_until, 
+						next_log   => $next_log,
+						waiting    => $waiting,
+					}});
+					while ($waiting)
+					{
+						my $drbd_up = 0;
+						$anvil->DRBD->get_status({
+							host   => $short_host_name, 
+							target => $anvil->data->{peer}{$short_host_name}{access}{ip},
+						});
+						
+						# How may resources are up?
+						my $resource_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_count => $resource_count }});
+						
+						if (not $resource_count)
+						{
+							# Done!
+							$waiting = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+						}
+						
+						if ($waiting)
+						{
+							# Log which resources are still up
+							if (time > $next_log)
+							{
+								foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
+								{
+									print "[ Note ] - [".$anvil->Get->date_and_time({time_only => 1})."] - The resource: [".$resource."] is still up.\n";
+								}
+								   $next_log      = time + 60;
+								my $time_left     = $wait_until - time;
+								my $say_time_left = $anvil->Convert->time({
+									'time'    => $time_left,
+									translate => 1,
+						  			long      => 0,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									next_log      => $next_log,
+									time_left     => $time_left, 
+									say_time_left => $say_time_left, 
+								}});
+								print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+							}
+							if (time > $wait_until)
+							{
+								# Timeout.
+								print "[ Error ] - Timed out while waiting for the DR host: [".$short_host_name."] to stop all DRBD resources. Aborting the update.\n";
+								$anvil->nice_exit({exit_code => 1});
+							}
+							
+							sleep 10;
+						}
+					}
+				}
+				
+				my $update_switches = "";
 				if ($anvil->data->{switches}{'no-reboot'})
 				{
-					$shell_call .= " --no-reboot";
-				}
-				if ($anvil->data->{switches}{'clear-cache'})
-				{
-					$shell_call .= " --clear-cache";
+					$update_switches .= " --no-reboot";
 				}
 				if ($anvil->data->{switches}{reboot})
 				{
-					$shell_call .= " --reboot";
+					$update_switches .= " --reboot";
 				}
-				$shell_call .= $anvil->Log->switches();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update_switches => $update_switches }});
+				
+				# We register a job, even though anvil-daemon isn't running. This will get 
+				# picked up by 'anvil-update-systems --no-db' towards the end of it's run.
+				print "- Registering a job to update the system, which we can track to confirm when the update is done.\n";
+				my $shell_call = $anvil->data->{path}{exe}{'anvil-update-system'}.$update_switches.$anvil->Log->switches();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my $job_uuid = $anvil->Database->insert_or_update_jobs({
 					debug           => 2,
@@ -886,13 +1112,19 @@ sub update_strikers_and_dr
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 				print "- [ Note ] - Job registered with UUID: [".$job_uuid."], waiting for it to complete.\n";
 				
-				# Log into the target machine and make sure anvil-daemon is running.
-				print "- Making sure anvil-daemon is running... ";
-				$shell_call = $anvil->data->{path}{exe}{systemctl}." start anvil-daemon.service";
+				# Now call anvil-update-system with --no-db and background it so we can close
+				# the DB connection without killing the process.
+				print "- Calling the no-database update of: [".$short_host_name."]\n";
+				$shell_call = $anvil->data->{path}{exe}{nohup}." ".$anvil->data->{path}{exe}{'anvil-update-system'}." --no-db".$update_switches;
+				if ($anvil->data->{switches}{'clear-cache'})
+				{
+					# We'll only call clear-cache on this one.
+					$shell_call .= " --clear-cache";
+				}
+				$shell_call .= $anvil->Log->switches()." >/dev/null 2>&1 &";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
 				my ($output, $error, $return_code) = $anvil->Remote->call({
-					'close'    => 1,
-					no_cache   => 1,
 					shell_call => $shell_call, 
 					target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 				});
@@ -901,18 +1133,11 @@ sub update_strikers_and_dr
 					error       => $error,
 					return_code => $return_code,
 				}});
-				if (not $return_code)
-				{
-					print " running.\n";
-				}
-				else
-				{
-					print " not running!\n";
-				}
 				
-				# Verify that the node is no longer in the cluster.
-				my $waiting  = 1;
-				my $next_log = time + 60;
+				# Verify / wait until the update is done.
+				my $wait_until = time + $anvil->data->{switches}{timeout};
+				my $waiting    = 1;
+				my $next_log   = time + 60;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 				while ($waiting)
 				{
@@ -946,16 +1171,31 @@ sub update_strikers_and_dr
 					{
 						if (time > $next_log)
 						{
+							my $say_date = $anvil->Get->date_and_time({time_only => 1});
+							print "[ Note ] - [".$say_date."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
 							if ($anvil->data->{jobs}{job_progress} == 0)
 							{
-								print "[ Warning ] - The job has not been picked up yet. Is 'anvil-daemon' running on: [".$short_host_name."]?\n";
+								print "[ Note ] - [".$say_date."] - It is normal for the job to show '0' progress until the database access is restored.\n";
 							}
-							else
-							{
-								print "[ Note ] - [".$anvil->Get->date_and_time({time_only => 1})."] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
-							}
-							$next_log = time + 60;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+							   $next_log      = time + 60;
+							my $time_left     = $wait_until - time;
+							my $say_time_left = $anvil->Convert->time({
+								'time'    => $time_left,
+								translate => 1,
+								long      => 0,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								next_log      => $next_log,
+								time_left     => $time_left, 
+								say_time_left => $say_time_left, 
+							}});
+							print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+						}
+						if (time > $wait_until)
+						{
+							# Timeout.
+							print "[ Error ] - Timed out while waiting for the machine: [".$short_host_name."] to update the OS. Aborting the update.\n";
+							$anvil->nice_exit({exit_code => 1});
 						}
 						sleep 5;
 					}
@@ -991,6 +1231,8 @@ sub update_strikers_and_dr
 			else
 			{
 				($output, $error, $return_code) = $anvil->Remote->call({
+					'close'    => 1,
+					no_cache   => 1,
 					shell_call => $shell_call, 
 					target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 				});
@@ -1025,8 +1267,9 @@ sub wait_for_reboot
 	print "- The target has been rebooted. We'll wait for the target to come back online.\n";
 	
 	# This is an infinite loop, there is no timeout for this.
-	my $waiting  = 1;
-	my $next_log = time + 60;
+	my $wait_until = time + $anvil->data->{switches}{timeout};
+	my $waiting    = 1;
+	my $next_log   = time + 60;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 	while($waiting)
 	{
@@ -1064,10 +1307,30 @@ sub wait_for_reboot
 		{
 			if (time > $next_log)
 			{
+				my $say_time      = $anvil->Get->date_and_time({time_only => 1});
+				   $next_log      = time + 60;
+				my $time_left     = $wait_until - time;
+				my $say_time_left = $anvil->Convert->time({
+					'time'    => $time_left,
+					translate => 1,
+					long      => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:say_time'      => $say_time, 
+					's2:next_log'      => $next_log,
+					's3:time_left'     => $time_left, 
+					's4:say_time_left' => $say_time_left, 
+				}});
+				
 				# Tell the user we're still waiting.
-				print "- [".$anvil->Get->date_and_time({time_only => 1})."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
-				$next_log = time + 60;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+				print "- [".$say_time."] - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
+				print "- Waiting for another: [".$say_time_left."], will check again shortly.\n";
+			}
+			if (time > $wait_until)
+			{
+				# Timeout.
+				print "[ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to reboot. Aborting the update.\n";
+				$anvil->nice_exit({exit_code => 1});
 			}
 			
 			sleep 5;
@@ -1222,14 +1485,17 @@ sub verify_access
 			
 			$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
 			$anvil->data->{peer}{$short_host_name}{access}{network} = "";
-			foreach my $preferred_network ("bcn", "mn", "ifn", "sn")
+			foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
 			{
 				next if $anvil->data->{peer}{$short_host_name}{access}{ip};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 				foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
-					next if $network_name !~ /^$preferred_network/;
+					if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+					{
+						next;
+					}
 					
 					my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
 					my $test_access = $anvil->Remote->test_access({

@@ -23,10 +23,10 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
-\fB\-\-job-uuid\fR <uuid>
+\fB\-\-job\-uuid\fR <uuid>
 This is set to the job UUID when the request to boot is coming from a database job. When set, the referenced job will be updated and marked as complete / failed when the run completes.
 .TP
-\fB\-\-no-wait\fR
+\fB\-\-no\-wait\fR
 This controls whether the request to boot the server waits for the server to actually boot up before returning. Normally, the program will check every couple of seconds to see if the server has actually booted before returning. Setting this tells the program to return as soon as the request to boot the server has been passed on to the resource manager.
 .TP
 \fB\-\-server\fR <all|name|uuid>
@@ -34,7 +34,7 @@ This is either 'all', the name, or server UUID (as set in the definition XML) of
 .TP
 When set to 'all', all servers assigned to the local sub-cluster are booted. Servers on other Anvil! nodes are not started. 
 .TP
-\fB\-\-server-uuid\fR <uuid>
+\fB\-\-server\-uuid\fR <uuid>
 This is the server UUID of the server to boot. Generally this isn't needed, except when two servers somehow share the same name. This should not be possible, but this option exists in case it happens anyway.
 .TP
 \fB\-\-wait\fR

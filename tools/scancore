@@ -67,6 +67,9 @@ $anvil->data->{scancore} = {
 
 $anvil->Storage->read_config();
 
+# If dnf is running, hold.
+$anvil->System->wait_on_dnf();
+
 # Read switches
 $anvil->Get->switches({list => ["purge", "run-once"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
@@ -431,10 +434,12 @@ sub startup_tasks
 	
 	# This used to call anvil-safe-start, which isn't done here anymore.
 	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
-	if ($host_type eq "node")
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if (($host_type eq "node") or ($host_type eq "dr"))
 	{
-		# For future use.
+		# Call DRBD->get_status because, if we're just starting up and the kernel module needs to be
+		# built, do it before we start calling scan agents.
+		$anvil->DRBD->get_status({debug => 2});
 	}
 	elsif ($host_type eq "striker")
 	{

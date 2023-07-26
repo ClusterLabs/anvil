@@ -46,6 +46,7 @@ my $THIS_FILE = "System.pm";
 # stop_daemon
 # stty_echo
 # update_hosts
+# wait_on_dnf
 # _check_anvil_conf
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
@@ -4440,7 +4441,7 @@ sub reload_daemon
 
 This sets, clears or checks if the local system needs to be restart.
 
-This returns C<< 1 >> if a reset is currently needed and C<< 0 >> if not.
+This returns C<< 1 >> if a reset is currently needed and C<< 0 >> if not. In most cases, this is recorded in the database (variables -> variable_name = 'reboot::needed'). If there are no available databases, then the cache file '/tmp/anvil.reboot-needed' will be used, which wil contain the digit '0' or '1'.
 
 Parameters;
 
@@ -4460,6 +4461,8 @@ sub reboot_needed
 	my $set = defined $parameter->{set} ? $parameter->{set} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
 	
+	my $cache_file = $anvil->data->{path}{data}{reboot_cache};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cache_file => $cache_file }});
 	if (($set) or ($set eq "0"))
 	{
 		### TODO: stop other systems from using this database.
@@ -4467,34 +4470,67 @@ sub reboot_needed
 		if ($set eq "1")
 		{
 			# Set
-			$anvil->Database->insert_or_update_variables({
-				debug                 => $debug,
-				file                  => $THIS_FILE,
-				line                  => __LINE__,
-				variable_name         => "reboot::needed", 
-				variable_value        => "1", 
-				variable_default      => "0", 
-				variable_description  => "striker_0089", 
-				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-			});
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				$anvil->Database->insert_or_update_variables({
+					debug                 => $debug,
+					file                  => $THIS_FILE,
+					line                  => __LINE__,
+					variable_name         => "reboot::needed", 
+					variable_value        => "1", 
+					variable_default      => "0", 
+					variable_description  => "striker_0089", 
+					variable_section      => "system", 
+					variable_source_uuid  => $anvil->Get->host_uuid, 
+					variable_source_table => "hosts", 
+				});
+			}
+			else
+			{
+				# Record that a reboot is needed in a temp file.
+				my $failed = $anvil->Storage->write_file({
+					debug     => $debug,
+					overwrite => 1, 
+					file      => $cache_file, 
+					body      => 1, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			}
 		}
 		elsif ($set eq "0")
 		{
 			# Clear
-			$anvil->Database->insert_or_update_variables({
-				debug                 => $debug,
-				file                  => $THIS_FILE,
-				line                  => __LINE__,
-				variable_name         => "reboot::needed", 
-				variable_value        => "0", 
-				variable_default      => "0", 
-				variable_description  => "striker_0089", 
-				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-			});
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				$anvil->Database->insert_or_update_variables({
+					debug                 => $debug,
+					file                  => $THIS_FILE,
+					line                  => __LINE__,
+					variable_name         => "reboot::needed", 
+					variable_value        => "0", 
+					variable_default      => "0", 
+					variable_description  => "striker_0089", 
+					variable_section      => "system", 
+					variable_source_uuid  => $anvil->Get->host_uuid, 
+					variable_source_table => "hosts", 
+				});
+			}
+			else
+			{
+				my $failed = $anvil->Storage->write_file({
+					debug     => $debug,
+					overwrite => 1, 
+					file      => $cache_file, 
+					body      => 0, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			}
 		}
 		else
 		{
@@ -4504,19 +4540,32 @@ sub reboot_needed
 		}
 	}
 	
-	my ($reboot_needed, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
-		debug                 => $debug, 
-		file                  => $THIS_FILE,
-		line                  => __LINE__,
-		variable_name         => "reboot::needed",
-		variable_source_table => "hosts",
-		variable_source_uuid  => $anvil->Get->host_uuid,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		reboot_needed => $reboot_needed, 
-		variable_uuid => $variable_uuid, 
-		modified_date => $modified_date, 
-	}});
+	# Read from the cache file, if it exists. 
+	my $reboot_needed = 0;
+	if (-e $cache_file)
+	{
+		$reboot_needed = $anvil->Storage->read_file({
+			debug => $debug,
+			file  => $cache_file,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reboot_needed => $reboot_needed }});
+	}
+	elsif ($anvil->data->{sys}{database}{connections})
+	{
+		($reboot_needed, my $variable_uuid, my $modified_date) = $anvil->Database->read_variable({
+			debug                 => $debug, 
+			file                  => $THIS_FILE,
+			line                  => __LINE__,
+			variable_name         => "reboot::needed",
+			variable_source_table => "hosts",
+			variable_source_uuid  => $anvil->Get->host_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			reboot_needed => $reboot_needed, 
+			variable_uuid => $variable_uuid, 
+			modified_date => $modified_date, 
+		}});
+	}
 	
 	if ($reboot_needed eq "")
 	{
@@ -5336,6 +5385,60 @@ sub update_hosts
 			mode      => "0644", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+	}
+	
+	return(0);
+}
+
+=head2 wait_on_dnf
+
+This method checks to see if 'dnf' is running and, if so, won't return until it finishes. This is useful when holding off doing certain tasks, like building kernel modules, while an OS update is under way.
+
+This method takes no parameters.
+
+=cut
+sub wait_on_dnf
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->wait_on_dnf()" }});
+	
+	my $next_log = time - 1;
+	my $waiting  = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		next_log => $next_log, 
+		waiting  => $waiting,
+	}});
+	while ($waiting)
+	{
+		my $pids = $anvil->System->pids({program_name => $anvil->data->{path}{exe}{dnf}, debug => $debug});
+		my $dnf_instances = @{$pids};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { dnf_instances => $dnf_instances }});
+		
+		if ($dnf_instances)
+		{
+			if (time > $next_log)
+			{
+				my $say_pids = "";
+				foreach my $pid (@{$pids})
+				{
+					$say_pids .= $pid.", ";
+				}
+				$say_pids =~ s/, $//;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0325", variables => { pids => $say_pids }});
+				
+				$next_log = time + 60;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { next_log => $next_log }});
+			}
+			sleep 10;
+		}
+		else
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+		}
 	}
 	
 	return(0);

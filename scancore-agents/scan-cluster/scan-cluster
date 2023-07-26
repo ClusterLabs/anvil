@@ -102,6 +102,9 @@ check_fence_delay($anvil);
 # Check for failed resources or resources that need updates
 check_resources($anvil);
 
+# Check for stale data in the CIB and clean up any that are found
+cib_cleanup($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -109,6 +112,98 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+
+sub cib_cleanup
+{
+	my ($anvil) = @_;
+	
+	my $problem = $anvil->Cluster->parse_cib({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Not in a cluster
+		return(0);
+	}
+	
+	# Find the servers still on the cluster
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
+		if (exists $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{'exists'})
+		{
+			my $attribute = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{attribute};
+			my $operation = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{operation};
+			my $value     = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{drbd_fence_rule}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name => $server_name,
+				attribute   => $attribute, 
+				operation   => $operation, 
+				value       => $value,
+			}});
+		}
+	}
+	
+	my $host_name       = $anvil->Get->host_name;
+	my $short_host_name = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name       => $host_name, 
+		short_host_name => $short_host_name, 
+	}});
+	
+	my $node_id   = "";
+	my $node_name = "";
+	foreach my $node (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node => $node }});
+		if (($node eq $short_host_name) or ($node eq $host_name))
+		{
+			$node_id   = $anvil->data->{cib}{parsed}{data}{node}{$node}{id};
+			$node_name = $anvil->data->{cib}{parsed}{configuration}{nodes}{$node_id}{uname};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				node_id   => $node_id, 
+				node_name => $node_name,
+			}});
+			last;
+		}
+	}
+	if ($node_id eq "")
+	{
+		# Node ID for this node was not found!
+		return(0);
+	}
+	
+	foreach my $attribute_id (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { attribute_id => $attribute_id }});
+		if ($attribute_id =~ /^drbd-fenced_(.*)$/)
+		{
+			my $server_name = $1;
+			my $state       = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{$attribute_id};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name => $server_name,
+				'state'     => $state, 
+			}});
+			
+			if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server_name})
+			{
+				# Stale attribute, remove it!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0012", variables => { attribute => $attribute_id }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{pcs}." node attribute ".$node_name." ".$attribute_id."=";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # This looks for failed resource and, if found, tries to recover them.
 sub check_resources

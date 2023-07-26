@@ -1687,7 +1687,10 @@ AND
 	{
 		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
 		my ($out_of_cluster) = $anvil->Cluster->parse_cib();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { out_of_cluster => $out_of_cluster }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			out_of_cluster              => $out_of_cluster,
+			"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},
+		}});
 		if ((not $out_of_cluster) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
 		{
 			# We're in a cluster, abort.

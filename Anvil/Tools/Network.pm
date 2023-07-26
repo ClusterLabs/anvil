@@ -1245,6 +1245,11 @@ sub find_access
 		return("!!error!!");
 	}
 	
+	if (exists $anvil->data->{network_access})
+	{
+		delete $anvil->data->{network_access};
+	}
+	
 	my $host_uuid              = $anvil->Get->host_uuid;
 	my $short_host_name        = $anvil->Get->short_host_name;
 	my $target_short_host_name = $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{short_host_name};

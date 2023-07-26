@@ -54,6 +54,12 @@ See \fB\-\-reboot\fR for rebooting if anything is updated.
 Normally, the system will only reboot if the kernel is updated. If this is used, and if any packages are updated, then a reboot will be performed. This is recommended in most cases. 
 .TP
 Must be used with \fB\-\-reboot\-self\fR to reboot the local system. Otherwise, it is passed along to target machines via their anvil-update-system calls.
+.TP
+\fB\-\-timeout\fR <seconds, Nm, Nh>
+.TP
+When given, if a system update doesn't complete in this amount of time, error out and abort the update. By default, updates will wait for 24 hours.
+.TP
+If this is set to an integer, it is treated as a number of seconds. If this ends in 'm' or 'h', then the preceding number is treated as a number of minutes or hours, respectively.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

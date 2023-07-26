@@ -366,12 +366,12 @@ The attempt to start the cluster appears to have failed. The return code '0' was
 		<key name="error_0257"><![CDATA[No server specified to boot. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0258">This host is not a node or DR, unable to boot servers.</key>
 		<key name="error_0259">The definition file: [#!variable!definition_file!#] doesn't exist, unable to boot the server.</key>
-		<key name="error_0260">This host is not in an Anvil! system, aborting.</key>
+		<key name="error_0260">This subnode is not in an Anvil! node yet, aborting.</key>
 		<key name="error_0261">The definition file: [#!variable!definition_file!#] exists, but the server: [#!variable!server!#] does not appear to be in the cluster. Unable to boot it.</key>
 		<key name="error_0262">The server: [#!variable!server!#] status is: [#!variable!status!#]. We can only boot servers that are off, not booting it.</key>
 		<key name="error_0263"><![CDATA[No server specified to shut down. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0264">This host is not a node or DR, unable to shut down servers.</key>
-		<key name="error_0265">This feature isn't enabled on DR hosts yet.</key>
+		<key name="error_0265">Specifying a server to shutdown using a UUID is not available when there are no DB connections.</key>
 		<key name="error_0266">The server: [#!variable!server!#] does not appear to be in the cluster. Unable to shut it down.</key>
 		<key name="error_0267">The server: [#!variable!server!#] failed to boot. The reason why should be in the logs.</key>
 		<key name="error_0268">The server: [#!variable!server!#] failed to shut down. The reason why should be in the logs.</key>
@@ -1562,7 +1562,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0467">Update the base operating system.</key>
 		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
 		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
-		<key name="job_0470"></key>
+		<key name="job_0470">This is a DR host, no migration possible.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2254,7 +2254,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		<key name="log_0596">The host: [#!variable!host_name!#] last updated the database: [#!variable!difference!#] seconds ago, skipping power checks.</key>
 		<key name="log_0597">The host: [#!variable!host_name!#] has no entries in the 'updated' table, so ScanCore has likely never run. Skipping this host for now.</key>
-		<key name="log_0598">This host is not a node, this program isn't designed to run here.</key>
+		<key name="log_0598">This host is not an Anvil! sub node, this program isn't designed to run here.</key>
 		<key name="log_0599">Enabled 'anvil-safe-start' locally on this node.</key>
 		<key name="log_0600">Enabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
@@ -2407,6 +2407,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 		<key name="log_0742">The job with the command: [#!variable!command!#] and job UUID: [#!variable!job_uuid!#] is restarting.</key>
+		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
+		<key name="log_0744">A cached request to reboot this host was found (likely from a --no-db update). Registering a job to reboot now!</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2741,7 +2743,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0230">The 'anvil-safe-start' tool is disabled on this node and enabled on the peer.</key>
 		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
 		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
-		<key name="message_0233">It appears that another instance of 'anvil-safe-start' is already runing. Please wait for it to complete (or kill it manually if needed).</key>
+		<key name="message_0233">It appears that another instance of: [#!variable!program!#] is already runing. Please wait for it to complete (or kill it manually if needed).</key>
 		<key name="message_0234">Preparing to rename a server.</key>
 		<key name="message_0235">Preparing to rename stop this node.</key>
 		<key name="message_0236">This records how long it took to migrate a given server. The average of the last five migations is used to guess how long future migrations will take.</key>
@@ -2920,6 +2922,12 @@ Proceed? [y/N]</key>
 		<key name="message_0321">Removing the old drbd-kmod RPMs now.</key>
 		<key name="message_0322">Installing the latest DRBD kmod RPM now.</key>
 		<key name="message_0323">Retrying the OS update now.</key>
+		<key name="message_0324">Update almost complete. Picked this job up after a '--no-db' run, and now we have database access again.</key>
+		<key name="message_0325">[ Note ] - It looks like 'dnf' (pid(s): [#!variable!pids!#]) is running, holding our start up until it's done (in case the system is being updated now).</key>
+		<key name="message_0326">This daemon just started. Holding off starting jobs for another: [#!variable!will_start_in!#] second(s).</key>
+		<key name="message_0327">[ Note ] - It looks like 'anvil-version-changes' (pid(s): [#!variable!pids!#]) is running, holding off on power action until it's done (in case the system is being updated now or kernel modules are being built).</key>
+		<key name="message_0328">[ Note ] - The DRBD (replicated storage) kernel module appears to not exist. This is normal after an OS update, will try building the kernel module now. Please be patient.</key>
+		<key name="message_0329">[ Note ] - Deleting the old drbd fenced attribute: [#!variable!attribute!#] for the node: [#!variable!node_name!#] (ID: [#!variable!node_id!#]) from the CIB.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3266,6 +3274,11 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0299">Migration Network link #!variable!number!#</key>
 		<key name="striker_0300">This is where you configure the optional network dedicated to RAM-copy during live migrations.</key>
 		<key name="striker_0301">This puts a temporary hold on a DRBD minor number or TCP port so that it isn't used again in the time between when it was queried as the next free number, and before it can be used.</key>
+		<key name="striker_0302">This indicates when, in unix time, the database was last aged-out.</key>
+		<key name="striker_0303">This indicates when, in unix time, the database was last archived.</key>
+		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
+		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
+		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! cluster, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

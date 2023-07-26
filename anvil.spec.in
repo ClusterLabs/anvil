@@ -256,7 +256,8 @@ getent passwd %{suiapi} >/dev/null \
 		--user-group \
 		%{suiapi}
 
-if [ $1 -gt 1 ]; then # >1=Upgrade
+# Check to see if we're updating.
+if grep -q apache /etc/passwd; then 
 	# Disable and stop apache to free the port.
 	systemctl disable --now httpd.service
 	# Transfer files owned by apache to Striker UI API user.

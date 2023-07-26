@@ -244,6 +244,43 @@ sub do_poweroff
 		host_status => $task eq "poweroff" ? "rebooting" : "stopping",
 	});
 	
+	# Wait if anvil-version-change is running.
+	my $next_log = time - 1;
+	my $waiting  = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		next_log => $next_log, 
+		waiting  => $waiting,
+	}});
+	while ($waiting)
+	{
+		my $pids = $anvil->System->pids({program_name => $anvil->data->{path}{exe}{'anvil-version-changes'}});
+		my $avc_instances = @{$pids};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { avc_instances => $avc_instances }});
+		
+		if ($avc_instances)
+		{
+			if (time > $next_log)
+			{
+				my $say_pids = "";
+				foreach my $pid (@{$pids})
+				{
+					$say_pids .= $pid.", ";
+				}
+				$say_pids =~ s/, $//;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0325", variables => { pids => $say_pids }});
+				
+				$next_log = time + 60;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
+			}
+			sleep 10;
+		}
+		else
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+	}
+	
 	# If we have a job UUID, mark that we're done.
 	if ($job_uuid)
 	{

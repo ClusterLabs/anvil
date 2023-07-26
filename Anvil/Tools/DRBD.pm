@@ -2251,6 +2251,8 @@ sub get_status
 		if ($is_local)
 		{
 			# Try rebuilding the module.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0328"});
+			
 			my $problem = $anvil->DRBD->_initialize_kmod({debug => 2});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			
@@ -2264,7 +2266,7 @@ sub get_status
 				}});
 				if ($output =~ /modprobe: FATAL: Module drbd not found/i)
 				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0415", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0415", variables => { 
 						output      => $output,
 						return_code => $anvil->data->{drbd}{status}{$host}{return_code},
 					}});
