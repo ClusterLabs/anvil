@@ -12,8 +12,10 @@ dist_man8_MANS		= \
 			  anvil-change-password.8 \
 			  anvil-check-memory.8 \
 			  anvil-configure-host.8 \
+			  anvil-cycle-vm-nics.8 \
 			  anvil-daemon.8 \
 			  anvil-delete-server.8 \
+			  anvil-download-file.8 \
 			  anvil-manage-alerts.8 \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \

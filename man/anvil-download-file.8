@@ -1,0 +1,50 @@
+.\" Manpage for the Anvil! tool to 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-download-file "8" "July 26 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-download-file \- This program downloads a file from a URL
+.SH SYNOPSIS
+.B anvil-download-file 
+\fI\,<options> \/\fR
+.SH DESCRIPTION
+This takes a URL (ftp, http or https) and downloads the file. If it is called without --url, it shows the progress of any other instances currently downloading files.
+.TP
+.SH NOTE
+This tool is not complete and should not be used yet
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-abort\fR (to be implemented)
+.TP
+Abort an active download.
+.TP
+\fB\-\-overwrite\fR 
+.TP
+If the file exists already, this switch will overwrite the existing file with the new download.
+.TP
+\fB\-\-save\-to\fR </path/to/download/directory>
+.TP
+By default, downloaded files are saved in /mnt/shared/files (copied there after downloading to /mnt/shared/incoming). If you would like to save the downloaded file elsewhere, you can use this switch
+.TP
+\fB\-\-script\fR 
+.TP
+If this is used, the file being downloaded will be set to be executable. 
+.TP
+\fB\-\-url\fR 
+.TP
+This is the ftp://, http:// or https:// path to the file to be downloaded
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
