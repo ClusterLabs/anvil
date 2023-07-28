@@ -253,7 +253,14 @@ sub add_server
 	undef $output;
 	undef $return_code;
 	
-	my $resource_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
+	my $resource_command =  $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server ";
+	   $resource_command .= "name=\"".$server_name."\" log_level=".$anvil->Log->level." log_secure=".$anvil->Log->secure." ";
+	   $resource_command .= "meta allow-migrate=\"true\" target-role=\"".$target_role."\" ";
+	   $resource_command .= "op monitor interval=\"60\" ";
+	   $resource_command .= "start timeout=\"60\" on-fail=\"block\" ";
+	   $resource_command .= "stop timeout=\"300\" on-fail=\"block\" ";
+	   $resource_command .= "migrate_to timeout=\"600\" on-fail=\"block\" ";
+	   $resource_command .= "migrate_from timeout=\"600\" on-fail=\"block\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
 	($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
