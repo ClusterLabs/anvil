@@ -75,6 +75,3 @@ dist_man8_MANS		= \
 			  tool-fio-tester.8 \
 			  unfence_pacemaker.8
 
-
-
-
