@@ -16,6 +16,7 @@ dist_man8_MANS		= \
 			  anvil-daemon.8 \
 			  anvil-delete-server.8 \
 			  anvil-download-file.8 \
+			  anvil-file-details.8 \
 			  anvil-manage-alerts.8 \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \
