@@ -2081,14 +2081,14 @@ It manages underlying components like DRBD 9 storage resources, bridge connectio
       <shortdesc lang="en">Server name</shortdesc>
       <content type="string"/>
     </parameter>
-    <parameter name="log_level" unique="1" required="0">
+    <parameter name="log_level" unique="0" required="0">
       <longdesc lang="en">
         Set the logging level, valid values are 1 to 3, with 3 being extremely loud.
       </longdesc>
       <shortdesc lang="en">Set log level</shortdesc>
       <content type="integer"/>
     </parameter>
-    <parameter name="log_secure" unique="1" required="0">
+    <parameter name="log_secure" unique="0" required="0">
       <longdesc lang="en">
         Enable logging of potentially sensitive data, like passwords.
       </longdesc>
