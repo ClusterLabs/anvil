@@ -1,6 +1,33 @@
 #!/usr/bin/perl
 #
+# Gets server VM (or guest) screenshot with the 'virsh' command and distributes
+# the screenshot to one or more remote hosts if provided.
 #
+# --- Usage ---
+#
+#   To get a guest's screenshot and place it in memory (/tmp/):
+#   anvil-get-server-screenshot --server-uuid <guest UUID> [--out-file-id <image file postfix>]
+#
+#   * Screenshots are placed in memory because they won't be relevant between
+#     host shutdowns.
+#
+#   To get a guest's screenshot and distribute it to remote hosts:
+#   anvil-get-server-screenshot --server-uuid <guest UUID> --remote-host-uuid <comma separated hostname(s)> [--out-file-id <postfix>]
+#
+#   * The distribution will fail if the local host cannot connect to the
+#     specified remote host in batch mode. The failure will not interrupt
+#     attpemts to other remote host(s) when more than one remote(s) are listed
+#     in the CSV.
+#
+#   To convert the guest screenshot from PBM to PNG encoded with base64:
+#   anvil-get-server-screenshot --server-uuid <guest UUID> --convert [--out-file-id <postfix>] [--resize <width>x<height>]
+#
+#   * This scenario relies on scripts provided by the 'netpbm-progs' package,
+#     which is a dependency on 'anvil-striker' only.
+#
+#   * The resize flag value must match the format <width>x<height>,
+#     i.e., 1280x720. The resulting screenshot will be scaled into the
+#     boundaries of the given resize value without maniplulating its ratio.
 #
 
 use strict;
