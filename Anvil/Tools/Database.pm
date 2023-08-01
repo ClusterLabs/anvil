@@ -4984,10 +4984,18 @@ FROM
 		
 		if (not exists $anvil->data->{hosts}{host_uuid}{$scan_lvm_pv_host_uuid})
 		{
-			$anvil->Database->get_hosts({debug => $debug});
+			$anvil->Database->get_hosts({
+				debug           => $debug,
+				include_deleted => 1,
+			});
 		}
 		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$scan_lvm_pv_host_uuid}{short_host_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+		my $host_key        = $anvil->data->{hosts}{host_uuid}{$scan_lvm_pv_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			short_host_name => $short_host_name,
+			host_key        => $host_key, 
+		}});
+		next if $host_key eq "DELETED";
 		
 		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_uuid}          = $scan_lvm_pv_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_internal_uuid} = $scan_lvm_pv_internal_uuid;
