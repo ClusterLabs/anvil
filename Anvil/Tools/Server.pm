@@ -7,6 +7,7 @@ use strict;
 use warnings;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
+use Sys::Virt;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Server.pm";
@@ -24,6 +25,7 @@ my $THIS_FILE = "Server.pm";
 # parse_definition
 # migrate_virsh
 # shutdown_virsh
+# virt_list
 
 =cut TODO
 
@@ -2338,6 +2340,26 @@ WHERE
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
 }
+
+=head2 virt_list
+
+This collects that state of the servers 
+
+
+=cut
+sub virt_list
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->virt_list()" }});
+	
+	
+	
+	return(0);
+}
+
 
 # =head3
 # 

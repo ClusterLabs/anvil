@@ -17,6 +17,7 @@ my $THIS_FILE = "Remote.pm";
 ### Methods;
 # add_target_to_known_hosts
 # call
+# check_known_hosts
 # read_snmp_oid
 # test_access
 # _call_ssh_keyscan
@@ -278,6 +279,10 @@ B<NOTE>: This is the timeout for the command to return, in seconds. This is NOT 
 
 If this is set to a numeric whole number, then the called shell command will have the set number of seconds to complete. If this is set to C<< 0 >>, then no timeout will be used.
 
+=head3 use_hostname (optional, default 0)
+
+By default, if the target is a host name, it is translated to an IP address before the connection is established. This is generally more reliable. If you want to force the connection to use the host name, perhaps to ensure the SSH fingerprint for the host name is recorded, set this to C<< 1 >>.
+
 =cut
 sub call
 {
@@ -301,32 +306,45 @@ sub call
 		's5:ossh_opts'   => $ossh_opts,
 	}});
 	
+	# Log array opts, if needed.
+	if (ref($ossh_opts) eq "ARRAY")
+	{
+		my $ossh_opts_count = @{$ossh_opts};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ossh_opts_count => $ossh_opts_count }});
+		foreach my $ssh_opt (sort {$a cmp $b} keys @{$ossh_opts})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_opt => $ssh_opt }});
+		}
+	}
+	
 	# This will store the SSH file handle for the given target after the initial connection.
 	$anvil->data->{cache}{ssh_fh}{$ssh_fh_key} = defined $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} ? $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "cache::ssh_fh::${ssh_fh_key}" => $anvil->data->{cache}{ssh_fh}{$ssh_fh_key} }});
 	
 	# Now pick up the rest of the variables.
-	my $close       = defined $parameter->{'close'}    ? $parameter->{'close'}    : 0;
-	my $no_cache    = defined $parameter->{no_cache}   ? $parameter->{no_cache}   : 0;
-	my $password    = defined $parameter->{password}   ? $parameter->{password}   : "";
-	my $secure      = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
-	my $shell_call  = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
-	my $timeout     = defined $parameter->{timeout}    ? $parameter->{timeout}    : 10;
-	my $start_time  = time;
-	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
+	my $close        = defined $parameter->{'close'}      ? $parameter->{'close'}      : 0;
+	my $no_cache     = defined $parameter->{no_cache}     ? $parameter->{no_cache}     : 0;
+	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
+	my $secure       = defined $parameter->{secure}       ? $parameter->{secure}       : 0;
+	my $shell_call   = defined $parameter->{shell_call}   ? $parameter->{shell_call}   : "";
+	my $timeout      = defined $parameter->{timeout}      ? $parameter->{timeout}      : 10;
+	my $use_hostname = defined $parameter->{use_hostname} ? $parameter->{use_hostname} : 0;
+	my $start_time   = time;
+	my $ssh_fh       = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		'close'    => $close, 
-		no_cache   => $no_cache,
-		password   => $anvil->Log->is_secure($password), 
-		secure     => $secure, 
-		shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
-		ssh_fh     => $ssh_fh,
-		start_time => $start_time, 
-		timeout    => $timeout, 
-		port       => $port, 
-		target     => $target,
-		ssh_fh_key => $ssh_fh_key, 
+		'close'      => $close, 
+		no_cache     => $no_cache,
+		password     => $anvil->Log->is_secure($password), 
+		secure       => $secure, 
+		shell_call   => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+		ssh_fh       => $ssh_fh,
+		start_time   => $start_time, 
+		timeout      => $timeout, 
+		port         => $port, 
+		target       => $target,
+		ssh_fh_key   => $ssh_fh_key, 
+		use_hostname => $use_hostname, 
 	}});
 	
 	if ((not $password) && (defined $anvil->data->{sys}{root_password}))
@@ -429,7 +447,7 @@ sub call
 	}
 	
 	# If the target is a host name, convert it to an IP.
-	if (not $anvil->Validate->ipv4({ip => $target}))
+	if ((not $use_hostname) && (not $anvil->Validate->ipv4({ip => $target})))
 	{
 		my $new_target = $anvil->Convert->host_name_to_ip({host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
@@ -770,6 +788,106 @@ sub call
 }
 
 
+=head2 check_known_hosts
+
+This checks the current user's C<< known_hosts >> to see if a given IP or host name is exists. If it does, C<< 1 >> is returned, if not C<< 0 >> is returned. If there is a problem, C<< !!error!! >> is returned. If the user's C<< known_hosts >> file doesn't exist, C<< 0 >> is returned.
+
+B<< Note >>: This does NOT check to see if the fingerprint is valid! It only checks if an entry exists.
+
+Parameters;
+
+=head3 host (required)
+
+This is the host name or IP address to check for.
+
+=head user (optional)
+
+This is the user whose C<< known_hosts >> file we're checking. If not passed, the user that this program runs as will be used.
+
+=cut
+sub check_known_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->check_known_hosts()" }});
+	
+	my $host = defined $parameter->{host} ? $parameter->{host} : "";
+	my $user = defined $parameter->{user} ? $parameter->{user} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host => $host, 
+		user => $user, 
+	}});
+	
+	if (not $user)
+	{
+		$user = getpwuid($<);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+		
+		if ($user =~ /^\d+ \d$/)
+		{
+			$user =~ s/^(\d+)\s.*$/$1/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+		}
+		
+		# If the user is numerical, convert it to a name.
+		if ($user =~ /^\d+$/)
+		{
+			$user = getpwuid($user);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+		}
+	}
+	
+	if (not $user)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->check_known_hosts()", parameter => "user" }});
+		return('!!error!!');
+	}
+	
+	if (not $host)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->check_known_hosts()", parameter => "host" }});
+		return('!!error!!');
+	}
+	
+	# Get the user's home directory.
+	my $host_directory = $anvil->Get->users_home({
+		debug => $debug,
+		user  => $user,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_directory => $host_directory }});
+	
+	my $known_hosts_file =  $host_directory."/.ssh/known_hosts";
+	   $known_hosts_file =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts_file => $known_hosts_file }});
+	if (not -e $known_hosts_file)
+	{
+		# No known_hosts file
+		return(0);
+	}
+	
+	# Read in known hosts
+	my $body = $anvil->Storage->read_file({
+		file       => $known_hosts_file,
+		force_read => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
+	foreach my $line (split/\n/, $body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		if ($line =~ /^$host /)
+		{
+			# Found it.
+			return(1);
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 read_snmp_oid
 
 This connects to a remote machine using SNMP and reads (if possible) the OID specified. If unable to reach the target device, C<< !!no_connection!! >> is returned. If there is a problem with the call made to this method, C<< !!error!! >> is returned. 
@@ -971,6 +1089,10 @@ This is the IP address or (resolvable) host name of the machine who's key we're 
 
 This is the user who we're recording the key for. 
 
+=head3 use_hostname (optional, default 0)
+
+By default, if the target is a host name, it is translated to an IP address before the connection is established. This is generally more reliable. If you want to force the connection to use the host name, perhaps to ensure the SSH fingerprint for the host name is recorded, set this to C<< 1 >>.
+
 =cut
 sub test_access
 {
@@ -980,29 +1102,32 @@ sub test_access
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->test_access()" }});
 	
-	my $close    = defined $parameter->{'close'}  ? $parameter->{'close'}  : 1;
-	my $password = defined $parameter->{password} ? $parameter->{password} : "";
-	my $port     = defined $parameter->{port}     ? $parameter->{port}     : 22;
-	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
-	my $user     = defined $parameter->{user}     ? $parameter->{user}     : getpwuid($<); 
-	my $access   = 0;
+	my $close        = defined $parameter->{'close'}      ? $parameter->{'close'}      : 1;
+	my $password     = defined $parameter->{password}     ? $parameter->{password}     : "";
+	my $port         = defined $parameter->{port}         ? $parameter->{port}         : 22;
+	my $target       = defined $parameter->{target}       ? $parameter->{target}       : "";
+	my $use_hostname = defined $parameter->{use_hostname} ? $parameter->{use_hostname} : 0;
+	my $user         = defined $parameter->{user}         ? $parameter->{user}         : getpwuid($<); 
+	my $access       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-		'close'  => $close,
-		password => $anvil->Log->is_secure($password), 
-		port     => $port, 
-		target   => $target,
-		user     => $user,
+		'close'      => $close,
+		password     => $anvil->Log->is_secure($password), 
+		port         => $port, 
+		target       => $target,
+		use_hostname => $use_hostname, 
+		user         => $user,
 	}});
 	
 	# Call the target
 	my ($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => $debug, 
-		password    => $password, 
-		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
-		target      => $target,
-		remote_user => $user, 
-		'close'     => $close,
-		no_cache    => 1,
+		debug        => $debug, 
+		password     => $password, 
+		shell_call   => $anvil->data->{path}{exe}{echo}." 1", 
+		target       => $target,
+		remote_user  => $user, 
+		'close'      => $close,
+		no_cache     => 1,
+		use_hostname => $use_hostname, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
