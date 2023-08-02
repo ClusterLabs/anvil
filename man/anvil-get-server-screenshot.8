@@ -1,0 +1,93 @@
+.TH ANVIL-GET-SERVER-SCREENSHOT 8 2023-07-24 \
+"Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-get-server-screenshot \- gets the screenshot of a specified server
+VM and optionally distribute it to one or more remote host(s).
+.SH SYNOPSIS
+.TP
+To get a guest's screenshot and place it in memory (\fI/tmp\fR):
+.RS
+.B
+anvil-get-server-screenshot --server-uuid
+.I <server VM UUID>
+[--out-file-id
+.I <postfix>]
+.RE
+.TP
+To get a guest's screenshot and distribute it to remote hosts:
+.RS
+.B
+anvil-get-server-screenshot --server-uuid
+.I <server VM UUID>
+--request-host-name
+.I <hostname CSV>
+[--out-file-id
+.I <postfix>]
+.RE
+.TP
+To convert the guest screenshot to PNG encoded with base64:
+.RS
+.B
+anvil-get-server-screenshot --convert --server-uuid
+.I <server VM UUID>
+[--out-file-id
+.I <postfix>]
+[--resize \fI<width>\fRx\fI<height>\fR]
+.RE
+.SH DESCRIPTION
+This page describes the necessities to use the
+.I anvil-get-server-screenshot
+tool, which has different roles depending on the type of Anvil! host it
+executes on. On a node, the tool can take a screenshot of a running libvirt
+domain and distribute it to all known striker(s). On a striker, the tool
+can convert, scale, and encode the distributed screenshot to make it usable
+by the web UI.
+.SS Warning!
+The tool described by this page is \fBhighly likely\fR to be revamped in
+the near future. It is safe to use on command line, but please avoid using
+it inside another executable until this warning is removed.
+.SH OPTIONS
+.TP
+.B --convert
+Convert a raw screenshot to PNG type encoded with base64. It does not fetch
+a screenshot from the specified server VM.
+.RS
+
+This option can only be on Anvil! striker(s).
+.RE
+.TP
+.B --out-file-id
+Specify a string to append to the screenshot name, which is can be used
+when recording or converting the screenshot. This is usually the EPOCH of
+when the image is created.
+.TP
+.B --request-host-name
+Specify one hostname or multiple comma-separated hostnames to distribute
+the taken screenshot. The image file will be placed in the \fI/tmp\fR of
+the listed remote host(s).
+.TP
+.B --resize \fI<width>\fRx\fI<height>\fR
+Scale the screenshot to fit into a width by height area.
+.RS
+
+Example: a 1920x1080 screenshot would be scaled down to 500x281 when
+--resize 500x500 is set.
+.RE
+.RS
+
+This option is only effective when --convert is used.
+.RE
+.TP
+.B --server-uuid \fI<server VM UUID>\fR
+UUID of the server VM, or libvirt domain/guest to fetch the screenshot
+from. When used with --convert, this is used to build the image filename
+prefix.
+.SH EXIT STATUS
+.TP
+.B 0
+Successful program execution.
+.TP
+.B 1
+Usage, syntax, or database connection error.
+.SH BUGS
+Report bugs to users@clusterlabs.org.
