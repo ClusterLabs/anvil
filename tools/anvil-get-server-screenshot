@@ -12,14 +12,14 @@
 #     host shutdowns.
 #
 #   To get a guest's screenshot and distribute it to remote hosts:
-#   anvil-get-server-screenshot --server-uuid <guest UUID> --remote-host-uuid <comma separated hostname(s)> [--out-file-id <postfix>]
+#   anvil-get-server-screenshot --server-uuid <guest UUID> --request-host-name <comma separated hostname(s)> [--out-file-id <postfix>]
 #
 #   * The distribution will fail if the local host cannot connect to the
 #     specified remote host in batch mode. The failure will not interrupt
 #     attpemts to other remote host(s) when more than one remote(s) are listed
 #     in the CSV.
 #
-#   To convert the guest screenshot from PBM to PNG encoded with base64:
+#   To convert the guest screenshot to PNG encoded with base64:
 #   anvil-get-server-screenshot --server-uuid <guest UUID> --convert [--out-file-id <postfix>] [--resize <width>x<height>]
 #
 #   * This scenario relies on scripts provided by the 'netpbm-progs' package,
