@@ -609,6 +609,11 @@ The error was:
 ========</key>
 		<key name="error_0421">Failed to enable dual-primary for the resource: [#!variable!resource!#]! The peer: [#!variable!peer_name!#]'s connection state is: [#!variable!connection_state!#] (must be 'connected').</key>
 		<key name="error_0422">Failed to enable dual-primary for the server: [#!variable!server!#]! The call to enable dual-primary, necessary for the live migration, returned a non-zero return code: [#!variable!return_code!#].</key>
+		<key name="error_0423">Failed to connect to libvirtd on: [#!variable!uri!#]. The error was:
+========
+#!variable!error!#
+========
+</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

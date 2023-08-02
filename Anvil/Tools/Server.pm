@@ -2343,8 +2343,37 @@ WHERE
 
 =head2 virt_list
 
-This collects that state of the servers 
+This collects that state of the servers on the target host. Specifically, it uses C<< Sys::Virt >> to replicate the shell command C<< virsh list --all >>. The results are stored in the hash;
 
+* virt::<host>::error                        (empty unless error connecting to libvirtd)
+* virt::<host>::server::<server_name>::id    (empty is the state is 'shutoff')
+* virt::<host>::server::<server_name>::state (see below)
+* virt::<host>::server::<server_name>::xml   (XML definition) 
+* virt::<host>::server::<server_name>::uuid  (servers -> server_uuid) 
+
+B<< Note >>: The connection to C<< libvirtd >> is always over C<< qemu+ssh://root@<target>/system >> unless connecting to C<< localhost >> and running as C<< root >>, in which case C<< qemu:///system >> is used.
+
+If the target can't be reached, or there is some other error, C<< !!error!! >> is returned (and the connection error is recorded in C<< virt::<host>::error >>). Otherwise, the number of servers found is returned (in any state).
+
+Possible states are;
+
+ running     - The domain is currently running on a CPU
+ blocked     - Also known as 'idle'; The domain is blocked on resource. This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+ paused      - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+ in shutdown - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+ shut off    - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+ crashed     - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+ pmsuspended - The domain has been suspended by guest power management, e.g. entered into s3 state.
+
+Parameters;
+
+=head4 host (optional)
+
+If you want to use a string for the C<< host >> part of the hash key, you can set it using this parameter. If not set, C<< host >> will be the same as C<< target >>.
+
+=head3 target (optional, default 'localhost')
+
+This is the host to connect to. 
 
 =cut
 sub virt_list
@@ -2355,7 +2384,121 @@ sub virt_list
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->virt_list()" }});
 	
+	my $host   = defined $parameter->{host}   ? $parameter->{host}   : "";
+	my $target = defined $parameter->{target} ? $parameter->{target} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host   => $host, 
+		target => $target, 
+	}});
 	
+	if (not $target)
+	{
+		$target = "localhost";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	}
+	if (not $host)
+	{
+		$host = $target;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
+	}
+	
+	if (exists $anvil->data->{virt}{$host})
+	{
+		delete $anvil->data->{virt}{$host};
+	}
+	$anvil->data->{virt}{$host}{error} = "";
+	
+	# By default, most connections convert the host name to the IP address in Remote->call(). We need to
+	# make sure the target's SSH fingerprint is recorded before wa call the URI.
+	my $known = $anvil->Remote->check_known_hosts({
+		debug => 2,
+		user  => "root",
+		host  => $target,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known => $known }});
+	
+	if (not $known)
+	{
+		$anvil->Remote->test_access({
+			debug        => 2,
+			target       => "localhost",
+			user         => "root",
+			use_hostname => 1,
+		});
+	}
+	
+	my $connection = "";
+	my $uri        = "";
+	if (($host eq "localhost") && ((getpwuid($<) eq "0") or (getpwuid($<) eq "root")))
+	{
+		$uri = "qemu:///system";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uri => $uri }});
+	}
+	else
+	{
+		$uri = "qemu+ssh://root\@".$target."/system";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uri => $uri }});
+	}
+	
+	eval { $connection = Sys::Virt->new(uri => $uri); };
+	if ($@)
+	{
+		$anvil->data->{virt}{$host}{error} = $@;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "error_0423", variables => { 
+			urt   => $uri,
+			error => $anvil->data->{virt}{$host}{error}, 
+		}});
+		return("!!error!!");
+	}
+
+	my @domains = $connection->list_all_domains();
+	foreach my $domain (@domains)
+	{
+		my $server_name  = $domain->get_name;
+		my $server_id    = $domain->get_id eq "-1" ? "" : $domain->get_id; 
+		my $server_uuid  = $domain->get_uuid_string;
+		my $server_xml   = $domain->get_xml_description;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:server_name' => $server_name,
+			's2:server_id'   => $server_id, 
+			's3:server_uuid' => $server_uuid, 
+			's4:server_xml'  => $server_xml, 
+		}});
+		
+		### States:
+		# 0 = no state
+		# 1 = running        - The domain is currently running on a CPU
+		# 2 = blocked (idle) - the domain is blocked on resource. This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+		# 3 = paused         - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+		# 4 = in shutdown    - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+		# 5 = shut off       - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+		# 6 = crashed        - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+		# 7 = pmsuspended    - The domain has been suspended by guest power management, e.g. entered into s3 state.
+		
+		### Reasons are dependent on the state. 
+		### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
+		my ($state, $reason) = $domain->get_state();
+		my $server_state     = "";
+		if ($state == 1)    { $server_state = "running"; }
+		elsif ($state == 2) { $server_state = "blocked"; }
+		elsif ($state == 3) { $server_state = "paused"; }
+		elsif ($state == 4) { $server_state = "in shutdown"; }
+		elsif ($state == 5) { $server_state = "shut off"; }
+		elsif ($state == 6) { $server_state = "crashed"; }
+		elsif ($state == 7) { $server_state = "pmsuspended"; }
+		else                { $server_state = "unknown (".$state.")"; }
+		
+		$anvil->data->{virt}{$host}{server}{$server_name}{id}      = $server_id;
+		$anvil->data->{virt}{$host}{server}{$server_name}{'state'} = $server_state;
+		$anvil->data->{virt}{$host}{server}{$server_name}{uuid}    = $server_uuid;
+		$anvil->data->{virt}{$host}{server}{$server_name}{xml}     = $server_xml;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:virt::${host}::server::${server_name}::id"    => $anvil->data->{virt}{$host}{server}{$server_name}{id},
+			"s2:virt::${host}::server::${server_name}::state" => $anvil->data->{virt}{$host}{server}{$server_name}{'state'},
+			"s3:virt::${host}::server::${server_name}::uuid"  => $anvil->data->{virt}{$host}{server}{$server_name}{uuid},
+			"s4:virt::${host}::server::${server_name}::xml"   => $anvil->data->{virt}{$host}{server}{$server_name}{xml},
+		}});
+	}
 	
 	return(0);
 }
