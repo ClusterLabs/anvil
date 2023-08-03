@@ -65,6 +65,7 @@ Requires:       lsof
 Requires:       mailx
 Requires:       mlocate 
 Requires:       net-snmp-utils
+Requires:       netpbm-progs
 Requires:       NetworkManager-initscripts-updown
 Requires:       nvme-cli
 Requires:       pciutils
