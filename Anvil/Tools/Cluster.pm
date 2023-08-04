@@ -256,7 +256,7 @@ sub add_server
 	my $resource_command =  $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server ";
 	   $resource_command .= "name=\"".$server_name."\" log_level=".$anvil->Log->level." log_secure=".$anvil->Log->secure." ";
 	   $resource_command .= "meta allow-migrate=\"true\" target-role=\"".$target_role."\" ";
-	   $resource_command .= "op monitor interval=\"60\" ";
+	   $resource_command .= "op monitor interval=\"60\" timeout=\"60\" ";
 	   $resource_command .= "start timeout=\"60\" on-fail=\"block\" ";
 	   $resource_command .= "stop timeout=\"300\" on-fail=\"block\" ";
 	   $resource_command .= "migrate_to timeout=\"600\" on-fail=\"block\" ";

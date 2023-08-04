@@ -110,7 +110,7 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{O
 # This says "UUID", but it's the node ID.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # Not used here, contains the pacemaker node ID
 # This is the timeout for the called action in millisecond.
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 20000
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 60000
 # If this is set, we'll bump our log level as well.
 $anvil->data->{environment}{PCMK_debug}                         = defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : "0"; # Disable debug by default
 # These are other variables that are set, but we don't currently care about them
@@ -1167,7 +1167,7 @@ sub server_status
 	if (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout})
 	{
 		# Set a sane default of 20 seconds.
-		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
+		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 60000;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
@@ -2097,14 +2097,14 @@ It manages underlying components like DRBD 9 storage resources, bridge connectio
     </parameter>
   </parameters>
   <actions>
-    <action name="start"        timeout="30" />
+    <action name="start"        timeout="60" />
     <action name="stop"         timeout="60" />
-    <action name="monitor"      timeout="20" />
-    <action name="notify"       timeout="20" />
+    <action name="monitor"      timeout="60" />
+    <action name="notify"       timeout="60" />
     <action name="migrate_to"   timeout="600" />
     <action name="migrate_from" timeout="600" />
     <action name="meta-data"    timeout="5" />
-    <action name="validate-all" timeout="20" />
+    <action name="validate-all" timeout="60" />
   </actions>
 </resource-agent>
 ';
