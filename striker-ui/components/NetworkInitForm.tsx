@@ -110,42 +110,6 @@ const CLASSES = {
 const INITIAL_IFACES = [undefined, undefined];
 const MSG_ID_API = 'api';
 
-const STRIKER_REQUIRED_NETWORKS: NetworkInput[] = [
-  {
-    inputUUID: '30dd2ac5-8024-4a7e-83a1-6a3df7218972',
-    interfaces: [...INITIAL_IFACES],
-    ipAddress: '10.200.1.1',
-    isRequired: true,
-    name: `${NETWORK_TYPES.bcn} 1`,
-    subnetMask: '255.255.0.0',
-    type: 'bcn',
-    typeCount: 1,
-  },
-  {
-    inputUUID: 'e7ef3af5-5602-440c-87f8-69c242e3d7f3',
-    interfaces: [...INITIAL_IFACES],
-    ipAddress: '10.201.1.1',
-    isRequired: true,
-    name: `${NETWORK_TYPES.ifn} 1`,
-    subnetMask: '255.255.0.0',
-    type: 'ifn',
-    typeCount: 1,
-  },
-];
-const NODE_REQUIRED_NETWORKS: NetworkInput[] = [
-  ...STRIKER_REQUIRED_NETWORKS,
-  {
-    inputUUID: '525e4847-f929-44a7-83b2-28eb289ffb57',
-    interfaces: [...INITIAL_IFACES],
-    ipAddress: '10.202.1.1',
-    isRequired: true,
-    name: `${NETWORK_TYPES.sn} 1`,
-    subnetMask: '255.255.0.0',
-    type: 'sn',
-    typeCount: 1,
-  },
-];
-
 const MAX_INTERFACES_PER_NETWORK = 2;
 const IT_IDS = {
   dnsCSV: 'dns',
@@ -163,6 +127,38 @@ const NETWORK_INTERFACE_TEMPLATE = Array.from(
 );
 
 const createInputTestPrefix = (uuid: string) => `network${uuid}`;
+
+const createNetworkInput = ({
+  inputUUID = uuidv4(),
+  interfaces = [...INITIAL_IFACES],
+  ipAddress = '',
+  name: initName,
+  subnetMask = '',
+  type = '',
+  typeCount = 0,
+  ...rest
+}: Partial<NetworkInput> = {}): NetworkInput => {
+  let name = initName;
+
+  if (!initName) {
+    if (NETWORK_TYPES[type] && typeCount > 0) {
+      name = `${NETWORK_TYPES[type]} ${typeCount}`;
+    } else {
+      name = 'Unknown Network';
+    }
+  }
+
+  return {
+    inputUUID,
+    interfaces,
+    ipAddress,
+    name,
+    subnetMask,
+    type,
+    typeCount,
+    ...rest,
+  };
+};
 
 const createNetworkInterfaceTableColumns = (
   handleDragMouseDown: (
@@ -270,7 +266,7 @@ const NetworkForm: FC<{
     interfaceIndex: number,
   ) => MUIBoxProps['onMouseUp'];
   getNetworkTypeCount: GetNetworkTypeCountFunction;
-  hostDetail?: APIHostDetail;
+  hostDetail?: Partial<Pick<APIHostDetail, 'hostType' | 'sequence'>>;
   networkIndex: number;
   networkInput: NetworkInput;
   networkInterfaceCount: number;
@@ -286,7 +282,7 @@ const NetworkForm: FC<{
 }> = ({
   createDropMouseUpHandler,
   getNetworkTypeCount,
-  hostDetail: { hostType } = {},
+  hostDetail: { hostType, sequence } = {},
   networkIndex,
   networkInput,
   networkInterfaceCount,
@@ -349,6 +345,20 @@ const NetworkForm: FC<{
       ? { bcn, ifn, mn, sn }
       : { bcn, ifn, sn };
   }, [isNode, networkInterfaceCount]);
+
+  useEffect((): void => {
+    if (hostType !== 'striker' || type === 'ifn') return;
+
+    const changedByUser =
+      ipAddressInputRef.current.getIsChangedByUser?.call(null);
+
+    if (changedByUser || !Number(sequence)) return;
+
+    ipAddressInputRef.current.setValue?.call(
+      null,
+      ipAddress.replace(/^((?:\d+\.){3})\d*$/, `$1${sequence}`),
+    );
+  }, [hostType, ipAddress, sequence, type]);
 
   useEffect(() => {
     const { ipAddressInputRef: ipRef, subnetMaskInputRef: maskRef } =
@@ -579,967 +589,1022 @@ const NetworkInitForm = forwardRef<
   {
     expectHostDetail?: boolean;
     hostDetail?: APIHostDetail;
+    hostSequence?: string;
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
->(({ expectHostDetail = false, hostDetail, toggleSubmitDisabled }, ref) => {
-  const { hostType, hostUUID = 'local' }: APIHostDetail =
-    hostDetail ?? ({} as APIHostDetail);
-
-  const uninitRequiredNetworks: NetworkInput[] = useMemo(
-    () =>
-      hostType === 'node' ? NODE_REQUIRED_NETWORKS : STRIKER_REQUIRED_NETWORKS,
-    [hostType],
-  );
-
-  const requiredNetworks = useMemo<Partial<Record<NetworkType, number>>>(
-    () =>
-      hostType === 'node' ? { bcn: 1, ifn: 1, sn: 1 } : { bcn: 1, ifn: 1 },
-    [hostType],
-  );
-
-  const [dragMousePosition, setDragMousePosition] = useState<{
-    x: number;
-    y: number;
-  }>({ x: 0, y: 0 });
-  const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
-    useState<NetworkInterfaceInputMap>({});
-  const [networkInputs, setNetworkInputs] = useState<NetworkInput[]>(
-    uninitRequiredNetworks,
-  );
-  const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
-    NetworkInterfaceOverviewMetadata | undefined
-  >();
-  const [gatewayInterface, setGatewayInterface] = useState<string>('');
-
-  const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
-  const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
-  /** Avoid state here to prevent triggering multiple renders when reading
-   * host detail. */
-  const readHostDetailRef = useRef<boolean>(true);
-  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
-
-  const {
-    data: networkInterfaces = [],
-    isLoading: isLoadingNetworkInterfaces,
-  } = periodicFetch<NetworkInterfaceOverviewMetadata[]>(
-    `${API_BASE_URL}/init/network-interface/${hostUUID}`,
+>(
+  (
     {
-      refreshInterval: 2000,
-      onSuccess: (data) => {
-        const map = data.reduce<NetworkInterfaceInputMap>(
-          (result, metadata) => {
-            const { networkInterfaceUUID } = metadata;
+      expectHostDetail = false,
+      hostDetail,
+      hostSequence,
+      toggleSubmitDisabled,
+    },
+    ref,
+  ) => {
+    let hostType: string | undefined;
+    let hostUUID = 'local';
+    let sequence = hostSequence;
 
-            result[networkInterfaceUUID] = networkInterfaceInputMap[
-              networkInterfaceUUID
-            ] ?? { metadata };
+    if (!expectHostDetail) {
+      hostType = 'striker';
+    } else if (hostDetail) {
+      ({ hostType, hostUUID, sequence } = hostDetail);
+    }
 
-            return result;
-          },
-          {},
+    const initRequiredNetworks: NetworkInput[] = useMemo(() => {
+      const result: NetworkInput[] = [];
+
+      if (hostType === 'striker') {
+        const ipAddress = sequence ? `10.201.4.${sequence}` : '10.201.4.';
+
+        result.push(
+          createNetworkInput({
+            ipAddress,
+            isRequired: true,
+            subnetMask: '255.255.0.0',
+            type: 'bcn',
+            typeCount: 1,
+          }),
+          createNetworkInput({
+            isRequired: true,
+            type: 'ifn',
+            typeCount: 1,
+          }),
         );
 
-        setNetworkInterfaceInputMap(map);
+        return result;
+      }
+
+      result.push(
+        createNetworkInput({
+          ipAddress: '10.201.',
+          isRequired: true,
+          subnetMask: '255.255.0.0',
+          type: 'bcn',
+          typeCount: 1,
+        }),
+        createNetworkInput({
+          isRequired: true,
+          type: 'ifn',
+          typeCount: 1,
+        }),
+        createNetworkInput({
+          ipAddress: '10.101.',
+          isRequired: true,
+          subnetMask: '255.255.0.0',
+          type: 'sn',
+          typeCount: 1,
+        }),
+      );
+
+      return result;
+    }, [hostType, sequence]);
+
+    const requiredNetworks = useMemo<Partial<Record<NetworkType, number>>>(
+      () =>
+        hostType === 'node' ? { bcn: 1, ifn: 1, sn: 1 } : { bcn: 1, ifn: 1 },
+      [hostType],
+    );
+
+    const [dragMousePosition, setDragMousePosition] = useState<{
+      x: number;
+      y: number;
+    }>({ x: 0, y: 0 });
+    const [networkInterfaceInputMap, setNetworkInterfaceInputMap] =
+      useState<NetworkInterfaceInputMap>({});
+    const [networkInputs, setNetworkInputs] =
+      useState<NetworkInput[]>(initRequiredNetworks);
+    const [networkInterfaceHeld, setNetworkInterfaceHeld] = useState<
+      NetworkInterfaceOverviewMetadata | undefined
+    >();
+    const [gatewayInterface, setGatewayInterface] = useState<string>('');
+
+    const dnsCSVInputRef = useRef<InputForwardedRefContent<'string'>>({});
+    const gatewayInputRef = useRef<InputForwardedRefContent<'string'>>({});
+    /** Avoid state here to prevent triggering multiple renders when reading
+     * host detail. */
+    const readHostDetailRef = useRef<boolean>(true);
+    const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
+
+    const {
+      data: networkInterfaces = [],
+      isLoading: isLoadingNetworkInterfaces,
+    } = periodicFetch<NetworkInterfaceOverviewMetadata[]>(
+      `${API_BASE_URL}/init/network-interface/${hostUUID}`,
+      {
+        refreshInterval: 2000,
+        onSuccess: (data) => {
+          const map = data.reduce<NetworkInterfaceInputMap>(
+            (result, metadata) => {
+              const { networkInterfaceUUID } = metadata;
+
+              result[networkInterfaceUUID] = networkInterfaceInputMap[
+                networkInterfaceUUID
+              ] ?? { metadata };
+
+              return result;
+            },
+            {},
+          );
+
+          setNetworkInterfaceInputMap(map);
+        },
       },
-    },
-  );
+    );
 
-  const isDisableAddNetworkButton: boolean = useMemo(
-    () =>
-      networkInputs.length >= networkInterfaces.length ||
-      Object.values(networkInterfaceInputMap).every(
-        ({ isApplied }) => isApplied,
-      ) ||
-      (hostType === 'node' && networkInterfaces.length <= 6),
-    [hostType, networkInputs, networkInterfaces, networkInterfaceInputMap],
-  );
-  const isLoadingHostDetail: boolean = useMemo(
-    () => expectHostDetail && !hostDetail,
-    [expectHostDetail, hostDetail],
-  );
+    const isDisableAddNetworkButton: boolean = useMemo(
+      () =>
+        networkInputs.length >= networkInterfaces.length ||
+        Object.values(networkInterfaceInputMap).every(
+          ({ isApplied }) => isApplied,
+        ) ||
+        (hostType === 'node' && networkInterfaces.length <= 6),
+      [hostType, networkInputs, networkInterfaces, networkInterfaceInputMap],
+    );
+    const isLoadingHostDetail: boolean = useMemo(
+      () => expectHostDetail && !hostDetail,
+      [expectHostDetail, hostDetail],
+    );
 
-  const setMessage = useCallback(
-    (key: string, message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, key, message),
-    [],
-  );
-  const setMessageRe = useCallback(
-    (re: RegExp, message?: Message) =>
-      messageGroupRef.current.setMessageRe?.call(null, re, message),
-    [],
-  );
-  const setDnsInputMessage = useCallback(
-    (message?: Message) => setMessage(IT_IDS.dnsCSV, message),
-    [setMessage],
-  );
-  const setGatewayInputMessage = useCallback(
-    (message?: Message) => setMessage(IT_IDS.gateway, message),
-    [setMessage],
-  );
-  const subnetContains = useCallback(
-    ({
-      fn = 'every',
-      ip = '',
-      mask = '',
-      isNegateMatch = fn === 'every',
-      onMatch,
-      onMiss,
-      skipUUID,
-    }: {
-      fn?: Extract<keyof Array<NetworkInput>, 'every' | 'some'>;
-      ip?: string;
-      isNegateMatch?: boolean;
-      mask?: string;
-      onMatch?: (otherInput: NetworkInput) => void;
-      onMiss?: (otherInput: NetworkInput) => void;
-      skipUUID?: string;
-    }) => {
-      const skipReturn = fn === 'every';
-      const match = (
-        a: Netmask,
-        { b, bIP = '' }: { aIP?: string; b?: Netmask; bIP?: string },
-      ) => a.contains(b ?? bIP) || (b !== undefined && b.contains(a));
+    const setMessage = useCallback(
+      (key: string, message?: Message) =>
+        messageGroupRef.current.setMessage?.call(null, key, message),
+      [],
+    );
+    const setMessageRe = useCallback(
+      (re: RegExp, message?: Message) =>
+        messageGroupRef.current.setMessageRe?.call(null, re, message),
+      [],
+    );
+    const setDnsInputMessage = useCallback(
+      (message?: Message) => setMessage(IT_IDS.dnsCSV, message),
+      [setMessage],
+    );
+    const setGatewayInputMessage = useCallback(
+      (message?: Message) => setMessage(IT_IDS.gateway, message),
+      [setMessage],
+    );
+    const subnetContains = useCallback(
+      ({
+        fn = 'every',
+        ip = '',
+        mask = '',
+        isNegateMatch = fn === 'every',
+        onMatch,
+        onMiss,
+        skipUUID,
+      }: {
+        fn?: Extract<keyof Array<NetworkInput>, 'every' | 'some'>;
+        ip?: string;
+        isNegateMatch?: boolean;
+        mask?: string;
+        onMatch?: (otherInput: NetworkInput) => void;
+        onMiss?: (otherInput: NetworkInput) => void;
+        skipUUID?: string;
+      }) => {
+        const skipReturn = fn === 'every';
+        const match = (
+          a: Netmask,
+          { b, bIP = '' }: { aIP?: string; b?: Netmask; bIP?: string },
+        ) => a.contains(b ?? bIP) || (b !== undefined && b.contains(a));
 
-      let subnet: Netmask | undefined;
-
-      try {
-        subnet = new Netmask(`${ip}/${mask}`);
-        // TODO: find a way to express the netmask creation error
-        // eslint-disable-next-line no-empty
-      } catch (netmaskError) {}
-
-      return networkInputs[fn]((networkInput) => {
-        const { inputUUID, ipAddressInputRef, subnetMaskInputRef } =
-          networkInput;
-
-        if (inputUUID === skipUUID) {
-          return skipReturn;
-        }
-
-        const otherIP = ipAddressInputRef?.current.getValue?.call(null);
-        const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
-
-        let isMatch = false;
+        let subnet: Netmask | undefined;
 
         try {
-          const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
-
-          isMatch = match(otherSubnet, { b: subnet, bIP: ip });
-
+          subnet = new Netmask(`${ip}/${mask}`);
           // TODO: find a way to express the netmask creation error
           // eslint-disable-next-line no-empty
         } catch (netmaskError) {}
 
-        if (isMatch) {
-          onMatch?.call(null, networkInput);
-        } else {
-          onMiss?.call(null, networkInput);
-        }
+        return networkInputs[fn]((networkInput) => {
+          const { inputUUID, ipAddressInputRef, subnetMaskInputRef } =
+            networkInput;
 
-        return isNegateMatch ? !isMatch : isMatch;
-      });
-    },
-    [networkInputs],
-  );
+          if (inputUUID === skipUUID) {
+            return skipReturn;
+          }
 
-  const setMapNetwork = useCallback(
-    (value: 0 | 1) => {
-      api.put('/init/set-map-network', { value }).catch((error) => {
-        const emsg = handleAPIError(error);
+          const otherIP = ipAddressInputRef?.current.getValue?.call(null);
+          const otherMask = subnetMaskInputRef?.current.getValue?.call(null);
 
-        emsg.children = (
-          <>
-            Failed to {value ? 'enable' : 'disable'} network mapping.{' '}
-            {emsg.children}
-          </>
-        );
+          let isMatch = false;
 
-        setMessage(MSG_ID_API, emsg);
-      });
-    },
-    [setMessage],
-  );
+          try {
+            const otherSubnet = new Netmask(`${otherIP}/${otherMask}`);
 
-  const inputTests: InputTestBatches = useMemo(() => {
-    const tests: InputTestBatches = {
-      [IT_IDS.dnsCSV]: {
-        defaults: {
-          getValue: () => dnsCSVInputRef.current.getValue?.call(null),
-          onSuccess: () => {
-            setDnsInputMessage();
-          },
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setDnsInputMessage({
-                children:
-                  'Domain name servers should be a comma-separated list of IPv4 addresses without trailing comma(s).',
-              });
-            },
-            test: ({ value }) => REP_IPV4_CSV.test(value as string),
-          },
-          { test: testNotBlank },
-        ],
+            isMatch = match(otherSubnet, { b: subnet, bIP: ip });
+
+            // TODO: find a way to express the netmask creation error
+            // eslint-disable-next-line no-empty
+          } catch (netmaskError) {}
+
+          if (isMatch) {
+            onMatch?.call(null, networkInput);
+          } else {
+            onMiss?.call(null, networkInput);
+          }
+
+          return isNegateMatch ? !isMatch : isMatch;
+        });
       },
-      [IT_IDS.gateway]: {
-        defaults: {
-          getValue: () => gatewayInputRef.current.getValue?.call(null),
-          onSuccess: () => {
-            setGatewayInputMessage();
-          },
-        },
-        tests: [
-          {
-            onFailure: () => {
-              setGatewayInputMessage({
-                children: 'Gateway should be a valid IPv4 address.',
-              });
-            },
-            test: ({ value }) => REP_IPV4.test(value as string),
-          },
-          {
-            test: ({ value }) => {
-              let isDistinctIP = true;
+      [networkInputs],
+    );
 
-              const isIPInOneNetwork = subnetContains({
-                fn: 'some',
-                ip: value as string,
-                onMatch: ({ ipAddress, name, type, typeCount }) => {
-                  if (value === ipAddress) {
-                    isDistinctIP = false;
+    const setMapNetwork = useCallback(
+      (value: 0 | 1) => {
+        api.put('/init/set-map-network', { value }).catch((error) => {
+          const emsg = handleAPIError(error);
 
-                    setGatewayInputMessage({
-                      children: `Gateway cannot be the same as IP address in ${name}.`,
-                    });
-
-                    return;
-                  }
-
-                  setGatewayInterface(`${type}${typeCount}`);
-                },
-              });
-
-              if (!isIPInOneNetwork) {
-                setGatewayInputMessage({
-                  children: "Gateway must be in one network's subnet.",
-                });
-              }
-
-              return isIPInOneNetwork && isDistinctIP;
-            },
-          },
-          { test: testNotBlank },
-        ],
-      },
-    };
-
-    networkInputs.forEach(
-      ({
-        inputUUID,
-        interfaces,
-        ipAddressInputRef,
-        name,
-        subnetMaskInputRef,
-      }) => {
-        const inputTestPrefix = createInputTestPrefix(inputUUID);
-        const inputTestIDIfaces = IT_IDS.networkInterfaces(inputTestPrefix);
-        const inputTestIDIPAddress = IT_IDS.networkIPAddress(inputTestPrefix);
-        const inputTestIDSubnetMask = IT_IDS.networkSubnetMask(inputTestPrefix);
-
-        const setNetworkIfacesInputMessage = (message?: Message) =>
-          setMessage(inputTestIDIfaces, message);
-        const setNetworkIPAddressInputMessage = (message?: Message) =>
-          setMessage(inputTestIDIPAddress, message);
-        const setNetworkSubnetMaskInputMessage = (message?: Message) =>
-          setMessage(inputTestIDSubnetMask, message);
-        const setNetworkSubnetConflictInputMessage = (
-          uuid: string,
-          otherUUID: string,
-          message?: Message,
-        ) => {
-          const id = `${IT_IDS.networkSubnetConflict(
-            inputTestPrefix,
-          )}-${otherUUID}`;
-          const reverseID = `${IT_IDS.networkSubnetConflict(
-            createInputTestPrefix(otherUUID),
-          )}-${uuid}`;
-
-          setMessage(
-            messageGroupRef.current.exists?.call(null, reverseID)
-              ? reverseID
-              : id,
-            message,
+          emsg.children = (
+            <>
+              Failed to {value ? 'enable' : 'disable'} network mapping.{' '}
+              {emsg.children}
+            </>
           );
-        };
-        const testNetworkSubnetConflictWithDefaults = ({
-          ip = ipAddressInputRef?.current.getValue?.call(null),
-          mask = subnetMaskInputRef?.current.getValue?.call(null),
-        }: {
-          ip?: string;
-          mask?: string;
-        }) =>
-          subnetContains({
-            ip,
-            mask,
-            onMatch: ({ inputUUID: otherUUID, name: otherName }) => {
-              setNetworkSubnetConflictInputMessage(inputUUID, otherUUID, {
-                children: `"${name}" and "${otherName}" cannot be in the same subnet.`,
-              });
-            },
-            onMiss: ({ inputUUID: otherUUID }) => {
-              setNetworkSubnetConflictInputMessage(inputUUID, otherUUID);
-            },
-            skipUUID: inputUUID,
-          });
 
-        tests[inputTestIDIfaces] = {
+          setMessage(MSG_ID_API, emsg);
+        });
+      },
+      [setMessage],
+    );
+
+    const inputTests: InputTestBatches = useMemo(() => {
+      const tests: InputTestBatches = {
+        [IT_IDS.dnsCSV]: {
           defaults: {
-            getCompare: () => interfaces.map((iface) => iface !== undefined),
+            getValue: () => dnsCSVInputRef.current.getValue?.call(null),
             onSuccess: () => {
-              setNetworkIfacesInputMessage();
+              setDnsInputMessage();
             },
           },
           tests: [
             {
               onFailure: () => {
-                setNetworkIfacesInputMessage({
-                  children: `${name} must have at least 1 interface.`,
+                setDnsInputMessage({
+                  children:
+                    'Domain name servers should be a comma-separated list of IPv4 addresses without trailing comma(s).',
                 });
               },
-              test: ({ compare }) =>
-                (compare as boolean[]).some((ifaceSet) => ifaceSet),
+              test: ({ value }) => REP_IPV4_CSV.test(value as string),
             },
-            {
-              onFailure: () => {
-                setNetworkIfacesInputMessage({
-                  children: `${name} must have a Link 1 interface.`,
-                });
-              },
-              test: ({ compare: [iface1Exists, iface2Exists] }) =>
-                !(iface2Exists && !iface1Exists),
-            },
+            { test: testNotBlank },
           ],
-        };
-        tests[inputTestIDIPAddress] = {
+        },
+        [IT_IDS.gateway]: {
           defaults: {
-            getValue: () => ipAddressInputRef?.current.getValue?.call(null),
+            getValue: () => gatewayInputRef.current.getValue?.call(null),
             onSuccess: () => {
-              setNetworkIPAddressInputMessage();
+              setGatewayInputMessage();
             },
           },
           tests: [
             {
               onFailure: () => {
-                setNetworkIPAddressInputMessage({
-                  children: `IP address in ${name} must be a valid IPv4 address.`,
+                setGatewayInputMessage({
+                  children: 'Gateway should be a valid IPv4 address.',
                 });
               },
               test: ({ value }) => REP_IPV4.test(value as string),
             },
             {
-              test: ({ value }) =>
-                testNetworkSubnetConflictWithDefaults({
+              test: ({ value }) => {
+                let isDistinctIP = true;
+
+                const isIPInOneNetwork = subnetContains({
+                  fn: 'some',
                   ip: value as string,
-                }),
+                  onMatch: ({ ipAddress, name, type, typeCount }) => {
+                    if (value === ipAddress) {
+                      isDistinctIP = false;
+
+                      setGatewayInputMessage({
+                        children: `Gateway cannot be the same as IP address in ${name}.`,
+                      });
+
+                      return;
+                    }
+
+                    setGatewayInterface(`${type}${typeCount}`);
+                  },
+                });
+
+                if (!isIPInOneNetwork) {
+                  setGatewayInputMessage({
+                    children: "Gateway must be in one network's subnet.",
+                  });
+                }
+
+                return isIPInOneNetwork && isDistinctIP;
+              },
             },
             { test: testNotBlank },
           ],
-        };
-        tests[IT_IDS.networkName(inputTestPrefix)] = {
-          defaults: { value: name },
-          tests: [{ test: testNotBlank }],
-        };
-        tests[inputTestIDSubnetMask] = {
-          defaults: {
-            getValue: () => subnetMaskInputRef?.current.getValue?.call(null),
-            onSuccess: () => {
-              setNetworkSubnetMaskInputMessage();
-            },
-          },
-          tests: [
-            {
-              onFailure: () => {
-                setNetworkSubnetMaskInputMessage({
-                  children: `Subnet mask in ${name} must be a valid IPv4 address.`,
+        },
+      };
+
+      networkInputs.forEach(
+        ({
+          inputUUID,
+          interfaces,
+          ipAddressInputRef,
+          name,
+          subnetMaskInputRef,
+        }) => {
+          const inputTestPrefix = createInputTestPrefix(inputUUID);
+          const inputTestIDIfaces = IT_IDS.networkInterfaces(inputTestPrefix);
+          const inputTestIDIPAddress = IT_IDS.networkIPAddress(inputTestPrefix);
+          const inputTestIDSubnetMask =
+            IT_IDS.networkSubnetMask(inputTestPrefix);
+
+          const setNetworkIfacesInputMessage = (message?: Message) =>
+            setMessage(inputTestIDIfaces, message);
+          const setNetworkIPAddressInputMessage = (message?: Message) =>
+            setMessage(inputTestIDIPAddress, message);
+          const setNetworkSubnetMaskInputMessage = (message?: Message) =>
+            setMessage(inputTestIDSubnetMask, message);
+          const setNetworkSubnetConflictInputMessage = (
+            uuid: string,
+            otherUUID: string,
+            message?: Message,
+          ) => {
+            const id = `${IT_IDS.networkSubnetConflict(
+              inputTestPrefix,
+            )}-${otherUUID}`;
+            const reverseID = `${IT_IDS.networkSubnetConflict(
+              createInputTestPrefix(otherUUID),
+            )}-${uuid}`;
+
+            setMessage(
+              messageGroupRef.current.exists?.call(null, reverseID)
+                ? reverseID
+                : id,
+              message,
+            );
+          };
+          const testNetworkSubnetConflictWithDefaults = ({
+            ip = ipAddressInputRef?.current.getValue?.call(null),
+            mask = subnetMaskInputRef?.current.getValue?.call(null),
+          }: {
+            ip?: string;
+            mask?: string;
+          }) =>
+            subnetContains({
+              ip,
+              mask,
+              onMatch: ({ inputUUID: otherUUID, name: otherName }) => {
+                setNetworkSubnetConflictInputMessage(inputUUID, otherUUID, {
+                  children: `"${name}" and "${otherName}" cannot be in the same subnet.`,
                 });
               },
-              test: ({ value }) => REP_IPV4.test(value as string),
+              onMiss: ({ inputUUID: otherUUID }) => {
+                setNetworkSubnetConflictInputMessage(inputUUID, otherUUID);
+              },
+              skipUUID: inputUUID,
+            });
+
+          tests[inputTestIDIfaces] = {
+            defaults: {
+              getCompare: () => interfaces.map((iface) => iface !== undefined),
+              onSuccess: () => {
+                setNetworkIfacesInputMessage();
+              },
             },
-            {
-              test: ({ value }) =>
-                testNetworkSubnetConflictWithDefaults({
-                  mask: value as string,
-                }),
+            tests: [
+              {
+                onFailure: () => {
+                  setNetworkIfacesInputMessage({
+                    children: `${name} must have at least 1 interface.`,
+                  });
+                },
+                test: ({ compare }) =>
+                  (compare as boolean[]).some((ifaceSet) => ifaceSet),
+              },
+              {
+                onFailure: () => {
+                  setNetworkIfacesInputMessage({
+                    children: `${name} must have a Link 1 interface.`,
+                  });
+                },
+                test: ({ compare: [iface1Exists, iface2Exists] }) =>
+                  !(iface2Exists && !iface1Exists),
+              },
+            ],
+          };
+          tests[inputTestIDIPAddress] = {
+            defaults: {
+              getValue: () => ipAddressInputRef?.current.getValue?.call(null),
+              onSuccess: () => {
+                setNetworkIPAddressInputMessage();
+              },
             },
-            { test: testNotBlank },
-          ],
-        };
-      },
+            tests: [
+              {
+                onFailure: () => {
+                  setNetworkIPAddressInputMessage({
+                    children: `IP address in ${name} must be a valid IPv4 address.`,
+                  });
+                },
+                test: ({ value }) => REP_IPV4.test(value as string),
+              },
+              {
+                test: ({ value }) =>
+                  testNetworkSubnetConflictWithDefaults({
+                    ip: value as string,
+                  }),
+              },
+              { test: testNotBlank },
+            ],
+          };
+          tests[IT_IDS.networkName(inputTestPrefix)] = {
+            defaults: { value: name },
+            tests: [{ test: testNotBlank }],
+          };
+          tests[inputTestIDSubnetMask] = {
+            defaults: {
+              getValue: () => subnetMaskInputRef?.current.getValue?.call(null),
+              onSuccess: () => {
+                setNetworkSubnetMaskInputMessage();
+              },
+            },
+            tests: [
+              {
+                onFailure: () => {
+                  setNetworkSubnetMaskInputMessage({
+                    children: `Subnet mask in ${name} must be a valid IPv4 address.`,
+                  });
+                },
+                test: ({ value }) => REP_IPV4.test(value as string),
+              },
+              {
+                test: ({ value }) =>
+                  testNetworkSubnetConflictWithDefaults({
+                    mask: value as string,
+                  }),
+              },
+              { test: testNotBlank },
+            ],
+          };
+        },
+      );
+
+      return tests;
+    }, [
+      networkInputs,
+      setDnsInputMessage,
+      setGatewayInputMessage,
+      setMessage,
+      subnetContains,
+    ]);
+    const testInput = useMemo(
+      () => createTestInputFunction(inputTests),
+      [inputTests],
     );
 
-    return tests;
-  }, [
-    networkInputs,
-    setDnsInputMessage,
-    setGatewayInputMessage,
-    setMessage,
-    subnetContains,
-  ]);
-  const testInput = useMemo(
-    () => createTestInputFunction(inputTests),
-    [inputTests],
-  );
+    const testInputToToggleSubmitDisabled: TestInputToToggleSubmitDisabled =
+      useCallback(
+        (options) => {
+          toggleSubmitDisabled?.call(
+            null,
+            testInput({
+              isIgnoreOnCallbacks: true,
+              isTestAll: true,
 
-  const testInputToToggleSubmitDisabled: TestInputToToggleSubmitDisabled =
-    useCallback(
-      (options) => {
-        toggleSubmitDisabled?.call(
-          null,
-          testInput({
-            isIgnoreOnCallbacks: true,
-            isTestAll: true,
+              ...options,
+            }),
+          );
+        },
+        [testInput, toggleSubmitDisabled],
+      );
+    const clearNetworkInterfaceHeld = useCallback(() => {
+      setNetworkInterfaceHeld(undefined);
+    }, []);
+    const createNetwork = useCallback(
+      (args: Partial<NetworkInput> = {}) => {
+        networkInputs.unshift(createNetworkInput(args));
 
-            ...options,
-          }),
+        toggleSubmitDisabled?.call(null, false);
+        setNetworkInputs([...networkInputs]);
+      },
+      [networkInputs, toggleSubmitDisabled],
+    );
+    const removeNetwork = useCallback(
+      (networkIndex: number) => {
+        const [{ inputUUID, interfaces }] = networkInputs.splice(
+          networkIndex,
+          1,
         );
+
+        interfaces.forEach((iface) => {
+          if (iface === undefined) {
+            return;
+          }
+
+          const { networkInterfaceUUID } = iface;
+
+          networkInterfaceInputMap[networkInterfaceUUID].isApplied = false;
+        });
+
+        testInputToToggleSubmitDisabled({
+          excludeTestIdsRe: RegExp(inputUUID),
+        });
+        setNetworkInputs([...networkInputs]);
+        setNetworkInterfaceInputMap((previous) => ({
+          ...previous,
+        }));
       },
-      [testInput, toggleSubmitDisabled],
+      [
+        networkInputs,
+        networkInterfaceInputMap,
+        testInputToToggleSubmitDisabled,
+      ],
     );
-  const clearNetworkInterfaceHeld = useCallback(() => {
-    setNetworkInterfaceHeld(undefined);
-  }, []);
-  const createNetwork = useCallback(
-    ({
-      inputUUID = uuidv4(),
-      interfaces = [...INITIAL_IFACES],
-      ipAddress = '',
-      name = 'Unknown Network',
-      subnetMask = '',
-      type = '',
-      typeCount = 0,
-    }: Partial<NetworkInput> = {}) => {
-      networkInputs.unshift({
-        inputUUID,
-        interfaces,
-        ipAddress,
-        name,
-        subnetMask,
-        type,
-        typeCount,
-      });
+    const getNetworkTypeCount: GetNetworkTypeCountFunction = useCallback(
+      (
+        targetType: string,
+        {
+          inputs = networkInputs,
+          lastIndex = 0,
+        }: {
+          inputs?: NetworkInput[];
+          lastIndex?: number;
+        } = {},
+      ) => {
+        let count = 0;
 
-      toggleSubmitDisabled?.call(null, false);
-      setNetworkInputs([...networkInputs]);
-    },
-    [networkInputs, toggleSubmitDisabled],
-  );
-  const removeNetwork = useCallback(
-    (networkIndex: number) => {
-      const [{ inputUUID, interfaces }] = networkInputs.splice(networkIndex, 1);
-
-      interfaces.forEach((iface) => {
-        if (iface === undefined) {
-          return;
+        for (let index = inputs.length - 1; index >= lastIndex; index -= 1) {
+          if (inputs[index].type === targetType) {
+            count += 1;
+          }
         }
 
-        const { networkInterfaceUUID } = iface;
+        return count;
+      },
+      [networkInputs],
+    );
 
-        networkInterfaceInputMap[networkInterfaceUUID].isApplied = false;
-      });
-
-      testInputToToggleSubmitDisabled({
-        excludeTestIdsRe: RegExp(inputUUID),
-      });
-      setNetworkInputs([...networkInputs]);
-      setNetworkInterfaceInputMap((previous) => ({
-        ...previous,
-      }));
-    },
-    [networkInputs, networkInterfaceInputMap, testInputToToggleSubmitDisabled],
-  );
-  const getNetworkTypeCount: GetNetworkTypeCountFunction = useCallback(
-    (
-      targetType: string,
-      {
-        inputs = networkInputs,
-        lastIndex = 0,
-      }: {
-        inputs?: NetworkInput[];
-        lastIndex?: number;
-      } = {},
-    ) => {
-      let count = 0;
-
-      for (let index = inputs.length - 1; index >= lastIndex; index -= 1) {
-        if (inputs[index].type === targetType) {
-          count += 1;
-        }
+    const createDropMouseUpHandler:
+      | ((
+          interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+          interfaceIndex: number,
+        ) => MUIBoxProps['onMouseUp'])
+      | undefined = useMemo(() => {
+      if (networkInterfaceHeld === undefined) {
+        return undefined;
       }
 
-      return count;
-    },
-    [networkInputs],
-  );
+      const { networkInterfaceUUID } = networkInterfaceHeld;
 
-  const createDropMouseUpHandler:
-    | ((
-        interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
-        interfaceIndex: number,
-      ) => MUIBoxProps['onMouseUp'])
-    | undefined = useMemo(() => {
-    if (networkInterfaceHeld === undefined) {
-      return undefined;
-    }
-
-    const { networkInterfaceUUID } = networkInterfaceHeld;
-
-    return (
-        interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
-        interfaceIndex: number,
-      ) =>
-      () => {
-        const { networkInterfaceUUID: previousNetworkInterfaceUUID } =
-          interfaces[interfaceIndex] ?? {};
-
-        if (
-          previousNetworkInterfaceUUID &&
-          previousNetworkInterfaceUUID !== networkInterfaceUUID
-        ) {
-          networkInterfaceInputMap[previousNetworkInterfaceUUID].isApplied =
-            false;
-        }
-
-        interfaces[interfaceIndex] = networkInterfaceHeld;
-        networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
-      };
-  }, [networkInterfaceHeld, networkInterfaceInputMap]);
-  const dragAreaDraggingSx: MUIBoxProps['sx'] = useMemo(
-    () =>
-      networkInterfaceHeld ? { cursor: 'grabbing', userSelect: 'none' } : {},
-    [networkInterfaceHeld],
-  );
-  const floatingNetworkInterface: JSX.Element = useMemo(() => {
-    if (networkInterfaceHeld === undefined) {
-      return <></>;
-    }
-
-    const { x, y } = dragMousePosition;
-
-    return (
-      <BriefNetworkInterface
-        isFloating
-        networkInterface={networkInterfaceHeld}
-        sx={{
-          left: `calc(${x}px + .4em)`,
-          position: 'absolute',
-          top: `calc(${y}px - 1.6em)`,
-          zIndex: 20,
-        }}
-      />
-    );
-  }, [dragMousePosition, networkInterfaceHeld]);
-  const handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'] = useMemo(
-    () =>
-      networkInterfaceHeld
-        ? () => {
-            clearNetworkInterfaceHeld();
-          }
-        : undefined,
-    [clearNetworkInterfaceHeld, networkInterfaceHeld],
-  );
-  const handleDragAreaMouseMove: MUIBoxProps['onMouseMove'] = useMemo(
-    () =>
-      networkInterfaceHeld
-        ? ({ currentTarget, nativeEvent: { clientX, clientY } }) => {
-            const { left, top } = currentTarget.getBoundingClientRect();
-
-            setDragMousePosition({
-              x: clientX - left,
-              y: clientY - top,
-            });
-          }
-        : undefined,
-    [networkInterfaceHeld],
-  );
-  const handleDragAreaMouseUp: MUIBoxProps['onMouseUp'] = useMemo(
-    () =>
-      networkInterfaceHeld
-        ? () => {
-            clearNetworkInterfaceHeld();
-          }
-        : undefined,
-    [clearNetworkInterfaceHeld, networkInterfaceHeld],
-  );
-
-  useEffect(() => {
-    if (
-      [
-        Object.keys(networkInterfaceInputMap).length > 0,
-        expectHostDetail,
-        hostDetail,
-        readHostDetailRef.current,
-        dnsCSVInputRef.current,
-        gatewayInputRef.current,
-      ].every((condition) => Boolean(condition))
-    ) {
-      readHostDetailRef.current = false;
-
-      const {
-        dns: pDns,
-        gateway: pGateway,
-        gatewayInterface: pGatewayInterface,
-        networks: pNetworks,
-      } = hostDetail as APIHostDetail;
-
-      dnsCSVInputRef.current.setValue?.call(null, pDns);
-      gatewayInputRef.current.setValue?.call(null, pGateway);
-
-      const applied: string[] = [];
-      const inputs = Object.values(pNetworks).reduce<NetworkInput[]>(
-        (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
-          const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
-          const isRequired = requiredNetworks[type] === typeCount;
-
-          const name = `${NETWORK_TYPES[type]} ${typeCount}`;
-
-          applied.push(link1Uuid, link2Uuid);
-
-          previous.push({
-            inputUUID: uuidv4(),
-            interfaces: [
-              networkInterfaceInputMap[link1Uuid]?.metadata,
-              networkInterfaceInputMap[link2Uuid]?.metadata,
-            ],
-            ipAddress: ip,
-            isRequired,
-            name,
-            subnetMask,
-            type,
-            typeCount,
-          });
-
-          return previous;
-        },
-        [],
-      );
-
-      setGatewayInterface(pGatewayInterface);
-
-      setNetworkInterfaceInputMap((previous) => {
-        const result = { ...previous };
-
-        applied.forEach((uuid) => {
-          if (result[uuid]) {
-            result[uuid].isApplied = true;
-          }
-        });
-
-        return result;
-      });
-
-      setNetworkInputs(inputs);
-
-      testInputToToggleSubmitDisabled();
-    }
-  }, [
-    createNetwork,
-    expectHostDetail,
-    getNetworkTypeCount,
-    hostDetail,
-    networkInputs,
-    networkInterfaceInputMap,
-    requiredNetworks,
-    testInputToToggleSubmitDisabled,
-  ]);
-
-  useEffect(() => {
-    // Enable network mapping on component mount.
-    setMapNetwork(1);
-
-    if (window) {
-      window.addEventListener(
-        'beforeunload',
+      return (
+          interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
+          interfaceIndex: number,
+        ) =>
         () => {
-          // Cannot use async request (i.e., axios) because they won't be guaranteed to complete.
-          const request = new XMLHttpRequest();
+          const { networkInterfaceUUID: previousNetworkInterfaceUUID } =
+            interfaces[interfaceIndex] ?? {};
 
-          request.open('PUT', `${API_BASE_URL}/init/set-map-network`, false);
-          request.send(null);
-        },
-        { once: true },
-      );
-    }
+          if (
+            previousNetworkInterfaceUUID &&
+            previousNetworkInterfaceUUID !== networkInterfaceUUID
+          ) {
+            networkInterfaceInputMap[previousNetworkInterfaceUUID].isApplied =
+              false;
+          }
 
-    return () => {
-      // Disable network mapping on component unmount.
-      setMapNetwork(0);
-    };
-  }, [setMapNetwork]);
+          interfaces[interfaceIndex] = networkInterfaceHeld;
+          networkInterfaceInputMap[networkInterfaceUUID].isApplied = true;
+        };
+    }, [networkInterfaceHeld, networkInterfaceInputMap]);
+    const dragAreaDraggingSx: MUIBoxProps['sx'] = useMemo(
+      () =>
+        networkInterfaceHeld ? { cursor: 'grabbing', userSelect: 'none' } : {},
+      [networkInterfaceHeld],
+    );
+    const floatingNetworkInterface: JSX.Element = useMemo(() => {
+      if (networkInterfaceHeld === undefined) {
+        return <></>;
+      }
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      ...messageGroupRef.current,
-      get: () => ({
-        dns: dnsCSVInputRef.current.getValue?.call(null),
-        gateway: gatewayInputRef.current.getValue?.call(null),
-        gatewayInterface,
-        networks: networkInputs.map(
-          ({
-            inputUUID,
-            interfaces,
-            ipAddressInputRef,
-            name,
-            subnetMaskInputRef,
-            type,
-            typeCount,
-          }) => ({
-            inputUUID,
-            interfaces,
-            ipAddress: ipAddressInputRef?.current.getValue?.call(null) ?? '',
-            name,
-            subnetMask: subnetMaskInputRef?.current.getValue?.call(null) ?? '',
-            type,
-            typeCount,
-          }),
-        ),
-      }),
-    }),
-    [gatewayInterface, networkInputs],
-  );
+      const { x, y } = dragMousePosition;
 
-  const networkInputMinWidth = '13em';
-  const networkInputWidth = '25%';
-
-  return isLoadingNetworkInterfaces ? (
-    <Spinner />
-  ) : (
-    <MUIBox
-      onMouseDown={({ clientX, clientY, currentTarget }) => {
-        const { left, top } = currentTarget.getBoundingClientRect();
-
-        setDragMousePosition({
-          x: clientX - left,
-          y: clientY - top,
-        });
-      }}
-      onMouseLeave={handleDragAreaMouseLeave}
-      onMouseMove={handleDragAreaMouseMove}
-      onMouseUp={handleDragAreaMouseUp}
-      sx={{ position: 'relative', ...dragAreaDraggingSx }}
-    >
-      {floatingNetworkInterface}
-      <MUIBox
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-
-          '& > :not(:first-child, :nth-child(3))': {
-            marginTop: '1em',
-          },
-        }}
-      >
-        <MUIDataGrid
-          autoHeight
-          columns={createNetworkInterfaceTableColumns((row) => {
-            setNetworkInterfaceHeld(row);
-          }, networkInterfaceInputMap)}
-          componentsProps={{
-            row: {
-              onMouseDown: ({
-                target: {
-                  parentElement: {
-                    dataset: { id: networkInterfaceUUID = undefined } = {},
-                  } = {},
-                } = {},
-              }: {
-                target?: { parentElement?: { dataset?: { id?: string } } };
-              }) => {
-                if (networkInterfaceUUID) {
-                  const { isApplied, metadata } =
-                    networkInterfaceInputMap[networkInterfaceUUID];
-
-                  if (!isApplied) {
-                    setNetworkInterfaceHeld(metadata);
-                  }
-                }
-              },
-            },
-          }}
-          disableColumnMenu
-          disableSelectionOnClick
-          getRowClassName={({ row: { networkInterfaceUUID } }) => {
-            const { isApplied } =
-              networkInterfaceInputMap[networkInterfaceUUID] ?? false;
-
-            let className = '';
-
-            if (!isApplied) {
-              className += ` ${CLASSES.ifaceNotApplied}`;
-            }
-
-            return className;
-          }}
-          getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
-          hideFooter
-          rows={networkInterfaces}
+      return (
+        <BriefNetworkInterface
+          isFloating
+          networkInterface={networkInterfaceHeld}
           sx={{
-            color: GREY,
-
-            [`& .${muiIconButtonClasses.root}`]: {
-              color: 'inherit',
-            },
-
-            [`& .${muiGridClasses.cell}:focus`]: {
-              outline: 'none',
-            },
-
-            [`& .${muiGridClasses.row}.${CLASSES.ifaceNotApplied}:hover`]: {
-              cursor: 'grab',
-
-              [`& .${muiGridClasses.cell} p`]: {
-                cursor: 'auto',
-              },
-            },
+            left: `calc(${x}px + .4em)`,
+            position: 'absolute',
+            top: `calc(${y}px - 1.6em)`,
+            zIndex: 20,
           }}
         />
-        {!isLoadingHostDetail && (
-          <FlexBox
-            row
-            sx={{
-              '& > :first-child': {
-                alignSelf: 'start',
-                marginTop: '.7em',
-              },
+      );
+    }, [dragMousePosition, networkInterfaceHeld]);
+    const handleDragAreaMouseLeave: MUIBoxProps['onMouseLeave'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? () => {
+              clearNetworkInterfaceHeld();
+            }
+          : undefined,
+      [clearNetworkInterfaceHeld, networkInterfaceHeld],
+    );
+    const handleDragAreaMouseMove: MUIBoxProps['onMouseMove'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? ({ currentTarget, nativeEvent: { clientX, clientY } }) => {
+              const { left, top } = currentTarget.getBoundingClientRect();
 
-              '& > :last-child': {
-                flexGrow: 1,
-              },
-            }}
-          >
-            <MUIBox
-              sx={{
-                alignItems: 'strech',
-                display: 'flex',
-                flexDirection: 'row',
-                overflowX: 'auto',
-                paddingLeft: '.3em',
+              setDragMousePosition({
+                x: clientX - left,
+                y: clientY - top,
+              });
+            }
+          : undefined,
+      [networkInterfaceHeld],
+    );
+    const handleDragAreaMouseUp: MUIBoxProps['onMouseUp'] = useMemo(
+      () =>
+        networkInterfaceHeld
+          ? () => {
+              clearNetworkInterfaceHeld();
+            }
+          : undefined,
+      [clearNetworkInterfaceHeld, networkInterfaceHeld],
+    );
 
-                '& > div': {
-                  marginBottom: '.8em',
-                  marginTop: '.4em',
-                  minWidth: networkInputMinWidth,
-                  width: networkInputWidth,
-                },
+    useEffect(() => {
+      if (
+        [
+          Object.keys(networkInterfaceInputMap).length > 0,
+          expectHostDetail,
+          hostDetail,
+          readHostDetailRef.current,
+          dnsCSVInputRef.current,
+          gatewayInputRef.current,
+        ].every((condition) => Boolean(condition))
+      ) {
+        readHostDetailRef.current = false;
 
-                '& > :not(:first-child)': {
-                  marginLeft: '1em',
-                },
-              }}
-            >
-              {networkInputs.map((networkInput, networkIndex) => {
-                const { inputUUID } = networkInput;
+        const {
+          dns: pDns,
+          gateway: pGateway,
+          gatewayInterface: pGatewayInterface,
+          networks: pNetworks,
+        } = hostDetail as APIHostDetail;
 
-                return (
-                  <NetworkForm
-                    key={`network-${inputUUID}`}
-                    {...{
-                      createDropMouseUpHandler,
-                      getNetworkTypeCount,
-                      hostDetail,
-                      networkIndex,
-                      networkInput,
-                      networkInterfaceCount: networkInterfaces.length,
-                      networkInterfaceInputMap,
-                      removeNetwork,
-                      setMessageRe,
-                      setNetworkInputs,
-                      setNetworkInterfaceInputMap,
-                      testInput,
-                      testInputToToggleSubmitDisabled,
-                    }}
-                  />
-                );
-              })}
-            </MUIBox>
-          </FlexBox>
-        )}
-        <FlexBox
-          sm="row"
+        dnsCSVInputRef.current.setValue?.call(null, pDns);
+        gatewayInputRef.current.setValue?.call(null, pGateway);
+
+        const applied: string[] = [];
+        const inputs = Object.values(pNetworks).reduce<NetworkInput[]>(
+          (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
+            const typeCount =
+              getNetworkTypeCount(type, { inputs: previous }) + 1;
+            const isRequired = requiredNetworks[type] === typeCount;
+
+            const name = `${NETWORK_TYPES[type]} ${typeCount}`;
+
+            applied.push(link1Uuid, link2Uuid);
+
+            previous.push({
+              inputUUID: uuidv4(),
+              interfaces: [
+                networkInterfaceInputMap[link1Uuid]?.metadata,
+                networkInterfaceInputMap[link2Uuid]?.metadata,
+              ],
+              ipAddress: ip,
+              isRequired,
+              name,
+              subnetMask,
+              type,
+              typeCount,
+            });
+
+            return previous;
+          },
+          [],
+        );
+
+        setGatewayInterface(pGatewayInterface);
+
+        setNetworkInterfaceInputMap((previous) => {
+          const result = { ...previous };
+
+          applied.forEach((uuid) => {
+            if (result[uuid]) {
+              result[uuid].isApplied = true;
+            }
+          });
+
+          return result;
+        });
+
+        setNetworkInputs(inputs);
+
+        testInputToToggleSubmitDisabled();
+      }
+    }, [
+      createNetwork,
+      expectHostDetail,
+      getNetworkTypeCount,
+      hostDetail,
+      networkInputs,
+      networkInterfaceInputMap,
+      requiredNetworks,
+      testInputToToggleSubmitDisabled,
+    ]);
+
+    useEffect(() => {
+      // Enable network mapping on component mount.
+      setMapNetwork(1);
+
+      if (window) {
+        window.addEventListener(
+          'beforeunload',
+          () => {
+            // Cannot use async request (i.e., axios) because they won't be guaranteed to complete.
+            const request = new XMLHttpRequest();
+
+            request.open('PUT', `${API_BASE_URL}/init/set-map-network`, false);
+            request.send(null);
+          },
+          { once: true },
+        );
+      }
+
+      return () => {
+        // Disable network mapping on component unmount.
+        setMapNetwork(0);
+      };
+    }, [setMapNetwork]);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        ...messageGroupRef.current,
+        get: () => ({
+          dns: dnsCSVInputRef.current.getValue?.call(null),
+          gateway: gatewayInputRef.current.getValue?.call(null),
+          gatewayInterface,
+          networks: networkInputs.map(
+            ({
+              inputUUID,
+              interfaces,
+              ipAddressInputRef,
+              name,
+              subnetMaskInputRef,
+              type,
+              typeCount,
+            }) => ({
+              inputUUID,
+              interfaces,
+              ipAddress: ipAddressInputRef?.current.getValue?.call(null) ?? '',
+              name,
+              subnetMask:
+                subnetMaskInputRef?.current.getValue?.call(null) ?? '',
+              type,
+              typeCount,
+            }),
+          ),
+        }),
+      }),
+      [gatewayInterface, networkInputs],
+    );
+
+    const networkInputMinWidth = '13em';
+    const networkInputWidth = '25%';
+
+    return isLoadingNetworkInterfaces ? (
+      <Spinner />
+    ) : (
+      <MUIBox
+        onMouseDown={({ clientX, clientY, currentTarget }) => {
+          const { left, top } = currentTarget.getBoundingClientRect();
+
+          setDragMousePosition({
+            x: clientX - left,
+            y: clientY - top,
+          });
+        }}
+        onMouseLeave={handleDragAreaMouseLeave}
+        onMouseMove={handleDragAreaMouseMove}
+        onMouseUp={handleDragAreaMouseUp}
+        sx={{ position: 'relative', ...dragAreaDraggingSx }}
+      >
+        {floatingNetworkInterface}
+        <MUIBox
           sx={{
-            marginTop: '.2em',
+            display: 'flex',
+            flexDirection: 'column',
 
-            '& > :not(button)': {
-              minWidth: networkInputMinWidth,
-              width: { sm: networkInputWidth },
+            '& > :not(:first-child, :nth-child(3))': {
+              marginTop: '1em',
             },
           }}
         >
-          <IconButton
-            disabled={isDisableAddNetworkButton}
-            onClick={() => {
-              createNetwork();
+          <MUIDataGrid
+            autoHeight
+            columns={createNetworkInterfaceTableColumns((row) => {
+              setNetworkInterfaceHeld(row);
+            }, networkInterfaceInputMap)}
+            componentsProps={{
+              row: {
+                onMouseDown: ({
+                  target: {
+                    parentElement: {
+                      dataset: { id: networkInterfaceUUID = undefined } = {},
+                    } = {},
+                  } = {},
+                }: {
+                  target?: { parentElement?: { dataset?: { id?: string } } };
+                }) => {
+                  if (networkInterfaceUUID) {
+                    const { isApplied, metadata } =
+                      networkInterfaceInputMap[networkInterfaceUUID];
+
+                    if (!isApplied) {
+                      setNetworkInterfaceHeld(metadata);
+                    }
+                  }
+                },
+              },
+            }}
+            disableColumnMenu
+            disableSelectionOnClick
+            getRowClassName={({ row: { networkInterfaceUUID } }) => {
+              const { isApplied } =
+                networkInterfaceInputMap[networkInterfaceUUID] ?? false;
+
+              let className = '';
+
+              if (!isApplied) {
+                className += ` ${CLASSES.ifaceNotApplied}`;
+              }
+
+              return className;
+            }}
+            getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
+            hideFooter
+            rows={networkInterfaces}
+            sx={{
+              color: GREY,
+
+              [`& .${muiIconButtonClasses.root}`]: {
+                color: 'inherit',
+              },
+
+              [`& .${muiGridClasses.cell}:focus`]: {
+                outline: 'none',
+              },
+
+              [`& .${muiGridClasses.row}.${CLASSES.ifaceNotApplied}:hover`]: {
+                cursor: 'grab',
+
+                [`& .${muiGridClasses.cell} p`]: {
+                  cursor: 'auto',
+                },
+              },
+            }}
+          />
+          {!isLoadingHostDetail && (
+            <FlexBox
+              row
+              sx={{
+                '& > :first-child': {
+                  alignSelf: 'start',
+                  marginTop: '.7em',
+                },
+
+                '& > :last-child': {
+                  flexGrow: 1,
+                },
+              }}
+            >
+              <MUIBox
+                sx={{
+                  alignItems: 'strech',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  overflowX: 'auto',
+                  paddingLeft: '.3em',
+
+                  '& > div': {
+                    marginBottom: '.8em',
+                    marginTop: '.4em',
+                    minWidth: networkInputMinWidth,
+                    width: networkInputWidth,
+                  },
+
+                  '& > :not(:first-child)': {
+                    marginLeft: '1em',
+                  },
+                }}
+              >
+                {networkInputs.map((networkInput, networkIndex) => {
+                  const { inputUUID } = networkInput;
+
+                  return (
+                    <NetworkForm
+                      key={`network-${inputUUID}`}
+                      {...{
+                        createDropMouseUpHandler,
+                        getNetworkTypeCount,
+                        hostDetail: { hostType, sequence },
+                        networkIndex,
+                        networkInput,
+                        networkInterfaceCount: networkInterfaces.length,
+                        networkInterfaceInputMap,
+                        removeNetwork,
+                        setMessageRe,
+                        setNetworkInputs,
+                        setNetworkInterfaceInputMap,
+                        testInput,
+                        testInputToToggleSubmitDisabled,
+                      }}
+                    />
+                  );
+                })}
+              </MUIBox>
+            </FlexBox>
+          )}
+          <FlexBox
+            sm="row"
+            sx={{
+              marginTop: '.2em',
+
+              '& > :not(button)': {
+                minWidth: networkInputMinWidth,
+                width: { sm: networkInputWidth },
+              },
             }}
           >
-            <MUIAddIcon />
-          </IconButton>
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                id="network-init-gateway"
-                inputProps={{
-                  onBlur: ({ target: { value } }) => {
-                    testInput({ inputs: { [IT_IDS.gateway]: { value } } });
-                  },
-                }}
-                inputLabelProps={{ isNotifyRequired: true }}
-                onChange={({ target: { value } }) => {
-                  testInputToToggleSubmitDisabled({
-                    inputs: { [IT_IDS.gateway]: { value } },
-                  });
-                  setGatewayInputMessage();
-                }}
-                label="Gateway"
-              />
-            }
-            ref={gatewayInputRef}
+            <IconButton
+              disabled={isDisableAddNetworkButton}
+              onClick={() => {
+                createNetwork();
+              }}
+            >
+              <MUIAddIcon />
+            </IconButton>
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  id="network-init-gateway"
+                  inputProps={{
+                    onBlur: ({ target: { value } }) => {
+                      testInput({ inputs: { [IT_IDS.gateway]: { value } } });
+                    },
+                  }}
+                  inputLabelProps={{ isNotifyRequired: true }}
+                  onChange={({ target: { value } }) => {
+                    testInputToToggleSubmitDisabled({
+                      inputs: { [IT_IDS.gateway]: { value } },
+                    });
+                    setGatewayInputMessage();
+                  }}
+                  label="Gateway"
+                />
+              }
+              ref={gatewayInputRef}
+            />
+            <InputWithRef
+              input={
+                <OutlinedInputWithLabel
+                  id="network-init-dns-csv"
+                  inputProps={{
+                    onBlur: ({ target: { value } }) => {
+                      testInput({ inputs: { [IT_IDS.dnsCSV]: { value } } });
+                    },
+                  }}
+                  inputLabelProps={{ isNotifyRequired: true }}
+                  onChange={({ target: { value } }) => {
+                    testInputToToggleSubmitDisabled({
+                      inputs: { [IT_IDS.dnsCSV]: { value } },
+                    });
+                    setDnsInputMessage();
+                  }}
+                  label="Domain name server(s)"
+                />
+              }
+              ref={dnsCSVInputRef}
+            />
+          </FlexBox>
+          <MessageGroup
+            count={1}
+            defaultMessageType="warning"
+            ref={messageGroupRef}
           />
-          <InputWithRef
-            input={
-              <OutlinedInputWithLabel
-                id="network-init-dns-csv"
-                inputProps={{
-                  onBlur: ({ target: { value } }) => {
-                    testInput({ inputs: { [IT_IDS.dnsCSV]: { value } } });
-                  },
-                }}
-                inputLabelProps={{ isNotifyRequired: true }}
-                onChange={({ target: { value } }) => {
-                  testInputToToggleSubmitDisabled({
-                    inputs: { [IT_IDS.dnsCSV]: { value } },
-                  });
-                  setDnsInputMessage();
-                }}
-                label="Domain name server(s)"
-              />
-            }
-            ref={dnsCSVInputRef}
-          />
-        </FlexBox>
-        <MessageGroup
-          count={1}
-          defaultMessageType="warning"
-          ref={messageGroupRef}
-        />
+        </MUIBox>
       </MUIBox>
-    </MUIBox>
-  );
-});
+    );
+  },
+);
 
 NetworkInitForm.defaultProps = {
   expectHostDetail: false,
   hostDetail: undefined,
+  hostSequence: undefined,
   toggleSubmitDisabled: undefined,
 };
 NetworkInitForm.displayName = 'NetworkInitForm';
