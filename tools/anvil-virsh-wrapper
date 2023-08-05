@@ -1,0 +1,10 @@
+#!/bin/sh -e
+
+(
+	if [ "$1" != "list" ]; then
+		virsh $@
+		exit $?
+	fi
+	flock -e 200
+	virsh $@
+) 200>/tmp/virsh.lock

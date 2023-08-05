@@ -1,7 +1,5 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
-# XXX recheck after rebase!
-
 dist_sbin_SCRIPTS	= \
 			  anvil-access-module \
 			  anvil-boot-server \
@@ -46,6 +44,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-update-states \
 			  anvil-update-system \
 			  anvil-version-changes \
+			  anvil-virsh-wrapper \
 			  anvil-watch-bonds \
 			  anvil-watch-drbd \
 			  anvil-watch-power \
@@ -68,7 +67,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-scan-network \
 			  striker-show-db-counts \
 			  striker-update-cluster
-			  
+
 fencedir		= ${FASEXECPREFIX}/sbin
 
 dist_fence_SCRIPTS	= \
