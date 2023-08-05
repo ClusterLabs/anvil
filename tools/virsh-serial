@@ -1,0 +1,6 @@
+#!/bin/sh -e
+
+(
+	flock -e 200
+	virsh $@
+) 200>/tmp/virsh.lock

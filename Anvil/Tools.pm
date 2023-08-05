@@ -1308,7 +1308,7 @@ sub _set_paths
 				useradd				=>	"/usr/sbin/useradd",
 				usermod				=>	"/usr/sbin/usermod",
 				uuidgen				=>	"/usr/bin/uuidgen",
-				virsh				=>	"/usr/bin/virsh",
+				virsh				=>	"/usr/sbin/virsh-serial",
 				'virt-install'			=>	"/usr/bin/virt-install",
 				websockify			=>	"/usr/bin/websockify",
 				wipefs				=>	"/usr/sbin/wipefs", 
