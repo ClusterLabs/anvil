@@ -125,6 +125,21 @@ const NETWORK_INTERFACE_TEMPLATE = Array.from(
   { length: MAX_INTERFACES_PER_NETWORK },
   (unused, index) => index + 1,
 );
+const MAP_TO_NETWORK_TYPE_DEFAULTS: Record<
+  string,
+  { ip: (sequence: number | string, postfix?: string) => string; mask: string }
+> = {
+  bcn: {
+    ip: (sequence, postfix = '') => `10.20${sequence}.${postfix}`,
+    mask: '255.255.0.0',
+  },
+  ifn: { ip: () => '', mask: '' },
+  mn: { ip: () => '10.199.', mask: '255.255.0.0' },
+  sn: {
+    ip: (sequence, postfix = '') => `10.10${sequence}.${postfix}`,
+    mask: '255.255.0.0',
+  },
+};
 
 const createInputTestPrefix = (uuid: string) => `network${uuid}`;
 
@@ -425,12 +440,6 @@ const NetworkForm: FC<{
             onChange: ({ target: { value } }) => {
               const networkType = String(value);
 
-              if (networkType === 'mn') {
-                setIpAndMask(networkInput, '10.199.', '255.255.0.0');
-              } else {
-                setIpAndMask(networkInput, '', '');
-              }
-
               networkInput.type = networkType;
 
               const networkTypeCount = getNetworkTypeCount(networkType, {
@@ -439,6 +448,21 @@ const NetworkForm: FC<{
 
               networkInput.typeCount = networkTypeCount;
               networkInput.name = `${NETWORK_TYPES[networkType]} ${networkTypeCount}`;
+
+              const networkTypeDefaults =
+                MAP_TO_NETWORK_TYPE_DEFAULTS[networkType];
+
+              if (networkTypeDefaults) {
+                const { ip, mask } = networkTypeDefaults;
+
+                let postfix: string | undefined;
+
+                if (hostType === 'striker' && networkType === 'bcn') {
+                  postfix = '4.';
+                }
+
+                setIpAndMask(networkInput, ip(networkTypeCount, postfix), mask);
+              }
 
               setNetworkInputs((previous) => [...previous]);
             },
