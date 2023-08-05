@@ -261,6 +261,7 @@ const createNetworkInterfaceTableColumns = (
 ];
 
 const NetworkForm: FC<{
+  allowMigrationNetwork?: boolean;
   createDropMouseUpHandler?: (
     interfaces: (NetworkInterfaceOverviewMetadata | undefined)[],
     interfaceIndex: number,
@@ -280,6 +281,7 @@ const NetworkForm: FC<{
   testInput: (options?: TestInputFunctionOptions) => boolean;
   testInputToToggleSubmitDisabled: TestInputToToggleSubmitDisabled;
 }> = ({
+  allowMigrationNetwork,
   createDropMouseUpHandler,
   getNetworkTypeCount,
   hostDetail: { hostType, sequence } = {},
@@ -341,10 +343,34 @@ const NetworkForm: FC<{
   const netTypeList = useMemo(() => {
     const { bcn, ifn, mn, sn } = NETWORK_TYPES;
 
-    return isNode && networkInterfaceCount >= 8
+    return isNode &&
+      networkInterfaceCount >= 8 &&
+      (allowMigrationNetwork || type === 'mn')
       ? { bcn, ifn, mn, sn }
       : { bcn, ifn, sn };
-  }, [isNode, networkInterfaceCount]);
+  }, [allowMigrationNetwork, isNode, networkInterfaceCount, type]);
+
+  const setIpAndMask = useCallback(
+    (nInput: NetworkInput, ip: string, mask: string) => {
+      const {
+        current: { getIsChangedByUser: getIpModded, setValue: setIp },
+      } = ipAddressInputRef;
+      const {
+        current: { getIsChangedByUser: getMaskModded, setValue: setMask },
+      } = subnetMaskInputRef;
+
+      if (!getIpModded?.call(null)) {
+        nInput.ipAddress = ip;
+        setIp?.call(null, ip);
+      }
+
+      if (!getMaskModded?.call(null)) {
+        nInput.subnetMask = mask;
+        setMask?.call(null, mask);
+      }
+    },
+    [],
+  );
 
   useEffect((): void => {
     if (hostType !== 'striker' || type === 'ifn') return;
@@ -398,6 +424,12 @@ const NetworkForm: FC<{
           selectProps={{
             onChange: ({ target: { value } }) => {
               const networkType = String(value);
+
+              if (networkType === 'mn') {
+                setIpAndMask(networkInput, '10.199.', '255.255.0.0');
+              } else {
+                setIpAndMask(networkInput, '', '');
+              }
 
               networkInput.type = networkType;
 
@@ -580,6 +612,7 @@ const NetworkForm: FC<{
 };
 
 NetworkForm.defaultProps = {
+  allowMigrationNetwork: true,
   createDropMouseUpHandler: undefined,
   hostDetail: undefined,
 };
@@ -725,6 +758,13 @@ const NetworkInitForm = forwardRef<
     const isLoadingHostDetail: boolean = useMemo(
       () => expectHostDetail && !hostDetail,
       [expectHostDetail, hostDetail],
+    );
+    /**
+     * Allow user to add migration network only if none exists.
+     */
+    const allowMigrationNetwork: boolean = useMemo(
+      () => networkInputs.every(({ type }) => type !== 'mn'),
+      [networkInputs],
     );
 
     const setMessage = useCallback(
@@ -1508,6 +1548,7 @@ const NetworkInitForm = forwardRef<
                     <NetworkForm
                       key={`network-${inputUUID}`}
                       {...{
+                        allowMigrationNetwork,
                         createDropMouseUpHandler,
                         getNetworkTypeCount,
                         hostDetail: { hostType, sequence },
