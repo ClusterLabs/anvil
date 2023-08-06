@@ -25,7 +25,7 @@ export const createHostConnection: RequestHandler<
       password,
       port = 5432,
       sshPort = 22,
-      user = 'admin',
+      user = 'root',
     },
   } = request;
 
