@@ -4,6 +4,7 @@ import express, { json } from 'express';
 import { guardApi, passport, session } from './middlewares';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
+import { stdout } from './lib/shell';
 
 export default (async () => {
   const app = express();
@@ -23,6 +24,12 @@ export default (async () => {
 
   app.use(passport.initialize());
   app.use(passport.authenticate('session'));
+
+  app.use(({ originalUrl, method }, response, next) => {
+    stdout(`Received ${method} ${originalUrl}`);
+
+    next();
+  });
 
   rrouters(app, routes.private, {
     assign: (router) => [guardApi, router],

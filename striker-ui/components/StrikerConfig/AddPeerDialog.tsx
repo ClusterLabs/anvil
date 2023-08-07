@@ -102,7 +102,7 @@ const AddPeerDialog = forwardRef<
                           sx: { minWidth: '4.6em', width: '25%' },
                         }}
                         id="add-peer-user-input"
-                        inputProps={{ placeholder: 'admin' }}
+                        inputProps={{ placeholder: 'root' }}
                         label={LABEL.user}
                       />
                     }

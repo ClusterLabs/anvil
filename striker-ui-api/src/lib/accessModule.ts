@@ -15,7 +15,6 @@ import {
 
 class Access extends EventEmitter {
   private ps: ChildProcess;
-  private queue: string[] = [];
 
   constructor({
     eventEmitterOptions = {},
@@ -50,19 +49,10 @@ class Access extends EventEmitter {
       ...restSpawnOptions,
     });
 
-    let stderr = '';
     let stdout = '';
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
-      stderr += chunk;
-
-      const scriptId: string | undefined = this.queue[0];
-
-      if (scriptId) {
-        sherr(`${Access.event(scriptId, 'stderr')}: ${stderr}`);
-
-        stderr = '';
-      }
+      sherr(`anvil-access-module daemon stderr: ${chunk}`);
     });
 
     ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
@@ -73,9 +63,10 @@ class Access extends EventEmitter {
       // 1. ~a is the shorthand for -(a + 1)
       // 2. negatives are evaluated to true
       while (~nindex) {
-        const scriptId = this.queue.shift();
+        const scriptId = stdout.substring(0, 36);
+        const output = stdout.substring(36, nindex);
 
-        if (scriptId) this.emit(scriptId, stdout.substring(0, nindex));
+        if (scriptId) this.emit(scriptId, output);
 
         stdout = stdout.substring(nindex + 1);
         nindex = stdout.indexOf('\n');
@@ -97,15 +88,12 @@ class Access extends EventEmitter {
     this.stop();
   }
 
-  private static event(scriptId: string, category: 'stderr'): string {
-    return `${scriptId}-${category}`;
-  }
-
-  public interact<T>(command: string, ...args: string[]) {
+  public interact<T>(operation: string, ...args: string[]) {
     const { stdin } = this.ps;
 
     const scriptId = uuid();
-    const script = `${command} ${args.join(' ')}\n`;
+    const command = `${operation} ${args.join(' ')}`;
+    const script = `${scriptId} ${command}\n`;
 
     const promise = new Promise<T>((resolve, reject) => {
       this.once(scriptId, (data) => {
@@ -123,7 +111,6 @@ class Access extends EventEmitter {
 
     shvar({ scriptId, script }, 'Access interact: ');
 
-    this.queue.push(scriptId);
     stdin?.write(script);
 
     return promise;
