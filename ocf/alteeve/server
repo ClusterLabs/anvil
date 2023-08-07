@@ -2056,7 +2056,7 @@ sub show_metadata
   <version>1.0</version>
   <longdesc lang="en">
 This resource agent manages KVM+qemu virtual servers on an Anvil! m3 Intelligent Availability(tm) system. 
-It manages underlying components like DRBD 9 storage resources, brodge connections and so forth.
+It manages underlying components like DRBD 9 storage resources, bridge connections and so forth.
   </longdesc>
   <shortdesc lang="en">Anvil! m3 server resource agent</shortdesc>
   <parameters>
