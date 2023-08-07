@@ -130,7 +130,7 @@ export const createHostConnection: RequestHandler<
       `Cannot connect to peer database; please verify database credentials.`,
     );
 
-    // return response.status(400).send();
+    return response.status(400).send();
   }
 
   const localHostUUID = getLocalHostUUID();
