@@ -29,7 +29,7 @@ const MAP_TO_MODIFIER_FUNCTION: MapToModifierFunction = {
 };
 
 const MAP_TO_RETURN_FUNCTION: MapToReturnFunction = {
-  boolean: (value) => value !== undefined,
+  boolean: (value) => Boolean(value),
   number: (value, mod, fallback = 0) => parseFloat(String(value)) || fallback,
   string: (value, mod, fallback = '') => (value ? mod(value) : fallback),
   'string[]': (value, mod, fallback = []) => {

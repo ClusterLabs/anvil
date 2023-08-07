@@ -18,24 +18,16 @@ export const createHostConnection: RequestHandler<
   CreateHostConnectionRequestBody
 > = async (request, response) => {
   const {
-    body: {
-      dbName = 'anvil',
-      ipAddress,
-      isPing = false,
-      password,
-      port = 5432,
-      sshPort = 22,
-      user = 'admin',
-    },
+    body: { dbName, ipAddress, isPing, password, port, sshPort, user },
   } = request;
 
-  const commonDBName = sanitize(dbName, 'string');
+  const commonDBName = sanitize(dbName, 'string', { fallback: 'anvil' });
   const commonIsPing = sanitize(isPing, 'boolean');
   const commonPassword = sanitize(password, 'string');
-  const commonDBPort = sanitize(port, 'number');
-  const commonDBUser = sanitize(user, 'string');
+  const commonDBPort = sanitize(port, 'number', { fallback: 5432 });
+  const commonDBUser = sanitize(user, 'string', { fallback: 'root' });
   const peerIPAddress = sanitize(ipAddress, 'string');
-  const peerSSHPort = sanitize(sshPort, 'number');
+  const peerSSHPort = sanitize(sshPort, 'number', { fallback: 22 });
 
   const commonPing = commonIsPing ? 1 : 0;
 
