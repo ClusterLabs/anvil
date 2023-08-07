@@ -110,7 +110,7 @@ $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node}        = defined $ENV{O
 # This says "UUID", but it's the node ID.
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_on_node_uuid}   = defined $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   ? $ENV{OCF_RESKEY_CRM_meta_on_node_uuid}   : ""; # Not used here, contains the pacemaker node ID
 # This is the timeout for the called action in millisecond.
-$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 20000
+$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout}        = defined $ENV{OCF_RESKEY_CRM_meta_timeout}        ? $ENV{OCF_RESKEY_CRM_meta_timeout}        : ""; # 60000
 # If this is set, we'll bump our log level as well.
 $anvil->data->{environment}{PCMK_debug}                         = defined $ENV{PCMK_debug}                         ? $ENV{PCMK_debug}                         : "0"; # Disable debug by default
 # These are other variables that are set, but we don't currently care about them
@@ -122,6 +122,8 @@ $anvil->data->{environment}{OCF_RESOURCE_INSTANCE}              = defined $ENV{O
 $anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{OCF_RESOURCE_PROVIDER}              ? $ENV{OCF_RESOURCE_PROVIDER}              : "alteeve";
 $anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "server";
 $anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "/usr/lib/ocf";
+$anvil->data->{environment}{OCF_RESKEY_log_level}               = defined $ENV{OCF_RESKEY_log_level}               ? $ENV{OCF_RESKEY_log_level}               : "";
+$anvil->data->{environment}{OCF_RESKEY_log_secure}              = defined $ENV{OCF_RESKEY_log_secure}              ? $ENV{OCF_RESKEY_log_secure}              : "";
 # These are set during a migration
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "";
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "";
@@ -145,6 +147,16 @@ foreach my $key (sort {$a cmp $b} keys %ENV)
 if ($anvil->data->{environment}{PCMK_debug})
 {
 	$anvil->Log->level({set => 2});
+}
+
+### TODO: Use the running log level in anvil-provision-server is used to set these log levels in the pcs call.
+if (($anvil->data->{environment}{OCF_RESKEY_log_level}) && ($anvil->data->{environment}{OCF_RESKEY_log_level} >= 1) && ($anvil->data->{environment}{OCF_RESKEY_log_level} <= 3)) 
+{
+	$anvil->Log->level({set => $anvil->data->{environment}{OCF_RESKEY_log_level}});
+}
+if ($anvil->data->{environment}{OCF_RESKEY_log_secure} == 1)
+{
+	$anvil->Log->secure({set => 1});
 }
 
 # Originally, this was designed to start and stop a server's DRBD resources on demand. Early testing appears
@@ -1155,7 +1167,7 @@ sub server_status
 	if (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout})
 	{
 		# Set a sane default of 20 seconds.
-		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 20000;
+		$anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} = 60000;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
@@ -2069,16 +2081,30 @@ It manages underlying components like DRBD 9 storage resources, bridge connectio
       <shortdesc lang="en">Server name</shortdesc>
       <content type="string"/>
     </parameter>
+    <parameter name="log_level" unique="0" required="0">
+      <longdesc lang="en">
+        Set the logging level, valid values are 1 to 3, with 3 being extremely loud.
+      </longdesc>
+      <shortdesc lang="en">Set log level</shortdesc>
+      <content type="integer"/>
+    </parameter>
+    <parameter name="log_secure" unique="0" required="0">
+      <longdesc lang="en">
+        Enable logging of potentially sensitive data, like passwords.
+      </longdesc>
+      <shortdesc lang="en">Log secure data.</shortdesc>
+      <content type="integer"/>
+    </parameter>
   </parameters>
   <actions>
-    <action name="start"        timeout="30" />
+    <action name="start"        timeout="60" />
     <action name="stop"         timeout="60" />
-    <action name="monitor"      timeout="10" />
-    <action name="notify"       timeout="20" />
+    <action name="monitor"      timeout="60" />
+    <action name="notify"       timeout="60" />
     <action name="migrate_to"   timeout="600" />
     <action name="migrate_from" timeout="600" />
     <action name="meta-data"    timeout="5" />
-    <action name="validate-all" timeout="20" />
+    <action name="validate-all" timeout="60" />
   </actions>
 </resource-agent>
 ';

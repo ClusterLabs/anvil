@@ -253,7 +253,14 @@ sub add_server
 	undef $output;
 	undef $return_code;
 	
-	my $resource_command = $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server name=\"".$server_name."\" meta allow-migrate=\"true\" target-role=\"".$target_role."\" op monitor interval=\"60\" start timeout=\"60\" on-fail=\"block\" stop timeout=\"300\" on-fail=\"block\" migrate_to timeout=\"600\" on-fail=\"block\" migrate_from timeout=\"600\" on-fail=\"block\"";
+	my $resource_command =  $anvil->data->{path}{exe}{pcs}." -f ".$pcs_file." resource create ".$server_name." ocf:alteeve:server ";
+	   $resource_command .= "name=\"".$server_name."\" log_level=".$anvil->Log->level." log_secure=".$anvil->Log->secure." ";
+	   $resource_command .= "meta allow-migrate=\"true\" target-role=\"".$target_role."\" ";
+	   $resource_command .= "op monitor interval=\"60\" timeout=\"60\" ";
+	   $resource_command .= "start timeout=\"60\" on-fail=\"block\" ";
+	   $resource_command .= "stop timeout=\"300\" on-fail=\"block\" ";
+	   $resource_command .= "migrate_to timeout=\"600\" on-fail=\"block\" ";
+	   $resource_command .= "migrate_from timeout=\"600\" on-fail=\"block\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_command => $resource_command }});
 
 	($output, $return_code) = $anvil->System->call({shell_call => $resource_command});
@@ -747,15 +754,14 @@ sub boot_server
 	if ($node)
 	{
 		$anvil->Cluster->_set_server_constraint({
+			debug          => $debug,
 			server         => $server,
 			preferred_node => $node,
 		});
 	}
 	
-	### TODO: Make sure that the drbd fence rule exists in pacemaker and add it, if not.
-	
 	# Now boot the server.
-	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{pcs}." resource enable ".$server});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{pcs}." resource enable ".$server});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
@@ -965,6 +971,7 @@ sub check_server_constraints
 				# Make us the preferred node.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0641", variables => { server => $resource }});
 				$anvil->Cluster->_set_server_constraint({
+					debug          => $debug,
 					server         => $resource,
 					preferred_node => $local_node_name,
 				});
@@ -3079,7 +3086,7 @@ sub migrate_server
 	if ($node)
 	{
 		$anvil->Cluster->_set_server_constraint({
-			debug          => 2,
+			debug          => $debug,
 			server         => $server,
 			preferred_node => $node,
 		});
@@ -4703,7 +4710,8 @@ sub _set_server_constraint
 	}
 	
 	# Change the location constraint
-	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output,
 		return_code => $return_code, 
