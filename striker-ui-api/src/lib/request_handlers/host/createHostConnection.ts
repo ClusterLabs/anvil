@@ -25,7 +25,7 @@ export const createHostConnection: RequestHandler<
   const commonIsPing = sanitize(isPing, 'boolean');
   const commonPassword = sanitize(password, 'string');
   const commonDBPort = sanitize(port, 'number', { fallback: 5432 });
-  const commonDBUser = sanitize(user, 'string', { fallback: 'root' });
+  const commonDBUser = sanitize(user, 'string', { fallback: 'admin' });
   const peerIPAddress = sanitize(ipAddress, 'string');
   const peerSSHPort = sanitize(sshPort, 'number', { fallback: 22 });
 
