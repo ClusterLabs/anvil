@@ -10,6 +10,7 @@ import {
 } from '../../consts';
 
 import { job, variable } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
 import { stderr } from '../../shell';
 
@@ -124,14 +125,18 @@ export const prepareHost: RequestHandler<
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['striker-initialize-host'].self,
-      job_data: `enterprise_uuid=${dataEnterpriseUUID}
-host_ip_address=${dataHostIPAddress}
-host_name=${dataHostName}
-password=${dataHostPassword}
-rh_password=${dataRedhatPassword}
-rh_user=${dataRedhatUser}
-ssh_port=${dataHostSSHPort}
-type=${dataHostType}`,
+      job_data: buildJobDataFromObject({
+        obj: {
+          enterprise_uuid: dataEnterpriseUUID,
+          host_ip_address: dataHostIPAddress,
+          host_name: dataHostName,
+          password: dataHostPassword,
+          rh_password: dataRedhatPassword,
+          rh_user: dataRedhatUser,
+          ssh_port: dataHostSSHPort,
+          type: dataHostType,
+        },
+      }),
       job_description: 'job_0022',
       job_name: `initialize::${dataHostType}::${dataHostIPAddress}`,
       job_title: `job_002${dataHostType === 'dr' ? '1' : '0'}`,
