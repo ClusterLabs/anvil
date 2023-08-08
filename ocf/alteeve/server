@@ -124,7 +124,7 @@ $anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{O
 $anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "server";
 $anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "/usr/lib/ocf";
 $anvil->data->{environment}{OCF_RESKEY_log_level}               = defined $ENV{OCF_RESKEY_log_level}               ? $ENV{OCF_RESKEY_log_level}               : "";
-$anvil->data->{environment}{OCF_RESKEY_log_secure}              = defined $ENV{OCF_RESKEY_log_secure}              ? $ENV{OCF_RESKEY_log_secure}              : "";
+$anvil->data->{environment}{OCF_RESKEY_log_secure}              = defined $ENV{OCF_RESKEY_log_secure}              ? $ENV{OCF_RESKEY_log_secure}              : 0;
 # These are set during a migration
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "";
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "";
@@ -834,10 +834,18 @@ sub start_drbd_resource
 	{
 		# Call an adjust to reset the config, in case something like 'allow-two-primaries' was 
 		# enabled on one node but not the other. 
-		$anvil->DRBD->manage_resource({
-			resource => $resource, 
-			task     => "adjust",
-		});
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0745", variables => { 
+				server   => $server,
+				resource => $resource,
+			}});
+			
+			$anvil->DRBD->manage_resource({
+				resource => $resource, 
+				task     => "adjust",
+			});
+		}
 	}
 	
 	### NOTE: We always check the peer now, in case it's resource is down and ours happens to be up.
