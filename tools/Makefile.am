@@ -28,6 +28,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-migrate-server \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
+			  anvil-pcs-wrapper \
 			  anvil-provision-server \
 			  anvil-rename-server \
 			  anvil-report-usage \

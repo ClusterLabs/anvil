@@ -1254,7 +1254,7 @@ sub _set_paths
 				pamscale			=>	"/usr/bin/pamscale",
 				pamtopng			=>	"/usr/bin/pamtopng",
 				passwd				=>	"/usr/bin/passwd",
-				pcs				=>	"/usr/sbin/pcs",
+				pcs				=>	"/usr/sbin/anvil-pcs-wrapper",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
 				pidof				=>	"/usr/sbin/pidof",
 				ping				=>	"/usr/bin/ping",
