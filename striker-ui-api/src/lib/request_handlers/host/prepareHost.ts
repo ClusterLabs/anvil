@@ -27,7 +27,7 @@ export const prepareHost: RequestHandler<
       hostPassword,
       hostSSHPort,
       hostType,
-      hostUser = 'root',
+      hostUser,
       hostUUID,
       redhatPassword,
       redhatUser,
@@ -43,10 +43,10 @@ export const prepareHost: RequestHandler<
   const dataHostIPAddress = sanitize(hostIPAddress, 'string');
   const dataHostName = sanitize(hostName, 'string');
   const dataHostPassword = sanitize(hostPassword, 'string');
-  const dataHostSSHPort = sanitize(hostSSHPort, 'number') || 22;
+  const dataHostSSHPort = sanitize(hostSSHPort, 'number', { fallback: 22 });
   const dataHostType = sanitize(hostType, 'string');
   // Host user is unused at the moment.
-  const dataHostUser = sanitize(hostUser, 'string');
+  const dataHostUser = sanitize(hostUser, 'string', { fallback: 'root' });
   const dataHostUUID = sanitize(hostUUID, 'string');
   const dataRedhatPassword = sanitize(redhatPassword, 'string');
   const dataRedhatUser = sanitize(redhatUser, 'string');
