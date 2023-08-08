@@ -93,16 +93,16 @@ export const createHostConnection: RequestHandler<
   }
 
   try {
-    const now = String(Date.now());
+    const timestamp = String(Date.now());
 
-    const rawIsPeerDBReachable = systemCall(
+    const echo = systemCall(
       SERVER_PATHS.usr.bin.psql.self,
       [
         '--no-align',
         '--no-password',
         '--tuples-only',
         '--command',
-        `SELECT ${now};`,
+        `SELECT ${timestamp};`,
         '--dbname',
         commonDBName,
         '--host',
@@ -113,9 +113,14 @@ export const createHostConnection: RequestHandler<
         commonDBUser,
       ],
       { env: { PGPASSFILE: pgpassFilePath } },
+    ).trim();
+
+    stdoutVar(
+      { timestamp, echo },
+      'Ask the peer database to echo the current timestamp: ',
     );
 
-    isPeerDBReachable = rawIsPeerDBReachable === now;
+    isPeerDBReachable = echo === timestamp;
   } catch (subError) {
     stderr(`Failed to test connection to peer database; CAUSE: ${subError}`);
   }
