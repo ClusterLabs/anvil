@@ -10,7 +10,7 @@ import {
   sub,
 } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { rm, stderr, stdoutVar } from '../../shell';
+import { rm, stderr, stdoutVar, systemCall } from '../../shell';
 
 export const createHostConnection: RequestHandler<
   unknown,
@@ -100,17 +100,29 @@ export const createHostConnection: RequestHandler<
   }
 
   try {
-    const [rawIsPeerDBReachable]: [output: string, returnCode: number] =
-      await sub('call', {
-        params: [
-          {
-            shell_call: `PGPASSFILE="${pgpassFilePath}" ${SERVER_PATHS.usr.bin.psql.self} --host ${peerIPAddress} --port ${commonDBPort} --dbname ${commonDBName} --username ${commonDBUser} --no-password --tuples-only --no-align --command "SELECT 1"`,
-          },
-        ],
-        pre: ['System'],
-      });
+    const now = String(Date.now());
 
-    isPeerDBReachable = rawIsPeerDBReachable === '1';
+    const rawIsPeerDBReachable = systemCall(
+      SERVER_PATHS.usr.bin.psql.self,
+      [
+        '--no-align',
+        '--no-password',
+        '--tuples-only',
+        '--command',
+        `SELECT ${now};`,
+        '--dbname',
+        commonDBName,
+        '--host',
+        peerIPAddress,
+        '--port',
+        String(commonDBPort),
+        '--username',
+        commonDBUser,
+      ],
+      { env: { PGPASSFILE: pgpassFilePath } },
+    );
+
+    isPeerDBReachable = rawIsPeerDBReachable === now;
   } catch (subError) {
     stderr(`Failed to test connection to peer database; CAUSE: ${subError}`);
   }
