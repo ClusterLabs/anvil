@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import { writeFileSync } from 'fs';
 
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
@@ -10,7 +11,7 @@ import {
   sub,
 } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { rm, stderr, stdoutVar, systemCall } from '../../shell';
+import { rm, stderr, stdoutVar, systemCall, uuid } from '../../shell';
 
 export const createHostConnection: RequestHandler<
   unknown,
@@ -72,7 +73,7 @@ export const createHostConnection: RequestHandler<
 
   stdoutVar({ localIPAddress });
 
-  const pgpassFilePath = '/tmp/.pgpass';
+  const pgpassFilePath = `/tmp/.pgpass-${uuid()}`;
   const pgpassFileBody = `${peerIPAddress}:${commonDBPort}:${commonDBName}:${commonDBUser}:${commonPassword.replace(
     /:/g,
     '\\:',
@@ -81,17 +82,9 @@ export const createHostConnection: RequestHandler<
   stdoutVar({ pgpassFilePath, pgpassFileBody });
 
   try {
-    await sub('write_file', {
-      params: [
-        {
-          body: pgpassFileBody,
-          file: pgpassFilePath,
-          mode: '0600',
-          overwrite: 1,
-          secure: 1,
-        },
-      ],
-      pre: ['Storage'],
+    writeFileSync(pgpassFilePath, pgpassFileBody, {
+      encoding: 'utf-8',
+      mode: 0o600,
     });
   } catch (subError) {
     stderr(`Failed to write ${pgpassFilePath}; CAUSE: ${subError}`);
