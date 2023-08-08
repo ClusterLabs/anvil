@@ -10,7 +10,7 @@ import {
   job,
   sub,
 } from '../../accessModule';
-import { buildJobData } from '../../buildJobData';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
 import { rm, stderr, stdoutVar, systemCall, uuid } from '../../shell';
 
@@ -165,11 +165,11 @@ export const createHostConnection: RequestHandler<
     await job({
       file: __filename,
       job_command: jobCommand,
-      job_data: buildJobData({
-        entries: Object.entries({
+      job_data: buildJobDataFromObject({
+        obj: {
           password: commonPassword,
           peer_job_command: peerJobCommand,
-        }),
+        },
       }),
       job_description: 'job_0012',
       job_name: 'striker-peer::add',
