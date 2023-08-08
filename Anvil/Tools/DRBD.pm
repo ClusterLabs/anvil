@@ -2451,7 +2451,7 @@ sub get_status
 
 =head2 manage_resource
 
-This takes a task, C<< up >>, C<< down >>, C<< primary >>, or C<< secondary >> and a resource name and acts on the request.
+This takes a task, C<< up >>, C<< down >>, C<< primary >>, C<< secondary >>, or C<< adjust >> and a resource name and acts on the request.
 
 This returns the return code from the C<< drbdadm >> call. If C<< 255 >> is returned, then we did not get the actual return code from C<< drbdadm >>.
 
@@ -2475,7 +2475,7 @@ This is the name of the resource being acted upon.
 
 =head3 task (required)
 
-This is the action to take. Valid tasks are: C<< up >>, C<< down >>, C<< primary >>, and C<< secondary >>.
+This is the action to take. Valid tasks are: C<< up >>, C<< down >>, C<< primary >>, C<< secondary >>, and C<< adjust >>.
 
 If C<< target >> is set, this will be the user we connect to the remote machine as.
 
@@ -2516,6 +2516,45 @@ sub manage_resource
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "DRBD->manage_resource()", parameter => "task" }});
 		return(1);
+	}
+	
+	# If the task is 'adjust', do just that.
+	if ($task eq "adjust")
+	{
+		# Reset to the values in the config and return.
+		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
+		my $output      = "";
+		my $return_code = 255; 
+		if ($anvil->Network->is_local({host => $target}))
+		{
+			# Local.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+		else
+		{
+			# Remote call.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			($output, my $error, $return_code) = $anvil->Remote->call({
+				debug       => $debug, 
+				shell_call  => $shell_call, 
+				target      => $target,
+				port        => $port, 
+				password    => $password,
+				remote_user => $remote_user, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				error       => $error,
+				output      => $output,
+				return_code => $return_code,
+			}});
+		}
+		
+		return($return_code);
 	}
 	
 	### TODO: When taking down a resource, check to see if any machine is SyncTarget and take it/them 

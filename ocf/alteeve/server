@@ -100,7 +100,8 @@ $| = 1;
 # NOTE: Setting 'log_level' and 'log_secure' here will get overridden in the main lopp. Use the Log methods 
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
-#$anvil->Log->level({set => 2});
+# Log PIDs
+$anvil->data->{defaults}{'log'}{pids} = 1;
 
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
@@ -828,6 +829,15 @@ sub start_drbd_resource
 				});
 			}
 		}
+	}
+	else
+	{
+		# Call an adjust to reset the config, in case something like 'allow-two-primaries' was 
+		# enabled on one node but not the other. 
+		$anvil->DRBD->manage_resource({
+			resource => $resource, 
+			task     => "adjust",
+		});
 	}
 	
 	### NOTE: We always check the peer now, in case it's resource is down and ours happens to be up.
