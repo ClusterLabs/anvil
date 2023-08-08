@@ -209,6 +209,22 @@ sub allow_two_primaries
 		}
 	}
 	
+	# If set to 'yes', make sure the peer is connected. Otherwise we'll just cause problems later when 
+	# they do try to connect.
+	if ($set_to eq "yes")
+	{
+		$anvil->DRBD->get_status({debug => $debug});
+		my $host             = $anvil->Get->short_host_name;
+		my $peer_name        = $anvil->data->{drbd}{config}{$host}{peer};
+		my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host             => $host,
+			peer_name        => $peer_name,
+			resource         => $resource,
+			connection_state => $connection_state, 
+		}});
+	}
+	
 	my $key = $set_to eq "yes" ? "log_0350" : "log_0642";
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 0, level => 1, key => $key, variables => { 
 		resource       => $resource,
