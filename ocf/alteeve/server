@@ -1497,6 +1497,7 @@ sub migrate_server
 		
 		if (not $server_host)
 		{
+			# The server wasn't found on this host
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0344", variables => { server => $server }});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1529,6 +1530,7 @@ sub migrate_server
 			{
 				# Try to bring the resource up on the peer now.
 				$anvil->DRBD->manage_resource({
+					debug    => 2,
 					resource => $resource, 
 					task     => "up",
 					target   => $target, 

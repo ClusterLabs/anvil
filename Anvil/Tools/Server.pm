@@ -1148,6 +1148,16 @@ sub migrate_virsh
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
 		
+		if ($return_code) 
+		{
+			# Abort the migration.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "error_0422", variables => { 
+				server_name => $server,
+				return_code => $return_code, 
+			}});
+			return(0);
+		}
+		
 		push @{$resources_to_disable_dual_primary}, $resource;
 	}
 	

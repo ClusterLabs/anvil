@@ -93,7 +93,7 @@ sub parent
 
 =head2 allow_two_primaries
 
-This enables dual-primary for the given resource. This is meant to be called prior to a live migration, and should be disabled again as soon as possible via C<< DRBD->reload_defaults >>.
+This enables or disables dual-primary for the given resource. This is meant to be called prior to a live migration, and should be disabled again as soon as possible. The return code of the C<< drbdsetup >> call is returned. If there is a problem, C<< 255 >> is returned.
 
 Parameters; 
 
@@ -213,16 +213,30 @@ sub allow_two_primaries
 	# they do try to connect.
 	if ($set_to eq "yes")
 	{
-		$anvil->DRBD->get_status({debug => $debug});
-		my $host             = $anvil->Get->short_host_name;
+		my $host = $anvil->Get->short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+		if (not exists $anvil->data->{drbd}{config}{$host})
+		{
+			$anvil->DRBD->get_status({debug => $debug});
+		}
 		my $peer_name        = $anvil->data->{drbd}{config}{$host}{peer};
 		my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			host             => $host,
 			peer_name        => $peer_name,
 			resource         => $resource,
 			connection_state => $connection_state, 
 		}});
+		
+		if (lc($connection_state) ne "connected")
+		{
+			# Don't do this!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "error_0421", variables => { 
+				resource         => $resource,
+				peer_name        => $peer_name, 
+				connection_state => $target_node_id, 
+			}});
+			return($return_code);
+		}
 	}
 	
 	my $key = $set_to eq "yes" ? "log_0350" : "log_0642";
@@ -2514,6 +2528,7 @@ sub manage_resource
 	my $resource    = defined $parameter->{resource}    ? $parameter->{resource}    : "";
 	my $task        = defined $parameter->{task}        ? $parameter->{task}        : "";
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	my $return_code = 255; 
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password    => $anvil->Log->is_secure($password),
 		port        => $port, 
@@ -2538,9 +2553,8 @@ sub manage_resource
 	if ($task eq "adjust")
 	{
 		# Reset to the values in the config and return.
-		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
-		my $output      = "";
-		my $return_code = 255; 
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
+		my $output     = "";
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local.
@@ -2580,19 +2594,85 @@ sub manage_resource
 	###       This ensures that they're set to 'no' before connecting.
 	if ($task eq "up")
 	{
+		# If our connection state is 'StandAlone', try to connect.
+		my $host = $anvil->Get->short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+		if (not exists $anvil->data->{drbd}{config}{$host})
+		{
+			$anvil->DRBD->get_status({debug => $debug});
+		}
+		my $peer_name        = $anvil->data->{drbd}{config}{$host}{peer};
+		my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			peer_name        => $peer_name,
+			resource         => $resource,
+			connection_state => $connection_state, 
+		}});
+		if (lc($connection_state) eq "standalone")
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0746", variables => { resource => $resource }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." connect ".$resource;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			sleep 1;
+			
+			# Loop to see if it connects.
+			my $waiting    = 1;
+			my $wait_until = time + 10;
+			while ($waiting)
+			{
+				$anvil->DRBD->get_status({debug => $debug});
+				my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
+				if (lc($connection_state eq "connecting"))
+				{
+					if (time > $wait_until)
+					{
+						# Stop waiting.
+						$waiting = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					}
+					else
+					{
+						# Keep waiting.
+						sleep 1;
+					}
+				}
+				else
+				{
+					# Done!
+					$waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+				}
+			}
+		}
+		
 		# This generally brings up the resource
-		my ($return) = $anvil->DRBD->allow_two_primaries({
+		my ($return_code) = $anvil->DRBD->allow_two_primaries({
 			debug    => 2, 
 			resource => $resource, 
 			set_to   => "no", 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		if ($return_code) 
+		{
+			# Abort the migration.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "error_0422", variables => { 
+				server_name => $resource,
+				return_code => $return_code, 
+			}});
+			return($return_code);
+		}
 		
 		# Now call an adjust to make sure all other config details are loaded. It also up's the 
 		# resource.
-		my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
-		my $output      = "";
-		my $return_code = 255; 
+		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$resource;
+		my $output     = "";
 		if ($anvil->Network->is_local({host => $target}))
 		{
 			# Local.
@@ -2628,9 +2708,8 @@ sub manage_resource
 	
 	# If we 'adjust'ed above, this will likely complain that the backing disk already exists, and that's 
 	# fine.
-	my $shell_call  = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
-	my $output      = "";
-	my $return_code = 255; 
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." ".$task." ".$resource;
+	my $output     = "";
 	if ($anvil->Network->is_local({host => $target}))
 	{
 		# Local.
