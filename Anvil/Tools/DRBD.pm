@@ -2601,14 +2601,14 @@ sub manage_resource
 		{
 			$anvil->DRBD->get_status({debug => $debug});
 		}
-		my $peer_name        = $anvil->data->{drbd}{config}{$host}{peer};
-		my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'};
+		my $peer_name        = $anvil->data->{drbd}{config}{$host}{peer}                                                            // "";
+		my $connection_state = $anvil->data->{drbd}{status}{$host}{resource}{$resource}{connection}{$peer_name}{'connection-state'} // "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			peer_name        => $peer_name,
 			resource         => $resource,
 			connection_state => $connection_state, 
 		}});
-		if (lc($connection_state) eq "standalone")
+		if (($connection_state) && (lc($connection_state) eq "standalone"))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0746", variables => { resource => $resource }});
 			
@@ -2653,20 +2653,15 @@ sub manage_resource
 		}
 		
 		# This generally brings up the resource
-		my ($return_code) = $anvil->DRBD->allow_two_primaries({
-			debug    => 2, 
-			resource => $resource, 
-			set_to   => "no", 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-		if ($return_code) 
+		if ($peer_name)
 		{
-			# Abort the migration.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "error_0422", variables => { 
-				server_name => $resource,
-				return_code => $return_code, 
-			}});
-			return($return_code);
+			# This isn't fatal when bringing up the resource
+			my ($return_code) = $anvil->DRBD->allow_two_primaries({
+				debug    => 2, 
+				resource => $resource, 
+				set_to   => "no", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 		}
 		
 		# Now call an adjust to make sure all other config details are loaded. It also up's the 
