@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import { writeFileSync } from 'fs';
 
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
@@ -9,8 +10,9 @@ import {
   job,
   sub,
 } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
-import { rm, stderr, stdoutVar } from '../../shell';
+import { rm, stderr, stdoutVar, systemCall, uuid } from '../../shell';
 
 export const createHostConnection: RequestHandler<
   unknown,
@@ -25,7 +27,7 @@ export const createHostConnection: RequestHandler<
   const commonIsPing = sanitize(isPing, 'boolean');
   const commonPassword = sanitize(password, 'string');
   const commonDBPort = sanitize(port, 'number', { fallback: 5432 });
-  const commonDBUser = sanitize(user, 'string', { fallback: 'root' });
+  const commonDBUser = sanitize(user, 'string', { fallback: 'admin' });
   const peerIPAddress = sanitize(ipAddress, 'string');
   const peerSSHPort = sanitize(sshPort, 'number', { fallback: 22 });
 
@@ -72,7 +74,7 @@ export const createHostConnection: RequestHandler<
 
   stdoutVar({ localIPAddress });
 
-  const pgpassFilePath = '/tmp/.pgpass';
+  const pgpassFilePath = `/tmp/.pgpass-${uuid()}`;
   const pgpassFileBody = `${peerIPAddress}:${commonDBPort}:${commonDBName}:${commonDBUser}:${commonPassword.replace(
     /:/g,
     '\\:',
@@ -81,17 +83,9 @@ export const createHostConnection: RequestHandler<
   stdoutVar({ pgpassFilePath, pgpassFileBody });
 
   try {
-    await sub('write_file', {
-      params: [
-        {
-          body: pgpassFileBody,
-          file: pgpassFilePath,
-          mode: '0600',
-          overwrite: 1,
-          secure: 1,
-        },
-      ],
-      pre: ['Storage'],
+    writeFileSync(pgpassFilePath, pgpassFileBody, {
+      encoding: 'utf-8',
+      mode: 0o600,
     });
   } catch (subError) {
     stderr(`Failed to write ${pgpassFilePath}; CAUSE: ${subError}`);
@@ -100,17 +94,34 @@ export const createHostConnection: RequestHandler<
   }
 
   try {
-    const [rawIsPeerDBReachable]: [output: string, returnCode: number] =
-      await sub('call', {
-        params: [
-          {
-            shell_call: `PGPASSFILE="${pgpassFilePath}" ${SERVER_PATHS.usr.bin.psql.self} --host ${peerIPAddress} --port ${commonDBPort} --dbname ${commonDBName} --username ${commonDBUser} --no-password --tuples-only --no-align --command "SELECT 1"`,
-          },
-        ],
-        pre: ['System'],
-      });
+    const timestamp = String(Date.now());
 
-    isPeerDBReachable = rawIsPeerDBReachable === '1';
+    const echo = systemCall(
+      SERVER_PATHS.usr.bin.psql.self,
+      [
+        '--no-align',
+        '--no-password',
+        '--tuples-only',
+        '--command',
+        `SELECT ${timestamp};`,
+        '--dbname',
+        commonDBName,
+        '--host',
+        peerIPAddress,
+        '--port',
+        String(commonDBPort),
+        '--username',
+        commonDBUser,
+      ],
+      { env: { PGPASSFILE: pgpassFilePath } },
+    ).trim();
+
+    stdoutVar(
+      { timestamp, echo },
+      'Ask the peer database to echo the current timestamp: ',
+    );
+
+    isPeerDBReachable = echo === timestamp;
   } catch (subError) {
     stderr(`Failed to test connection to peer database; CAUSE: ${subError}`);
   }
@@ -154,8 +165,12 @@ export const createHostConnection: RequestHandler<
     await job({
       file: __filename,
       job_command: jobCommand,
-      job_data: `password=${commonPassword}
-peer_job_command=${peerJobCommand}`,
+      job_data: buildJobDataFromObject({
+        obj: {
+          password: commonPassword,
+          peer_job_command: peerJobCommand,
+        },
+      }),
       job_description: 'job_0012',
       job_name: 'striker-peer::add',
       job_title: 'job_0011',

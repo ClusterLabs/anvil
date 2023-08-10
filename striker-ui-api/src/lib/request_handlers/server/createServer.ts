@@ -5,6 +5,7 @@ import { REP_UUID, SERVER_PATHS } from '../../consts';
 import { OS_LIST_MAP } from '../../consts/OS_LIST';
 
 import { job, query } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
 import { stderr, stdout, stdoutVar } from '../../shell';
 
@@ -33,7 +34,7 @@ export const createServer: RequestHandler = async (request, response) => {
   const os = sanitize(rOptimizeForOs, 'string');
   const cpuCores = sanitize(rCpuCores, 'number');
   const memory = sanitize(rMemory, 'number');
-  const storageGroupUUID = sanitize(rStorageGroupUuid, 'string');
+  const storageGroupUuid = sanitize(rStorageGroupUuid, 'string');
   const storageSize = sanitize(rStorageSize, 'number');
   const installIsoUuid = sanitize(rInstallIsoUuid, 'string');
   const driverIsoUuid = sanitize(rDriverIsoUuid, 'string', {
@@ -72,8 +73,8 @@ export const createServer: RequestHandler = async (request, response) => {
     );
 
     assert(
-      REP_UUID.test(storageGroupUUID),
-      `Data storage group UUID must be a valid UUID; got [${storageGroupUUID}]`,
+      REP_UUID.test(storageGroupUuid),
+      `Data storage group UUID must be a valid UUID; got [${storageGroupUuid}]`,
     );
 
     assert(
@@ -103,18 +104,7 @@ export const createServer: RequestHandler = async (request, response) => {
     return response.status(400).send();
   }
 
-  const provisionServerJobData = `server_name=${serverName}
-os=${os}
-cpu_cores=${cpuCores}
-ram=${memory}
-storage_group_uuid=${storageGroupUUID}
-storage_size=${storageSize}
-install_iso=${installIsoUuid}
-driver_iso=${driverIsoUuid}`;
-
-  stdout(`provisionServerJobData=[${provisionServerJobData}]`);
-
-  const [[provisionServerJobHostUUID]]: [[string]] = await query(
+  const [[provisionServerJobHostUuid]]: [[string]] = await query(
     `SELECT
           CASE
             WHEN pri_hos.primary_host_uuid IS NULL
@@ -147,17 +137,28 @@ driver_iso=${driverIsoUuid}`;
           ON pri_hos.phl = nod_1.phr;`,
   );
 
-  stdout(`provisionServerJobHostUUID=[${provisionServerJobHostUUID}]`);
+  stdout(`provisionServerJobHostUuid=[${provisionServerJobHostUuid}]`);
 
   try {
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-provision-server'].self,
-      job_data: provisionServerJobData,
+      job_data: buildJobDataFromObject({
+        obj: {
+          cpu_cores: cpuCores,
+          driver_iso: driverIsoUuid,
+          install_iso: installIsoUuid,
+          os,
+          ram: memory,
+          server_name: serverName,
+          storage_group_uuid: storageGroupUuid,
+          storage_size: storageSize,
+        },
+      }),
       job_name: 'server:provision',
       job_title: 'job_0147',
       job_description: 'job_0148',
-      job_host_uuid: provisionServerJobHostUUID,
+      job_host_uuid: provisionServerJobHostUuid,
     });
   } catch (subError) {
     stderr(`Failed to provision server; CAUSE: ${subError}`);
