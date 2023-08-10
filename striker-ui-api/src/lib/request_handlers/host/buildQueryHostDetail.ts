@@ -109,6 +109,8 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
             networkInterfaceUuid,
           ],
         ) => {
+          if (!variableName) return previous;
+
           const [variablePrefix, ...restVariableParts] =
             variableName.split('::');
           const keychain = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
