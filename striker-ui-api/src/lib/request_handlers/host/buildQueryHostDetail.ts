@@ -42,41 +42,41 @@ const setCvar = (
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   keys: hostUUIDs = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'AND b.host_uuid');
+  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'AND a.host_uuid');
 
   stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
   const query = `
     SELECT
-      b.host_name,
-      b.host_type,
-      b.host_uuid,
-      a.variable_name,
-      a.variable_value,
+      a.host_name,
+      a.host_type,
+      a.host_uuid,
+      b.variable_name,
+      b.variable_value,
       SUBSTRING(
-        a.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
+        b.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
       ) as cvar_name,
       SUBSTRING(
-        a.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
+        b.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
       ) AS network_type,
       SUBSTRING(
-        a.variable_name, '${CVAR_PREFIX_PATTERN}[a-z]{2,3}\\d+_(link\\d+)'
+        b.variable_name, '${CVAR_PREFIX_PATTERN}[a-z]{2,3}\\d+_(link\\d+)'
       ) AS network_link,
       c.network_interface_uuid
-    FROM variables AS a
-    JOIN hosts AS b
-      ON a.variable_source_uuid = b.host_uuid
+    FROM hosts AS a
+    LEFT JOIN variables AS b
+      ON b.variable_source_uuid = a.host_uuid
     LEFT JOIN network_interfaces AS c
-      ON a.variable_name LIKE '%link%_mac%'
-        AND a.variable_value = c.network_interface_mac_address
-        AND b.host_uuid = c.network_interface_host_uuid
+      ON b.variable_name LIKE '%link%_mac%'
+        AND b.variable_value = c.network_interface_mac_address
+        AND a.host_uuid = c.network_interface_host_uuid
     WHERE (
         variable_name LIKE '${CVAR_PREFIX}%'
         OR variable_name = 'install-target::enabled'
       )
       ${condHostUUIDs}
     ORDER BY cvar_name ASC,
-      a.variable_name ASC;`;
+      b.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
