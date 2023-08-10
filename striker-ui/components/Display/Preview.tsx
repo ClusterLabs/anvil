@@ -121,7 +121,7 @@ const Preview: FC<PreviewProps> = ({
       (async () => {
         try {
           const response = await fetch(
-            `${API_BASE_URL}/server/${serverUUID}?ss`,
+            `${API_BASE_URL}/server/${serverUUID}?ss=1`,
             {
               method: 'GET',
               headers: {

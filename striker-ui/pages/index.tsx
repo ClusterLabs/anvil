@@ -154,7 +154,7 @@ const Dashboard: FC = () => {
           };
 
           fetchJSON<{ screenshot: string }>(
-            `${API_BASE_URL}/server/${serverUUID}?ss`,
+            `${API_BASE_URL}/server/${serverUUID}?ss=1`,
           )
             .then(({ screenshot }) => {
               item.screenshot = screenshot;
