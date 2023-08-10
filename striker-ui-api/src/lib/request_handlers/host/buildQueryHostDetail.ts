@@ -80,7 +80,11 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
-      const [hostName, hostType, hostUUID] = output[0];
+      if (output.length === 0) return {};
+
+      const {
+        0: [hostName, hostType, hostUUID],
+      } = output;
       const shortHostName = getShortHostName(hostName);
 
       return output.reduce<
