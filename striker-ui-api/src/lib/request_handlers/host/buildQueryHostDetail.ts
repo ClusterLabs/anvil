@@ -42,7 +42,7 @@ const setCvar = (
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   keys: hostUUIDs = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'AND a.host_uuid');
+  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'a.host_uuid');
 
   stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
@@ -66,15 +66,15 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
     FROM hosts AS a
     LEFT JOIN variables AS b
       ON b.variable_source_uuid = a.host_uuid
+        AND (
+          b.variable_name LIKE '${CVAR_PREFIX}%'
+          OR b.variable_name = 'install-target::enabled'
+        )
     LEFT JOIN network_interfaces AS c
       ON b.variable_name LIKE '%link%_mac%'
         AND b.variable_value = c.network_interface_mac_address
         AND a.host_uuid = c.network_interface_host_uuid
-    WHERE (
-        variable_name LIKE '${CVAR_PREFIX}%'
-        OR variable_name = 'install-target::enabled'
-      )
-      ${condHostUUIDs}
+    WHERE ${condHostUUIDs}
     ORDER BY cvar_name ASC,
       b.variable_name ASC;`;
 
