@@ -10,7 +10,7 @@ const print = (
   }: { eol?: string; stream?: 'stderr' | 'stdout' } = {},
 ) => process[stream].write(`${message}${eol}`);
 
-const systemCall = (
+export const systemCall = (
   ...[command, args = [], options = {}]: Parameters<typeof spawnSync>
 ) => {
   const { error, stderr, stdout } = spawnSync(command, args, {
