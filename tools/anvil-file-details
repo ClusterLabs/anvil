@@ -81,7 +81,5 @@ mtime: [".$mtime."]
 md5sum: [".$md5sum."]\n";
 }
 
-
-
 # We're done
 $anvil->nice_exit({exit_code => 0});
