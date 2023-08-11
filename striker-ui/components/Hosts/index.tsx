@@ -20,7 +20,7 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   return (
     <Panel>
-      <HeaderText text="Nodes" />
+      <HeaderText text="Subnodes" />
       {!isLoading ? (
         <>
           {anvilIndex !== -1 && data && (
