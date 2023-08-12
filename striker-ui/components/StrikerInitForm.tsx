@@ -48,6 +48,7 @@ const StrikerInitForm: FC = () => {
   const [isNetworkInitFormValid, setIsNetworkInitFormValid] =
     useState<boolean>(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
+  const [hostNumber, setHostNumber] = useState<string | undefined>();
 
   const [hostDetail, setHostDetail] = useProtectedState<
     APIHostDetail | undefined
@@ -147,6 +148,9 @@ const StrikerInitForm: FC = () => {
           <GeneralInitForm
             expectHostDetail={reconfig}
             hostDetail={hostDetail}
+            onHostNumberBlurAppend={({ target: { value } }) => {
+              setHostNumber(value);
+            }}
             ref={generalInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isGeneralInitFormValid) {
@@ -158,6 +162,7 @@ const StrikerInitForm: FC = () => {
           <NetworkInitForm
             expectHostDetail={reconfig}
             hostDetail={hostDetail}
+            hostSequence={hostNumber}
             ref={networkInitFormRef}
             toggleSubmitDisabled={(testResult) => {
               if (testResult !== isNetworkInitFormValid) {
