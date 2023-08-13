@@ -1317,40 +1317,46 @@ const NetworkInitForm = forwardRef<
           networks: pNetworks,
         } = hostDetail as APIHostDetail;
 
+        if (
+          [pDns, pGateway, pGatewayInterface, pNetworks].some(
+            (condition) => !condition,
+          )
+        ) {
+          return;
+        }
+
         dnsCSVInputRef.current.setValue?.call(null, pDns);
         gatewayInputRef.current.setValue?.call(null, pGateway);
 
         const applied: string[] = [];
-        const inputs = Object.values(pNetworks).reduce<NetworkInput[]>(
-          (previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
-            const typeCount =
-              getNetworkTypeCount(type, { inputs: previous }) + 1;
-            const isRequired = requiredNetworks[type] === typeCount;
+        const inputs = Object.values(pNetworks as APIHostNetworkList).reduce<
+          NetworkInput[]
+        >((previous, { ip, link1Uuid, link2Uuid = '', subnetMask, type }) => {
+          const typeCount = getNetworkTypeCount(type, { inputs: previous }) + 1;
+          const isRequired = requiredNetworks[type] === typeCount;
 
-            const name = `${NETWORK_TYPES[type]} ${typeCount}`;
+          const name = `${NETWORK_TYPES[type]} ${typeCount}`;
 
-            applied.push(link1Uuid, link2Uuid);
+          applied.push(link1Uuid, link2Uuid);
 
-            previous.push({
-              inputUUID: uuidv4(),
-              interfaces: [
-                networkInterfaceInputMap[link1Uuid]?.metadata,
-                networkInterfaceInputMap[link2Uuid]?.metadata,
-              ],
-              ipAddress: ip,
-              isRequired,
-              name,
-              subnetMask,
-              type,
-              typeCount,
-            });
+          previous.push({
+            inputUUID: uuidv4(),
+            interfaces: [
+              networkInterfaceInputMap[link1Uuid]?.metadata,
+              networkInterfaceInputMap[link2Uuid]?.metadata,
+            ],
+            ipAddress: ip,
+            isRequired,
+            name,
+            subnetMask,
+            type,
+            typeCount,
+          });
 
-            return previous;
-          },
-          [],
-        );
+          return previous;
+        }, []);
 
-        setGatewayInterface(pGatewayInterface);
+        setGatewayInterface(pGatewayInterface as string);
 
         setNetworkInterfaceInputMap((previous) => {
           const result = { ...previous };
@@ -1369,11 +1375,9 @@ const NetworkInitForm = forwardRef<
         testInputToToggleSubmitDisabled();
       }
     }, [
-      createNetwork,
       expectHostDetail,
       getNetworkTypeCount,
       hostDetail,
-      networkInputs,
       networkInterfaceInputMap,
       requiredNetworks,
       testInputToToggleSubmitDisabled,

@@ -549,8 +549,8 @@ const filterAnvils: FilterAnvilsFunction = (
         let anvilStorageGroupFreeMax: bigint = BIGINT_ZERO;
         let anvilStorageGroupFreeTotal: bigint = BIGINT_ZERO;
 
-        // Summarize storage groups in this anvil node pair to produce all
-        // UUIDs, max free space, and total free space.
+        // Summarize storage groups in this anvil node to produce all UUIDs, max
+        // free space, and total free space.
         storageGroups.forEach(({ storageGroupUUID, storageGroupFree }) => {
           if (testIncludeStorageGroup(storageGroupUUID)) {
             anvilStorageGroupUUIDs.push(storageGroupUUID);
@@ -563,17 +563,17 @@ const filterAnvils: FilterAnvilsFunction = (
         });
 
         const usableTests: (() => boolean)[] = [
-          // Does this anvil node pair have at least one storage group?
+          // Does this anvil node have at least one storage group?
           () => storageGroups.length > 0,
-          // Does this anvil node pair have enough CPU cores?
+          // Does this anvil node have enough CPU cores?
           () => cpuCores <= anvilTotalCPUCores,
-          // Does this anvil node pair have enough memory?
+          // Does this anvil node have enough memory?
           () => memory <= anvilTotalAvailableMemory,
           // For every virtual disk:
-          // 1. Does this anvil node pair have the selected storage group which
+          // 1. Does this anvil node have the selected storage group which
           //    will contain the VD?
           // 2. Does the selected storage group OR any storage group on this
-          //    anvil node pair have enough free space?
+          //    anvil node have enough free space?
           () =>
             storageGroupUUIDs.every((uuid, index) => {
               const vdSize = vdSizes[index] ?? BIGINT_ZERO;
@@ -588,15 +588,15 @@ const filterAnvils: FilterAnvilsFunction = (
 
               return hasStorageGroup && hasEnoughStorage;
             }),
-          // Do storage groups on this anvil node pair have enough free space
-          // to contain multiple VDs?
+          // Do storage groups on this anvil node have enough free space to
+          // contain multiple VDs?
           () =>
             Object.entries(storageGroupTotals).every(([uuid, total]) =>
               uuid === 'all'
                 ? total <= anvilStorageGroupFreeTotal
                 : total <= storageGroupUUIDMapToData[uuid].storageGroupFree,
             ),
-          // Does this anvil node pair have access to selected files?
+          // Does this anvil node have access to selected files?
           () =>
             fileUUIDs.every(
               (fileUUID) =>
@@ -1352,7 +1352,7 @@ const ProvisionServerDialog = ({
         <Grid direction="row" item xs={gridColumns}>
           <BodyText>
             Server <InlineMonoText text={inputServerNameValue} /> will be
-            created on anvil node pair{' '}
+            created on anvil node{' '}
             <InlineMonoText
               text={anvilUUIDMapToData[inputAnvilValue].anvilName}
             />{' '}
@@ -1696,7 +1696,7 @@ const ProvisionServerDialog = ({
               inputLabelProps={{
                 isNotifyRequired: inputAnvilValue.length === 0,
               }}
-              label="Anvil node pair"
+              label="Anvil node"
               messageBoxProps={inputAnvilMessage}
               selectItems={anvilSelectItems}
               selectProps={{

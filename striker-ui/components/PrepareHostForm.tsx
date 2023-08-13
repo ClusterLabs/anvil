@@ -522,7 +522,7 @@ const PrepareHostForm: FC = () => {
               setIsShowAccessSection(true);
             }}
             radioItems={{
-              node: { label: 'Node', value: 'node' },
+              node: { label: 'Subnode', value: 'node' },
               dr: { label: 'Disaster Recovery (DR) host', value: 'dr' },
             }}
           />
@@ -549,7 +549,9 @@ const PrepareHostForm: FC = () => {
               'preparehost-confirm-host-type-value': {
                 children: (
                   <MonoText>
-                    {inputHostType === 'dr' ? 'Disaster Recovery (DR)' : 'Node'}
+                    {inputHostType === 'dr'
+                      ? 'Disaster Recovery (DR)'
+                      : 'Subnode'}
                   </MonoText>
                 ),
               },

@@ -2,7 +2,7 @@ import { Box, styled, Switch } from '@mui/material';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
-import HOST_STATUS from '../../lib/consts/NODES';
+import HOST_STATUS from '../../lib/consts/HOST_STATUS';
 
 import { ProgressBar } from '../Bars';
 import Decorator, { Colours } from '../Decorator';

@@ -3,7 +3,7 @@ export const P_OCTET = '(?:25[0-5]|(?:2[0-4]|1[0-9]|[1-9]|)[0-9])';
 export const P_ALPHANUM = '[a-z0-9]';
 export const P_ALPHANUM_DASH = '[a-z0-9-]';
 export const P_IPV4 = `(?:${P_OCTET}[.]){3}${P_OCTET}`;
-export const P_UUID = `${P_HEX}{8}-${P_HEX}{4}-[1-5]${P_HEX}{3}-[89ab]${P_HEX}{3}-${P_HEX}{12}`;
+export const P_UUID = `${P_HEX}{8}-(?:${P_HEX}{4}-){3}${P_HEX}{12}`;
 
 export const REP_DOMAIN = new RegExp(
   `^(?:${P_ALPHANUM}(?:${P_ALPHANUM_DASH}{0,61}${P_ALPHANUM})?[.])+${P_ALPHANUM}${P_ALPHANUM_DASH}{0,61}${P_ALPHANUM}$`,

@@ -1,4 +1,11 @@
-import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
+import {
+  MutableRefObject,
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -11,6 +18,7 @@ import ConfirmDialog from '../ConfirmDialog';
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
 import handleAPIError from '../../lib/handleAPIError';
+import IconButton from '../IconButton';
 import InputWithRef, { InputForwardedRefContent } from '../InputWithRef';
 import { Message } from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
@@ -19,7 +27,7 @@ import {
   buildIPAddressTestBatch,
   buildPeacefulStringTestBatch,
 } from '../../lib/test_input';
-import { BodyText } from '../Text';
+import { BodyText, HeaderText } from '../Text';
 import useProtect from '../../hooks/useProtect';
 import useProtectedState from '../../hooks/useProtectedState';
 
@@ -305,7 +313,22 @@ const AddPeerDialog = forwardRef<
       }}
       proceedButtonProps={{ disabled: isFormInvalid }}
       ref={ref}
-      titleText="Add a peer"
+      titleText={
+        <>
+          <HeaderText>Add a peer</HeaderText>
+          <IconButton
+            mapPreset="close"
+            onClick={() => {
+              if (ref && 'current' in ref) {
+                (
+                  ref as MutableRefObject<ConfirmDialogForwardedRefContent>
+                ).current.setOpen?.call(null, false);
+              }
+            }}
+            variant="redcontained"
+          />
+        </>
+      }
     />
   );
 });
