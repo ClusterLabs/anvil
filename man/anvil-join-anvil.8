@@ -1,0 +1,35 @@
+.\" Manpage for the Anvil! node assembly tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-join-anvil "8" "August 10 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-join-anvil \- This tool assembles two subnodes into a node. 
+.SH SYNOPSIS
+.B anvil-join-anvil 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program takes two subnodes and merges them into an Anvil! node. This can be two new subnodes, or an existing subnode with a replacement subnode after a subnode failure.
+.TP
+.B Note:
+.TP
+As if this time, this tool only runs from a job registered in the database. As such, the job must be recorded using the Striker web interface
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-job\-uuid\fR
+.TP
+This is the job UUID that will be run. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

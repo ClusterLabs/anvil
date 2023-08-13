@@ -1,0 +1,10 @@
+#!/bin/sh -e
+
+(
+	if [ "$1" == "status" ]; then
+		pcs $@
+		exit $?
+	fi
+	flock -e 200
+	pcs $@
+) 200>/tmp/pcs.lock

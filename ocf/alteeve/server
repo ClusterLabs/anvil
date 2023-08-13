@@ -100,7 +100,8 @@ $| = 1;
 # NOTE: Setting 'log_level' and 'log_secure' here will get overridden in the main lopp. Use the Log methods 
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
-#$anvil->Log->level({set => 2});
+# Log PIDs
+$anvil->data->{defaults}{'log'}{pids} = 1;
 
 ### Read or Set the environment variables
 # This is the name of the server we're managing.                # Example values:
@@ -123,7 +124,7 @@ $anvil->data->{environment}{OCF_RESOURCE_PROVIDER}              = defined $ENV{O
 $anvil->data->{environment}{OCF_RESOURCE_TYPE}                  = defined $ENV{OCF_RESOURCE_TYPE}                  ? $ENV{OCF_RESOURCE_TYPE}                  : "server";
 $anvil->data->{environment}{OCF_ROOT}                           = defined $ENV{OCF_ROOT}                           ? $ENV{OCF_ROOT}                           : "/usr/lib/ocf";
 $anvil->data->{environment}{OCF_RESKEY_log_level}               = defined $ENV{OCF_RESKEY_log_level}               ? $ENV{OCF_RESKEY_log_level}               : "";
-$anvil->data->{environment}{OCF_RESKEY_log_secure}              = defined $ENV{OCF_RESKEY_log_secure}              ? $ENV{OCF_RESKEY_log_secure}              : "";
+$anvil->data->{environment}{OCF_RESKEY_log_secure}              = defined $ENV{OCF_RESKEY_log_secure}              ? $ENV{OCF_RESKEY_log_secure}              : 0;
 # These are set during a migration
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_source} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_source} ? $ENV{OCF_RESKEY_CRM_meta_migrate_source} : "";
 $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = defined $ENV{OCF_RESKEY_CRM_meta_migrate_target} ? $ENV{OCF_RESKEY_CRM_meta_migrate_target} : "";
@@ -829,6 +830,23 @@ sub start_drbd_resource
 			}
 		}
 	}
+	else
+	{
+		# Call an adjust to reset the config, in case something like 'allow-two-primaries' was 
+		# enabled on one node but not the other. 
+		foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0745", variables => { 
+				server   => $server,
+				resource => $resource,
+			}});
+			
+			$anvil->DRBD->manage_resource({
+				resource => $resource, 
+				task     => "adjust",
+			});
+		}
+	}
 	
 	### NOTE: We always check the peer now, in case it's resource is down and ours happens to be up.
 	# See if we're inconsistent and, if so, if we can connect our peers.
@@ -1479,6 +1497,7 @@ sub migrate_server
 		
 		if (not $server_host)
 		{
+			# The server wasn't found on this host
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0344", variables => { server => $server }});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1511,6 +1530,7 @@ sub migrate_server
 			{
 				# Try to bring the resource up on the peer now.
 				$anvil->DRBD->manage_resource({
+					debug    => 2,
 					resource => $resource, 
 					task     => "up",
 					target   => $target, 

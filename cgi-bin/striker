@@ -34,8 +34,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 ### NOTE: We'll print the headers only when we need to. If we print them here, it will block cookies being set.
 # Setup some variables.
