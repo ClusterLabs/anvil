@@ -607,6 +607,8 @@ The error was:
 ========
 #!variable!output!#
 ========</key>
+		<key name="error_0421">Failed to enable dual-primary for the resource: [#!variable!resource!#]! The peer: [#!variable!peer_name!#]'s connection state is: [#!variable!connection_state!#] (must be 'connected').</key>
+		<key name="error_0422">Failed to enable dual-primary for the server: [#!variable!server!#]! The call to enable dual-primary, necessary for the live migration, returned a non-zero return code: [#!variable!return_code!#].</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2409,6 +2411,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0742">The job with the command: [#!variable!command!#] and job UUID: [#!variable!job_uuid!#] is restarting.</key>
 		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
 		<key name="log_0744">A cached request to reboot this host was found (likely from a --no-db update). Registering a job to reboot now!</key>
+		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>
+		<key name="log_0746">The local resource: [#!variable!resource!#] is StandAlone, attempting to connect.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
