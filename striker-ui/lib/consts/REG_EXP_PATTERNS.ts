@@ -17,6 +17,6 @@ export const REP_IPV4_CSV = new RegExp(`^(?:${ipv4}\\s*,\\s*)*${ipv4}$`);
 export const REP_PEACEFUL_STRING = /^[^'"/\\><}{]*$/;
 
 export const REP_UUID = new RegExp(
-  `^${hex}{8}-${hex}{4}-[1-5]${hex}{3}-[89ab]${hex}{3}-${hex}{12}$`,
+  `^${hex}{8}-(?:${hex}{4}-){3}${hex}{12}$`,
   'i',
 );
