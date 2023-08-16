@@ -1514,6 +1514,11 @@ const NetworkInitForm = forwardRef<
             }}
             getRowId={({ networkInterfaceUUID }) => networkInterfaceUUID}
             hideFooter
+            initialState={{
+              sorting: {
+                sortModel: [{ field: 'networkInterfaceName', sort: 'asc' }],
+              },
+            }}
             rows={networkInterfaces}
             sx={{
               color: GREY,
