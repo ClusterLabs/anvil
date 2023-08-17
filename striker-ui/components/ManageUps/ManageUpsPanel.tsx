@@ -365,6 +365,7 @@ const ManageUpsPanel: FC = () => {
         loadingAction={isFormSubmitting}
         preActionArea={messageArea}
         ref={formDialogRef}
+        showClose
       />
       <ConfirmDialog
         closeOnProceed
