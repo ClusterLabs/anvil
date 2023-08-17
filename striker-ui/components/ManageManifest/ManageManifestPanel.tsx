@@ -590,6 +590,7 @@ const ManageManifestPanel: FC = () => {
         preActionArea={messageArea}
         ref={addManifestFormDialogRef}
         scrollContent
+        showClose
       />
       <FormDialog
         {...editManifestFormDialogProps}
@@ -598,6 +599,7 @@ const ManageManifestPanel: FC = () => {
         preActionArea={messageArea}
         ref={editManifestFormDialogRef}
         scrollContent
+        showClose
       />
       <FormDialog
         {...runManifestFormDialogProps}
@@ -606,6 +608,7 @@ const ManageManifestPanel: FC = () => {
         preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent
+        showClose
       />
       <ConfirmDialog
         closeOnProceed
