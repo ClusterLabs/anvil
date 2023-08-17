@@ -51,7 +51,7 @@ export const buildManifest = async (
 
   const manifestUuid = sanitize(rawManifestUuid, 'string');
   assert(
-    REP_UUID.test(manifestUuid),
+    manifestUuid === 'new' || REP_UUID.test(manifestUuid),
     `Manifest UUID must be a UUIDv4; got [${manifestUuid}]`,
   );
 
