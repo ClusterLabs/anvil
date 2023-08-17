@@ -26,6 +26,7 @@ import ConfirmDialog from '../ConfirmDialog';
 import EditManifestInputGroup from './EditManifestInputGroup';
 import FlexBox from '../FlexBox';
 import FormDialog from '../FormDialog';
+import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
 import IconButton from '../IconButton';
 import List from '../List';
@@ -282,7 +283,7 @@ const ManageManifestPanel: FC = () => {
 
         setConfirmDialogProps({
           actionProceedText: 'Add',
-          content: <></>,
+          content: <FormSummary entries={body} />,
           onProceedAppend: () => {
             submitForm({
               body,
@@ -329,7 +330,7 @@ const ManageManifestPanel: FC = () => {
 
         setConfirmDialogProps({
           actionProceedText: 'Edit',
-          content: <></>,
+          content: <FormSummary entries={body} />,
           onProceedAppend: () => {
             submitForm({
               body,
@@ -380,7 +381,7 @@ const ManageManifestPanel: FC = () => {
 
         setConfirmDialogProps({
           actionProceedText: 'Run',
-          content: <></>,
+          content: <FormSummary entries={body} hasPassword />,
           onProceedAppend: () => {
             submitForm({
               body,
@@ -614,6 +615,7 @@ const ManageManifestPanel: FC = () => {
         closeOnProceed
         {...confirmDialogProps}
         ref={confirmDialogRef}
+        scrollContent
       />
     </>
   );
