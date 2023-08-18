@@ -1896,17 +1896,34 @@ sub check_files
 	foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
 	{
 		my $directory = $anvil->data->{path}{directories}{shared}{$target};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			target    => $target, 
 			directory => $directory,
 		}});
-		if (not -e $anvil->data->{path}{directories}{shared}{$target})
+		if (-e $directory)
+		{
+			# Make sure the permissions are correct.
+			$anvil->Storage->get_file_stats({file_path => $directory});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"file_stat::${directory}::unix_mode" => $anvil->data->{file_stat}{$directory}{unix_mode},
+			}});
+			if ($anvil->data->{file_stat}{$directory}{unix_mode} !~ /0777$/)
+			{
+				$anvil->Storage->change_mode({
+					debug => 2,
+					path  => $directory, 
+				 	mode => "0777"
+				});
+			}
+		}
+		elsif (not -e $anvil->data->{path}{directories}{shared}{$target})
 		{
 			my $failed = $anvil->Storage->make_directory({
 				directory => $directory,
 				group     => "apache", 
 				user      => "apache",
-				mode      => "0775",
+				mode      => "0777",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
 			if ($failed)

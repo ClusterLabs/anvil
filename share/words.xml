@@ -2413,6 +2413,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0744">A cached request to reboot this host was found (likely from a --no-db update). Registering a job to reboot now!</key>
 		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>
 		<key name="log_0746">The local resource: [#!variable!resource!#] is StandAlone, attempting to connect.</key>
+		<key name="log_0747">Failed to connect to the host: [#!variable!host!#]! Unable to up the resource on it. The volume(s) backing this server are UpToDate locally, so booting should be fine.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

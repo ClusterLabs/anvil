@@ -309,38 +309,55 @@ sub generate_manifest
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = $parameter->{debug} // 3;
-
-	my $domain          = $parameter->{domain} // $anvil->data->{cgi}{domain}{value};
-	my $manifest_uuid   = $parameter->{manifest_uuid} // $anvil->data->{cgi}{manifest_uuid}{value};
-	my $name_prefix     = $parameter->{prefix} // $anvil->data->{cgi}{prefix}{value};
-	my $network_dns     = $parameter->{dns} // $anvil->data->{cgi}{dns}{value};
-	my $network_mtu     = $parameter->{mtu} // $anvil->data->{cgi}{mtu}{value};
-	my $network_ntp     = $parameter->{ntp} // $anvil->data->{cgi}{ntp}{value};
-	my $padded_sequence = $parameter->{sequence} // $anvil->data->{cgi}{sequence}{value};
-
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
+
+	my $network_dns     = $parameter->{dns}           // $anvil->data->{cgi}{dns}{value};
+	my $domain          = $parameter->{domain}        // $anvil->data->{cgi}{domain}{value};
+	my $manifest_uuid   = $parameter->{manifest_uuid} // $anvil->data->{cgi}{manifest_uuid}{value};
+	my $network_mtu     = $parameter->{mtu}           // $anvil->data->{cgi}{mtu}{value};
+	my $network_ntp     = $parameter->{ntp}           // $anvil->data->{cgi}{ntp}{value};
+	my $name_prefix     = $parameter->{prefix}        // $anvil->data->{cgi}{prefix}{value};
+	my $padded_sequence = $parameter->{sequence}      // $anvil->data->{cgi}{sequence}{value};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		network_dns     => $network_dns,
+		domain          => $domain, 
+		manifest_uuid   => $manifest_uuid, 
+		network_mtu     => $network_mtu, 
+		network_ntp     => $network_ntp, 
+		name_prefix     => $name_prefix, 
+		padded_sequence => $padded_sequence, 
+	}});
 	
 	$anvil->Database->get_upses({debug => $debug});
 	$anvil->Database->get_fences({debug => $debug});
 	
-	$manifest_uuid   = $manifest_uuid eq "new" ? "" : $manifest_uuid;
-
+	if ($manifest_uuid eq "new")
+	{
+		$manifest_uuid = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+	}
+	
 	if (length($padded_sequence) == 1)
 	{
 		$padded_sequence = sprintf("%02d", $padded_sequence);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { padded_sequence => $padded_sequence }});
 	}
 
 	my $anvil_name = $name_prefix."-anvil-".$padded_sequence;
 	my $node1_name = $name_prefix."-a".$padded_sequence."n01";
 	my $node2_name = $name_prefix."-a".$padded_sequence."n02";
-	my $dr1_name   = $name_prefix."-a".$padded_sequence."dr01";
 	my $machines   = {};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		anvil_name => $anvil_name,
+		node1_name => $node1_name, 
+		node2_name => $node2_name, 
+	}});
+	
 	my $manifest_xml = '<?xml version="1.0" encoding="UTF-8"?>
 <install_manifest name="'.$anvil_name.'" domain="'.$domain.'">
 	<networks mtu="'.$network_mtu.'" dns="'.$network_dns.'" ntp="'.$network_ntp.'">
 ';
-	foreach my $network ("bcn", "sn", "ifn")
+	foreach my $network ("bcn", "ifn", "sn", "mn")
 	{
 		my $count_key = $network."_count";
 		my $count_value = $parameter->{$count_key} // $anvil->data->{cgi}{$count_key}{value};
@@ -358,7 +375,7 @@ sub generate_manifest
 			$manifest_xml .= '		<network name="'.$network_name.'" network="'.$network_value.'" subnet="'.$subnet_value.'" gateway="'.$gateway_value.'" />'."\n";
 			
 			# While we're here, gather the network data for the machines.
-			foreach my $machine ("node1", "node2", "dr1")
+			foreach my $machine ("node1", "node2")
 			{
 				# Record the network
 				my $ip_key   = $machine."_".$network_name."_ip";
@@ -422,9 +439,10 @@ sub generate_manifest
 	# Now record the info about the machines.
 	foreach my $machine (sort {$a cmp $b} keys %{$machines})
 	{
-		my $host_name = $node1_name;
-		if    ($machine eq "node2") { $host_name = $node2_name; }
-		elsif ($machine eq "dr1")   { $host_name = $dr1_name;   }
+		my $host_name = "";
+		if ($machine eq "node1") { $host_name = $node1_name; }
+		if ($machine eq "node2") { $host_name = $node2_name; }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
 		$manifest_xml .= '		<'.$machine.' name="'.$host_name.'" ipmi_ip="'.$machines->{$machine}{ipmi_ip}.'">
 			<networks>
 ';

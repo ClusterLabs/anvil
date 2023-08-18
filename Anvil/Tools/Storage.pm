@@ -416,7 +416,7 @@ sub change_mode
 		return('!!error!!');
 	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{'chmod'}." $mode $path";
+	my $shell_call = $anvil->data->{path}{exe}{'chmod'}." ".$mode." ".$path;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0011", variables => { shell_call => $shell_call }});
 	if ($anvil->Network->is_local({host => $target}))
 	{

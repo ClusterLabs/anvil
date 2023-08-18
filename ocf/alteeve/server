@@ -933,7 +933,30 @@ sub start_drbd_resource
 				else
 				{
 					# No access
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0136", variables => { host => $host }});
+					my $all_uptodate = 1;
+					foreach my $volume (sort {$a <=> $b} %{$anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$host}{volume}})
+					{
+						my $peer_disk_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$host}{volume}{$volume}{'peer-disk-state'};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							volume          => $volume,
+							peer_disk_state => $peer_disk_state, 
+						}});
+						if (lc($peer_disk_state) ne "uptodate")
+						{
+							$all_uptodate = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_uptodate => $all_uptodate }});
+						}
+					}
+					if ($all_uptodate)
+					{
+						# Booting should be fine
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0747", variables => { host => $host }});
+					}
+					else
+					{
+						# Booting might fail...
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0136", variables => { host => $host }});
+					}
 				}
 			}
 		}
