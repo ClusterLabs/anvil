@@ -14,7 +14,7 @@ This tool is used to manage the protection of servers on DR hosts.
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
@@ -27,10 +27,10 @@ Connect a server already on DR to it's DR copy, update the data there if needed 
 \fB\-\-disconnect\fR
 Disconnect a server from the DR image. This will end streaming replication.
 .TP
-\fB\-\-dr-host\fR
+\fB\-\-dr\-host\fR
 This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined.
 .TP
-\fB\-\-license-file\fR
+\fB\-\-license\-file\fR
 This is the path to the license file, needed when setting up "long-throw" DR for the first time.
 .TP
 \fB\-\-link\fR
