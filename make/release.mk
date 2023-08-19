@@ -3,7 +3,7 @@
 # example:
 # make -f make/release.mk all version=0.9 release=yes publish
 
-gpgsignkey = 2CD9BBD5B65800EA
+gpgsignkey = 9D42AA76D548C925
 
 project = anvil
 
@@ -92,7 +92,7 @@ else
 	@echo : pushing tags
 	@git push --follow-tags origin
 	@echo : publishing files
-	#@scp $(deliverables) $(deliverables:=.asc) www.kronosnet.org:kronosnet/releases/.
+	@scp $(deliverables) $(deliverables:=.asc) alteeve.com:/var/www/releases/.
 endif
 
 
