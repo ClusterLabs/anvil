@@ -3,6 +3,7 @@ import EventEmitter from 'events';
 import {
   ChangeEventHandler,
   FormEventHandler,
+  ReactElement,
   useEffect,
   useRef,
   useState,
@@ -38,6 +39,8 @@ const FILE_UPLOAD_FORM_DEFAULT_PROPS: Partial<FileUploadFormProps> = {
   eventEmitter: undefined,
 };
 
+const FILE_UPLOAD_PERCENT_MAX = 99;
+
 const FileUploadForm = (
   {
     onFileUploadComplete,
@@ -47,7 +50,9 @@ const FileUploadForm = (
   const selectFileRef = useRef<HTMLInputElement>();
 
   const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
-  const [inUploadFiles, setInUploadFiles] = useState<InUploadFile[]>([]);
+  const [inUploadFiles, setInUploadFiles] = useState<
+    (InUploadFile | undefined)[]
+  >([]);
 
   const convertMIMETypeToFileTypeKey = (fileMIMEType: string): FileType => {
     const fileTypesIterator = UPLOAD_FILE_TYPES.entries();
@@ -114,6 +119,7 @@ const FileUploadForm = (
         // fileFormData.append('file-type', fileType);
 
         const inUploadFile: InUploadFile = { fileName, progressValue: 0 };
+
         inUploadFiles.push(inUploadFile);
 
         api
@@ -121,17 +127,57 @@ const FileUploadForm = (
             headers: {
               'Content-Type': 'multipart/form-data',
             },
-            onUploadProgress: ({ loaded, total }) => {
-              inUploadFile.progressValue = Math.round((loaded / total) * 100);
-              setInUploadFiles([...inUploadFiles]);
-            },
-          })
-          .then(() => {
-            onFileUploadComplete?.call(null);
+            onUploadProgress: (
+              (fName: string) =>
+              ({ loaded, total }) => {
+                setInUploadFiles((previous) => {
+                  const fInfo = previous.find((f) => f?.fileName === fName);
 
-            inUploadFiles.splice(inUploadFiles.indexOf(inUploadFile), 1);
-            setInUploadFiles([...inUploadFiles]);
-          });
+                  if (!fInfo) return previous;
+
+                  /**
+                   * Use 99 as upper limit because progress event doesn't
+                   * represent the "bytes out of total" written to the remote
+                   * disk. The write completes when the request completes.
+                   */
+                  fInfo.progressValue = Math.round(
+                    (loaded / total) * FILE_UPLOAD_PERCENT_MAX,
+                  );
+
+                  return [...previous];
+                });
+              }
+            )(fileName),
+          })
+          .then(
+            ((fName: string) => () => {
+              setInUploadFiles((previous) => {
+                const fInfo = previous.find((f) => f?.fileName === fName);
+
+                if (!fInfo) return previous;
+
+                fInfo.progressValue = 100;
+
+                return [...previous];
+              });
+
+              setTimeout(() => {
+                setInUploadFiles((previous) => {
+                  const fIndex = previous.findIndex(
+                    (f) => f?.fileName === fName,
+                  );
+
+                  if (fIndex === -1) return previous;
+
+                  delete previous[fIndex];
+
+                  return [...previous];
+                });
+              }, 5000);
+
+              onFileUploadComplete?.call(null);
+            })(fileName),
+          );
       }
     }
 
@@ -163,29 +209,37 @@ const FileUploadForm = (
         />
       </InputLabel>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        {inUploadFiles.map(({ fileName, progressValue }) => (
-          <Box
-            key={`in-upload-${fileName}`}
-            sx={{
-              alignItems: { md: 'center' },
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              '& > :first-child': {
-                minWidth: 100,
-                overflow: 'hidden',
-                overflowWrap: 'normal',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                width: { xs: '100%', md: 200 },
-                wordBreak: 'keep-all',
-              },
-              '& > :last-child': { flexGrow: 1 },
-            }}
-          >
-            <BodyText text={fileName} />
-            <ProgressBar progressPercentage={progressValue} />
-          </Box>
-        ))}
+        {inUploadFiles.reduce<ReactElement[]>((previous, upFile) => {
+          if (!upFile) return previous;
+
+          const { fileName, progressValue } = upFile;
+
+          previous.push(
+            <Box
+              key={`in-upload-${fileName}`}
+              sx={{
+                alignItems: { md: 'center' },
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                '& > :first-child': {
+                  minWidth: 100,
+                  overflow: 'hidden',
+                  overflowWrap: 'normal',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  width: { xs: '100%', md: 200 },
+                  wordBreak: 'keep-all',
+                },
+                '& > :last-child': { flexGrow: 1 },
+              }}
+            >
+              <BodyText text={fileName} />
+              <ProgressBar progressPercentage={progressValue} />
+            </Box>,
+          );
+
+          return previous;
+        }, [])}
       </Box>
       <Box
         sx={{
@@ -195,10 +249,10 @@ const FileUploadForm = (
         }}
       >
         {selectedFiles.length > 0 && (
-          <MessageBox
-            text="Uploaded files will be listed automatically, but it may take a while for larger files to appear."
-            type="info"
-          />
+          <MessageBox type="info">
+            Uploaded files will be listed automatically, but it may take a while
+            for larger files to finish uploading and appear on the list.
+          </MessageBox>
         )}
         {selectedFiles.map(
           (
