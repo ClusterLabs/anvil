@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { handleSharedFile } from '../middlewares/file';
 import {
   createFile,
   deleteFile,
@@ -7,7 +8,6 @@ import {
   getFileDetail,
   updateFile,
 } from '../lib/request_handlers/file';
-import uploadSharedFiles from '../middlewares/uploadSharedFiles';
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router
   .delete('/:fileUUID', deleteFile)
   .get('/', getFile)
   .get('/:fileUUID', getFileDetail)
-  .post('/', uploadSharedFiles.single('file'), createFile)
+  .post('/', handleSharedFile, createFile)
   .put('/:fileUUID', updateFile);
 
 export default router;
