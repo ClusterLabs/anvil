@@ -1,6 +1,6 @@
 import { dSize } from 'format-data-size';
 
-import { NODE_AND_DR_RESERVED_MEMORY_SIZE, OS_LIST } from '../../consts';
+import { NODE_AND_DR_RESERVED_MEMORY_SIZE, OS_LIST_MAP } from '../../consts';
 
 import join from '../../join';
 import { stdoutVar } from '../../shell';
@@ -320,7 +320,7 @@ const buildQueryAnvilDetail = ({
 
         results = {
           anvils: Object.values(anvils),
-          osList: OS_LIST,
+          oses: OS_LIST_MAP,
         };
       }
 
