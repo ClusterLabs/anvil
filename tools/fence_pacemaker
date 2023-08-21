@@ -37,6 +37,8 @@
 # - 7   = Fence succeeded
 #
 # TODO: 
+# - Move Cluster->_set_server_constraint() to call here at the same time as we ban the peer.
+#  
 # - Read the CIB; 'pcs status xml' or '/usr/sbin/cibadmin --local --query' ?
 # -- Map the peer's name in pacemaker.
 # -- Verify that stonith is enabled:
@@ -44,7 +46,7 @@
 # -- Verify that we're quorate (a-la pacemaker):
 # - Verify that the resource is 'resource-and-stonith'
 # - Verify that the resource is 'UpToDate' (if not, should we suicide to give the other node priority, regardless of fence delay? what if both nodes have resources that are not UpToDate?)
-# - 
+# 
 
 ### NOTE: This doesn't use Anvil::Tools on purpose. We want to be quick and depend on as few things as 
 ###       possible.

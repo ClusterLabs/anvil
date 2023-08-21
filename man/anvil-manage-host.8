@@ -1,0 +1,52 @@
+.\" Manpage for the Anvil! firewall management tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-host "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-host \- This program manages a host machine. What "being managed" means will evolve over time
+.TP
+.SH SYNOPSIS
+.B anvil-manage-host 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool provides a way to perform actions on a host that normally are handled by other processes, like marking a system as configure, etc. This will likely grow constantly over time.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-age\-out\-database\fR 
+This searches the database(s) for data that is old enough that it's no longer needed and deletes it from the database. This helps with the performance of resync operations in particular.
+.TP
+\fB\-\-check\-configured\fR
+This reports if the host is marked as configured yet or not.
+.TP
+\fB\-\-check\-database\fR
+This reports if the database on the local Striker is active or inactive.
+.TP
+\fB\-\-database\-active\fR
+This marks the local database to be active.
+.TP
+\fB\-\-database\-inactive\fR
+This marks the local database to be inactive.
+.TP
+\fB\-\-mark\-configured\fR
+This marks the local system as being configured. This should be used carefully.
+.TP
+\fB\-\-mark\-unconfigured\fR
+This marks the local system as being unconfigured. This should be used carefully.
+.TP
+\fB\-\-resync\-database\fR
+This forces the databases to be resync'ed, even if they seem synced.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

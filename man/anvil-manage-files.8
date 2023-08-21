@@ -1,8 +1,11 @@
-.\" Manpage for the Anvil! server removal tool
+.\" Manpage for the Anvil! file management tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
 .TH anvil-manage-files "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-files \- This program manages the files sync'ed across machines in the Anvil! cluster
+.TP
+.B Note: 
+This tool is not yet complete.
 .SH SYNOPSIS
 .B anvil-manage-files 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
@@ -21,18 +24,31 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
+\fB\-\-add\fR 
+(not implemented yet)
+.TP
+\fB\-\-check\fR 
+This runs a check for files that need to be processed (added, deleted, etc).
+.TP
 \fB\-\-delete\fR 
 This will delete the \fB\-\-file\fR </path/to/file> from the entire Anvil! cluster. 
 .TP
-This action is permanent!
+\fB\-\-download\fR 
+(not implemented yet)
 .TP
-\fB\-\-job\-uuid\fR <name>
-The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
+\fB\-\-file\fR <file>
+This is the file being worked on.
+.TP
+\fB\-\-is\-script\fR 
+When set, the file is marked as a script or program. Files marked this way can be used in different places in the Anvil! cluster.
+.TP
+\fB\-\-rename\fR 
+The changes the name of a file. Use \fB\-\-file\fR <old name> and \fB\-\-to\fR <new name>.
+.TP
+\fB\-\-to\fR <new name>
+The is the new file name that's being changed. 
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
 .SH "REPORTING BUGS"
 Report bugs to users@clusterlabs.org
-
-
-", "download", "everywhere", "file", "is-script", "job-uuid", "rename", "to
