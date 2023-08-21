@@ -1497,16 +1497,12 @@ const ProvisionServerDialog = ({
         });
 
         setOSAutocompleteOptions(
-          data.osList.map((keyValuePair: string) => {
-            const [osKey, osValue] = keyValuePair
-              .replace(/^key=([^\s]+),name=['"](.*)['"]$/, '$1,$2')
-              .split(',');
-
-            return {
-              label: osValue,
-              key: osKey,
-            };
-          }),
+          Object.entries(data.oses as Record<string, string>).map(
+            ([key, label]) => ({
+              key,
+              label,
+            }),
+          ),
         );
 
         setIsProvisionServerDataReady(true);
