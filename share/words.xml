@@ -3671,6 +3671,7 @@ We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up i
 		<key name="warning_0156">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was found, but it's not ready yet.</key>
 		<key name="warning_0157">[ Warning ] - Waiting for a bit, and then will check if files are ready.</key>
 		<key name="warning_0158">[ Warning ] - There is a duplicate storage group named: [#!variable!group_name!#]. Keeping the group with UUID: [#!variable!keep_uuid!#], and deleting the group with the UUID: [#!variable!delete_uuid!#]</key>
+		<key name="warning_0159">[ Warning ] - I was asked to create a new manifest without valid data, aborting.</key>
 		
 	</language>
 	<!-- 日本語 -->
