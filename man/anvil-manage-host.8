@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! server boot program
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-host "8" "Octobober 12 2023" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-host "8" "October 12 2023" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-host \- Tool used to check or set various configuration options for a host.
 .SH SYNOPSIS
 .B anvil-manage-host 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-
+This tool provides a way to perform actions on a host that normally are handled by other processes, like marking a system as configure, etc. This will likely grow constantly over time.
 .TP
 .SH OPTIONS
 .TP
@@ -22,7 +22,7 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .SS "Commands:"
 .TP
 \fB\-\-age\-out\-database\fR
-This requests the database check for records that are too old and purge them.
+This searches the database(s) for data that is old enough that it's no longer needed and deletes it from the database. This helps with the performance of resync operations in particular.
 .TP
 \fB\-\-auto\-grow\-pv\fR
 This looks at LVM physical volumes on the local host. For each one that is found, 'parted' is called to check if there's more that 1 GiB of free space available after it. If so, it will extend the PV partition to use the free space.
@@ -30,25 +30,28 @@ This looks at LVM physical volumes on the local host. For each one that is found
 If you deleted the default '/home' partition during the install of a subnode or DR host, this should give you that space back.
 .TP
 \fB\-\-check\-configured\fR
-Check to see if the host is marked as configured or yet.
+This reports if the host is marked as configured yet or not.
 .TP
 \fB\-\-check\-database\fR
-This checks to see if the database is enabled or not.
+This reports if the database on the local Striker is active or inactive.
 .TP
 \fB\-\-confirm\fR
 This confirms actions that would normally prompt the user to confirm before proceeding. 
 .TP
 \fB\-\-database\-active\fR
-This enables the database on the local Striker dashboard.
+This marks the local database to be active.
 .TP
 \fB\-\-database\-inactive\fR
-This disables the database on the local Striker dashboard.
+This marks the local database to be inactive.
 .TP
 \fB\-\-mark\-configured\fR
-This marks the host as having been configured.
+This marks the local system as being configured. This should be used carefully.
+.TP
+\fB\-\-mark\-unconfigured\fR
+This marks the local system as being unconfigured. This should be used carefully.
 .TP
 \fB\-\-resync\-database\fR
-This forces a database resync if two or more strikers are online.
+This forces the databases to be resync'ed, even if they seem synced.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
