@@ -553,7 +553,7 @@ else
 		my $scmd_db_write = "w";
 		my $scmd_execute  = "x";
 
-		$script_line =~ s/^([[:xdigit:]]{8}-[[:xdigit:]]{4}-[1-5][[:xdigit:]]{3}-[89ab][[:xdigit:]]{3}-[[:xdigit:]]{12})\s+//;
+		$script_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
 
 		my $script_line_id = $1;
 
