@@ -170,7 +170,7 @@ sub access_chain
 	my @chain        = split(/->|[.]/, $chain_str);
 	my $key_index    = 0;
 	my $intermediate = $anvil;
-	my @results;
+	my @results      = (1);
 
 	foreach my $key (@chain)
 	{
@@ -192,14 +192,15 @@ sub access_chain
 		}
 		else # Left-hand is not hash; treat it as blessed/class object (module) and try to call a method from it
 		{
-			# Key not found in object; stop following the chain
-			eval { defined $intermediate->${key} ? 1 : 0; } or last;
+			# Don't continue follow the chain when key if not found
+			# Note: can() results in truthy when key refers to something that can return a value
+			eval { $intermediate->can($key) } or last;
 
 			# On the last key of the chain; try to execute the subroutine if it exists
-			if ( $is_last_key && $intermediate->can($key) )
+			if ($is_last_key)
 			{
 				# Trailing 1 means the eval block will return success if the subroutine and assign succeeded
-				eval { (@results) = $intermediate->${key}(@$chain_args); 1; } or @results = (1);
+				eval { (@results) = $intermediate->${key}(@$chain_args); 1; };
 
 				last;
 			}
