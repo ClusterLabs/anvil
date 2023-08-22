@@ -147,6 +147,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Data::Dumper;
 use JSON;
 use Text::ParseWords;
 
@@ -162,20 +163,28 @@ my $anvil = Anvil::Tools->new();
 sub access_chain
 {
 	my $parameters = shift;
-	# Required:
-	my $chain_str  = $parameters->{chain};
-	# Optional:
 	my $chain_args = $parameters->{chain_args} // [];
+	my $chain_str  = $parameters->{chain};
+	my $debug      = $parameters->{debug} // 3;
 
 	my @chain        = split(/->|[.]/, $chain_str);
 	my $key_index    = 0;
 	my $intermediate = $anvil;
 	my @results      = (1);
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { chain => prettify(\@chain) } });
+
 	foreach my $key (@chain)
 	{
 		my $is_intermediate_hash = is_hash($intermediate);
 		my $is_last_key          = $key_index == $#chain;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			is_intermediate_hash => $is_intermediate_hash,
+			is_last_key          => $is_last_key,
+			key                  => $key,
+			key_index            => $key_index,
+		} });
 
 		if ($is_intermediate_hash) # Left-hand is hash; treat it as reading data
 		{
@@ -381,6 +390,18 @@ sub is_hash
 	return ref($_[0]) eq "HASH";
 }
 
+sub prettify
+{
+	my $var_value = shift;
+	my $var_name  = shift;
+
+	local $Data::Dumper::Indent  = 1;
+	local $Data::Dumper::Varname = $var_name;
+	local $Data::Dumper::Terse = (defined $var_name) ? 0 : 1;
+
+	return Dumper($var_value);
+}
+
 sub process_scmd_db
 {
 	my $parameters = shift;
@@ -410,12 +431,13 @@ sub process_scmd_db
 sub process_scmd_execute
 {
 	my $parameters = shift;
-	# Required:
+	my $debug      = $parameters->{debug} // 3;
 	my $input      = $parameters->{input};
-	# Optional:
 	my $lid        = $parameters->{lid} // "";
 
-	my @sargs      = parse_line('\s+', 0, $input);
+	my @sargs = parse_line('\s+', 0, $input);
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { sargs => prettify(\@sargs) } });
 
 	return if $#sargs < 1;
 
@@ -430,7 +452,12 @@ sub process_scmd_execute
 		$chain_args[$i] = $param if $is_decode_success;
 	}
 
-	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		chain_args => prettify(\@chain_args),
+		chain_str  => $chain_str,
+	} });
+
+	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args, debug => $debug });
 
 	pstdout($lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
 }
@@ -457,6 +484,7 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 my $data_hash       = $anvil->data->{switches}{'data'};
+my $switch_debug    = $anvil->data->{switches}{'debug'} // 3;
 my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
 my $pre_data        = $anvil->data->{switches}{'predata'};
@@ -557,6 +585,11 @@ else
 		$script_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
 
 		my $script_line_id = $1;
+		
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
+			script_line_id => $script_line_id,
+			script_line    => $script_line,
+		} });
 
 		if ($script_line =~ /^$scmd_db_read\s+/)
 		{
@@ -568,7 +601,7 @@ else
 		}
 		elsif ($script_line =~ /^$scmd_execute\s+/)
 		{
-			process_scmd_execute({ input => $script_line, lid => $script_line_id });
+			process_scmd_execute({ debug => $switch_debug, input => $script_line, lid => $script_line_id });
 		}
 	}
 
