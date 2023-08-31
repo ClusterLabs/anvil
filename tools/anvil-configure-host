@@ -64,10 +64,7 @@ pickup_job_details($anvil);
 overwrite_variables_with_switches($anvil);
 
 # Set maintenance mode
-$anvil->System->maintenance_mode({set => 1, debug => 2});
-
-# Check to see if there's a PV to grow.
-$anvil->Storage->auto_grow_pv({debug => 2});
+$anvil->System->maintenance_mode({set => 1});
 
 # Reconfigure the network.
 reconfigure_network($anvil);

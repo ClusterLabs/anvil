@@ -116,9 +116,6 @@ sub node_checks
 	# Make sure logind is update to handle fencing properly
 	# see - https://access.redhat.com/solutions/1578823
 	$anvil->Cluster->configure_logind({debug => 2});
-	
-	# Look for unused free space 
-	$anvil->Storage->auto_grow_pv({debug => 2});
 
 	return(0);
 }
@@ -130,9 +127,6 @@ sub dr_checks
 	
 	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 	handle_bz1961562($anvil);
-	
-	# Look for unused free space 
-	$anvil->Storage->auto_grow_pv({debug => 2});
 	
 	# Make sure DRBD compiled after a kernel upgrade.
 	$anvil->DRBD->_initialize_kmod({debug => 2});
