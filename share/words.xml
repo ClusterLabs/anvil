@@ -204,7 +204,10 @@ The error was:
 		<key name="error_0135">Failed to start the daemon: [#!variable!daemon!#] on [#!variable!host!#], unable to boot the server.</key>
 		<key name="error_0136">System->test_ipmi() was called with an invalid 'lanplus' parameter. It must be 'yes', 'no', 'yes-no' or 'no-yes'. Received: [#!variable!lanplus!#].</key>
 		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
-		<key name="error_0138">The system call: [#!variable!shell_call!#] failed. The output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
+		<key name="error_0138">The system call: [#!variable!shell_call!#] failed with the return code: [#!variable!return code!#]. The output (if any) was;
+====
+#!variable!output!#
+====</key>
 		<key name="error_0139">The DRBD global common config file: [#!data!path::configs::global-common.conf!#] doesn't exist, unable to update it.</key>
 		<key name="error_0140">
 Failed to parse the JSON string:
@@ -609,6 +612,119 @@ The error was:
 ========</key>
 		<key name="error_0421">Failed to enable dual-primary for the resource: [#!variable!resource!#]! The peer: [#!variable!peer_name!#]'s connection state is: [#!variable!connection_state!#] (must be 'connected').</key>
 		<key name="error_0422">Failed to enable dual-primary for the server: [#!variable!server!#]! The call to enable dual-primary, necessary for the live migration, returned a non-zero return code: [#!variable!return_code!#].</key>
+		<key name="error_0423">[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [#!variable!free_space!#].</key>
+		<key name="error_0424">[ Error ] - The requested size: [#!variable!add_size!#] could not be interpreted.</key>
+		<key name="error_0425">[ Error ] - Failed to find a new target device name.</key>
+		<key name="error_0426">[ Error ] - Failed to find a new DRBD volume to use.</key>
+		<key name="error_0427">[ Error ] - Adding a new disk requires all peers to be online.</key>
+		<key name="error_0428">          - Peer: [#!variable!host_name!#] is: [#!variable!access!#].</key>
+		<key name="error_0429">[ Error ] - It would appear that we've lost access to a peer while waiting for the answer.</key>
+		<key name="error_0430"> Failed!
+[ Error ] - The new DRBD resource config appears to be invalid, which is likely a program error. The new 
+[ Error ] - config was written to the test file: [#!variable!test_file!#].
+[ Error ] - The test to confirm it was valid exited with the return code: [#!variable!return_code!#], expected '0'.
+[ Error ] - The output, if anything, was:
+====
+#!variable!output!#
+====
+</key>
+		<key name="error_0431">
+[ Error ] - There was a problem copying the new config file! Unable to proceed. 
+[ Error ] - Manual intervention to complete the update is required!
+</key>
+		<key name="error_0432">Failed!
+[ Error ] - The peers did not connect in the expected period of time.</key>
+		<key name="error_0433">Failed!
+[ Error ] - There was a problem trying to force the new volume: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#] to Primary.
+[ Error ] - Attempted this using the shell call: [#!variable!shell_call!#].
+[ Error ] - Expected the return code '0' but got: [#!variable!return_code!#]. The output, if any, was:
+==========
+#!variable!output!#
+==========
+[ Error ] - Once corrected, please manually add the new volume to the server.
+</key>
+		<key name="error_0434">
+[ Error ] - The definition file read hear appears to be invalid after trying to attach the disk! It is unsafe
+[ Error ] - to update the on disk and in DB definition. It's likely the attach has failed.
+[ Error ] - Manual update to the server is likely required now.
+</key>
+		<key name="error_0435">
+[ Error ] - The definition file read from the remote host appears to be invalid after trying to attach the 
+[ Error ] - disk! It is unsafe to update the on disk and in DB definition. It's likely the attach has failed.
+[ Error ] - Manual update to the server is likely required now.
+</key>
+		<key name="error_0436">[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [#!variable!max_free_space!#].</key>
+		<key name="error_0437">[ Error ] - The requested size: [#!variable!add_size!#] could not be interpreted.</key>
+		<key name="error_0438">[ Error ] - The requested size: [#!variable!add_size!#] is too small, it's less than an single extent.</key>
+		<key name="error_0439">[ Error ] - The requested size: [#!variable!add_size!#] is too large. The available size is: [#!variable!max_free_space!#].</key>
+		<key name="error_0440">[ Error ] - Growing the storage requires all peers to be online.</key>
+		<key name="error_0441">[ Error ] - It would appear that we've lost access to a peer while waiting for the answer.</key>
+		<key name="error_0442"> Error!
+[ Failed ] - When trying to grow the local logical volume: [#!variable!backing_disk!#]
+[ Failed ] - using the command: [#!variable!shell_call!#]
+[ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==========
+#!variable!output!#
+==========
+The extension of the resource is incomplete, manual intervention is required!
+[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!</key>
+		<key name="error_0443"> Error!
+[ Failed ] - When trying to grow the peer's logical volume: [#!variable!backing_disk!#]
+[ Failed ] - using the command: [#!variable!shell_call!#]
+[ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==] STDOUT [========
+#!variable!output!#
+==] STDERR [========
+#!variable!error!#
+====================
+The extension of the resource is incomplete, manual intervention is required!
+[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!</key>
+		<key name="error_0444"> Error!
+[ Failed ] - When trying to grow the DRBD device: [#!variable!drbd_resource!#/#!variable!drbd_volume!#]
+[ Failed ] - using the command: [#!variable!shell_call!#]
+[ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==========
+print $output!#
+==========
+The extension of the resource is incomplete, manual intervention is required!!
+[ Note ] - All backing devices have been grown. Manually resolving the drbd grow
+[ Note ] - error should complete the drive expansion!</key>
+		<key name="error_0445"><![CDATA[[ Error ] - Please indicate the optical drive to work with using '--optical <target_device>'.]]></key>
+		<key name="error_0446"><![CDATA[[ Error ] - Please specify the optical disk target you want to work on.]]></key>
+		<key name="error_0447"><![CDATA[[ Error ] - The optical device target: [#!variable!device_target!#] wasn't found.]]></key>
+		<key name="error_0448"><![CDATA[[ Error ] - The target: [#!variable!iso!#] doesn't exist, can't insert it into the optical drive.]]></key>
+		<key name="error_0449"><![CDATA[- Drive: [#!variable!device_target!#] has the disc image: [#!variable!device_path!#] inserted currently.
+- Use '--eject' to eject the disc.
+- Use '--insert /mnt/shared/files/<file>' to replace it with a different disc image.]]></key>
+		<key name="error_0450"><![CDATA[- Drive: [#!variable!device_target!#] currently has no disc image inserted.
+- Use '--insert /mnt/shared/files/<file>' to insert a disc image.]]></key>
+		<key name="error_0451"><![CDATA[The server: [#!variable!server!#] was not found on the Anvil! node: [#!variable!anvil!#]. Valid servers are above.]]></key>
+		<key name="error_0452"><![CDATA[The server: [#!variable!server!#] was not found. Valid servers are above.]]></key>
+		<key name="error_0453"><![CDATA[The server: [#!variable!server!#] has been deleted.]]></key>
+		<key name="error_0454"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], please run this on that host.]]></key>
+		<key name="error_0455"><![CDATA[[ Error ] - Failed to find an on disk or from virsh definition for the server: [#!variable!server!#]. Unable to proceed.]]></key>
+		<key name="error_0456"><![CDATA[Please specify which server you want to modify using '--server <name or uuid>'.]]></key>
+		<key name="error_0457"><![CDATA[[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.]]></key>
+		<key name="error_0458"><![CDATA[[ Error ] - Please specify the disk drive target you want to work on.]]></key>
+		<key name="error_0459"><![CDATA[[ Error ] - The disk drive target: [#!variable!device_target!#] wasn't found.]]></key>
+		<key name="error_0460"><![CDATA[ Error!
+[ Failed ] - When trying to create the new local logical volume: [#!variable!backing_disk!#]
+[ Failed ] - using the command: [#!variable!shell_call!#]
+[ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==========
+#!variable!output!#
+==========
+The creation of the new replicatedd disk is incomplete, manual intervention is required!]]></key>
+		<key name="error_0461"><![CDATA[ Error!
+[ Failed ] - When trying to create the peer: [#!variable!short_host_name!#]'s logical volume: [#!variable!backing_disk!#]
+[ Failed ] - using the command: [#!variable!shell_call!#]
+[ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==] STDOUT [========
+#!variable!output!#
+==] STDERR [========
+#!variable!error!#
+====================
+The creation of the new replicated disk is incomplete, manual intervention is required!]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2414,6 +2530,69 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>
 		<key name="log_0746">The local resource: [#!variable!resource!#] is StandAlone, attempting to connect.</key>
 		<key name="log_0747">Failed to connect to the host: [#!variable!host!#]! Unable to up the resource on it. The volume(s) backing this server are UpToDate locally, so booting should be fine.</key>
+		<key name="log_0748">- Creating the new local LV: [#!variable!backing_disk!#]...</key>
+		<key name="log_0749">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], path: [#!variable!device_path!#], Available space: [#!variable!max_free_space!#]</key>
+		<key name="log_0750">Done!</key>
+		<key name="log_0751">- Testing the updated DRBD resource config file to ensure the new volumes are cromulent...</key>
+		<key name="log_0752">Success!</key>
+		<key name="log_0753">- Copying the new resource file to out peers.</key>
+		<key name="log_0754"> - Copying: [#!variable!resource_file!#] to: [#!variable!host_name!#:#!variable!destination!#] via: [#!variable!use_ip!#].</key>
+		<key name="log_0755">- Creating the replicated storage metadata on the new backing devices now.</key>
+		<key name="log_0756"> - Creating the new LV on the peer: [#!variable!host_name!#:#!variable!backing_disk!#], via: [#!variable!use_ip!# (#!variable!use_network!#)]</key>
+		<key name="log_0757">- Writing out the updated DRBD config file.</key>
+		<key name="log_0758"> - Creating the meta-data on the new local volume: [#!variable!next_drbd_volume!#]...</key>
+		<key name="log_0759"> - Creating the meta-data on the peer: [#!variable!host_name!#:#!variable!drbd_resource!#/#!variable!next_drbd_volume!#], via: [#!variable!use_ip!# (#!variable!use_network!#)]</key>
+		<key name="log_0760">- Registered a job with job UUID: [#!variable!job_uuid!#] to reload the resource config on the host: [#!variable!short_host_name!#].</key>
+		<key name="log_0761">- Adjusting the local resource: [#!variable!drbd_resource!#] to pick up the new config.
+[ NOTE ] - If this hangs, make sure 'anvil-daemon' is running on the peers.</key>
+		<key name="log_0762">- Waiting for all peers to connect the new volume...</key>
+		<key name="log_0763">- Peers are connected! Checking if the new volume requires initial sync.</key>
+		<key name="log_0764">- Initial sync required!</key>
+		<key name="log_0765">- Forcing primary locally...</key>
+		<key name="log_0766"> - The resource is primary on the peer: [#!variable!host_name!#], forcing primary there via: [#!variable!use_ip!# (#!variable!use_network!#)].</key>
+		<key name="log_0767">- Initial sync does not appear to be required.</key>
+		<key name="log_0768">- Ready to add the new disk. Checking if the server is running...</key>
+		<key name="log_0769">- The server is running on this host, we'll attach the disk here.</key>
+		<key name="log_0770">- The server is running on: [#!variable!server_host!#], we'll attach the disk there.</key>
+		<key name="log_0771">- The server isn't running anywhere, we'll attach the disk offline on this host.</key>
+		<key name="log_0772">- Defining the server: [#!variable!server_name!#] to prepare for 'virsh' modification of the server.</key>
+		<key name="log_0773">- Adding the drive to the definition now.</key>
+		<key name="log_0774">- Updating the stored definition and undefining the server now...</key>
+		<key name="log_0775">- Adding the drive to the server directly...</key>
+		<key name="log_0776">- Reading the updated server definition</key>
+		<key name="log_0777">- Validating the updated definition</key>
+		<key name="log_0778">- Updating the stored definition and undefining the server now...</key>
+		<key name="log_0779"> - Adding the drivve to the server using its host: [#!variable!server_host!#] via: [#!variable!use_ip!#]...</key>
+		<key name="log_0780">- Updating the stored definition and undefining the server now...</key>
+		<key name="log_0781"> - The peer: [#!variable!peer_name!#], is stuck 'Negotiating'; disconnecting... </key>
+		<key name="log_0782"> reconnecting... </key>
+		<key name="log_0783">- Waiting for the disk state to be updated:</key>
+		<key name="log_0784"> - Connected, checking volume: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#] disk state: </key>
+		<key name="log_0785">Not Connected yet.</key>
+		<key name="log_0786">Disk not ready yet.</key>
+		<key name="log_0787">Ready!
+- Disk state is: [#!variable!peer_disk_state!#]</key>
+		<key name="log_0788">- Timed out waiting for the peer to connect.</key>
+		<key name="log_0789">[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
+          - Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 
+          - vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single
+          - letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.</key>
+		<key name="log_0790">- Preparing to grow the storage by: [#!variable!size!#]...</key>
+		<key name="log_0791"> - Extending local LV: [#!variable!backing_disk!#]...</key>
+		<key name="log_0792"> - Extending peer: [#!variable!host_name!#:#!variable!backing_disk!#], via: [#!variable!use_ip!# (#!variable!use_network!#)]</key>
+		<key name="log_0793">- Extending backing devices complete. Now extending DRBD resource/volume... </key>
+		<key name="log_0794">- Calling scancore agents to ensure the database has the new storage config recorded.</key>
+		<key name="log_0795"> - Running scan agent: [#!variable!agent!#] locally...</key>
+		<key name="log_0796"> - Running scan agent: [#!variable!agent!#] on: [#!variable!host_name!#] via: [#!variable!use_ip!# (#!variable!use_network!#)]...</key>
+		<key name="log_0797">[ Success ] - Expansion is complete!
+[ Note ]    - Depending on your OS, you may need to power the server off, and then power it back on
+[ Note ]    - for the new space to be visible. Typically, powering off the server from the guest OS
+[ Note ]    - and waiting for the Anvil! to boot it back up will do the job nicely.</key>
+		<key name="log_0798">Defining the server: [#!variable!server_name!#] to prepare for 'virsh' modification of the server.</key>
+		<key name="log_0799">- Inserting: [#!variable!insert!#] into the drive: [#!variable!device_target!#].</key>
+		<key name="log_0800">- Ejecting: [#!variable!device_path!#] from: [#!variable!device_target!#].</key>
+		<key name="log_0801">Updating the stored definition and undefining the server now:</key>
+		<key name="log_0802">Working with the server: [#!variable!server_name!#], UUID: [#!variable!server_uuid!#]</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -2933,6 +3112,28 @@ Proceed? [y/N]</key>
 		<key name="message_0327">[ Note ] - It looks like 'anvil-version-changes' (pid(s): [#!variable!pids!#]) is running, holding off on power action until it's done (in case the system is being updated now or kernel modules are being built).</key>
 		<key name="message_0328">[ Note ] - The DRBD (replicated storage) kernel module appears to not exist. This is normal after an OS update, will try building the kernel module now. Please be patient.</key>
 		<key name="message_0329">[ Note ] - Deleting the old drbd fenced attribute: [#!variable!attribute!#] for the node: [#!variable!node_name!#] (ID: [#!variable!node_id!#]) from the CIB.</key>
+		<key name="message_0330">[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
+          - Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 
+          - vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single
+          - letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
+</key>
+		<key name="message_0331">up</key>
+		<key name="message_0332">down</key>
+		<key name="message_0333">- New drive target: [#!variable!new_device_target!#], size: [#!variable!hr_size!#], bus: [#!variable!disk_device_bus!#], cache: [#!variable!disk_cache!#], IO policy: [#!variable!disk_io_policy!#]
+- Preparing to add a the drive: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#] using the storage group: [#!variable!storage_group_name!#]...</key>
+		<key name="message_0334">Disk Drives:</key>
+		<key name="message_0335">Optical Drives:</key>
+		<key name="message_0336">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], Replication Volume: [#!variable!drbd_resource!#/#!variable!drbd_volume!#]</key>
+		<key name="message_0337"> |- Resource / LV / Metadata sizes: [#!variable!resource_size!# / #!variable!lv_size!# / #!variable!metadata_size!#], free space: [#!variable!max_free_space!#]</key>
+		<key name="message_0338">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], ISO: [#!variable!device_path!#]</key>
+		<key name="message_0339">Sub-Nodes:</key>
+		<key name="message_0340">DR Hosts:</key>
+		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!ariable!host_uuid!#]</key>
+		<key name="message_0342">   |- Volume: [#!variable!volume_number!#], backing device: [#!variable!backing_disk!#], DRBD minor: [#!variable!device_minor!#], size: [#!variable!volume_size!#]
+   ^- In storage group: [#!variable!storage_group_name!#], size: [#!variable!storage_group_size!#], free: [#!variable!storage_group_free_space!#]</key>
+		<key name="message_0343">Anvil! Node: [#!variable!anvil_name!#], UUID: [#!variable!anvil_uuid!#] - Description: [#!variable!anvil_description!#]</key>
+		<key name="message_0344">- No servers on this node yet</key>
+		<key name="message_0345">^- Server: [#!variable!server_name!#], UUID: [#!variable!server_uuid!#]</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3671,6 +3872,25 @@ We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up i
 		<key name="warning_0156">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was found, but it's not ready yet.</key>
 		<key name="warning_0157">[ Warning ] - Waiting for a bit, and then will check if files are ready.</key>
 		<key name="warning_0158">[ Warning ] - There is a duplicate storage group named: [#!variable!group_name!#]. Keeping the group with UUID: [#!variable!keep_uuid!#], and deleting the group with the UUID: [#!variable!delete_uuid!#]</key>
+		<key name="warning_0159">Please specify a storage group to use to add the new drive to.</key>
+		<key name="warning_0160"> Warning!
+[ Warning ] - When trying to create the local meta-data on: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#]
+[ Warning ] - using the command: [#!variable!shell_call!#]
+[ Warning ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==========
+#!variable!output!#
+==========
+We will try to proceed anyway.</key>
+		<key name="warning_0161"> Warning!\n";
+[ Warning ] - When trying to create the peer: [#!variable!host_name!#]'s meta-data on: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#]
+[ Warning ] - using the command: [#!variable!shell_call!#]
+[ Warning ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
+==] STDOUT [========
+#!variable!output!#
+==] STDERR [========
+#!variable!error!#
+====================
+We will try to proceed anyway.</key>
 		
 	</language>
 	<!-- 日本語 -->

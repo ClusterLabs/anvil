@@ -46,6 +46,7 @@ $anvil->Get->switches({list => [
 	"confirm", 
 	"disk", 
 	"eject", 
+	"job-uuid", 
 	"grow", 
 	"insert", 
 	"optical", 
@@ -86,7 +87,7 @@ if (not $anvil->data->{switches}{server})
 {
 	# Show the list of servers.
 	show_server_list($anvil);
-	print "\nPlease specify which server you want to modify using '--server <name or uuid>'.\n\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0456"});
 	$anvil->nice_exit({exit_code => 0});
 }
 
@@ -193,7 +194,7 @@ sub manage_disk
 		if (not $anvil->data->{switches}{disk})
 		{
 			# Can't proceed.
-			print "\n[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.\n\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0457"});
 			show_server_details($anvil);
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -281,14 +282,16 @@ sub manage_disk
 		{
 			# User didn't specify a device.
 			show_server_details($anvil);
-			print "\n[ Error ] - Please specify the disk drive target you want to work on.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0458"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}{$device_target})
 		{
 			# Invalid device target
 			show_server_details($anvil);
-			print "\n[ Error ] - The disk drive target: [".$device_target."] wasn't found.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0459", variables => {
+				device_target => $device_target, 
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
@@ -332,8 +335,12 @@ sub manage_disk
 			's18:drbd_volume'      => $drbd_volume, 
 			's19:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 		}});
-		#print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], cache: [".$driver_cache."], driver type: [".$driver_type."]\n";
-		print "- Target: [".$device_target."], boot: [".$say_boot."], path: [".$device_path."], Available space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0749", variables => {
+			device_target  => $device_target, 
+			say_boot       => $say_boot, 
+			device_path    => $device_path, 
+			max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
+		}});
 		
 		# What are we doing?
 		if ($anvil->data->{switches}{grow})
@@ -366,17 +373,13 @@ sub manage_disk_add
 	}});
 	
 	# Are they asking for an available amount of space?
-	my $error_note = q|
-[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
-          - Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 
-          - vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single
-          - letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
-|;
+	my $say_up     = $anvil->Words->string({key => 'message_0331'});
+	my $say_down   = $anvil->Words->string({key => 'message_0332'});
 	
 	# Do we have a storage group?
 	if (not $anvil->data->{switches}{'storage-group'})
 	{
-		print "Please specify a storage group to use to add the new drive to.\n";
+		print $anvil->Words->string({key => 'warning_0159'})."\n";
 		short_storage_groups($anvil, $anvil_uuid);
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -420,8 +423,10 @@ sub manage_disk_add
 	elsif ($add_size !~ /\d/)
 	{
 		# No digits, probably didn't set a value at all.
-		print "\n[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_space})."].\n";
-		print $error_note."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0423", variables => {
+			free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}), 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "message_0330"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif ($add_size !~ /^\d+$/)
@@ -440,8 +445,8 @@ sub manage_disk_add
 		else
 		{
 			# Not a valid size.
-			print "\n[ Error ] - The requested size: [".$add_size."] could not be interpreted.\n";
-			print $error_note."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0424", variables => { add_size => $add_size }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "message_0330"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -504,7 +509,8 @@ sub manage_disk_add
 	
 	if (not $new_device_target)
 	{
-		print "\n[ Error ] - Failed to find a new target device name.\n";
+		# Failed to find a new target device name
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0425"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -538,7 +544,8 @@ sub manage_disk_add
 		
 		if ($next_drbd_volume eq "")
 		{
-			print "\n[ Error ] - Failed to find a new DRBD volume to use.\n";
+			# Failed to find a new DRBD volume to use.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0426"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -551,26 +558,40 @@ sub manage_disk_add
 	
 	if (not $all_online)
 	{
-		print "\n[ Error ] - Adding a new disk requires all peers to be online.\n";
+		### TODO: Sleep for 60 and then reset the job_progress to 0 and exit so that we keep trying.
+		# Adding a new disk requires all peers to be online.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0427"});
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 		{
-			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
-			print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+			# Record the access
+			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+				host_name => $short_host_name,
+				access    => $say_access,
+			}});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# Still alive? Ask the user to confirm.
-	print "- New drive target: [".$new_device_target."], size: [".$hr_size."], bus: [".$disk_device_bus."], cache: [".$disk_cache."], IO policy: [".$disk_io_policy."]\n";
-	print "- Preparing to add a the drive: [".$drbd_resource."/".$next_drbd_volume."] using the storage group: [".$storage_group_name."]...\n";
-	if (not $anvil->data->{switches}{confirm})
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+		new_device_target  => $new_device_target,
+		hr_size            => $hr_size,
+		disk_device_bus    => $disk_device_bus, 
+		disk_cache         => $disk_cache, 
+		disk_io_policy     => $disk_io_policy, 
+		drbd_resource      => $drbd_resource, 
+		next_drbd_volume   => $next_drbd_volume, 
+		storage_group_name => $storage_group_name, 
+	}});
+	if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
 		print $anvil->Words->string({key => "message_0021"})." ";
 		my $answer = <STDIN>;
 		chomp($answer);
 		if ($answer !~ /^y/i)
 		{
-			print "Aborting.\n";
+			print $anvil->Words->string({key => "message_0022"})."\n";
 			$anvil->nice_exit({exit_code => 0});
 		}
 		
@@ -580,11 +601,16 @@ sub manage_disk_add
 		
 		if (not $all_online)
 		{
-			print "\n[ Error ] - It would appear that we've lost access to a peer while waiting for the answer.\n";
+			# It would appear that we've lost access to a peer while waiting for the answer.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0429"});
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 			{
-				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
-				print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+				# Record the access
+				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+					host_name => $short_host_name,
+					access    => $say_access,
+				}});
 			}
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -634,7 +660,8 @@ sub manage_disk_add
 			}});
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				print " - Creating the new local LV: [".$backing_disk."]...";
+				# Creating the new local LV
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0748", variables => { backing_disk => $backing_disk }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
@@ -642,26 +669,30 @@ sub manage_disk_add
 				}});
 				if ($return_code)
 				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to create the new local logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==========\n";
-					print $output."\n";
-					print "==========\n";
-					print "The creation of the new replicatedd disk is incomplete, manual intervention is required!!\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0460", variables => {
+						backing_disk => $backing_disk,
+						shell_call   => $shell_call,
+						return_code  => $return_code, 
+						output       => $output, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 			else
 			{
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-				print " - Creating the new LV on the peer: [".$short_host_name.":".$backing_disk."], via: [".$use_ip." (".$use_network.")]";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0756", variables => {
+					host_name    => $short_host_name, 
+					backing_disk => $backing_disk, 
+					use_ip       => $use_ip, 
+					network      => $use_network, 
+				}});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call => $shell_call, 
 					target     => $use_ip,
@@ -673,21 +704,20 @@ sub manage_disk_add
 				}});
 				if ($return_code)
 				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to create the peer: [".$short_host_name."]'s logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==] STDOUT [========\n";
-					print $output."\n";
-					print "==] STDERR [========\n";
-					print $error."\n";
-					print "====================\n";
-					print "The creation of the new replicated disk is incomplete, manual intervention is required!!\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0461", variables => {
+						host_name    => $short_host_name, 
+						backing_disk => $backing_disk,
+						shell_call   => $shell_call,
+						return_code  => $return_code, 
+						output       => $output, 
+						error        => $error, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 		}
@@ -783,7 +813,7 @@ sub manage_disk_add
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	
 	# Validate.
-	print "- Testing the updated DRBD resource config file to ensure the new volumes are cromulent...";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0751"});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$drbd_res_file." sh-nop";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -794,25 +824,22 @@ sub manage_disk_add
 	if ($return_code)
 	{
 		# Something went wrong.
-		print " Failed!
-[ Error ] - The new DRBD resource config appears to be invalid, which is likely a program error. The new 
-[ Error ] - config was written to the test file: [".$test_file."].
-[ Error ] - The test to confirm it was valid exited with the return code: [".$return_code."], expected '0'.
-[ Error ] - The output, if anything, was:
-====
-".$output."
-====
-";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0430", variables => {
+			test_file   => $test_file,
+			return_code => $return_code,
+			output      => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	print " Success!\n";
+	# Success!
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0752"});
 	
 	# Remove the test file.
 	unlink $test_file;
 	
 	# Backup the res file so we can tell the user where the current config was backed up to in 
 	# case they need to restore it.
-	print "- Writing out the updated DRBD config file.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0757"});
 	my ($backup_file) = $anvil->Storage->backup({file => $drbd_res_file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
 	
@@ -828,9 +855,9 @@ sub manage_disk_add
 		mode      => "0644",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
-# 	
+	
 	# Copy this to our peers.
-	print "- Copying the new resource file to out peers.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0753"});
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
@@ -841,7 +868,12 @@ sub manage_disk_add
 			my $use_ip      =  $anvil->data->{peer}{$short_host_name}{access}{ip};
 			my $destination =  "root\@".$use_ip.":".$anvil->data->{path}{directories}{drbd_resources}."/";
 			   $destination =~ s/\/\//\//g;
-			print " - Copying: [".$drbd_res_file."] to: [".$short_host_name.":".$destination."] via: [".$use_ip."]\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0754", variables => {
+				resource_file => $drbd_res_file, 
+				host_name     => $short_host_name, 
+				destination   => $destination, 
+				use_ip        => $use_ip, 
+			}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				use_ip      => $use_ip,
 				destination => $destination, 
@@ -856,17 +888,15 @@ sub manage_disk_add
 			
 			if ($failed)
 			{
-				print "
-[ Error ] - There was a problem copying the new config file! Unable to proceed. 
-[ Error ] - Manual intervention to complete the update is required!
-";
+				# There was a problem copying the new config file!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0431"});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 	}
 	
 	# Create the metadata.
-	print "- Creating the replicated storage metadata on the new backing devices now.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0755"});
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
@@ -883,7 +913,9 @@ sub manage_disk_add
 			# a previous pass.
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				print " - Creating the meta-data on the new local volume: [".$next_drbd_volume."]...";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0758", variables => {
+					next_drbd_volume => $next_drbd_volume, 
+				}});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
@@ -896,25 +928,32 @@ sub manage_disk_add
 				# 3 == Configuration not found.
 				if ($return_code)
 				{
-					print " Warning!\n";
-					print "[ Warning ] - When trying to create the local meta-data on: [".$drbd_resource."/".$next_drbd_volume."]\n";
-					print "[ Warning ] - using the command: [".$shell_call."]\n";
-					print "[ Warning ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==========\n";
-					print $output."\n";
-					print "==========\n";
-					print "We will try to proceed anyway.\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0160", variables => {
+						drbd_resource    => $drbd_resource, 
+						next_drbd_volume => $next_drbd_volume, 
+						shell_call       => $shell_call, 
+						return_code      => $return_code, 
+						output           => $output, 
+					}});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 			else
 			{
+				# Create the meta-data on the peer
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-				print " - Creating the meta-data on the peer: [".$short_host_name.":".$drbd_resource."/".$next_drbd_volume."], via: [".$use_ip." (".$use_network.")]";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0759", variables => {
+					host_name        => $short_host_name, 
+					drbd_resource    => $drbd_resource, 
+					next_drbd_volume => $next_drbd_volume, 
+					use_ip           => $use_ip, 
+					network          => $use_network, 
+				}});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call => $shell_call, 
 					target     => $use_ip,
@@ -926,20 +965,20 @@ sub manage_disk_add
 				}});
 				if ($return_code)
 				{
-					print " Warning!\n";
-					print "[ Warning ] - When trying to create the peer: [".$short_host_name."]'s meta-data on: [".$drbd_resource."/".$next_drbd_volume."]\n";
-					print "[ Warning ] - using the command: [".$shell_call."]\n";
-					print "[ Warning ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==] STDOUT [========\n";
-					print $output."\n";
-					print "==] STDERR [========\n";
-					print $error."\n";
-					print "====================\n";
-					print "We will try to proceed anyway.\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0161", variables => {
+						host_name        => $short_host_name, 
+						drbd_resource    => $drbd_resource, 
+						next_drbd_volume => $next_drbd_volume,
+						shell_call       => $shell_call, 
+						return_code      => $return_code, 
+						output           => $output, 
+						error            => $error, 
+					}});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 		}
@@ -974,12 +1013,16 @@ sub manage_disk_add
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			
-			print "- Registered a job with job UUID: [".$job_uuid."] to reload the resource config on the host: [".$short_host_name."].\n";
+			# Record that we registered the job to reload the resource
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0760", variables => {
+				host_name => $short_host_name, 
+				job_uuid  => $job_uuid, 
+			}});
 		}
 	}
 	
-	print "- Adjusting the local resource: [".$drbd_resource."] to pick up the new config.\n";
-	print "[ NOTE ] - If this hangs, make sure 'anvil-daemon' is running on the peers.\n";
+	# Warn the user to check that anvil-daemon is running in case this hangs.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0761", variables => { drbd_resource => $drbd_resource }});
 	$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$drbd_resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	($output, $return_code) = $anvil->System->call({
@@ -993,7 +1036,7 @@ sub manage_disk_add
 	
 	# Find which node is currently Primary and use that host to force primary to start sync. If none, 
 	# force here.
-	print "- Waiting for all peers to connect the new volume...\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0762"});
 	my $waiting    = 1;
 	my $wait_until = time + 300;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
@@ -1100,14 +1143,16 @@ sub manage_disk_add
 		{
 			if (time > $wait_until)
 			{
-				print "\nFailed!\n[ Error ] - The peers did not connect in the expected period of time.\n";
+				# The peers did not connect in the expected period of time.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0432"});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			sleep 2;
 		}
 	}
 	
-	print "- Peers are connected! Checking if the new volume requires initial sync.\n";
+	# Peers are connected! Checking if the new volume requires initial sync.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0763"});
 	my $all_inconsistent = 1;
 	my $primary_on_host  = "";
 	foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{peers}})
@@ -1134,7 +1179,7 @@ sub manage_disk_add
 	
 	if ($all_inconsistent)
 	{
-		print "- Initial sync required!\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0764"});
 		
 		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." new-current-uuid --force-resync ".$drbd_resource."/".$next_drbd_volume;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1156,7 +1201,8 @@ sub manage_disk_add
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { primary_on_host_uuid => $primary_on_host_uuid }});
 		if ($primary_on_host_uuid eq $anvil->Get->host_uuid)
 		{
-			print "- Forcing primary locally... ";
+			# Forcing primary locally...
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0765"});
 			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
@@ -1165,15 +1211,14 @@ sub manage_disk_add
 			# Return code of '0' is success.
 			if ($return_code)
 			{
-				print "Failed!
-[ Error ] - There was a problem trying to force the new volume: [".$drbd_resource."/".$next_drbd_volume."] to Primary.
-[ Error ] - Attempted this using the shell call: [".$shell_call."].
-[ Error ] - Expected the return code '0' but got: [".$return_code."]. The output, if any, was:
-==========
-".$output."
-==========
-[ Error ] - Once corrected, please manually add the new volume to the server.
-";
+				# There was a problem trying to force the new volume to Primary.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0430", variables => {
+					drbd_resource    => $drbd_resource, 
+					next_drbd_volume => $next_drbd_volume,
+					shell_call       => $shell_call,
+					return_code      => $return_code,
+					output           => $output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
@@ -1186,7 +1231,8 @@ sub manage_disk_add
 				output      => $output,
 				return_code => $return_code,
 			}});
-			print "Success!\n";
+			# Success!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0752"});
 		}
 		else
 		{
@@ -1196,7 +1242,12 @@ sub manage_disk_add
 				use_ip      => $use_ip,
 				use_network => $use_network,
 			}});
-			print " - The resource is primary on the peer: [".$short_host_name."], forcing primary there via: [".$use_ip." (".$use_network.")]";
+			# The resource is primary on the peer, force Primary over there.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0766", variables => {
+				host_name   => $short_host_name, 
+				use_ip      => $use_ip, 
+				use_network => $use_network, 
+			}});
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				shell_call => $shell_call, 
 				target     => $use_ip,
@@ -1208,15 +1259,13 @@ sub manage_disk_add
 			}});
 			if ($return_code)
 			{
-				print "Failed!
-[ Error ] - There was a problem trying to force the new volume: [".$drbd_resource."/".$next_drbd_volume."] to Primary.
-[ Error ] - Attempted this using the shell call: [".$shell_call."].
-[ Error ] - Expected the return code '0' but got: [".$return_code."]. The output, if any, was:
-==========
-".$output."
-==========
-[ Error ] - Once corrected, please manually add the new volume to the server.
-";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0430", variables => {
+					drbd_resource    => $drbd_resource, 
+					next_drbd_volume => $next_drbd_volume,
+					shell_call       => $shell_call,
+					return_code      => $return_code,
+					output           => $output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
@@ -1232,16 +1281,18 @@ sub manage_disk_add
 				error       => $error,
 				return_code => $return_code,
 			}});
-			print "Success!\n";
+			# Success!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0752"});
 		}
 	}
 	else
 	{
-		print "- Initial sync does not appear to be required.\n";
+		# Initial sync does not appear to be required.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0767"});
 	}
 	
 	# Is the server running? If so, where.
-	print "- Ready to add the new disk. Checking if the server is running...\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0768"});
 	my $server_host = "";
 	foreach my $host_type ("node", "dr")
 	{
@@ -1281,11 +1332,15 @@ sub manage_disk_add
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host => $server_host }});
 					if ($host_uuid eq $anvil->Get->host_uuid)
 					{
-						print "- The server is running on this host, we'll attach the disk here.\n";
+						# The server is running on this host, we'll attach the disk here.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0769"});
 					}
 					else
 					{
-						print "- The server is running on: [".$server_host."], we'll attach the disk there.\n";
+						# The server is running on the peer, we'll attach the disk there.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0770", variables => {
+							server_host => $server_host, 
+						}});
 					}
 					last;
 				}
@@ -1296,7 +1351,8 @@ sub manage_disk_add
 	my $offline = 0;
 	if (not $server_host)
 	{
-		print "- The server isn't running anywhere, we'll attach the disk offline on this host.\n";
+		# The server isn't running anywhere, we'll attach the disk offline on this host.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0771"});
 		$server_host = $short_host_name;
 		$offline     = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1318,20 +1374,23 @@ sub manage_disk_add
 	if ($offline)
 	{
 		# Define the VM, if needed, then add the drive, dump the config and push it out.
-		print "- Defining the server: [".$server_name."] to prepare for 'virsh' modification of the server.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0772", variables => { server_name => $server_name }});
 		update_definition($anvil, "define", "");
 		
 		# Update the definition.
-		print "- Adding the drive to the definition now.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0773"});
 		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});
 		
-		print "- Updating the stored definition and undefining the server now...\n";
+		# Updating the stored definition and undefining the server now...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0774"});
 		update_definition($anvil, "undefine", "");
-		print "Done!\n";
+		
+		# Done!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	else
@@ -1343,7 +1402,7 @@ sub manage_disk_add
 		{
 			# Do the add here.
 			update_definition($anvil, "define", "");
-			print "- Adding the drive to the server directly...\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0775"});
 			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
@@ -1352,16 +1411,16 @@ sub manage_disk_add
 			if ($return_code)
 			{
 				# Something went wrong.
-				print "- Failed!\n";
-				print "Expected the return code '0', but got: [".$return_code."]. The command output, if anything, was:\n";
-				print "========\n";
-				print $output."\n";
-				print "========\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+					shell_call  => $shell_call,
+					return_code => $return_code,
+					output      => $output, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 			
 			# Get the new XML
-			print "- Reading the updated server definition\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0776"});
 			$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
@@ -1372,7 +1431,7 @@ sub manage_disk_add
 			}});
 			
 			# Make sure the $output is valid XML.
-			print "- Validating the updated definition\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0777"});
 			my $problem = $anvil->Server->parse_definition({
 				server     => $server_name,
 				source     => "from_virsh", 
@@ -1383,17 +1442,16 @@ sub manage_disk_add
 			if ($problem)
 			{
 				# Failed?!
-				print "
-[ Error ] - The definition file read hear appears to be invalid after trying to attach the disk! It is unsafe
-[ Error ] - to update the on disk and in DB definition. It's likely the attach has failed.
-[ Error ] - Manual update to the server is likely required now.
-";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0434"});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		
-			print "- Updating the stored definition and undefining the server now...\n";
+			# Update the stored definition and undefining the server
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0778"});
 			update_definition($anvil, "undefine", $virsh_definition);
-			print "Done!\n";
+		
+			# Done!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 			$anvil->nice_exit({exit_code => 0});
 		}
 		else
@@ -1401,7 +1459,10 @@ sub manage_disk_add
 			# Do the add on the target.
 			my $use_ip = $anvil->data->{peer}{$short_host_name}{access}{ip};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
-			print " - Adding the drivve to the server using its host: [".$server_host."] via: [".$use_ip."]...\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0779", variables => {
+				server_host => $server_host, 
+				use_ip      => $use_ip, 
+			}});
 			my ($output, $error, $return_code) = $anvil->Remote->call({
 				shell_call => $shell_call, 
 				target     => $use_ip,
@@ -1436,12 +1497,8 @@ sub manage_disk_add
 			if ($problem)
 			{
 				# Failed?!
-				print "
-[ Error ] - The definition file read from the remote host appears to be invalid after trying to attach the 
-[ Error ] - disk! It is unsafe to update the on disk and in DB definition. It's likely the attach has failed.
-[ Error ] - Manual update to the server is likely required now.
-";
-					$anvil->nice_exit({exit_code => 1});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0435"});
+				$anvil->nice_exit({exit_code => 1});
 			}
 			
 			$anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml} = $virsh_definition;
@@ -1449,9 +1506,12 @@ sub manage_disk_add
 				"server::${short_host_name}::${server_name}::from_virsh::xml" => $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml},
 			}});
 		
-			print "- Updating the stored definition and undefining the server now...\n";
+			# Updating the stored definition and undefining the server
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0780"});
 			update_definition($anvil, "undefine", $virsh_definition);
-			print "Done!\n";
+			
+			# Done!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 			$anvil->nice_exit({exit_code => 0});
 		}
 	}
@@ -1474,7 +1534,7 @@ sub reconnect_resource
 	
 	# Log into the peer and disconnect, then reconnect. Then wait for the disk state to update, and 
 	# return the disk state.
-	print " - The peer: [".$peer_name."], is stuck 'Negotiating'; disconnecting... ";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0781", variables => { peer_name => $peer_name }});
 	my $use_ip     = $anvil->data->{peer}{$peer_name}{access}{ip};
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." disconnect ".$drbd_resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1491,7 +1551,7 @@ sub reconnect_resource
 		return_code => $return_code, 
 	}});
 	
-	print " reconnecting... ";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0782"});
 	sleep 1;
 	$shell_call = $anvil->data->{path}{exe}{drbdadm}." connect ".$drbd_resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1507,10 +1567,10 @@ sub reconnect_resource
 		error       => $error, 
 		return_code => $return_code, 
 	}});
-	print " Done.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 	
 	# Now wait
-	print "- Waiting for the disk state to be updated:\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0783"});
 	my $waiting    = 1;
 	my $wait_until = time + 300;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
@@ -1519,17 +1579,14 @@ sub reconnect_resource
 		$anvil->DRBD->get_status({debug => 2});
 		my $disks_ready      = 1;
 		my $connection_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'connection-state'};
-		if (not defined $connection_state)
-		{
-			print "Short host name: [".$short_host_name."], resource: [".$drbd_resource."], peer: [".$peer_name."]\n";
-			print Dumper %{$anvil->data->{drbd}{status}};
-			die;
-		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
 		if (lc($connection_state) eq "connected")
 		{
 			# Connected, what's the disk state for the new volume now?
-			print " - Connected, checking volume: [".$drbd_resource."/".$next_drbd_volume."] disk state: ";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0784", variables => { 
+				drbd_resource    => $drbd_resource,
+				next_drbd_volume => $next_drbd_volume, 
+			}});
 			   $peer_disk_state   = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'peer-disk-state'};
 			my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'replication-state'};
 			    $role              = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'peer-role'};
@@ -1541,20 +1598,20 @@ sub reconnect_resource
 			
 			if (lc($replication_state) ne "established")
 			{
-				print "Not Connected yet.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0785"});
 				$disks_ready = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
 			}
 			elsif ((not $peer_disk_state) or (lc($peer_disk_state) eq "diskless"))
 			{
-				print "Disk not ready yet.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0786"});
 				$disks_ready = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
 			}
 			
 			if ($disks_ready)
 			{
-				print "Ready!\n- Disk state is: [".$peer_disk_state."]\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0787", variables => { peer_disk_state => $peer_disk_state }});
 				$waiting                                      = 0;
 				$anvil->data->{peers}{$peer_name}{disk_state} = $peer_disk_state;
 				$anvil->data->{peers}{$peer_name}{role}       = $role;
@@ -1570,8 +1627,9 @@ sub reconnect_resource
 		
 		if (time > $wait_until)
 		{
+			# Timed out waiting for the peer to connect.
 			$waiting = 0;
-			print "- Timed out waiting for the peer to connect.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0788"});
 			return($peer_disk_state, $role);
 		}
 		sleep 3;
@@ -1601,13 +1659,6 @@ sub manage_disk_grow
 	}});
 	
 	# Are they asking for an available amount of space?
-	my $error_note = q|
-[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
-          - Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 
-          - vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single
-          - letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
-|;
-
 	my $add_size = $anvil->data->{switches}{grow};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
 	if ($add_size =~ /^(\d+)%$/)
@@ -1622,8 +1673,10 @@ sub manage_disk_grow
 	elsif ($add_size !~ /\d/)
 	{
 		# No digits, probably didn't set a value at all.
-		print "\n[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."].\n";
-		print $error_note."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0436", variables => {
+			max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0789"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif ($add_size !~ /^\d+$/)
@@ -1642,8 +1695,8 @@ sub manage_disk_grow
 		else
 		{
 			# Not a valid size.
-			print "\n[ Error ] - The requested size: [".$add_size."] could not be interpreted.\n";
-			print $error_note."\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0437"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0789"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -1652,17 +1705,26 @@ sub manage_disk_grow
 	if ($add_size < 4194304)
 	{
 		# Must be a typo, this is less than the size of a single extent.
-		print "\n[ Error ] - The requested size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $add_size})."] is too small, it's less than an single extent.\n";
-		print $error_note."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0438", variables => {
+			add_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $add_size}), 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0789"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif ($add_size > $max_free_space)
 	{
 		# Not enough space.
-		print "\n[ Error ] - The requested size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $add_size})."] is too large. The available size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
-		print $error_note."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0439", variables => {
+			add_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $add_size}), 
+			max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0789"});
 		$anvil->nice_exit({exit_code => 1});
 	}
+	
+	# Are they asking for an available amount of space?
+	my $say_up     = $anvil->Words->string({key => 'message_0331'});
+	my $say_down   = $anvil->Words->string({key => 'message_0332'});
 	
 	### TODO: Make this work without the peer node being online.
 	# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
@@ -1672,11 +1734,15 @@ sub manage_disk_grow
 	
 	if (not $all_online)
 	{
-		print "\n[ Error ] - Growing the storage requires all peers to be online.\n";
+		# All peers have to be online.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0440"});
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 		{
-			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
-			print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+				host_name => $short_host_name,
+				access    => $say_access,
+			}});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -1698,7 +1764,8 @@ sub manage_disk_grow
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
 	}
 	
-	print "- Preparing to grow the storage by: [".$hr_size."]...\n";
+	# Preparing to grow the storage
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0790", variables => { size => $hr_size }});
 	if (not $anvil->data->{switches}{confirm})
 	{
 		print $anvil->Words->string({key => "message_0021"})." ";
@@ -1706,7 +1773,8 @@ sub manage_disk_grow
 		chomp($answer);
 		if ($answer !~ /^y/i)
 		{
-			print "Aborting.\n";
+			# Abort
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0022"});
 			$anvil->nice_exit({exit_code => 0});
 		}
 		
@@ -1716,11 +1784,14 @@ sub manage_disk_grow
 		
 		if (not $all_online)
 		{
-			print "\n[ Error ] - It would appear that we've lost access to a peer while waiting for the answer.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0441"});
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 			{
-				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? "up." : "down!";
-				print "          - Peer: [".$short_host_name."] is ".$say_access."\n";
+				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+					host_name => $short_host_name,
+					access    => $say_access,
+				}});
 			}
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1741,7 +1812,7 @@ sub manage_disk_grow
 			}});
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				print " - Extending local LV: [".$backing_disk."]...";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0791", variables => { backing_disk => $backing_disk }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
@@ -1749,27 +1820,30 @@ sub manage_disk_grow
 				}});
 				if ($return_code)
 				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to grow the local logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==========\n";
-					print $output."\n";
-					print "==========\n";
-					print "The extension of the resource is incomplete, manual intervention is required!!\n";
-					print "[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0442", variables => {
+						backing_disk => $backing_disk, 
+						shell_call   => $shell_call, 
+						return_code  => $return_code, 
+						output       => $output, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 			else
 			{
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-				print " - Extending peer: [".$short_host_name.":".$backing_disk."], via: [".$use_ip." (".$use_network.")]";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0792", variables => { 
+					host_name    => $short_host_name, 
+					backing_disk => $backing_disk,
+					use_ip       => $use_ip, 
+					use_network  => $use_network, 
+				}});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call => $shell_call, 
 					target     => $use_ip,
@@ -1781,29 +1855,26 @@ sub manage_disk_grow
 				}});
 				if ($return_code)
 				{
-					print " Error!\n";
-					print "[ FAILED ] - When trying to grow the peer's logical volume: [".$backing_disk."]\n";
-					print "[ FAILED ] - using the command: [".$shell_call."]\n";
-					print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-					print "==] STDOUT [========\n";
-					print $output."\n";
-					print "==] STDERR [========\n";
-					print $error."\n";
-					print "====================\n";
-					print "The extension of the resource is incomplete, manual intervention is required!!\n";
-					print "[ Warning ] - Do NOT re-run this command! The backing devices may not have mis-matched sized!\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0443", variables => {
+						backing_disk => $backing_disk, 
+						shell_call   => $shell_call, 
+						return_code  => $return_code, 
+						output       => $output, 
+						error        => $error, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				else
 				{
-					print " Done!\n";
+					# Done
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 		}
 	}
 	
 	# Locally, we'll call DRBD to resize.
-	print "- Extending backing devices complete. Now extending DRBD resource/volume... ";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0793"});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." resize ".$drbd_resource."/".$drbd_volume;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
@@ -1814,25 +1885,23 @@ sub manage_disk_grow
 	}});
 	if ($return_code)
 	{
-		print " Error!\n";
-		print "[ FAILED ] - When trying to grow the DRBD device: [".$drbd_resource."/".$drbd_volume."]\n";
-		print "[ FAILED ] - using the command: [".$shell_call."]\n";
-		print "[ FAILED ] - The return code: [".$return_code."] was received, expected '0'. Output, if any:\n";
-		print "==========\n";
-		print $output."\n";
-		print "==========\n";
-		print "The extension of the resource is incomplete, manual intervention is required!!\n";
-		print "[ Note ] - All backing devices have been grown. Manually resolving the drbd grow\n";
-		print "[ Note ] - error should complete the drive expansion!\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0444", variables => {
+			drbd_resource => $drbd_resource, 
+			drbd_volume   => $drbd_volume, 
+			shell_call    => $shell_call, 
+			return_code   => $return_code, 
+			output        => $output, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	else
 	{
-		print " Done!\n";
+		# Done
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 	}
 	
 	# Call scan-lvm and scan-drbd to make sure the databases are updated.
-	print "- Calling scancore agents to ensure the database has the new storage config recorded.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0794"});
 	foreach my $agent ("scan-drbd", "scan-lvm")
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => { agent => $agent }});
@@ -1850,19 +1919,26 @@ sub manage_disk_grow
 				}});
 				if ($host_uuid eq $anvil->Get->host_uuid)
 				{
-					print " - Running scan agent: [".$agent."] locally...";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0795", variables => { agent => $agent }});
 					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
 					}});
-					print " Done!\n";
+					
+					# Done
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 				else
 				{
 					my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 					my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-					print " - Running scan agent: [".$agent."] on: [".$short_host_name."] via: [".$use_ip." (".$use_network.")]...";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0796", variables => { 
+						agent       => $agent,
+						host_name   => $short_host_name, 
+						use_ip      => $use_ip, 
+						use_network => $use_network, 
+					}});
 					my ($output, $error, $return_code) = $anvil->Remote->call({
 						shell_call => $shell_call, 
 						target     => $use_ip,
@@ -1872,16 +1948,16 @@ sub manage_disk_grow
 						error       => $error,
 						return_code => $return_code,
 					}});
-					print " Done!\n";
+					
+					# Done
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 				}
 			}
 		}
 	}
 	
-	print "[ Success ] - Expansion is complete!\n";
-	print "[ Note ]    - Depending on your OS, you may need to power the server off, and then power it back on\n";
-	print "[ Note ]    - for the new space to be visible. Typically, powering off the server from the guest OS\n";
-	print "[ Note ]    - and waiting for the Anvil! to boot it back up will do the job nicely.\n";
+	# Success!
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0797"});
 	
 	return(0);
 }
@@ -1919,7 +1995,7 @@ sub manage_optical
 		if (not $anvil->data->{switches}{optical})
 		{
 			# Can't proceed.
-			print "\n[ Error ] - Please indicate the optical drive to work with using '--optical <target_device>'.\n\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0445"});
 			show_server_details($anvil);
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1931,14 +2007,16 @@ sub manage_optical
 	{
 		# User didn't specify a device.
 		show_server_details($anvil);
-		print "\n[ Error ] - Please specify the optical disk target you want to work on.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0446"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target})
 	{
 		# Invalid device target
 		show_server_details($anvil);
-		print "\n[ Error ] - The optical device target: [".$device_target."] wasn't found.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0447", variables => {
+			device_target => $device_target, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1982,7 +2060,9 @@ sub manage_optical
 		my $iso = $anvil->data->{switches}{insert};
 		if (not -f $iso)
 		{
-			print "[ Error ] - The target: [".$iso."] doesn't exist, can't insert it into the optical drive.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0448", variables => {
+				iso => $iso, 
+			}});
 			update_definition($anvil, "undefine", "");
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -1994,31 +2074,43 @@ sub manage_optical
 	}
 	
 	# If the server is running, update the on-disk and in-DB definition.
-	print "Defining the server: [".$server_name."] to prepare for 'virsh' modification of the server.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0798", variables => { server_name => $server_name }});
 	update_definition($anvil, "define", "");
 	
 	# Now we can modify the server using virsh.
 	if ($anvil->data->{switches}{insert})
 	{
-		print "- Inserting: [".$anvil->data->{switches}{insert}."] into the drive: [".$device_target."].\n";
+		# Inserting 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0799", variables => { 
+			insert        => $anvil->data->{switches}{insert}, 
+			device_target => $device_target, 
+		}});
 	}
 	elsif ($anvil->data->{switches}{eject})
 	{
-		print "- Ejecting: [".$device_path."] from: [".$device_target."].\n";
+		# Ejecting
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0800", variables => { 
+			eject         => $device_path, 
+			device_target => $device_target, 
+		}});
 	}
 	else
 	{
 		# Show the ISO in the drive.
 		if ($device_path)
 		{
-			print "- Drive: [".$device_target."] has the disc image: [".$device_path."] inserted currently.\n";
-			print "- Use '--eject' to eject the disc.\n";
-			print "- Use '--insert /mnt/shared/files/<file>' to replace it with a different disc image.\n";
+			# Disc is already in the drive
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0449", variables => {
+				device_target => $device_target, 
+				device_path   => $device_path, 
+			}});
 		}
 		else
 		{
-			print "- Drive: [".$device_target."] currently has no disc image inserted.\n";
-			print "- Use '--insert /mnt/shared/files/<file>' to insert a disc image.\n";
+			# Drive has no disc in it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0450", variables => {
+				device_target => $device_target, 
+			}});
 		}
 		$anvil->nice_exit({exit_code => 0});
 	}
@@ -2027,11 +2119,13 @@ sub manage_optical
 		's1:output'      => $output,
 		's2:return_code' => $return_code, 
 	}});
-	print "'virsh' Output: [".$output."]\n";
 	
-	print "Updating the stored definition and undefining the server now:\n";
+	# Updating the stored definition and undefining the server now
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0801"});
 	update_definition($anvil, "undefine", "");
-	print "Done!\n";
+	
+	# Done
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0750"});
 	
 	return(0);
 }
@@ -2106,11 +2200,13 @@ sub show_server_details
 	{
 		if ($device eq "disk")
 		{
-			print "\nDisk Drives:\n";
+			# Disk drives
+			print "\n".$anvil->Words->string({key => "message_0334"})."\n";
 		}
 		else
 		{
-			print "\nOptical Drives:\n";
+			# Optical drives
+			print "\n".$anvil->Words->string({key => "message_0335"})."\n";
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
 		next if $device ne "cdrom" &&  $device ne "disk";
@@ -2170,8 +2266,18 @@ sub show_server_details
 					's14:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 				}});
 				
-				print "- Target: [".$device_target."], boot: [".$say_boot."], Replication Volume: [".$drbd_resource."/".$drbd_volume."]\n";
-				print " |- Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."]\n";
+				print $anvil->Words->string({key => "message_0336", variables => {
+					device_target => $device_target, 
+					say_boot      => $say_boot, 
+					drbd_resource => $drbd_resource, 
+					drbd_volume   => $drbd_volume, 
+				}})."\n";
+				print $anvil->Words->string({key => "message_0337", variables => {
+					resource_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size}), 
+					lv_size        => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}),
+					metadata_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size}), 
+					max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
+				}})."\n";
 				#print " |- Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."], cache: [".$driver_cache."], IO Policy: [".$driver_io."]\n";
 			}
 			else
@@ -2190,20 +2296,24 @@ sub show_server_details
 					's3:address_target'     => $address_target, 
 					's4:device_path'        => $device_path, 
 				}});
-				print "- Target: [".$device_target."], boot: [".$say_boot."], ISO: [".$device_path."]\n";
+				print $anvil->Words->string({key => "message_0338", variables => {
+					device_target => $device_target, 
+					say_boot      => $say_boot, 
+					device_path   => $device_path, 
+				}})."\n";
 			}
 		}
 	}
 	print "\n";
 	
-	print "Sub-Nodes:\n";
+	print $anvil->Words->string({key => "message_0339"})."\n";
 	show_volume($anvil, $drbd_resource, "node");
 	
 	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
 	if ($dr_count)
 	{
-		print "DR Hosts:\n";
+		print $anvil->Words->string({key => "message_0340"})."\n";
 		show_volume($anvil, $drbd_resource, "dr");
 	}
 	
@@ -2401,7 +2511,10 @@ sub show_volume
 			's1:short_host_name' => $short_host_name,
 			's2:host_uuid'       => $host_uuid, 
 		}});
-		print " |- Name: [".$short_host_name."], UUID: [".$host_uuid."]\n";
+		print $anvil->Words->string({key => "message_0341", variables => {
+			host_name => $short_host_name, 
+			host_uuid => $host_uuid, 
+		}})."\n";
 		foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 		{
 			my $device_path        = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
@@ -2432,8 +2545,16 @@ sub show_volume
 				's1:storage_group_size'       => $storage_group_size,
 				's2:storage_group_free_space' => $storage_group_free_space, 
 			}});
-			print "   |- Volume: [".$volume_number."], backing device: [".$backing_disk."], DRBD minor: [".$device_minor."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size})."]\n";
-			print "   ^- In storage group: [".$storage_group_name."], size: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_size})."], free: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_free_space})."]\n";
+			print $anvil->Words->string({key => "message_0342", variables => {
+				volume_number            => $volume_number, 
+				backing_disk             => $backing_disk, 
+				device_minor             => $device_minor, 
+				volume_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}), 
+				storage_group_name       => $storage_group_name, 
+				storage_group_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_size}), 
+				storage_group_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_free_space}), 
+				
+			}})."\n";
 			
 			# How much space is available in the storage group this volume is in?
 			foreach my $this_scan_lvm_lv_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{lv}})
@@ -2497,17 +2618,25 @@ sub validate_server
 		if ($anvil->data->{switches}{anvil_uuid})
 		{
 			# Not found on the requested Anvil! node.
-			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found on the Anvil! node: [".$anvil->data->{switches}{anvil_name}."]. Valid servers are above.\n\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0451", variables => {
+				server => $anvil->data->{switches}{server}, 
+				anvil  => $anvil->data->{switches}{anvil_name}, 
+			}});
 		}
 		else
 		{
 			# Not found at all.
-			print "\nThe server: [".$anvil->data->{switches}{server}."] was not found. Valid servers are above.\n\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0452", variables => {
+				server => $anvil->data->{switches}{server}, 
+			}});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	print "Working with the server: [".$anvil->data->{switches}{server_name}."], UUID: [".$anvil->data->{switches}{server_uuid}."]\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0802", variables => {
+		server_name => $anvil->data->{switches}{server_name}, 
+		server_uuid => $anvil->data->{switches}{server_uuid}, 
+	}});
 	my $short_host_name   = $anvil->Get->short_host_name;
 	my $server_name       = $anvil->data->{switches}{server_name};
 	my $server_uuid       = $anvil->data->{switches}{server_uuid};
@@ -2534,7 +2663,10 @@ sub validate_server
 	
 	if ($server_state eq "DELETED")
 	{
-		print "The server: [".$server_name."] has been deleted.\n";
+		# The server has been deleted
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0453", variables => {
+			server => $server_name, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -2564,7 +2696,10 @@ sub validate_server
 				host_uuid => $server_host_uuid,
 			});
 			
-			print "The server: [".$server_name."] appears to be running on: [".$server_host_name."], please run this on that host.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0454", variables => {
+				server    => $server_name, 
+				host_name => $server_host_name,
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -2720,7 +2855,9 @@ sub update_definition
 	if (not $use_definition)
 	{
 		# What?!
-		print "[ Error ] - Failed to find an on disk or from virsh definition for the server: [".$server_name."]. Unable to proceed.\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0455", variables => {
+			server => $server_name, 
+		}});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -2796,7 +2933,11 @@ sub show_server_list
 		{
 			next;
 		}
-		print "\nAnvil! Node: [".$anvil_name."], UUID: [".$anvil_uuid."] - Description: [".$anvil_description."]\n";
+		print "\n".$anvil->Words->string({key => "message_0343", variables => {
+			anvil_name        => $anvil_name, 
+			anvil_uuid        => $anvil_uuid, 
+			anvil_description => $anvil_description, 
+		}})."\n";
 		
 		my $server_count = 0;
 		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name})
@@ -2806,7 +2947,7 @@ sub show_server_list
 		}
 		if (not $server_count)
 		{
-			print "- No servers on this node yet\n";
+			print $anvil->Words->string({key => "message_0344"})."\n";
 		}
 		else
 		{
@@ -2820,7 +2961,10 @@ sub show_server_list
 					server_state => $server_state,
 				}});
 				next if $server_state eq "DELETED";
-				print "^- Server: [".$server_name."], UUID: [".$server_uuid."]\n";
+				print $anvil->Words->string({key => "message_0345", variables => {
+					server_name => $server_name, 
+					server_uuid => $server_uuid, 
+				}})."\n";
 			}
 		}
 	}

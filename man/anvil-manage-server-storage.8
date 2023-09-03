@@ -1,0 +1,37 @@
+.\" Manpage for the Anvil! server storage manager
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-server-storage "8" "August 30 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-server-storage \- Tool used to manage the storage of a hosted server.
+.SH SYNOPSIS
+.B anvil-manage-server-storage 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-manage-server-storage \- This tool is used to add a disk, grow an existing disk, change the ISO (optical disk) in a virtual optical drive, and change boot devices.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+
+.TP
+\fB\-\-add\fR <size or percent>
+The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size. Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
+.TP
+\fB\-\-anvil\fR <name|uuid>
+
+.TP
+\fB\-\-\fR
+
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
