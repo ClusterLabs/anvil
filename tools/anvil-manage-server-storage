@@ -93,7 +93,7 @@ if (not $anvil->data->{switches}{server})
 
 validate_server($anvil);
 
-if ($anvil->data->{switches}{optical})
+if (($anvil->data->{switches}{optical}) or ($anvil->data->{switches}{eject}))
 {
 	manage_optical($anvil);
 }
@@ -103,7 +103,7 @@ elsif ($anvil->data->{switches}{disk})
 }
 else
 {
-	show_server_details($anvil);
+	show_server_details($anvil, 1);
 }
 
 $anvil->nice_exit({exit_code => 0});
@@ -195,7 +195,7 @@ sub manage_disk
 		{
 			# Can't proceed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0457"});
-			show_server_details($anvil);
+			show_server_details($anvil, 1);
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -281,14 +281,14 @@ sub manage_disk
 		if ($anvil->data->{switches}{disk} eq "#!SET!#")
 		{
 			# User didn't specify a device.
-			show_server_details($anvil);
+			show_server_details($anvil, 1);
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0458"});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}{$device_target})
 		{
 			# Invalid device target
-			show_server_details($anvil);
+			show_server_details($anvil, 1);
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0459", variables => {
 				device_target => $device_target, 
 			}});
@@ -1968,11 +1968,15 @@ sub manage_optical
 	
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
+	my $anvil_uuid      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
+		anvil_uuid      => $anvil_uuid, 
 	}});
 	
 	if (not $anvil->data->{switches}{optical})
@@ -1996,24 +2000,85 @@ sub manage_optical
 		{
 			# Can't proceed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0445"});
-			show_server_details($anvil);
+			show_server_details($anvil, 1);
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
+	
+	# If the device target isn't specified but there's only one disc drive, select it.
+	if ((not $anvil->data->{switches}{optical}) or ($anvil->data->{switches}{optical} eq "#!SET!#"))
+	{
+		my $device_count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_count => $device_count }});
+		
+		if ($device_count == 1)
+		{
+			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}})
+			{
+				$anvil->data->{switches}{optical} = $device_target; 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"switches::optical" => $anvil->data->{switches}{optical},
+				}});
+				last;
+			}
+		}
+	}
+	
+	# If the user specified a disc to insert using just the file name, prepend the directory.
+	if ($anvil->data->{switches}{insert})
+	{
+		my $iso = $anvil->data->{switches}{insert};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iso => $iso }});
+		if ($iso !~ /^\//)
+		{
+			foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+			{
+				my $file_location_file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+				my $file_directory          = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_directory};
+				my $full_path               = $file_directory."/".$file_name;
+				my $file_size               = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size};
+				my $file_md5sum             = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum};
+				my $file_type               = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:file_name'      => $file_name, 
+					's2:file_directory' => $file_directory,
+					's3:full_path'      => $full_path,
+					's4:file_size'      => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+					's5:file_md5sum'    => $file_md5sum,
+					's6:file_type'      => $file_type, 
+				}});
+				next if $iso ne $file_name;
+				next if $file_type ne "iso";
+				
+				if (-f $full_path)
+				{
+					# Use this.
+					$anvil->data->{switches}{insert} = $full_path;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"switches::insert" => $anvil->data->{switches}{insert},
+					}});
+					last;
+				}
+			}
+		}
+	}
+	
 	my $device_target = $anvil->data->{switches}{optical};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
 	
-	if ($anvil->data->{switches}{optical} eq "#!SET!#")
+	if ((not $anvil->data->{switches}{optical}) or ($anvil->data->{switches}{optical} eq "#!SET!#"))
 	{
 		# User didn't specify a device.
-		show_server_details($anvil);
+		show_server_details($anvil, 0);
+		show_files($anvil);
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0446"});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target})
 	{
 		# Invalid device target
-		show_server_details($anvil);
+		show_server_details($anvil, 0);
+		show_files($anvil);
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0447", variables => {
 			device_target => $device_target, 
 		}});
@@ -2090,7 +2155,7 @@ sub manage_optical
 	{
 		# Ejecting
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0800", variables => { 
-			eject         => $device_path, 
+			device_path   => $device_path, 
 			device_target => $device_target, 
 		}});
 	}
@@ -2180,7 +2245,7 @@ sub get_definition_source
 
 sub show_server_details
 {
-	my ($anvil) = @_;
+	my ($anvil, $show_nodes) = @_;
 	
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $host_uuid       = $anvil->Get->host_uuid;
@@ -2188,7 +2253,8 @@ sub show_server_details
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:short_host_name' => $short_host_name,
 		's2:host_uuid'       => $host_uuid,
-		's2:server_name'     => $server_name, 
+		's3:server_name'     => $server_name, 
+		's4:show_nodes'      => $show_nodes, 
 	}});
 	
 	# Load storage data
@@ -2306,15 +2372,18 @@ sub show_server_details
 	}
 	print "\n";
 	
-	print $anvil->Words->string({key => "message_0339"})."\n";
-	show_volume($anvil, $drbd_resource, "node");
-	
-	my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
-	if ($dr_count)
+	if ($show_nodes)
 	{
-		print $anvil->Words->string({key => "message_0340"})."\n";
-		show_volume($anvil, $drbd_resource, "dr");
+		print $anvil->Words->string({key => "message_0339"})."\n";
+		show_volume($anvil, $drbd_resource, "node");
+		
+		my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
+		if ($dr_count)
+		{
+			print $anvil->Words->string({key => "message_0340"})."\n";
+			show_volume($anvil, $drbd_resource, "dr");
+		}
 	}
 	
 	return(0);
@@ -2967,6 +3036,48 @@ sub show_server_list
 				}})."\n";
 			}
 		}
+	}
+	
+	return(0);
+}
+
+sub show_files
+{
+	my ($anvil) = @_;
+	
+	my $server_name = $anvil->data->{switches}{server_name};
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	my $anvil_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $anvil_name  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_name' => $server_name, 
+		's2:server_uuid' => $server_uuid, 
+		's3:anvil_uuid'  => $anvil_uuid,
+		's4:anvil_name'  => $anvil_name, 
+	}});
+	
+	$anvil->Database->get_anvils;
+	
+	# Show the files available on this node.
+	print $anvil->Words->string({key => 'message_0346'})."\n";
+	foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}})
+	{
+		my $file_location_file_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_name}{$file_name}{file_uuid};
+		my $file_size               = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_size};
+		my $file_md5sum             = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_md5sum};
+		my $file_type               = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_location_file_uuid}{file_type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:file_name'   => $file_name, 
+			's2:file_size'   => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+			's3:file_md5sum' => $file_md5sum,
+			's4:file_type'   => $file_type, 
+		}});
+		next if $file_type ne "iso";
+		print $anvil->Words->string({key => 'message_0347', variables => {
+			file_name => $file_name, 
+			file_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}), 
+			md5sum    => $file_md5sum, 
+		}})."\n";
 	}
 	
 	return(0);

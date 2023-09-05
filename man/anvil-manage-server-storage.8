@@ -9,6 +9,8 @@ anvil-manage-server-storage \- Tool used to manage the storage of a hosted serve
 .SH DESCRIPTION
 anvil-manage-server-storage \- This tool is used to add a disk, grow an existing disk, change the ISO (optical disk) in a virtual optical drive, and change boot devices.
 .TP
+When called without switches, the list of servers than can be worked on will be displayed.
+.TP
 .SH OPTIONS
 .TP
 \-?, \-h, \fB\-\-help\fR
@@ -20,16 +22,45 @@ When logging, record sensitive data, like passwords.
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
-
 .TP
 \fB\-\-add\fR <size or percent>
+This is used to add a new disk to a server. Specifically, it adds a second volume to the replicated storage under the server, which appears as a second disk inside the server. Writes to this and existing disks are ordered during replication, including during short or long throw DR.
+.TP
 The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size. Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
 .TP
 \fB\-\-anvil\fR <name|uuid>
-
+This is the Anvil! node name or UUID to be used. If not specified, the Anvil! the command or job runs on will be used.
 .TP
-\fB\-\-\fR
-
+\fB\-\-confirm\fR
+Using this prevents the prompts to confirm given actions. When using \fB\-\-job\-uuid\fR, this is ignored as all commands are considered confirmed.
+.TP
+\fB\-\-disk\fR <device 
+This is the disk being worked on. For optical disks, it's the drive that an optical disc (ISO) is being inserted into or ejected from. For disks, it's the disk being added, grown or deleted.
+.TP
+When not specified, if only one disk exists, it will be chosen automatically. 
+.TP
+\fB\-\-eject\fR
+This ejects the optical disc (ISO) in the drive specified by \fB\-\-disk\fR.
+.TP
+\fB\-\-job\-uuid\fR
+This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
+.TP
+\fB\-\-grow\fR <size or percent>
+This is used to grow an existing disk by the specified amount. The drive to grow is specified using \fB\-\-disk\fR.
+.TP
+The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size. Human readable sizes must NOT have a space between the number and letter suffix. Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' == '1,000,000,000 bytes'. A single letter used to denote size will be interpreted as base2. ie: '1G == 1GiB'.
+.TP
+\fB\-\-insert\fR </path/to/file.iso>
+This inserts the optical disc (ISO) into the drive specified by \fB\-\-optical\fR.
+.TP
+\fB\-\-optical\fR <device>
+This is the device, ie: 'sda', to insert the optical disc (ISO file) into or to eject a disc from.
+.TP
+\fB\-\-server\fR <name or uuid>
+This is the server being worked on. If this switch is used alone, then the current state of the storage of the server is displayed, as well as the details of the Storage Groups the server is or can use.
+.TP
+\fB\-\-storage\-group\fR <name of uuid>
+If there are two or more Storage Groups exist, and you're adding a disk, this allows you to specify which storage group to use for the new disk. 
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

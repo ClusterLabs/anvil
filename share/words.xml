@@ -3134,6 +3134,8 @@ Proceed? [y/N]</key>
 		<key name="message_0343">Anvil! Node: [#!variable!anvil_name!#], UUID: [#!variable!anvil_uuid!#] - Description: [#!variable!anvil_description!#]</key>
 		<key name="message_0344">- No servers on this node yet</key>
 		<key name="message_0345">^- Server: [#!variable!server_name!#], UUID: [#!variable!server_uuid!#]</key>
+		<key name="message_0346">Available Disc Images (ISOs):</key>
+		<key name="message_0347">- #!variable!file_name!#, (#!variable!file_size!#, md5sum: #!variable!md5sum!#)</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
