@@ -716,7 +716,7 @@ The extension of the resource is incomplete, manual intervention is required!!
 ==========
 The creation of the new replicatedd disk is incomplete, manual intervention is required!]]></key>
 		<key name="error_0461"><![CDATA[ Error!
-[ Failed ] - When trying to create the peer: [#!variable!short_host_name!#]'s logical volume: [#!variable!backing_disk!#]
+[ Failed ] - When trying to create the peer: [#!variable!host_name!#]'s logical volume: [#!variable!backing_disk!#]
 [ Failed ] - using the command: [#!variable!shell_call!#]
 [ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
 ==] STDOUT [========
@@ -2542,7 +2542,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0757">- Writing out the updated DRBD config file.</key>
 		<key name="log_0758"> - Creating the meta-data on the new local volume: [#!variable!next_drbd_volume!#]...</key>
 		<key name="log_0759"> - Creating the meta-data on the peer: [#!variable!host_name!#:#!variable!drbd_resource!#/#!variable!next_drbd_volume!#], via: [#!variable!use_ip!# (#!variable!use_network!#)]</key>
-		<key name="log_0760">- Registered a job with job UUID: [#!variable!job_uuid!#] to reload the resource config on the host: [#!variable!short_host_name!#].</key>
+		<key name="log_0760">- Registered a job with job UUID: [#!variable!job_uuid!#] to reload the resource config on the host: [#!variable!host_name!#].</key>
 		<key name="log_0761">- Adjusting the local resource: [#!variable!drbd_resource!#] to pick up the new config.
 [ NOTE ] - If this hangs, make sure 'anvil-daemon' is running on the peers.</key>
 		<key name="log_0762">- Waiting for all peers to connect the new volume...</key>
@@ -3136,6 +3136,8 @@ Proceed? [y/N]</key>
 		<key name="message_0345">^- Server: [#!variable!server_name!#], UUID: [#!variable!server_uuid!#]</key>
 		<key name="message_0346">Available Disc Images (ISOs):</key>
 		<key name="message_0347">- #!variable!file_name!#, (#!variable!file_size!#, md5sum: #!variable!md5sum!#)</key>
+		<key name="message_0348">Available Storage Groups;</key>
+		<key name="message_0349">- #!variable!storage_group_name!#, free space: #!variable!free_space!#, UUID: #!variable!storage_group_uuid!#</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

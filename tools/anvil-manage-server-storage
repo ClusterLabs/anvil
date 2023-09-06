@@ -17,6 +17,7 @@
 #   - anvil-manage-server-storage --server srv01-fs37 --optical sda --eject
 # - Disk
 #   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
+#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
 # 
 
 use strict;
@@ -97,7 +98,7 @@ if (($anvil->data->{switches}{optical}) or ($anvil->data->{switches}{eject}))
 {
 	manage_optical($anvil);
 }
-elsif ($anvil->data->{switches}{disk})
+elsif (($anvil->data->{switches}{disk}) or ($anvil->data->{switches}{add}))
 {
 	manage_disk($anvil);
 }
@@ -176,7 +177,7 @@ sub manage_disk
 	}});
 	if (not $anvil->data->{switches}{disk})
 	{
-		# If there's only one optical drive, select it automatically
+		# If there's only one disk drive, select it automatically
 		my $count = keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{disk}{target}};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 		if ($count == 1)
@@ -380,7 +381,7 @@ sub manage_disk_add
 	if (not $anvil->data->{switches}{'storage-group'})
 	{
 		print $anvil->Words->string({key => 'warning_0159'})."\n";
-		short_storage_groups($anvil, $anvil_uuid);
+		show_storage_groups($anvil);
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -574,7 +575,7 @@ sub manage_disk_add
 	}
 	
 	# Still alive? Ask the user to confirm.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0428", variables => {
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0333", variables => {
 		new_device_target  => $new_device_target,
 		hr_size            => $hr_size,
 		disk_device_bus    => $disk_device_bus, 
@@ -691,7 +692,7 @@ sub manage_disk_add
 					host_name    => $short_host_name, 
 					backing_disk => $backing_disk, 
 					use_ip       => $use_ip, 
-					network      => $use_network, 
+					use_network  => $use_network, 
 				}});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call => $shell_call, 
@@ -952,7 +953,7 @@ sub manage_disk_add
 					drbd_resource    => $drbd_resource, 
 					next_drbd_volume => $next_drbd_volume, 
 					use_ip           => $use_ip, 
-					network          => $use_network, 
+					use_network      => $use_network, 
 				}});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					shell_call => $shell_call, 
@@ -3077,6 +3078,41 @@ sub show_files
 			file_name => $file_name, 
 			file_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}), 
 			md5sum    => $file_md5sum, 
+		}})."\n";
+	}
+	
+	return(0);
+}
+
+sub show_storage_groups
+{
+	my ($anvil) = @_;
+	
+	my $server_name = $anvil->data->{switches}{server_name};
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	my $anvil_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $anvil_name  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_name' => $server_name, 
+		's2:server_uuid' => $server_uuid, 
+		's3:anvil_uuid'  => $anvil_uuid,
+		's4:anvil_name'  => $anvil_name, 
+	}});
+	
+	print $anvil->Words->string({key => 'message_0348'})."\n";
+	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+	{
+		my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+		my $free_space         = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{free_space};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:storage_group_name' => $storage_group_name, 
+			's2:storage_group_uuid' => $storage_group_uuid, 
+			's3:free_space'         => $free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}).")", 
+		}});
+		print $anvil->Words->string({key => 'message_0349', variables => {
+			storage_group_name => $storage_group_name, 
+			storage_group_uuid => $storage_group_uuid, 
+			free_space         => $anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}), 
 		}})."\n";
 	}
 	
