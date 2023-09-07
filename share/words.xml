@@ -1681,6 +1681,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0468">This uses 'dnf' to do an OS update on the host. If this is run on a node, 'anvil-safe-stop' will be called to withdraw the subnode from the node's cluster. If the peer subnode is also offline, hosted servers will be shut down.</key>
 		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
 		<key name="job_0470">This is a DR host, no migration possible.</key>
+		<key name="job_0471">Exiting.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -3138,6 +3139,7 @@ Proceed? [y/N]</key>
 		<key name="message_0347">- #!variable!file_name!#, (#!variable!file_size!#, md5sum: #!variable!md5sum!#)</key>
 		<key name="message_0348">Available Storage Groups;</key>
 		<key name="message_0349">- #!variable!storage_group_name!#, free space: #!variable!free_space!#, UUID: #!variable!storage_group_uuid!#</key>
+		<key name="message_0350">Preparing to managing storage for a server.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
