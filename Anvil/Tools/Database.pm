@@ -3655,7 +3655,7 @@ Parameters;
 
 =head3 include_deleted (optional, default '0')
 
-Normalling, files with C<< file_type >> set to C<< DELETED >> are ignored. Setting this to C<< 1 >> will include them.
+Normally, files with C<< file_type >> set to C<< DELETED >> are ignored. Setting this to C<< 1 >> will include them.
 
 =cut
 sub get_files
