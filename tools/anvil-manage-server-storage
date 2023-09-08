@@ -16,8 +16,8 @@
 #   - anvil-manage-server-storage --server srv01-fs37 --optical sda --insert /mnt/shared/files/CentOS-5.11-x86_64-bin-DVD-1of2.iso
 #   - anvil-manage-server-storage --server srv01-fs37 --optical sda --eject
 # - Disk
-#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
-#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10GiB,150GiB}
+#   - anvil-manage-server-storage --server srv01-fs37 --disk vdb --grow {+10%,150GiB}
+#   - anvil-manage-server-storage --server srv01-fs37 --add 50G --storage-group "Storage group 1"
 # 
 
 use strict;
@@ -296,7 +296,7 @@ sub manage_disk
 		my $device_target = $anvil->data->{switches}{disk};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
 		
-		if ($anvil->data->{switches}{disk} eq "#!SET!#")
+		if (($anvil->data->{switches}{disk} eq "#!SET!#") or ($anvil->data->{switches}{disk} eq "1"))
 		{
 			# User didn't specify a device.
 			show_server_details($anvil, 1);
@@ -411,6 +411,9 @@ sub manage_disk_add
 	my $say_down   = $anvil->Words->string({key => 'message_0332'});
 	
 	# Do we have a storage group?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::storage-group' => $anvil->data->{switches}{'storage-group'}, 
+	}});
 	if (not $anvil->data->{switches}{'storage-group'})
 	{
 		print $anvil->Words->string({key => 'warning_0159'})."\n";
@@ -424,8 +427,10 @@ sub manage_disk_add
 	
 	# Make sure that the passed
 	my $storage_group_switch = $anvil->data->{switches}{'storage-group'};
-	my $storage_group_uuid   = "";
-	my $storage_group_name   = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_switch => $storage_group_switch }});
+	
+	my $storage_group_uuid = "";
+	my $storage_group_name = "";
 	if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_switch})
 	{
 		$storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_switch}{storage_group_uuid};
@@ -443,6 +448,18 @@ sub manage_disk_add
 			storage_group_uuid => $storage_group_uuid, 
 			storage_group_name => $storage_group_name, 
 		}});
+	}
+	else
+	{
+		# Bad storage group.
+		my $variables = { storage_group => $storage_group_switch };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0437", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0437", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
 	}
 	
 	# Did we get a valid disk size?
@@ -1080,7 +1097,7 @@ sub manage_disk_add
 			# a previous pass.
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
-				my $variables => { next_drbd_volume => $next_drbd_volume };
+				my $variables = { next_drbd_volume => $next_drbd_volume };
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0758", variables => $variables});
 				$anvil->Job->update_progress({
 					progress  => ($progress += 2),
@@ -1225,7 +1242,7 @@ sub manage_disk_add
 	}
 	
 	# Warn the user to check that anvil-daemon is running in case this hangs.
-	my $variables = { drbd_resource => $drbd_resource };
+	$variables = { drbd_resource => $drbd_resource };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0761", variables => $variables});
 	$anvil->Job->update_progress({
 		progress  => ($progress += 2),
@@ -2043,7 +2060,8 @@ sub manage_disk_grow
 	}});
 	
 	# Are they asking for an available amount of space?
-	my $add_size = $anvil->data->{switches}{grow};
+	my $add_size =  $anvil->data->{switches}{grow};
+	   $add_size =~ s/^\+//;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { add_size => $add_size }});
 	if ($add_size =~ /^(\d+)%$/)
 	{
@@ -2089,11 +2107,11 @@ sub manage_disk_grow
 		else
 		{
 			# Not a valid size.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0437"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0424"});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0789"});
 			$anvil->Job->update_progress({
 				progress => 99,
-				message  => "error_0437", 
+				message  => "error_0424", 
 			}) if $anvil->data->{switches}{'job-uuid'};
 			$anvil->Job->update_progress({
 				progress => 100,
@@ -2209,7 +2227,7 @@ sub manage_disk_grow
 		message   => "log_0790", 
 		variables => $variables, 
 	}) if $anvil->data->{switches}{'job-uuid'};
-	if (not $anvil->data->{switches}{confirm})
+	if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
 		print $anvil->Words->string({key => "message_0021"})." ";
 		my $answer = <STDIN>;
@@ -2417,7 +2435,7 @@ sub manage_disk_grow
 	}) if $anvil->data->{switches}{'job-uuid'};
 	foreach my $agent ("scan-drbd", "scan-lvm")
 	{
-		my $variables => { agent => $agent };
+		my $variables = { agent => $agent };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0740", variables => $variables});
 		$anvil->Job->update_progress({
 			progress  => ($progress += 2),
@@ -2536,6 +2554,17 @@ sub manage_optical
 					"switches::drive" => $anvil->data->{switches}{optical},
 				}});
 				last;
+			}
+		}
+		else
+		{
+			foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}})
+			{
+				my $device_path = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{cdrom}{target}{$device_target}{path};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					device_target => $device_target,
+					device_path   => $device_path, 
+				}});
 			}
 		}
 		
@@ -3762,7 +3791,9 @@ sub load_job
 	}});
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
-		my ($variable, $value) = ($line =~ /^(.*)=(.*?)/);
+		my ($variable, $value) =  ($line =~ /^(.*)=(.*)$/);
+		   $value              =~ s/^"(.*)\"/$1/;
+		   $value              =~ s/^'(.*)\'/$1/;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:line'     => $line, 
 			's2:variable' => $variable, 

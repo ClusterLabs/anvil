@@ -654,7 +654,7 @@ The error was:
 [ Error ] - Manual update to the server is likely required now.
 </key>
 		<key name="error_0436">[ Error ] - Please specify the size you would like to grow this disk by. The maximum size is: [#!variable!max_free_space!#].</key>
-		<key name="error_0437">[ Error ] - The requested size: [#!variable!add_size!#] could not be interpreted.</key>
+		<key name="error_0437">[ Error ] - The storage group: [#!variable!storage_group!#] was not found.</key>
 		<key name="error_0438">[ Error ] - The requested size: [#!variable!add_size!#] is too small, it's less than an single extent.</key>
 		<key name="error_0439">[ Error ] - The requested size: [#!variable!add_size!#] is too large. The available size is: [#!variable!max_free_space!#].</key>
 		<key name="error_0440">[ Error ] - Growing the storage requires all peers to be online.</key>
@@ -1682,6 +1682,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
 		<key name="job_0470">This is a DR host, no migration possible.</key>
 		<key name="job_0471">Exiting.</key>
+		<key name="job_0472">Server Storage Management</key>
+		<key name="job_0473">This job manages the storage on a given hosted server. It can grow an existing disk, add a new disk, insert an ISO into an optical disc, or eject a disc.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
