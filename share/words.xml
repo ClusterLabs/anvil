@@ -1149,6 +1149,7 @@ resource #!variable!server!# {
 		<key name="header_0108">On Battery</key>
 		<key name="header_0109">Estimated Runtime</key>
 		<key name="header_0110">Last Updated</key>
+		<key name="header_0111">Optical Disc</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3663,6 +3664,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0046">- Server is crashed!</key>
 		<key name="unit_0047">- Server is suspended.</key>
 		<key name="unit_0048">- Server is in an unknown state (int: [#!variable!state!#]).</key>
+		<key name="unit_0049"><![CDATA[<ejected>]]></key>
 		
 		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
 		     are used when adding UPSes to the system for use in Install Manifests.
