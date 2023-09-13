@@ -6,6 +6,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Sys::Virt;
 
 $| = 1;
 
@@ -18,12 +19,11 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->Get->switches;
-
-my $debug = $anvil->data->{switches}{debug};
+$anvil->Get->switches({list => ["convert", "job-uuid", "out-file-id", "resize", "request-host-name". "server-uuid'"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 $anvil->Database->connect;
-$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132" });
+$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
 if (not $anvil->data->{sys}{database}{connections})
 {
 	# No databases, exit.
@@ -35,7 +35,7 @@ if (not $anvil->data->{sys}{database}{connections})
 if (not $anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->data->{switches}{'job-uuid'} = $anvil->Job->get_job_uuid({ program => $THIS_FILE });
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}
 	} });
 }
@@ -54,25 +54,19 @@ if ($anvil->data->{switches}{'job-uuid'})
 
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
-		if ($line =~ /server-uuid=(.*?)$/)
-		{
-			$anvil->data->{switches}{'server-uuid'} = $1;
-		}
-
-		if ($line =~ /resize=(.*?)$/)
-		{
-			$anvil->data->{switches}{'resize'} = $1;
-		}
-
-		if ($line =~ /request-host-uuid=(.*?)$/)
-		{
-			$anvil->data->{switches}{'request-host-uuid'} = $1;
-		}
-
-		if ($line =~ /out-file-id=(.*?)$/)
-		{
-			$anvil->data->{switches}{'out-file-id'} = $1;
-		}
+		my ($variable, $value) =  ($line =~ /^(.*)=(.*)$/);
+		   $value              =~ s/^"(.*)\"/$1/;
+		   $value              =~ s/^'(.*)\'/$1/;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:line'     => $line, 
+			's2:variable' => $variable, 
+			's3:value'    => $value, 
+		}});
+		
+		$anvil->data->{switches}{$variable} = $value;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::${variable}" => $anvil->data->{switches}{$variable}, 
+		}});
 	}
 }
 
@@ -82,41 +76,43 @@ my $out_file_id       = $anvil->data->{switches}{'out-file-id'};
 my $resize_args       = $anvil->data->{switches}{'resize'};
 my $request_host_name = $anvil->data->{switches}{'request-host-name'};
 my $server_uuid       = $anvil->data->{switches}{'server-uuid'};
+$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+	is_convert        => $is_convert, 
+	job_uuid          => $job_uuid, 
+	out_file_id       => $out_file_id, 
+	resize_args       => $resize_args, 
+	request_host_name => $request_host_name, 
+	server_uuid       => $server_uuid, 
+}});
 
-$out_file_id = ( (defined $out_file_id) && ($out_file_id ne "#!SET!#") ) ? "_${out_file_id}" : "";
-
-$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-	debug             => $debug,
-	job_uuid          => $job_uuid,
-	request_host_name => $request_host_name,
-	resize_args       => $resize_args,
-	server_uuid       => $server_uuid,
-} });
+$out_file_id = ((defined $out_file_id) && ($out_file_id ne "#!SET!#")) ? "_".$out_file_id : "";
+$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file_id => $out_file_id }});
 
 if ($server_uuid)
 {
-	my $out_file_path = $anvil->data->{path}{directories}{tmp}."/${server_uuid}_screenshot${out_file_id}";
+	my $out_file_path = $anvil->data->{path}{directories}{tmp}."/".$server_uuid."_screenshot".$out_file_id;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { out_file_path => $out_file_path }});
 
 	if ($is_convert)
 	{
-		my ($rcode, $encoded_image) = convert_server_screenshot({
-			debug       => $debug,
+		my ($return_code, $encoded_image) = convert_server_screenshot({
 			resize_args => $resize_args,
 			source_file => $out_file_path,
 		});
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 
-		print($encoded_image) if ($rcode == 0);
+		print($encoded_image) if ($return_code == 0);
 
-		$anvil->nice_exit({ exit_code => $rcode });
+		$anvil->nice_exit({ exit_code => $return_code });
 	}
 
-	my ($rcode) = get_server_screenshot({
-		debug       => $debug,
+	my ($return_code) = get_server_screenshot({
 		output_file => $out_file_path,
 		server_uuid => $server_uuid,
 	});
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 
-	if ($rcode > 0)
+	if ($return_code > 0)
 	{
 		$anvil->Job->update_progress({ progress => 100, message => "message_0265" });
 
@@ -127,19 +123,15 @@ if ($server_uuid)
 	{
 		chomp $request_host_name;
 
-		my $rsync = $anvil->data->{path}{exe}{rsync};
-
 		foreach my $host_name ( split(/,/, $request_host_name) )
 		{
-			my $shell_call = "$rsync -e \"ssh -o BatchMode=yes\" -ac '$out_file_path' '$host_name':'$out_file_path'";
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-				host_name     => $host_name,
-				out_file_path => $out_file_path,
-				shell_call    => $shell_call,
+			my $shell_call = $anvil->data->{path}{exe}{rsync}." -e \"ssh -o BatchMode=yes\" -ac '".$out_file_path."' '".$host_name."':'".$out_file_path."'";
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				host_name  => $host_name,
+				shell_call => $shell_call,
 			} });
 
-			system_call({ debug => $debug, shell_call => $shell_call });
+			system_call({shell_call => $shell_call });
 		}
 	}
 
@@ -154,16 +146,16 @@ else
 
 $anvil->nice_exit({ exit_code => 0 });
 
-#
-# Functions
-#
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
 
 sub convert_server_screenshot
 {
 	my $parameters  = shift;
 	my $resize_args = $parameters->{resize_args};
 	my $source_file = $parameters->{source_file};
-	my $debug       = $parameters->{debug};
 
 	my $host_type = $anvil->Get->host_type();
 
@@ -179,12 +171,12 @@ sub convert_server_screenshot
 	{
 		my ($resize_x, $resize_y) = split(/x/ , $resize_args);
 
-		$shell_call .= " | $pamscale -quiet -xyfit $resize_x $resize_y";
+		$shell_call .= " | ".$pamscale." -quiet -xyfit ".$resize_x $resize_y;
 	}
 
-	$shell_call .= " | $pamtopng -quiet | $base64 --wrap 0";
+	$shell_call .= " | ".$pamtopng." -quiet | ".$base64." --wrap 0";
 
-	my ($output, $return_code) = system_call({ debug => $debug, shell_call => $shell_call });
+	my ($output, $return_code) = system_call({shell_call => $shell_call });
 
 	return ($return_code, $output);
 }
@@ -194,16 +186,15 @@ sub get_server_screenshot
 	my $parameters  = shift;
 	my $output_file = $parameters->{output_file};
 	my $server_uuid = $parameters->{server_uuid};
-	my $debug       = $parameters->{debug};
 
 	return (1) if ( (not $server_uuid) || (not $output_file) );
 
 	my $setsid = $anvil->data->{path}{exe}{setsid};
 	my $virsh  = $anvil->data->{path}{exe}{virsh};
 
-	my $shell_call = "$setsid --wait $virsh --quiet screenshot --domain $server_uuid --file $output_file";
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." --quiet screenshot --domain ".$server_uuid." --file ".$output_file;
 
-	my ($output, $return_code) = system_call({ debug => $debug, shell_call => $shell_call });
+	my ($output, $return_code) = system_call({shell_call => $shell_call });
 
 	return ($return_code, $output);
 }
@@ -211,12 +202,11 @@ sub get_server_screenshot
 sub system_call
 {
 	my $parameters = shift;
-	my $debug      = $parameters->{debug};
 
 	my @call_result = $anvil->System->call($parameters);
 	my ($output, $return_code) = @call_result;
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		%$parameters,
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		%{$parameters},
 		output      => $output,
 		return_code => $return_code,
 	} });

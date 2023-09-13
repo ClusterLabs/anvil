@@ -5175,6 +5175,10 @@ Parameters;
 
 When writing to a file that already exists, and C<< overwrite >> is true, the existing backup will be backed up prior to being rewritten.
 
+=head3 binary (optional, default '0')
+
+When set to '1', this indicates that the body is binary data, which prevents logging of the file body.
+
 =head3 body (optional)
 
 This is the contents of the file. If it is blank, an empty file will be created (similar to using 'C<< touch >>' on the command line).
@@ -5233,6 +5237,7 @@ sub write_file
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->write_file()" }});
 	
 	my $backup      = defined $parameter->{backup}      ? $parameter->{backup}      : 1;
+	my $binary      = defined $parameter->{binary}      ? $parameter->{binary}      : 0;
 	my $body        = defined $parameter->{body}        ? $parameter->{body}        : "";
 	my $file        = defined $parameter->{file}        ? $parameter->{file}        : "";
 	my $group       = defined $parameter->{group}       ? $parameter->{group}       : getgrgid($();
@@ -5247,7 +5252,7 @@ sub write_file
 	my $error       = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		backup      => $backup, 
-		body        => (not $secure) ? $body : $anvil->Log->is_secure($body),
+		binary      => $binary, 
 		file        => $file,
 		group       => $group, 
 		mode        => $mode,
@@ -5259,6 +5264,12 @@ sub write_file
 		user        => $user,
 		remote_user => $remote_user, 
 	}});
+	if (not $binary)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+			body => (not $secure) ? $body : $anvil->Log->is_secure($body),
+		}});
+	}
 	
 	# Make sure the user and group and just one digit or word.
 	$user  =~ s/^(\S+)\s.*$/$1/;
@@ -5480,6 +5491,7 @@ fi";
 					   $temp_file .= ".".$anvil->Get->uuid({debug => $debug, short => 1});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { temp_file => $temp_file }});
 					$anvil->Storage->write_file({
+						binary    => $binary,
 						body      => $body,
 						debug     => $debug,
 						file      => $temp_file,
