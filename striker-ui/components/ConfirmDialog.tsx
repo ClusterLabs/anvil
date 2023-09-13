@@ -10,21 +10,11 @@ import {
   useState,
 } from 'react';
 
-import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
-
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
-
-const MAP_TO_COLOUR: Record<
-  Exclude<ConfirmDialogProps['proceedColour'], undefined>,
-  string
-> = {
-  blue: BLUE,
-  red: RED,
-};
 
 const ConfirmDialog = forwardRef<
   ConfirmDialogForwardedRefContent,
@@ -53,7 +43,7 @@ const ConfirmDialog = forwardRef<
       openInitially = false,
       preActionArea,
       proceedButtonProps = {},
-      proceedColour: proceedColourKey = 'blue',
+      proceedColour = 'blue',
       scrollContent: isScrollContent = false,
       scrollBoxProps: { sx: scrollBoxSx, ...restScrollBoxProps } = {},
       titleText,
@@ -63,7 +53,6 @@ const ConfirmDialog = forwardRef<
     const { sx: paperSx, ...restPaperProps } = paperProps;
     const {
       disabled: proceedButtonDisabled = isDisableProceed,
-      sx: proceedButtonSx,
       ...restProceedButtonProps
     } = proceedButtonProps;
 
@@ -74,10 +63,6 @@ const ConfirmDialog = forwardRef<
     const open = useMemo(
       () => (ref ? isOpen : baseOpen),
       [baseOpen, isOpen, ref],
-    );
-    const proceedColour = useMemo(
-      () => MAP_TO_COLOUR[proceedColourKey],
-      [proceedColourKey],
     );
     const {
       contentContainerComponent,
@@ -146,18 +131,11 @@ const ConfirmDialog = forwardRef<
     const proceedButtonElement = useMemo(
       () => (
         <ContainedButton
+          background={proceedColour}
           disabled={proceedButtonDisabled}
           onClick={proceedButtonClickEventHandler}
           type={proceedButtonType}
           {...restProceedButtonProps}
-          sx={{
-            backgroundColor: proceedColour,
-            color: TEXT,
-
-            '&:hover': { backgroundColor: `${proceedColour}F0` },
-
-            ...proceedButtonSx,
-          }}
         >
           {actionProceedText}
         </ContainedButton>
@@ -166,7 +144,6 @@ const ConfirmDialog = forwardRef<
         actionProceedText,
         proceedButtonClickEventHandler,
         proceedButtonDisabled,
-        proceedButtonSx,
         proceedButtonType,
         proceedColour,
         restProceedButtonProps,
