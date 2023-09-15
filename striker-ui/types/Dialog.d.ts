@@ -7,19 +7,12 @@ type DialogOptionalProps = {
   dialogProps?: Partial<import('@mui/material').DialogProps>;
   loading?: boolean;
   openInitially?: boolean;
+  wide?: boolean;
 };
 
 type DialogProps = DialogOptionalProps;
 
 type DialogForwardedRefContent = DialogContextContent;
-
-/** DialogHeader */
-
-type DialogHeaderOptionalProps = {
-  showClose?: boolean;
-};
-
-type DialogHeaderProps = DialogHeaderOptionalProps;
 
 /** DialogActionGroup */
 
@@ -41,3 +34,18 @@ type DialogActionGroupOptionalProps = {
 };
 
 type DialogActionGroupProps = DialogActionGroupOptionalProps;
+
+/** DialogHeader */
+
+type DialogHeaderOptionalProps = {
+  showClose?: boolean;
+};
+
+type DialogHeaderProps = DialogHeaderOptionalProps;
+
+/** DialogWithHeader */
+
+type DialogWithHeaderProps = DialogProps &
+  DialogHeaderProps & {
+    header: import('react').ReactNode;
+  };

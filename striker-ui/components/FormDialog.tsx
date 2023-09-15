@@ -57,20 +57,12 @@ const FormDialog: ForwardRefExoticComponent<
 
     return (
       <ConfirmDialog
-        dialogProps={{
-          ...dialogProps,
-          PaperProps: {
-            ...dialogProps?.PaperProps,
-            sx: {
-              minWidth: { xs: '90%', md: '50em' },
-              ...dialogProps?.PaperProps?.sx,
-            },
-          },
-        }}
+        dialogProps={dialogProps}
         contentContainerProps={formBodyProps}
         proceedButtonProps={{ ...proceedButtonProps, type: 'submit' }}
         scrollContent={scrollContent}
         scrollBoxProps={formScrollBoxProps}
+        wide
         {...restProps}
         ref={ref}
       >

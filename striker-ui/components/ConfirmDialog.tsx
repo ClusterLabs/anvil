@@ -10,12 +10,7 @@ import {
   useRef,
 } from 'react';
 
-import {
-  Dialog,
-  DialogActionArea,
-  DialogHeader,
-  DialogScrollBox,
-} from './Dialog';
+import { DialogActionArea, DialogScrollBox, DialogWithHeader } from './Dialog';
 import FlexBox from './FlexBox';
 import sxstring from '../lib/sxstring';
 import { BodyText } from './Text';
@@ -46,6 +41,7 @@ const ConfirmDialog: ForwardRefExoticComponent<
       scrollBoxProps,
       showClose,
       titleText,
+      wide,
       // Dependents
       content = children,
     },
@@ -77,13 +73,15 @@ const ConfirmDialog: ForwardRefExoticComponent<
     );
 
     return (
-      <Dialog
+      <DialogWithHeader
         dialogProps={dialogProps}
+        header={titleText}
         loading={loading}
         openInitially={openInitially}
         ref={dialogRef}
+        showClose={showClose}
+        wide={wide}
       >
-        <DialogHeader showClose={showClose}>{titleText}</DialogHeader>
         <FlexBox {...contentContainerProps}>
           {bodyElement}
           {preActionArea}
@@ -109,7 +107,7 @@ const ConfirmDialog: ForwardRefExoticComponent<
             }}
           />
         </FlexBox>
-      </Dialog>
+      </DialogWithHeader>
     );
   },
 );

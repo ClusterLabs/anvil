@@ -26,6 +26,7 @@ const Dialog: ForwardRefExoticComponent<
     dialogProps = {},
     loading,
     openInitially = false,
+    wide,
   } = props;
 
   const {
@@ -52,10 +53,11 @@ const Dialog: ForwardRefExoticComponent<
 
   const paperSx = useMemo<SxProps<Theme>>(
     () => ({
+      minWidth: wide ? { xs: 'calc(100%)', md: '50em' } : null,
       overflow: 'visible',
       ...externalPaperSx,
     }),
-    [externalPaperSx],
+    [externalPaperSx, wide],
   );
 
   useImperativeHandle(

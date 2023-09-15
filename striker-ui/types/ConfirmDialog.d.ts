@@ -19,8 +19,7 @@ type ConfirmDialogOptionalProps = {
   scrollBoxProps?: import('@mui/material').BoxProps;
 };
 
-type ConfirmDialogProps = DialogProps &
-  DialogHeaderProps &
+type ConfirmDialogProps = Omit<DialogWithHeaderProps, 'header'> &
   ConfirmDialogOptionalProps & {
     actionProceedText: string;
     titleText: import('react').ReactNode;
