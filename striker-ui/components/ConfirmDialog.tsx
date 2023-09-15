@@ -1,256 +1,115 @@
-import { Box, Dialog as MUIDialog, SxProps, Theme } from '@mui/material';
+import { Box as MuiBox } from '@mui/material';
 import {
-  ButtonHTMLAttributes,
-  ElementType,
-  FormEventHandler,
+  ForwardRefExoticComponent,
+  PropsWithChildren,
+  RefAttributes,
+  createElement,
   forwardRef,
-  MouseEventHandler,
   useImperativeHandle,
   useMemo,
-  useState,
+  useRef,
 } from 'react';
 
-import ContainedButton from './ContainedButton';
+import {
+  Dialog,
+  DialogActionArea,
+  DialogHeader,
+  DialogScrollBox,
+} from './Dialog';
 import FlexBox from './FlexBox';
-import { Panel, PanelHeader } from './Panels';
-import Spinner from './Spinner';
-import { BodyText, HeaderText } from './Text';
+import sxstring from '../lib/sxstring';
+import { BodyText } from './Text';
 
-const ConfirmDialog = forwardRef<
-  ConfirmDialogForwardedRefContent,
-  ConfirmDialogProps
->(
+const ConfirmDialog: ForwardRefExoticComponent<
+  PropsWithChildren<ConfirmDialogProps> &
+    RefAttributes<ConfirmDialogForwardedRefContent>
+> = forwardRef<ConfirmDialogForwardedRefContent, ConfirmDialogProps>(
   (
     {
       actionCancelText = 'Cancel',
       actionProceedText,
-      contentContainerProps = {},
-      closeOnProceed: isCloseOnProceed = false,
-      content,
-      dialogProps: {
-        open: baseOpen = false,
-        PaperProps: paperProps = {},
-        ...restDialogProps
-      } = {},
-      disableProceed: isDisableProceed,
-      formContent: isFormContent,
-      loading: isLoading = false,
-      loadingAction: isLoadingAction = false,
+      children,
+      closeOnProceed = false,
+      contentContainerProps,
+      dialogProps,
+      disableProceed,
+      loading,
+      loadingAction = false,
       onActionAppend,
       onCancelAppend,
       onProceedAppend,
-      onSubmitAppend,
-      openInitially = false,
+      openInitially,
       preActionArea,
-      proceedButtonProps = {},
+      proceedButtonProps,
       proceedColour = 'blue',
-      scrollContent: isScrollContent = false,
-      scrollBoxProps: { sx: scrollBoxSx, ...restScrollBoxProps } = {},
+      scrollContent = false,
+      scrollBoxProps,
+      showClose,
       titleText,
+      // Dependents
+      content = children,
     },
     ref,
   ) => {
-    const { sx: paperSx, ...restPaperProps } = paperProps;
-    const {
-      disabled: proceedButtonDisabled = isDisableProceed,
-      ...restProceedButtonProps
-    } = proceedButtonProps;
+    const dialogRef = useRef<DialogForwardedRefContent>(null);
 
-    const [isOpen, setIsOpen] = useState<boolean>(openInitially);
-
-    // TODO: using base open is depreciated; use internal state once all
-    // dependent components finish the migrate.
-    const open = useMemo(
-      () => (ref ? isOpen : baseOpen),
-      [baseOpen, isOpen, ref],
-    );
-    const {
-      contentContainerComponent,
-      contentContainerSubmitEventHandler,
-      proceedButtonClickEventHandler,
-      proceedButtonType,
-    } = useMemo(() => {
-      let ccComponent: ElementType | undefined;
-      let ccSubmitEventHandler: FormEventHandler<HTMLDivElement> | undefined;
-      let pbClickEventHandler:
-        | MouseEventHandler<HTMLButtonElement>
-        | undefined = (...args) => {
-        if (isCloseOnProceed) {
-          setIsOpen(false);
-        }
-
-        onActionAppend?.call(null, ...args);
-        onProceedAppend?.call(null, ...args);
-      };
-      let pbType: ButtonHTMLAttributes<HTMLButtonElement>['type'] | undefined;
-
-      if (isFormContent) {
-        ccComponent = 'form';
-        ccSubmitEventHandler = (event, ...restArgs) => {
-          event.preventDefault();
-
-          if (isCloseOnProceed) {
-            setIsOpen(false);
-          }
-
-          onSubmitAppend?.call(null, event, ...restArgs);
-        };
-        pbClickEventHandler = undefined;
-        pbType = 'submit';
-      }
-
-      return {
-        contentContainerComponent: ccComponent,
-        contentContainerSubmitEventHandler: ccSubmitEventHandler,
-        proceedButtonClickEventHandler: pbClickEventHandler,
-        proceedButtonType: pbType,
-      };
-    }, [
-      isCloseOnProceed,
-      isFormContent,
-      onActionAppend,
-      onProceedAppend,
-      onSubmitAppend,
-    ]);
-
-    const cancelButtonElement = useMemo(
-      () => (
-        <ContainedButton
-          onClick={(...args) => {
-            setIsOpen(false);
-
-            onActionAppend?.call(null, ...args);
-            onCancelAppend?.call(null, ...args);
-          }}
-        >
-          {actionCancelText}
-        </ContainedButton>
-      ),
-      [actionCancelText, onActionAppend, onCancelAppend],
-    );
-    const proceedButtonElement = useMemo(
-      () => (
-        <ContainedButton
-          background={proceedColour}
-          disabled={proceedButtonDisabled}
-          onClick={proceedButtonClickEventHandler}
-          type={proceedButtonType}
-          {...restProceedButtonProps}
-        >
-          {actionProceedText}
-        </ContainedButton>
-      ),
-      [
-        actionProceedText,
-        proceedButtonClickEventHandler,
-        proceedButtonDisabled,
-        proceedButtonType,
-        proceedColour,
-        restProceedButtonProps,
-      ],
-    );
-
-    const actionAreaElement = useMemo(
-      () =>
-        isLoadingAction ? (
-          <Spinner mt={0} />
-        ) : (
-          <FlexBox
-            row
-            spacing=".5em"
-            sx={{ justifyContent: 'flex-end', width: '100%' }}
-          >
-            {cancelButtonElement}
-            {proceedButtonElement}
-          </FlexBox>
-        ),
-      [cancelButtonElement, isLoadingAction, proceedButtonElement],
-    );
     const contentElement = useMemo(
-      () =>
-        typeof content === 'string' ? <BodyText text={content} /> : content,
+      () => sxstring(content, BodyText),
       [content],
     );
-    const headerElement = useMemo(
+
+    const bodyElement = useMemo(
       () =>
-        typeof titleText === 'string' ? (
-          <HeaderText>{titleText}</HeaderText>
-        ) : (
-          titleText
+        createElement(
+          scrollContent ? DialogScrollBox : MuiBox,
+          scrollBoxProps,
+          contentElement,
         ),
-      [titleText],
-    );
-    const combinedScrollBoxSx = useMemo<SxProps<Theme> | undefined>(() => {
-      if (!isScrollContent) return scrollBoxSx;
-
-      let overflowX: 'hidden' | undefined;
-      let paddingTop: string | undefined;
-
-      if (isFormContent) {
-        overflowX = 'hidden';
-        paddingTop = '.6em';
-      }
-
-      return {
-        maxHeight: '60vh',
-        overflowX,
-        overflowY: 'scroll',
-        paddingRight: '.4em',
-        paddingTop,
-        ...scrollBoxSx,
-      };
-    }, [isFormContent, isScrollContent, scrollBoxSx]);
-
-    const contentAreaElement = useMemo(
-      () =>
-        isLoading ? (
-          <Spinner />
-        ) : (
-          <>
-            <Box {...restScrollBoxProps} sx={combinedScrollBoxSx}>
-              {contentElement}
-            </Box>
-            {preActionArea}
-            {actionAreaElement}
-          </>
-        ),
-      [
-        actionAreaElement,
-        combinedScrollBoxSx,
-        contentElement,
-        isLoading,
-        preActionArea,
-        restScrollBoxProps,
-      ],
+      [contentElement, scrollBoxProps, scrollContent],
     );
 
     useImperativeHandle(
       ref,
       () => ({
-        setOpen: (value) => setIsOpen(value),
+        setOpen: (open) => dialogRef.current?.setOpen(open),
       }),
       [],
     );
 
     return (
-      <MUIDialog
-        open={open}
-        PaperComponent={Panel}
-        PaperProps={{
-          ...restPaperProps,
-          sx: { overflow: 'visible', ...paperSx },
-        }}
-        {...restDialogProps}
+      <Dialog
+        dialogProps={dialogProps}
+        loading={loading}
+        openInitially={openInitially}
+        ref={dialogRef}
       >
-        <PanelHeader>{headerElement}</PanelHeader>
-        <FlexBox
-          component={contentContainerComponent}
-          onSubmit={contentContainerSubmitEventHandler}
-          {...contentContainerProps}
-        >
-          {contentAreaElement}
+        <DialogHeader showClose={showClose}>{titleText}</DialogHeader>
+        <FlexBox {...contentContainerProps}>
+          {bodyElement}
+          {preActionArea}
+          <DialogActionArea
+            cancelProps={{
+              children: actionCancelText,
+              onClick: (...args) => {
+                onActionAppend?.call(null, ...args);
+                onCancelAppend?.call(null, ...args);
+              },
+            }}
+            closeOnProceed={closeOnProceed}
+            loading={loadingAction}
+            proceedProps={{
+              background: proceedColour,
+              children: actionProceedText,
+              disabled: disableProceed,
+              onClick: (...args) => {
+                onActionAppend?.call(null, ...args);
+                onProceedAppend?.call(null, ...args);
+              },
+              ...proceedButtonProps,
+            }}
+          />
         </FlexBox>
-      </MUIDialog>
+      </Dialog>
     );
   },
 );
