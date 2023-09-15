@@ -29,7 +29,9 @@ const Dialog: ForwardRefExoticComponent<
   } = props;
 
   const {
-    open: externalOpen = false,
+    // Do not initialize the external open state because we need it to
+    // determine whether the dialog is controlled or uncontrolled.
+    open: externalOpen,
     PaperProps: paperProps = {},
     ...restDialogProps
   } = dialogProps;
@@ -39,8 +41,8 @@ const Dialog: ForwardRefExoticComponent<
   const [controlOpen, setControlOpen] = useState<boolean>(openInitially);
 
   const open = useMemo<boolean>(
-    () => (ref ? controlOpen : externalOpen),
-    [controlOpen, externalOpen, ref],
+    () => externalOpen ?? controlOpen,
+    [controlOpen, externalOpen],
   );
 
   const children = useMemo<ReactNode>(
