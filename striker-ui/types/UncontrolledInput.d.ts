@@ -13,19 +13,14 @@ type MuiInputBasePropsFocusEventHandler = Exclude<
   undefined
 >;
 
-type UncontrolledInputEventHandler<HandlerType> = (
-  toolbox: { handlers: { base?: HandlerType; origin?: HandlerType } },
-  ...rest: Parameters<HandlerType>
-) => ReturnType<HandlerType>;
-
 type UncontrolledInputComponentMountEventHandler = () => void;
 
 type UncontrolledInputComponentUnmountEventHandler = () => void;
 
 type UncontrolledInputOptionalProps = {
-  onBlur?: UncontrolledInputEventHandler<MuiInputBasePropsBlurEventHandler>;
-  onChange?: UncontrolledInputEventHandler<ReactChangeEventHandler>;
-  onFocus?: UncontrolledInputEventHandler<MuiInputBasePropsFocusEventHandler>;
+  onBlur?: ExtendableEventHandler<MuiInputBasePropsBlurEventHandler>;
+  onChange?: ExtendableEventHandler<ReactChangeEventHandler>;
+  onFocus?: ExtendableEventHandler<MuiInputBasePropsFocusEventHandler>;
   onMount?: UncontrolledInputComponentMountEventHandler;
   onUnmount?: UncontrolledInputComponentUnmountEventHandler;
 };
