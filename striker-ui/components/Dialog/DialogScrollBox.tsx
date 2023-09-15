@@ -1,9 +1,9 @@
-import { Box as MuiBox, styled } from '@mui/material';
+import { styled } from '@mui/material';
 
-const DialogScrollBox = styled(MuiBox)({
+import ScrollBox from '../ScrollBox';
+
+const DialogScrollBox = styled(ScrollBox)({
   maxHeight: '60vh',
-  overflowY: 'scroll',
-  paddingRight: '.4em',
 });
 
 export default DialogScrollBox;
