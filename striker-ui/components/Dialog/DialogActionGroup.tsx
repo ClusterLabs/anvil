@@ -1,15 +1,8 @@
-import { styled } from '@mui/material';
 import { FC, useCallback, useContext, useMemo } from 'react';
 
-import ContainedButton from '../ContainedButton';
+import ActionGroup from '../ActionGroup';
 import { DialogContext } from './Dialog';
-import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
-
-const FlexEndBox = styled(FlexBox)({
-  justifyContent: 'flex-end',
-  width: '100%',
-});
 
 const handleAction: ExtendableEventHandler<ButtonClickEventHandler> = (
   { handlers: { base, origin } },
@@ -19,7 +12,7 @@ const handleAction: ExtendableEventHandler<ButtonClickEventHandler> = (
   origin?.call(null, ...args);
 };
 
-const DialogActionArea: FC<DialogActionAreaProps> = (props) => {
+const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
   const {
     cancelProps,
     closeOnProceed,
@@ -69,44 +62,41 @@ const DialogActionArea: FC<DialogActionAreaProps> = (props) => {
     [closeOnProceed, dialogContext, onProceed, proceedProps?.onClick],
   );
 
-  const cancelButton = useMemo(
-    () => (
-      <ContainedButton {...cancelProps} onClick={cancelHandler}>
-        {cancelChildren}
-      </ContainedButton>
-    ),
-    [cancelChildren, cancelHandler, cancelProps],
-  );
-
-  const proceedButton = useMemo(
-    () => (
-      <ContainedButton
-        background={proceedColour}
-        {...proceedProps}
-        onClick={proceedHandler}
-      >
-        {proceedChildren}
-      </ContainedButton>
-    ),
-    [proceedChildren, proceedColour, proceedHandler, proceedProps],
-  );
-
   const actions = useMemo(
     () => (
-      <FlexEndBox row spacing=".5em">
-        {cancelButton}
-        {proceedButton}
-      </FlexEndBox>
+      <ActionGroup
+        actions={[
+          {
+            ...cancelProps,
+            children: cancelChildren,
+            onClick: cancelHandler,
+          },
+          {
+            background: proceedColour,
+            ...proceedProps,
+            children: proceedChildren,
+            onClick: proceedHandler,
+          },
+        ]}
+      />
     ),
-    [cancelButton, proceedButton],
+    [
+      cancelChildren,
+      cancelHandler,
+      cancelProps,
+      proceedChildren,
+      proceedColour,
+      proceedHandler,
+      proceedProps,
+    ],
   );
 
-  const actionArea = useMemo(
+  const result = useMemo(
     () => (loading ? <Spinner mt={0} /> : actions),
     [actions, loading],
   );
 
-  return actionArea;
+  return result;
 };
 
-export default DialogActionArea;
+export default DialogActionGroup;

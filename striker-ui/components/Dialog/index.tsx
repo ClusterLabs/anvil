@@ -1,6 +1,11 @@
 import Dialog from './Dialog';
-import DialogActionArea from './DialogActionArea';
+import DialogActionGroup from './DialogActionGroup';
 import DialogHeader from './DialogHeader';
 import DialogScrollBox from './DialogScrollBox';
 
-export { Dialog, DialogActionArea, DialogHeader, DialogScrollBox };
+export {
+  Dialog,
+  DialogActionGroup as DialogActionArea,
+  DialogHeader,
+  DialogScrollBox,
+};

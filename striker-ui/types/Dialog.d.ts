@@ -21,14 +21,14 @@ type DialogHeaderOptionalProps = {
 
 type DialogHeaderProps = DialogHeaderOptionalProps;
 
-/** DialogActionArea */
+/** DialogActionGroup */
 
 type ButtonClickEventHandler = Exclude<
   ContainedButtonProps['onClick'],
   undefined
 >;
 
-type DialogActionAreaOptionalProps = {
+type DialogActionGroupOptionalProps = {
   cancelChildren?: ContainedButtonProps['children'];
   cancelProps?: Partial<ContainedButtonProps>;
   closeOnProceed?: boolean;
@@ -40,4 +40,4 @@ type DialogActionAreaOptionalProps = {
   proceedProps?: Partial<ContainedButtonProps>;
 };
 
-type DialogActionAreaProps = DialogActionAreaOptionalProps;
+type DialogActionGroupProps = DialogActionGroupOptionalProps;
