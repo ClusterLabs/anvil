@@ -25,7 +25,6 @@ const DialogHeader: FC<DialogHeaderProps> = (props) => {
             dialogContext?.setOpen(false);
           }}
           size="small"
-          variant="redcontained"
         />
       ),
     [dialogContext, showClose],
