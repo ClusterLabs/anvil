@@ -170,6 +170,6 @@ const MessageGroup = forwardRef<
 MessageGroup.defaultProps = MESSAGE_GROUP_DEFAULT_PROPS;
 MessageGroup.displayName = 'MessageGroup';
 
-export type { MessageGroupForwardedRefContent, Messages };
+export type { MessageGroupForwardedRefContent };
 
 export default MessageGroup;
