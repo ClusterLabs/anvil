@@ -672,7 +672,7 @@ sub get_runtime
 	my $server_pid = 0;
 	my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 	foreach my $line (split/\n/, $output)
 	{
 		$line = $anvil->Words->clean_spaces({ string => $line });
@@ -690,7 +690,7 @@ sub get_runtime
 	{
 		my $shell_call = $anvil->data->{path}{exe}{ps}." -p ".$server_pid." -o etimes=";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		foreach my $line (split/\n/, $output)
 		{
 			$runtime = $anvil->Words->clean_spaces({ string => $line });
