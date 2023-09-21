@@ -60,43 +60,53 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
         }, {}),
       );
 
-      files.forEach(({ file, name, uuid }) => {
-        if (!file) return;
+      const promises = files.reduce<Promise<void>[]>(
+        (chain, { file, name, uuid }) => {
+          if (!file) return chain;
 
-        const data = new FormData();
+          const data = new FormData();
 
-        data.append('file', new File([file], name, { ...file }));
+          data.append('file', new File([file], name, { ...file }));
 
-        api
-          .post('/file', data, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: (
-              (fileUuid: string) =>
-              ({ loaded, total }) => {
-                setUploads((previous) =>
-                  setUploadProgress(
-                    previous,
-                    fileUuid,
-                    Math.round(
-                      (loaded / total) * REQUEST_INCOMPLETE_UPLOAD_LIMIT,
+          const promise = api
+            .post('/file', data, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+              onUploadProgress: (
+                (fileUuid: string) =>
+                ({ loaded, total }) => {
+                  setUploads((previous) =>
+                    setUploadProgress(
+                      previous,
+                      fileUuid,
+                      Math.round(
+                        (loaded / total) * REQUEST_INCOMPLETE_UPLOAD_LIMIT,
+                      ),
                     ),
-                  ),
+                  );
+                }
+              )(uuid),
+            })
+            .then(
+              ((fileUuid: string) => () => {
+                setUploads((previous) =>
+                  setUploadProgress(previous, fileUuid, 100),
                 );
-              }
-            )(uuid),
-          })
-          .then(
-            ((fileUuid: string) => () => {
-              setUploads((previous) =>
-                setUploadProgress(previous, fileUuid, 100),
-              );
-            })(uuid),
-          )
-          .catch((error) => {
-            handleAPIError(error);
-          });
+              })(uuid),
+            );
+
+          chain.push(promise);
+
+          return chain;
+        },
+        [],
+      );
+
+      Promise.all(promises).catch((error) => {
+        const emsg = handleAPIError(error);
+
+        emsg.children = <>Failed to add file. {emsg.children}</>;
       });
     },
     validationSchema: fileListSchema,
