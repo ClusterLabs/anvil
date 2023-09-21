@@ -2145,8 +2145,11 @@ sub shutdown_virsh
 		elsif ($status eq "pmsuspended")
 		{
 			# The server is suspended. Resume it, wait a few, then proceed with the shutdown.
+			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dompmwakeup ".$server;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0317", variables => { server => $server }});
-			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dompmwakeup $server"});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			if ($return_code)
 			{
 				# Looks like virsh isn't running.

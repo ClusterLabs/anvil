@@ -19,6 +19,10 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
+\fB\-\-immediate\fR
+.TP
+This causes the server to be forced off, equivalent to pulling the power cord out of a traditional server. This doesn't work with '\fB\-\-server all\fR', a specific server must be specified.
+.TP
 \fB\-\-no\-db\fR
 .TP
 This tells the program to run without connecting to any databases. This is used mainly when the host is being taken down as part of a cluster-wise upgrade.
@@ -38,6 +42,8 @@ This is the server UUID of the server to shut down. NOTE: This can not be used w
 \fB\-\-wait\fR
 .TP
 This tells the program to wait for the server(s) to stop before returning. By default, when '\fB\-\-server all\fR' is used,, the shutdown will NOT wait. This makes the shutdowns sequential.
+.TP
+Note: When \fB\-\-immediate\fR is used, \fB\-\-wait\fR is ignored.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
