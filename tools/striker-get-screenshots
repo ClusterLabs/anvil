@@ -1,0 +1,457 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Sys::Virt;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => ["job-uuid"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# We'll try to connect in case we're adding additional peers.
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	# Load the job data.
+	$anvil->Job->clear();
+	$anvil->Job->get_job_details();
+	$anvil->Job->update_progress({
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0251", 
+	});
+}
+
+$anvil->data->{job}{progress} = 1;
+
+# Which subnodes are up?
+$anvil->Database->get_hosts();
+$anvil->Database->get_dr_links();
+foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+{
+	my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+	my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	my $host_status     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
+	my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+	my $anvil_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name       => $host_name,
+		host_uuid       => $host_uuid, 
+		short_host_name => $short_host_name, 
+		host_status     => $host_status, 
+		host_type       => $host_type, 
+	}});
+	next if $host_status ne "online";
+	next if $host_type   eq "striker";
+	
+	$anvil->Job->update_progress({
+		progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+		message   => "log_0803", 
+		log_level => 2,
+		variables => { host_name => $short_host_name }
+	});
+	
+	# If it's a subnode, make sure it's in an Anvil! node and skip it if not.
+	next if (($host_type eq "node") && (not $anvil_name));
+	
+	# If it's a DR host, make sure it's linked to at least one Anvil! node and skip it if not.
+	if ($host_type eq "dr")
+	{
+		my $link_count = 0;
+		if (exists $anvil->data->{dr_links}{by_host_uuid}{$host_uuid})
+		{
+			$link_count = keys %{$anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_name}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link_count => $link_count }});
+		}
+		next if not $link_count;
+	}
+	
+	# Make sure the target is configured. If not, skip it.
+	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+		variable_name         => "system::configured", 
+		variable_source_uuid  => $host_uuid, 
+		variable_source_table => "hosts", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		configured    => $configured, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	if (not $configured)
+	{
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+			message   => "log_0811", 
+			log_level => 2,
+			variables => { host_name => $short_host_name }
+		});
+		next;
+	}
+	
+	### Test access using the bcn, then ifn.
+	# Can we access the host?
+	my $matches = $anvil->Network->find_access({
+		debug  => 2,
+		target => $host_name, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+	my $connected = 0;
+	foreach my $preferred_network ("bcn", "ifn", "any")
+	{
+		next if $connected;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
+		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+			if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
+			{
+				next;
+			}
+			
+			my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
+			my $test_access = $anvil->Remote->test_access({target => $target_ip});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:network_name' => $network_name, 
+				's2:target_ip'    => $target_ip, 
+				's3:test_access'  => $test_access, 
+			}});
+			
+			if ($test_access)
+			{
+				# Collect screenshots!
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "log_0804", 
+					log_level => 2,
+					variables => { 
+						host_name => $short_host_name,
+						target_ip => $target_ip,
+					}
+				});
+				get_screenshots($anvil, $host_uuid, $target_ip);
+				$connected = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connected => $connected }});
+			}
+		}
+	}
+	if (not $connected)
+	{
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+			message   => "log_0810", 
+			log_level => 2,
+			variables => { host_name => $short_host_name }
+		});
+	}
+}
+
+# Look through screenshots and delete any more than 2 hours old.
+remove_old_screenshots($anvil);
+
+# Done!
+$anvil->Job->update_progress({
+	progress => 100,
+	message  => "job_0281", 
+});
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub remove_old_screenshots
+{
+	my ($anvil) = @_;
+	
+	# Delete any screenshots over 10 minutes old.
+	my $maximum_age  = 36000;
+	my $current_time = time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:maximum_age'                    => $maximum_age, 
+		's2:current_time'                   => $current_time,
+		's3:path::directories::screenshots' => $anvil->data->{path}{directories}{screenshots}, 
+	}});
+	
+	$anvil->Job->update_progress({
+		progress  => 99,
+		message   => "job_0281", 
+		variables => { 
+			maximum_age => $anvil->Convert->time({'time' => $maximum_age, translate => 1}),
+		},
+	});
+	
+	$anvil->Database->get_servers();
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $anvil->data->{path}{directories}{screenshots});
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		# "server-uuid_".$server_uuid."_timestamp-".$unix_time
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+		if ($file =~ /^server-uuid_(.*?)_timestamp-(\d+)\./)
+		{
+			my $server_uuid = $1;
+			my $timestamp   = $2;
+			my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name} // "";
+			my $file_age    = $current_time - $timestamp;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_uuid => $server_uuid,
+				server_name => $server_name, 
+				timestamp   => $timestamp, 
+				file_age    => $file_age, 
+			}});
+			
+			if ($file_age > $maximum_age)
+			{
+				# Remove it.
+				my $full_path = $anvil->data->{path}{directories}{screenshots}."/".$file;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0809", variables => { 
+					file        => $full_path,
+					server_name => $server_name,
+				}});
+				unlink $full_path;
+			}
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}
+
+sub get_screenshots
+{
+	my ($anvil, $host_uuid, $target_ip) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid => $host_uuid,
+		target_ip => $target_ip, 
+	}});
+	
+	my $host_name       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+	my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name       => $host_name,
+		short_host_name => $short_host_name, 
+	}});
+	
+	my $connection = "";
+	my $uri        = "qemu+ssh://".$target_ip."/system";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
+	eval { $connection = Sys::Virt->new(uri => $uri); };
+	if ($@)
+	{
+		$anvil->Job->update_progress({
+			progress   => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+			message    => "warning_0162", 
+			log_level  => 1,
+			priority   => "alert",
+			variables => { 
+				host_name => $short_host_name,
+				uri       => $uri,
+				error     => $@,
+			},
+		});
+		return(1);
+	}
+	
+	my $stream  = $connection->new_stream();
+	my @domains = $connection->list_all_domains();
+	foreach my $domain (@domains)
+	{
+		my $server_name = $domain->get_name;
+		my $server_id   = $domain->get_id == -1 ? "" : $domain->get_id; 
+		my $server_uuid = $domain->get_uuid_string;
+		my $server_xml  = $domain->get_xml_description;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_name => $server_name,
+			server_id   => $server_id, 
+			server_uuid => $server_uuid, 
+		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server_xml => $server_xml }});
+		
+		my ($state, $reason) = $domain->get_state();
+		### States:
+		# 0 = no state
+		# 1 = running        - The domain is currently running on a CPU
+		# 2 = blocked (idle) - the domain is blocked on resource. This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
+		# 3 = paused         - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
+		# 4 = in shutdown    - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
+		# 5 = shut off       - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
+		# 6 = crashed        - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
+		# 7 = pmsuspended    - The domain has been suspended by guest power management, e.g. entered into s3 state.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			'state' => $state, 
+			reason  => $reason,
+		}});
+		
+		### Reasons are dependent on the state. 
+		### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
+		if ($state == 1)    { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0041"}); }	# Server is running.
+		elsif ($state == 2) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0042"}); }	# Server is blocked (IO contention?).
+		elsif ($state == 3) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0043"}); }	# Server is paused (migration target?).
+		elsif ($state == 4) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0044"}); }	# Server is shutting down.
+		elsif ($state == 5) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0045"}); }	# Server is shut off.
+		elsif ($state == 6) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0046"}); }	# Server is crashed!
+		elsif ($state == 7) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0047"}); }	# Server is suspended.
+		else                { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0048", variables => { 'state' => $state }}); }	# Server is in an unknown state
+		
+		# Only take screenshots of running servers.
+		return(1) if $state != 1;
+		
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+			message   => "log_0805", 
+			log_level => 2,
+			variables => { 
+				server_name => $server_name, 
+				server_uuid => $server_uuid, 
+				host_name   => $short_host_name,
+			},
+		});
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"path::directories::screenshots" => $anvil->data->{path}{directories}{screenshots}, 
+		}});
+		if (not -d $anvil->data->{path}{directories}{screenshots})
+		{
+			$anvil->Storage->make_directory({
+				debug     => 2,
+				directory => $anvil->data->{path}{directories}{screenshots}, 
+				mode      => "0666",
+			});
+		}
+		# /opt/alteeve/screenshots/<server_uuid>/<unixtime>.jpg
+		my $unix_time       = time;
+		my $file_name       = "server-uuid_".$server_uuid."_timestamp-".$unix_time;
+		my $ppm_file        = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".ppm";
+		my $mimetype        = $domain->screenshot($stream, 0);
+		my $screenshot      = "";
+		my $screenshot_size = 0;
+		my $handle_ss_chunk = sub {
+			my ($unused_stream, $ss_chunk, $ss_chunk_size) = @_;
+			$screenshot      .= $ss_chunk;
+			$screenshot_size += $ss_chunk_size;
+		};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			unix_time       => $unix_time,
+			file_name       => $file_name, 
+			ppm_file        => $ppm_file, 
+			mimetype        => $mimetype, 
+			screenshot_size => $screenshot_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $screenshot_size}).")",
+		}});
+		
+		$stream->recv_all($handle_ss_chunk);
+		
+		# Write out the screenshot.
+		$anvil->Storage->write_file({
+			debug  => 2,
+			file   => $ppm_file,
+			body   => $screenshot, 
+			mode   => "0666",
+			binary => 1,
+		});
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+			message   => "log_0806", 
+			log_level => 2,
+			variables => { ppm_file => $ppm_file },
+		});
+		
+		### TODO: Make these user-configurable later.
+		my $make_jpeg  = 1;
+		my $make_png   = 0; 
+		my $delete_ppm = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			make_jpeg  => $make_jpeg,
+			make_png   => $make_png, 
+			delete_ppm => $delete_ppm,
+		}});
+		
+		# Convert to jpg
+		if ($make_jpeg)
+		{
+			my $jpg_file   = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".jpg";
+			my $shell_call = $anvil->data->{path}{exe}{pnmtojpeg}." ".$ppm_file." > ".$jpg_file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				shell_call => $shell_call,
+				jpg_file   => $jpg_file,
+			}});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			$anvil->Job->update_progress({
+				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+				message   => "log_0807", 
+				log_level => 2,
+				variables => { 
+					ppm_file => $ppm_file, 
+				 	new_file => $jpg_file, 
+				 	'format' => "jpeg",
+				},
+			});
+		}
+		
+		# Convert to png
+		if ($make_png)
+		{
+			my $png_file   = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".png";
+			my $shell_call = $anvil->data->{path}{exe}{pamtopng}." ".$ppm_file." > ".$png_file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				shell_call => $shell_call,
+				png_file   => $png_file, 
+			}});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			$anvil->Job->update_progress({
+				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+				message   => "log_0807", 
+				log_level => 2,
+				variables => { 
+					ppm_file => $ppm_file, 
+				 	new_file => $png_file, 
+				 	'format' => "png",
+				},
+			});
+		}
+		
+		# Delete the original PPM file?
+		if ($delete_ppm)
+		{
+			unlink $ppm_file;
+			$anvil->Job->update_progress({
+				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+				message   => "log_0589", 
+				log_level => 2,
+				variables => { file => $ppm_file },
+			});
+		}
+	}
+	
+	return(0);
+}
