@@ -1,12 +1,13 @@
 import { useFormik } from 'formik';
-import { FC, useMemo } from 'react';
+import { FC, useCallback, useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
 import convertFormikErrorsToMessages from '../../lib/convertFormikErrorsToMessages';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
-import MessageGroup from '../MessageGroup';
+import handleAPIError from '../../lib/handleAPIError';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import fileListSchema from './schema';
 
 const toEditFileRequestBody = (
@@ -67,6 +68,14 @@ const toEditFileRequestBody = (
 const EditFileForm: FC<EditFileFormProps> = (props) => {
   const { anvils, drHosts, previous: file } = props;
 
+  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
+
+  const setApiMessage = useCallback(
+    (message?: Message) =>
+      messageGroupRef.current.setMessage?.call(null, 'api', message),
+    [],
+  );
+
   const formikInitialValues = useMemo<FileFormikValues>(() => {
     const { locations, name, type, uuid } = file;
 
@@ -97,10 +106,21 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
 
   const formik = useFormik<FileFormikValues>({
     initialValues: formikInitialValues,
-    onSubmit: (values) => {
+    onSubmit: (values, { setSubmitting }) => {
       const body = toEditFileRequestBody(values[file.uuid], file);
 
-      api.put(`/file/${file.uuid}`, body);
+      api
+        .put(`/file/${file.uuid}`, body)
+        .catch((error) => {
+          const emsg = handleAPIError(error);
+
+          emsg.children = <>Failed to modify file. {emsg.children}</>;
+
+          setApiMessage(emsg);
+        })
+        .finally(() => {
+          setSubmitting(false);
+        });
     },
     validationSchema: fileListSchema,
   });
@@ -136,8 +156,9 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
         showSyncInputGroup
         showTypeInput
       />
-      <MessageGroup count={1} messages={formikErrors} />
+      <MessageGroup count={1} messages={formikErrors} ref={messageGroupRef} />
       <ActionGroup
+        loading={formik.isSubmitting}
         actions={[
           {
             background: 'blue',
