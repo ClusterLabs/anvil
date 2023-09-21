@@ -2,7 +2,6 @@ import { FC, useCallback, useContext, useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import { DialogContext } from './Dialog';
-import Spinner from '../Spinner';
 
 const handleAction: ExtendableEventHandler<ButtonClickEventHandler> = (
   { handlers: { base, origin } },
@@ -78,12 +77,14 @@ const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
             onClick: proceedHandler,
           },
         ]}
+        loading={loading}
       />
     ),
     [
       cancelChildren,
       cancelHandler,
       cancelProps,
+      loading,
       proceedChildren,
       proceedColour,
       proceedHandler,
@@ -91,12 +92,7 @@ const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
     ],
   );
 
-  const result = useMemo(
-    () => (loading ? <Spinner mt={0} /> : actions),
-    [actions, loading],
-  );
-
-  return result;
+  return actions;
 };
 
 export default DialogActionGroup;
