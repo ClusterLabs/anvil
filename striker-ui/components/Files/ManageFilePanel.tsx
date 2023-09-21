@@ -375,7 +375,12 @@ const ManageFilePanel: FC = () => {
       >
         {editForm}
       </DialogWithHeader>
-      <ConfirmDialog wide {...confirmDialogProps} ref={confirmDialogRef} />
+      <ConfirmDialog
+        closeOnProceed
+        wide
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
     </>
   );
 };
