@@ -1,67 +1,76 @@
-import { forwardRef, useMemo } from 'react';
+import { BoxProps as MuiBoxProps } from '@mui/material';
+import {
+  ForwardRefExoticComponent,
+  PropsWithChildren,
+  RefAttributes,
+  forwardRef,
+  useMemo,
+} from 'react';
 
 import ConfirmDialog from './ConfirmDialog';
-import IconButton from './IconButton';
-import { HeaderText } from './Text';
+import { FlexBoxProps } from './FlexBox';
 
-const FormDialog = forwardRef<
-  ConfirmDialogForwardedRefContent,
-  ConfirmDialogProps & { showClose?: boolean }
->((props, ref) => {
-  const { scrollContent, showClose, titleText, ...restProps } = props;
+const FormDialog: ForwardRefExoticComponent<
+  PropsWithChildren<ConfirmDialogProps> &
+    RefAttributes<ConfirmDialogForwardedRefContent>
+> = forwardRef<ConfirmDialogForwardedRefContent, ConfirmDialogProps>(
+  (props, ref) => {
+    const {
+      children,
+      contentContainerProps,
+      dialogProps,
+      onSubmitAppend,
+      proceedButtonProps,
+      scrollBoxProps,
+      scrollContent,
+      ...restProps
+    } = props;
 
-  const scrollBoxPaddingRight = useMemo(
-    () => (scrollContent ? '.5em' : undefined),
-    [scrollContent],
-  );
+    const formBodyProps = useMemo<FlexBoxProps>(
+      () => ({
+        ...contentContainerProps,
+        component: 'form',
+        onSubmit: (...args) => {
+          const [event] = args;
 
-  const titleElement = useMemo(() => {
-    const title =
-      typeof titleText === 'string' ? (
-        <HeaderText>{titleText}</HeaderText>
-      ) : (
-        titleText
-      );
+          event.preventDefault();
 
-    return showClose ? (
-      <>
-        {title}
-        <IconButton
-          mapPreset="close"
-          onClick={() => {
-            if (ref && 'current' in ref) {
-              ref.current?.setOpen?.call(null, false);
-            }
-          }}
-          variant="redcontained"
-        />
-      </>
-    ) : (
-      title
+          onSubmitAppend?.call(null, ...args);
+        },
+      }),
+      [contentContainerProps, onSubmitAppend],
     );
-  }, [ref, showClose, titleText]);
 
-  return (
-    <ConfirmDialog
-      dialogProps={{
-        PaperProps: { sx: { minWidth: { xs: '90%', md: '50em' } } },
-      }}
-      formContent
-      scrollBoxProps={{
-        paddingRight: scrollBoxPaddingRight,
-        paddingTop: '.3em',
-      }}
-      scrollContent={scrollContent}
-      titleText={titleElement}
-      {...restProps}
-      ref={ref}
-    />
-  );
-});
+    const formScrollBoxProps = useMemo<MuiBoxProps>(
+      () => ({
+        ...scrollBoxProps,
+        sx: scrollContent
+          ? {
+              overflowX: 'hidden',
+              paddingTop: '.6em',
+              ...scrollBoxProps?.sx,
+            }
+          : scrollBoxProps?.sx,
+      }),
+      [scrollBoxProps, scrollContent],
+    );
 
-FormDialog.defaultProps = {
-  showClose: false,
-};
+    return (
+      <ConfirmDialog
+        dialogProps={dialogProps}
+        contentContainerProps={formBodyProps}
+        proceedButtonProps={{ ...proceedButtonProps, type: 'submit' }}
+        scrollContent={scrollContent}
+        scrollBoxProps={formScrollBoxProps}
+        wide
+        {...restProps}
+        ref={ref}
+      >
+        {children}
+      </ConfirmDialog>
+    );
+  },
+);
 
 FormDialog.displayName = 'FormDialog';
 

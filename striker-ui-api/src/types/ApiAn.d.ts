@@ -112,10 +112,12 @@ type AnvilDetailStoreSummary = {
 };
 
 type AnvilOverview = {
+  anvilDescription: string;
   anvilName: string;
   anvilUUID: string;
   hosts: Array<{
     hostName: string;
+    hostType: string;
     hostUUID: string;
   }>;
 };

@@ -86,3 +86,31 @@ type AnvilListItem = {
 type AnvilList = {
   anvils: AnvilListItem[];
 };
+
+type APIAnvilOverviewArray = Array<{
+  anvilDescription: string;
+  anvilName: string;
+  anvilUUID: string;
+  hosts: Array<{
+    hostName: string;
+    hostType: string;
+    hostUUID: string;
+  }>;
+}>;
+
+type APIAnvilOverview = {
+  description: string;
+  hosts: {
+    [uuid: string]: {
+      name: string;
+      type: string;
+      uuid: string;
+    };
+  };
+  name: string;
+  uuid: string;
+};
+
+type APIAnvilOverviewList = {
+  [uuid: string]: APIAnvilOverview;
+};

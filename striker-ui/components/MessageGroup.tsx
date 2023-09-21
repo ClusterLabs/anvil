@@ -16,6 +16,7 @@ type Messages = {
 type MessageGroupOptionalProps = {
   count?: number;
   defaultMessageType?: MessageBoxProps['type'];
+  messages?: Messages;
   onSet?: (length: number) => void;
   usePlaceholder?: boolean;
 };
@@ -29,11 +30,12 @@ type MessageGroupForwardedRefContent = {
 };
 
 const MESSAGE_GROUP_DEFAULT_PROPS: Required<
-  Omit<MessageGroupOptionalProps, 'onSet'>
+  Omit<MessageGroupOptionalProps, 'messages' | 'onSet'>
 > &
-  Pick<MessageGroupOptionalProps, 'onSet'> = {
+  Pick<MessageGroupOptionalProps, 'messages' | 'onSet'> = {
   count: 0,
   defaultMessageType: 'info',
+  messages: undefined,
   onSet: undefined,
   usePlaceholder: true,
 };
@@ -46,13 +48,22 @@ const MessageGroup = forwardRef<
     {
       count = MESSAGE_GROUP_DEFAULT_PROPS.count,
       defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
+      messages: externalMessages,
       onSet,
       usePlaceholder:
         isUsePlaceholder = MESSAGE_GROUP_DEFAULT_PROPS.usePlaceholder,
     },
     ref,
   ) => {
-    const [messages, setMessages] = useState<Messages>({});
+    const [internalMessages, setInternalMessages] = useState<Messages>({});
+
+    const messages = useMemo<Messages>(
+      () => ({
+        ...externalMessages,
+        ...internalMessages,
+      }),
+      [externalMessages, internalMessages],
+    );
 
     const exists = useCallback(
       (key: string) => messages[key] !== undefined,
@@ -62,7 +73,7 @@ const MessageGroup = forwardRef<
       (key: string, message?: Message) => {
         let length = 0;
 
-        setMessages((previous) => {
+        setInternalMessages((previous) => {
           const { [key]: unused, ...rest } = previous;
           const result: Messages = rest;
 
@@ -90,7 +101,7 @@ const MessageGroup = forwardRef<
             }
           : undefined;
 
-        setMessages((previous) => {
+        setInternalMessages((previous) => {
           const result: Messages = {};
 
           Object.keys(previous).forEach((key: string) => {

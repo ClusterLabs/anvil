@@ -12,8 +12,10 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
       SELECT
         anv.anvil_name,
         anv.anvil_uuid,
+        anv.anvil_description,
         hos.host_name,
-        hos.host_uuid
+        hos.host_uuid,
+        hos.host_type
       FROM anvils AS anv
       JOIN hosts AS hos
         ON hos.host_uuid IN (
@@ -31,10 +33,21 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
           let rowStage: AnvilOverview | undefined;
 
           results = queryStdout.reduce<AnvilOverview[]>(
-            (reducedRows, [anvilName, anvilUUID, hostName, hostUUID]) => {
+            (
+              reducedRows,
+              [
+                anvilName,
+                anvilUUID,
+                anvilDescription,
+                hostName,
+                hostUUID,
+                hostType,
+              ],
+            ) => {
               if (!rowStage || anvilUUID !== rowStage.anvilUUID) {
                 {
                   rowStage = {
+                    anvilDescription,
                     anvilName,
                     anvilUUID,
                     hosts: [],
@@ -44,7 +57,11 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
                 }
               }
 
-              rowStage.hosts.push({ hostName, hostUUID });
+              rowStage.hosts.push({
+                hostName,
+                hostType,
+                hostUUID,
+              });
 
               return reducedRows;
             },
