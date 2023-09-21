@@ -19,6 +19,7 @@ type APIFileDetail = APIFileOverview & {
     [uuid: string]: {
       locationUuids: string[];
       name: string;
+      type: string;
       uuid: string;
     };
   };
@@ -34,4 +35,14 @@ type APIFileDetail = APIFileOverview & {
 
 type APIFileOverviewList = {
   [uuid: string]: APIFileOverview;
+};
+
+type APIEditFileRequestBody = {
+  fileName: string;
+  fileType: FileType;
+  fileUUID: string;
+  fileLocations: Array<{
+    fileLocationUUID: string;
+    isFileLocationActive: boolean;
+  }>;
 };
