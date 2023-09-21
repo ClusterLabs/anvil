@@ -1,7 +1,7 @@
 import Head from 'next/head';
 
-import Files from '../../components/Files';
 import Header from '../../components/Header';
+import ManageFilePanel from '../../components/Files/ManageFilePanel';
 
 const FileManager = (): JSX.Element => (
   <>
@@ -9,7 +9,7 @@ const FileManager = (): JSX.Element => (
       <title>File Manager</title>
     </Head>
     <Header />
-    <Files />
+    <ManageFilePanel />
   </>
 );
 
