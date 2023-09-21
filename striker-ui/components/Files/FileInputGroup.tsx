@@ -40,7 +40,7 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
 
   const handleCheckAllLocations = useCallback(
     (type: keyof FileFormikLocations, checked: boolean) => {
-      formik.setValues((previous) => {
+      formik.setValues((previous: FileFormikValues) => {
         const current = cloneDeep(previous);
         const locations = current[fuuid].locations?.[type];
 
@@ -58,7 +58,9 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
 
   const getAllLocationsCheckboxProps = useCallback(
     (type: keyof FileFormikLocations): CheckboxProps => {
-      const locations = formik.values[fuuid].locations?.[type];
+      const locations = formik.values[fuuid].locations?.[type] as {
+        [uuid: string]: { active: boolean };
+      };
 
       if (!locations) return {};
 
