@@ -1,12 +1,31 @@
 import assert from 'assert';
-import { execSync } from 'child_process';
 import { RequestHandler } from 'express';
+import { readFileSync, readdirSync } from 'fs';
+import path from 'path';
 
-import { REP_UUID, SERVER_PATHS } from '../../consts';
+import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { getVncinfo } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdout } from '../../shell';
+import { stderr, stdout, stdoutVar } from '../../shell';
+
+type ServerSsMeta = {
+  name: string;
+  timestamp: number;
+  uuid: string;
+};
+
+const disassembleServerSsName = (name: string): ServerSsMeta => {
+  const csv = name.replace(
+    new RegExp(`^server-uuid_(${P_UUID})_timestamp-(\\d+)`),
+    '$1,$2',
+  );
+
+  const [uuid, t] = csv.split(',', 2);
+  const timestamp = Number(t);
+
+  return { name, timestamp, uuid };
+};
 
 export const getServerDetail: RequestHandler<
   ServerDetailParamsDictionary,
@@ -38,20 +57,54 @@ export const getServerDetail: RequestHandler<
   }
 
   if (ss) {
-    const rsbody: ServerDetailScreenshot = { screenshot: '' };
+    const rsBody: ServerDetailScreenshot = { screenshot: '' };
+    const ssDir = SERVER_PATHS.opt.alteeve.screenshots.self;
+
+    let ssNames: string[];
 
     try {
-      rsbody.screenshot = execSync(
-        `${SERVER_PATHS.usr.sbin['anvil-get-server-screenshot'].self} --convert --resize 500x500 --server-uuid '${serverUuid}'`,
-        { encoding: 'utf-8' },
-      );
+      ssNames = readdirSync(SERVER_PATHS.opt.alteeve.screenshots.self, {
+        encoding: 'utf-8',
+      });
     } catch (error) {
-      stderr(`Failed to server ${serverUuid} screenshot; CAUSE: ${error}`);
+      stderr(
+        `Failed to list server ${serverUuid} screenshots; CAUSE: ${error}`,
+      );
 
       return response.status(500).send();
     }
 
-    return response.send(rsbody);
+    const ssMetas = ssNames
+      .reduce<ServerSsMeta[]>((previous, name) => {
+        const meta = disassembleServerSsName(name);
+
+        if (meta.uuid === serverUuid) {
+          previous.push(meta);
+        }
+
+        return previous;
+      }, [])
+      .sort((a, b) => {
+        if (a.timestamp === b.timestamp) return 0;
+
+        return a.timestamp > b.timestamp ? 1 : -1;
+      });
+
+    stdoutVar(ssMetas, `Server screenshots: `);
+
+    const ssMetaLatest = ssMetas.pop();
+
+    if (ssMetaLatest) {
+      const { name } = ssMetaLatest;
+
+      const ssLatest = readFileSync(path.join(ssDir, name), {
+        encoding: 'base64',
+      });
+
+      rsBody.screenshot = ssLatest;
+    }
+
+    return response.send(rsBody);
   } else if (vnc) {
     let rsbody: ServerDetailVncInfo;
 
