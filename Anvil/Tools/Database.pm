@@ -13087,9 +13087,9 @@ WHERE
 				{
 					my $difference = diff \$old_server_definition_xml, \$server_definition_xml, { STYLE => 'Unified' };
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0556", variables => { 
-						server_name                   => $server_name,
-						server_definition_server_uuid => $server_definition_server_uuid, 
-						difference                    => $difference,
+						server_name => $server_name,
+						server_uuid => $server_definition_server_uuid, 
+						difference  => $difference,
 					}});
 				}
 				

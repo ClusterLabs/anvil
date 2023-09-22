@@ -2329,7 +2329,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0553">The server: [#!variable!server!#] has booted on: [#!variable!host_name!#]!</key>
 		<key name="log_0554">Waiting for the server: [#!variable!server!#] to shut down...</key>
 		<key name="log_0555">The server: [#!variable!server!#] is now off.</key>
-		<key name="log_0556">The server: [#!variable!server!#] (#!variable!server_uuid!#) has a definition change:
+		<key name="log_0556">The server: [#!variable!server_name!#] (#!variable!server_uuid!#) has a definition change:
 ====
 #!variable!difference!#
 ====

@@ -356,7 +356,7 @@ sub find_changes
 					$anvil->Alert->register({alert_level => "notice", message => "scan_ipmitool_message_0002", variables => $variables, set_by => $THIS_FILE, sort_position => $anvil->data->{'scan-ipmitool'}{alert_sort}++});
 					next;
 				}
-				if (not $new_scan_ipmitool_value_sensor_value)
+				if ($new_scan_ipmitool_value_sensor_value eq "")
 				{
 					my $variables = {
 						host_name => $host_name,

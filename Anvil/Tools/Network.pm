@@ -2377,7 +2377,7 @@ sub is_local
 	$anvil->data->{cache}{is_local}{$host} = 0;
 	if (($host eq $anvil->Get->host_name)       or 
 	    ($host eq $anvil->Get->short_host_name) or 
-	    ($host eq "localhost")              or 
+	    ($host eq "localhost")                  or 
 	    ($host eq "127.0.0.1"))
 	{
 		# It's local

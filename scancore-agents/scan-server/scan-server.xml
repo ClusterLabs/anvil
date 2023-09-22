@@ -114,6 +114,18 @@ The definition for the server: [#!variable!server!#] was changed in the database
 There was no DRBD fence rule for the: [#!variable!server!#] in the pacemaker configuration. Adding it now.
 		</key>
 		<key name="scan_server_alert_0020">I was asked to write an empty definition for the server: [#!variable!server!#], this must be a program error. Exiting.</key>
+		<key name="scan_server_alert_0021">Failed to connect to the local hypervisor, unable to proceed. The error, if any, was:
+====
+#!variable!error!#
+====
+Exiting.</key>
+		<key name="scan_server_alert_0022">Regained access to the local hypervisor.</key>
+		<key name="scan_server_alert_0023">Failed to connect to the peer: [#!variable!target!#] hypervisor. The error, if any, was:
+====
+#!variable!error!#
+====
+</key>
+		<key name="scan_server_alert_0024">Regained access to the peer: [#!variable!target!#] hypervisor.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>
@@ -127,6 +139,7 @@ The following definition file failed to parse and is likely corrupt.
 		
 		<!-- Message entries (usually meant to be alerts) -->
 		<key name="scan_server_message_0001">The server: [#!variable!server!#] is migrating, skipping scanning it.</key>
+		<key name="scan_server_message_0002">Undefining the server: [#!variable!server!#].</key>
 		
 		<!-- Units -->
 		<key name="scan_server_unit_0001"></key>
