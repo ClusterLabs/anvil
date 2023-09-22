@@ -90,9 +90,9 @@ export const getServerDetail: RequestHandler<
         return a.timestamp > b.timestamp ? 1 : -1;
       });
 
-    stdoutVar(ssMetas, `Server screenshots: `);
-
     const ssMetaLatest = ssMetas.pop();
+
+    stdoutVar(ssMetaLatest, `Latest server screenshot: `);
 
     if (ssMetaLatest) {
       const { name } = ssMetaLatest;
