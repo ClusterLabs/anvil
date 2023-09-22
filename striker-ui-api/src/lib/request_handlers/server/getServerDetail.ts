@@ -17,7 +17,7 @@ type ServerSsMeta = {
 
 const disassembleServerSsName = (name: string): ServerSsMeta => {
   const csv = name.replace(
-    new RegExp(`^server-uuid_(${P_UUID})_timestamp-(\\d+)`),
+    new RegExp(`^server-uuid_(${P_UUID})_timestamp-(\\d+).*$`),
     '$1,$2',
   );
 
