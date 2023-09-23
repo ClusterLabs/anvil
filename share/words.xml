@@ -725,6 +725,7 @@ The creation of the new replicatedd disk is incomplete, manual intervention is r
 #!variable!error!#
 ====================
 The creation of the new replicated disk is incomplete, manual intervention is required!]]></key>
+		<key name="error_0462"><![CDATA[The switch '--immediate' can not be used with '--server all'.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1684,6 +1685,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0471">Exiting.</key>
 		<key name="job_0472">Server Storage Management</key>
 		<key name="job_0473">This job manages the storage on a given hosted server. It can grow an existing disk, add a new disk, insert an ISO into an optical disc, or eject a disc.</key>
+		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
