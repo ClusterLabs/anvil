@@ -2598,6 +2598,16 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0800">- Ejecting: [#!variable!device_path!#] from: [#!variable!device_target!#].</key>
 		<key name="log_0801">Updating the stored definition and undefining the server now:</key>
 		<key name="log_0802">Working with the server: [#!variable!server_name!#], UUID: [#!variable!server_uuid!#]</key>
+		<key name="log_0803">Looking for access to: [#!variable!host_name!#]</key>
+		<key name="log_0804">Connecting: [#!variable!host_name!#] via: [#!variable!target_ip!#]</key>
+		<key name="log_0805">Getting a screenshot from: [#!variable!server_name!#] (uuid: [#!variable!server_uuid!#]) from the host: [#!variable!host_name!#].</key>
+		<key name="log_0806">- Saving the screenshot: [#!variable!ppm_file!#].</key>
+		<key name="log_0807">- Converting: [#!variable!ppm_file!#] to: 
+[#!variable!new_file!#]</key>
+		<key name="log_0808">Deleting screenshots older than: [#!variable!maximum_age!#].</key>
+		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
+		<key name="log_0810">- No access to: [#!variable!host_name!#] found.</key>
+		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3638,6 +3648,14 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0038">%</key>
 		<key name="unit_0039">Amps</key>
 		<key name="unit_0040">Going Back</key>				<!-- Bond state -->
+		<key name="unit_0041">- Server is running.</key>
+		<key name="unit_0042">- Server is blocked (IO contention?).</key>
+		<key name="unit_0043">- Server is paused (migration target?).</key>
+		<key name="unit_0044">- Server is shutting down.</key>
+		<key name="unit_0045">- Server is shut off.</key>
+		<key name="unit_0046">- Server is crashed!</key>
+		<key name="unit_0047">- Server is suspended.</key>
+		<key name="unit_0048">- Server is in an unknown state (int: [#!variable!state!#]).</key>
 		
 		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
 		     are used when adding UPSes to the system for use in Install Manifests.
@@ -3901,6 +3919,11 @@ We will try to proceed anyway.</key>
 #!variable!error!#
 ====================
 We will try to proceed anyway.</key>
+		<key name="warning_0162">Failed to connect to libvirtd on: [#!variable!host_name!#] via the URI: [#!variable!uri!#]. The error, if any, was:
+====
+#!variable!error!#
+====
+</key>
 		
 	</language>
 	<!-- 日本語 -->

@@ -552,8 +552,13 @@ sub handle_periodic_tasks
 		}});
 		
 		# Even when this runs, it should finish in under ten seconds so we don't need to background it.
-		my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}.$anvil->Log->switches;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($parse_output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			parse_output => $parse_output,
+			return_code  => $return_code, 
+		}});
 		
 		# Scan the local network.
 		update_state_file($anvil);
@@ -570,6 +575,25 @@ sub handle_periodic_tasks
 
 		# Check for stale db_in_use states.
 		check_db_in_use_states($anvil);
+		
+		# Do Striker-specific minute tasks
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { host_type => $host_type }});
+		if ($host_type eq "striker")
+		{
+			# This can take a while, but it's been optimized to minimize how long it takes to 
+			# run. To be safe, we'll still background it.
+			my $shell_call = $anvil->data->{path}{exe}{'striker-get-screenshots'}.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({
+				background => 1,
+				shell_call => $shell_call, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
 	}
 	
 	# Now check to see if it's time to run less frequent tasks.
