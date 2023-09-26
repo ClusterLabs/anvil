@@ -34,10 +34,12 @@ const Server = (): JSX.Element => {
   const [previewMode, setPreviewMode] = useState<boolean>(true);
 
   const router = useRouter();
-  const { server_name, uuid, vnc } = router.query;
+  const { server_name, server_state, uuid, vnc } = router.query;
+
   const isConnectVNC: boolean = (vnc?.toString() || '').length > 0;
-  const serverUUID: string = uuid?.toString() || '';
   const serverName: string = server_name?.toString() || '';
+  const serverState: string = server_state?.toString() || '';
+  const serverUUID: string = uuid?.toString() || '';
 
   useEffect(() => {
     if (isConnectVNC) {
@@ -58,6 +60,7 @@ const Server = (): JSX.Element => {
               setPreviewMode(false);
             }}
             serverName={serverName}
+            serverState={serverState}
             serverUUID={serverUUID}
           />
         </Box>

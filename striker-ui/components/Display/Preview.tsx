@@ -1,6 +1,6 @@
 import {
   DesktopWindows as DesktopWindowsIcon,
-  PowerOffOutlined as PowerOffOutlinedIcon,
+  PowerSettingsNewOutlined as PowerSettingsNewOutlinedIcon,
 } from '@mui/icons-material';
 import {
   Box,
@@ -9,18 +9,24 @@ import {
 } from '@mui/material';
 import { FC, ReactNode, useEffect, useMemo, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-import { BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
+import {
+  BORDER_RADIUS,
+  GREY,
+  UNSELECTED,
+} from '../../lib/consts/DEFAULT_THEME';
 
+import api from '../../lib/api';
 import FlexBox from '../FlexBox';
 import IconButton, { IconButtonProps } from '../IconButton';
 import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
+import { last } from '../../lib/time';
 
 type PreviewOptionalProps = {
   externalPreview?: string;
   headerEndAdornment?: ReactNode;
+  isExternalLoading?: boolean;
   isExternalPreviewStale?: boolean;
   isFetchPreview?: boolean;
   isShowControls?: boolean;
@@ -28,6 +34,7 @@ type PreviewOptionalProps = {
   onClickConnectButton?: IconButtonProps['onClick'];
   onClickPreview?: MUIIconButtonProps['onClick'];
   serverName?: string;
+  serverState?: string;
 };
 
 type PreviewProps = PreviewOptionalProps & {
@@ -40,6 +47,7 @@ const PREVIEW_DEFAULT_PROPS: Required<
   Pick<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'> = {
   externalPreview: '',
   headerEndAdornment: null,
+  isExternalLoading: false,
   isExternalPreviewStale: false,
   isFetchPreview: true,
   isShowControls: true,
@@ -47,6 +55,7 @@ const PREVIEW_DEFAULT_PROPS: Required<
   onClickConnectButton: undefined,
   onClickPreview: undefined,
   serverName: '',
+  serverState: '',
 };
 
 const PreviewPanel: FC<{ isUseInnerPanel: boolean }> = ({
@@ -78,12 +87,14 @@ const PreviewPanelHeader: FC<{
 const Preview: FC<PreviewProps> = ({
   externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
   headerEndAdornment,
+  isExternalLoading = PREVIEW_DEFAULT_PROPS.isExternalLoading,
   isExternalPreviewStale = PREVIEW_DEFAULT_PROPS.isExternalPreviewStale,
   isFetchPreview = PREVIEW_DEFAULT_PROPS.isFetchPreview,
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
   isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
   onClickPreview: previewClickHandler,
   serverName,
+  serverState = PREVIEW_DEFAULT_PROPS.serverState,
   serverUUID,
   onClickConnectButton: connectButtonClickHandle = previewClickHandler,
 }) => {
@@ -93,58 +104,66 @@ const Preview: FC<PreviewProps> = ({
 
   const previewButtonContent = useMemo(
     () =>
-      preview ? (
-        <Box
-          alt=""
-          component="img"
-          src={`data:image/png;base64,${preview}`}
-          sx={{
-            height: '100%',
-            opacity: isPreviewStale ? '0.4' : '1',
-            padding: isUseInnerPanel ? '.2em' : 0,
-            width: '100%',
-          }}
-        />
+      serverState === 'running' ? (
+        <>
+          <Box
+            alt=""
+            component="img"
+            src={`data:image;base64,${preview}`}
+            sx={{
+              height: '100%',
+              opacity: isPreviewStale ? '0.4' : '1',
+              padding: isUseInnerPanel ? '.2em' : 0,
+              width: '100%',
+            }}
+          />
+          {isPreviewStale && (
+            <BodyText sx={{ position: 'absolute' }}>Outdated</BodyText>
+          )}
+        </>
       ) : (
-        <PowerOffOutlinedIcon
+        <PowerSettingsNewOutlinedIcon
           sx={{
-            height: '100%',
-            width: '100%',
+            color: UNSELECTED,
+            height: '80%',
+            width: '80%',
           }}
         />
       ),
-    [isPreviewStale, isUseInnerPanel, preview],
+    [isPreviewStale, isUseInnerPanel, preview, serverState],
   );
 
   useEffect(() => {
     if (isFetchPreview) {
       (async () => {
         try {
-          const response = await fetch(
-            `${API_BASE_URL}/server/${serverUUID}?ss=1`,
-            {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            },
-          );
-          const { screenshot: fetchedScreenshot } = await response.json();
+          const { data } = await api.get<{
+            screenshot: string;
+            timestamp: number;
+          }>(`/server/${serverUUID}?ss=1`);
 
-          setPreview(fetchedScreenshot);
-          setIsPreviewStale(false);
+          const { screenshot, timestamp } = data;
+
+          setPreview(screenshot);
+          setIsPreviewStale(!last(timestamp, 300));
         } catch {
           setIsPreviewStale(true);
         } finally {
           setIsPreviewLoading(false);
         }
       })();
-    } else if (externalPreview) {
+    } else if (!isExternalLoading) {
       setPreview(externalPreview);
       setIsPreviewStale(isExternalPreviewStale);
       setIsPreviewLoading(false);
     }
-  }, [externalPreview, isExternalPreviewStale, isFetchPreview, serverUUID]);
+  }, [
+    externalPreview,
+    isExternalLoading,
+    isExternalPreviewStale,
+    isFetchPreview,
+    serverUUID,
+  ]);
 
   return (
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
@@ -153,12 +172,13 @@ const Preview: FC<PreviewProps> = ({
       </PreviewPanelHeader>
       <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
         {/* Box wrapper below is required to keep external preview size sane. */}
-        <Box>
+        <Box textAlign="center">
           {isPreviewLoading ? (
             <Spinner mt="1em" mb="1em" />
           ) : (
             <MUIIconButton
               component="span"
+              disabled={!preview}
               onClick={previewClickHandler}
               sx={{
                 borderRadius: BORDER_RADIUS,
@@ -170,7 +190,7 @@ const Preview: FC<PreviewProps> = ({
             </MUIIconButton>
           )}
         </Box>
-        {isShowControls && (
+        {isShowControls && preview && (
           <FlexBox>
             <IconButton onClick={connectButtonClickHandle}>
               <DesktopWindowsIcon />
