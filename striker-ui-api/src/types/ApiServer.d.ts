@@ -19,6 +19,7 @@ type ServerDetailParsedQs = {
 
 type ServerDetailScreenshot = {
   screenshot: string;
+  timestamp: number;
 };
 
 type ServerDetailVncInfo = {
