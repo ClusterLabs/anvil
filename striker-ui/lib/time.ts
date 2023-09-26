@@ -4,18 +4,20 @@ const before = (time: number, limit: number): boolean => {
   return diff > 0;
 };
 
+const now = (ms?: boolean): number => {
+  let nao = Date.now();
+
+  if (!ms) nao /= 1000;
+
+  return nao;
+};
+
 const last = (
   time: number,
   duration: number,
   { ms }: { ms?: boolean } = {},
 ): boolean => {
-  let now = Date.now();
-
-  if (!ms) {
-    now /= 1000;
-  }
-
-  const diff = now - time;
+  const diff = now(ms) - time;
 
   return diff <= duration;
 };
@@ -62,4 +64,4 @@ const elapsed = (
   };
 };
 
-export { before, elapsed, last };
+export { before, elapsed, last, now };
