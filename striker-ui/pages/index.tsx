@@ -23,6 +23,7 @@ type ServerListItem = ServerOverviewMetadata & {
   isScreenshotStale?: boolean;
   loading?: boolean;
   screenshot: string;
+  timestamp: number;
 };
 
 const createServerPreviewContainer = (
@@ -54,9 +55,11 @@ const createServerPreviewContainer = (
         serverName,
         serverState,
         serverUUID,
+        timestamp,
       }) => (
         <Preview
           externalPreview={screenshot}
+          externalTimestamp={timestamp}
           headerEndAdornment={[
             <Link
               href={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}`}
@@ -158,6 +161,7 @@ const Dashboard: FC = () => {
             ...serverOverview,
             loading: true,
             screenshot: previousScreenshot,
+            timestamp: 0,
           };
 
           fetchJSON<{ screenshot: string; timestamp: number }>(
@@ -169,6 +173,7 @@ const Dashboard: FC = () => {
               item.isScreenshotStale = !last(timestamp, 300);
               item.loading = false;
               item.screenshot = screenshot;
+              item.timestamp = timestamp;
 
               const allServersWithScreenshots = [...serverListItems];
 

@@ -21,10 +21,11 @@ import IconButton, { IconButtonProps } from '../IconButton';
 import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
-import { last } from '../../lib/time';
+import { elapsed, last, now } from '../../lib/time';
 
 type PreviewOptionalProps = {
   externalPreview?: string;
+  externalTimestamp?: number;
   headerEndAdornment?: ReactNode;
   isExternalLoading?: boolean;
   isExternalPreviewStale?: boolean;
@@ -46,6 +47,7 @@ const PREVIEW_DEFAULT_PROPS: Required<
 > &
   Pick<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'> = {
   externalPreview: '',
+  externalTimestamp: 0,
   headerEndAdornment: null,
   isExternalLoading: false,
   isExternalPreviewStale: false,
@@ -86,6 +88,7 @@ const PreviewPanelHeader: FC<{
 
 const Preview: FC<PreviewProps> = ({
   externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
+  externalTimestamp = PREVIEW_DEFAULT_PROPS.externalTimestamp,
   headerEndAdornment,
   isExternalLoading = PREVIEW_DEFAULT_PROPS.isExternalLoading,
   isExternalPreviewStale = PREVIEW_DEFAULT_PROPS.isExternalPreviewStale,
@@ -101,6 +104,7 @@ const Preview: FC<PreviewProps> = ({
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(true);
   const [isPreviewStale, setIsPreviewStale] = useState<boolean>(false);
   const [preview, setPreview] = useState<string>('');
+  const [previewTimstamp, setPreviewTimestamp] = useState<number>(0);
 
   const previewButtonContent = useMemo(
     () =>
@@ -117,9 +121,16 @@ const Preview: FC<PreviewProps> = ({
               width: '100%',
             }}
           />
-          {isPreviewStale && (
-            <BodyText sx={{ position: 'absolute' }}>Outdated</BodyText>
-          )}
+          {isPreviewStale &&
+            ((sst: number) => {
+              const { unit, value } = elapsed(now() - sst);
+
+              return (
+                <BodyText position="absolute">
+                  Lost ~{value} {unit} ago
+                </BodyText>
+              );
+            })(previewTimstamp)}
         </>
       ) : (
         <PowerSettingsNewOutlinedIcon
@@ -130,7 +141,7 @@ const Preview: FC<PreviewProps> = ({
           }}
         />
       ),
-    [isPreviewStale, isUseInnerPanel, preview, serverState],
+    [isPreviewStale, isUseInnerPanel, preview, previewTimstamp, serverState],
   );
 
   useEffect(() => {
@@ -145,6 +156,7 @@ const Preview: FC<PreviewProps> = ({
           const { screenshot, timestamp } = data;
 
           setPreview(screenshot);
+          setPreviewTimestamp(timestamp);
           setIsPreviewStale(!last(timestamp, 300));
         } catch {
           setIsPreviewStale(true);
@@ -154,11 +166,13 @@ const Preview: FC<PreviewProps> = ({
       })();
     } else if (!isExternalLoading) {
       setPreview(externalPreview);
+      setPreviewTimestamp(externalTimestamp);
       setIsPreviewStale(isExternalPreviewStale);
       setIsPreviewLoading(false);
     }
   }, [
     externalPreview,
+    externalTimestamp,
     isExternalLoading,
     isExternalPreviewStale,
     isFetchPreview,
