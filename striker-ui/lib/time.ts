@@ -7,7 +7,7 @@ const before = (time: number, limit: number): boolean => {
 const now = (ms?: boolean): number => {
   let nao = Date.now();
 
-  if (!ms) nao /= 1000;
+  if (!ms) nao = Math.floor(nao / 1000);
 
   return nao;
 };
@@ -24,13 +24,8 @@ const last = (
 
 const elapsed = (
   duration: number,
-  { ms }: { ms?: boolean } = {},
 ): { h: number; m: number; s: number; unit: string; value: number } => {
   let src = duration;
-
-  if (!ms) {
-    src /= 1000;
-  }
 
   const parts = [60, 60].reduce<number[]>((previous, multiplier) => {
     const remainder = src % multiplier;
@@ -47,14 +42,7 @@ const elapsed = (
   const significant = [
     { unit: 'h', value: h },
     { unit: 'm', value: m },
-  ].reduce(
-    (previous, current) => {
-      const { value } = current;
-
-      return value ? current : previous;
-    },
-    { unit: 's', value: s },
-  );
+  ].find(({ value }) => value) ?? { unit: 's', value: s };
 
   return {
     h,
