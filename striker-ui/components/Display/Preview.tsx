@@ -106,6 +106,8 @@ const Preview: FC<PreviewProps> = ({
   const [preview, setPreview] = useState<string>('');
   const [previewTimstamp, setPreviewTimestamp] = useState<number>(0);
 
+  const nao = now();
+
   const previewButtonContent = useMemo(
     () =>
       serverState === 'running' ? (
@@ -123,7 +125,7 @@ const Preview: FC<PreviewProps> = ({
           />
           {isPreviewStale &&
             ((sst: number) => {
-              const { unit, value } = elapsed(now() - sst);
+              const { unit, value } = elapsed(nao - sst);
 
               return (
                 <BodyText position="absolute">
@@ -141,7 +143,14 @@ const Preview: FC<PreviewProps> = ({
           }}
         />
       ),
-    [isPreviewStale, isUseInnerPanel, preview, previewTimstamp, serverState],
+    [
+      isPreviewStale,
+      isUseInnerPanel,
+      nao,
+      preview,
+      previewTimstamp,
+      serverState,
+    ],
   );
 
   useEffect(() => {
