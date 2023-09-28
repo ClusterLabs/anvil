@@ -1561,6 +1561,17 @@ sub check_local_network
 		ntp => $ntp,
 	}});
 	
+	if (not $dns)
+	{
+		$dns = "8.8.8.8,8.8.4.4";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns => $dns }});
+	}
+	if (not $mtu)
+	{
+		$mtu = "1500";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu => $mtu }});
+	}
+	
 	### TODO: sorting the array seems inconsistent, so sorting in a hash
 	# The DNS are comma-separated lists, that may or may not have spaces and may or may not be in 
 	# alphabetical order. To properly compare, we'll rebuild the CSV string of the current and desired 

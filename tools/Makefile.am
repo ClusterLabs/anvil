@@ -58,6 +58,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-db-status \
 			  striker-file-manager \
 			  striker-get-peer-data \
+			  striker-get-screenshots \
 			  striker-initialize-host \
 			  striker-manage-install-target \
 			  striker-manage-peers \
