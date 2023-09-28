@@ -1688,6 +1688,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
 		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#].</key>
 		<key name="job_0476">Waiting for a bit, then will check again.</key>
+		<key name="job_0477">Waiting for both subnodes to be configured and out of maintenance mode.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

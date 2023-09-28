@@ -2403,6 +2403,7 @@ sub wait_for_subnodes
 	}});
 	
 	my $waiting = 1;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0477");
 	while($waiting)
 	{
 		my $waiting = 0;
@@ -2436,7 +2437,6 @@ sub wait_for_subnodes
 				$waiting = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting}});
 				
-				update_progress($anvil, $anvil->data->{job}{progress}, "job_0475,!!subnode!".$host_name."!!,!!configured!".$configured."!!,!!maintenance_mode!".$maintenance_mode."!!");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0475", variables => { 
 					subnode          => $host_name,
 					configured       => $configured,
@@ -2447,7 +2447,6 @@ sub wait_for_subnodes
 		
 		if ($waiting)
 		{
-			update_progress($anvil, $anvil->data->{job}{progress}, "job_0476");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0476"});
 			sleep 5;
 		}
