@@ -54,6 +54,9 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
+# Hold until both subnodes are marked as configured and not in maintenance mode.
+wait_for_subnodes($anvil);
+
 # Update the user passwords
 update_passwords($anvil);
 
@@ -214,9 +217,6 @@ sub configure_pacemaker
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0096"});
 		return(0);
 	}
-	
-	# Hold until both subnodes are marked as configured and not in maintenance mode.
-	wait_for_subnodes($anvil);
 	
 	### Run on both nodes.
 	# Enable pcsd and start the pcsd daemon.
