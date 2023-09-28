@@ -1686,7 +1686,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0472">Server Storage Management</key>
 		<key name="job_0473">This job manages the storage on a given hosted server. It can grow an existing disk, add a new disk, insert an ISO into an optical disc, or eject a disc.</key>
 		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
-		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#].</key>
+		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#], job_running: [#!variable!job_running!#].</key>
 		<key name="job_0476">Waiting for a bit, then will check again.</key>
 		<key name="job_0477">Waiting for both subnodes to be configured and out of maintenance mode.</key>
 

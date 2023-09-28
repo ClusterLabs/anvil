@@ -2409,7 +2409,7 @@ sub wait_for_subnodes
 		my $ready = 1;
 		foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 		{
-			my $host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				host_uuid => $host_uuid, 
 				host_name => $host_name, 
@@ -2420,6 +2420,7 @@ sub wait_for_subnodes
 				variable_source_table => "hosts",
 				variable_source_uuid  => $host_uuid,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
 			(my $configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 				variable_name         => "system::configured", 
 				variable_source_uuid  => $host_uuid, 
@@ -2427,12 +2428,31 @@ sub wait_for_subnodes
 			});
 			$maintenance_mode = 1 if not defined $maintenance_mode;
 			$configured       = 0 if not defined $configured;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				maintenance_mode => $maintenance_mode, 
-				configured       => $configured, 
-			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 			
-			if (($maintenance_mode) or (not $configured))
+			# Is anvil-configure-host running?
+			my $job_running = 0;
+			$anvil->Database->get_jobs({job_host_uuid => $host_uuid});
+			foreach my $job_uuid (sort {$a cmp $b} keys %{$anvil->data->{jobs}{running}})
+			{
+				my $job_command  = $anvil->data->{jobs}{running}{$job_uuid}{job_command};
+				my $job_data     = $anvil->data->{jobs}{running}{$job_uuid}{job_data};
+				my $job_progress = $anvil->data->{jobs}{running}{$job_uuid}{job_progress};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:job_uuid'     => $job_uuid, 
+					's2:job_command'  => $job_command, 
+					's3:job_data'     => $job_data, 
+					's4:job_progress' => $job_progress, 
+				}});
+				next if $job_progress == 100;
+				if ($job_command =~ /anvil-configure-host/)
+				{
+					$job_running = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_running => $job_running }});
+				}
+			}
+			
+			if (($maintenance_mode) or ($job_running) or (not $configured))
 			{
 				$ready = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ready => $ready }});
@@ -2441,6 +2461,7 @@ sub wait_for_subnodes
 					subnode          => $host_name,
 					configured       => $configured,
 					maintenance_mode => $maintenance_mode, 
+					job_running      => $job_running, 
 				}});
 			}
 		}

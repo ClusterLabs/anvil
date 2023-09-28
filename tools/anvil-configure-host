@@ -64,7 +64,7 @@ pickup_job_details($anvil);
 overwrite_variables_with_switches($anvil);
 
 # Set maintenance mode
-$anvil->System->maintenance_mode({set => 1});
+$anvil->System->maintenance_mode({set => 1, debug => 2});
 
 reconfigure_network($anvil);
 
@@ -88,7 +88,7 @@ $anvil->Job->update_progress({
 });
 
 # Clear maintenance mode.
-$anvil->System->maintenance_mode({set => 0});
+$anvil->System->maintenance_mode({set => 0, debug => 2});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0467"});
 
 ### TODO: As of now, the network doesn't come up reliably, so reboot. We add a 60 second delay to make it 
@@ -435,7 +435,7 @@ ORDER BY
 		}});
 
 		# An undefined interface will have the MAC address value set to '1', ignore those.
-		next if $variable_value == 1;
+		next if $variable_value eq "1";
 		
 		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
 		{

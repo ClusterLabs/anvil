@@ -577,7 +577,7 @@ sub handle_periodic_tasks
 		check_db_in_use_states($anvil);
 		
 		# Do Striker-specific minute tasks
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { host_type => $host_type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
 		{
 			# This can take a while, but it's been optimized to minimize how long it takes to 
