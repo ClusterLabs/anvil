@@ -1686,7 +1686,8 @@ AND
 	if (-e $anvil->data->{path}{exe}{pcs})
 	{
 		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
-		my ($out_of_cluster) = $anvil->Cluster->parse_cib();
+		   $anvil->data->{cib}{parsed}{'local'}{ready} = "" if not defined $anvil->data->{cib}{parsed}{'local'}{ready};
+		my ($out_of_cluster)                           = $anvil->Cluster->parse_cib();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			out_of_cluster              => $out_of_cluster,
 			"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},

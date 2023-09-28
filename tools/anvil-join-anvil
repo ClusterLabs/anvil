@@ -182,10 +182,10 @@ sub configure_pacemaker
 	my $anvil_uuid       =  $anvil->data->{sys}{anvil_uuid};
 	my $host_name        =  $anvil->Get->host_name;
 	my $new_password     =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $node1_host_uuid  =  $anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_host_uuid  =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name  =  $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 	   $node1_host_name  =~ s/\..*$//;
-	my $node2_host_uuid  =  $anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_host_uuid  =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name  =  $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	   $node2_host_name  =~ s/\..*$//;
 	my $peer_host_name   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_name : $node1_host_name;
@@ -214,6 +214,9 @@ sub configure_pacemaker
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0096"});
 		return(0);
 	}
+	
+	# Hold until both subnodes are marked as configured and not in maintenance mode.
+	wait_for_subnodes($anvil);
 	
 	### Run on both nodes.
 	# Enable pcsd and start the pcsd daemon.
@@ -2382,6 +2385,73 @@ sub update_progress
 		message  => $message,
 		job_uuid => $anvil->data->{switches}{'job-uuid'},
 	});
+	
+	return(0);
+}
+
+sub wait_for_subnodes
+{
+	my ($anvil) = @_;
+	
+	my $anvil_uuid      = $anvil->data->{sys}{anvil_uuid};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+	}});
+	
+	my $waiting = 1;
+	while($waiting)
+	{
+		my $waiting = 0;
+		foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
+		{
+			my $host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_uuid => $host_uuid, 
+				host_name => $host_name, 
+			}});
+			
+			my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+				variable_name         => "maintenance_mode",
+				variable_source_table => "hosts",
+				variable_source_uuid  => $host_uuid,
+			});
+			(my $configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+				variable_name         => "system::configured", 
+				variable_source_uuid  => $host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			$maintenance_mode = 1 if not defined $maintenance_mode;
+			$configured       = 0 if not defined $configured;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				maintenance_mode => $maintenance_mode, 
+				configured       => $configured, 
+			}});
+			
+			if (($maintenance_mode) or (not $configured))
+			{
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting}});
+				
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0475,!!subnode!".$host_name."!!,!!configured!".$configured."!!,!!maintenance_mode!".$maintenance_mode."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0475", variables => { 
+					subnode          => $host_name,
+					configured       => $configured,
+					maintenance_mode => $maintenance_mode, 
+				}});
+			}
+		}
+		
+		if ($waiting)
+		{
+			update_progress($anvil, $anvil->data->{job}{progress}, "job_0476");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0476"});
+			sleep 5;
+		}
+	}
 	
 	return(0);
 }
