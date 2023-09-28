@@ -2406,7 +2406,7 @@ sub wait_for_subnodes
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0477");
 	while($waiting)
 	{
-		my $waiting = 0;
+		my $ready = 1;
 		foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 		{
 			my $host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
@@ -2434,8 +2434,8 @@ sub wait_for_subnodes
 			
 			if (($maintenance_mode) or (not $configured))
 			{
-				$waiting = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting}});
+				$ready = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ready => $ready }});
 				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0475", variables => { 
 					subnode          => $host_name,
@@ -2445,7 +2445,12 @@ sub wait_for_subnodes
 			}
 		}
 		
-		if ($waiting)
+		if ($ready)
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+		else
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0476"});
 			sleep 5;
