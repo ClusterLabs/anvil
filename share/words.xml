@@ -3157,6 +3157,8 @@ Proceed? [y/N]</key>
 		<key name="message_0348">Available Storage Groups;</key>
 		<key name="message_0349">- #!variable!storage_group_name!#, free space: #!variable!free_space!#, UUID: #!variable!storage_group_uuid!#</key>
 		<key name="message_0350">Preparing to managing storage for a server.</key>
+		<key name="message_0351">Running checks before processing power request...</key>
+		<key name="message_0352">The job to: [#!variable!task!#] this host has been picked up.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
