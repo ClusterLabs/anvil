@@ -65,12 +65,12 @@ type AnvilSharedStorage = {
 };
 
 type AnvilStatusHost = {
-  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
-  host_uuid: string;
   host_name: string;
-  state_percent: number;
+  host_uuid: string;
+  maintenance_mode: boolean;
+  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
   state_message: string;
-  removable: boolean;
+  state_percent: number;
 };
 
 type AnvilStatus = {
