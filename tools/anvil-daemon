@@ -952,7 +952,7 @@ sub check_incoming
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check";
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({
 		shell_call => $shell_call, 
@@ -1452,7 +1452,7 @@ sub prep_database
 		{
 			$anvil->Database->configure_pgsql({debug => 2})
 # 			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
+# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}$anvil->Log->switches;
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 # 			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
