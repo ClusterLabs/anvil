@@ -609,7 +609,9 @@ sub provision_server
 			$anvil->data->{file_uuid}{$file_path} = "" if not exists $anvil->data->{uuid}{$file_path}{file_uuid};
 			
 			# What's this file's file_uuid?
-			my $file_uuid          = $anvil->data->{file_uuid}{$file_path};
+			my $file_uuid = $anvil->data->{file_uuid}{$file_path};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+			
 			my $file_location_uuid = "";
 			if (not $file_uuid)
 			{
@@ -626,6 +628,7 @@ sub provision_server
 						# Found it.
 						$file_uuid = $this_file_uuid;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+						last;
 					}
 				}
 			}
@@ -644,6 +647,9 @@ sub provision_server
 			}
 			
 			# Yes, now do we have the file_location_uuid?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"file_locations::host_uuid::${host_uuid}::file_uuid::${file_uuid}" => exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid} ? 1 : 0,
+			}});
 			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
 			{
 				# Nope
@@ -653,6 +659,32 @@ sub provision_server
 					file_path   => $file_path, 
 					server_name => $server, 
 				}});
+				
+				# This is being hit improperly somehow. Added logging to help diagnose.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:Get->host_uuid' => $anvil->Get->host_uuid,
+					's2:host_uuid'      => $host_uuid, 
+					's3:file_uuid'      => $file_uuid,
+				}});
+				foreach my $this_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:this_host_uuid' => $this_host_uuid,
+						's2:this_host_name' => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+					}});
+					foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}})
+					{
+						my $this_file_location_uuid = $anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}{$this_file_uuid}{file_location_uuid};
+						my $this_anvil_uuid         = $anvil->data->{file_locations}{file_location_uuid}{$this_file_location_uuid}{file_location_anvil_uuid};
+						my $this_file_name          = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{file_uuid}{$this_file_uuid}{file_name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:this_file_uuid'          => $this_file_uuid,
+							's2:this_file_location_uuid' => $this_file_location_uuid,
+							's3:this_anvil_uuid'         => $this_anvil_uuid, 
+							's4:this_file_name'          => $this_file_name, 
+						}});
+					}
+				}
 				next;
 			}
 			
