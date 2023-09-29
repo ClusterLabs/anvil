@@ -607,6 +607,77 @@ sub check_files
 	my $host_uuid = $anvil->Get->host_uuid({debug => $debug});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	
+	# Make sure all entries in 'files' has a corresponding 'file_locations' entry for this host.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	
+	if ($host_type ne "striker")
+	{
+		my $reload = 0;
+		foreach my $file_name (sort {$a cmp $b} keys %{$anvil->data->{files}{file_name}})
+		{
+			my $file_uuid      = $anvil->data->{files}{file_name}{$file_name}{file_uuid};
+			my $file_directory = $anvil->data->{files}{file_name}{$file_name}{file_directory};
+			my $file_size      = $anvil->data->{files}{file_name}{$file_name}{file_size};
+			my $file_md5sum    = $anvil->data->{files}{file_name}{$file_name}{file_md5sum};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:file_name'      => $file_name, 
+				's2:file_uuid'      => $file_uuid, 
+				's3:file_directory' => $file_directory, 
+				's4:file_size'      => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
+				's5:file_md5sum'    => $file_md5sum, 
+			}});
+			
+			# Is there an entry or this host?
+			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
+			{
+				# Nope, add it.
+				$reload = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+				
+				my $file_ready =  0;
+				my $full_path  =  $file_directory."/".$file_name;
+				   $full_path  =~ s/\/\//\//g;
+				if (-f $full_path)
+				{
+					# Calculate the md5sum.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0265", variables => { file => $full_path }});
+					if ($file_size > (128 * (2 ** 20)))
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0266", variables => { 
+							size => $anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}),
+						}});
+					}
+					
+					# Update (or get) the md5sum.
+					my $local_md5sum = $anvil->Get->md5sum({debug => 2, file => $full_path});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_md5sum => $local_md5sum }});
+					
+					if ($local_md5sum eq $file_md5sum)
+					{
+						$file_ready = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_ready => $file_ready }});
+					}
+				}
+				
+				my $file_location_uuid = $anvil->Database->insert_or_update_file_locations({
+					debug                   => $debug, 
+					file_location_file_uuid => $file_uuid, 
+					file_location_host_uuid => $host_uuid, 
+					file_location_active    => 1, 
+					file_location_ready     => $file_ready,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
+			}
+		}
+		
+		if ($reload)
+		{
+			$anvil->Database->get_files({debug => $debug});
+			$anvil->Database->get_file_locations({debug => $debug});
+		}
+	}
+	
 	# Sorting isn't useful really, but it ensures consistent listing run over run).
 	foreach my $file_location_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}})
 	{

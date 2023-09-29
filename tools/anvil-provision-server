@@ -587,7 +587,6 @@ sub provision_server
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
 	
-	### TODO: Left off here
 	# Wait until file(s) are ready.
 	my $waiting   = 1;
 	my $host_uuid = $anvil->Get->host_uuid();
@@ -598,9 +597,8 @@ sub provision_server
 	}
 	while ($waiting)
 	{
+		# This loads files and file locations.
 		$anvil->Storage->check_files({debug => 2});
-		$anvil->Database->get_files({debug => 2});
-		$anvil->Database->get_file_locations({debug => 2});
 		$waiting = 0;
 		foreach my $file_path (sort {$a cmp $b} @files)
 		{
@@ -618,7 +616,7 @@ sub provision_server
 				foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{files}{file_uuid}})
 				{
 					my $this_file_path =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
-					$this_file_path =~ s/\/\//\//g;
+					   $this_file_path =~ s/\/\//\//g;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						this_file_uuid => $this_file_uuid, 
 						this_file_path => $this_file_path,
