@@ -1686,6 +1686,9 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0472">Server Storage Management</key>
 		<key name="job_0473">This job manages the storage on a given hosted server. It can grow an existing disk, add a new disk, insert an ISO into an optical disc, or eject a disc.</key>
 		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
+		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#], job_running: [#!variable!job_running!#].</key>
+		<key name="job_0476">Waiting for a bit, then will check again.</key>
+		<key name="job_0477">Waiting for both subnodes to be configured and out of maintenance mode.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2608,6 +2611,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
 		<key name="log_0810">- No access to: [#!variable!host_name!#] found.</key>
 		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
+		<key name="log_0812">The file: [#!variable!full_path!#] is in the database multiple times. This could be an artifact from peering Strikers. Selecting an entry to remove...</key>
+		<key name="log_0813">Deleting the 'files' database entry for the file uuid: [#!variable!file_uuid!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3154,6 +3159,8 @@ Proceed? [y/N]</key>
 		<key name="message_0348">Available Storage Groups;</key>
 		<key name="message_0349">- #!variable!storage_group_name!#, free space: #!variable!free_space!#, UUID: #!variable!storage_group_uuid!#</key>
 		<key name="message_0350">Preparing to managing storage for a server.</key>
+		<key name="message_0351">Running checks before processing power request...</key>
+		<key name="message_0352">The job to: [#!variable!task!#] this host has been picked up.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

@@ -577,19 +577,19 @@ sub handle_periodic_tasks
 		check_db_in_use_states($anvil);
 		
 		# Do Striker-specific minute tasks
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { host_type => $host_type }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
 		{
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
 			my $shell_call = $anvil->data->{path}{exe}{'striker-get-screenshots'}.$anvil->Log->switches;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({
 				background => 1,
 				shell_call => $shell_call, 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output,
 				return_code => $return_code, 
 			}});
@@ -952,7 +952,7 @@ sub check_incoming
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check";
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({
 		shell_call => $shell_call, 
@@ -1452,7 +1452,7 @@ sub prep_database
 		{
 			$anvil->Database->configure_pgsql({debug => 2})
 # 			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
+# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}$anvil->Log->switches;
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 # 			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

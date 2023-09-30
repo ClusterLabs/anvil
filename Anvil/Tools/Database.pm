@@ -404,8 +404,6 @@ sub check_file_locations
 	
 	# Get all the Anvil! systems we know of.
 	$anvil->Database->get_hosts({debug => $debug});
-	#$anvil->Database->get_files({debug => $debug});
-	#$anvil->Database->get_file_locations({debug => $debug});
 	
 	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_name}})
 	{
@@ -3705,23 +3703,26 @@ WHERE
 	}});
 	foreach my $row (@{$results})
 	{
-		my $file_uuid      = $row->[0];
-		my $file_name      = $row->[1];
-		my $file_directory = $row->[2];
-		my $file_size      = $row->[3]; 
-		my $file_md5sum    = $row->[4]; 
-		my $file_type      = $row->[5]; 
-		my $file_mtime     = $row->[6];
-		my $modified_date  = $row->[7];
+		my $file_uuid      =  $row->[0];
+		my $file_name      =  $row->[1];
+		my $file_directory =  $row->[2];
+		my $file_size      =  $row->[3]; 
+		my $file_md5sum    =  $row->[4]; 
+		my $file_type      =  $row->[5]; 
+		my $file_mtime     =  $row->[6];
+		my $modified_date  =  $row->[7];
+		my $full_path      =  $file_directory."/".$file_name;
+		   $full_path      =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			file_uuid      => $file_uuid, 
 			file_name      => $file_name, 
 			file_directory => $file_directory, 
-			file_size      => $file_size, 
+			file_size      => $file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $file_size}).")", 
 			file_md5sum    => $file_md5sum, 
 			file_type      => $file_type,
 			file_mtime     => $file_mtime,
 			modified_date  => $modified_date, 
+			full_path      => $full_path, 
 		}});
 		
 		# Record the data in the hash, too.
@@ -3735,13 +3736,156 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"files::file_uuid::${file_uuid}::file_name"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_name}, 
 			"files::file_uuid::${file_uuid}::file_directory" => $anvil->data->{files}{file_uuid}{$file_uuid}{file_directory}, 
-			"files::file_uuid::${file_uuid}::file_size"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_size}, 
+			"files::file_uuid::${file_uuid}::file_size"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{files}{file_uuid}{$file_uuid}{file_size}}).")", 
 			"files::file_uuid::${file_uuid}::file_md5sum"    => $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum}, 
 			"files::file_uuid::${file_uuid}::file_type"      => $anvil->data->{files}{file_uuid}{$file_uuid}{file_type}, 
 			"files::file_uuid::${file_uuid}::file_mtime"     => $anvil->data->{files}{file_uuid}{$file_uuid}{file_mtime}, 
 			"files::file_uuid::${file_uuid}::modified_date"  => $anvil->data->{files}{file_uuid}{$file_uuid}{modified_date}, 
 		}});
 		
+		# Is this a duplicate?
+		if (exists $anvil->data->{files}{full_path}{$full_path})
+		{
+			# Duplicate! How many file_locations are linked to the duplicates?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0812", variables => { full_path => $full_path }});
+			
+			$anvil->Database->get_file_locations({debug => $debug});
+			my $other_file_uuid   = $anvil->data->{files}{full_path}{$full_path}{file_uuid};
+			my $other_file_size   = $anvil->data->{files}{file_uuid}{$other_file_uuid}{file_size};
+			my $other_file_md5sum = $anvil->data->{files}{file_uuid}{$file_uuid}{file_md5sum};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				other_file_uuid   => $other_file_uuid, 
+				other_file_size   => $other_file_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $other_file_size}).")", 
+				other_file_md5sum => $other_file_md5sum, 
+			}});
+			
+			my $delete_file_uuid = "";
+			
+			# How many linked file_locations are there?
+			my $query = "SELECT COUNT(*) FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($file_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $file_location_count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_count => $file_location_count }});
+			
+			$query = "SELECT COUNT(*) FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($other_file_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $other_file_location_count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { other_file_location_count => $other_file_location_count }});
+			
+			# This could happen just after peering a striker, so both could have no 
+			# file_locations yet. If so, delete this one.
+			if (not $file_location_count)
+			{
+				$delete_file_uuid = $file_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+			}
+			elsif (not $other_file_location_count)
+			{
+				# Choose the other
+				$delete_file_uuid = $other_file_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+			}
+			else
+			{
+				# Pick the one with the largest file, if there's a difference.
+				if ($file_size != $other_file_size)
+				{
+					if ($file_size > $other_file_size)
+					{
+						# This one is bigger, delete the other
+						$delete_file_uuid = $other_file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+					}
+					else
+					{
+						# The other is bigger, delete this one.
+						$delete_file_uuid = $file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+					}
+				}
+				else
+				{
+					# Sizes are the same. Does one have more file_location references?
+					if ($file_location_count != $other_file_location_count)
+					{
+						if ($file_location_count > $other_file_location_count)
+						{
+							# This one has more references
+							$delete_file_uuid = $other_file_uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+						}
+						else
+						{
+							# The other one has more references.
+							$delete_file_uuid = $file_uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+						}
+					}
+					else
+					{
+						# No difference, delete this one.
+						$delete_file_uuid = $file_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_file_uuid => $delete_file_uuid }});
+					}
+				}
+			}
+			
+			if ($delete_file_uuid)
+			{
+				# Log which we're deleting 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0813", variables => { file_uuid => $delete_file_uuid }});
+				
+				# As we delete file_locations, we need to make sure that there are 
+				# file_location_file_uuid entries for the other file.
+				my $keep_file_uuid = $file_uuid eq $delete_file_uuid ? $other_file_uuid : $file_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { keep_file_uuid => $keep_file_uuid }});
+				
+				my $query = "DELETE FROM history.file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM history.files WHERE file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM files WHERE file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				delete $anvil->data->{files}{file_uuid}{$delete_file_uuid};
+				next;
+			}
+		}
+		else
+		{
+			$anvil->data->{files}{full_path}{$full_path}{file_uuid}      = $file_uuid;
+			$anvil->data->{files}{full_path}{$full_path}{file_name}      = $file_name;
+			$anvil->data->{files}{full_path}{$full_path}{file_directory} = $file_directory;
+			$anvil->data->{files}{full_path}{$full_path}{file_size}      = $file_size;
+			$anvil->data->{files}{full_path}{$full_path}{file_md5sum}    = $file_md5sum;
+			$anvil->data->{files}{full_path}{$full_path}{file_type}      = $file_type;
+			$anvil->data->{files}{full_path}{$full_path}{file_mtime}     = $file_mtime;
+			$anvil->data->{files}{full_path}{$full_path}{modified_date}  = $modified_date;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"files::full_path::${full_path}::file_uuid"      => $anvil->data->{files}{full_path}{$full_path}{file_uuid}, 
+				"files::full_path::${full_path}::file_name"      => $anvil->data->{files}{full_path}{$full_path}{file_name}, 
+				"files::full_path::${full_path}::file_directory" => $anvil->data->{files}{full_path}{$full_path}{file_directory}, 
+				"files::full_path::${full_path}::file_size"      => $anvil->data->{files}{full_path}{$full_path}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{files}{full_path}{$full_path}{file_size}}).")", 
+				"files::full_path::${full_path}::file_md5sum"    => $anvil->data->{files}{full_path}{$full_path}{file_md5sum}, 
+				"files::full_path::${full_path}::file_type"      => $anvil->data->{files}{full_path}{$full_path}{file_type}, 
+				"files::full_path::${full_path}::file_mtime"     => $anvil->data->{files}{full_path}{$full_path}{file_mtime}, 
+				"files::full_path::${full_path}::modified_date"  => $anvil->data->{files}{full_path}{$full_path}{modified_date}, 
+			}});
+		}
+		
+		### NOTE: This is the old way, which didn't allow two files with the same name in different 
+		###       directories. This needs to be retired.
 		$anvil->data->{files}{file_name}{$file_name}{file_uuid}      = $file_uuid;
 		$anvil->data->{files}{file_name}{$file_name}{file_directory} = $file_directory;
 		$anvil->data->{files}{file_name}{$file_name}{file_size}      = $file_size;
@@ -3752,7 +3896,7 @@ WHERE
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"files::file_name::${file_name}::file_uuid"      => $anvil->data->{files}{file_name}{$file_name}{file_uuid}, 
 			"files::file_name::${file_name}::file_directory" => $anvil->data->{files}{file_name}{$file_name}{file_directory}, 
-			"files::file_name::${file_name}::file_size"      => $anvil->data->{files}{file_name}{$file_name}{file_size}, 
+			"files::file_name::${file_name}::file_size"      => $anvil->data->{files}{file_name}{$file_name}{file_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{files}{file_name}{$file_name}{file_size}}).")", 
 			"files::file_name::${file_name}::file_md5sum"    => $anvil->data->{files}{file_name}{$file_name}{file_md5sum}, 
 			"files::file_name::${file_name}::file_type"      => $anvil->data->{files}{file_name}{$file_name}{file_type}, 
 			"files::file_name::${file_name}::file_mtime"     => $anvil->data->{files}{file_name}{$file_name}{file_mtime}, 
