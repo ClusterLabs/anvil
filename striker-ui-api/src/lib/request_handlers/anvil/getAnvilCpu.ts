@@ -1,6 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { query } from '../../accessModule';
+import { getShortHostName } from '../../disassembleHostName';
 import { stderr } from '../../shell';
 
 export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
@@ -103,7 +104,7 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
       previous.hosts[uuid] = {
         cores,
         model,
-        name,
+        name: getShortHostName(name),
         threads,
         uuid,
         vendor,
