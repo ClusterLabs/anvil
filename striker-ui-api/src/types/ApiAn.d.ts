@@ -129,6 +129,8 @@ type AnvilDetailParamsDictionary = {
 
 type AnvilDetailStoreSummary = {
   storage_groups: AnvilDetailStore[];
+  total_free: string;
+  total_size: string;
 };
 
 type AnvilOverview = {
