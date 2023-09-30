@@ -35,14 +35,18 @@ const Memory = (): JSX.Element => {
               <BodyText text={`Allocated: ${toBinaryByte(nAllocated)}`} />
             </Box>
             <Box>
-              <BodyText text={`Free: ${toBinaryByte(nTotal - nAllocated)}`} />
+              <BodyText
+                text={`Free: ${toBinaryByte(
+                  nTotal - (nReserved + nAllocated),
+                )}`}
+              />
             </Box>
           </Box>
           <Box display="flex" width="100%">
             <Box flexGrow={1}>
               <AllocationBar
                 allocated={Number(
-                  ((nAllocated + nReserved) * BigInt(100)) / nTotal,
+                  ((nReserved + nAllocated) * BigInt(100)) / nTotal,
                 )}
               />
             </Box>
