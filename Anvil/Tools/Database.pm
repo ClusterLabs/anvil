@@ -3835,7 +3835,7 @@ WHERE
 			if ($delete_file_uuid)
 			{
 				# Log which we're deleting 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0813", variables => { full_uuid => $delete_file_uuid }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0813", variables => { file_uuid => $delete_file_uuid }});
 				
 				# As we delete file_locations, we need to make sure that there are 
 				# file_location_file_uuid entries for the other file.
@@ -3844,11 +3844,19 @@ WHERE
 				
 				my $query = "DELETE FROM history.file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 				
 				$query = "DELETE FROM file_locations WHERE file_location_file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM history.files WHERE file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM files WHERE file_uuid = ".$anvil->Database->quote($delete_file_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({debug => $debug, query => $query, source => $THIS_FILE, line => __LINE__});
 				
 				delete $anvil->data->{files}{file_uuid}{$delete_file_uuid};
 				next;
