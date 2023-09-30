@@ -78,6 +78,8 @@ type AnvilSharedStorageGroup = {
 
 type AnvilSharedStorage = {
   storage_groups: AnvilSharedStorageGroup[];
+  total_size: string;
+  total_free: string;
 };
 
 type AnvilStatusHost = {
@@ -129,4 +131,19 @@ type APIAnvilOverview = {
 
 type APIAnvilOverviewList = {
   [uuid: string]: APIAnvilOverview;
+};
+
+type APIAnvilStorageGroupCalcable = {
+  free: bigint;
+  name: string;
+  size: bigint;
+  uuid: string;
+};
+
+type APIAnvilSharedStorageOverview = {
+  storageGroups: {
+    [uuid: string]: APIAnvilStorageGroupCalcable;
+  };
+  totalFree: bigint;
+  totalSize: bigint;
 };
