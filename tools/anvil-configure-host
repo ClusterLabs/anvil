@@ -64,7 +64,7 @@ pickup_job_details($anvil);
 overwrite_variables_with_switches($anvil);
 
 # Set maintenance mode
-$anvil->System->maintenance_mode({set => 1});
+$anvil->System->maintenance_mode({set => 1, debug => 2});
 
 reconfigure_network($anvil);
 
@@ -88,7 +88,7 @@ $anvil->Job->update_progress({
 });
 
 # Clear maintenance mode.
-$anvil->System->maintenance_mode({set => 0});
+$anvil->System->maintenance_mode({set => 0, debug => 2});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0467"});
 
 ### TODO: As of now, the network doesn't come up reliably, so reboot. We add a 60 second delay to make it 
@@ -110,20 +110,21 @@ $anvil->nice_exit({exit_code => 0});
 sub do_reboot
 {
 	my ($anvil) = @_;
-	
-	# Mark that a reboot is needed, in case something kills us before we actually reboot.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0693!#" }});
-	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-		file            => $THIS_FILE, 
-		line            => __LINE__, 
-		job_command     => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches, 
-		job_data        => "", 
-		job_name        => "reboot::system", 
-		job_title       => "job_0009", 
-		job_description => "job_0006", 
-		job_progress    => 0,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+
+### TODO: Nothing should be killing us, anything that could should be updated to hold while we run.
+# 	# Mark that a reboot is needed, in case something kills us before we actually reboot.
+# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0693!#" }});
+# 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+# 		file            => $THIS_FILE, 
+# 		line            => __LINE__, 
+# 		job_command     => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches, 
+# 		job_data        => "", 
+# 		job_name        => "reboot::system", 
+# 		job_title       => "job_0009", 
+# 		job_description => "job_0006", 
+# 		job_progress    => 0,
+# 	});
+# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 	
 	my $time_left = 60;
 	while ($time_left)
@@ -435,7 +436,7 @@ ORDER BY
 		}});
 
 		# An undefined interface will have the MAC address value set to '1', ignore those.
-		next if $variable_value == 1;
+		next if $variable_value eq "1";
 		
 		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
 		{
@@ -1686,7 +1687,8 @@ AND
 	if (-e $anvil->data->{path}{exe}{pcs})
 	{
 		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
-		my ($out_of_cluster) = $anvil->Cluster->parse_cib();
+		   $anvil->data->{cib}{parsed}{'local'}{ready} = "" if not defined $anvil->data->{cib}{parsed}{'local'}{ready};
+		my ($out_of_cluster)                           = $anvil->Cluster->parse_cib();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			out_of_cluster              => $out_of_cluster,
 			"cib::parsed::local::ready" => $anvil->data->{cib}{parsed}{'local'}{ready},

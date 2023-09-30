@@ -54,6 +54,9 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
+# Hold until both subnodes are marked as configured and not in maintenance mode.
+wait_for_subnodes($anvil);
+
 # Update the user passwords
 update_passwords($anvil);
 
@@ -182,10 +185,10 @@ sub configure_pacemaker
 	my $anvil_uuid       =  $anvil->data->{sys}{anvil_uuid};
 	my $host_name        =  $anvil->Get->host_name;
 	my $new_password     =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	my $node1_host_uuid  =  $anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_host_uuid  =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name  =  $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
 	   $node1_host_name  =~ s/\..*$//;
-	my $node2_host_uuid  =  $anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_host_uuid  =  $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name  =  $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	   $node2_host_name  =~ s/\..*$//;
 	my $peer_host_name   =  $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_name : $node1_host_name;
@@ -1558,6 +1561,17 @@ sub check_local_network
 		ntp => $ntp,
 	}});
 	
+	if (not $dns)
+	{
+		$dns = "8.8.8.8,8.8.4.4";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns => $dns }});
+	}
+	if (not $mtu)
+	{
+		$mtu = "1500";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu => $mtu }});
+	}
+	
 	### TODO: sorting the array seems inconsistent, so sorting in a hash
 	# The DNS are comma-separated lists, that may or may not have spaces and may or may not be in 
 	# alphabetical order. To properly compare, we'll rebuild the CSV string of the current and desired 
@@ -2382,6 +2396,98 @@ sub update_progress
 		message  => $message,
 		job_uuid => $anvil->data->{switches}{'job-uuid'},
 	});
+	
+	return(0);
+}
+
+sub wait_for_subnodes
+{
+	my ($anvil) = @_;
+	
+	my $anvil_uuid      = $anvil->data->{sys}{anvil_uuid};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		node1_host_uuid => $node1_host_uuid, 
+		node2_host_uuid => $node2_host_uuid, 
+	}});
+	
+	my $waiting = 1;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0477");
+	while($waiting)
+	{
+		my $ready = 1;
+		foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
+		{
+			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_uuid => $host_uuid, 
+				host_name => $host_name, 
+			}});
+			
+			my ($maintenance_mode, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+				variable_name         => "maintenance_mode",
+				variable_source_table => "hosts",
+				variable_source_uuid  => $host_uuid,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { maintenance_mode => $maintenance_mode }});
+			(my $configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
+				variable_name         => "system::configured", 
+				variable_source_uuid  => $host_uuid, 
+				variable_source_table => "hosts", 
+			});
+			$maintenance_mode = 1 if not defined $maintenance_mode;
+			$configured       = 0 if not defined $configured;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+			
+			# Is anvil-configure-host running?
+			my $job_running = 0;
+			$anvil->Database->get_jobs({job_host_uuid => $host_uuid});
+			foreach my $job_uuid (sort {$a cmp $b} keys %{$anvil->data->{jobs}{running}})
+			{
+				my $job_command  = $anvil->data->{jobs}{running}{$job_uuid}{job_command};
+				my $job_data     = $anvil->data->{jobs}{running}{$job_uuid}{job_data};
+				my $job_progress = $anvil->data->{jobs}{running}{$job_uuid}{job_progress};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:job_uuid'     => $job_uuid, 
+					's2:job_command'  => $job_command, 
+					's3:job_data'     => $job_data, 
+					's4:job_progress' => $job_progress, 
+				}});
+				next if $job_progress == 100;
+				if ($job_command =~ /anvil-configure-host/)
+				{
+					$job_running = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_running => $job_running }});
+				}
+			}
+			
+			if (($maintenance_mode) or ($job_running) or (not $configured))
+			{
+				$ready = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ready => $ready }});
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0475", variables => { 
+					subnode          => $host_name,
+					configured       => $configured,
+					maintenance_mode => $maintenance_mode, 
+					job_running      => $job_running, 
+				}});
+			}
+		}
+		
+		if ($ready)
+		{
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0476"});
+			sleep 5;
+		}
+	}
 	
 	return(0);
 }
