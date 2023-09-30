@@ -1,14 +1,15 @@
-import { LinearProgress } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import {
-  PANEL_BACKGROUND,
-  BORDER_RADIUS,
-} from '../../lib/consts/DEFAULT_THEME';
+import { LinearProgress, linearProgressClasses, styled } from '@mui/material';
+
+import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
 
 const BorderLinearProgress = styled(LinearProgress)({
-  height: '1em',
+  backgroundColor: 'transparent',
   borderRadius: BORDER_RADIUS,
-  backgroundColor: PANEL_BACKGROUND,
+  height: '1em',
+
+  [`& .${linearProgressClasses.bar}`]: {
+    borderRadius: BORDER_RADIUS,
+  },
 });
 
 export default BorderLinearProgress;
