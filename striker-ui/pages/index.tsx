@@ -7,6 +7,7 @@ import { Add as AddIcon } from '@mui/icons-material';
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
+import AnvilSummaryList from '../components/Anvils/AnvilSummaryList';
 import { Preview } from '../components/Display';
 import fetchJSON from '../lib/fetchers/fetchJSON';
 import Header from '../components/Header';
@@ -17,6 +18,7 @@ import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from '../components/ProvisionServerDialog';
 import Spinner from '../components/Spinner';
+import { HeaderText } from '../components/Text';
 import { last } from '../lib/time';
 
 type ServerListItem = ServerOverviewMetadata & {
@@ -223,6 +225,10 @@ const Dashboard: FC = () => {
         ) : (
           <>
             <PanelHeader>
+              <HeaderText>Servers</HeaderText>
+              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
+                <AddIcon />
+              </IconButton>
               <OutlinedInput
                 placeholder="Search by server name"
                 onChange={({ target: { value } }) => {
@@ -232,9 +238,6 @@ const Dashboard: FC = () => {
                 sx={{ marginRight: '.6em' }}
                 value={inputSearchTerm}
               />
-              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
-                <AddIcon />
-              </IconButton>
             </PanelHeader>
             {createServerPreviewContainer(includeServers, router)}
             {includeServers.length > 0 && (
@@ -244,6 +247,7 @@ const Dashboard: FC = () => {
           </>
         )}
       </Panel>
+      <AnvilSummaryList />
       <ProvisionServerDialog
         dialogProps={{ open: isOpenProvisionServerDialog }}
         onClose={() => {
