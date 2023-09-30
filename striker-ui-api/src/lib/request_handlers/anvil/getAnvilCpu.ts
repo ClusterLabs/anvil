@@ -1,4 +1,3 @@
-import assert from 'assert';
 import { RequestHandler } from 'express';
 
 import { query } from '../../accessModule';
@@ -49,13 +48,13 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
           c.scan_hardware_cpu_threads
         ORDER BY b.host_name;`,
     );
-
-    assert.ok(rCpus.length, 'No entry found');
   } catch (error) {
     stderr(`Failed to get anvil ${anvilUuid} cpu info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
+
+  if (!rCpus.length) return response.status(404).send();
 
   let rAllocatedRow: [cpuAllocated: string][];
 
@@ -74,13 +73,13 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
           ON a.server_uuid = b.server_definition_server_uuid
         WHERE a.server_anvil_uuid = '${anvilUuid}';`,
     );
-
-    assert.ok(rAllocatedRow.length, 'No entry found');
   } catch (error) {
     stderr(`Failed to get anvil ${anvilUuid} server cpu info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
+
+  if (!rAllocatedRow.length) return response.status(404).send();
 
   const {
     0: { 5: rMinCores, 6: rMinThreads },
