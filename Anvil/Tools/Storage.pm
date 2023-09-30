@@ -611,6 +611,7 @@ sub check_files
 	my $host_type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	
+	# Look for files on this computer not yet on the system
 	if ($host_type ne "striker")
 	{
 		my $reload = 0;

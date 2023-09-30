@@ -2611,6 +2611,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
 		<key name="log_0810">- No access to: [#!variable!host_name!#] found.</key>
 		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
+		<key name="log_0812">The file: [#!variable!full_path!#] is in the database multiple times. This could be an artifact from peering Strikers. Selecting an entry to remove...</key>
+		<key name="log_0813">Deleting the 'files' database entry for the file uuid: [#!variable!file_uuid!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
