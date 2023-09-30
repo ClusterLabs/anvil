@@ -129,7 +129,7 @@ const Preview: FC<PreviewProps> = ({
 
               return (
                 <BodyText position="absolute">
-                  Lost ~{value} {unit} ago
+                  Updated ~{value} {unit} ago
                 </BodyText>
               );
             })(previewTimstamp)}
