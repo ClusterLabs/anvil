@@ -1,6 +1,16 @@
 type AnvilCPU = {
   allocated: number;
   cores: number;
+  hosts: {
+    [hostUuid: string]: {
+      cores: number;
+      model: string;
+      name: string;
+      threads: number;
+      uuid: string;
+      vendor: string;
+    };
+  };
   threads: number;
 };
 
@@ -8,6 +18,12 @@ type AnvilMemory = {
   allocated: string;
   reserved: string;
   total: string;
+};
+
+type AnvilMemoryCalcable = {
+  allocated: bigint;
+  reserved: bigint;
+  total: bigint;
 };
 
 type AnvilNetworkBondLink = {
