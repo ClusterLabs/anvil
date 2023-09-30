@@ -1,13 +1,23 @@
-import { Box, linearProgressClasses } from '@mui/material';
-import { FC, ReactElement, useMemo } from 'react';
+import { Box, linearProgressClasses, styled } from '@mui/material';
+import { FC, ReactElement, createElement, useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
-import BorderLinearProgress from './BorderLinearProgress';
+import RoundedLinearProgress from './BorderLinearProgress';
 import Underline from './Underline';
 
+const ThinRoundedLinearProgress = styled(RoundedLinearProgress)({
+  height: '.4em',
+});
+
+const ThinUnderline = styled(Underline)({
+  height: '.2em',
+});
+
 const StackBar: FC<StackBarProps> = (props) => {
-  const { value } = props;
+  const { barProps = {}, thin, underlineProps, value } = props;
+
+  const { sx: barSx, ...restBarProps } = barProps;
 
   const values = useMemo<Record<string, StackBarValue>>(
     () => ('value' in value ? { default: value as StackBarValue } : value),
@@ -17,6 +27,16 @@ const StackBar: FC<StackBarProps> = (props) => {
   const entries = useMemo<[string, StackBarValue][]>(
     () => Object.entries(values).reverse(),
     [values],
+  );
+
+  const creatableBar = useMemo(
+    () => (thin ? ThinRoundedLinearProgress : RoundedLinearProgress),
+    [thin],
+  );
+
+  const creatableUnderline = useMemo(
+    () => (thin ? ThinUnderline : Underline),
+    [thin],
   );
 
   const bars = useMemo<ReactElement[]>(
@@ -40,31 +60,32 @@ const StackBar: FC<StackBarProps> = (props) => {
             width = '100%';
           }
 
-          return (
-            <BorderLinearProgress
-              key={`stack-bar-${id}`}
-              sx={{
-                position,
-                top,
-                width,
+          return createElement(creatableBar, {
+            key: `stack-bar-${id}`,
+            sx: {
+              position,
+              top,
+              width,
 
-                [`& .${linearProgressClasses.bar}`]: {
-                  backgroundColor,
-                },
-              }}
-              variant="determinate"
-              value={val}
-            />
-          );
+              [`& .${linearProgressClasses.bar}`]: {
+                backgroundColor,
+              },
+
+              ...barSx,
+            },
+            variant: 'determinate',
+            value: val,
+            ...restBarProps,
+          });
         },
       ),
-    [entries],
+    [barSx, entries, creatableBar, restBarProps],
   );
 
   return (
     <Box position="relative">
       {bars}
-      <Underline />
+      {createElement(creatableUnderline, underlineProps)}
     </Box>
   );
 };

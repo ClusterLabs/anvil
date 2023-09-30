@@ -3,6 +3,12 @@ type StackBarValue = {
   value: number;
 };
 
-type StackBarProps = {
+type StackBarOptionalProps = {
+  barProps?: import('@mui/material').LinearProgressProps;
+  thin?: boolean;
+  underlineProps?: import('@mui/material').BoxProps;
+};
+
+type StackBarProps = StackBarOptionalProps & {
   value: StackBarValue | Record<string, StackBarValue>;
 };
