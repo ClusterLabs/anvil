@@ -335,7 +335,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       className={classes.button}
                       key={server.serverUUID}
                       component={showCheckbox ? 'div' : 'a'}
-                      href={`/server?uuid=${server.serverUUID}&server_name=${server.serverName}`}
+                      href={`/server?uuid=${server.serverUUID}&server_name=${server.serverName}&server_state=${server.serverState}`}
                       onClick={() => handleChange(server.serverUUID)}
                     >
                       <Box display="flex" flexDirection="row" width="100%">

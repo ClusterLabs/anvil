@@ -17,10 +17,13 @@ import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from '../components/ProvisionServerDialog';
 import Spinner from '../components/Spinner';
+import { last } from '../lib/time';
 
 type ServerListItem = ServerOverviewMetadata & {
   isScreenshotStale?: boolean;
+  loading?: boolean;
   screenshot: string;
+  timestamp: number;
 };
 
 const createServerPreviewContainer = (
@@ -47,15 +50,19 @@ const createServerPreviewContainer = (
         anvilName,
         anvilUUID,
         isScreenshotStale,
+        loading,
         screenshot,
         serverName,
+        serverState,
         serverUUID,
+        timestamp,
       }) => (
         <Preview
           externalPreview={screenshot}
+          externalTimestamp={timestamp}
           headerEndAdornment={[
             <Link
-              href={`/server?uuid=${serverUUID}&server_name=${serverName}`}
+              href={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}`}
               key={`server_list_to_server_${serverUUID}`}
             >
               {serverName}
@@ -70,6 +77,7 @@ const createServerPreviewContainer = (
               {anvilName}
             </Link>,
           ]}
+          isExternalLoading={loading}
           isExternalPreviewStale={isScreenshotStale}
           isFetchPreview={false}
           isShowControls={false}
@@ -77,9 +85,10 @@ const createServerPreviewContainer = (
           key={`server-preview-${serverUUID}`}
           onClickPreview={() => {
             router.push(
-              `/server?uuid=${serverUUID}&server_name=${serverName}&vnc=1`,
+              `/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`,
             );
           }}
+          serverState={serverState}
           serverUUID={serverUUID}
         />
       ),
@@ -150,15 +159,21 @@ const Dashboard: FC = () => {
               ?.screenshot || '';
           const item: ServerListItem = {
             ...serverOverview,
+            loading: true,
             screenshot: previousScreenshot,
+            timestamp: 0,
           };
 
-          fetchJSON<{ screenshot: string }>(
+          fetchJSON<{ screenshot: string; timestamp: number }>(
             `${API_BASE_URL}/server/${serverUUID}?ss=1`,
           )
-            .then(({ screenshot }) => {
+            .then(({ screenshot, timestamp }) => {
+              if (screenshot.length === 0) return;
+
+              item.isScreenshotStale = !last(timestamp, 300);
+              item.loading = false;
               item.screenshot = screenshot;
-              item.isScreenshotStale = false;
+              item.timestamp = timestamp;
 
               const allServersWithScreenshots = [...serverListItems];
 
@@ -174,6 +189,9 @@ const Dashboard: FC = () => {
             })
             .catch(() => {
               item.isScreenshotStale = true;
+            })
+            .finally(() => {
+              item.loading = false;
             });
 
           return item;

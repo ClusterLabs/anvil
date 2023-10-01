@@ -57,7 +57,7 @@ export const getServerDetail: RequestHandler<
   }
 
   if (ss) {
-    const rsBody: ServerDetailScreenshot = { screenshot: '' };
+    const rsBody: ServerDetailScreenshot = { screenshot: '', timestamp: 0 };
     const ssDir = SERVER_PATHS.opt.alteeve.screenshots.self;
 
     let ssNames: string[];
@@ -95,13 +95,14 @@ export const getServerDetail: RequestHandler<
     stdoutVar(ssMetaLatest, `Latest server screenshot: `);
 
     if (ssMetaLatest) {
-      const { name } = ssMetaLatest;
+      const { name, timestamp } = ssMetaLatest;
 
       const ssLatest = readFileSync(path.join(ssDir, name), {
         encoding: 'base64',
       });
 
       rsBody.screenshot = ssLatest;
+      rsBody.timestamp = timestamp;
     }
 
     return response.send(rsBody);
