@@ -107,7 +107,11 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             }
 
             return (
-              <BodyText key={`anvil-summary-host-${uuid}`} whiteSpace="nowrap">
+              <BodyText
+                key={`anvil-summary-host-${uuid}`}
+                variant="caption"
+                whiteSpace="nowrap"
+              >
                 {name}{' '}
                 <InlineMonoText inheritColour color={stateColour}>
                   {stateValue}
@@ -124,10 +128,11 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     () =>
       cpu &&
       cpuSubnodes && (
-        <FlexBox justifyContent="center" row>
+        <FlexBox row>
           <FlexBox spacing={0}>
-            <BodyText variant="caption">{cpuSubnodes[0].name}</BodyText>
-            <MonoText>{cpuSubnodes[0].vendor}</MonoText>
+            <BodyText variant="caption" whiteSpace="nowrap">
+              Vendor <InlineMonoText>{cpuSubnodes[0].vendor}</InlineMonoText>
+            </BodyText>
           </FlexBox>
           <Grid
             columns={2}
@@ -141,22 +146,18 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             width="calc(0% + 4em)"
           >
             <Grid item xs={1}>
-              <BodyText variant="caption">CORES</BodyText>
+              <BodyText variant="caption">Cores</BodyText>
             </Grid>
             <Grid display="flex" item justifyContent="flex-end" xs={1}>
               <MonoText variant="caption">{cpu.cores}</MonoText>
             </Grid>
             <Grid item xs={1}>
-              <BodyText variant="caption">THREADS</BodyText>
+              <BodyText variant="caption">Threads</BodyText>
             </Grid>
             <Grid display="flex" item justifyContent="flex-end" xs={1}>
               <MonoText variant="caption">{cpu.threads}</MonoText>
             </Grid>
           </Grid>
-          <FlexBox spacing={0}>
-            <BodyText variant="caption">{cpuSubnodes[1].name}</BodyText>
-            <MonoText>{cpuSubnodes[1].vendor}</MonoText>
-          </FlexBox>
         </FlexBox>
       ),
     [cpu, cpuSubnodes],
@@ -168,7 +169,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
         <FlexBox spacing={0}>
           <FlexBox row justifyContent="flex-end">
             <BodyText mb="-.3em" variant="caption">
-              FREE
+              Free
               <InlineMonoText>
                 {dSizeStr(memory.total - (memory.reserved + memory.allocated), {
                   toUnit: 'ibyte',
@@ -205,7 +206,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
         <FlexBox spacing={0}>
           <FlexBox row justifyContent="flex-end">
             <BodyText mb="-.3em" variant="caption">
-              FREE
+              Total free
               <InlineMonoText>
                 {dSizeStr(storages.totalFree, { toUnit: 'ibyte' })}
               </InlineMonoText>
