@@ -129,6 +129,21 @@ type APIAnvilOverview = {
   uuid: string;
 };
 
+type APIAnvilDetail = {
+  hosts: {
+    [uuid: string]: {
+      maintenance: boolean;
+      name: string;
+      state: AnvilStatusHost['state'];
+      stateProgress: number;
+      uuid: string;
+    };
+  };
+  name: string;
+  state: AnvilStatus['anvil_state'];
+  uuid: string;
+};
+
 type APIAnvilOverviewList = {
   [uuid: string]: APIAnvilOverview;
 };
