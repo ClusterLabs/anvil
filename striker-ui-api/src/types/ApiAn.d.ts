@@ -86,6 +86,7 @@ type AnvilDetailHostSummary = {
   host_name: string;
   host_uuid: string;
   maintenance_mode: boolean;
+  server_count: number;
   state: string;
   state_message: string;
   state_percent: number;
