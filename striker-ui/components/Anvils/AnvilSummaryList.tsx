@@ -38,7 +38,11 @@ const AnvilSummaryList: FC = () => {
                 children: (
                   <InnerPanel>
                     <InnerPanelHeader>
-                      <BodyText>
+                      <BodyText
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        whiteSpace="nowrap"
+                      >
                         {name}: {description}
                       </BodyText>
                     </InnerPanelHeader>
