@@ -1,7 +1,3 @@
-type AnvilSummaryOptionalProps = {
-  loading?: boolean;
-};
-
-type AnvilSummaryProps = AnvilSummaryOptionalProps & {
+type AnvilSummaryProps = {
   anvilUuid: string;
 };

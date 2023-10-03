@@ -90,7 +90,8 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       anvil && (
         <Grid
           alignItems="center"
-          columns={4}
+          columns={20}
+          columnSpacing="0.5em"
           container
           sx={{
             [`& > .${gridClasses.item}:nth-child(-n + 4)`]: {
@@ -107,38 +108,34 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             let servers: ReactNode;
 
             if (['offline', 'online'].includes(state)) {
-              servers = (
-                <BodyText variant="caption" whiteSpace="nowrap">
-                  Servers{' '}
-                  <InlineMonoText sx={{ paddingRight: 0 }}>
-                    {serverCount}
-                  </InlineMonoText>
-                </BodyText>
-              );
+              servers = <MonoText variant="caption">{serverCount}</MonoText>;
             } else {
               stateValue = `${stateProgress}%`;
             }
 
             return [
-              <Grid item key={`${uuid}-state-label`} xs={1}>
+              <Grid item key={`${uuid}-state-label`} xs={7}>
                 <BodyText variant="caption" whiteSpace="nowrap">
                   {name}
                 </BodyText>
               </Grid>,
-              <Grid item key={`${uuid}-state`} xs={1}>
+              <Grid item key={`${uuid}-state`} xs={5}>
                 <MonoText inheritColour color={stateColour}>
                   {stateValue}
                 </MonoText>
               </Grid>,
-              <Grid item key={`${uuid}-divider`} xs={1}>
-                <Divider sx={{ marginBottom: '-.2em' }} />
+              <Grid item key={`${uuid}-divider`} xs>
+                <Divider sx={{ marginBottom: '-.4em' }} />
+              </Grid>,
+              <Grid item key={`${uuid}-server-label`} width="2.2em">
+                {servers && <BodyText variant="caption">Servers</BodyText>}
               </Grid>,
               <Grid
                 display="flex"
                 item
                 justifyContent="flex-end"
                 key={`${uuid}-server-count`}
-                xs={1}
+                width="2em"
               >
                 {servers}
               </Grid>,
@@ -167,13 +164,13 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             alignItems="center"
             columns={2}
             container
-            minWidth="calc(0% + 3.2em)"
             sx={{
+              width: '3.7em',
+
               [`& > .${gridClasses.item}:nth-child(-n + 2)`]: {
                 marginBottom: '-.6em',
               },
             }}
-            width="calc(0% + 3.2em)"
           >
             <Grid item xs={1}>
               <BodyText variant="caption">Cores</BodyText>
