@@ -36,7 +36,7 @@ const AnvilSummaryList: FC = () => {
 
               previous[key] = {
                 children: (
-                  <InnerPanel>
+                  <InnerPanel width="22em">
                     <InnerPanelHeader>
                       <BodyText
                         overflow="hidden"

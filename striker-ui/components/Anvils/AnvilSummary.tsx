@@ -1,4 +1,4 @@
-import { Grid, gridClasses, typographyClasses } from '@mui/material';
+import { Grid, gridClasses } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { FC, ReactNode, useMemo } from 'react';
 
@@ -9,6 +9,7 @@ import {
   toAnvilMemoryCalcable,
   toAnvilSharedStorageOverview,
 } from '../../lib/api_converters';
+import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
 import StackBar from '../Bars/StackBar';
@@ -87,39 +88,63 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   const hostsSummary = useMemo(
     () =>
       anvil && (
-        <FlexBox
-          spacing={0}
+        <Grid
+          alignItems="center"
+          columns={4}
+          container
           sx={{
-            [`& > .${typographyClasses.root}:first-child`]: {
+            [`& > .${gridClasses.item}:nth-child(-n + 4)`]: {
               marginBottom: '-.6em',
             },
           }}
         >
           {Object.values(anvil.hosts).map<ReactNode>((host) => {
-            const { name, state, stateProgress, uuid } = host;
+            const { name, serverCount, state, stateProgress, uuid } = host;
 
             const stateColour: string = MAP_TO_HOST_STATE_COLOUR[state] ?? GREY;
 
             let stateValue: string = state;
+            let servers: ReactNode;
 
-            if (!['offline', 'online'].includes(state)) {
+            if (['offline', 'online'].includes(state)) {
+              servers = (
+                <BodyText variant="caption" whiteSpace="nowrap">
+                  Servers{' '}
+                  <InlineMonoText sx={{ paddingRight: 0 }}>
+                    {serverCount}
+                  </InlineMonoText>
+                </BodyText>
+              );
+            } else {
               stateValue = `${stateProgress}%`;
             }
 
-            return (
-              <BodyText
-                key={`anvil-summary-host-${uuid}`}
-                variant="caption"
-                whiteSpace="nowrap"
-              >
-                {name}{' '}
-                <InlineMonoText inheritColour color={stateColour}>
+            return [
+              <Grid item key={`${uuid}-state-label`} xs={1}>
+                <BodyText variant="caption" whiteSpace="nowrap">
+                  {name}
+                </BodyText>
+              </Grid>,
+              <Grid item key={`${uuid}-state`} xs={1}>
+                <MonoText inheritColour color={stateColour}>
                   {stateValue}
-                </InlineMonoText>
-              </BodyText>
-            );
+                </MonoText>
+              </Grid>,
+              <Grid item key={`${uuid}-divider`} xs={1}>
+                <Divider sx={{ marginBottom: '-.2em' }} />
+              </Grid>,
+              <Grid
+                display="flex"
+                item
+                justifyContent="flex-end"
+                key={`${uuid}-server-count`}
+                xs={1}
+              >
+                {servers}
+              </Grid>,
+            ];
           })}
-        </FlexBox>
+        </Grid>
       ),
     [anvil],
   );
@@ -128,22 +153,27 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     () =>
       cpu &&
       cpuSubnodes && (
-        <FlexBox row>
+        <FlexBox row spacing=".5em">
           <FlexBox spacing={0}>
             <BodyText variant="caption" whiteSpace="nowrap">
-              Vendor <InlineMonoText>{cpuSubnodes[0].vendor}</InlineMonoText>
+              Vendor{' '}
+              <InlineMonoText sx={{ paddingRight: 0 }}>
+                {cpuSubnodes[0].vendor}
+              </InlineMonoText>
             </BodyText>
           </FlexBox>
+          <Divider sx={{ flexGrow: 1 }} />
           <Grid
+            alignItems="center"
             columns={2}
             container
-            minWidth="calc(0% + 4em)"
+            minWidth="calc(0% + 3.2em)"
             sx={{
               [`& > .${gridClasses.item}:nth-child(-n + 2)`]: {
                 marginBottom: '-.6em',
               },
             }}
-            width="calc(0% + 4em)"
+            width="calc(0% + 3.2em)"
           >
             <Grid item xs={1}>
               <BodyText variant="caption">Cores</BodyText>
@@ -238,44 +268,44 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   ) : (
     <Grid
       alignItems="center"
-      columns={3}
+      columns={4}
       container
       sx={{
         [`& > .${gridClasses.item}:nth-child(odd)`]: {
           alignItems: 'center',
           display: 'flex',
-          height: '2.5em',
+          height: '2.2em',
         },
       }}
     >
       <Grid item xs={1}>
         <BodyText>Node</BodyText>
       </Grid>
-      <Grid item xs={2}>
+      <Grid item xs={3}>
         {anvilSummary}
       </Grid>
       <Grid item xs={1}>
         <BodyText>Subnodes</BodyText>
       </Grid>
-      <Grid item xs={2}>
+      <Grid item xs={3}>
         {hostsSummary}
       </Grid>
       <Grid item xs={1}>
         <BodyText>CPU</BodyText>
       </Grid>
-      <Grid item xs={2}>
+      <Grid item xs={3}>
         {cpuSummary}
       </Grid>
       <Grid item xs={1}>
         <BodyText>Memory</BodyText>
       </Grid>
-      <Grid item xs={2}>
+      <Grid item xs={3}>
         {memorySummary}
       </Grid>
       <Grid item xs={1}>
         <BodyText>Storage</BodyText>
       </Grid>
-      <Grid item xs={2}>
+      <Grid item xs={3}>
         {storeSummary}
       </Grid>
     </Grid>

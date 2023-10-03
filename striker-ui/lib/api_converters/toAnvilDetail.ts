@@ -11,6 +11,7 @@ const toAnvilDetail = (data: AnvilListItem): APIAnvilDetail => {
       host_name: hostName,
       host_uuid: hostUuid,
       maintenance_mode: maintenance,
+      server_count: serverCount,
       state,
       state_percent: stateProgress,
     } = current;
@@ -18,6 +19,7 @@ const toAnvilDetail = (data: AnvilListItem): APIAnvilDetail => {
     previous[hostUuid] = {
       name: hostName,
       maintenance,
+      serverCount,
       state,
       stateProgress,
       uuid: hostUuid,
