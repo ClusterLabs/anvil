@@ -7,9 +7,11 @@ import { getFenceSpec, timestamp, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { stderr, stdoutVar, uuid } from '../../shell';
 
-const handleNumberType = (v: unknown) => String(sanitize(v, 'number'));
+const handleNumberType = (v: unknown) =>
+  String(sanitize(v, 'number', { modifierType: 'sql' }));
 
-const handleStringType = (v: unknown) => sanitize(v, 'string');
+const handleStringType = (v: unknown) =>
+  sanitize(v, 'string', { modifierType: 'sql' });
 
 const MAP_TO_VAR_TYPE: Record<
   AnvilDataFenceParameterType,
@@ -46,9 +48,12 @@ export const createFence: RequestHandler<
     return response.status(500).send();
   }
 
-  const agent = sanitize(rAgent, 'string');
-  const name = sanitize(rName, 'string');
-  const fenceUuid = sanitize(rUuid, 'string', { fallback: uuid() });
+  const agent = sanitize(rAgent, 'string', { modifierType: 'sql' });
+  const name = sanitize(rName, 'string', { modifierType: 'sql' });
+  const fenceUuid = sanitize(rUuid, 'string', {
+    fallback: uuid(),
+    modifierType: 'sql',
+  });
 
   const { [agent]: agentSpec } = fenceSpec;
 
