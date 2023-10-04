@@ -11,12 +11,12 @@ export const createManifest: RequestHandler = async (...handlerArgs) => {
 
   try {
     result = await buildManifest(...handlerArgs);
-  } catch (buildError) {
-    stderr(`Failed to create new install manifest; CAUSE ${buildError}`);
+  } catch (error) {
+    stderr(`Failed to create new install manifest; CAUSE ${error}`);
 
     let code = 500;
 
-    if (buildError instanceof AssertionError) {
+    if (error instanceof AssertionError) {
       code = 400;
     }
 
