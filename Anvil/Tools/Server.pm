@@ -1462,6 +1462,10 @@ The XML was dumped by C<< virsh >> from memory.
 
 The XML was read from the C<< definitions >> database table.
 
+=head4 C<< test >> 
+
+The XML is a test definition, and not actually from anywhere.
+
 =head3 definition (required)
 
 This is the actual XML to be parsed.
