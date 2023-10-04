@@ -1,12 +1,13 @@
+import { Add as AddIcon } from '@mui/icons-material';
+import { Box, Divider, Grid } from '@mui/material';
 import Head from 'next/head';
 import { NextRouter, useRouter } from 'next/router';
 import { FC, useEffect, useRef, useState } from 'react';
-import { Box, Divider } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
+import AnvilSummaryList from '../components/Anvils/AnvilSummaryList';
 import { Preview } from '../components/Display';
 import fetchJSON from '../lib/fetchers/fetchJSON';
 import Header from '../components/Header';
@@ -17,6 +18,7 @@ import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from '../components/ProvisionServerDialog';
 import Spinner from '../components/Spinner';
+import { HeaderText } from '../components/Text';
 import { last } from '../lib/time';
 
 type ServerListItem = ServerOverviewMetadata & {
@@ -30,20 +32,11 @@ const createServerPreviewContainer = (
   servers: ServerListItem[],
   router: NextRouter,
 ) => (
-  <Box
-    sx={{
-      display: 'flex',
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-
-      '& > *': {
-        width: { xs: '20em', md: '24em' },
-      },
-
-      '& > :not(:last-child)': {
-        marginRight: '2em',
-      },
-    }}
+  <Grid
+    alignContent="stretch"
+    columns={{ xs: 1, sm: 2, md: 3, xl: 4 }}
+    container
+    spacing="1em"
   >
     {servers.map(
       ({
@@ -57,43 +50,57 @@ const createServerPreviewContainer = (
         serverUUID,
         timestamp,
       }) => (
-        <Preview
-          externalPreview={screenshot}
-          externalTimestamp={timestamp}
-          headerEndAdornment={[
-            <Link
-              href={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}`}
-              key={`server_list_to_server_${serverUUID}`}
-            >
-              {serverName}
-            </Link>,
-            <Link
-              href={`/anvil?anvil_uuid=${anvilUUID}`}
-              key={`server_list_server_${serverUUID}_to_anvil_${anvilUUID}`}
-              sx={{
-                opacity: 0.7,
-              }}
-            >
-              {anvilName}
-            </Link>,
-          ]}
-          isExternalLoading={loading}
-          isExternalPreviewStale={isScreenshotStale}
-          isFetchPreview={false}
-          isShowControls={false}
-          isUseInnerPanel
-          key={`server-preview-${serverUUID}`}
-          onClickPreview={() => {
-            router.push(
-              `/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`,
-            );
+        <Grid
+          item
+          key={`${serverUUID}-preview`}
+          sx={{
+            minWidth: '20em',
+
+            '& > div': {
+              height: '100%',
+              marginBottom: 0,
+              marginTop: 0,
+            },
           }}
-          serverState={serverState}
-          serverUUID={serverUUID}
-        />
+          xs={1}
+        >
+          <Preview
+            externalPreview={screenshot}
+            externalTimestamp={timestamp}
+            headerEndAdornment={[
+              <Link
+                href={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}`}
+                key={`server_list_to_server_${serverUUID}`}
+              >
+                {serverName}
+              </Link>,
+              <Link
+                href={`/anvil?anvil_uuid=${anvilUUID}`}
+                key={`server_list_server_${serverUUID}_to_anvil_${anvilUUID}`}
+                sx={{
+                  opacity: 0.7,
+                }}
+              >
+                {anvilName}
+              </Link>,
+            ]}
+            isExternalLoading={loading}
+            isExternalPreviewStale={isScreenshotStale}
+            isFetchPreview={false}
+            isShowControls={false}
+            isUseInnerPanel
+            onClickPreview={() => {
+              router.push(
+                `/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`,
+              );
+            }}
+            serverState={serverState}
+            serverUUID={serverUUID}
+          />
+        </Grid>
       ),
     )}
-  </Box>
+  </Grid>
 );
 
 const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
@@ -222,19 +229,20 @@ const Dashboard: FC = () => {
           <Spinner />
         ) : (
           <>
-            <PanelHeader>
+            <PanelHeader sx={{ marginBottom: '2em' }}>
+              <HeaderText>Servers</HeaderText>
+              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
+                <AddIcon />
+              </IconButton>
               <OutlinedInput
                 placeholder="Search by server name"
                 onChange={({ target: { value } }) => {
                   setInputSearchTerm(value);
                   updateServerList(allServers, value);
                 }}
-                sx={{ marginRight: '.6em' }}
+                sx={{ minWidth: '16em' }}
                 value={inputSearchTerm}
               />
-              <IconButton onClick={() => setIsOpenProvisionServerDialog(true)}>
-                <AddIcon />
-              </IconButton>
             </PanelHeader>
             {createServerPreviewContainer(includeServers, router)}
             {includeServers.length > 0 && (
@@ -244,6 +252,7 @@ const Dashboard: FC = () => {
           </>
         )}
       </Panel>
+      <AnvilSummaryList />
       <ProvisionServerDialog
         dialogProps={{ open: isOpenProvisionServerDialog }}
         onClose={() => {

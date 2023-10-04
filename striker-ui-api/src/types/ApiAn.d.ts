@@ -1,3 +1,23 @@
+type AnvilDetailCpuHost = {
+  cores: number;
+  model: string;
+  name: string;
+  threads: number;
+  uuid: string;
+  vendor: string;
+};
+
+type AnvilDetailCpuHostList = {
+  [hostUuid: string]: AnvilDetailCpuHost;
+};
+
+type AnvilDetailCpuSummary = {
+  allocated: number;
+  cores: number;
+  hosts: AnvilDetailCpuHostList;
+  threads: number;
+};
+
 type AnvilDetailFileForProvisionServer = {
   fileUUID: string;
   fileName: string;
@@ -66,6 +86,7 @@ type AnvilDetailHostSummary = {
   host_name: string;
   host_uuid: string;
   maintenance_mode: boolean;
+  server_count: number;
   state: string;
   state_message: string;
   state_percent: number;
@@ -109,6 +130,8 @@ type AnvilDetailParamsDictionary = {
 
 type AnvilDetailStoreSummary = {
   storage_groups: AnvilDetailStore[];
+  total_free: string;
+  total_size: string;
 };
 
 type AnvilOverview = {

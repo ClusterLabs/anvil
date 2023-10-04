@@ -6,6 +6,7 @@ import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import AddFileForm from './AddFileForm';
 import api from '../../lib/api';
+import { toAnvilOverviewList } from '../../lib/api_converters';
 import ConfirmDialog from '../ConfirmDialog';
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
@@ -22,41 +23,6 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
 import useProtectedState from '../../hooks/useProtectedState';
-
-const toAnvilOverviewHostList = (
-  data: APIAnvilOverviewArray[number]['hosts'],
-) =>
-  data.reduce<APIAnvilOverview['hosts']>(
-    (previous, { hostName: name, hostType: type, hostUUID: uuid }) => {
-      previous[uuid] = { name, type, uuid };
-
-      return previous;
-    },
-    {},
-  );
-
-const toAnvilOverviewList = (data: APIAnvilOverviewArray) =>
-  data.reduce<APIAnvilOverviewList>(
-    (
-      previous,
-      {
-        anvilDescription: description,
-        anvilName: name,
-        anvilUUID: uuid,
-        hosts,
-      },
-    ) => {
-      previous[uuid] = {
-        description,
-        hosts: toAnvilOverviewHostList(hosts),
-        name,
-        uuid,
-      };
-
-      return previous;
-    },
-    {},
-  );
 
 const toFileOverviewList = (rows: string[][]) =>
   rows.reduce<APIFileOverviewList>((previous, row) => {

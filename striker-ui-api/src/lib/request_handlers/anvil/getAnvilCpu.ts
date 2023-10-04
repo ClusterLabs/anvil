@@ -1,6 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { query } from '../../accessModule';
+import { getShortHostName } from '../../disassembleHostName';
 import { stderr } from '../../shell';
 
 export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
@@ -11,26 +12,42 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
     params: { anvilUuid },
   } = request;
 
-  let rCores: null | string;
-  let rThreads: null | string;
+  let rCpus: [
+    hostUuid: string,
+    hostName: string,
+    cpuModel: string,
+    cpuCores: string,
+    cpuThreads: string,
+    cpuMinCores: string,
+    cpuMinThreads: string,
+  ][];
 
   try {
-    [[rCores = '', rThreads = '']] = await query<
-      [[cpuCores: null | string, cpuThreads: null | string]]
-    >(
+    rCpus = await query(
       `SELECT
+          b.host_uuid,
+          b.host_name,
+          c.scan_hardware_cpu_model,
+          c.scan_hardware_cpu_cores,
+          c.scan_hardware_cpu_threads,
           MIN(c.scan_hardware_cpu_cores) AS cores,
           MIN(c.scan_hardware_cpu_threads) AS threads
         FROM anvils AS a
         JOIN hosts AS b
           ON b.host_uuid IN (
             a.anvil_node1_host_uuid,
-            a.anvil_node2_host_uuid,
-            a.anvil_dr1_host_uuid
+            a.anvil_node2_host_uuid
           )
         JOIN scan_hardware AS c
           ON b.host_uuid = c.scan_hardware_host_uuid
-        WHERE a.anvil_uuid = '${anvilUuid}';`,
+        WHERE a.anvil_uuid = '${anvilUuid}'
+        GROUP BY
+          b.host_uuid,
+          b.host_name,
+          c.scan_hardware_cpu_model,
+          c.scan_hardware_cpu_cores,
+          c.scan_hardware_cpu_threads
+        ORDER BY b.host_name;`,
     );
   } catch (error) {
     stderr(`Failed to get anvil ${anvilUuid} cpu info; CAUSE: ${error}`);
@@ -38,13 +55,12 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
     return response.status(500).send();
   }
 
-  const cores = Number.parseInt(rCores);
-  const threads = Number.parseInt(rThreads);
+  if (!rCpus.length) return response.status(404).send();
 
-  let rAllocated: null | string;
+  let rAllocatedRow: [cpuAllocated: string][];
 
   try {
-    [[rAllocated = '']] = await query<[[cpuAllocated: null | string]]>(
+    rAllocatedRow = await query(
       `SELECT
           SUM(
             CAST(
@@ -64,11 +80,45 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
     return response.status(500).send();
   }
 
-  const allocated = Number.parseInt(rAllocated);
+  if (!rAllocatedRow.length) return response.status(404).send();
 
-  response.status(200).send({
-    allocated,
-    cores,
-    threads,
-  });
+  const {
+    0: { 5: rMinCores, 6: rMinThreads },
+  } = rCpus;
+
+  const minCores = Number(rMinCores);
+  const minThreads = Number(rMinThreads);
+
+  const [[rAllocated]] = rAllocatedRow;
+
+  const allocated = Number(rAllocated);
+
+  const rsBody = rCpus.reduce<AnvilDetailCpuSummary>(
+    (previous, current) => {
+      const { 0: uuid, 1: name, 2: model, 3: rCores, 4: rThreads } = current;
+
+      const cores = Number(rCores);
+      const threads = Number(rThreads);
+      const vendor = model.replace(/^(\w+).*$/, '$1');
+
+      previous.hosts[uuid] = {
+        cores,
+        model,
+        name: getShortHostName(name),
+        threads,
+        uuid,
+        vendor,
+      };
+
+      return previous;
+    },
+    {
+      allocated,
+      cores: minCores,
+      hosts: {},
+      threads: minThreads,
+    },
+  );
+
+  response.status(200).send(rsBody);
 };

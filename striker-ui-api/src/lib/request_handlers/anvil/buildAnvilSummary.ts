@@ -34,6 +34,34 @@ export const buildAnvilSummary = async ({
     hosts: [],
   };
 
+  let scounts: [scount: number, hostUuid: string][];
+
+  try {
+    scounts = await query(
+      `SELECT
+          COUNT(a.server_name),
+          b.host_uuid
+        FROM servers AS a
+        JOIN hosts AS b
+          ON a.server_host_uuid = b.host_uuid
+        JOIN anvils AS c
+          ON b.host_uuid IN (
+            c.anvil_node1_host_uuid,
+            c.anvil_node2_host_uuid
+          )
+        WHERE c.anvil_uuid = '${anvilUuid}'
+          AND a.server_state = 'running'
+        GROUP BY b.host_uuid, b.host_name
+        ORDER BY b.host_name;`,
+    );
+  } catch (error) {
+    stderr(`Failed to get subnodes' server count; CAUSE: ${error}`);
+
+    throw error;
+  }
+
+  if (!scounts.length) throw new Error(`No host server records found`);
+
   for (const huuid of [n1uuid, n2uuid]) {
     const {
       host_uuid: {
@@ -43,10 +71,21 @@ export const buildAnvilSummary = async ({
 
     const { hosts: rhosts } = result;
 
+    const found = scounts.find((row) => {
+      if (row.length !== 2) return false;
+
+      const { 1: uuid } = row;
+
+      return uuid === huuid;
+    });
+
+    const scount = found ? found[0] : 0;
+
     const hsummary: AnvilDetailHostSummary = {
       host_name: hname,
       host_uuid: huuid,
       maintenance_mode: false,
+      server_count: scount,
       state: 'offline',
       state_message: buildHostStateMessage(),
       state_percent: 0,

@@ -27,7 +27,14 @@ export const getAnvilStore: RequestHandler<
     return response.status(400).send();
   }
 
-  let rows: [uuid: string, name: string, size: string, free: string][];
+  let rows: [
+    uuid: string,
+    name: string,
+    size: string,
+    free: string,
+    totalSize: string,
+    totalFree: string,
+  ][];
 
   try {
     rows = await query(
@@ -35,7 +42,9 @@ export const getAnvilStore: RequestHandler<
           DISTINCT ON (b.storage_group_uuid) storage_group_uuid,
           b.storage_group_name,
           d.scan_lvm_vg_size,
-          d.scan_lvm_vg_free
+          d.scan_lvm_vg_free,
+          SUM(d.scan_lvm_vg_size) AS total_vg_size,
+          SUM(d.scan_lvm_vg_free) AS total_vg_free
         FROM anvils AS a
         JOIN storage_groups AS b
           ON a.anvil_uuid = b.storage_group_anvil_uuid
@@ -44,6 +53,11 @@ export const getAnvilStore: RequestHandler<
         JOIN scan_lvm_vgs AS d
           ON c.storage_group_member_vg_uuid = d.scan_lvm_vg_internal_uuid
         WHERE a.anvil_uuid = '${anUuid}'
+        GROUP BY
+          b.storage_group_uuid,
+          b.storage_group_name,
+          d.scan_lvm_vg_size,
+          d.scan_lvm_vg_free
         ORDER BY b.storage_group_uuid, d.scan_lvm_vg_free;`,
     );
   } catch (error) {
@@ -51,6 +65,12 @@ export const getAnvilStore: RequestHandler<
 
     return response.status(500).send();
   }
+
+  if (!rows.length) return response.status(404).send();
+
+  const {
+    0: { 4: totalSize, 5: totalFree },
+  } = rows;
 
   const rsbody: AnvilDetailStoreSummary = {
     storage_groups: rows.map<AnvilDetailStore>(
@@ -61,6 +81,8 @@ export const getAnvilStore: RequestHandler<
         storage_group_uuid: sgUuid,
       }),
     ),
+    total_free: totalFree,
+    total_size: totalSize,
   };
 
   return response.json(rsbody);

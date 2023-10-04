@@ -1,6 +1,16 @@
 type AnvilCPU = {
   allocated: number;
   cores: number;
+  hosts: {
+    [hostUuid: string]: {
+      cores: number;
+      model: string;
+      name: string;
+      threads: number;
+      uuid: string;
+      vendor: string;
+    };
+  };
   threads: number;
 };
 
@@ -8,6 +18,12 @@ type AnvilMemory = {
   allocated: string;
   reserved: string;
   total: string;
+};
+
+type AnvilMemoryCalcable = {
+  allocated: bigint;
+  reserved: bigint;
+  total: bigint;
 };
 
 type AnvilNetworkBondLink = {
@@ -62,15 +78,18 @@ type AnvilSharedStorageGroup = {
 
 type AnvilSharedStorage = {
   storage_groups: AnvilSharedStorageGroup[];
+  total_size: string;
+  total_free: string;
 };
 
 type AnvilStatusHost = {
-  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
-  host_uuid: string;
   host_name: string;
-  state_percent: number;
+  host_uuid: string;
+  maintenance_mode: boolean;
+  server_count: number;
+  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
   state_message: string;
-  removable: boolean;
+  state_percent: number;
 };
 
 type AnvilStatus = {
@@ -111,6 +130,37 @@ type APIAnvilOverview = {
   uuid: string;
 };
 
+type APIAnvilDetail = {
+  hosts: {
+    [uuid: string]: {
+      maintenance: boolean;
+      name: string;
+      serverCount: number;
+      state: AnvilStatusHost['state'];
+      stateProgress: number;
+      uuid: string;
+    };
+  };
+  name: string;
+  state: AnvilStatus['anvil_state'];
+  uuid: string;
+};
+
 type APIAnvilOverviewList = {
   [uuid: string]: APIAnvilOverview;
+};
+
+type APIAnvilStorageGroupCalcable = {
+  free: bigint;
+  name: string;
+  size: bigint;
+  uuid: string;
+};
+
+type APIAnvilSharedStorageOverview = {
+  storageGroups: {
+    [uuid: string]: APIAnvilStorageGroupCalcable;
+  };
+  totalFree: bigint;
+  totalSize: bigint;
 };
