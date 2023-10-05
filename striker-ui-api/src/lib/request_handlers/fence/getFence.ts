@@ -20,16 +20,33 @@ export const getFence: RequestHandler = buildGetRequestHandler(
 
     const afterQueryReturn: QueryResultModifierFunction | undefined =
       buildQueryResultReducer<{ [fenceUUID: string]: FenceOverview }>(
-        (previous, [fenceUUID, fenceName, fenceAgent, fenceArgumentString]) => {
-          const fenceParameters = fenceArgumentString
-            .split(/\s+/)
-            .reduce<FenceParameters>((previous, parameterPair) => {
-              const [parameterId, parameterValue] = parameterPair.split(/=/);
+        (
+          previous,
+          [fenceUUID, fenceName, fenceAgent, fenceParametersString],
+        ) => {
+          const fenceParametersArray = fenceParametersString.match(
+            /(?:[^\s'"]+|'[^']*'|"[^"]*")+/g,
+          );
 
-              previous[parameterId] = parameterValue.replace(/['"]/g, '');
+          if (!fenceParametersArray) return previous;
 
-              return previous;
-            }, {});
+          const fenceParameters = fenceParametersArray.reduce<FenceParameters>(
+            (previousParameters, parameterString) => {
+              const parameterPair = parameterString.split(/=(.*)/, 2);
+
+              if (parameterPair.length !== 2) return previousParameters;
+
+              const [parameterId, parameterValue] = parameterPair;
+
+              previousParameters[parameterId] = parameterValue.replace(
+                /['"]/g,
+                '',
+              );
+
+              return previousParameters;
+            },
+            {},
+          );
 
           stdout(
             `${fenceAgent}: ${fenceName} (${fenceUUID})\n${JSON.stringify(

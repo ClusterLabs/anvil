@@ -14,14 +14,14 @@ export const updateManifest: RequestHandler = async (...args) => {
 
   try {
     result = await buildManifest(...args);
-  } catch (buildError) {
+  } catch (error) {
     stderr(
-      `Failed to update install manifest ${manifestUuid}; CAUSE: ${buildError}`,
+      `Failed to update install manifest ${manifestUuid}; CAUSE: ${error}`,
     );
 
     let code = 500;
 
-    if (buildError instanceof AssertionError) {
+    if (error instanceof AssertionError) {
       code = 400;
     }
 

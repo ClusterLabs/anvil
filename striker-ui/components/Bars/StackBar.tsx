@@ -46,9 +46,9 @@ const StackBar: FC<StackBarProps> = (props) => {
           const backgroundColor =
             typeof colour === 'string'
               ? colour
-              : Object.entries(colour).findLast(
-                  ([mark]) => val >= Number(mark),
-                )?.[1] ?? GREY;
+              : Object.entries(colour)
+                  .reverse()
+                  .find(([mark]) => val >= Number(mark))?.[1] ?? GREY;
 
           let position: 'absolute' | 'relative' = 'relative';
           let top: 0 | undefined;
