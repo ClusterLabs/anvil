@@ -7,6 +7,8 @@ use strict;
 use warnings;
 use Scalar::Util qw(weaken isweak);
 use Data::Dumper;
+use Text::Diff;
+use Sys::Virt;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Server.pm";
@@ -24,6 +26,7 @@ my $THIS_FILE = "Server.pm";
 # parse_definition
 # migrate_virsh
 # shutdown_virsh
+# update_definition
 
 =cut TODO
 
@@ -2344,6 +2347,224 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { success => $success }});
 	return($success);
+}
+
+=head2 update_definition
+
+This takes a new server XML definition and saves it in the database and writes it out to the on-disk files. If either subnode or DR host is inacessible, this still returns success as C<< scan-server >> will pick up the new definition when the server comes back online.
+
+If there is a problem, C<< !!error!! >> is returned. If it is updated, C<< 0 >> is returned. 
+
+Parameters;
+
+=head3 server (required)
+
+This is the name or UUID of the server being updated.
+
+=head3 new_definition_xml
+
+This is the new XML definition file. It will be parsed and sanity checked.
+
+=cut
+sub update_definition
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->update_definition()" }});
+	
+	my $server             = defined $parameter->{server}             ? $parameter->{server}             : "";
+	my $new_definition_xml = defined $parameter->{new_definition_xml} ? $parameter->{new_definition_xml} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server             => $server, 
+		new_definition_xml => $new_definition_xml, 
+	}});
+	
+	if (not $server)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->update_definition()", parameter => "server" }});
+		return('!!error!!');
+	}
+	if (not $new_definition_xml)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->update_definition()", parameter => "new_definition_xml" }});
+		return('!!error!!');
+	}
+	
+	my ($server_name, $server_uuid) = $anvil->Get->server_from_switch({
+		debug         => $debug,
+		server_string => $server, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_name => $server_name,
+		server_uuid => $server_uuid, 
+	}});
+	
+	# Do we have a valid server UUID?
+	$anvil->Database->get_anvils({debug => $debug});
+	$anvil->Database->get_servers({debug => $debug});
+	
+	if (not exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+	{
+		# Invalid.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0463", variables => { 
+			server      => $server,
+			server_uuid => $server_uuid, 
+		}});
+		return('!!error!!');
+	}
+	
+	# Validate the new XML
+	my $short_host_name = $anvil->Get->short_host_name();
+	my $problem         = $anvil->Server->parse_definition({
+		debug      => 2,
+		target     => $short_host_name,
+		server     => $server_name, 
+		source     => "test",
+		definition => $new_definition_xml, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Failed to parse.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0464", variables => { 
+			server_name => $server_name,
+			xml         => $new_definition_xml, 
+		}});
+		return('!!error!!');
+	}
+	else
+	{
+		my $test_uuid = $anvil->data->{server}{$short_host_name}{$server_name}{test}{info}{uuid} // "";
+		if ((not $test_uuid) or ($test_uuid ne $server_uuid))
+		{
+			# Somehow the new XML is invalid.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0464", variables => { 
+				server_name => $server_name,
+				xml         => $new_definition_xml, 
+			}});
+			return('!!error!!');
+		}
+	}
+	
+	# Prep our variables.
+	my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $definition_uuid   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_uuid};
+	my $db_definition_xml = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	my $node1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node1_host_name   = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
+	my $node2_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $node2_host_name   = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid        => $anvil_uuid, 
+		definition_uuid   => $definition_uuid, 
+		db_definition_xml => $db_definition_xml,  
+		node1_host_uuid   => $node1_host_uuid, 
+		node1_host_name   => $node1_host_name, 
+		node2_host_uuid   => $node2_host_uuid, 
+		node2_host_name   => $node2_host_name, 
+	}});
+	
+	# Is there a difference between the new and DB definition?
+	my $db_difference = diff \$db_definition_xml, \$new_definition_xml, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { db_difference => $db_difference }});
+	
+	if ($db_difference)
+	{
+		# Update the DB.
+		$anvil->Database->insert_or_update_server_definitions({
+			debug                         => $debug,
+			server_definition_uuid        => $definition_uuid, 
+			server_definition_server_uuid => $server_uuid, 
+			server_definition_xml         => $new_definition_xml, 
+		});
+	}
+	
+	# Look for definitions 
+	my $hosts = [$node1_host_uuid, $node2_host_uuid];
+	foreach my $dr_host_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}})
+	{
+		my $dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}{$dr_host_name}{dr_link_uuid};
+		my $dr_host_uuid = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:dr_host_name' => $dr_host_name,
+			's2:dr_host_uuid' => $dr_host_uuid, 
+			's3:dr_link_uuid' => $dr_link_uuid, 
+		}});
+		push @{$hosts}, $dr_host_uuid;
+	}
+	
+	# Get the host UUIDs for the node this server is hosted by.
+	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_file => $definition_file }});
+	foreach my $host_uuid (@{$hosts})
+	{
+		# Find a target_ip (local will be detected as local in the file read/write)
+		my $target_ip = $anvil->Network->find_target_ip({
+			debug       => 2,
+			host_uuid   => $host_uuid,
+			test_access => 1,
+			networks    => "bcn,mn,sn,ifn,any",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+		if ($target_ip)
+		{
+			# Read the old definition.
+			my $old_definition_xml = $anvil->Storage->read_file({
+				debug  => $debug, 
+				file   => $definition_file, 
+				target => $target_ip, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_definition_xml => $old_definition_xml }});
+			### TODO: Handle when the definition file simply doesn't exist.
+			if ((not $old_definition_xml) or ($old_definition_xml eq "!!error!!") or ($old_definition_xml !~ /<domain/ms))
+			{
+				my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0163", variables => { 
+					server_name => $server_name,
+					host_name   => $host_name, 
+					file        => $definition_file,
+				}});
+			}
+			else
+			{
+				my $file_difference = diff \$old_definition_xml, \$new_definition_xml, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_difference => $file_difference }});
+				
+				if ($file_difference)
+				{
+					# Update
+					my $error = $anvil->Storage->write_file({
+						debug     => $debug, 
+						file      => $definition_file, 
+						body      => $new_definition_xml, 
+						backup    => 1,
+						overwrite => 1,
+						mode      => "0644",
+						group     => "root",
+						user      => "root",
+						target    => $target_ip, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
+					if ($error)
+					{
+						my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0164", variables => { 
+							server_name => $server_name,
+							host_name   => $host_name, 
+							file        => $definition_file,
+						}});
+					}
+				}
+			}
+			
+			# If the server running or defined here?
+			
+		}
+	}
+	
+	return(0);
 }
 
 # =head3

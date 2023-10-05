@@ -726,6 +726,13 @@ The creation of the new replicatedd disk is incomplete, manual intervention is r
 ====================
 The creation of the new replicated disk is incomplete, manual intervention is required!]]></key>
 		<key name="error_0462"><![CDATA[The switch '--immediate' can not be used with '--server all'.]]></key>
+		<key name="error_0463"><![CDATA[Failed to translate the 'server' string: [#!variable!server!#] to a UUID: [#!variable!server_uuid!#].]]></key>
+		<key name="error_0464"><![CDATA[There was a problem parsing the new XML definition for the server: [#!variable!server_name!#]. Either the XML failed to parse, or the server's UUID doesn't match.
+The XML that failed sanity check was:
+========
+#!variable!xml!#
+========
+]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3933,6 +3940,8 @@ We will try to proceed anyway.</key>
 #!variable!error!#
 ====
 </key>
+		<key name="warning_0163"><![CDATA[Failed to read the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
+		<key name="warning_0164"><![CDATA[Failed to update the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		
 	</language>
 	<!-- 日本語 -->

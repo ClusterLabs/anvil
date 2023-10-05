@@ -271,12 +271,6 @@ sub manage_boot_menu
 		my $new_definition = "";
 		my $in_os          = 0;
 		my $bootmenu_seen  = 0;
-=cut 
-  <os>
-    <type arch='x86_64' machine='pc-q35-rhel8.6.0'>hvm</type>
-    <bootmenu enable='yes'/>
-  </os>
-=cut 
 		foreach my $line (split/\n/, $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -289,23 +283,14 @@ sub manage_boot_menu
 			{
 				if ($line =~ /<bootmenu enable='(.*?)'\/>/)
 				{
-					my $old_value     = $1;
-					   $bootmenu_seen = 1;
+					my $old_value     =  $1;
+					   $bootmenu_seen =  1;
+					   $line          =~ s/<bootmenu enable='.*?'\/>/<bootmenu enable='$new_boot_menu'\/>/;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						old_value     => $old_value, 
 						bootmenu_seen => $bootmenu_seen, 
+						line          => $line,
 					}});
-					if ($old_value eq $anvil->data->{switches}{'boot-menu'})
-					{
-						# Update not needed.
-						print "The boot menu is already: [".$anvil->data->{switches}{'boot-menu'}."], update not needed.\n";
-					}
-					else
-					{
-						# Update is needed.
-						$line =~ s/<bootmenu enable='.*?'\/>/<bootmenu enable='$new_boot_menu'\/>/;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-					}
 				}
 				if ($line =~ /<\/os>/)
 				{
@@ -322,21 +307,13 @@ sub manage_boot_menu
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_definition => $new_definition }});
 		
-		my $difference = diff \$anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}, \$new_definition, { STYLE => 'Unified' };
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
-		
-		if ($difference)
-		{
-			# Test parse it.
-			my $problem = $anvil->Server->parse_definition({
-				debug      => 2,
-				host       => $short_host_name,
-				server     => $server_name, 
-				source     => "test",
-				definition => $new_definition, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		}
+		# Always call this, as a previous run may have only updated some definitions.
+		my $problem = $anvil->Server->update_definition({
+			debug              => 2, 
+			server             => $server_uuid,
+			new_definition_xml => $new_definition, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	}
 	else
 	{
