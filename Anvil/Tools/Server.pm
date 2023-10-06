@@ -16,6 +16,7 @@ my $THIS_FILE = "Server.pm";
 ### Methods;
 # active_migrations
 # boot_virsh
+# connect_to_virsh
 # count_servers
 # find
 # find_processes
@@ -296,6 +297,149 @@ WHERE
 	return($success);
 }
 
+=head2 connect_to_libvirt
+
+This creates a connection to the libvirtd daemon on the target host. The connection to the host will be stored in:
+
+* libvirtd::<target>::connection
+
+If the connection succeeds, C<< 0 >> will be returned. If the connection fails, C<< 1 >> will be returned.
+
+parameters
+
+=head3 server_name (optional)
+
+If this is set to the name of a server, that server will be searched for and, if found, the handle to it will be stored in:
+
+* libvirtd::<target>::server::<server_name>::connection
+
+If the server is not found, that will be set to C<< 0 >>
+
+=head3 target (optional, default is the local short host name)
+
+This is the target to connect to. 
+
+B<< Note >>: Don't use C<< localhost >>! If you do, it will be changed to the short host name. This is because C<< localhost >> is converted to C<< ::1 >> which can cause connection problems.
+
+=cut
+sub connect_to_libvirt
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->connect_to_libvirt()" }});
+	
+	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		server_name => $server_name, 
+		target      => $target, 
+	}});
+	
+	if ((not $target)or ($target eq "localhost"))
+	{
+		# Change to the short host name.
+		$target = $anvil->Get->short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+	}
+	
+	# Does the handle already exist?
+	if ((exists $anvil->data->{libvirtd}{$target}) && (ref($anvil->data->{libvirtd}{$target}{connection}) eq "Sys::Virt"))
+	{
+		# Is this connection alive?
+		my $info = $anvil->data->{libvirtd}{$target}{connection}->get_node_info();
+		if (ref($info) eq "HASH")
+		{
+			# No need to connect.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0814", variables => { target => $target }});
+		}
+		else
+		{
+			# Stale connection.
+			$anvil->data->{libvirtd}{$target}{connection} = "";
+		}
+	}
+	else
+	{
+		$anvil->data->{libvirtd}{$target}{connection} = "";
+	}
+	
+	# If we don't have a connection, try to establish one now.
+	if (not $anvil->data->{libvirtd}{$target}{connection})
+	{
+		my $uri = "qemu+ssh://".$target."/system";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
+		
+		# Test connect
+		eval { $anvil->data->{libvirtd}{$target}{connection} = Sys::Virt->new(uri => $uri); };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"libvirtd::${target}::connection" => $anvil->data->{libvirtd}{$target}{connection},
+		}});
+		if ($@)
+		{
+			# Throw an error, then clear the URI so that we just update the DB/on-disk definitions.
+			$anvil->data->{libvirtd}{$target}{connection} = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0162", variables => { 
+				host_name => $target,
+				uri       => $uri,
+				error     => $@,
+			}});
+			return(1);
+		}
+	}
+	
+	if ($server_name)
+	{
+		if (ref($anvil->data->{libvirtd}{$target}{server}{$server_name}{connection}) eq "Sys::Virt::Domain")
+		{
+			# If this connection still valid?
+			my $uuid = $anvil->data->{libvirtd}{$target}{server}{$server_name}{connection}->get_uuid_string();
+			if ($uuid)
+			{
+				# We're good.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0815", variables => { server_name => $server_name }});
+				return(0);
+			}
+			else
+			{
+				# Stale connection.
+				$anvil->data->{libvirtd}{$target}{server}{$server_name}{connection} = "";
+			}
+		}
+		else
+		{
+			$anvil->data->{libvirtd}{$target}{server}{$server_name}{connection} = "";
+		}
+		
+		my $domain  = "";
+		my @domains = $anvil->data->{libvirtd}{$target}{connection}->list_all_domains();
+		foreach my $domain_handle (@domains)
+		{
+			my $this_server_name = $domain_handle->get_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				domain_handle    => $domain_handle, 
+				this_server_name => $this_server_name,
+			}});
+			next if $this_server_name ne $server_name;
+			
+			$anvil->data->{libvirtd}{$target}{server}{$server_name}{connection} = $domain_handle;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"libvirtd::${target}::server::${server_name}::connection" => $anvil->data->{libvirtd}{$target}{server}{$server_name}{connection},
+			}});
+			last;
+		}
+	}
+	
+	my $return = 0;
+	if (($server_name) && (not $anvil->data->{libvirtd}{$target}{server}{$server_name}{connection}))
+	{
+		# Didn't find the server
+		return(1)
+	}
+	
+	return(0);
+}
 
 =head2 count_servers
 
