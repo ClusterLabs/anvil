@@ -298,6 +298,9 @@ sub configure_pacemaker
 		my $both_online    = 0;
 		until($both_online)
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				'path::configs::corosync.conf' => $anvil->data->{path}{configs}{'corosync.conf'},
+			}});
 			if (-e $anvil->data->{path}{configs}{'corosync.conf'})
 			{
 				if (not $start_time)
@@ -362,7 +365,12 @@ sub configure_pacemaker
 				# corosync.conf doesn't exist yet.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0107"});
 			}
-			sleep 5 if not $both_online;
+			if (not $both_online)
+			{
+				my $delay = 5;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0816", variables => { delay => $delay }});
+				sleep $delay;
+			}
 		}
 	}
 	else

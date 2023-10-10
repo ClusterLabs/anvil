@@ -1230,18 +1230,21 @@ sub map_network
 
 =head2 locate
 
-B<< Note >>: This is meant to replace C<< Server->find >> and so the hash conflicts.
+B<< Note >>: This is meant to replace C<< Server->find >>.
 
-This walks through all known and accessible subnodes and DR hosts looking for a server. If it's found, it's status on that host are stored in the hash;
+This walks through all known and accessible subnodes and DR hosts looking for a server. If a specific server is searched for and it's found running, the C<< short_host_name >> is returned. If there is a problem, C<< !!error!! >> is returned. 
+
+If a specific requested server is found, or is being asked to search for all servers, the following data is stored;
 
 * server_location::host::<short_host_name>::access                                     = [0,1]
 * server_location::host::<short_host_name>::server::<server_name>::status              = <status>
 * server_location::host::<short_host_name>::server::<server_name>::active_definition   = <XML>
 * server_location::host::<short_host_name>::server::<server_name>::inactive_definition = <XML>
+* server_location::host::<short_host_name>::server::<server_name>::definition_diff     = <diff>
 
 If the target was not accessible, C<< access >> is set to C<< 0 >>. This is meant to allow telling the difference between "we know there's no servers on that host" versus "we don't know what's there because we couldn't access it".
 
-If the server is found to be C<< unknown >> or C<< shut off >>, then C<< inactive_definition >> is not set. In all other states, the inactive XML is stored, but often it's the same as the C<< active_definition >>, so the caller is suggested to diff the XMLs when it might be relevant. 
+If the server is found to be C<< running >> or C<< paused >>, then C<< active_definition >> is set and, if there's a difference, that will be stored. In all other states, the inactive XML is stored. 
 
 The C<< status >> can be:
 
@@ -1255,6 +1258,11 @@ The C<< status >> can be:
 * pmsuspended	# Server is suspended.
 
 If there is a problem, C<< !!error!! >> is returned. If the server is found on at least one host, C<< 0 >> is returned. If the server is not located anywhere, C<< 1 >> is returned. 
+
+The connection to the host and to the server(s) is cached, for your use;
+
+* server_location::host::<short_host_name>::connection                        = <Sys::Virt object>
+* server_location::host::<short_host_name>::server::<server_name>::connection = <Sys::Virt::Domain object>
 
 C<< Note >>: By design, servers are set to 'undefined' on subnodes, so when the server shuts off, it disappears from libvirtd. This is normal and expected.
 
@@ -1273,21 +1281,24 @@ sub locate
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->locate()" }});
 	
-	my $server = defined $parameter->{server} ? $parameter->{server} : "";
+	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		server => $server, 
+		server_name => $server_name, 
 	}});
 	
-	if (not $server)
+	if (not $server_name)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->locate()", parameter => "server" }});
-		return(1);
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->locate()", parameter => "server_name" }});
+		return('!!error!!');
 	}
 	
 	if (exists $anvil->data->{server_location}{host})
 	{
 		delete $anvil->data->{server_location}{host};
 	}
+	
+	# This will be set if the server is found to be 'running' on a host.
+	my $server_host = "";
 	
 	# Connect to all hosts.
 	$anvil->Database->get_hosts({debug => $debug});
@@ -1296,7 +1307,7 @@ sub locate
 	{
 		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
 		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}; 
-		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name}
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:host_name'       => $host_name, 
 			's2:host_uuid'       => $host_uuid, 
@@ -1321,63 +1332,87 @@ sub locate
 		{
 			# Try to connect to libvirtd. 
 			my $problem = $anvil->Server->connect_to_libvirt({
-				debug     => $debug,
-				target    => $short_host_name,
-				target_ip => $target_ip,
-				server    => $server eq "all" ? "" : $server,
+				debug       => $debug,
+				target      => $short_host_name,
+				target_ip   => $target_ip,
+				server_name => $server_name,
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			if (not $problem)
 			{
-				# We're connected! If we had a specific server
-				$anvil->data->{libvirtd}{$short_host_name}{connection}
+				# We're connected! Collect the data on the requested server(s), if applicable.
+				$anvil->data->{server_location}{host}{$short_host_name}{access} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"server_location::host::${short_host_name}::access" => $anvil->data->{server_location}{host}{$short_host_name}{access},
+				}});
+				
+				if ($server_name)
+				{
+					my $connection_handle = $anvil->data->{libvirtd}{$short_host_name}{connection};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connection_handle => $connection_handle }});
+					foreach my $this_server_name (sort {$a cmp $b} keys %{$anvil->data->{libvirtd}{$short_host_name}{server}})
+					{
+						if (($server_name eq "all") or ($server_name eq $this_server_name))
+						{
+							my $server_handle = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_handle => $server_handle }});
+							
+							# Get the server's state, then convert to a string
+							my ($state, $reason) = $server_handle->get_state();
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								'state' => $state, 
+								reason  => $reason,
+							}});
+							
+							### Reasons are dependent on the state. 
+							### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
+							my $server_state = "unknown";
+							if ($state == 1)    { $server_state = "running"; }	# Server is running.
+							elsif ($state == 2) { $server_state = "blocked"; }	# Server is blocked (IO contention?).
+							elsif ($state == 3) { $server_state = "paused"; }	# Server is paused (migration target?).
+							elsif ($state == 4) { $server_state = "in shutdown"; }	# Server is shutting down.
+							elsif ($state == 5) { $server_state = "shut off"; }	# Server is shut off.
+							elsif ($state == 6) { $server_state = "crashed"; }	# Server is crashed!
+							elsif ($state == 7) { $server_state = "pmsuspended"; }	# Server is suspended.
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_state => $server_state }});
+							
+							# Get the persistent definition
+							my $inactive_definition = $server_handle->get_xml_description(Sys::Virt::Domain::XML_INACTIVE);
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { inactive_definition => $inactive_definition }});
+							
+							# Get the active definition, if applicable.
+							my $active_definition = "";
+							my $definition_diff   = "";
+							if (($server_state eq "running") or ($server_state eq "paused"))
+							{
+								# Get the active definition
+								$active_definition = $server_handle->get_xml_description();
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_definition => $active_definition }});
+								
+								# Check for a diff.
+								$definition_diff = diff \$active_definition, \$inactive_definition, { STYLE => 'Unified' };
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_diff => $definition_diff }});
+							}
+							
+							# If it's running, record the host.
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{status}              = $server_state;
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{active_definition}   = $active_definition;
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition} = $inactive_definition;
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{definition_diff}     = $definition_diff;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"server_location::host::${short_host_name}::server::${server_name}::status"              => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{status}, 
+								"server_location::host::${short_host_name}::server::${server_name}::active_definition"   => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{active_definition}, 
+								"server_location::host::${short_host_name}::server::${server_name}::inactive_definition" => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition}, 
+								"server_location::host::${short_host_name}::server::${server_name}::definition_diff"     => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{definition_diff}, 
+							}});
+						}
+					}
+				}
 			} 
-			
-			$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{status}              = "";
-			$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{active_definition}   = "";
-			$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition} = "";
-			
 		}
 	}
 	
-	
-	# Get the inactive XML (changes requested by the user may not match the in-memory XML)
-	my $virsh_definition_active = $anvil->data->{domain}{$server_name}{handle}->get_xml_description();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { virsh_definition_active => $virsh_definition_active }});
-	
-	my $virsh_definition_inactive = $anvil->data->{domain}{$server_name}{handle}->get_xml_description(Sys::Virt::Domain::XML_INACTIVE);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition_inactive => $virsh_definition_inactive }});
-
-	my ($anvil, $server_name) = @_;
-	
-	### States:
-	# 0 = no state
-	# 1 = running        - The domain is currently running on a CPU
-	# 2 = blocked (idle) - the domain is blocked on resource. This can be caused because the domain is waiting on IO (a traditional wait state) or has gone to sleep because there was nothing else for it to do.
-	# 3 = paused         - The domain has been paused, usually occurring through the administrator running virsh suspend.  When in a paused state the domain will still consume allocated resources like memory, but will not be eligible for scheduling by the hypervisor.
-	# 4 = in shutdown    - The domain is in the process of shutting down, i.e. the guest operating system has been notified and should be in the process of stopping its operations gracefully.
-	# 5 = shut off       - The domain is not running.  Usually this indicates the domain has been shut down completely, or has not been started.
-	# 6 = crashed        - The domain has crashed, which is always a violent ending.  Usually this state can only occur if the domain has been configured not to restart on crash.
-	# 7 = pmsuspended    - The domain has been suspended by guest power management, e.g. entered into s3 state.
-	my ($state, $reason) = $anvil->data->{domain}{$server_name}{handle}->get_state();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		'state' => $state, 
-		reason  => $reason,
-	}});
-	
-	### Reasons are dependent on the state. 
-	### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
-	my $server_state = "unknown";
-	if ($state == 1)    { $server_state = "running"; }	# Server is running.
-	elsif ($state == 2) { $server_state = "blocked"; }	# Server is blocked (IO contention?).
-	elsif ($state == 3) { $server_state = "paused"; }	# Server is paused (migration target?).
-	elsif ($state == 4) { $server_state = "in shutdown"; }	# Server is shutting down.
-	elsif ($state == 5) { $server_state = "shut off"; }	# Server is shut off.
-	elsif ($state == 6) { $server_state = "crashed"; }	# Server is crashed!
-	elsif ($state == 7) { $server_state = "pmsuspended"; }	# Server is suspended.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
-	
-	return($server_state);
+	return($server_host);
 }
 
 =head2 migrate_virsh
