@@ -298,7 +298,7 @@ sub configure_pacemaker
 		my $both_online    = 0;
 		until($both_online)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				'path::configs::corosync.conf' => $anvil->data->{path}{configs}{'corosync.conf'},
 			}});
 			if (-e $anvil->data->{path}{configs}{'corosync.conf'})
