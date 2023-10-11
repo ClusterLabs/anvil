@@ -2,9 +2,9 @@
 
 (
 	if [ "$1" != "list" ]; then
-		virsh $@
+		virsh "$@"
 		exit $?
 	fi
 	flock -e 200
-	virsh $@
+	virsh "$@"
 ) 200>/tmp/virsh.lock
