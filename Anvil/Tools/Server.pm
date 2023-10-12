@@ -1241,6 +1241,8 @@ If a specific requested server is found, or is being asked to search for all ser
 * server_location::host::<short_host_name>::server::<server_name>::active_definition   = <XML>
 * server_location::host::<short_host_name>::server::<server_name>::inactive_definition = <XML>
 * server_location::host::<short_host_name>::server::<server_name>::definition_diff     = <diff>
+* server_location::host::<short_host_name>::server::<server_name>::file_definition     = <file_body>
+* server_location::host::<short_host_name>::server::<server_name>::drbd_config         = <file_body>
 
 If the target was not accessible, C<< access >> is set to C<< 0 >>. This is meant to allow telling the difference between "we know there's no servers on that host" versus "we don't know what's there because we couldn't access it".
 
@@ -1258,6 +1260,8 @@ The C<< status >> can be:
 * pmsuspended	# Server is suspended.
 
 If there is a problem, C<< !!error!! >> is returned. If the server is found on at least one host, C<< 0 >> is returned. If the server is not located anywhere, C<< 1 >> is returned. 
+
+If the server has a replicated storage (DRBD) config and/or a definition file, whether the server is found running or not, will be recorded. This can be used to see if the server has been configured to run there or not.
 
 The connection to the host and to the server(s) is cached, for your use;
 
@@ -1319,26 +1323,28 @@ sub locate
 		# This will switch to '1' if we connect to libvirtd.
 		$anvil->data->{server_location}{host}{$short_host_name}{access} = 0;
 		
-		# What IP to use? 
+		# What IP to use? Don't test access, it's too slow if there's several down hosts.
 		my $target_ip = $anvil->Network->find_target_ip({
 			debug       => $debug,
 			host_uuid   => $host_uuid, 
-			networks    => "bcn,ifn", 	# Reduced list to not slow things down with test_access
-			test_access => 1,
+			networks    => "bcn,mn,sn,ifn",
+			test_access => 0,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
 		
 		if ($target_ip)
 		{
 			# Try to connect to libvirtd. 
-			my $problem = $anvil->Server->connect_to_libvirt({
+			$anvil->Server->connect_to_libvirt({
 				debug       => $debug,
 				target      => $short_host_name,
 				target_ip   => $target_ip,
 				server_name => $server_name,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-			if (not $problem)
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"libvirtd::${short_host_name}::connection" => $anvil->data->{libvirtd}{$short_host_name}{connection},
+			}});
+			if (ref($anvil->data->{libvirtd}{$short_host_name}{connection}) eq "Sys::Virt")
 			{
 				# We're connected! Collect the data on the requested server(s), if applicable.
 				$anvil->data->{server_location}{host}{$short_host_name}{access} = 1;
@@ -1352,6 +1358,7 @@ sub locate
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connection_handle => $connection_handle }});
 					foreach my $this_server_name (sort {$a cmp $b} keys %{$anvil->data->{libvirtd}{$short_host_name}{server}})
 					{
+						next if (ref($anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}) ne "Sys::Virt::Domain");
 						if (($server_name eq "all") or ($server_name eq $this_server_name))
 						{
 							my $server_handle = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection};
@@ -1394,6 +1401,12 @@ sub locate
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_diff => $definition_diff }});
 							}
 							
+							if ($server_state eq "running")
+							{
+								$server_host = $short_host_name;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_host => $server_host }});
+							}
+							
 							# If it's running, record the host.
 							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{status}              = $server_state;
 							$anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{active_definition}   = $active_definition;
@@ -1404,6 +1417,75 @@ sub locate
 								"server_location::host::${short_host_name}::server::${server_name}::active_definition"   => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{active_definition}, 
 								"server_location::host::${short_host_name}::server::${server_name}::inactive_definition" => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition}, 
 								"server_location::host::${short_host_name}::server::${server_name}::definition_diff"     => $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{definition_diff}, 
+							}});
+						}
+					}
+					
+					# If we've connected to the host, see if the XML definition file 
+					# and/or DRBD config file exist.
+					my $servers = [];
+					if ($server_name eq "all")
+					{
+						# Search for any server we can find.
+						$anvil->Database->get_servers();
+						foreach my $server_uuid (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}})
+						{
+							next if $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "DELETED";
+							my $this_server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+							
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								server_uuid      => $server_uuid,
+								this_server_name => $this_server_name, 
+							}});
+							push @{$servers}, $this_server_name;
+						}
+					}
+					else
+					{
+						push @{$servers}, $server_name;
+					}
+					
+					foreach my $this_server_name (sort {$a cmp $b} @{$servers})
+					{
+						# Look for the files for the specified server.
+						$anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{file_definition} = "";
+						$anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{drbd_config}     = "";
+						
+						# See if there's a definition file and/or a DRBD 
+						# config file on this host.
+						my $definition_file  = $anvil->data->{path}{directories}{shared}{definitions}."/".$this_server_name.".xml";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { definition_file => $definition_file }});
+						
+						# Can I read the definition file?
+						my $definition_body = $anvil->Storage->read_file({
+							debug  => $debug, 
+							file   => $definition_file, 
+							target => $target_ip, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { definition_body => $definition_body }});
+						
+						if (($definition_body) && ($definition_body ne "!!error!!"))
+						{
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{file_definition} = $definition_body;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"server_location::host::${short_host_name}::server::${this_server_name}::file_definition" => $anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{file_definition}, 
+							}});
+						}
+						
+						my $drbd_config_file = $anvil->data->{path}{directories}{drbd_resources}."/".$this_server_name.".res";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { drbd_config_file => $drbd_config_file }});
+						
+						my $drbd_body = $anvil->Storage->read_file({
+							debug  => $debug, 
+							file   => $drbd_config_file, 
+							target => $target_ip, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_body => $drbd_body }});
+						if (($drbd_body) && ($drbd_body ne "!!error!!"))
+						{
+							$anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{drbd_config} = $drbd_body;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"server_location::host::${short_host_name}::server::${this_server_name}::drbd_config" => $anvil->data->{server_location}{host}{$short_host_name}{server}{$this_server_name}{drbd_config}, 
 							}});
 						}
 					}
