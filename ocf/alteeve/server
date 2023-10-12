@@ -1080,6 +1080,7 @@ sub start_drbd_resource
 	return(0);
 }
 
+### TODO: Rework this to use Server->connect_to_libvirtd and phase out Server->find().
 # This uses the DRBD information to find other peers and see if the server is running on them.
 sub find_server
 {
