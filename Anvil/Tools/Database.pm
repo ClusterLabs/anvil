@@ -3580,7 +3580,7 @@ FROM
 			}});
 		}
 		
-		# If this host is a node in an Anvil!, set the old 'file_location_anvil_uuid' to maintain 
+		# If this host is an Anvil! subnode, set the old 'file_location_anvil_uuid' to maintain 
 		# backwards compatibility.
 		if ((exists $anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}) && 
 		    ($anvil->data->{hosts}{host_uuid}{$file_location_host_uuid}{anvil_uuid}))

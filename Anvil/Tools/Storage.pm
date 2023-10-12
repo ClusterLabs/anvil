@@ -776,7 +776,7 @@ sub check_files
 		}
 		elsif ($file_location_ready)
 		{
-			# File doesn't exist but is marked as read, mark it as not ready.
+			# File doesn't exist but is marked as ready, mark it as not ready.
 			$anvil->Database->insert_or_update_file_locations({
 				debug                   => $debug, 
 				file_location_uuid      => $file_location_uuid, 

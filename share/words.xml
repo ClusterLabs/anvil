@@ -726,6 +726,13 @@ The creation of the new replicatedd disk is incomplete, manual intervention is r
 ====================
 The creation of the new replicated disk is incomplete, manual intervention is required!]]></key>
 		<key name="error_0462"><![CDATA[The switch '--immediate' can not be used with '--server all'.]]></key>
+		<key name="error_0463"><![CDATA[Failed to translate the 'server' string: [#!variable!server!#] to a UUID: [#!variable!server_uuid!#].]]></key>
+		<key name="error_0464"><![CDATA[There was a problem parsing the new XML definition for the server: [#!variable!server_name!#]. Either the XML failed to parse, or the server's UUID doesn't match.
+The XML that failed sanity check was:
+========
+#!variable!xml!#
+========
+]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1149,6 +1156,7 @@ resource #!variable!server!# {
 		<key name="header_0108">On Battery</key>
 		<key name="header_0109">Estimated Runtime</key>
 		<key name="header_0110">Last Updated</key>
+		<key name="header_0111">Optical Disc</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -2613,6 +2621,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
 		<key name="log_0812">The file: [#!variable!full_path!#] is in the database multiple times. This could be an artifact from peering Strikers. Selecting an entry to remove...</key>
 		<key name="log_0813">Deleting the 'files' database entry for the file uuid: [#!variable!file_uuid!#].</key>
+		<key name="log_0814">There is an existing a functioning connection to: [#!variable!target!#], no need to reconnect.</key>
+		<key name="log_0815">There is an existing a functioning connection to the server: [#!variable!server_name!#], no need to reconnect.</key>
+		<key name="log_0816">Waiting for: [#!variable!delay!#] seconds.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3663,6 +3674,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0046">- Server is crashed!</key>
 		<key name="unit_0047">- Server is suspended.</key>
 		<key name="unit_0048">- Server is in an unknown state (int: [#!variable!state!#]).</key>
+		<key name="unit_0049"><![CDATA[<ejected>]]></key>
 		
 		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
 		     are used when adding UPSes to the system for use in Install Manifests.
@@ -3931,6 +3943,8 @@ We will try to proceed anyway.</key>
 #!variable!error!#
 ====
 </key>
+		<key name="warning_0163"><![CDATA[Failed to read the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
+		<key name="warning_0164"><![CDATA[Failed to update the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		
 	</language>
 	<!-- 日本語 -->
