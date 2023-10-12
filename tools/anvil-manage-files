@@ -175,6 +175,9 @@ sub find_missing_files
 	# What am I? This will impact how missing files are found.
 	$anvil->Database->get_anvils();
 	
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	
 	my $query = "
 SELECT 
     file_uuid, 
@@ -237,16 +240,7 @@ ORDER BY
 		else
 		{
 			# Check to see if we're supposed to have this file.
-			$anvil->Database->get_file_locations();
-			my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-			
-			# Nothing to do if we're not in an Anvil! yet.
-			next if not $anvil_uuid;
-			
-			# Do we have a file_location_uuid? If not, there will be soon but nothing to do until
-			# then.
-			my $file_location_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+			my $file_location_uuid = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_location_uuid => $file_location_uuid }});
 			next if not $file_location_uuid;
 			
