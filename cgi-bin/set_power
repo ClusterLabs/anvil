@@ -107,7 +107,7 @@ sub set_host_power
 	elsif (not $is_host_on && $on)
 	{
 		$anvil->Database->insert_or_update_jobs({
-			job_command     => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host-uuid ".$host_uuid,
+			job_command     => $anvil->data->{path}{directories}{tools}."/striker-boot-machine --host ".$host_uuid,
 			job_description => "job_0335",
 			job_name        => "cgi-bin::set_power::on",
 			job_progress    => 0,
