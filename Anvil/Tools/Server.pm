@@ -2635,29 +2635,27 @@ sub shutdown_virsh
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 			if ($anvil->data->{sys}{database}{connections})
 			{
-				if ($anvil->data->{sys}{database}{connections})
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+				
+				$server_uuid = $anvil->Get->server_uuid_from_name({
+					debug       => $debug, 
+					server_name => $server, 
+					anvil_uuid  => $anvil_uuid,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
+				if (($server_uuid) && ($server_uuid ne "!!error!!"))
 				{
-					my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
-					
-					$server_uuid = $anvil->Get->server_uuid_from_name({
-						debug       => $debug, 
-						server_name => $server, 
-						anvil_uuid  => $anvil_uuid,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
-					if (($server_uuid) && ($server_uuid ne "!!error!!"))
+					$anvil->Database->get_servers({debug => $debug});
+					if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
 					{
-						$anvil->Database->get_servers({debug => $debug});
-						if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+						my $old_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_state => $old_state }});
+						
+						if ($old_state ne "in shutdown")
 						{
-							my $old_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_state => $old_state }});
-							
-							if ($old_state ne "in shutdown")
-							{
-								# Update it.
-								my $query = "
+							# Update it.
+							my $query = "
 UPDATE 
     servers 
 SET 
@@ -2666,9 +2664,8 @@ SET
 WHERE 
     server_uuid   = ".$anvil->Database->quote($server_uuid)."
 ;";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-								$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-							}
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+							$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 						}
 					}
 				}
@@ -2729,8 +2726,12 @@ WHERE
 			}});
 			
 			# Mark it as stopped now. (if we have a server_uuid, we have a database connection)
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_uuid => $server_uuid }});
 			if ($server_uuid)
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+				}});
 				if ($anvil->data->{sys}{database}{connections})
 				{
 					$anvil->Database->get_servers({debug => $debug});
