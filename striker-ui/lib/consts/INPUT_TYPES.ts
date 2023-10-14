@@ -1,4 +1,5 @@
 const INPUT_TYPES = {
+  checkbox: 'checkbox',
   number: 'number',
   password: 'password',
   text: 'text',

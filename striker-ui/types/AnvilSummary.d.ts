@@ -1,0 +1,3 @@
+type AnvilSummaryProps = {
+  anvilUuid: string;
+};

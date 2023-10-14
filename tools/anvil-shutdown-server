@@ -29,6 +29,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
+	"immediate",
 	"no-db", 
 	"no-wait", 
 	"server", 
@@ -142,6 +143,15 @@ if (not $anvil->data->{switches}{'server'})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# If we're forcing off a server, make sure '--server' isn't 'all'.
+if (($anvil->data->{switches}{'server'} =~ /all/i) && ($anvil->data->{switches}{immediate}))
+{
+	# Unable to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0462"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0462"});
+	$anvil->nice_exit({exit_code => 1});
+}
+
 # Are we a node or DR host?
 $anvil->data->{sys}{host_type} = $anvil->Get->host_type();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -252,6 +262,12 @@ sub shutdown_server
 		progress => $progress, 
 	}});
 	
+	if (($wait) && ($anvil->data->{switches}{immediate}))
+	{
+		$wait = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'wait' => $wait }});
+	}
+	
 	# Is the server in the cluster?
 	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
 	{
@@ -271,20 +287,34 @@ sub shutdown_server
 		return(0);
 	}
 	
-	# Now shut down.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0289", variables => { server => $server }});
-	$anvil->Job->update_progress({progress => $progress, message => "job_0289,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+	# Now shut down. Forcibly?
+	if ($anvil->data->{switches}{immediate})
+	{
+		# Kill it!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0474", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => $progress, message => "job_0474,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+	}
+	else
+	{
+		# Lets be gentle
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0289", variables => { server => $server }});
+		$anvil->Job->update_progress({progress => $progress, message => "job_0289,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+	}
 	
 	my $problem = 0;
 	if ($anvil->Get->host_type eq "dr")
 	{
 		# Shut down using virsh. Invert the return.
+		my $force   = $anvil->data->{switches}{immediate} ? 1 : 0;
 		my $success = $anvil->Server->shutdown_virsh({
 			debug     => 2,
+			server    => $server, 
+			force     => $force, 
 			wait_time => $wait ? 0 : 1,
 		});
 		$problem = $success ? 0 : 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			force   => $force, 
 			success => $success,
 			problem => $problem, 
 		}});
@@ -297,7 +327,24 @@ sub shutdown_server
 			'wait' => $wait,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		# If we're being asked to force the server off, do it now regardless of what pacemaker returned.
+		if ($anvil->data->{switches}{immediate})
+		{
+			my $success = $anvil->Server->shutdown_virsh({
+				debug     => 2,
+				server    => $server, 
+				force     => 1, 
+				wait_time => 0,
+			});
+			$problem = $success ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				success => $success,
+				problem => $problem, 
+			}});
+		}
 	}
+	
 	if ($problem)
 	{
 		# Failed, abort.

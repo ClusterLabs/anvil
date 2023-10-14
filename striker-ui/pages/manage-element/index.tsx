@@ -93,7 +93,7 @@ const PrepareNetworkTabContent: FC = () => {
 
   if (isFirstRender) {
     api
-      .get<APIHostOverviewList>('/host', { params: { types: 'node' } })
+      .get<APIHostOverviewList>('/host', { params: { types: ['dr', 'node'] } })
       .then(({ data }) => {
         setHostOverviewList(data);
         setHostSubTabId(Object.keys(data)[0]);

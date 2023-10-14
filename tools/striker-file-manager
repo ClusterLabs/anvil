@@ -2,6 +2,8 @@
 # 
 # This is the command line user interface for managing files on /mnt/shared/files on Strikers and made 
 # available on Anvil! systems.
+# 
+# NOTE: This program is incomplete!
 #  
 
 use strict;

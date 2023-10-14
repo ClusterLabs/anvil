@@ -1,5 +1,7 @@
 import { RequestHandler } from 'express';
 
+import { DELETED } from '../../consts';
+
 import { getLocalHostName, query } from '../../accessModule';
 import {
   getHostNameDomain,
@@ -52,6 +54,7 @@ export const getManifestTemplate: RequestHandler = async (
             fence_uuid,
             fence_name
           FROM fences
+          WHERE fence_arguments != '${DELETED}'
           ORDER BY fence_name
         ) AS a
         FULL JOIN (
@@ -60,6 +63,7 @@ export const getManifestTemplate: RequestHandler = async (
             ups_uuid,
             ups_name
           FROM upses
+          WHERE ups_ip_address != '${DELETED}'
           ORDER BY ups_name
         ) AS b ON a.row_number = b.row_number
         FULL JOIN (
@@ -69,6 +73,7 @@ export const getManifestTemplate: RequestHandler = async (
               SUBSTRING(manifest_name, '([\\d]*)$') AS INTEGER
             ) AS last_sequence
           FROM manifests
+          WHERE manifest_note != '${DELETED}'
           ORDER BY manifest_name DESC
           LIMIT 1
         ) AS c ON a.row_number = c.row_number;`,

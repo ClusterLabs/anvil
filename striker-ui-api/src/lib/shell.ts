@@ -10,7 +10,7 @@ const print = (
   }: { eol?: string; stream?: 'stderr' | 'stdout' } = {},
 ) => process[stream].write(`${message}${eol}`);
 
-const systemCall = (
+export const systemCall = (
   ...[command, args = [], options = {}]: Parameters<typeof spawnSync>
 ) => {
   const { error, stderr, stdout } = spawnSync(command, args, {
@@ -54,7 +54,15 @@ export const resolveGid = (id: number | string) => resolveId(id, 'group');
 
 export const resolveUid = (id: number | string) => resolveId(id, 'passwd');
 
-export const stderr = (message: string) => print(message, { stream: 'stderr' });
+export const stderr = (message: string, error?: unknown) => {
+  let msg = message;
+
+  if (error instanceof Error) {
+    msg += `\n${error.stack}`;
+  }
+
+  print(msg, { stream: 'stderr' });
+};
 
 export const stdout = (message: string) => print(message);
 

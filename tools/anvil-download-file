@@ -43,6 +43,15 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+$anvil->Get->switches({list => [
+	"abort",
+	"job-uuid",
+	"overwrite",
+	"save-to",
+	"script",
+	"url",], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
@@ -51,22 +60,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
-
-$anvil->data->{switches}{abort}      = "";
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->data->{switches}{overwrite}  = ""; 
-$anvil->data->{switches}{'save-to'}  = ""; 	# /mnt/shared/files by default
-$anvil->data->{switches}{script}     = "";
-$anvil->data->{switches}{url}        = ""; 
-$anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::abort'     => $anvil->data->{switches}{abort}, 
-	'switches::job-uuid'  => $anvil->data->{switches}{'job-uuid'}, 
-	'switches::overwrite' => $anvil->data->{switches}{overwrite}, 
-	'switches::save-to'   => $anvil->data->{switches}{'save-to'}, 
-	'switches::script'    => $anvil->data->{switches}{script}, 
-	'switches::url'       => $anvil->data->{switches}{url}, 
-}});
 
 # If I don't have --abort or --url, see if there is a job waiting
 if ((not $anvil->data->{switches}{abort}) && (not $anvil->data->{switches}{url}))
@@ -195,7 +188,7 @@ sub download_file
 	my $failed        =  0;
 	my $url           =  $anvil->data->{switches}{url};
 	my $file_name     =  ($url =~ /^.*\/(.*)$/)[0];
-	my $temp_file     =  $anvil->data->{path}{directories}{shared}{temp}."/".$file_name;
+	my $temp_file     =  $anvil->data->{path}{directories}{shared}{incoming}."/".$file_name;
 	my $save_to       =  $anvil->data->{switches}{'save-to'} ? $anvil->data->{switches}{'save-to'} : $anvil->data->{path}{directories}{shared}{files};
 	my $out_file      =  $save_to."/".$file_name;
 	   $save_to       =~ s/\/\///g;
@@ -384,7 +377,7 @@ sub download_file
 					average_rate     => $average_rate, 
 				}});
 				
-				my $line        =  "bytes_downloaded=$bytes_downloaded percent=$percent current_rate=$byte_rate average_rate=$average_rate seconds_running=$running_time seconds_left=$seconds_left url=$url out_file=$out_file"; 
+				my $line        =  "bytes_downloaded=".$bytes_downloaded." percent=".$percent." current_rate=".$byte_rate." average_rate=".$average_rate." seconds_running=".$running_time." seconds_left=".$seconds_left." url=".$url." out_file=".$out_file; 
 				   $next_report += $report_interval;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					line        => $line,

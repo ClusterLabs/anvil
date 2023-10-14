@@ -205,6 +205,7 @@ sub cib_cleanup
 	return(0);
 }
 
+### TODO: Rework this to use Server->connect_to_libvirtd and phase out Server->find().
 # This looks for failed resource and, if found, tries to recover them.
 sub check_resources
 {

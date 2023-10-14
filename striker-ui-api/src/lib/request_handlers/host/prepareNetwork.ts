@@ -140,6 +140,7 @@ export const prepareNetwork: RequestHandler<
         entries: configEntries,
         getValue: ({ value }) => String(value),
       }),
+      job_host_uuid: hostUUID,
       job_name: 'configure::network',
       job_title: 'job_0001',
       job_description: 'job_0071',

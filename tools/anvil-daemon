@@ -552,8 +552,13 @@ sub handle_periodic_tasks
 		}});
 		
 		# Even when this runs, it should finish in under ten seconds so we don't need to background it.
-		my ($parse_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}.$anvil->Log->switches, source => $THIS_FILE, line => __LINE__});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { parse_output => $parse_output }});
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-parse-fence-agents'}.$anvil->Log->switches;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($parse_output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			parse_output => $parse_output,
+			return_code  => $return_code, 
+		}});
 		
 		# Scan the local network.
 		update_state_file($anvil);
@@ -570,6 +575,25 @@ sub handle_periodic_tasks
 
 		# Check for stale db_in_use states.
 		check_db_in_use_states($anvil);
+		
+		# Do Striker-specific minute tasks
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+		if ($host_type eq "striker")
+		{
+			# This can take a while, but it's been optimized to minimize how long it takes to 
+			# run. To be safe, we'll still background it.
+			my $shell_call = $anvil->data->{path}{exe}{'striker-get-screenshots'}.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({
+				background => 1,
+				shell_call => $shell_call, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
 	}
 	
 	# Now check to see if it's time to run less frequent tasks.
@@ -928,7 +952,7 @@ sub check_incoming
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check";
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-files'}." --check".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({
 		shell_call => $shell_call, 
@@ -1428,7 +1452,7 @@ sub prep_database
 		{
 			$anvil->Database->configure_pgsql({debug => 2})
 # 			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}." -vv --log-secure";
+# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}$anvil->Log->switches;
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 # 			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
 # 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1896,17 +1920,34 @@ sub check_files
 	foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{path}{directories}{shared}})
 	{
 		my $directory = $anvil->data->{path}{directories}{shared}{$target};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			target    => $target, 
 			directory => $directory,
 		}});
-		if (not -e $anvil->data->{path}{directories}{shared}{$target})
+		if (-e $directory)
+		{
+			# Make sure the permissions are correct.
+			$anvil->Storage->get_file_stats({file_path => $directory});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"file_stat::${directory}::unix_mode" => $anvil->data->{file_stat}{$directory}{unix_mode},
+			}});
+			if ($anvil->data->{file_stat}{$directory}{unix_mode} !~ /0777$/)
+			{
+				$anvil->Storage->change_mode({
+					debug => 2,
+					path  => $directory, 
+				 	mode => "0777"
+				});
+			}
+		}
+		elsif (not -e $anvil->data->{path}{directories}{shared}{$target})
 		{
 			my $failed = $anvil->Storage->make_directory({
 				directory => $directory,
 				group     => "apache", 
 				user      => "apache",
-				mode      => "0775",
+				mode      => "0777",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
 			if ($failed)

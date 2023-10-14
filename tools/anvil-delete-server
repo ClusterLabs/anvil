@@ -774,58 +774,66 @@ sub save_job
 	my $server_name = $anvil->data->{switches}{server_name};
 	my $server_uuid = $anvil->data->{switches}{server_uuid};
 	my $delete_uuid = $server_uuid;
-	push @{$hosts}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	push @{$hosts}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	if ($anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid})
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid  => $anvil_uuid,
+		server_name => $server_name, 
+		server_uuid => $server_uuid, 
+		delete_uuid => $delete_uuid, 
+	}});
+	
+	if ((not $server_name) && (exists $anvil->data->{servers}{server_uuid}{$server_uuid}) && ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}))
 	{
-		push @{$hosts}, $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_dr1_host_uuid};
-	}
-	my $server_host = "";
-	foreach my $host_uuid (@{$hosts})
-	{
-		if ($host_uuid eq $anvil->Get->host_uuid)
-		{
-			# This is us.
-			$anvil->Server->find({refresh => 0});
-		}
-		else
-		{
-			# This is another machine.
-			my $target_ip = $anvil->Network->find_target_ip({host_uuid => $host_uuid});
-			$anvil->Server->find({
-				refresh  => 0,
-				target   => $target_ip,
-				password => $password, 
-			});
-		}
+		$server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
 	}
 	
-	my $host_name = "";
-	my $host_uuid = "";
-	if (exists $anvil->data->{server}{location}{$server_name})
+	# Find the server on hosts.
+	my $server_host_name = $anvil->Server->locate({
+		debug       => 2, 
+		server_name => $server_name, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+	
+	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{server_location}{host}})
 	{
-		my $status    = $anvil->data->{server}{location}{$server_name}{status};
-			$host_name = $anvil->data->{server}{location}{$server_name}{host_name};
+		my $host_uuid = $anvil->Database->get_host_uuid_from_string({string => $short_host_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			status    => $status, 
-			host_name => $host_name,
+			short_host_name => $short_host_name, 
+			host_uuid       => $host_uuid, 
 		}});
-		if ($status eq "running")
+		
+		my $exists = 0;
+		if (($anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{file_definition}) or ($anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{drbd_config}))
 		{
-			$host_uuid = $anvil->Get->host_uuid_from_name({host_name => $host_name});
+			$exists = 1;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'exists' => $exists }});
+		
+		if (($exists)                                                                              or 
+		    ($host_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid}) or 
+		    ($host_uuid eq $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid}))
+		{
+			push @{$hosts}, $host_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
 		}
 	}
 	
+	# If the server was found to be running, the host will be returned.
+	my $server_host_uuid = "";
+	if ($server_host_name)
+	{
+		$server_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $server_host_name});
+	}
+	
 	# Now, we'll do the delete, unless we see the server running elsewhere. 
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_uuid => $server_host_uuid }});
 	
 	my $job_host_uuid = "";
-	if ($host_uuid)
+	if ($server_host_uuid)
 	{
-		$job_host_uuid = $host_uuid;
+		$job_host_uuid = $server_host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_host_uuid => $job_host_uuid }});
-		if ($host_uuid eq $anvil->Get->host_uuid)
+		if ($server_host_uuid eq $anvil->Get->host_uuid)
 		{
 			# Running here
 			print $anvil->Words->string({key => "message_0216"})."\n";
@@ -833,7 +841,7 @@ sub save_job
 		else
 		{
 			# Running on a peer.
-			print $anvil->Words->string({key => "message_0214", variables => { host_name => $host_name }})."\n";
+			print $anvil->Words->string({key => "message_0214", variables => { host_name => $server_host_name }})."\n";
 		}
 	}
 	else

@@ -105,11 +105,13 @@ class Access extends EventEmitter {
           return reject(`Failed to parse line ${scriptId}; got [${data}]`);
         }
 
+        shvar({ result }, `Access interact ${scriptId} returns: `);
+
         return resolve(result);
       });
     });
 
-    shvar({ scriptId, script }, 'Access interact: ');
+    shvar({ script }, 'Access interact: ');
 
     stdin?.write(script);
 
@@ -150,8 +152,6 @@ const subroutine = async <T extends unknown[]>(
   const { sub_results: results } = await selectedAccess.interact<{
     sub_results: T;
   }>('x', chain, ...subParams);
-
-  shvar(results, `${chain} results: `);
 
   return results;
 };

@@ -32,7 +32,8 @@ export const buildQueryFileDetail = ({
       anv.anvil_name,
       anv.anvil_description,
       hos.host_uuid,
-      hos.host_name
+      hos.host_name,
+      hos.host_type
     FROM files AS fil
     JOIN file_locations AS fil_loc
       ON fil.file_uuid = fil_loc.file_location_file_uuid

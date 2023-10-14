@@ -421,6 +421,7 @@ const ManageFencePanel: FC = () => {
         preActionArea={messageArea}
         ref={formDialogRef}
         scrollContent
+        showClose
       />
       <ConfirmDialog
         closeOnProceed

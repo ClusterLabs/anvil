@@ -104,7 +104,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 print "Done!\n";
 
 print "\n[ Complete ] - The debug data is here: [".$tarball."]\n";
-print "[ Warning  ] - The collected logs likely include sensitive information! Share is carefully!\n";
+print "[ Warning  ] - The collected logs likely include sensitive information! Share it carefully!\n";
 
 
 
@@ -662,6 +662,35 @@ sub collect_local_data
 			$anvil->nice_exit({exit_code => 1});
 		}
 		print "Done!\n";
+		
+		# Grab screenshots.
+		print "- Collecting server screenshots... ";
+		if (-d $anvil->data->{path}{directories}{screenshots})
+		{
+			$shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$target_directory."/server-screenshots.bz2 ".$anvil->data->{path}{directories}{screenshots};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			if ($return_code)
+			{
+				# Failed
+				print "Failed!\n";
+				print "Expected the return code '0', but got: [".$return_code."]. The error, if any, was:\n";
+				print "========\n";
+				print $output."\n";
+				print "========\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			print "Done!\n";
+		}
+		else
+		{
+			print "Failed!\nScreenshot directory: [".$anvil->data->{path}{directories}{screenshots}."] doesn't exist, skipping.\n";
+		}
 	}
 	
 	print "- Grabbing hosts file... ";

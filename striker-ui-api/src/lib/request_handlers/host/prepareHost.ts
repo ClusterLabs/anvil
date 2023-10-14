@@ -10,6 +10,7 @@ import {
 } from '../../consts';
 
 import { job, variable } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
 import { stderr } from '../../shell';
 
@@ -26,7 +27,7 @@ export const prepareHost: RequestHandler<
       hostPassword,
       hostSSHPort,
       hostType,
-      hostUser = 'root',
+      hostUser,
       hostUUID,
       redhatPassword,
       redhatUser,
@@ -42,10 +43,10 @@ export const prepareHost: RequestHandler<
   const dataHostIPAddress = sanitize(hostIPAddress, 'string');
   const dataHostName = sanitize(hostName, 'string');
   const dataHostPassword = sanitize(hostPassword, 'string');
-  const dataHostSSHPort = sanitize(hostSSHPort, 'number') || 22;
+  const dataHostSSHPort = sanitize(hostSSHPort, 'number', { fallback: 22 });
   const dataHostType = sanitize(hostType, 'string');
   // Host user is unused at the moment.
-  const dataHostUser = sanitize(hostUser, 'string');
+  const dataHostUser = sanitize(hostUser, 'string', { fallback: 'root' });
   const dataHostUUID = sanitize(hostUUID, 'string');
   const dataRedhatPassword = sanitize(redhatPassword, 'string');
   const dataRedhatUser = sanitize(redhatUser, 'string');
@@ -124,14 +125,18 @@ export const prepareHost: RequestHandler<
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['striker-initialize-host'].self,
-      job_data: `enterprise_uuid=${dataEnterpriseUUID}
-host_ip_address=${dataHostIPAddress}
-host_name=${dataHostName}
-password=${dataHostPassword}
-rh_password=${dataRedhatPassword}
-rh_user=${dataRedhatUser}
-ssh_port=${dataHostSSHPort}
-type=${dataHostType}`,
+      job_data: buildJobDataFromObject({
+        obj: {
+          enterprise_uuid: dataEnterpriseUUID,
+          host_ip_address: dataHostIPAddress,
+          host_name: dataHostName,
+          password: dataHostPassword,
+          rh_password: dataRedhatPassword,
+          rh_user: dataRedhatUser,
+          ssh_port: dataHostSSHPort,
+          type: dataHostType,
+        },
+      }),
       job_description: 'job_0022',
       job_name: `initialize::${dataHostType}::${dataHostIPAddress}`,
       job_title: `job_002${dataHostType === 'dr' ? '1' : '0'}`,

@@ -84,6 +84,10 @@ sub cycle_nics
 				{
 					$say_network = "Internet-Facing Network ".$network_number." - Bridge ".$bridge_number;
 				}
+				elsif ($bridge_type eq "mn")
+				{
+					$say_network = "Migration Network ".$network_number." - Bridge ".$bridge_number;
+				}
 				
 				print __LINE__."; [ Debug ]   - bridge_number: [".$bridge_number."]\n" if $debug >= 2;
 				foreach my $this_vnet (sort {$a cmp $b} keys %{$nics->{$bridge_type}{$network_number}{$bridge_number}})

@@ -39,24 +39,28 @@ type APIHostOverviewList = {
   [hostUUID: string]: APIHostOverview;
 };
 
+type APIHostNetwork = {
+  createBridge?: NumberBoolean;
+  ip: string;
+  link1MacToSet: string;
+  link1Uuid: string;
+  link2MacToSet?: string;
+  link2Uuid?: string;
+  subnetMask: string;
+  type: NetworkType;
+};
+
+type APIHostNetworkList = {
+  [networkId: string]: APIHostNetwork;
+};
+
 type APIHostDetail = APIHostOverview & {
-  dns: string;
+  dns?: string;
   domain?: string;
-  gateway: string;
-  gatewayInterface: string;
-  installTarget: APIHostInstallTarget;
-  networks: {
-    [networkId: string]: {
-      createBridge?: NumberBoolean;
-      ip: string;
-      link1MacToSet: string;
-      link1Uuid: string;
-      link2MacToSet?: string;
-      link2Uuid?: string;
-      subnetMask: string;
-      type: NetworkType;
-    };
-  };
+  gateway?: string;
+  gatewayInterface?: string;
+  installTarget?: APIHostInstallTarget;
+  networks?: APIHostNetworkList;
   organization?: string;
   prefix?: string;
   sequence?: string;

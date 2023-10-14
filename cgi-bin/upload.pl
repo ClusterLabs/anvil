@@ -22,7 +22,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 }
 
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
 
 $anvil->Get->switches;
 my $cgi = CGI->new; 

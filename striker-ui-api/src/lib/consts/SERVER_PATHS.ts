@@ -10,6 +10,11 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       incoming: {},
     },
   },
+  opt: {
+    alteeve: {
+      screenshots: {},
+    },
+  },
   tmp: {},
   usr: {
     bin: {

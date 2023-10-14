@@ -57,9 +57,9 @@ Must be used with \fB\-\-reboot\-self\fR to reboot the local system. Otherwise, 
 .TP
 \fB\-\-timeout\fR <seconds, Nm, Nh>
 .TP
-When given, if a system update doesn't complete in this amount of time, error out and abort the update. By default, updates will wait for 24 hours.
+When given, if a system update doesn't complete in this amount of time, error out and abort the update. This timeout is used when waiting for actions like waiting for a machine to update, reboot, join a subcluster, and so forth. 
 .TP
-If this is set to an integer, it is treated as a number of seconds. If this ends in 'm' or 'h', then the preceding number is treated as a number of minutes or hours, respectively.
+If this is set to an integer, it is treated as a number of seconds. If this ends in 'm' or 'h', then the preceding number is treated as a number of minutes or hours, respectively. By default, updates will wait for 24 hours.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

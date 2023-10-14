@@ -96,7 +96,10 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
         (previous, [hostId, { hostName, hostNumber, hostType }]) => {
           const { headers, hosts, hostNames } = previous;
 
-          const prettyId = `${hostType}${hostNumber}`;
+          const prettyId = `${hostType.replace(
+            'node',
+            'subnode',
+          )} ${hostNumber}`;
 
           headers[`run-manifest-column-header-cell-${hostId}`] = {
             children: <BodyText>{prettyId}</BodyText>,

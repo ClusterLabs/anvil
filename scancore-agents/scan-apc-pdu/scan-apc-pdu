@@ -169,6 +169,18 @@ if ($problem)
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Purge can run from anywhere
+if ($anvil->data->{switches}{purge})
+{
+	# This can be called when doing bulk-database purges.
+	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
+	$anvil->Database->purge_data({
+		debug  => 2,
+		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
+	});
+	$anvil->nice_exit({exit_code => 0});
+}
+
 # The APC PDUs only allow one connection at a time. As such, we only run on the striker that is also the
 # active DB.
 my $host_uuid = $anvil->Get->host_uuid();
@@ -181,17 +193,6 @@ if ((not $anvil->data->{switches}{force}) && ($anvil->data->{sys}{database}{acti
 {
 	# Don't run.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_apc_pdu_message_0041", variables => { program => $THIS_FILE }});
-	$anvil->nice_exit({exit_code => 0});
-}
-
-if ($anvil->data->{switches}{purge})
-{
-	# This can be called when doing bulk-database purges.
-	my $schema_file = $anvil->data->{path}{directories}{scan_agents}."/".$THIS_FILE."/".$THIS_FILE.".sql";
-	$anvil->Database->purge_data({
-		debug  => 2,
-		tables => $anvil->Database->get_tables_from_schema({schema_file => $schema_file}),
-	});
 	$anvil->nice_exit({exit_code => 0});
 }
 

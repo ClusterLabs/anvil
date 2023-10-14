@@ -138,7 +138,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
     upses: upsList = {},
   } = {},
   // Props that depend on others.
-  hostLabel = `${hostType} ${hostNumber}`,
+  hostLabel = `${hostType.replace('node', 'subnode')} ${hostNumber}`,
 }: AnHostInputGroupProps<M>): ReactElement => {
   const fenceListEntries = useMemo(
     () => Object.entries(fenceList),

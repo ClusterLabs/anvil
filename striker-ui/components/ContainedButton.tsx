@@ -1,34 +1,62 @@
 import {
-  Button as MUIButton,
+  Button as MuiButton,
   buttonClasses as muiButtonClasses,
-  SxProps,
-  Theme,
+  styled,
 } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { FC } from 'react';
 
-import { BLACK, DISABLED, GREY } from '../lib/consts/DEFAULT_THEME';
+import {
+  BLACK,
+  BLUE,
+  DISABLED,
+  GREY,
+  RED,
+  TEXT,
+} from '../lib/consts/DEFAULT_THEME';
 
-const ContainedButton: FC<ContainedButtonProps> = ({ sx, ...restProps }) => {
-  const combinedSx = useMemo<SxProps<Theme>>(
-    () => ({
-      backgroundColor: GREY,
-      color: BLACK,
-      textTransform: 'none',
-
-      '&:hover': {
-        backgroundColor: `${GREY}F0`,
-      },
-
-      [`&.${muiButtonClasses.disabled}`]: {
-        backgroundColor: DISABLED,
-      },
-
-      ...sx,
-    }),
-    [sx],
-  );
-
-  return <MUIButton variant="contained" {...restProps} sx={combinedSx} />;
+const MAP_TO_COLOUR: Record<ContainedButtonBackground, string> = {
+  blue: BLUE,
+  normal: GREY,
+  red: RED,
 };
+
+const BaseStyle = styled(MuiButton)({
+  backgroundColor: GREY,
+  color: BLACK,
+  textTransform: 'none',
+
+  '&:hover': {
+    backgroundColor: `${GREY}F0`,
+  },
+
+  [`&.${muiButtonClasses.disabled}`]: {
+    backgroundColor: DISABLED,
+  },
+});
+
+const Base: FC<ContainedButtonProps> = (props) => (
+  <BaseStyle variant="contained" {...props} />
+);
+
+const ContainedButton = styled(Base)((props) => {
+  const { background = 'normal' } = props;
+
+  let bg: string | undefined;
+  let color: string | undefined;
+
+  if (background !== 'normal') {
+    bg = MAP_TO_COLOUR[background];
+    color = TEXT;
+  }
+
+  return {
+    backgroundColor: bg,
+    color,
+
+    '&:hover': {
+      backgroundColor: `${bg}F0`,
+    },
+  };
+});
 
 export default ContainedButton;

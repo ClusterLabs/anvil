@@ -124,10 +124,12 @@ export const runManifest: RequestHandler<
         const hostName = mapToHostNameData[hostUuid];
         const { anvil_name: anName } = hostUuidMapToData[hostUuid];
 
-        assert(
-          anName && anName !== manifestName,
-          `Host ${hostName} cannot be used for ${manifestName} because it belongs to ${anName}`,
-        );
+        if (anName) {
+          assert(
+            anName !== manifestName,
+            `Host [${hostName}] cannot be used for [${manifestName}] because it belongs to [${anName}]`,
+          );
+        }
 
         joinAnJobs.push({
           debug,
