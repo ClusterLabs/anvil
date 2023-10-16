@@ -33,6 +33,9 @@ export const buildUnknownIDCondition = (
 };
 
 export const buildKnownIDCondition = (
-  keys: string[] | '*' = '*',
+  keys: string[] | 'all' | '*' = 'all',
   conditionPrefix: string,
-) => (keys[0] === '*' ? '' : buildIDCondition(keys, conditionPrefix));
+) =>
+  !(keys instanceof Array) || keys.some((v) => ['all', '*'].includes(v))
+    ? ''
+    : buildIDCondition(keys, conditionPrefix);

@@ -42,7 +42,7 @@ const setCvar = (
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
   keys: hostUUIDs = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'a.host_uuid');
+  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'WHERE a.host_uuid');
 
   stdout(`condHostUUIDs=[${condHostUUIDs}]`);
 
@@ -74,8 +74,9 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       ON b.variable_name LIKE '%link%_mac%'
         AND b.variable_value = c.network_interface_mac_address
         AND a.host_uuid = c.network_interface_host_uuid
-    WHERE ${condHostUUIDs}
-    ORDER BY cvar_name ASC,
+    ${condHostUUIDs}
+    ORDER BY a.host_name ASC,
+      cvar_name ASC,
       b.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
