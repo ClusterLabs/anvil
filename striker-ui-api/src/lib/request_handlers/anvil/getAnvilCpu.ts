@@ -102,7 +102,8 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
 
       const cores = Number(rCores);
       const threads = Number(rThreads);
-      const vendor = model.replace(/^(\w+).*$/, '$1');
+      const matched = model.match(/amd|arm|intel|powerpc/i);
+      const vendor = matched ? matched[0] : model.replace(/^(\w+).*$/, '$1');
 
       previous.hosts[uuid] = {
         cores,
