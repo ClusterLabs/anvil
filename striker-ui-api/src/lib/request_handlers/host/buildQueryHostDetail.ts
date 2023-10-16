@@ -75,7 +75,8 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         AND b.variable_value = c.network_interface_mac_address
         AND a.host_uuid = c.network_interface_host_uuid
     WHERE ${condHostUUIDs}
-    ORDER BY cvar_name ASC,
+    ORDER BY a.host_name ASC,
+      cvar_name ASC,
       b.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
