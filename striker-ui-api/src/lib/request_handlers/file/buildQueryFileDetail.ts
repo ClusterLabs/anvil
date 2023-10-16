@@ -46,5 +46,6 @@ export const buildQueryFileDetail = ({
     JOIN hosts AS hos
       ON fil_loc.file_location_host_uuid = hos.host_uuid
     WHERE fil.file_type != '${DELETED}'
-      ${condFileUUIDs};`;
+      ${condFileUUIDs}
+    ORDER BY fil.file_name ASC;`;
 };
