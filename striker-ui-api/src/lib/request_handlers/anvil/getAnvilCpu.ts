@@ -1,5 +1,7 @@
 import { RequestHandler } from 'express';
 
+import { DELETED } from '../../consts';
+
 import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { stderr } from '../../shell';
@@ -72,7 +74,8 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
         FROM servers AS a
         JOIN server_definitions AS b
           ON a.server_uuid = b.server_definition_server_uuid
-        WHERE a.server_anvil_uuid = '${anvilUuid}';`,
+        WHERE a.server_state != '${DELETED}'
+          AND a.server_anvil_uuid = '${anvilUuid}';`,
     );
   } catch (error) {
     stderr(`Failed to get anvil ${anvilUuid} server cpu info; CAUSE: ${error}`);

@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_UUID, SERVER_PATHS } from '../../consts';
+import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
 import { OS_LIST_MAP } from '../../consts/OS_LIST';
 
 import { job, query } from '../../accessModule';
@@ -49,7 +49,11 @@ export const createServer: RequestHandler = async (request, response) => {
     );
 
     const [[serverNameCount]] = await query(
-      `SELECT COUNT(server_uuid) FROM servers WHERE server_name = '${serverName}'`,
+      `SELECT
+          COUNT(server_uuid)
+        FROM servers
+        WHERE server_state != '${DELETED}'
+          AND server_name = '${serverName}'`,
     );
 
     assert(
