@@ -49,6 +49,9 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
     );
 
   if (hostUUIDs) {
+    // TODO: the output of host detail is designed to only contain one
+    // host, correct it to support multiple hosts to allow selecting
+    // multiple hosts' detail.
     ({ query, afterQueryReturn } = buildQueryHostDetail({
       keys: sanitize(hostUUIDs, 'string[]', {
         modifierType: 'sql',
