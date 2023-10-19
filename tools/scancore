@@ -282,7 +282,7 @@ sub prepare_for_run
 	$anvil->Storage->read_config();
 	$anvil->Get->switches();
 	$anvil->Words->read();
-	$anvil->Database->connect({check_for_resync => 1});
+	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0132"});
 	
 	# See if the mail server needs to be updated.
@@ -296,9 +296,7 @@ sub wait_for_database
 {
 	my ($anvil) = @_;
 	
-	# Don't check for resync here as we may need to load agent schemas. We'll check for resync in the 
-	# main loop.
-	$anvil->Database->connect({check_for_resync => 0});
+	$anvil->Database->connect();
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 	if (not $anvil->data->{sys}{database}{connections})
 	{
@@ -314,7 +312,7 @@ sub wait_for_database
 			$anvil->_set_paths();
 			$anvil->_set_defaults();
 			$anvil->Storage->read_config();
-			$anvil->Database->connect({check_for_resync => 0});
+			$anvil->Database->connect();
 			if ($anvil->data->{sys}{database}{connections})
 			{
 				# We're good
