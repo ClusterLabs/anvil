@@ -74,7 +74,7 @@ $anvil->System->wait_on_dnf();
 # is to setup the database server.
 $anvil->Database->connect({
 	check_if_configured => 1, 
-	check_for_resync    => 1,
+	check_for_resync    => 2,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
@@ -89,7 +89,7 @@ if (not $anvil->data->{sys}{database}{connections})
 		prep_database($anvil);
 		
 		# Try connecting again
-		$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
+		$anvil->Database->connect({check_if_configured => 1, check_for_resync => 2});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 		if (not $anvil->data->{sys}{database}{connections})
 		{
@@ -109,7 +109,7 @@ if (not $anvil->data->{sys}{database}{connections})
 			
 			check_network($anvil);
 			$anvil->refresh();
-			$anvil->Database->connect({check_if_configured => 1, check_for_resync => 1});
+			$anvil->Database->connect({check_if_configured => 1, check_for_resync => 2});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 			if (not $anvil->data->{sys}{database}{connections})
 			{
@@ -203,7 +203,7 @@ while(1)
 	# If, so some reason, anvil.conf is lost, create it.
 	$anvil->System->_check_anvil_conf();
 	
-	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured, check_for_resync => 1});
+	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured, check_for_resync => 2});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
 	
 	# Mark that we don't want to check the database now.
