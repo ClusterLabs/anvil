@@ -185,6 +185,18 @@ sub check_screenshot_directory
 {
 	my ($anvil) = @_;
 	
+	# Does the directory even exist?
+	if (not -d $anvil->data->{path}{directories}{screenshots})
+	{
+		$anvil->Storage->make_directory({
+			debug     => 2,
+			directory => $anvil->data->{path}{directories}{screenshots}, 
+			owner     => "striker-ui-api", 
+			group     => "striker-ui-api", 
+			mode      => "0755",
+		});
+	}
+	
 	foreach my $directory ($anvil->data->{path}{directories}{opt_alteeve}, $anvil->data->{path}{directories}{screenshots})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
