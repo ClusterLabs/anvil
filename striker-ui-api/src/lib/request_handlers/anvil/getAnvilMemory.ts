@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 import { DataSizeUnit, dSize } from 'format-data-size';
 
-import { NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
+import { DELETED, NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
 
 import { query } from '../../accessModule';
 import { stderr } from '../../shell';
@@ -88,7 +88,8 @@ export const getAnvilMemory: RequestHandler<
         FROM server_definitions AS a
         JOIN servers AS b
           ON b.server_uuid = a.server_definition_server_uuid
-        WHERE server_anvil_uuid = '${anvilUuid}';`,
+        WHERE b.server_state != '${DELETED}'
+          AND b.server_anvil_uuid = '${anvilUuid}';`,
     );
   } catch (error) {
     stderr(`Failed to get anvil ${anvilUuid} server info; CAUSE: ${error}`);

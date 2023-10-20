@@ -12,8 +12,7 @@
 # 2 = libvirtd is not running.
 # 
 # BUG:
-# - Check that an update on disk is not overwritten by the old config still being in memory for a still-
-#   running VM (specifically, RAM updates)
+# - Servers that are off, but not marked as such in the DB, needs to be updated. (See: line ~1105)
 # 
 # TODO: 
 # - Move location constraints to the host node if the server is not on the preferred host (this happens after
@@ -436,7 +435,12 @@ sub collect_data
 		# Get the server state.
 		my $server_state = get_server_state($anvil, $server_name);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
-	
+		
+		$anvil->data->{'scan-server'}{server_name}{$server_name}{server_state} = $server_state;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"scan-server::server_name::${server_name}::server_state" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state}, 
+		}});
+		
 		# This is set to 1 when we add a server, supressing detailed change checks as we'll have 
 		# already registered an alert.
 		my $added = 0;

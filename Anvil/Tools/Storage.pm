@@ -776,7 +776,7 @@ sub check_files
 		}
 		elsif ($file_location_ready)
 		{
-			# File doesn't exist but is marked as read, mark it as not ready.
+			# File doesn't exist but is marked as ready, mark it as not ready.
 			$anvil->Database->insert_or_update_file_locations({
 				debug                   => $debug, 
 				file_location_uuid      => $file_location_uuid, 
@@ -2744,7 +2744,7 @@ AND
 
 This creates a directory (and any parent directories).
 
- $anvil->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", grou[ => "me", group => 755});
+ $anvil->Storage->make_directory({directory => "/foo/bar/baz", owner => "me", group => "me", mode => "0755"});
 
 If it fails to create the directory, C<< 1 >> will be returned. Otherwise, C<< 0 >> will be returned.
 

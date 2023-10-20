@@ -34,9 +34,7 @@ export const getAnvilDetail: RequestHandler<
       hosts,
     });
   } catch (error) {
-    stderr(
-      `Failed to get summary of anvil node pair ${anvilUuid}; CAUSE: ${error}`,
-    );
+    stderr(`Failed to get summary of anvil node ${anvilUuid}; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

@@ -68,6 +68,7 @@ dist_sbin_SCRIPTS	= \
 			  striker-purge-target \
 			  striker-scan-network \
 			  striker-show-db-counts \
+			  striker-show-jobs \
 			  striker-update-cluster
 
 fencedir		= ${FASEXECPREFIX}/sbin

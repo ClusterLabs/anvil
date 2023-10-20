@@ -8,6 +8,7 @@
 # 1 = No database connection.
 # 
 # TODO: 
+# - Update the target_ip search to use the new Network->find_target_ip().
 # 
 # USAGE:
 # - Show
