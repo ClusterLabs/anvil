@@ -29,7 +29,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
       hos.host_type,
       hos.host_uuid
     FROM hosts AS hos
-    ${condition};`;
+    ${condition}
+    ORDER BY hos.host_name ASC;`;
   let afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
       (previous, [hostName, hostType, hostUUID]) => {
@@ -48,6 +49,9 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
     );
 
   if (hostUUIDs) {
+    // TODO: the output of host detail is designed to only contain one
+    // host, correct it to support multiple hosts to allow selecting
+    // multiple hosts' detail.
     ({ query, afterQueryReturn } = buildQueryHostDetail({
       keys: sanitize(hostUUIDs, 'string[]', {
         modifierType: 'sql',

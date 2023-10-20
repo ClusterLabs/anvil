@@ -60,8 +60,6 @@ export const buildAnvilSummary = async ({
     throw error;
   }
 
-  if (!scounts.length) throw new Error(`No host server records found`);
-
   for (const huuid of [n1uuid, n2uuid]) {
     const {
       host_uuid: {

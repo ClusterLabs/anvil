@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_UUID, SERVER_PATHS } from '../../consts';
+import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -39,7 +39,11 @@ export const deleteServer: RequestHandler<
       );
 
       const rows: [[string]] = await query(
-        `SELECT server_host_uuid FROM servers WHERE server_uuid = '${serverUuid}';`,
+        `SELECT
+            server_host_uuid
+          FROM servers
+          WHERE server_state != '${DELETED}'
+            AND server_uuid = '${serverUuid}';`,
       );
 
       assert.ok(rows.length, `Server ${serverUuid} not found`);

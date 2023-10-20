@@ -1157,6 +1157,9 @@ resource #!variable!server!# {
 		<key name="header_0109">Estimated Runtime</key>
 		<key name="header_0110">Last Updated</key>
 		<key name="header_0111">Optical Disc</key>
+		<key name="header_0112">Queued Jobs</key>
+		<key name="header_0113">Jobs In Progress</key>
+		<key name="header_0114">Completed Jobs</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>

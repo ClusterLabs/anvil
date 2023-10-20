@@ -1,6 +1,10 @@
 import { dSize } from 'format-data-size';
 
-import { NODE_AND_DR_RESERVED_MEMORY_SIZE, OS_LIST_MAP } from '../../consts';
+import {
+  DELETED,
+  NODE_AND_DR_RESERVED_MEMORY_SIZE,
+  OS_LIST_MAP,
+} from '../../consts';
 
 import join from '../../join';
 import { stdoutVar } from '../../shell';
@@ -99,6 +103,7 @@ const buildQueryAnvilDetail = ({
         FROM server_definitions AS ser_def
       ) AS pos_ser_def
         ON server_uuid = server_definition_server_uuid
+      WHERE ser.server_state != '${DELETED}'
       ${groupByPhrase}`;
   };
 

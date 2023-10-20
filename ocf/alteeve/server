@@ -623,6 +623,13 @@ sub start_server
 	# Start the resource, if needed.
 	start_drbd_resource($anvil);
 	
+	# Get a connection so that we can mark is as being in shutdown and shut off.
+	$anvil->Database->connect({
+		check_for_resync => 0,
+		retry            => 0,
+		sensitive        => 1,
+	});
+	
 	# Still alive? Boot!
 	my ($success) = $anvil->Server->boot_virsh({debug => 2, server => $server});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }});
@@ -1173,6 +1180,13 @@ sub stop_server
 	# Read in an parse the server's XML.
 	$anvil->System->check_storage();
 	$anvil->Server->get_status({debug => 2, server => $server});
+	
+	# Get a connection so that we can mark is as being in shutdown and shut off.
+	$anvil->Database->connect({
+		check_for_resync => 0,
+		retry            => 0,
+		sensitive        => 1,
+	});
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0313", variables => { server => $server }});
 	my $success = $anvil->Server->shutdown_virsh({server => $server});

@@ -17,7 +17,8 @@ export const getFile: RequestHandler = buildGetRequestHandler((request) => {
       file_type,
       file_md5sum
     FROM files
-    WHERE file_type != '${DELETED}';`;
+    WHERE file_type != '${DELETED}'
+    ORDER BY file_name ASC;`;
 
   if (fileUUIDs) {
     query = buildQueryFileDetail({

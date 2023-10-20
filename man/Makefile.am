@@ -71,6 +71,7 @@ dist_man8_MANS		= \
 			  striker-purge-target.8 \
 			  striker-scan-network.8 \
 			  striker-show-db-counts.8 \
+			  striker-show-jobs.8 \
 			  striker-update-cluster.8 \
 			  tool-fio-tester.8 \
 			  unfence_pacemaker.8

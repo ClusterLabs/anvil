@@ -1,0 +1,287 @@
+#!/usr/bin/perl
+# 
+# This program will boot a target machine using either it's IPMI interface, if available, or one of the 
+# (non-PDU) fence methods, if the target is in an Anvil! and we have a manifest for it.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 
+# TODO: 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+$anvil->Get->switches({list => [
+	"ended-within",
+	"host",
+	"job-uuid"], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Make sure we've got a 
+if (($anvil->data->{switches}{'ended-within'} eq "") or ($anvil->data->{switches}{'ended-within'} !~ /^\d+$/))
+{
+	$anvil->data->{switches}{'ended-within'} = 300;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::ended-within" => $anvil->data->{switches}{'ended-within'}, 
+	}});
+}
+
+$anvil->data->{show}{host_uuid} = "";
+if (($anvil->data->{switches}{host}) && ($anvil->data->{switches}{host} ne "all"))
+{
+	# Get the host_uuid 
+	$anvil->data->{show}{host_uuid} = $anvil->Database->get_host_uuid_from_string({debug => 2, string => $anvil->data->{switches}{host}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"show::host_uuid" => $anvil->data->{show}{host_uuid}, 
+	}});
+}
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0075"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+show_jobs($anvil);
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub show_jobs
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts({debug => 3});
+	$anvil->Database->get_jobs({
+		debug         => 2, 
+		job_host_uuid => $anvil->data->{show}{host_uuid} // "all", 
+		ended_within  => $anvil->data->{switches}{'ended-within'},
+	});
+	
+	# Sort them into hosts, and then sort them by picked-up time (if we sorted by modified date, the 
+	# display would jump all over the place)
+	# NOTE: Yes, I know, sorting on job_uuid doesn't make much sense but it means repeated runs are 
+	#       at least consistent in the logss.
+	my $jobs_found = 0;
+	foreach my $job_uuid (sort {$a cmp $b} keys %{$anvil->data->{jobs}{running}})
+	{
+		if (($anvil->data->{switches}{'job-uuid'}) && ($anvil->data->{switches}{'job-uuid'} ne $job_uuid))
+		{
+			next;
+		}
+		$jobs_found++;
+		my $job_command        = $anvil->data->{jobs}{running}{$job_uuid}{job_command};
+		my $job_data           = $anvil->data->{jobs}{running}{$job_uuid}{job_data};
+		my $job_picked_up_by   = $anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_by};
+		my $job_picked_up_at   = $anvil->data->{jobs}{running}{$job_uuid}{job_picked_up_at};
+		my $job_updated        = $anvil->data->{jobs}{running}{$job_uuid}{job_updated};
+		my $job_name           = $anvil->data->{jobs}{running}{$job_uuid}{job_name};
+		my $job_progress       = $anvil->data->{jobs}{running}{$job_uuid}{job_progress};
+		my $job_title          = $anvil->data->{jobs}{running}{$job_uuid}{job_title};
+		my $job_description    = $anvil->data->{jobs}{running}{$job_uuid}{job_description};
+		my $job_status         = $anvil->data->{jobs}{running}{$job_uuid}{job_status};
+		my $job_host_uuid      = $anvil->data->{jobs}{running}{$job_uuid}{job_host_uuid};
+		my $short_host_name    = $anvil->data->{hosts}{host_uuid}{$job_host_uuid}{short_host_name} // "";
+		my $modified_date      = $anvil->data->{jobs}{running}{$job_uuid}{modified_date};
+		my $modified_date_unix = $anvil->data->{jobs}{running}{$job_uuid}{modified_date_unix};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			jobs_found         => $jobs_found, 
+			job_command        => $job_command, 
+			job_data           => $job_data, 
+			job_picked_up_by   => $job_picked_up_by, 
+			job_picked_up_at   => $job_picked_up_at, 
+			job_updated        => $job_updated, 
+			job_name           => $job_name, 
+			job_progress       => $job_progress, 
+			job_title          => $job_title, 
+			job_description    => $job_description, 
+			job_status         => $job_status, 
+			job_host_uuid      => $job_host_uuid,
+			short_host_name    => $short_host_name, 
+			modified_date      => $modified_date, 
+			modified_date_unix => $modified_date_unix, 
+		}});
+		
+		# Turn the time stamps into strings and translate the job_title, job_description, and job_status
+		my $say_job_picked_up_at = $anvil->Get->date_and_time({use_time => $job_picked_up_at});
+		my $say_job_updated      = $anvil->Get->date_and_time({use_time => $job_updated});
+		my $say_job_title        = $anvil->Words->parse_banged_string({debug => 2, key_string => $job_title});
+		my $say_job_description  = $anvil->Words->parse_banged_string({debug => 2, key_string => $job_description});
+		my $say_job_status       = $anvil->Words->parse_banged_string({debug => 2, key_string => $job_status});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			say_job_picked_up_at => $say_job_picked_up_at, 
+			say_job_updated      => $say_job_updated, 
+			say_job_title        => $say_job_title, 
+			say_job_description  => $say_job_description, 
+			say_job_status       => $say_job_status, 
+		}});
+		
+		my $sort_key = "queued";
+		if ($job_progress == 100)
+		{
+			# Finished
+			$sort_key = "completed";
+		}
+		elsif ($job_progress)
+		{
+			# Picked up
+			$sort_key = "in_progress";
+		}
+		
+		if (not exists $anvil->data->{count}{$short_host_name}{$sort_key})
+		{
+			$anvil->data->{count}{$short_host_name}{$sort_key} = 1;
+		}
+		else
+		{
+			$anvil->data->{count}{$short_host_name}{$sort_key}++;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"count::${short_host_name}::${sort_key}" => $anvil->data->{count}{$short_host_name}{$sort_key}, 
+		}});
+		
+		# Store
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_uuid}         = $job_uuid;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_command}      = $job_command;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_data}         = $job_data;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_by} = $job_picked_up_by;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_updated}      = $say_job_updated;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_at} = $say_job_picked_up_at;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_name}         = $job_name;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_progress}     = $job_progress;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_title}        = $say_job_title;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_description}  = $say_job_description;
+		$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_status}       = $say_job_status;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_uuid"         => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_uuid}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_command"      => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_command}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_data"         => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_data}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_picked_up_by" => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_by}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_updated"      => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_updated}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_picked_up_at" => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_at}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_name"         => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_name}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_progress"     => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_progress}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_title"        => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_title}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_description"  => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_description}, 
+			"sorted_jobs::${short_host_name}::${sort_key}::${job_picked_up_at}::job_status"       => $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_status}, 
+		}});
+	}
+	
+	if (($anvil->data->{switches}{'job-uuid'}) && (not $jobs_found))
+	{
+		print "The job: [".$anvil->data->{switches}{'job-uuid'}."] was not found.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{sorted_jobs}})
+	{
+		print "-=] Jobs on ".$short_host_name." [=------------------------------------------------\n";
+		foreach my $sort_key ("queued", "in_progress", "completed")
+		{
+			my $count = exists $anvil->data->{count}{$short_host_name}{$sort_key} // 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				sort_key => $sort_key, 
+				count    => $count, 
+			}});
+			next if not $count;
+			
+			my $say_header = "";
+			if ($sort_key eq "queued")
+			{
+				$say_header = $anvil->Words->string({key => 'header_0112'});
+			}
+			elsif ($sort_key eq "in_progress")
+			{
+				$say_header = $anvil->Words->string({key => 'header_0113'});
+			}
+			elsif ($sort_key eq "completed")
+			{
+				$say_header = $anvil->Words->string({key => 'header_0114'});
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_header => $say_header }});
+			print "- ".$say_header."\n";
+			foreach my $job_picked_up_at (sort {$a cmp $b} keys %{$anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_picked_up_at => $job_picked_up_at }});
+				my $job_uuid             = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_uuid};
+				my $job_command          = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_command};
+				my $job_data             = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_data};
+				my $job_picked_up_by     = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_by};
+				my $say_job_updated      = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_updated};
+				my $say_job_picked_up_at = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_picked_up_at};
+				my $job_name             = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_name};
+				my $job_progress         = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_progress};
+				my $say_job_title        = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_title};
+				my $say_job_description  = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_description};
+				my $say_job_status       = $anvil->data->{sorted_jobs}{$short_host_name}{$sort_key}{$job_picked_up_at}{job_status};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					job_uuid             => $job_uuid,
+					job_command          => $job_command,
+					job_data             => $job_data,
+					job_picked_up_by     => $job_picked_up_by,
+					say_job_updated      => $say_job_updated, 
+					say_job_picked_up_at => $say_job_picked_up_at, 
+					job_name             => $job_name,
+					job_progress         => $job_progress, 
+					say_job_title        => $say_job_title, 
+					say_job_description  => $say_job_description, 
+					say_job_status       => $say_job_status, 
+				}});
+				print "Job Name: [".$job_name."], UUID: [".$job_uuid."]\n";
+				if ($sort_key eq "queued")
+				{
+					print "- Command: [".$job_command."], <queued>\n";
+				}
+				elsif ($sort_key eq "completed")
+				{
+					print "- Command: [".$job_command."], Picked up at: [".$say_job_picked_up_at."], last updated: [".$say_job_updated."]\n";
+				}
+				else
+				{
+					print "- Command: [".$job_command."], Progress: [".$job_progress."\%] Picked up at: [".$say_job_picked_up_at."], last updated: [".$say_job_updated."], PID: [".$job_picked_up_by."]\n";
+				}
+				my $job_data_lines = (split/\n/, $job_data);
+				if ($job_data_lines > 1)
+				{
+					print "---] Job Data:\n";
+					print $job_data."\n";
+					print "----------------\n";
+				}
+				else
+				{
+					print "- Job Data: [".$job_data."]\n";
+				}
+				print "---] Job Status:\n";
+				print $say_job_status."\n";
+				print "--------------------------------------------------------------------------------\n";
+			}
+		}
+	}
+	
+	return(0);
+}
