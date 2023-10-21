@@ -593,6 +593,12 @@ sub handle_periodic_tasks
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			
+			# Look for duplicates if we're the primary DB.
+			if ($anvil->Get->host_uuid eq $anvil->data->{sys}{database}{primary_db})
+			{
+				$anvil->Database->_check_for_duplicates({debug => 2});
+			}
 		}
 	}
 	
