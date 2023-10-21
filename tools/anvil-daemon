@@ -580,6 +580,16 @@ sub handle_periodic_tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
 		{
+			# Look for duplicates if we're the primary DB.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sys::database::primary_db" => $anvil->data->{sys}{database}{primary_db},
+				"Get->host_uuid"            => $anvil->Get->host_uuid, 
+			}});
+			if ($anvil->Get->host_uuid eq $anvil->data->{sys}{database}{primary_db})
+			{
+				$anvil->Database->_check_for_duplicates({debug => 2});
+			}
+			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
 			my $shell_call = $anvil->data->{path}{exe}{'striker-get-screenshots'}.$anvil->Log->switches;
@@ -593,12 +603,6 @@ sub handle_periodic_tasks
 				output      => $output,
 				return_code => $return_code, 
 			}});
-			
-			# Look for duplicates if we're the primary DB.
-			if ($anvil->Get->host_uuid eq $anvil->data->{sys}{database}{primary_db})
-			{
-				$anvil->Database->_check_for_duplicates({debug => 2});
-			}
 		}
 	}
 	

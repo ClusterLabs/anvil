@@ -18151,6 +18151,9 @@ sub resync_databases
 	# We're done with the table data, clear it.
 	delete $anvil->data->{sys}{database}{table};
 	
+	# Search for duplicates from the resync
+	$anvil->Database->_check_for_duplicates({debug => 2});
+	
 	# Clear the variable that indicates we need a resync.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
@@ -19728,7 +19731,7 @@ ORDER BY
 			push @{$queries}, "DELETE FROM variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid).";";
 			foreach my $query (@{$queries})
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
 			}
 			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
