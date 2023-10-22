@@ -19709,7 +19709,8 @@ ORDER BY
 			modified_date         => $modified_date,
 		}});
 		
-		if (not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid})
+		if ((not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}) && 
+		    (not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}))
 		{
 			# Save it.
 			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value} = $variable_value; 
@@ -19718,6 +19719,11 @@ ORDER BY
 		else
 		{
 			# Duplicate! This is older, so delete it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_value" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value},
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_uuid" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid},
+			}});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0165", variables => {
 				section      => $variable_section,
 				name         => $variable_name,
