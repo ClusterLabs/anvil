@@ -19695,8 +19695,8 @@ ORDER BY
 		my $variable_uuid         = $row->[0]; 
 		my $variable_section      = $row->[1]; 
 		my $variable_name         = $row->[2]; 
-		my $variable_source_table = $row->[3] // "none"; 
-		my $variable_source_uuid  = $row->[4] // "none"; 
+		my $variable_source_table = $row->[3] ? $row->[3] : "none"; 
+		my $variable_source_uuid  = $row->[4] ? $row->[4] : "none"; 
 		my $variable_value        = $row->[5]; 
 		my $modified_date         = $row->[6];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -19708,6 +19708,17 @@ ORDER BY
 			variable_value        => $variable_value, 
 			modified_date         => $modified_date,
 		}});
+		
+		if (not $variable_source_table)
+		{
+			$variable_source_table = "none";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { variable_source_table => $variable_source_table }});
+		}
+		if (not $variable_source_uuid)
+		{
+			$variable_source_uuid = "none";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { variable_source_uuid => $variable_source_uuid }});
+		}
 		
 		if ((not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}) && 
 		    (not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}))
