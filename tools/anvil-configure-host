@@ -50,7 +50,7 @@ if (($< != 0) && ($> != 0))
 }
 
 # Connect
-$anvil->Database->connect();
+$anvil->Database->connect({debug => 2, check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "message_0031"});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
