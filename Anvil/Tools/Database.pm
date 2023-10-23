@@ -19699,7 +19699,7 @@ ORDER BY
 		my $variable_source_uuid  = $row->[4] ? $row->[4] : "none"; 
 		my $variable_value        = $row->[5]; 
 		my $modified_date         = $row->[6];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 			variable_uuid         => $variable_uuid, 
 			variable_section      => $variable_section, 
 			variable_name         => $variable_name, 
@@ -19726,6 +19726,10 @@ ORDER BY
 			# Save it.
 			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value} = $variable_value; 
 			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}  = $variable_uuid; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_value" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value},
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_uuid" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid},
+			}});
 		}
 		else
 		{
