@@ -19721,7 +19721,7 @@ ORDER BY
 		}
 		
 		if ((not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}) && 
-		    (not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}))
+		    (not $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}))
 		{
 			# Save it.
 			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value} = $variable_value; 
@@ -19757,6 +19757,9 @@ ORDER BY
 			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
 	}
+	
+	# Delete to hash.
+	delete $anvil->data->{duplicate_variables};
 	
 	return(0);
 }
