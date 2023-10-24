@@ -300,7 +300,37 @@ sub check_httpd_conf
 
 =head2 generate_manifest
 
-This reads the CGI data coming from the manifest form to generate the manifest XML.
+This reads the CGI data coming from the manifest form to generate the manifest XML. On success, the C<< manifest_uuid >>, and C<< manifest_uuid >> are returned. If there's a problem, C<< !!error!! >> is returned.
+
+Parameters;
+
+=head3 dns (optional)
+
+This is a comma-separated list of DNS servers to use. 
+
+=head3 domain (required)
+
+This is the domain name to use for this Anvil! node.
+
+=head3 manifest_uuid (optional)
+
+This allows updating an existing mannifest, or specifying the manifest UUID to use for the new manifest.
+
+=head3 mtu (optional)
+
+This allows specifying a custome MTU (maximum transmission unit) size. Only use this if you know all network devices support this MTU size!
+
+=head3 ntp (optional)
+
+This allows specifying a custom NTP (network time protocol) server to use to sync the subnode's time against.
+
+=head3 prefix (required)
+
+This is the node's descriptive prefix (usually 1~5 characters). 
+
+=head3 sequence (required)
+
+This is an integer, 1 or higher, indication the node's sequence number.
 
 =cut
 sub generate_manifest
@@ -327,6 +357,24 @@ sub generate_manifest
 		name_prefix     => $name_prefix, 
 		padded_sequence => $padded_sequence, 
 	}});
+	
+	if (not $domain)
+	{
+		# No target...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Striker->generate_manifest()", parameter => "domain" }});
+		return('!!error!!', '!!error!!');
+	}
+	
+	if (not $name_prefix)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Striker->generate_manifest()", parameter => "name_prefix" }});
+		return('!!error!!', '!!error!!');
+	}
+	if (not $padded_sequence)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Striker->generate_manifest()", parameter => "padded_sequence" }});
+		return('!!error!!', '!!error!!');
+	}
 	
 	$anvil->Database->get_upses({debug => $debug});
 	$anvil->Database->get_fences({debug => $debug});
