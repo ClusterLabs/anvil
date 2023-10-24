@@ -3179,6 +3179,7 @@ Proceed? [y/N]</key>
 		<key name="message_0354">This host is now configured to map the network.</key>
 		<key name="message_0355">This host is already NOT configured to map the network.</key>
 		<key name="message_0356">This host is no longer configured to map the network.</key>
+		<key name="message_0357">No hosts with IPMI found, done.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3952,6 +3953,7 @@ We will try to proceed anyway.</key>
 </key>
 		<key name="warning_0163"><![CDATA[Failed to read the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		<key name="warning_0164"><![CDATA[Failed to update the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
+		<key name="warning_0165"><![CDATA[A duplicate variable was found! Section: [#!variable!section!#], name: [#!variable!name!#], source table: [#!variable!source_table!#], source_uuid: [#!variable!source_uuid!#], value: [#!variable!value!#]. This is older, so it will be deleted.]]></key>
 		
 	</language>
 	<!-- 日本語 -->

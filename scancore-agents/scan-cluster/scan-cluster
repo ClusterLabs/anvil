@@ -418,7 +418,7 @@ sub check_if_server_failed
 	my ($anvil, $server) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server => $server }});
 	
-	$anvil->Cluster->parse_crm_mon({debug => 3});
+	$anvil->Cluster->parse_crm_mon({debug => 2});
 	my $failed = exists $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} ? $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$server}{variables}{failed} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
 	if ($failed eq "true")
@@ -708,15 +708,24 @@ INSERT INTO
 	$anvil->Database->get_anvils();
 	foreach my $scan_cluster_node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
 	{
-		my $scan_cluster_node_host_uuid        = $anvil->Get->host_uuid_from_name({host_name => $scan_cluster_node_name});
+		my $scan_cluster_node_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $scan_cluster_node_name}) // "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
+			scan_cluster_node_name      => $scan_cluster_node_name,
+			scan_cluster_node_host_uuid => $scan_cluster_node_host_uuid, 
+		}});
+		if (not $scan_cluster_node_host_uuid)
+		{
+			# Something is wrong with this host. Does the hostname match to node name?
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_alert_0016", variables => { node_name => $scan_cluster_node_name }});
+			next;
+		}
+		
 		my $scan_cluster_node_pacemaker_id     = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{pacemaker_id};
 		my $scan_cluster_node_in_ccm           = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{in_ccm};
 		my $scan_cluster_node_crmd_member      = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{crmd};
 		my $scan_cluster_node_cluster_member   = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{'join'};
 		my $scan_cluster_node_maintenance_mode = $anvil->data->{cib}{parsed}{data}{node}{$scan_cluster_node_name}{node_state}{'maintenance-mode'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level  => 2, list => { 
-			scan_cluster_node_name             => $scan_cluster_node_name,
-			scan_cluster_node_host_uuid        => $scan_cluster_node_host_uuid, 
 			scan_cluster_node_pacemaker_id     => $scan_cluster_node_pacemaker_id, 
 			scan_cluster_node_in_ccm           => $scan_cluster_node_in_ccm, 
 			scan_cluster_node_crmd_member      => $scan_cluster_node_crmd_member, 
@@ -1044,7 +1053,7 @@ sub collect_data
 	my ($anvil) = @_;
 	
 	# Pick out core cluster details.
-	my $problem = $anvil->Cluster->parse_cib({debug => 3});
+	my $problem = $anvil->Cluster->parse_cib({debug => 2});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	
 	# If there was a problem, we're not in the cluster.
