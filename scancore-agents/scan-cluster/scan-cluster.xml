@@ -40,6 +40,7 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_alert_0013">The server: [#!variable!server!#] was found to be failed in pacemaker, but it was successfully recovered. This does NOT mean the server rebooted, but it may have. Checking the server is advised.</key>
 		<key name="scan_cluster_alert_0014">The server: [#!variable!server!#] was found to be failed in pacemaker. The attempt to recover it appears to have failed. The server might well still be running ok, checking the server is advised.</key>
 		<key name="scan_cluster_alert_0015">The server: [#!variable!server!#] had been found to be failed in pacemaker. It's now recovered. This does NOT mean the server rebooted, but it may have. Checking the server is advised.</key>
+		<key name="scan_cluster_alert_0016">The node name: [#!variable!node_name!#] failed to translate to a host UUID. Does the node name match the host name?</key>
 		
 		<!-- Log entries -->
 		<key name="scan_cluster_log_0001">Starting: [#!variable!program!#].</key>

@@ -151,11 +151,16 @@ sub find_boot_method
 	}
 	
 	my $host_count = @{$hosts};
-	my $steps      = int((80 / $host_count) / 3);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		host_count => $host_count, 
-		steps      => $steps,
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_count => $host_count }});
+	if (not $host_count)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0357"});
+		$anvil->Job->update_progress({progress => 100, message => "message_0357"});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	my $steps = int((80 / $host_count) / 3);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { steps => $steps }});
 	
 	$anvil->data->{sys}{progress} = 5;
 	foreach my $host_name (sort {$a cmp $b} @{$hosts})

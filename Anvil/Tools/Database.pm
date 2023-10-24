@@ -105,6 +105,7 @@ my $THIS_FILE = "Database.pm";
 # _add_to_local_config
 # _age_out_data
 # _archive_table
+# _check_for_duplicates
 # _find_column
 # _find_behind_database
 # _mark_database_as_behind
@@ -18150,6 +18151,9 @@ sub resync_databases
 	# We're done with the table data, clear it.
 	delete $anvil->data->{sys}{database}{table};
 	
+	# Search for duplicates from the resync
+	$anvil->Database->_check_for_duplicates({debug => 2});
+	
 	# Clear the variable that indicates we need a resync.
 	$anvil->data->{sys}{database}{resync_needed} = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::resync_needed' => $anvil->data->{sys}{database}{resync_needed} }});
@@ -19648,6 +19652,117 @@ COPY history.".$table." (";
 	return(0);
 }
 
+
+=head2 _check_for_duplicates
+
+This method looks for duplicate entries in the database and clears them, if found.
+
+This method takes no parameters
+
+=cut
+sub _check_for_duplicates
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_check_for_duplicates()" }});
+	
+	my $query = "
+SELECT 
+    variable_uuid, 
+    variable_section, 
+    variable_name, 
+    variable_source_table, 
+    variable_source_uuid, 
+    variable_value, 
+    modified_date 
+FROM 
+    variables 
+ORDER BY 
+    modified_date DESC;
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $variable_uuid         = $row->[0]; 
+		my $variable_section      = $row->[1]; 
+		my $variable_name         = $row->[2]; 
+		my $variable_source_table = $row->[3] ? $row->[3] : "none"; 
+		my $variable_source_uuid  = $row->[4] ? $row->[4] : "none"; 
+		my $variable_value        = $row->[5]; 
+		my $modified_date         = $row->[6];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+			variable_uuid         => $variable_uuid, 
+			variable_section      => $variable_section, 
+			variable_name         => $variable_name, 
+			variable_source_table => $variable_source_table, 
+			variable_source_uuid  => $variable_source_uuid, 
+			variable_value        => $variable_value, 
+			modified_date         => $modified_date,
+		}});
+		
+		if (not $variable_source_table)
+		{
+			$variable_source_table = "none";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { variable_source_table => $variable_source_table }});
+		}
+		if (not $variable_source_uuid)
+		{
+			$variable_source_uuid = "none";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { variable_source_uuid => $variable_source_uuid }});
+		}
+		
+		if ((not exists $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}) && 
+		    (not $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}))
+		{
+			# Save it.
+			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value} = $variable_value; 
+			$anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid}  = $variable_uuid; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_value" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value},
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_uuid" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid},
+			}});
+		}
+		else
+		{
+			# Duplicate! This is older, so delete it.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_value" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_value},
+				"duplicate_variables::${variable_section}::${variable_name}::${variable_source_table}::${variable_source_uuid}::variable_uuid" => $anvil->data->{duplicate_variables}{$variable_section}{$variable_name}{$variable_source_table}{$variable_source_uuid}{variable_uuid},
+			}});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0165", variables => {
+				section      => $variable_section,
+				name         => $variable_name,
+				source_table => $variable_source_table,
+				source_uuid  => $variable_source_uuid, 
+				value        => $variable_value,
+			}});
+			
+			my $queries = [];
+			push @{$queries}, "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid).";";
+			push @{$queries}, "DELETE FROM variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid).";";
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+			}
+			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	# Delete to hash.
+	delete $anvil->data->{duplicate_variables};
+	
+	return(0);
+}
 
 =head2 _find_column
 
