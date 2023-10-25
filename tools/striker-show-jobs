@@ -42,13 +42,13 @@ if (($anvil->data->{switches}{'ended-within'} eq "") or ($anvil->data->{switches
 	}});
 }
 
-$anvil->data->{show}{host_uuid} = "";
+$anvil->data->{switches}{host_uuid} = "";
 if (($anvil->data->{switches}{host}) && ($anvil->data->{switches}{host} ne "all"))
 {
 	# Get the host_uuid 
-	$anvil->data->{show}{host_uuid} = $anvil->Database->get_host_uuid_from_string({debug => 2, string => $anvil->data->{switches}{host}});
+	$anvil->data->{switches}{host_uuid} = $anvil->Database->get_host_uuid_from_string({debug => 2, string => $anvil->data->{switches}{host}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"show::host_uuid" => $anvil->data->{show}{host_uuid}, 
+		"switches::host_uuid" => $anvil->data->{switches}{host_uuid}, 
 	}});
 }
 
@@ -79,7 +79,7 @@ sub show_jobs
 	$anvil->Database->get_hosts({debug => 3});
 	$anvil->Database->get_jobs({
 		debug         => 2, 
-		job_host_uuid => $anvil->data->{show}{host_uuid} // "all", 
+		job_host_uuid => $anvil->data->{switches}{host_uuid} ? $anvil->data->{switches}{host_uuid} : "all", 
 		ended_within  => $anvil->data->{switches}{'ended-within'},
 	});
 	
