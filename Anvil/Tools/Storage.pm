@@ -4178,6 +4178,33 @@ sub read_file
 			return("!!error!!");
 		}
 		
+		### TODO: The '$file' should be bash-escaped.
+		# See if the file even exists on the target.
+		my $shell_call = $anvil->data->{path}{exe}{ls}." '".$file."'";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			target      => $target,
+			port        => $port, 
+			password    => $password,
+			remote_user => $remote_user, 
+			shell_call  => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($return_code)
+		{
+			# The file doesn't exist, so we can't copy it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0465", variables => { 
+				file   => $file,
+				target => $target,
+			}});
+			return("!!error!!");
+		}
+		
 		# Setup the temp file name.
 		my $temp_file =  $file;
 		   $temp_file =~ s/\//_/g;
