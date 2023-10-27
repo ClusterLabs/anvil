@@ -3402,18 +3402,50 @@ sub host_name
 	# Set?
 	if ($set)
 	{
-		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname $set";
+		my $shell_call = $anvil->data->{path}{exe}{hostnamectl}." set-hostname ".$set;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 		
 		my $output      = "";
 		my $return_code = "";
 		if ($anvil->Network->is_local({host => $target}))
 		{
+			# Load the hosts from the database so that we know which on to update.
+			$anvil->Database->get_hosts();
+			my $host_uuid         = $anvil->Get->host_uuid;
+			my $current_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host_uuid         => $host_uuid,
+				current_host_name => $current_host_name, 
+			}});
+			
 			# Local call
 			($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output, 
 				return_code => $return_code,
+			}});
+			
+			# Update the database
+			$anvil->Database->insert_or_update_hosts({
+				debug       => $debug, 
+				host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
+				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+				host_name   => $set, 
+				host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+				host_uuid   => $host_uuid, 
+				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+			});
+			
+			# Reload hosts
+			$anvil->Database->get_hosts();
+			
+			# Reload the host name
+			$anvil->Get->host_name({refresh => 1});
+			
+			# Update the stored hostname
+			$anvil->data->{sys}{host_name} = $set;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::host_name" => $anvil->data->{sys}{host_name},
 			}});
 		}
 		else
@@ -3452,6 +3484,12 @@ sub host_name
 				output      => $output, 
 				return_code => $return_code,
 			}});
+			
+			# Update the stored hostname
+			$anvil->data->{sys}{host_name} = $set;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::host_name" => $anvil->data->{sys}{host_name},
+			}});
 		}
 		else
 		{
@@ -3486,6 +3524,12 @@ sub host_name
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			host_name    => $host_name, 
 			return_code  => $return_code,
+		}});
+		
+		# Update the stored hostname
+		$anvil->data->{sys}{host_name} = $host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::host_name" => $anvil->data->{sys}{host_name},
 		}});
 	}
 	else

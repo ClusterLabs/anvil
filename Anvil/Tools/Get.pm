@@ -1455,18 +1455,24 @@ AND
 
 This returns the full host name for the local machine.
 
-This method takes no parameters.
+Parameters;
+
+=head3 refresh (optional, default '0')
+
+If set to C<< 1 >>, and if C<< sys::host_name >>, the cached value will be ignored and the hostname will be queried directly.
 
 =cut
 sub host_name
 {
 	### NOTE: This method doesn't offer logging.
-	my $self  = shift;
-	my $anvil = $self->parent;
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
 	
+	my $refresh   = defined $parameter->{refresh} ? $parameter->{refresh} : 0;
 	my $host_name = "";
 	# NOTE: Don't use 'ENV{HOSTNAME}'! It lags behind changes made by 'hostnamectl'.
-	if ($anvil->data->{sys}{host_name})
+	if ((not $refresh) && ($anvil->data->{sys}{host_name}))
 	{
 		# We have an environment variable, so use it.
 		$host_name = $anvil->data->{sys}{host_name};

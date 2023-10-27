@@ -663,6 +663,8 @@ while(1)
 			my $centered_failures     = $anvil->Words->center_text({string => $fail_count,    width => $failures_length});
 			my $centered_mac_address  = $anvil->Words->center_text({string => $mac_address,   width => $mac_length});
 			
+			$anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw} = "" if not $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw};
+			
 			my $iface_name_colour = $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{mii_status_raw} eq "up" ? $anvil->data->{colours}{bond}{interface} : $anvil->data->{bond}{$bond_name}{slave}{$in_slave}{status_colour};
 			
 			my $say_iface_name        = colored($centered_iface_name,   $iface_name_colour);
