@@ -733,6 +733,7 @@ The XML that failed sanity check was:
 #!variable!xml!#
 ========
 ]]></key>
+		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

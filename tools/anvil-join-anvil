@@ -1505,6 +1505,9 @@ sub check_local_network
 	}});
 	
 	$anvil->data->{sys}{host_name} = $new_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		'sys::host_name' => $anvil->data->{sys}{host_name}, 
+	}});
 	
 	# If the hostname isn't the same, change it.
 	if ($old_host_name ne $new_host_name)
@@ -1539,6 +1542,10 @@ sub check_local_network
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0077,!!host_name!".$new_host_name."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0077", variables => { host_name => $new_host_name }});
 	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		'sys::host_name' => $anvil->data->{sys}{host_name}, 
+	}});
 	
 	# Read the local network manager data.
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0080");

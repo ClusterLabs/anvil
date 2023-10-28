@@ -128,8 +128,8 @@ sub center_text
 		width  => $width,
 	}});
 	
-	return($string) if $width eq "";
-	return("")      if $parameter->{string} eq "";
+	return($string) if $width  eq "";
+	return("")      if $string eq "";
 	
 	### NOTE: If a '#!string!x!#' is passed, the Log->entry method will translate it in the log itself,
 	###       so you won't see that string.
