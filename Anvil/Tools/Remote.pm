@@ -222,6 +222,8 @@ Any output from the call will be stored in C<< $output >>. STDERR and STDOUT are
 
 B<NOTE>: By default, a connection to a target will be held open and cached to increase performance for future connections. 
 
+B<NOTE>: If the C<< target >> is actually the local system, C<< System->call >> is called instead, and the C<< error >> variable will be set to C<< local >>.
+
 Parameters;
 
 =head3 close (optional, default '0')
@@ -337,11 +339,17 @@ sub call
 		}});
 	}
 	
-	# In case 'target' is our short host name, change it to ''.
-	if ($target eq $anvil->Get->short_host_name())
+	# If the call is to ourselves, switch to a local system call.
+	if ($anvil->Network->is_local({host => $target}))
 	{
-		$target = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+		# Use a local system call.
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		return($output, "local", $return_code);
 	}
 	
 	if (not $shell_call)
