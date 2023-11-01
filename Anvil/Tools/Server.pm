@@ -3089,6 +3089,7 @@ sub update_definition
 						}});
 						
 						# Define the server
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0818", variables => { server_name => $server_name }});
 						eval { $anvil->data->{libvirtd}{$short_host_name}{connection}->define_domain($new_definition_xml); };
 						if ($@)
 						{
@@ -3098,6 +3099,66 @@ sub update_definition
 								server_name => $server_name,
 								error       => $@,
 							}});
+						}
+						else
+						{
+							if (not ref($anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}) eq "Sys::Virt::Domain")
+							{
+								# Connect to the server.
+								my @domains = $anvil->data->{libvirtd}{$short_host_name}{connection}->list_all_domains();
+								foreach my $domain_handle (@domains)
+								{
+									my $this_server_name = $domain_handle->get_name;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+										domain_handle    => $domain_handle, 
+										this_server_name => $this_server_name,
+									}});
+									if ($this_server_name eq $server_name)
+									{
+										$anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection} = $domain_handle;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+											"libvirtd::${short_host_name}::server::${server_name}::connection" => $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection},
+										}});
+										last;
+									}
+								}
+								
+							}
+							
+							# If this connection still valid?
+							if (ref($anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}) eq "Sys::Virt::Domain")
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0819", variables => { server_name => $server_name }});
+								my $uuid = "";
+								eval { $uuid = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->get_uuid_string(); };
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "uuid" => $uuid }});
+								if ((not $@) && ($uuid))
+								{
+									# Connection is good.
+									my $updated = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->is_updated();
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "updated" => $updated }});
+									if ($updated)
+									{
+										eval { $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->undefine; };
+										if ($@)
+										{
+											# Throw an error, then clear the URI so that we just update the DB/on-disk definitions.
+											$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0167", variables => { 
+												host_name   => $short_host_name,
+												server_name => $server_name,
+												error       => $@,
+											}});
+										}
+										else
+										{
+											my $updated = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->is_updated();
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "updated" => $updated }});
+											
+											$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0817", variables => { server_name => $server_name }});
+										}
+									}
+								}
+							}
 						}
 					}
 				}
