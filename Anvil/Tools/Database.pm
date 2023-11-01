@@ -2392,6 +2392,7 @@ sub get_anvil_uuid_from_string
 		}
 	}
 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0466", variables => { string => $anvil }});
 	return("");
 }
 

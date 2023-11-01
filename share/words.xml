@@ -734,6 +734,7 @@ The XML that failed sanity check was:
 ========
 ]]></key>
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
+		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3955,6 +3956,11 @@ We will try to proceed anyway.</key>
 		<key name="warning_0163"><![CDATA[Failed to read the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		<key name="warning_0164"><![CDATA[Failed to update the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		<key name="warning_0165"><![CDATA[A duplicate variable was found! Section: [#!variable!section!#], name: [#!variable!name!#], source table: [#!variable!source_table!#], source_uuid: [#!variable!source_uuid!#], value: [#!variable!value!#]. This is older, so it will be deleted.]]></key>
+		<key name="warning_0166">Failed to update the in-memory definition for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. The error, if any, was:
+====
+#!variable!error!#
+====
+</key>
 		
 	</language>
 	<!-- 日本語 -->
