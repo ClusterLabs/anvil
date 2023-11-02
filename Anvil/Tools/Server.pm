@@ -346,7 +346,7 @@ sub connect_to_libvirt
 		target_ip   => $target_ip, 
 	}});
 	
-	if ((not $target)or ($target eq "localhost"))
+	if ((not $target) or ($target eq "localhost"))
 	{
 		# Change to the short host name.
 		$target = $anvil->Get->short_host_name;
@@ -383,11 +383,26 @@ sub connect_to_libvirt
 	# If we don't have a connection, try to establish one now.
 	if (not $anvil->data->{libvirtd}{$target}{connection})
 	{
+		# Make sure the target is known.
+		my $problem = $anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug, 
+			target => $target_ip, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { problem => $problem }});
+		
+		### NOTE: For some reason, the below 'alarm'/SIGALRM' hook doesn't work if the ssh target's
+		###       fingerprint isn't known, hence the call above. Whatever is causing this though 
+		###       could bite us in other ways.
+		# Test connect
 		my $uri = "qemu+ssh://".$target_ip."/system";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
-		
-		# Test connect
-		eval { $anvil->data->{libvirtd}{$target}{connection} = Sys::Virt->new(uri => $uri); };
+		eval 
+		{
+			local $SIG{ALRM} = sub { die "Connection to: [".$uri."] timed out!\n" }; # NB: \n required
+			alarm 10;
+			$anvil->data->{libvirtd}{$target}{connection} = Sys::Virt->new(uri => $uri); 
+			alarm 0;
+		};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"libvirtd::${target}::connection" => $anvil->data->{libvirtd}{$target}{connection},
 		}});
@@ -2049,7 +2064,7 @@ sub parse_definition
 	}
 	
 	$anvil->data->{server}{$target}{$server}{$source}{parsed} = $server_xml;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"server::${target}::${server}::${source}::parsed" => $anvil->data->{server}{$target}{$server}{$source}{parsed}, 
 	}});
 	

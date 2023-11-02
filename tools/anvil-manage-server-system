@@ -110,7 +110,7 @@ elsif ($anvil->data->{switches}{ram})
 }
 elsif ($anvil->data->{switches}{boot})
 {
-	#manage_boot($anvil);
+	manage_boot($anvil);
 }
 elsif ($anvil->data->{switches}{'boot-menu'})
 {
@@ -132,6 +132,57 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub manage_boot
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name  = $anvil->Get->short_host_name;
+	my $host_uuid        = $anvil->Get->host_uuid;
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name'  => $short_host_name,
+		's2:host_uuid'        => $host_uuid,
+		's3:server_name'      => $server_name, 
+		's4:server_uuid'      => $server_uuid, 
+		's5:server_host_uuid' => $server_host_uuid,
+	}});
+	
+	my $from_source  = get_definition_source($anvil);
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		from_source   => $from_source,
+		server_state  => $server_state, 
+	}});
+	if ($server_state eq "running")
+	{
+		$server_host_name = $anvil->Database->get_host_from_uuid({
+			short     => 1,
+			host_uuid => $server_host_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+	}
+	
+	if ($anvil->data->{switches}{boot} eq "#!SET!#")
+	{
+		print "Boot device order for: [".$server_name."]\n";
+		foreach my $boot_order (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}})
+		{
+			my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_target};
+			my $device        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_type};
+			my $path          = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+			print " ".$boot_order.") Target: [".$device_target."], Device: [".$device."], Path: [".$path."]\n";
+		}
+		print "To change the boot device, use '--boot <target>' or --boot <target1>,<target2>,...\n";
+		return(0);
+	}
+	print "Updating boot devices.\n";
+	
+	return(0);
+}
 
 sub manage_boot_menu
 {
