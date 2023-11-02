@@ -2716,7 +2716,7 @@ LIMIT 1;";
 				# * 0 = No UPSes found for the host
 				# * 1 = One or more UPSes found and at least one has input power from mains.
 				# * 2 = One or more UPSes found, all are running on battery.
-				if (($temp_health eq "1") && ($power_health eq "1"))
+				if (($temp_health ne "2") && ($power_health ne "2"))
 				{
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0673", variables => { host_name => $host_name }});
 					
