@@ -70,6 +70,7 @@ reconfigure_network($anvil);
 
 # Record that we've configured this machine.
 $anvil->Database->insert_or_update_variables({
+	debug                 => 2,
 	variable_name         => "system::configured", 
 	variable_value        => 1, 
 	variable_default      => "", 
@@ -257,6 +258,18 @@ sub reconfigure_network
 		new_host_name => $new_host_name, 
 		type          => $type, 
 	}});
+
+	# Clear the network mapping flag.
+	$anvil->Database->insert_or_update_variables({
+		debug                 => 2,
+		variable_name         => "config::map_network", 
+		variable_value        => 0, 
+		variable_default      => "", 
+		variable_description  => "striker_0202", 
+		variable_section      => "config", 
+		variable_source_uuid  => $anvil->Get->host_uuid, 
+		variable_source_table => "hosts", 
+	});
 	
 	# If we're configuring a dashboard and no host name was given, generate it.
 	if (($type eq "striker") && (not $new_host_name))
