@@ -247,7 +247,7 @@ sub update_network_mapping
 		's4:map_network_modified_date' => $map_network_modified_date, 
 		's5:map_network_uuid'          => $map_network_uuid, 
 	}});
-	if ($anvil->data->{switches}{'check-configured'})
+	if ($anvil->data->{switches}{'check-network-mapping'})
 	{
 		# We'll run for a day (should be cancelled by the program when the user's done, so this 
 		# shouldn't fire in practice).
