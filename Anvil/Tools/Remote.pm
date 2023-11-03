@@ -338,7 +338,9 @@ sub call
 			password => $anvil->Log->is_secure($password), 
 		}});
 	}
-	
+
+	### NOTE: This caused problems that are currently unsolved.
+=cut
 	# If the call is to ourselves, switch to a local system call.
 	if ($anvil->Network->is_local({host => $target}))
 	{
@@ -351,6 +353,7 @@ sub call
 		
 		return($output, "local", $return_code);
 	}
+=cut
 	
 	if (not $shell_call)
 	{
