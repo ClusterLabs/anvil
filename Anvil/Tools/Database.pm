@@ -20015,6 +20015,9 @@ ORDER BY
 		next if $table eq "alert_sent";
 		next if $table eq "states";
 		next if $table eq "update";
+		### TODO: Delete 'sessions' when issue #520 is solved 
+		###       - https://github.com/ClusterLabs/anvil/issues/520
+		next if $table eq "sessions";
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"sys::database::table::${table}::last_updated" => $anvil->data->{sys}{database}{table}{$table}{last_updated}, 
