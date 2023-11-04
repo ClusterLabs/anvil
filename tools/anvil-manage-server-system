@@ -110,7 +110,7 @@ elsif ($anvil->data->{switches}{ram})
 }
 elsif ($anvil->data->{switches}{boot})
 {
-	#manage_boot($anvil);
+	manage_boot($anvil);
 }
 elsif ($anvil->data->{switches}{'boot-menu'})
 {
@@ -133,92 +133,55 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub connect_to_libvirt
+sub manage_boot
 {
 	my ($anvil) = @_;
 	
-	my $short_host_name = $anvil->Get->short_host_name;
-	my $host_uuid       = $anvil->Get->host_uuid;
-	my $server_name     = $anvil->data->{switches}{server_name};
-	my $server_uuid     = $anvil->data->{switches}{server_uuid};
+	my $short_host_name  = $anvil->Get->short_host_name;
+	my $host_uuid        = $anvil->Get->host_uuid;
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:short_host_name' => $short_host_name,
-		's2:host_uuid'       => $host_uuid,
-		's3:server_name'     => $server_name, 
-		's4:server_uuid'     => $server_uuid, 
+		's1:short_host_name'  => $short_host_name,
+		's2:host_uuid'        => $host_uuid,
+		's3:server_name'      => $server_name, 
+		's4:server_uuid'      => $server_uuid, 
+		's5:server_host_uuid' => $server_host_uuid,
 	}});
 	
 	my $from_source  = get_definition_source($anvil);
 	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		from_source  => $from_source,
-		server_state => $server_state, 
+		from_source   => $from_source,
+		server_state  => $server_state, 
 	}});
-	
-	# We'll make changes to the DB and on-disk definitions if the server isn't running. If it is, we'll
-	# update the live system as well.
-	my $uri = "";
 	if ($server_state eq "running")
 	{
-		if ($server_uuid eq $anvil->Get->host_uuid)
-		{
-			### NOTE: Don't use 'localhost', Sys::Virt translates it to '::1' which Net::OpenSSH
-			###       breaks on.
-			# Connect to the local libvirtd API, and handle problems if not.
-			$uri = "qemu+ssh://".$short_host_name."/system";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
-		}
-		else
-		{
-			my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
-			my $server_host_name = $anvil->Database->get_host_from_uuid({
-				short     => 1,
-				host_uuid => $server_host_uuid,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
-			
-			my $target_ip = $anvil->Network->find_target_ip({
-				debug       => 2,
-				host_uuid   => $server_host_uuid,
-				test_access => 1,
-				networks    => "bcn,mn,sn,ifn,any",
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
-			if ($target_ip)
-			{
-				# Connect using this URI
-				$uri = "qemu+ssh://".$target_ip."/system";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
-			}
-		}
+		$server_host_name = $anvil->Database->get_host_from_uuid({
+			short     => 1,
+			host_uuid => $server_host_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
 	}
 	
-	my $connection = "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
-	eval { $connection = Sys::Virt->new(uri => $uri); };
-	if ($@)
+	if ($anvil->data->{switches}{boot} eq "#!SET!#")
 	{
-		# Throw an error, then clear the URI so that we just update the DB/on-disk definitions.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0162", variables => { 
-			host_name => $short_host_name,
-			uri       => $uri,
-			error     => $@,
-		}});
-		return(1);
+		print "Boot device order for: [".$server_name."]\n";
+		foreach my $boot_order (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}})
+		{
+			my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_target};
+			my $device        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_type};
+			my $path          = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+			print " ".$boot_order.") Target: [".$device_target."], Device: [".$device."], Path: [".$path."]\n";
+		}
+		print "To change the boot device, use '--boot <target>' or --boot <target1>,<target2>,...\n";
+		return(0);
 	}
+	print "Updating boot devices.\n";
 	
-	my $domain  = "";
-	my @domains = $connection->list_all_domains();
-	foreach my $domain_handle (@domains)
-	{
-		my $this_server_name = $domain_handle->get_name;
-		next if $this_server_name ne $server_name;
-		
-		$domain = $domain_handle;
-		last;
-	}
-	
-	return($domain);
+	return(0);
 }
 
 sub manage_boot_menu
@@ -230,6 +193,7 @@ sub manage_boot_menu
 	my $server_name      = $anvil->data->{switches}{server_name};
 	my $server_uuid      = $anvil->data->{switches}{server_uuid};
 	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:short_host_name'  => $short_host_name,
 		's2:host_uuid'        => $host_uuid,
@@ -238,20 +202,19 @@ sub manage_boot_menu
 		's5:server_host_uuid' => $server_host_uuid,
 	}});
 	
-	my $domain_handle = connect_to_libvirt($anvil);
-	my $from_source   = get_definition_source($anvil);
-	my $server_state  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $from_source  = get_definition_source($anvil);
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		domain_handle => $domain_handle, 
 		from_source   => $from_source,
 		server_state  => $server_state, 
 	}});
 	if ($server_state eq "running")
 	{
-		my $server_host_name = $anvil->Database->get_host_from_uuid({
+		$server_host_name = $anvil->Database->get_host_from_uuid({
 			short     => 1,
 			host_uuid => $server_host_uuid,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
 	}
 	
 	my $say_yes           = $anvil->Words->string({key => 'unit_0001'});
@@ -265,8 +228,12 @@ sub manage_boot_menu
 		new_boot_menu     => $new_boot_menu,  
 	}});
 	
-	if (($anvil->data->{switches}{'boot-menu'} eq "yes") or ($anvil->data->{switches}{'boot-menu'} eq "no"))
+	if ((lc($anvil->data->{switches}{'boot-menu'}) eq "yes") or (lc($anvil->data->{switches}{'boot-menu'}) eq "no"))
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"servers::server_uuid::${server_uuid}::server_definition_xml" => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml},
+		}});
+		
 		# We need to rewrite the boot menu manually.
 		my $new_definition = "";
 		my $in_os          = 0;
@@ -314,11 +281,35 @@ sub manage_boot_menu
 			new_definition_xml => $new_definition, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		# Reload and parse from the DB to confirm things are updated.
+		delete $anvil->data->{servers}{server_uuid}{$server_uuid};
+		$anvil->Database->get_servers();
+		my $server_definition_xml = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_xml => $server_definition_xml }});
+		
+		undef $anvil->data->{server}{$short_host_name}{$server_name}{from_db};
+		$anvil->Server->parse_definition({
+			debug      => 2,
+			host       => $short_host_name,
+			server     => $server_name, 
+			source     => "from_db",
+			definition => $server_definition_xml, 
+		});
+		
+		my $new_boot_menu     = lc($anvil->data->{server}{$short_host_name}{$server_name}{from_db}{info}{boot_menu});
+		my $say_new_boot_menu = $new_boot_menu eq "yes" ? $say_yes : $say_no;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			new_boot_menu     => $new_boot_menu,
+			say_new_boot_menu => $say_new_boot_menu, 
+		}});
+		print "Boot Menu enabled now: [".$say_new_boot_menu."]\n";
+		print "- The boot menu has been updated.\n";
 	}
 	else
 	{
 		print "Boot Menu enabled: [".$say_old_boot_menu."]\n";
-		print "- You can change this using '--boot-menu off' or '--boot-menu on'.\n";
+		print "- You can change this using '--boot-menu yes' or '--boot-menu no'.\n";
 	}
 	
 	return(0);

@@ -407,8 +407,8 @@ sub write_definition
 		
 		while (not -f $xml_file)
 		{
-			$anvil->Database->get_servers();
-			$anvil->Database->get_server_definitions();
+			$anvil->Database->get_servers({debug => 2});
+			$anvil->Database->get_server_definitions({debug => 2});
 			
 			if (not exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid})
 			{
@@ -423,14 +423,15 @@ sub write_definition
 			{
 				# Write it!
 				my $return = $anvil->Storage->write_file({
+					debug     => 2,
 					body      => $server_definition,
 					file      => $xml_file,
 					overwrite => 1,
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
 				
 				if (-f $xml_file)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 'return' => $return }});
 					$anvil->Job->update_progress({
 						progress => 80,
 						message  => "job_0206,!!file!".$xml_file."!!", 

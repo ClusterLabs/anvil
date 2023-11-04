@@ -247,7 +247,7 @@ sub update_network_mapping
 		's4:map_network_modified_date' => $map_network_modified_date, 
 		's5:map_network_uuid'          => $map_network_uuid, 
 	}});
-	if ($anvil->data->{switches}{'check-configured'})
+	if ($anvil->data->{switches}{'check-network-mapping'})
 	{
 		# We'll run for a day (should be cancelled by the program when the user's done, so this 
 		# shouldn't fire in practice).
@@ -278,11 +278,15 @@ sub update_network_mapping
 				# Mark it so we only track the network.
 				my $say_age = $anvil->Convert->add_commas({number => $expire_age});
 				my $timeout = $anvil->Convert->add_commas({number => ($expire_age - $map_network_age)});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0471", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0471", variables => { 
 					age     => $say_age, 
 					timeout => $timeout,
 				}});
 			}
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0820"});
 		}
 		return(0);
 	}

@@ -1586,7 +1586,7 @@ sub keep_running
 	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
-	run_jobs($anvil, 0) if not $anvil->data->{sys}{mapping_network};
+	run_jobs($anvil, 0);
 	
 	return(0);
 }
@@ -1622,13 +1622,14 @@ sub run_jobs
 	
 	# If we're not configured, we won't hold on starting jobs
 	my $configured = $anvil->System->check_if_configured;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
 	
 	# Get a list of pending or incomplete jobs.
 	my $ended_within = $startup ? 1 : 300;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { ended_within => $ended_within }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ended_within => $ended_within }});
 	
 	$anvil->Database->get_jobs({
 		debug        => 2, 
@@ -1661,21 +1662,25 @@ sub run_jobs
 			my $started_seconds_ago =  $job_picked_up_at ? (time - $job_picked_up_at) : 0;
 			my $updated_seconds_ago =  $job_updated      ? (time - $job_updated)      : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's01:job_uuid'            => $job_uuid,
-				's02:job_command'         => $job_command, 
-				's03:short_command'       => $short_command, 
-				's04:job_data'            => $job_data, 
-				's05:job_picked_up_by'    => $job_picked_up_by, 
-				's06:job_picked_up_at'    => $job_picked_up_at, 
-				's07:job_updated'         => $job_updated, 
-				's08:job_name'            => $job_name, 
-				's09:job_progress'        => $job_progress, 
-				's10:job_title'           => $job_title, 
-				's11:job_description'     => $job_description, 
-				's12:job_status'          => $job_status, 
-				's13:started_seconds_ago' => $started_seconds_ago, 
-				's14:updated_seconds_ago' => $updated_seconds_ago, 
+				's01:job_uuid'             => $job_uuid,
+				's02:job_command'          => $job_command, 
+				's03:short_command'        => $short_command, 
+				's04:job_data'             => $job_data, 
+				's05:job_picked_up_by'     => $job_picked_up_by, 
+				's06:job_picked_up_at'     => $job_picked_up_at, 
+				's07:job_updated'          => $job_updated, 
+				's08:job_name'             => $job_name, 
+				's09:job_progress'         => $job_progress, 
+				's10:job_title'            => $job_title, 
+				's11:job_description'      => $job_description, 
+				's12:job_status'           => $job_status, 
+				's13:started_seconds_ago'  => $started_seconds_ago, 
+				's14:updated_seconds_ago'  => $updated_seconds_ago, 
+				's15:sys::mapping_network' => $anvil->data->{sys}{mapping_network},
 			}});
+			
+			# If we're mapping, we'll only run 'anvil-configure-host' jobs on this host.
+			next if (($anvil->data->{sys}{mapping_network}) && ($job_command !~ /anvil-configure-host/));
 			
 			# To minimize the chance of race conditions, any given command will be called only 
 			# once at a time. If two jobs of the same command exist, only one will be called.

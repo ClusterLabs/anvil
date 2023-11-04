@@ -54,11 +54,6 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => ["add", "check", "delete", "download", "file", "is-script", "rename", "remove", "to"], man => $THIS_FILE});
-
-### TODO: Remove this
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
 # Connect or die

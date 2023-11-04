@@ -36,6 +36,10 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
+### TODO: Remove this post testing
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})

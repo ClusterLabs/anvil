@@ -346,7 +346,7 @@ sub connect_to_libvirt
 		target_ip   => $target_ip, 
 	}});
 	
-	if ((not $target)or ($target eq "localhost"))
+	if ((not $target) or ($target eq "localhost"))
 	{
 		# Change to the short host name.
 		$target = $anvil->Get->short_host_name;
@@ -383,11 +383,26 @@ sub connect_to_libvirt
 	# If we don't have a connection, try to establish one now.
 	if (not $anvil->data->{libvirtd}{$target}{connection})
 	{
+		# Make sure the target is known.
+		my $problem = $anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug, 
+			target => $target_ip, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { problem => $problem }});
+		
+		### NOTE: For some reason, the below 'alarm'/SIGALRM' hook doesn't work if the ssh target's
+		###       fingerprint isn't known, hence the call above. Whatever is causing this though 
+		###       could bite us in other ways.
+		# Test connect
 		my $uri = "qemu+ssh://".$target_ip."/system";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uri => $uri }});
-		
-		# Test connect
-		eval { $anvil->data->{libvirtd}{$target}{connection} = Sys::Virt->new(uri => $uri); };
+		eval 
+		{
+			local $SIG{ALRM} = sub { die "Connection to: [".$uri."] timed out!\n" }; # NB: \n required
+			alarm 10;
+			$anvil->data->{libvirtd}{$target}{connection} = Sys::Virt->new(uri => $uri); 
+			alarm 0;
+		};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"libvirtd::${target}::connection" => $anvil->data->{libvirtd}{$target}{connection},
 		}});
@@ -1272,6 +1287,10 @@ C<< Note >>: By design, servers are set to 'undefined' on subnodes, so when the 
 
 Parameters;
 
+=head3 anvil (optional, name or uuid)
+
+If set, it restricts the search for a server to a specific Anvil! (and DR hosts, if protected). This will improve search performance on systems with nodes or DR hosts that are offline.
+
 =head3 server_name (required)
 
 This is the name of the server being located. It can be set to C<< all >>, in which case all servers on all hosts are located.
@@ -1285,15 +1304,35 @@ sub locate
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->locate()" }});
 	
-	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	my $anvil_string = defined $parameter->{anvil}       ? $parameter->{anvil}       : "";
+	my $server_name  = defined $parameter->{server_name} ? $parameter->{server_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		server_name => $server_name, 
+		anvil_string => $anvil_string, 
+		server_name  => $server_name, 
 	}});
 	
 	if (not $server_name)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->locate()", parameter => "server_name" }});
 		return('!!error!!');
+	}
+	
+	my $anvil_uuid = "";
+	my $anvil_name = "";
+	if ($anvil_string)
+	{
+		$anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({
+			debug  => $debug, 
+			string => $anvil_string,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		if (not $anvil_uuid)
+		{
+			# Anvil! not found. Will be logged in Database->get_anvil_uuid_from_string().
+			return('!!error!!');
+		}
+		$anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
 	}
 	
 	if (exists $anvil->data->{server_location}{host})
@@ -1307,6 +1346,38 @@ sub locate
 	# Connect to all hosts.
 	$anvil->Database->get_hosts({debug => $debug});
 	
+	if ($anvil_uuid)
+	{
+		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		
+		$anvil->data->{host_search}{$node1_host_uuid}{short_host_name} = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+		$anvil->data->{host_search}{$node2_host_uuid}{short_host_name} = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+
+		# Add DR hosts, if any.
+		if (exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host})
+		{
+			foreach my $host_uuid (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{dr_host}})
+			{
+				$anvil->data->{host_search}{$host_uuid}{short_host_name} = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			}
+		}
+		
+		# Log the hosts we'll search (alphabetically).
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		{
+			my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			if (exists $anvil->data->{host_search}{$host_uuid})
+			{
+				# Searching this 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:host_name' => $host_name, 
+					's2:host_uuid' => $host_uuid, 
+				}});
+			}
+		}
+	}
+	
 	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 	{
 		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
@@ -1319,6 +1390,15 @@ sub locate
 			's4:short_host_name' => $short_host_name, 
 		}});
 		next if $host_type eq "striker";
+		
+		if ($anvil_uuid)
+		{
+			# Skip if this isn't a host we're searching.
+			if (not exists $anvil->data->{host_search}{$host_uuid})
+			{
+				next;
+			}
+		}
 		
 		# This will switch to '1' if we connect to libvirtd.
 		$anvil->data->{server_location}{host}{$short_host_name}{access} = 0;
@@ -1934,6 +2014,7 @@ sub parse_definition
 		source     => $source, 
 		definition => $definition, 
 		host       => $host, 
+		target     => $target,
 	}});
 	
 	if (not $target)
@@ -1983,6 +2064,9 @@ sub parse_definition
 	}
 	
 	$anvil->data->{server}{$target}{$server}{$source}{parsed} = $server_xml;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"server::${target}::${server}::${source}::parsed" => $anvil->data->{server}{$target}{$server}{$source}{parsed}, 
+	}});
 	
 	# Get the DRBD data that this server will almost certainly be using.
 	$anvil->DRBD->get_devices({
@@ -2851,6 +2935,15 @@ sub update_definition
 		return('!!error!!');
 	}
 	
+	# Find where the server exists.
+	my $anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	$anvil->Server->locate({
+		debug       => $debug, 
+		server_name => $server_name,
+		anvil       => $anvil_uuid,
+	});
+	
 	# Validate the new XML
 	my $short_host_name = $anvil->Get->short_host_name();
 	my $problem         = $anvil->Server->parse_definition({
@@ -2885,7 +2978,6 @@ sub update_definition
 	}
 	
 	# Prep our variables.
-	my $anvil_uuid        = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 	my $definition_uuid   = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_uuid};
 	my $db_definition_xml = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
 	my $node1_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
@@ -2893,7 +2985,6 @@ sub update_definition
 	my $node2_host_uuid   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 	my $node2_host_name   = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		anvil_uuid        => $anvil_uuid, 
 		definition_uuid   => $definition_uuid, 
 		db_definition_xml => $db_definition_xml,  
 		node1_host_uuid   => $node1_host_uuid, 
@@ -2937,29 +3028,29 @@ sub update_definition
 	foreach my $host_uuid (@{$hosts})
 	{
 		# Find a target_ip (local will be detected as local in the file read/write)
-		my $target_ip = $anvil->Network->find_target_ip({
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my $target_ip       = $anvil->Network->find_target_ip({
 			debug       => 2,
 			host_uuid   => $host_uuid,
 			test_access => 1,
 			networks    => "bcn,mn,sn,ifn,any",
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			target_ip       => $target_ip,
+			short_host_name => $short_host_name, 
+		}});
 		if ($target_ip)
 		{
-			# Read the old definition.
-			my $old_definition_xml = $anvil->Storage->read_file({
-				debug  => $debug, 
-				file   => $definition_file, 
-				target => $target_ip, 
-			});
+			# The definition was read by Server->locate, so we can use it.
+			my $old_definition_xml = defined $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{file_definition} ? $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{file_definition} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_definition_xml => $old_definition_xml }});
+			
 			### TODO: Handle when the definition file simply doesn't exist.
 			if ((not $old_definition_xml) or ($old_definition_xml eq "!!error!!") or ($old_definition_xml !~ /<domain/ms))
 			{
-				my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0163", variables => { 
 					server_name => $server_name,
-					host_name   => $host_name, 
+					host_name   => $short_host_name, 
 					file        => $definition_file,
 				}});
 			}
@@ -2993,10 +3084,100 @@ sub update_definition
 						}});
 					}
 				}
+				
+				# If the server is defined, update that also.
+				if ((exists $anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition}) && 
+				    ($anvil->data->{server_location}{host}{$short_host_name}{server}{$server_name}{inactive_definition}))
+				{
+					# This will always differ, so just update.
+					my $problem = $anvil->Server->connect_to_libvirt({
+						debug       => $debug,
+						target      => $short_host_name,
+						target_ip   => $target_ip,
+						server_name => $server_name,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+					if (not $problem)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"libvirtd::${short_host_name}::connection" => $anvil->data->{libvirtd}{$short_host_name}{connection},
+						}});
+						
+						# Define the server
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0818", variables => { server_name => $server_name }});
+						eval { $anvil->data->{libvirtd}{$short_host_name}{connection}->define_domain($new_definition_xml); };
+						if ($@)
+						{
+							# Throw an error, then clear the URI so that we just update the DB/on-disk definitions.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0166", variables => { 
+								host_name   => $short_host_name,
+								server_name => $server_name,
+								error       => $@,
+							}});
+						}
+						else
+						{
+							if (not ref($anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}) eq "Sys::Virt::Domain")
+							{
+								# Connect to the server.
+								my @domains = $anvil->data->{libvirtd}{$short_host_name}{connection}->list_all_domains();
+								foreach my $domain_handle (@domains)
+								{
+									my $this_server_name = $domain_handle->get_name;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+										domain_handle    => $domain_handle, 
+										this_server_name => $this_server_name,
+									}});
+									if ($this_server_name eq $server_name)
+									{
+										$anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection} = $domain_handle;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+											"libvirtd::${short_host_name}::server::${server_name}::connection" => $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection},
+										}});
+										last;
+									}
+								}
+								
+							}
+							
+							# If this connection still valid?
+							if (ref($anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}) eq "Sys::Virt::Domain")
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0819", variables => { server_name => $server_name }});
+								my $uuid = "";
+								eval { $uuid = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->get_uuid_string(); };
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "uuid" => $uuid }});
+								if ((not $@) && ($uuid))
+								{
+									# Connection is good.
+									my $updated = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->is_updated();
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "updated" => $updated }});
+									if ($updated)
+									{
+										eval { $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->undefine; };
+										if ($@)
+										{
+											# Throw an error, then clear the URI so that we just update the DB/on-disk definitions.
+											$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0167", variables => { 
+												host_name   => $short_host_name,
+												server_name => $server_name,
+												error       => $@,
+											}});
+										}
+										else
+										{
+											my $updated = $anvil->data->{libvirtd}{$short_host_name}{server}{$server_name}{connection}->is_updated();
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "updated" => $updated }});
+											
+											$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0817", variables => { server_name => $server_name }});
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
-			
-			# If the server running or defined here?
-			
 		}
 	}
 	

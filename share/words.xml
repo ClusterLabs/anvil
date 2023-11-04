@@ -734,6 +734,7 @@ The XML that failed sanity check was:
 ========
 ]]></key>
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
+		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2628,6 +2629,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0814">There is an existing a functioning connection to: [#!variable!target!#], no need to reconnect.</key>
 		<key name="log_0815">There is an existing a functioning connection to the server: [#!variable!server_name!#], no need to reconnect.</key>
 		<key name="log_0816">Waiting for: [#!variable!delay!#] seconds.</key>
+		<key name="log_0817">The server: [#!variable!server_name!#] libvirt definition was updated, undefining static config.</key>
+		<key name="log_0818">The server: [#!variable!server_name!#] libvirt definition will now be updated.</key>
+		<key name="log_0819">Check to verify that the connection to the server: [#!variable!server_name!#] is valid.</key>
+		<key name="log_0820">The network mapping flag is NOT set.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3955,6 +3960,16 @@ We will try to proceed anyway.</key>
 		<key name="warning_0163"><![CDATA[Failed to read the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		<key name="warning_0164"><![CDATA[Failed to update the definition file: [#!variable!file!#] for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. If the host is online, it should update the next time scan-server runs.]]></key>
 		<key name="warning_0165"><![CDATA[A duplicate variable was found! Section: [#!variable!section!#], name: [#!variable!name!#], source table: [#!variable!source_table!#], source_uuid: [#!variable!source_uuid!#], value: [#!variable!value!#]. This is older, so it will be deleted.]]></key>
+		<key name="warning_0166">Failed to update the in-memory definition for the server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. The error, if any, was:
+====
+#!variable!error!#
+====
+</key>
+		<key name="warning_0167">Failed to undefine the running server: [#!variable!server_name!#] on the host: [#!variable!host_name!#]. The error, if any, was:
+====
+#!variable!error!#
+====
+</key>
 		
 	</language>
 	<!-- 日本語 -->
