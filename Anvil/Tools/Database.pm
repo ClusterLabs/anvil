@@ -19209,6 +19209,9 @@ sub _age_out_data
 	$to_clean->{table}{bonds}{child_table}{bonds}{uuid_column}                           = "bond_uuid";
 	$to_clean->{table}{ip_addresses}{child_table}{ip_addresses}{uuid_column}             = "ip_address_uuid";
 	
+	# Misc stuff
+	$to_clean->{table}{sessions}{child_table}{sessions}{uuid_column} = "session_uuid";
+	
 	my $vacuum = 0;
 	foreach my $table (sort {$a cmp $b} keys %{$to_clean->{table}})
 	{
