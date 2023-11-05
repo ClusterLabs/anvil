@@ -822,18 +822,28 @@ sub collect_data
 		}
 		if ($server_boot_time ne $old_server_boot_time)
 		{
-			# Boot time changed (expected on shut down or boot up)
-			my $variables  = { 
-				server              => $server_name,
-				old_boot_time_date  => $anvil->Get->date_and_time({use_time => $old_server_boot_time}),
-				old_boot_time_epoch => $anvil->Convert->add_commas({number => $old_server_boot_time}),
-				new_boot_time_date  => $anvil->Get->date_and_time({use_time => $server_boot_time}),
-				new_boot_time_epoch => $anvil->Convert->add_commas({number => $server_boot_time}),
-			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0008", variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0008", variables => $variables, set_by => $THIS_FILE});
-			$update = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+			# What's the difference? If it's only a few seconds, don't do anything.
+			$server_boot_time     = 1 if not $server_boot_time;
+			$old_server_boot_time = 1 if not $old_server_boot_time;
+			my $diffrerence =  $server_boot_time - $old_server_boot_time;
+			   $diffrerence =~ s/^-//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { diffrerence => $diffrerence }});
+			
+			if ($diffrerence > 5)
+			{
+				# Boot time changed (expected on shut down or boot up)
+				my $variables  = { 
+					server              => $server_name,
+					old_boot_time_date  => $anvil->Get->date_and_time({use_time => $old_server_boot_time}),
+					old_boot_time_epoch => $anvil->Convert->add_commas({number => $old_server_boot_time}),
+					new_boot_time_date  => $anvil->Get->date_and_time({use_time => $server_boot_time}),
+					new_boot_time_epoch => $anvil->Convert->add_commas({number => $server_boot_time}),
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0008", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0008", variables => $variables, set_by => $THIS_FILE});
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
+			}
 		}
 		if ($server_anvil_uuid ne $old_server_anvil_uuid)
 		{
