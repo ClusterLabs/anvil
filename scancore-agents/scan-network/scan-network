@@ -378,7 +378,7 @@ OR
 ;";
 		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			results => $results, 
 			count   => $count,
 		}});
@@ -386,18 +386,18 @@ OR
 		{
 			my $variable_uuid = $row->[0];
 			my $variable_name = $row->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:variable_name' => $variable_name, 
 				's2:variable_uuid' => $variable_uuid,
 			}});
 			
 			# Find out of there are any records to remove at all.
 			my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 			
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				results => $results, 
 				count   => $count, 
 			}});
@@ -406,11 +406,11 @@ OR
 			{
 				# Find how many records will be left. If it's 0, we'll use an OFFSET 1.
 				my $query = "SELECT history_id FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date > '".$old_timestamp."';";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				
 				my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 				my $count   = @{$results};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					results => $results, 
 					count   => $count, 
 				}});
@@ -418,7 +418,7 @@ OR
 				{
 					# At least one record will be left, we can do a simple delete.
 					my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND modified_date <= '".$old_timestamp."';";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 					push @{$queries}, $query;
 				}
 				else
@@ -427,10 +427,10 @@ OR
 					foreach my $row (@{$results})
 					{
 						my $history_id = $row->[0];
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { history_id => $history_id }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { history_id => $history_id }});
 						
 						my $query = "DELETE FROM history.variables WHERE variable_uuid = ".$anvil->Database->quote($variable_uuid)." AND history_id = '".$history_id."';";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { query => $query }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 						push @{$queries}, $query;
 					}
 				}
@@ -447,7 +447,7 @@ OR
 				records => $commits,
 				host    => $anvil->Get->host_name_from_uuid({host_uuid => $uuid}), 
 			}});
-			$anvil->Database->write({debug => 3, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 			undef $queries;
 		}
 	}
@@ -1924,6 +1924,7 @@ WHERE
 		
 		# Read in the RX/TX values, set to '0' if not found.
 		my ($rx_bytes, $rx_variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			debug                 => 2,
 			variable_name         => "bond::".$bond_name."::rx_bytes",
 			variable_source_uuid  => $bond_uuid, 
 			variable_source_table => "bonds", 
@@ -1933,6 +1934,7 @@ WHERE
 			rx_variable_uuid => $rx_variable_uuid, 
 		}});
 		(my $tx_bytes, my $tx_variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			debug                 => 2,
 			variable_name         => "bond::".$bond_name."::tx_bytes",
 			variable_source_uuid  => $bond_uuid, 
 			variable_source_table => "bonds", 
@@ -2026,6 +2028,7 @@ WHERE
 		
 		# Read in the RX/TX values, set to '0' if not found.
 		my ($rx_bytes, $rx_variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			debug                 => 2,
 			variable_name         => "bridge::".$bridge_name."::rx_bytes",
 			variable_source_uuid  => $bridge_uuid, 
 			variable_source_table => "bridges", 
@@ -2035,6 +2038,7 @@ WHERE
 			rx_variable_uuid => $rx_variable_uuid, 
 		}});
 		(my $tx_bytes, my $tx_variable_uuid, $modified_date) = $anvil->Database->read_variable({
+			debug                 => 2,
 			variable_name         => "bridge::".$bridge_name."::tx_bytes",
 			variable_source_uuid  => $bridge_uuid, 
 			variable_source_table => "bridges", 

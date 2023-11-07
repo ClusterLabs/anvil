@@ -1147,7 +1147,8 @@ AND
 		if (ref($anvil->data->{old}{$host_name}{temperature}{$scan_ipmitool_sensor_name}))
 		{
 			# Update the existing entry, if needed.
-			my $temperature_uuid = $anvil->data->{old}{$host_name}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+			$temperature_uuid = $anvil->data->{old}{$host_name}{temperature}{$scan_ipmitool_sensor_name}{temperature_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { temperature_uuid => $temperature_uuid }});
 		}	
 
 		# Generate and store the UUID.
