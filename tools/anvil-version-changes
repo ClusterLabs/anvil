@@ -63,6 +63,10 @@ sub striker_checks
 {
 	my ($anvil) = @_;
 	
+	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
+	# entries are copied.
+	update_dr_links($anvil);
+	
 	# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
 	update_file_location_ready($anvil);
 
@@ -79,10 +83,6 @@ sub striker_checks
 	### NOTE: Disabled until review complete
 	# This checks to make sure that the 'audits' table exists (added late into M3.0 pre-release)
 	update_audits($anvil);
-	
-	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
-	# entries are copied.
-	update_dr_links($anvil);
 	
 	### TODO: Remove these later. This is here to clean up how we used to handle db_in_use and lock_request flags.
 	if (1)
@@ -415,9 +415,9 @@ sub update_storage_group_members
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
 		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'storage_group_members' AND column_name = 'storage_group_member_note';";
-		$anvil->Log->variables({source => $THIS_FILE, uuid => $uuid, line => __LINE__, level => 2, list => { query => $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 
-		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
 
 		if (not $count)
