@@ -16,6 +16,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Storage.pm";
 
 ### Methods;
+# auto_grow_pv
 # backup
 # change_mode
 # change_owner
@@ -111,6 +112,243 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+
+=head2 auto_grow_pv
+
+This looks at LVM PVs on the local host. For each one that is found, C<< parted >> is called to check if there's more that 1 GiB of free space available after it. If so, it will extend the PV partition to use the free space.
+
+This method takes no parameters.
+
+=cut
+sub auto_grow_pv
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_auto_grow_pv()" }});
+	
+	# Look for disks that has unpartitioned space and grow it if needed.
+	my $host_uuid        = $anvil->Get->host_uuid();
+	my $short_host_name  = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:host_uuid'       => $host_uuid, 
+		's2:short_host_name' => $short_host_name, 
+	}});
+	
+	my $shell_call = $anvil->data->{path}{exe}{pvs}." --noheadings --units b -o pv_name,vg_name,pv_size,pv_free --separator ,";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# Bad return code.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+			shell_call  => $shell_call,
+			return_code => $return_code,
+			output      => $output, 
+		}});
+		next;
+	}
+	my $pv_found = 0;
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		my ($pv_name, $used_by_vg, $pv_size, $pv_free) =  (split/,/, $line);
+		   $pv_size                                    =~ s/B$//;
+		   $pv_free                                    =~ s/B$//;
+		my $pv_used                                    =  $pv_size - $pv_free;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			pv_name    => $pv_name,
+			used_by_vg => $used_by_vg, 
+			pv_size    => $pv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $pv_size}).")", 
+			pv_free    => $pv_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $pv_free}).")", 
+			pv_used    => $pv_used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $pv_used}).")", 
+		}});
+		
+		# Get the raw backing disk. 
+		my $device_path  = "";
+		my $pv_partition = 0;
+		if ($pv_name =~ /(\/dev\/nvme\d+n\d+)p(\d+)$/)
+		{
+			$device_path  = $1;
+			$pv_partition = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				device_path  => $device_path,
+				pv_partition => $pv_partition, 
+			}});
+		}
+		elsif ($pv_name =~ /(\/dev\/\w+)(\d+)$/)
+		{
+			$device_path  = $1;
+			$pv_partition = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				device_path  => $device_path,
+				pv_partition => $pv_partition, 
+			}});
+		}
+		else
+		{
+			# No device found for the PV.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0821", variables => { pv_name => $pv_name }});
+			next;
+		}
+		
+		# See how much free space there is on the backing disk.
+		my $shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." unit B print free";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		if ($return_code)
+		{
+			# Bad return code.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+				shell_call  => $shell_call,
+				return_code => $return_code,
+				output      => $output, 
+			}});
+			next;
+		}
+		my $pv_found = 0;
+		foreach my $line (split/\n/, $output)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($pv_found)
+			{
+				#print "Checking if: [".$line."] is free space.\n";
+				if ($line =~ /^(\d+)B\s+(\d+)B\s+(\d+)B\s+Free Space/i)
+				{
+					my $start_byte = $1;
+					my $end_byte   = $2;
+					my $size       = $3;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:start_byte' => $start_byte." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $start_byte}).")",
+						's2:end_byte'   => $end_byte." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $end_byte}).")",
+						's3:size'       => $pv_used." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")",
+					}});
+					
+					# There's free space! If it's greater than 1 GiB, grow it automatically.
+					if ($size < 1073741824)
+					{
+						# Not enough free space
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0823", variables => { 
+							free_space   => $anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
+							device_path  => $device_path,
+							pv_partition => $pv_partition,
+						}});
+						next;
+					}
+					else
+					{
+						# Enough free space, grow!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0822", variables => { 
+							free_space   => $anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
+							device_path  => $device_path,
+							pv_partition => $pv_partition,
+						}});
+						
+						### Grow the partition
+						# parted --align optimal /dev/sda ---pretend-input-tty resizepart 2 100% Yes; echo $?
+						my $shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." ---pretend-input-tty resizepart ".$pv_partition." 100% Yes";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+						if ($return_code)
+						{
+							# Bad return code.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+								shell_call  => $shell_call,
+								return_code => $return_code,
+								output      => $output, 
+							}});
+							next;
+						}
+						else
+						{
+							# Looks like it worked. Call print again to log the new value.
+							my $shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." unit B print free";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+							my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0825", variables => { 
+								pv_name => $pv_name,
+								output  => $output,
+							}});
+						}
+						
+						### Resize the PV.
+						$shell_call = $anvil->data->{path}{exe}{pvresize}." ".$pv_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+						if ($return_code)
+						{
+							# Bad return code.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+								shell_call  => $shell_call,
+								return_code => $return_code,
+								output      => $output, 
+							}});
+							next;
+						}
+						else
+						{
+							# Looks like it worked. Call print again to log the new value.
+							my $shell_call = $anvil->data->{path}{exe}{pvdisplay}." ".$pv_name;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+							my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0826", variables => { 
+								pv_name => $pv_name,
+								output  => $output,
+							}});
+						}
+						
+						# Done. 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0827", variables => { pv_name => $pv_name }});
+					}
+				}
+				else
+				{
+					# There's another partition after this PV, do nothing.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0824", variables => { 
+						device_path  => $device_path,
+						pv_partition => $pv_partition,
+					}});
+					next;
+				}
+			}
+			elsif ($line =~ /^$pv_partition\s/)
+			{
+				$pv_found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pv_found => $pv_found }});
+			}
+			else
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					device_path  => $device_path, 
+					pv_partition => $pv_partition, 
+					pv_found     => $pv_found,
+				}});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 
 =head2 backup
@@ -5647,7 +5885,7 @@ fi";
 #############################################################################################################
 
 
-=head2
+=head2 _create_rsync_wrapper
 
 This does the actual work of creating the C<< expect >> wrapper script and returns the path to that wrapper for C<< rsync >> calls.
 

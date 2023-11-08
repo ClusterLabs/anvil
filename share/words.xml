@@ -2633,6 +2633,21 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0818">The server: [#!variable!server_name!#] libvirt definition will now be updated.</key>
 		<key name="log_0819">Check to verify that the connection to the server: [#!variable!server_name!#] is valid.</key>
 		<key name="log_0820">The network mapping flag is NOT set.</key>
+		<key name="log_0821">No device found for PV: [#!variable!pv_name!#], skipping it.</key>
+		<key name="log_0822">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]! Will grow the partition to use the free space.</key>
+		<key name="log_0823">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]. This is too small for auto-growing the partition.</key>
+		<key name="log_0824">Found the PV partition: [#!variable!device_path!#:#!variable!device_partition!#], but there's another partition after it. Not going to grow it, of course.</key>
+		<key name="log_0825">The partition: [#!variable!pv_name!#] appears to have been grown successfully. The new partition scheme is:
+====
+#!variable!output!#
+====
+</key>
+		<key name="log_0826">The resize appears to have been successful. The physical volume: [#!variable!pv_name!#] details are now:
+====
+#!variable!output!#
+====
+</key>
+		<key name="log_0827">The physical volume: [#!variable!pv_name!#] has been resized!</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3933,7 +3948,11 @@ We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up i
 		<key name="warning_0156">[ Warning ] - The file: [#!variable!file_path!#] needed to provision the server: [#!variable!server_name!#] was found, but it's not ready yet.</key>
 		<key name="warning_0157">[ Warning ] - Waiting for a bit, and then will check if files are ready.</key>
 		<key name="warning_0158">[ Warning ] - There is a duplicate storage group named: [#!variable!group_name!#]. Keeping the group with UUID: [#!variable!keep_uuid!#], and deleting the group with the UUID: [#!variable!delete_uuid!#]</key>
-		<key name="warning_0159">Please specify a storage group to use to add the new drive to.</key>
+		<key name="warning_0159">[ Warning ] - The system call: [#!variable!shell_call!#] returned the non-zero return code: [#!variable!return_code!#]. The command output, if anything, was:
+====
+#!variable!output!#
+====
+		</key>
 		<key name="warning_0160"> Warning!
 [ Warning ] - When trying to create the local meta-data on: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#]
 [ Warning ] - using the command: [#!variable!shell_call!#]
@@ -3970,6 +3989,7 @@ We will try to proceed anyway.</key>
 #!variable!error!#
 ====
 </key>
+		<key name="warning_0168">Please specify a storage group to use to add the new drive to.</key>
 		
 	</language>
 	<!-- 日本語 -->
