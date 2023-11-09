@@ -147,7 +147,7 @@ sub auto_grow_pv
 	if ($return_code)
 	{
 		# Bad return code.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0159", variables => { 
 			shell_call  => $shell_call,
 			return_code => $return_code,
 			output      => $output, 
@@ -195,7 +195,7 @@ sub auto_grow_pv
 		else
 		{
 			# No device found for the PV.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0821", variables => { pv_name => $pv_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0821", variables => { pv_name => $pv_name }});
 			next;
 		}
 		
@@ -210,7 +210,7 @@ sub auto_grow_pv
 		if ($return_code)
 		{
 			# Bad return code.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0159", variables => { 
 				shell_call  => $shell_call,
 				return_code => $return_code,
 				output      => $output, 
@@ -240,7 +240,7 @@ sub auto_grow_pv
 					if ($size < 1073741824)
 					{
 						# Not enough free space
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0823", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0823", variables => { 
 							free_space   => $anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
 							device_path  => $device_path,
 							pv_partition => $pv_partition,
@@ -250,16 +250,23 @@ sub auto_grow_pv
 					else
 					{
 						# Enough free space, grow!
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0822", variables => { 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0822", variables => { 
 							free_space   => $anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
 							device_path  => $device_path,
 							pv_partition => $pv_partition,
 						}});
 						
-						### Grow the partition
-						# parted --align optimal /dev/sda ---pretend-input-tty resizepart 2 100% Yes; echo $?
-						my $shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." ---pretend-input-tty resizepart ".$pv_partition." 100% Yes";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						### Backup the partition table.
+						#sfdisk --dump /dev/sda > partition_table_backup_sda
+						my $device_name        = ($device_path =~ /^\/dev\/(.*)$/)[0];
+						my $partition_backup   = "/tmp/".$device_name.".partition_table_backup";
+						my $shell_call         = $anvil->data->{path}{exe}{sfdisk}." --dump ".$device_path." > ".$partition_backup;
+						my $restore_shell_call = $anvil->data->{path}{exe}{sfdisk}." ".$device_path." < ".$partition_backup." --force";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							device_name      => $device_name, 
+							partition_backup => $partition_backup, 
+							shell_call       => $shell_call,
+						}});
 						my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							output      => $output,
@@ -268,7 +275,7 @@ sub auto_grow_pv
 						if ($return_code)
 						{
 							# Bad return code.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0159", variables => { 
 								shell_call  => $shell_call,
 								return_code => $return_code,
 								output      => $output, 
@@ -277,11 +284,52 @@ sub auto_grow_pv
 						}
 						else
 						{
+							# Tell the user about the backup.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0361", variables => { 
+								device_path      => $device_path,
+								partition_backup => $partition_backup,
+								restore_command  => $restore_shell_call, 
+							}});
+						}
+						
+						### Grow the partition
+						# parted --align optimal /dev/sda ---pretend-input-tty resizepart 2 100% Yes; echo $?
+						$shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." ---pretend-input-tty resizepart ".$pv_partition." 100% Yes";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
+						if ($return_code)
+						{
+							# Bad return code.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0159", variables => { 
+								shell_call  => $shell_call,
+								return_code => $return_code,
+								output      => $output, 
+							}});
+							
+							### Restore the partition table 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0467"});
+							
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { restore_shell_call => $restore_shell_call }});
+							my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $restore_shell_call});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								output      => $output,
+								return_code => $return_code, 
+							}});
+							
+							# Error out.
+							$anvil->nice_exit({exit_code => 1});
+						}
+						else
+						{
 							# Looks like it worked. Call print again to log the new value.
 							my $shell_call = $anvil->data->{path}{exe}{parted}." --align optimal ".$device_path." unit B print free";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 							my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0825", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0825", variables => { 
 								pv_name => $pv_name,
 								output  => $output,
 							}});
@@ -298,7 +346,7 @@ sub auto_grow_pv
 						if ($return_code)
 						{
 							# Bad return code.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0159", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0159", variables => { 
 								shell_call  => $shell_call,
 								return_code => $return_code,
 								output      => $output, 
@@ -311,20 +359,20 @@ sub auto_grow_pv
 							my $shell_call = $anvil->data->{path}{exe}{pvdisplay}." ".$pv_name;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 							my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0826", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0826", variables => { 
 								pv_name => $pv_name,
 								output  => $output,
 							}});
 						}
 						
 						# Done. 
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0827", variables => { pv_name => $pv_name }});
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0827", variables => { pv_name => $pv_name }});
 					}
 				}
 				else
 				{
 					# There's another partition after this PV, do nothing.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0824", variables => { 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0824", variables => { 
 						device_path  => $device_path,
 						pv_partition => $pv_partition,
 					}});

@@ -1281,6 +1281,7 @@ sub _set_paths
 				rsync				=>	"/usr/bin/rsync",
 				sed				=>	"/usr/bin/sed", 
 				setsid				=>	"/usr/bin/setsid",	# See: https://serverfault.com/questions/1105733/virsh-command-hangs-when-script-runs-in-the-background
+				sfdisk				=>	"/usr/sbin/sfdisk",
 				'shutdown'			=>	"/usr/sbin/shutdown",
 				snmpget				=>	"/usr/bin/snmpget",
 				snmpset				=>	"/usr/bin/snmpset",

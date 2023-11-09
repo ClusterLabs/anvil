@@ -735,6 +735,7 @@ The XML that failed sanity check was:
 ]]></key>
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
 		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
+		<key name="error_0467"><![CDATA[[ Error ] - The repartition attemp failed! Reloading the partition table now!]]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2648,6 +2649,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 </key>
 		<key name="log_0827">The physical volume: [#!variable!pv_name!#] has been resized!</key>
+		<key name="log_0828">The user answered: [#!variable!answer!#]</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3201,6 +3203,26 @@ Proceed? [y/N]</key>
 		<key name="message_0355">This host is already NOT configured to map the network.</key>
 		<key name="message_0356">This host is no longer configured to map the network.</key>
 		<key name="message_0357">No hosts with IPMI found, done.</key>
+		<key name="message_0358">Searching for free space to grow PVs into.</key>
+		<key name="message_0359">- The '--confirm' switch was used, proceeding.</key>
+		<key name="message_0360"><![CDATA[
+[ Warning ] - Auto-growing the LVM physical volumes could, in some case, leave the system unbootable.
+The steps that will taken are;
+- LVM Pyhiscal volumes will be found.
+- For each found, 'parted' is used to see if there is > 1GiB of free space available.
+- If so, and if no other partitions are after it, it will be grown to use the free space.
+- The PV itself will then be resized to use the new space
+
+This is generally used just after initializing a new subnode or DR host. If this host has real data
+on it, please proceed with caution. 
+
+The partition table will be backed up, and if the partition resize fails, the partition table will be
+reloaded automatically. If this host has real data, ensure a complete backup is available before 
+proceeding.
+]]></key>
+		<key name="message_0361">- [ Note ] - The original partition table for: [#!variable!device_path!#] has been saved to: [#!variable!partition_backup!#]
+             If anything goes wrong, we will attempt to recover automatically. If needed, you can try
+             recovering with: [#!variable!restore_command!#]</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
