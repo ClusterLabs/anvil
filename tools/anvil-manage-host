@@ -26,9 +26,11 @@ my $anvil = Anvil::Tools->new();
 # Read switches
 $anvil->Get->switches({list => [
 	"age-out-database",
+	"auto-grow-pv",
 	"check-configured", 
 	"check-database", 
 	"check-network-mapping", 
+	"confirm", 
 	"database-active", 
 	"database-inactive", 
 	"disable-network-mapping", 
@@ -68,6 +70,10 @@ elsif ($anvil->data->{switches}{'resync-database'})
 {
 	resync_database($anvil);
 }
+elsif ($anvil->data->{switches}{'auto-grow-pv'})
+{
+	auto_grow_pv($anvil);
+}
 else
 {
 	# Show the options.
@@ -80,6 +86,49 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub auto_grow_pv
+{
+	my ($anvil) = @_;
+	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0358"});
+	if ($anvil->data->{switches}{confirm})
+	{
+		# Already confirmed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0359"});
+	}
+	else
+	{
+		# Ask to confirm, with a wee bit of fear;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0360"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0021"});
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0828", variables => { answer => $answer }});
+		
+		if ((lc($answer) eq "y") or (lc($answer) eq "yes"))
+		{
+			# Proceed.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0175"});
+		}
+		else
+		{
+			# Abort.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0022"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	print "Enabling maintenance mode.\n";
+	$anvil->System->maintenance_mode({set => 1});
+	
+	$anvil->Storage->auto_grow_pv({debug => 2});
+	
+	print "Disabling maintenance mode.\n";
+	$anvil->System->maintenance_mode({set => 0});
+	
+	return(0);
+}
 
 sub age_out_data
 {

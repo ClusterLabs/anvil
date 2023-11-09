@@ -24,6 +24,11 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 \fB\-\-age\-out\-database\fR
 This requests the database check for records that are too old and purge them.
 .TP
+\fB\-\-auto\-grow\-pv\fR
+This looks at LVM physical volumes on the local host. For each one that is found, 'parted' is called to check if there's more that 1 GiB of free space available after it. If so, it will extend the PV partition to use the free space.
+.TP
+If you deleted the default '/home' partition during the install of a subnode or DR host, this should give you that space back.
+.TP
 \fB\-\-check\-configured\fR
 Check to see if the host is marked as configured or yet.
 .TP
@@ -32,6 +37,9 @@ This checks to see if the database is enabled or not.
 .TP
 \fB\-\-check\-network\-mapping\fR
 This reports if the host is currently in network mapping (this disables several features and watches the network states much more frequently)
+.TP
+\fB\-\-confirm\fR
+This confirms actions that would normally prompt the user to confirm before proceeding. 
 .TP
 \fB\-\-database\-active\fR
 This enables the database on the local Striker dashboard.

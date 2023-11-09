@@ -417,11 +417,11 @@ sub manage_disk_add
 	}});
 	if (not $anvil->data->{switches}{'storage-group'})
 	{
-		print $anvil->Words->string({key => 'warning_0159'})."\n";
+		print $anvil->Words->string({key => 'warning_0168'})."\n";
 		show_storage_groups($anvil);
 		$anvil->Job->update_progress({
 			progress => 100,
-			message  => "warning_0159", 
+			message  => "warning_0168", 
 		}) if $anvil->data->{switches}{'job-uuid'};
 		$anvil->nice_exit({exit_code => 1});
 	}

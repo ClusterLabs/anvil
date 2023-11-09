@@ -64,8 +64,9 @@ pickup_job_details($anvil);
 overwrite_variables_with_switches($anvil);
 
 # Set maintenance mode
-$anvil->System->maintenance_mode({set => 1, debug => 2});
+$anvil->System->maintenance_mode({set => 1});
 
+# Reconfigure the network.
 reconfigure_network($anvil);
 
 # Record that we've configured this machine.

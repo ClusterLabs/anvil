@@ -67,6 +67,7 @@ Requires:       mlocate
 Requires:       net-snmp-utils
 Requires:       NetworkManager-initscripts-updown
 Requires:       nvme-cli
+Requires:	parted
 Requires:       pciutils
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
@@ -110,6 +111,7 @@ Requires:       tcpdump
 Requires:       tmux
 Requires:       unzip
 Requires:       usbutils
+Requires:	util-linux
 Requires:       vim 
 Requires:       wget
 # iptables-services conflicts with firewalld
