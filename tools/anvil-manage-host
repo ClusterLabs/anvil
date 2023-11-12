@@ -104,12 +104,12 @@ sub auto_grow_pv
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0021"});
 		my $answer = <STDIN>;
 		chomp $answer;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0828", variables => { answer => $answer }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0828", variables => { answer => $answer }});
 		
 		if ((lc($answer) eq "y") or (lc($answer) eq "yes"))
 		{
 			# Proceed.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "message_0175"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
 		}
 		else
 		{
