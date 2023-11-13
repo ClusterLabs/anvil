@@ -262,6 +262,16 @@ const getAnvilData = async () => {
   return getData<AnvilDataAnvilListHash>('anvils');
 };
 
+const getDatabaseConfigData = async () => {
+  const [ecode] = await subroutine<[ecode: string]>('read_config', {
+    pre: ['Storage'],
+  });
+
+  if (Number(ecode) !== 0) throw new Error(`Failed to read config`);
+
+  return getData<AnvilDataDatabaseHash>('database');
+};
+
 const getFenceSpec = async () => {
   await subroutine('get_fence_data', { pre: ['Striker'] });
 
@@ -398,6 +408,7 @@ export {
   encrypt,
   getData,
   getAnvilData,
+  getDatabaseConfigData,
   getFenceSpec,
   getHostData,
   getLocalHostName,
