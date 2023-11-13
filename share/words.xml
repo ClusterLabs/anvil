@@ -3223,6 +3223,9 @@ proceeding.
 		<key name="message_0361">- [ Note ] - The original partition table for: [#!variable!device_path!#] has been saved to: [#!variable!partition_backup!#]
              If anything goes wrong, we will attempt to recover automatically. If needed, you can try
              recovering with: [#!variable!restore_command!#]</key>
+		<key name="message_0362">Bad SSH key target: [#!variable!target!#], file:line with the bad entry: [#!variable!file!#:#!variable!line!#].</key>
+		<key name="message_0363">[ Warning ] - Only proceed if you know the target has been rebuily!
+- Do you want to remove these bad keys? [y/N]</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

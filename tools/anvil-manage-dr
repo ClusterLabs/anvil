@@ -668,6 +668,7 @@ sub sanity_check
 		"sys::dr_short_host_name" => $anvil->data->{sys}{dr_short_host_name},
 	}});
 
+	### TODO: Switch to: my $target_ip = $anvil->Network->find_target_ip({});
 	# Can we access DR, if we're not the DR host?
 	$anvil->Database->get_ip_addresses({debug => 2});
 	my $password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
@@ -684,7 +685,7 @@ sub sanity_check
 		if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 		{
 			# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0334", variables => { host_name => $dr_host_name }});
 			$anvil->Job->update_progress({
 				progress   => 0,
 				message    => "error_0334,!!host_name!".$dr_host_name."!!",
