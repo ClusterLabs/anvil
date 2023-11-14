@@ -4203,6 +4203,14 @@ WHERE
 			"sys::hosts::by_uuid::${host_uuid}" => $anvil->data->{sys}{hosts}{by_uuid}{$host_uuid}, 
 			"sys::hosts::by_name::${host_name}" => $anvil->data->{sys}{hosts}{by_name}{$host_name}, 
 		}});
+		
+		# Record hosts by type.
+		$anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}{$host_name}{host_uuid}       = $host_uuid;
+		$anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}{$host_name}{short_host_name} = $short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::hosts::by_type::${host_type}::host_name::${host_name}::host_uuid"       => $anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}{$host_name}{host_uuid}, 
+			"sys::hosts::by_type::${host_type}::host_name::${host_name}::short_host_name" => $anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}{$host_name}{short_host_name}, 
+		}});
 	}
 	
 	my $return_count = @{$return};
@@ -5898,10 +5906,12 @@ WHERE
 			"servers::server_uuid::${server_uuid}::server_definition_xml"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}, 
 		}});
 		
-		# Store the servers in a hash under each Anvil!, sortable.
+		# Store the servers in a hash by name and under each Anvil!, sortable.
 		$anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid} = $server_uuid;
+		$anvil->data->{servers}{server_name}{$server_name}{server_uuid}                                 = $server_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"servers::anvil_uuid::${server_anvil_uuid}::server_name::${server_name}::server_uuid" => $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid}, 
+			"servers::server_name::${server_name}::server_uuid"                                   => $anvil->data->{servers}{server_name}{$server_name}{server_uuid}, 
 		}});
 	}
 	

@@ -21,6 +21,9 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
 .TP
+\fB\-\-anvil\fR
+When linking or unlinking a DR host to an Anvil! node, this switch indicates the Anvil! being linked or unlinked to.
+.TP
 \fB\-\-connect\fR
 Connect a server already on DR to it's DR copy, update the data there if needed and begin streaming replication.
 .TP
@@ -28,13 +31,16 @@ Connect a server already on DR to it's DR copy, update the data there if needed 
 Disconnect a server from the DR image. This will end streaming replication.
 .TP
 \fB\-\-dr\-host\fR
-This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined.
+This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined. It is also use when linking or unlinking DR hosts to Anvil! nodes.
 .TP
 \fB\-\-license\-file\fR
 This is the path to the license file, needed when setting up "long-throw" DR for the first time.
 .TP
 \fB\-\-link\fR
 This takes an --anvil and a --dr-host to enable using the DR host as a target for the Anvil! node.
+.TP
+\fB\-\-list\fR
+This will show the list of available Anvil! nodes, DR hosts and servers.
 .TP
 \fB\-\-protect\fR
 The sets up the server to be imaged on DR, if it isn't already protected.
