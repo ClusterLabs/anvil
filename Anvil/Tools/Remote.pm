@@ -489,6 +489,12 @@ sub call
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:i'           => $i, 
+				's2:target'      => $target, 
+				's3:remote_user' => $remote_user, 
+				's4:port'        => $port, 
+			}});
 			($connect_output) = capture_merged {
 				$ssh_fh = Net::OpenSSH->new($target, 
 					user       => $remote_user,
@@ -500,12 +506,9 @@ sub call
 			$connect_output =~ s/\r//gs;
 			$connect_output =~ s/\n$//; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:i'              => $i, 
-				's2:target'         => $target, 
-				's3:port'           => $port, 
-				's4:ssh_fh'         => $ssh_fh,
-				's5:ssh_fh->error'  => $ssh_fh->error,
-				's6:connect_output' => $connect_output, 
+				's1:ssh_fh'         => $ssh_fh,
+				's2:ssh_fh->error'  => $ssh_fh->error,
+				's3:connect_output' => $connect_output, 
 			}});
 			
 			# Any fatal issues reaching the target?
@@ -668,7 +671,6 @@ sub call
 				ssh_fh_key => $ssh_fh_key, 
 			}});
 		}
-	
 	}
 	
 	# If I have a valid handle, try to call our command now. Note that if we're using a cached connection

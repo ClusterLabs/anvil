@@ -827,7 +827,7 @@ sub show_existing
 	$anvil->data->{longest}{recipient_uuid}                = length($anvil->Words->string({key => "header_0098"}));
 	$anvil->data->{longest}{alert_override_recipient_name} = length($anvil->Words->string({key => "header_0100"}));
 	$anvil->data->{longest}{alert_override_host_name}      = length($anvil->Words->string({key => "header_0026"}));
-	$anvil->data->{longest}{alert_override_anvil_name}     = length($anvil->Words->string({key => "header_0101"}));
+	$anvil->data->{longest}{alert_override_anvil_name}     = length($anvil->Words->string({key => "header_0081"}));
 	$anvil->data->{longest}{alert_override_alert_level}    = length($anvil->Words->string({key => "header_0096"}));
 	$anvil->data->{longest}{alert_override_uuid}           = length($anvil->Words->string({key => "header_0102"}));
 	$anvil->data->{longest}{host_name}                     = length($anvil->Words->string({key => "header_0026"}));
@@ -1333,7 +1333,7 @@ sub show_existing
 	
 		my $header_line =  "| ".sprintf("%-${longest_alert_override_recipient_name}s", $anvil->Words->string({key => "header_0100"}))." ";
 		   $header_line .= "| ".sprintf("%-${longest_alert_override_host_name}s", $anvil->Words->string({key => "header_0026"}))." ";
-		   $header_line .= "| ".sprintf("%-${longest_alert_override_anvil_name}s", $anvil->Words->string({key => "header_0101"}))." ";
+		   $header_line .= "| ".sprintf("%-${longest_alert_override_anvil_name}s", $anvil->Words->string({key => "header_0081"}))." ";
 		   $header_line .= "| ".sprintf("%-${longest_alert_override_alert_level}s", $anvil->Words->string({key => "header_0096"}))." ";
 		   $header_line .= "| ".sprintf("%-${longest_alert_override_uuid}s", $anvil->Words->string({key => "header_0102"}))." |";
 		   
