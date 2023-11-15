@@ -82,7 +82,7 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
       return {
         id: activeChain,
         name: activeChain,
-        checked: formik.values[fuuid].locations?.[type][uuid].active,
+        checked: formik.values[fuuid].locations?.[type]?.[uuid]?.active,
         onBlur: handleBlur,
         onChange: handleChange,
       };
