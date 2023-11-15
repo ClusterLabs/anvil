@@ -1,7 +1,7 @@
 import Head from 'next/head';
 
 import Header from '../../components/Header';
-import ManageFilePanel from '../../components/Files/ManageFilePanel';
+import ManageFilePanel from '../../components/Files';
 
 const FileManager = (): JSX.Element => (
   <>
