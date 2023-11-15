@@ -42,6 +42,7 @@ $anvil->Get->switches({list => [
 	"job-uuid",
 	"license-file",
 	"link",
+	"list", 
 	"protect",
 	"protocol",
 	"remove",
@@ -74,6 +75,11 @@ if ($anvil->data->{switches}{'job-uuid'})
 {
 	load_job($anvil);
 }
+elsif ($anvil->data->{switches}{list})
+{
+	# If '--list' was used, show all Nodes, DR hosts and servers.
+	show_list($anvil);
+}
 
 my $terminal = "";
 if (not $anvil->data->{switches}{'job-uuid'})
@@ -97,6 +103,115 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub show_list
+{
+	my ($anvil) = @_;
+	
+	# Show Anvil! nodes
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_storage_group_data({debug => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	$anvil->Database->get_servers();
+	
+	# Show Anvil! nodes.
+	print $anvil->Words->string({key => "header_0081"})."\n";
+	my $anvil_count = keys %{$anvil->data->{anvils}{anvil_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_count => $anvil_count }});
+	if ($anvil_count)
+	{
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+			my $dr_link_count     = keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				anvil_name        => $anvil_name,
+				anvil_uuid        => $anvil_uuid, 
+				anvil_description => $anvil_description, 
+				dr_link_count     => $dr_link_count, 
+			}});
+			print $anvil->Words->string({key => "message_0364", variables => { 
+				anvil_name  => $anvil_name,
+				description => $anvil_description,
+			}})."\n";
+			if ($dr_link_count)
+			{
+				foreach my $dr_link_host_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}})
+				{
+					my $dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_name}{$dr_link_host_name}{dr_link_uuid};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						dr_link_host_name => $dr_link_host_name,
+						dr_link_uuid      => $dr_link_uuid, 
+					}});
+					print $anvil->Words->string({key => "message_0365", variables => { 
+						host_name => $dr_link_host_name,
+						link_uuid => $dr_link_uuid,
+					}})."\n";
+				}
+			}
+			else
+			{
+				# No DR hosts yet
+				print $anvil->Words->string({key => "message_0366"})."\n";
+			}
+		}
+	}
+	else
+	{
+		# No nodes yet
+		print $anvil->Words->string({key => "message_0367"})."\n";
+	}
+	
+	# DR Hosts
+	print "\n".$anvil->Words->string({key => "header_0115"})."\n";
+	my $dr_host_count = keys %{$anvil->data->{sys}{hosts}{by_type}{dr}{host_name}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_host_count => $dr_host_count }});
+	if ($dr_host_count)
+	{
+		# TODO: Show free space of VGs, available RAM and CPU core count and type/speed
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}{dr}{host_name}})
+		{
+			print $anvil->Words->string({key => "message_0368", variables => { host_name => $host_name }})."\n";
+		}
+	}
+	else
+	{
+		# No DR hosts yet
+		print $anvil->Words->string({key => "message_0366"})."\n";
+	}
+	
+	# DR Hosts
+	print "\n".$anvil->Words->string({key => "header_0116"})."\n";
+	my $server_count = keys %{$anvil->data->{servers}{server_uuid}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+	if ($server_count)
+	{
+		# If there's servers, there has to be Anvil! nodes.
+		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+		{
+			# TODO: Show each server's disk(s) size, RAM and CPU core count
+			my $anvil_uuid  = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+			{
+				my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+				my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+				print $anvil->Words->string({key => "message_0370", variables => { 
+					server_name => $server_name,
+					anvil_name  => $anvil_name,
+				}})."\n";
+			}
+		}
+	}
+	else
+	{
+		# No servers yet exist
+		print $anvil->Words->string({key => "message_0371"})."\n";
+	}
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
 
 sub handle_links
 {
@@ -668,6 +783,7 @@ sub sanity_check
 		"sys::dr_short_host_name" => $anvil->data->{sys}{dr_short_host_name},
 	}});
 
+	### TODO: Switch to: my $target_ip = $anvil->Network->find_target_ip({});
 	# Can we access DR, if we're not the DR host?
 	$anvil->Database->get_ip_addresses({debug => 2});
 	my $password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
@@ -684,7 +800,7 @@ sub sanity_check
 		if ((not $dr_ip) or ($dr_ip eq "!!error!!"))
 		{
 			# Failed to find an IP we can access the DR host. Has it been configured? Is it running? Exiting.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, secure => 0, key => "error_0334", variables => { host_name => $dr_host_name }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, secure => 0, key => "error_0334", variables => { host_name => $dr_host_name }});
 			$anvil->Job->update_progress({
 				progress   => 0,
 				message    => "error_0334,!!host_name!".$dr_host_name."!!",

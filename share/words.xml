@@ -1129,7 +1129,7 @@ resource #!variable!server!# {
 		<key name="header_0078">#!free!#</key>
 		<key name="header_0079">Used</key>
 		<key name="header_0080">Free</key>
-		<key name="header_0081">Anvil! Node</key>
+		<key name="header_0081">Anvil! Nodes</key>
 		<key name="header_0082">Interface</key>
 		<key name="header_0083">Gateway (*DG)</key>
 		<key name="header_0084">Transmitted</key>
@@ -1149,7 +1149,7 @@ resource #!variable!server!# {
 		<key name="header_0098">Recipient UUID</key>
 		<key name="header_0099">Alert Overrides</key>
 		<key name="header_0100">Recipient</key>
-		<key name="header_0101">Anvil! Node</key>
+		<key name="header_0101">-=] Anvil! Node</key>
 		<key name="header_0102">Alert Override UUID</key>
 		<key name="header_0103">Host Type</key>
 		<key name="header_0104">Host UUID</key>
@@ -1163,6 +1163,8 @@ resource #!variable!server!# {
 		<key name="header_0112">Queued Jobs</key>
 		<key name="header_0113">Jobs In Progress</key>
 		<key name="header_0114">Completed Jobs</key>
+		<key name="header_0115">-=] DR Hosts</key>
+		<key name="header_0116">-=] Servers</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3223,6 +3225,17 @@ proceeding.
 		<key name="message_0361">- [ Note ] - The original partition table for: [#!variable!device_path!#] has been saved to: [#!variable!partition_backup!#]
              If anything goes wrong, we will attempt to recover automatically. If needed, you can try
              recovering with: [#!variable!restore_command!#]</key>
+		<key name="message_0362">Bad SSH key target: [#!variable!target!#], file:line with the bad entry: [#!variable!file!#:#!variable!line!#].</key>
+		<key name="message_0363">[ Warning ] - Only proceed if you know the target has been rebuily!
+- Do you want to remove these bad keys? [y/N]</key>
+		<key name="message_0364">- Node Name: [#!variable!anvil_name!#], Description: [#!variable!description!#]</key>
+		<key name="message_0365"> - Linked: [#!variable!host_name!#], link UUID: [#!variable!link_uuid!#]</key>
+		<key name="message_0366"> - No linked DR hosts yet.</key>
+		<key name="message_0367">- No Anvil! nodes exist yet.</key>
+		<key name="message_0368">- Name: [#!variable!host_name!#]</key>
+		<key name="message_0369">- No DR hosts exist yet</key>
+		<key name="message_0370">- Server name: [#!variable!server_name!#] on Anvil! Node: [#!variable!anvil_name!#]</key>
+		<key name="message_0371">- No servers yet installed</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3573,7 +3586,7 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0303">This indicates when, in unix time, the database was last archived.</key>
 		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
 		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
-		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! cluster, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
+		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! node, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
