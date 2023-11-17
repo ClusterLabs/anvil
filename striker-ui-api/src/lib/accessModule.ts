@@ -36,10 +36,9 @@ class Access extends EventEmitter {
     uid = PUID,
     ...restSpawnOptions
   }: AccessStartOptions = {}) {
-    shvar(
-      { gid, stdio, timeout, uid, ...restSpawnOptions },
-      `Starting anvil-access-module daemon with options: `,
-    );
+    const options = { args, gid, stdio, timeout, uid, ...restSpawnOptions };
+
+    shvar(options, `Starting anvil-access-module daemon with: `);
 
     const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
       gid,
@@ -49,13 +48,24 @@ class Access extends EventEmitter {
       ...restSpawnOptions,
     });
 
+    ps.on('spawn', () => {
+      shvar(
+        options,
+        `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
+      );
+    });
+
     ps.on('error', (error) => {
-      sherr(`anvil-access-module daemon error: ${error.message}`, error);
+      sherr(
+        `anvil-access-module daemon (pid=${ps.pid}) error: ${error.message}`,
+        error,
+      );
     });
 
     ps.on('close', (code, signal) => {
-      shout(
-        `anvil-access-module daemon exited; code=${code}, signal=${signal}`,
+      shvar(
+        { code, options, signal },
+        `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
     });
 

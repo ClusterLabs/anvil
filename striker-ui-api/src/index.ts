@@ -7,7 +7,7 @@ import { proxyServerVncUpgrade } from './middlewares';
 import { stderr, stdout } from './lib/shell';
 
 (async () => {
-  stdout(`Starting process with ownership ${getuid()}:${getgid()}`);
+  stdout(`Starting main process with ownership ${getuid()}:${getgid()}`);
 
   const server = (await app).listen(PORT, () => {
     try {
@@ -15,9 +15,9 @@ import { stderr, stdout } from './lib/shell';
       setgid(PGID);
       setuid(PUID);
 
-      stdout(`Process ownership changed to ${getuid()}:${getgid()}.`);
+      stdout(`Main process ownership changed to ${getuid()}:${getgid()}.`);
     } catch (error) {
-      stderr(`Failed to change process ownership; CAUSE: ${error}`);
+      stderr(`Failed to change main process ownership; CAUSE: ${error}`);
 
       process.exit(ECODE_DROP_PRIVILEGES);
     }
