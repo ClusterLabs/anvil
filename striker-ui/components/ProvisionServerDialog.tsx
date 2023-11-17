@@ -32,7 +32,7 @@ import {
   testNotBlank,
   testRange,
 } from '../lib/test_input';
-import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
+import { BodyText, HeaderText, InlineMonoText } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -1379,8 +1379,11 @@ const ProvisionServerDialog = ({
             <BodyText text="Memory" />
           </Grid>
           <Grid item xs={c2}>
-            <MonoText />
-            <InlineMonoText text={`${inputMemoryValue} ${inputMemoryUnit}`} />
+            <BodyText>
+              <InlineMonoText>
+                {inputMemoryValue} {inputMemoryUnit}
+              </InlineMonoText>
+            </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
@@ -1431,9 +1434,11 @@ const ProvisionServerDialog = ({
             <BodyText text="Install ISO" />
           </Grid>
           <Grid item xs={c2n3}>
-            <InlineMonoText
-              text={fileUUIDMapToData[inputInstallISOFileUUID].fileName}
-            />
+            <BodyText>
+              <InlineMonoText>
+                {fileUUIDMapToData[inputInstallISOFileUUID].fileName}
+              </InlineMonoText>
+            </BodyText>
           </Grid>
         </Grid>
         <Grid container direction="row" item xs={gridColumns}>
@@ -1441,13 +1446,15 @@ const ProvisionServerDialog = ({
             <BodyText text="Driver ISO" />
           </Grid>
           <Grid item xs={c2n3}>
-            {fileUUIDMapToData[inputDriverISOFileUUID] ? (
-              <InlineMonoText
-                text={fileUUIDMapToData[inputDriverISOFileUUID].fileName}
-              />
-            ) : (
-              <BodyText text="none" />
-            )}
+            <BodyText>
+              {fileUUIDMapToData[inputDriverISOFileUUID] ? (
+                <InlineMonoText>
+                  {fileUUIDMapToData[inputDriverISOFileUUID].fileName}
+                </InlineMonoText>
+              ) : (
+                'none'
+              )}
+            </BodyText>
           </Grid>
         </Grid>
         <Grid container direction="row" item xs={gridColumns}>
