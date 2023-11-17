@@ -2,7 +2,13 @@ import { ChildProcess, spawn, SpawnOptions } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
-import { SERVER_PATHS, PGID, PUID, DEFAULT_JOB_PROGRESS } from './consts';
+import {
+  SERVER_PATHS,
+  PGID,
+  PUID,
+  DEFAULT_JOB_PROGRESS,
+  REP_UUID,
+} from './consts';
 
 import { formatSql } from './formatSql';
 import {
@@ -13,8 +19,26 @@ import {
   uuid,
 } from './shell';
 
+/**
+ * Notes:
+ * * This daemon's lifecycle events should follow the naming from systemd.
+ */
 class Access extends EventEmitter {
   private ps: ChildProcess;
+
+  private readonly mapToExternalEventHandler: Record<
+    string,
+    (args: { options: AccessStartOptions; ps: ChildProcess }) => void
+  > = {
+    connected: ({ options, ps }) => {
+      shvar(
+        options,
+        `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
+      );
+
+      this.emit('active', ps.pid);
+    },
+  };
 
   constructor({
     eventEmitterOptions = {},
@@ -29,14 +53,23 @@ class Access extends EventEmitter {
   }
 
   private start({
-    args = [],
+    args = ['--emit-events'],
     gid = PGID,
+    restartInterval = 10000,
     stdio = 'pipe',
     timeout = 10000,
     uid = PUID,
     ...restSpawnOptions
   }: AccessStartOptions = {}) {
-    const options = { args, gid, stdio, timeout, uid, ...restSpawnOptions };
+    const options = {
+      args,
+      gid,
+      restartInterval,
+      stdio,
+      timeout,
+      uid,
+      ...restSpawnOptions,
+    };
 
     shvar(options, `Starting anvil-access-module daemon with: `);
 
@@ -48,45 +81,60 @@ class Access extends EventEmitter {
       ...restSpawnOptions,
     });
 
-    ps.on('spawn', () => {
-      shvar(
-        options,
-        `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
-      );
-    });
-
-    ps.on('error', (error) => {
+    ps.once('error', (error) => {
       sherr(
         `anvil-access-module daemon (pid=${ps.pid}) error: ${error.message}`,
         error,
       );
     });
 
-    ps.on('close', (code, signal) => {
+    ps.once('close', (code, signal) => {
       shvar(
         { code, options, signal },
         `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
-    });
 
-    let stdout = '';
+      this.emit('inactive', ps.pid);
+
+      shout(`Waiting ${restartInterval} before restarting.`);
+
+      setTimeout(() => {
+        this.ps = this.start(options);
+      }, restartInterval);
+    });
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
       sherr(`anvil-access-module daemon stderr: ${chunk}`);
     });
 
+    let stdout = '';
+
     ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
-      stdout += chunk;
+      const eventless = chunk.replace(/(\n)?event=([^\n]*)\n/g, (...parts) => {
+        shvar(parts, 'In replacer, args: ');
+
+        const { 1: n = '', 2: event } = parts;
+
+        this.mapToExternalEventHandler[event]?.call(null, { options, ps });
+
+        return n;
+      });
+
+      stdout += eventless;
 
       let nindex: number = stdout.indexOf('\n');
 
       // 1. ~a is the shorthand for -(a + 1)
-      // 2. negatives are evaluated to true
+      // 2. negative is evaluated to true
       while (~nindex) {
         const scriptId = stdout.substring(0, 36);
         const output = stdout.substring(36, nindex);
 
-        if (scriptId) this.emit(scriptId, output);
+        if (REP_UUID.test(scriptId)) {
+          this.emit(scriptId, output);
+        } else {
+          shout(`Access stdout: ${stdout}`);
+        }
 
         stdout = stdout.substring(nindex + 1);
         nindex = stdout.indexOf('\n');
@@ -103,7 +151,9 @@ class Access extends EventEmitter {
   }
 
   private restart(options?: AccessStartOptions) {
-    this.ps.once('close', () => this.start(options));
+    this.ps.once('close', () => {
+      this.ps = this.start(options);
+    });
 
     this.stop();
   }
@@ -420,6 +470,7 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
 };
 
 export {
+  access,
   insertOrUpdateJob as job,
   insertOrUpdateUser,
   insertOrUpdateVariable as variable,
