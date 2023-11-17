@@ -49,6 +49,16 @@ class Access extends EventEmitter {
       ...restSpawnOptions,
     });
 
+    ps.on('error', (error) => {
+      sherr(`anvil-access-module daemon error: ${error.message}`, error);
+    });
+
+    ps.on('close', (code, signal) => {
+      shout(
+        `anvil-access-module daemon exited; code=${code}, signal=${signal}`,
+      );
+    });
+
     let stdout = '';
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
