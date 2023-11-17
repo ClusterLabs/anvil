@@ -32,7 +32,7 @@ import {
   testNotBlank,
   testRange,
 } from '../lib/test_input';
-import { BodyText, HeaderText, InlineMonoText } from './Text';
+import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -745,7 +745,7 @@ const createVirtualDiskForm = (
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <OutlinedLabeledInputWithSelect
           id={`ps-virtual-disk-size-${vdIndex}`}
-          label="Virtual disk size"
+          label="Disk size"
           messageBoxProps={get('inputSizeMessages')}
           inputWithLabelProps={{
             inputProps: {
@@ -1379,6 +1379,7 @@ const ProvisionServerDialog = ({
             <BodyText text="Memory" />
           </Grid>
           <Grid item xs={c2}>
+            <MonoText />
             <InlineMonoText text={`${inputMemoryValue} ${inputMemoryUnit}`} />
           </Grid>
           <Grid item xs={c3}>
@@ -1407,7 +1408,7 @@ const ProvisionServerDialog = ({
             >
               <Grid item xs={c1}>
                 <BodyText>
-                  Virtual disk <InlineMonoText text={vdIndex} />
+                  Disk <InlineMonoText text={vdIndex} />
                 </BodyText>
               </Grid>
               <Grid item xs={c2}>
