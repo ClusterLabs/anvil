@@ -1,5 +1,6 @@
 type AccessStartOptions = {
   args?: readonly string[];
+  restartInterval?: number;
 } & import('child_process').SpawnOptions;
 
 type SubroutineCommonParams = {

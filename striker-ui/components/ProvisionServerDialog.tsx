@@ -745,7 +745,7 @@ const createVirtualDiskForm = (
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         <OutlinedLabeledInputWithSelect
           id={`ps-virtual-disk-size-${vdIndex}`}
-          label="Virtual disk size"
+          label="Disk size"
           messageBoxProps={get('inputSizeMessages')}
           inputWithLabelProps={{
             inputProps: {
@@ -1379,7 +1379,11 @@ const ProvisionServerDialog = ({
             <BodyText text="Memory" />
           </Grid>
           <Grid item xs={c2}>
-            <InlineMonoText text={`${inputMemoryValue} ${inputMemoryUnit}`} />
+            <BodyText>
+              <InlineMonoText>
+                {inputMemoryValue} {inputMemoryUnit}
+              </InlineMonoText>
+            </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
@@ -1407,7 +1411,7 @@ const ProvisionServerDialog = ({
             >
               <Grid item xs={c1}>
                 <BodyText>
-                  Virtual disk <InlineMonoText text={vdIndex} />
+                  Disk <InlineMonoText text={vdIndex} />
                 </BodyText>
               </Grid>
               <Grid item xs={c2}>
@@ -1430,9 +1434,11 @@ const ProvisionServerDialog = ({
             <BodyText text="Install ISO" />
           </Grid>
           <Grid item xs={c2n3}>
-            <InlineMonoText
-              text={fileUUIDMapToData[inputInstallISOFileUUID].fileName}
-            />
+            <BodyText>
+              <InlineMonoText>
+                {fileUUIDMapToData[inputInstallISOFileUUID].fileName}
+              </InlineMonoText>
+            </BodyText>
           </Grid>
         </Grid>
         <Grid container direction="row" item xs={gridColumns}>
@@ -1440,13 +1446,15 @@ const ProvisionServerDialog = ({
             <BodyText text="Driver ISO" />
           </Grid>
           <Grid item xs={c2n3}>
-            {fileUUIDMapToData[inputDriverISOFileUUID] ? (
-              <InlineMonoText
-                text={fileUUIDMapToData[inputDriverISOFileUUID].fileName}
-              />
-            ) : (
-              <BodyText text="none" />
-            )}
+            <BodyText>
+              {fileUUIDMapToData[inputDriverISOFileUUID] ? (
+                <InlineMonoText>
+                  {fileUUIDMapToData[inputDriverISOFileUUID].fileName}
+                </InlineMonoText>
+              ) : (
+                'none'
+              )}
+            </BodyText>
           </Grid>
         </Grid>
         <Grid container direction="row" item xs={gridColumns}>

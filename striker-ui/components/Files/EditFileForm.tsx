@@ -111,6 +111,9 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
 
       api
         .put(`/file/${file.uuid}`, body)
+        .then(() => {
+          setApiMessage({ children: <>File updated.</> });
+        })
         .catch((error) => {
           const emsg = handleAPIError(error);
 
