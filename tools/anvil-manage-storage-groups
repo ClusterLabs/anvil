@@ -376,6 +376,7 @@ sub manage_group_member
 			storage_group_member_note               => "user-created",
 		});
 		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] to the storage group: [".$storage_group_name."]. The new member UUID is: [".$storage_group_member_uuid."].\n";
+		$anvil->nice_exit({exit_code => 0});
 	}
 	else
 	{
@@ -404,6 +405,7 @@ sub manage_group_member
 			storage_group_member_note               => "DELETED",
 		});
 		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has been removed from storage group: [".$storage_group_name."].\n";
+		$anvil->nice_exit({exit_code => 0});
 	}
 
 	return(0);
@@ -427,11 +429,11 @@ sub show_data
 			next;
 		}
 
-		print "Anvil: [".$anvil_name."] - ".$anvil_description."\n";
+		print "Anvil Node: [".$anvil_name."] - ".$anvil_description."\n";
 		foreach my $node_host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
 		{
 			my $node_host_name = $anvil->data->{hosts}{host_uuid}{$node_host_uuid}{short_host_name};
-			print "- Node: [".$node_host_name."] volume groups;\n";
+			print "- Subnode: [".$node_host_name."] volume groups;\n";
 			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}})
 			{
 				my $scan_lvm_vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
@@ -439,7 +441,7 @@ sub show_data
 				my $scan_lvm_vg_free          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free};
 				my $say_size_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size});
 				my $say_free_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free});
-				print "  ^- [".$scan_lvm_vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$scan_lvm_vg_internal_uuid."]\n";
+				print " - [".$scan_lvm_vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$scan_lvm_vg_internal_uuid."]\n";
 			}
 		}
 		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
@@ -452,7 +454,7 @@ sub show_data
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
 				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
 				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
-				print " ^- [".$member_short_host_name."]:[".$vg_name."]\n";
+				print " - [".$member_short_host_name."]:[".$vg_name."]\n";
 			}
 		}
 
@@ -482,7 +484,7 @@ sub show_data
 			my $vg_free          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_free};
 			my $say_size_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size});
 			my $say_free_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
-			print " ^- [".$vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$vg_internal_uuid."]\n";
+			print " - [".$vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$vg_internal_uuid."]\n";
 		}
 	}
 	print "\n";

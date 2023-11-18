@@ -736,6 +736,7 @@ The XML that failed sanity check was:
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
 		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
 		<key name="error_0467"><![CDATA[[ Error ] - The repartition attemp failed! Reloading the partition table now!]]]></key>
+		<key name="error_0468">We need: [#!variable!space_needed!# (#!variable!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but the requested DR host does not appear to have a volume group in this storage group. Hint, please use 'anvil-manage-storage-groups' to resolve. Unable to proceed.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->

@@ -39,20 +39,17 @@ This is the path to the license file, needed when setting up "long-throw" DR for
 \fB\-\-link\fR
 This takes an --anvil and a --dr-host to enable using the DR host as a target for the Anvil! node.
 .TP
-\fB\-\-list\fR
-This will show the list of available Anvil! nodes, DR hosts and servers.
-.TP
 \fB\-\-protect\fR
 The sets up the server to be imaged on DR, if it isn't already protected.
 .TP
 Notes: If the server is not running, the DRBD resource volume(s) will be brought up. Both nodes need to be online and in the cluster.
 .TP
-\fB\-\-protocol\fR <sync,async,long-throw>, default 'async'
-This allows the protocol used to replicate data to the DR host to be configured. By default, 'async' is used.
+\fB\-\-protocol\fR <sync,short-throw,long-throw>, default 'short-throw'
+This allows the protocol used to replicate data to the DR host to be configured. By default, 'short-throw' is used.
 .br
 Modes:
 .br
-async (default)
+short-throw (default)
 
 This tells the storage layer to consider the write to be completed once the data is on the active node's network transmit buffer. In this way, the DR host is allowed to fall behind a small amount, but the active nodes will not slow down because of higher network transit times to the DR location. 
 .br
@@ -84,6 +81,9 @@ long-throw
 .TP
 \fB\-\-remove\fB
 This removes the DR image from the DR host for the server, freeing up space on DR but removing the  protection afforded by DR.
+.TP
+\fB\-\-show\fR
+This will show the list of available Anvil! nodes, DR hosts and servers.
 .TP
 \fB\-\-server\fB <server name or uuid> (required)
 This is the name or UUID of the server being worked on.
