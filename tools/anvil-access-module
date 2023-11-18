@@ -474,6 +474,28 @@ sub pstderr
 
 $anvil->Get->switches;
 
+my $data_hash       = $anvil->data->{switches}{'data'};
+my $switch_debug    = $anvil->data->{switches}{'debug'} // 3;
+my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
+my $db_uuid         = $anvil->data->{switches}{'uuid'};
+#
+# Events in this context are simply printing the event name before
+# and/or after operations. The output should enable other programs to
+# parse and activate additional logic as necessary.
+#
+# Event names should be present-tense before an operation, and
+# past-tense after.
+#
+my $emit_events     = $anvil->data->{switches}{'emit-events'};
+my $pre_data        = $anvil->data->{switches}{'predata'};
+my $script_file     = $anvil->data->{switches}{'script'} // "-";
+my $sql_query       = $anvil->data->{switches}{'query'};
+my $sub_module_name = $anvil->data->{switches}{'sub-module'} // "Database";
+my $sub_name        = $anvil->data->{switches}{'sub'} // "";
+my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
+
+emit("initialized");
+
 $anvil->Database->connect;
 $anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
 if (not $anvil->data->{sys}{database}{connections})
@@ -483,16 +505,7 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({ exit_code => 1 });
 }
 
-my $data_hash       = $anvil->data->{switches}{'data'};
-my $switch_debug    = $anvil->data->{switches}{'debug'} // 3;
-my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
-my $db_uuid         = $anvil->data->{switches}{'uuid'};
-my $pre_data        = $anvil->data->{switches}{'predata'};
-my $script_file     = $anvil->data->{switches}{'script'} // "-";
-my $sql_query       = $anvil->data->{switches}{'query'};
-my $sub_module_name = $anvil->data->{switches}{'sub-module'} // "Database";
-my $sub_name        = $anvil->data->{switches}{'sub'} // "";
-my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
+emit("connected");
 
 if ($sql_query)
 {
@@ -612,4 +625,16 @@ else
 	};
 }
 
+emit("exit");
+
 $anvil->nice_exit({ exit_code => 0 });
+
+##################################################
+# Functions
+##################################################
+# TODO: need to move all subroutines down here.
+
+sub emit
+{
+	pstdout("event=".$_[0]) if ($emit_events);
+}

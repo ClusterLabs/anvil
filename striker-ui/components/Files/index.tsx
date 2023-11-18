@@ -1,3 +1,3 @@
-import Files from './Files';
+import ManageFilePanel from './ManageFilePanel';
 
-export default Files;
+export default ManageFilePanel;
