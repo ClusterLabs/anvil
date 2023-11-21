@@ -12,7 +12,7 @@ export const COOKIE_PREFIX = process.env.COOKIE_PREFIX ?? 'suiapi';
  *
  * @default 28800000
  */
-export const COOKIE_ORIGINAL_MAX_AGE =
+export const COOKIE_ORIGINAL_MAX_AGE: number =
   Number(process.env.COOKIE_ORIGINAL_MAX_AGE) || 28800000;
 
 /**
@@ -22,16 +22,15 @@ export const COOKIE_ORIGINAL_MAX_AGE =
  *
  * @default 0
  */
-export const DEFAULT_JOB_PROGRESS: number = Number.parseInt(
-  process.env.DEFAULT_JOB_PROGRESS ?? '0',
-);
+export const DEFAULT_JOB_PROGRESS: number =
+  Number(process.env.DEFAULT_JOB_PROGRESS) || 0;
 
 /**
  * Port to use by the express app.
  *
  * @default 8080
  */
-export const PORT = Number.parseInt(process.env.PORT ?? '8080');
+export const PORT: number = Number(process.env.PORT) || 8080;
 
 /**
  * Process user identifier. Also used to set ownership on the access daemon.
