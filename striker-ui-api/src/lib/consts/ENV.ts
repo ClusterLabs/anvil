@@ -8,6 +8,14 @@ import { resolveGid, resolveUid } from '../shell';
 export const COOKIE_PREFIX = process.env.COOKIE_PREFIX ?? 'suiapi';
 
 /**
+ * The max lifespan of a session cookie in milliseconds.
+ *
+ * @default 28800000
+ */
+export const COOKIE_ORIGINAL_MAX_AGE =
+  Number(process.env.COOKIE_ORIGINAL_MAX_AGE) || 28800000;
+
+/**
  * The fallback job progress value when queuing jobs.
  *
  * Ignore jobs by setting this to `100`.
