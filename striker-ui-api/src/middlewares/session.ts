@@ -146,21 +146,25 @@ export class SessionStore extends BaseSessionStore {
   ): Promise<void> {
     stdoutVar({ session }, `Touch session ${sid}: `);
 
-    try {
-      const wcode = await write(
-        `UPDATE sessions
-          SET modified_date = '${timestamp()}'
-          WHERE session_uuid = '${sid}';`,
-      );
+    // The intent of updating the session modified date is to avoid expiring the
+    // session when it's actively used by the user. But since the updates are
+    // flooding the database's history table, disable it for now.
 
-      assert(wcode === 0, `Write exited with code ${wcode}`);
-    } catch (error) {
-      stderr(
-        `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
-      );
+    // try {
+    //   const wcode = await write(
+    //     `UPDATE sessions
+    //       SET modified_date = '${timestamp()}'
+    //       WHERE session_uuid = '${sid}';`,
+    //   );
 
-      return done?.call(null, error);
-    }
+    //   assert(wcode === 0, `Write exited with code ${wcode}`);
+    // } catch (error) {
+    //   stderr(
+    //     `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
+    //   );
+
+    //   return done?.call(null, error);
+    // }
 
     return done?.call(null);
   }
