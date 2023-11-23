@@ -47,6 +47,10 @@ router.use((...args) => {
       const { path: p } = rq;
       const target = '/init';
 
+      // Prevent browsers from caching the initialize page to enable redirect
+      // after the init restart.
+      rs.setHeader('Cache-Control', 'must-revalidate, no-store');
+
       if (p.startsWith(target)) return nx();
 
       return rs.redirect(target);
