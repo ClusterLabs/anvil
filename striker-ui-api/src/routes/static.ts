@@ -63,6 +63,23 @@ router.use((...args) => {
         return rs.redirect(rt ? `${target}?rt=${rt}` : target);
       },
       failReturnTo: !path.startsWith('/login'),
+      succeed: (rq, rs, nx) => {
+        const {
+          path: p,
+          query: { re: reinit, rt = '/' },
+        } = rq;
+
+        // Redirect to home or the given return-to path when the user is already
+        // authenticated.
+        if (p.startsWith('/login')) return rs.redirect(String(rt));
+
+        // Redirect to home when the user tries to access the init page after
+        //   1) the system is already initialized, and
+        //   2) the user is already authenticated.
+        if (p.startsWith('/init') && !reinit) return rs.redirect('/');
+
+        return nx();
+      },
     }),
   })(...args);
 }, express.static(htmlDir, { extensions: ['html'] }));
