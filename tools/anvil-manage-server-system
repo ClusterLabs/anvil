@@ -49,6 +49,7 @@ $anvil->Get->switches({list => [
 	"grow", 
 	"insert", 
 	"optical", 
+	"ram", 
 	"server", 
 	"storage-group", 
 	], man => $THIS_FILE});
@@ -107,7 +108,7 @@ if ($anvil->data->{switches}{cpu})
 }
 elsif ($anvil->data->{switches}{ram})
 {
-	#manage_ram($anvil);
+	manage_ram($anvil);
 }
 elsif ($anvil->data->{switches}{'boot-order'})
 {
@@ -133,6 +134,72 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub manage_ram
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name  = $anvil->Get->short_host_name;
+	my $host_uuid        = $anvil->Get->host_uuid;
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $anvil_uuid       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $anvil_name       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $server_host_name = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name'  => $short_host_name,
+		's2:host_uuid'        => $host_uuid,
+		's3:server_name'      => $server_name, 
+		's4:server_uuid'      => $server_uuid, 
+		's5:server_host_uuid' => $server_host_uuid,
+		's6:anvil_uuid'       => $anvil_uuid, 
+		's7:anvil_name'       => $anvil_name,
+	}});
+	
+	my $from_source  = get_definition_source($anvil);
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		from_source   => $from_source,
+		server_state  => $server_state, 
+	}});
+	if ($server_state eq "running")
+	{
+		$server_host_name = $anvil->Database->get_host_from_uuid({
+			short     => 1,
+			host_uuid => $server_host_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+	}
+	
+	# Get available resources.
+	$anvil->Get->available_resources({
+		debug      => 2,
+		anvil_uuid => $anvil_uuid,
+	});
+	
+	# The RAM In the database is stored in KiB
+	my $server_ram_in_use     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+	my $server_configured_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
+	my $server_definition_ram = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{memory};
+	my $ram_available         = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_ram_in_use     => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")",
+		server_configured_ram => $server_configured_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}).")",
+		server_definition_ram => $server_definition_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_definition_ram}).")",
+		ram_available         => $ram_available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available}).")",
+	}});
+	if ($anvil->data->{switches}{ram} eq "#!SET!#")
+	{
+		print "RAM:\n";
+		print "- In Use: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use})."]\n";
+		print "- Configured: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram})."]\n";
+		print "- Defined: .. [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_definition_ram})."]\n";
+		print "- Available:  [".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available})."]\n";
+	}
+	
+	return(0);
+}
 
 sub manage_boot_order
 {
