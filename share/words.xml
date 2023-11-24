@@ -748,6 +748,8 @@ The XML that failed sanity check was:
 		<key name="error_0473">[ Error ] - The requested size: [#!variable!requested_ram!#] is not a valid size. Please specify the size in bytes, or specify the size with a base-2 suffix, like '8GiB'.</key>
 		<key name="error_0474">[ Error ] - The requested size: [#!variable!requested_ram!#] is greater than the maximum RAM: [#!variable!max_ram!#].</key>
 		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
+		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
+		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3260,6 +3262,15 @@ proceeding.
 		<key name="message_0378">- RAM in use, [#!variable!ram_in_use!#], configured: [#!variable!configured_ram!#], maximum: [#!variable!max_ram!#]
 - RAM Available: [#!variable!available_ram!#]</key>
 		<key name="message_0379">Update the system RAM from: [#!variable!configured_ram!#] to: [#!variable!requested_ram!#]?</key>
+		<key name="message_0380">- The CPU core count is: [#!variable!total_cores!#] specified as;
+  - Sockets: [#!variable!sockets!#], Cores per socket: [#!variable!cores!#], Threads per code: [#!variable!threads!#]
+- The Anvil! node has: [#!variable!host_cores!#] cores and: [#!variable!host_threads!#] threads.
+- The maximum that can be allocated is: [#!variable!max_cores!#], with the recommended max cores being: [#!variable!recommended_max!#].</key>
+		<key name="message_0381"><![CDATA[- Changing the CPU allocation;
+  - Sockets: ........ [#!variable!old_sockets!#] -> [#!variable!new_sockets!#]
+  - Cores per Socket: [#!variable!old_cores!#] -> [#!variable!new_cores!#]
+  - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
+  - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

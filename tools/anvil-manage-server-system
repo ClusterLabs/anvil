@@ -43,6 +43,7 @@ $anvil->Get->switches({list => [
 	"boot-menu", 
 	"boot-order", 
 	"confirm", 
+	"cpu", 
 	"disk", 
 	"eject", 
 	"job-uuid", 
@@ -104,7 +105,7 @@ validate_server($anvil);
 
 if ($anvil->data->{switches}{cpu})
 {
-	#manage_cpu($anvil);
+	manage_cpu($anvil);
 }
 elsif ($anvil->data->{switches}{ram})
 {
@@ -134,6 +135,329 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub manage_cpu
+{
+	my ($anvil) = @_;
+	
+	my $short_host_name  = $anvil->Get->short_host_name;
+	my $host_uuid        = $anvil->Get->host_uuid;
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $anvil_uuid       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $anvil_name       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $server_host_name = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name'  => $short_host_name,
+		's2:host_uuid'        => $host_uuid,
+		's3:server_name'      => $server_name, 
+		's4:server_uuid'      => $server_uuid, 
+		's5:server_host_uuid' => $server_host_uuid,
+		's6:anvil_uuid'       => $anvil_uuid, 
+		's7:anvil_name'       => $anvil_name,
+	}});
+	
+	my $from_source  = get_definition_source($anvil);
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		from_source   => $from_source,
+		server_state  => $server_state, 
+	}});
+	if ($server_state eq "running")
+	{
+		$server_host_name = $anvil->Database->get_host_from_uuid({
+			short     => 1,
+			host_uuid => $server_host_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+	}
+	
+	# Get available resources.
+	$anvil->Get->available_resources({
+		debug      => 2,
+		anvil_uuid => $anvil_uuid,
+	});
+	
+	### TODO: Add support for changing the model, fallback, etc, and features 
+	my $total_cores    = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{total_cores};
+	my $sockets        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{sockets};
+	my $cores          = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{cores};
+	my $threads        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{threads};
+	my $model_name     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{model_name};
+	my $model_fallback = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{model_fallback};
+	my $match          = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{match};
+	my $vendor         = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{vendor};
+	my $mode           = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{mode};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		total_cores    => $total_cores, 
+		sockets        => $sockets, 
+		cores          => $cores, 
+		threads        => $threads, 
+		model_name     => $model_name, 
+		model_fallback => $model_fallback, 
+		match          => $match, 
+		vendor         => $vendor, 
+		mode           => $mode, 
+	}});
+	foreach my $name (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{feature}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			's1:name'  => $name, 
+			's2:value' => $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{cpu}{feature}{$name},
+		}});
+	}
+	
+	my $host_cores   = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
+	my $host_threads = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
+	my $max_cores    = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:host_cores'   => $host_cores, 
+		's2:host_threads' => $host_threads,
+		's3:max_cores'    => $max_cores,
+	}});
+	
+	my $recommended_max = $host_cores - 2;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
+	if ($host_cores <= 2)
+	{
+		$recommended_max = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
+	}
+	
+	# Show the user or change?
+	if ($anvil->data->{switches}{cpu} eq "#!SET!#")
+	{
+		# Show the CPU info
+		my $variables = { 
+			total_cores     => $total_cores,
+			sockets         => $sockets, 
+			cores           => $cores, 
+			threads         => $threads,
+			host_cores      => $host_cores, 
+			host_threads    => $host_threads, 
+			max_cores       => $max_cores, 
+			recommended_max => $recommended_max, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0380", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "message_0380", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		return(0);
+	}
+	
+	my $new_sockets = 1;
+	my $new_cores   = 1;
+	my $new_threads = 1;
+	if ($anvil->data->{switches}{cpu} =~ /^(\d+),(\d+),(\d+)$/)
+	{
+		$new_sockets = $1;
+		$new_cores   = $2;
+		$new_threads = $3;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:new_sockets' => $new_sockets, 
+			's2:new_cores'   => $new_cores,
+			's3:new_threads' => $new_threads, 
+		}});
+	}
+	elsif ($anvil->data->{switches}{cpu} =~ /^(\d+),(\d+)$/)
+	{
+		$new_sockets = $1;
+		$new_cores   = $2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:new_sockets' => $new_sockets, 
+			's2:new_cores'   => $new_cores,
+		}});
+	}
+	elsif ($anvil->data->{switches}{cpu} =~ /^(\d+)$/)
+	{
+		$new_cores = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_cores => $new_cores }});
+	}
+	else
+	{
+		# Bad formatting.
+		my $variables = { requested_cpu => $anvil->data->{switches}{cpu} };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0476", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0476", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Is the requested number of cores sane?
+	my $requested_cores = $new_sockets * $new_cores * $new_threads;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { requested_cores => $requested_cores }});
+	
+	if (($requested_cores < 1) or ($requested_cores > $max_cores))
+	{
+		my $variables = { 
+			requested_cores => $requested_cores,
+			new_sockets     => $new_sockets,
+			new_cores       => $new_cores,
+			new_threads     => $new_threads, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0477", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0477", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Still alive?
+	my $in_cpu                = 0;
+	my $topology_seen         = 0;
+	my $topology_line         = "<topology sockets=\"".$new_sockets."\" dies=\"1\" cores=\"".$new_cores."\" threads=\"".$new_threads."\"/>";
+	my $new_server_definition = "";
+	foreach my $line (split/\n/, $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /<vcpu/)
+		{
+			$line =~ s/<vcpu (.*?)>\d+<\/vcpu>/<vcpu $1>$requested_cores<\/vcpu>/;
+			$line =~ s/<vcpu>\d+<\/vcpu>/<vcpu>$requested_cores<\/vcpu>/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		}
+		if ($in_cpu)
+		{
+			if ($line =~ /<\/cpu>/)
+			{
+				if (not $topology_seen)
+				{
+					$new_server_definition .= "    ".$topology_line."\n";
+				}
+				$in_cpu = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_cpu => $in_cpu }});
+			}
+			
+			if ($line =~ /<topology /)
+			{
+				$line          = "    ".$topology_line;
+				$topology_seen = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { topology_seen => $topology_seen }});
+			}
+		}
+		if ($line =~ /<cpu/)
+		{
+			# <cpu mode="host-passthrough" check="none" migratable="on"/>
+			if ($line =~ /<cpu (.*?)\/>/)
+			{
+				# Adjust to add topology 
+				my $arguments = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { arguments => $arguments }});
+				
+				$new_server_definition .= "  <cpu ".$arguments.">\n";
+				$new_server_definition .= "    ".$topology_line."\n";
+				$new_server_definition .= "  </cpu>\n";
+				next;
+			}
+			
+			$in_cpu = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_cpu => $in_cpu }});
+		}
+		$new_server_definition .= $line."\n";
+	}
+	
+	# Confirm the new definition is valid
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
+		host       => $short_host_name,
+		server     => $server_name, 
+		source     => "test_xml",
+		definition => $new_server_definition, 
+	});
+	if ($problem)
+	{
+		# The new definition is bad
+		my $variables = { new_server_definition => $new_server_definition };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0470", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0470", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Did the user confirm?
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		# Running as a job, don't prompt
+		$anvil->Job->update_progress({
+			progress => 75,
+			message  => "job_0480", 
+		});
+	}
+	elsif ($anvil->data->{switches}{confirm})
+	{
+		# User confirmed
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+	}
+	else
+	{
+		# Ask the user to confirm.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0381", variables => {
+			old_total_cores => $total_cores, 
+			old_sockets     => $sockets, 
+			old_cores       => $cores, 
+			old_threads     => $threads, 
+			new_total_cores => $requested_cores,
+			new_sockets     => $new_sockets, 
+			new_cores       => $new_cores, 
+			new_threads     => $new_threads, 
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0021"});
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0828", variables => { answer => $answer }});
+		if ((lc($answer) eq "y") or (lc($answer) eq "yes"))
+		{
+			# Proceed
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
+		}
+		else
+		{
+			# Abort
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0022"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	# Record the new config. 
+	$problem = $anvil->Server->update_definition({
+		debug              => 2, 
+		server             => $server_uuid,
+		new_definition_xml => $new_server_definition, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Failed!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0471"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0471", 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	else
+	{
+		# Done!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0750"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "log_0750", 
+		}) if $anvil->data->{switches}{'job-uuid'};
+	}
+	
+	return(0);
+}
 
 sub manage_ram
 {
@@ -201,7 +525,7 @@ sub manage_ram
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0378", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 25,
+			progress  => 100,
 			message   => "message_0378", 
 			variables => $variables, 
 		}) if $anvil->data->{switches}{'job-uuid'};
@@ -296,6 +620,27 @@ sub manage_ram
 		$new_server_definition .= $line."\n";
 	}
 	
+	# Confirm the new definition is valid
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
+		host       => $short_host_name,
+		server     => $server_name, 
+		source     => "test_xml",
+		definition => $new_server_definition, 
+	});
+	if ($problem)
+	{
+		# The new definition is bad
+		my $variables = { new_server_definition => $new_server_definition };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0470", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0470", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
 	# Did the user confirm?
 	if ($anvil->data->{switches}{'job-uuid'})
 	{
@@ -335,7 +680,7 @@ sub manage_ram
 	}
 	
 	# Record the new config. 
-	my $problem = $anvil->Server->update_definition({
+	$problem = $anvil->Server->update_definition({
 		debug              => 2, 
 		server             => $server_uuid,
 		new_definition_xml => $new_server_definition, 

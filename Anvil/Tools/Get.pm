@@ -464,6 +464,7 @@ Data is store in the following hashes;
 
  anvil_resources::<anvil_uuid>::cpu::cores
  anvil_resources::<anvil_uuid>::cpu::threads
+ anvil_resources::<anvil_uuid>::cpu::available
  anvil_resources::<anvil_uuid>::ram::available
  anvil_resources::<anvil_uuid>::ram::allocated
  anvil_resources::<anvil_uuid>::ram::hardware
@@ -527,9 +528,10 @@ sub available_resources
 	}});
 	
 	# This will store the available resources based on the least of the nodes.
-	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}    = 0;
-	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}  = 0;
-	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware} = 0;
+	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores}     = 0;
+	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads}   = 0;
+	$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available} = 0;
+	$anvil->data->{anvil_resources}{$anvil_uuid}{ram}{hardware}  = 0;
 	foreach my $host_uuid ($node1_host_uuid, $node2_host_uuid)
 	{
 		my $this_is = "node1";
@@ -634,6 +636,26 @@ WHERE
 			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads} = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"anvil_resources::${anvil_uuid}::cpu::threads" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads},
+			}});
+		}
+		
+		# How many can be allocated to a single VM?
+		$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available} = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"anvil_resources::${anvil_uuid}::cpu::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available},
+		}});
+		if ($anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available} <= 4)
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available} -= 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::cpu::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available},
+			}});
+		}
+		else
+		{
+			$anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available} -= 2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"anvil_resources::${anvil_uuid}::cpu::available" => $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available},
 			}});
 		}
 		
