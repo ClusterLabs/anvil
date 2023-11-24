@@ -744,6 +744,10 @@ The XML that failed sanity check was:
 ========
 [ Error ] - The new definition, shown above failed its test parsing, aborting.</key>
 		<key name="error_0471">[ Error ] - There was a problem trying to save the new definition. Details should be in the logs. It's possible the update partially applied.</key>
+		<key name="error_0472">[ Error ] - The RAM being recorded for the server: [#!variable!server_name!#] is too low, and likely a program error. The minimum RAM that can be allocated to a server is 640 KiB (655,360 bytes), but this server tried to record allocated: [#!variable!allocated_ram!#] and in-use: [#!variable!ram_in_use!#] RAM.</key>
+		<key name="error_0473">[ Error ] - The requested size: [#!variable!requested_ram!#] is not a valid size. Please specify the size in bytes, or specify the size with a base-2 suffix, like '8GiB'.</key>
+		<key name="error_0474">[ Error ] - The requested size: [#!variable!requested_ram!#] is greater than the maximum RAM: [#!variable!max_ram!#].</key>
+		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3253,6 +3257,9 @@ proceeding.
 		<key name="message_0375">Updating boot devices.</key>
 		<key name="message_0376">- New boot order will be:</key>
 		<key name="message_0377"> - #!variable!boot_order!#: Path: [#!variable!path!#], Device: [#!variable!device_target!#] (#!variable!device!#)</key>
+		<key name="message_0378">- RAM in use, [#!variable!ram_in_use!#], configured: [#!variable!configured_ram!#], maximum: [#!variable!max_ram!#]
+- RAM Available: [#!variable!available_ram!#]</key>
+		<key name="message_0379">Update the system RAM from: [#!variable!configured_ram!#] to: [#!variable!requested_ram!#]?</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

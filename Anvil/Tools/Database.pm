@@ -12907,7 +12907,17 @@ WHERE
 		return($server_uuid);
 	}
 	
-	### TODO: Left off here.
+	### TODO: Remove this eventually. There is a bug somewhere that is storing RAM in KiB, not Bytes.
+	if (($server_configured_ram < 655360) or ($server_ram_in_use < 655360))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0472", variables => { 
+			server_name    => $server_name, 
+			configured_ram => $server_configured_ram,
+			ram_in_use     => $server_ram_in_use, 
+		}});
+		return("!!error!!");
+	}
+	
 	# Are we updating or inserting?
 	if (not $exists)
 	{

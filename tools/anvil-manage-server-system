@@ -182,20 +182,206 @@ sub manage_ram
 	my $server_ram_in_use     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
 	my $server_configured_ram = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram};
 	my $server_definition_ram = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{memory};
-	my $ram_available         = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+	my $available_ram         = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available};
+	my $max_ram               = $available_ram + $server_configured_ram;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_ram_in_use     => $server_ram_in_use." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}).")",
 		server_configured_ram => $server_configured_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}).")",
 		server_definition_ram => $server_definition_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_definition_ram}).")",
-		ram_available         => $ram_available." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available}).")",
+		available_ram         => $available_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram}).")",
+		max_ram               => $max_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}).")",
 	}});
 	if ($anvil->data->{switches}{ram} eq "#!SET!#")
 	{
-		print "RAM:\n";
-		print "- In Use: ... [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use})."]\n";
-		print "- Configured: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram})."]\n";
-		print "- Defined: .. [".$anvil->Convert->bytes_to_human_readable({'bytes' => $server_definition_ram})."]\n";
-		print "- Available:  [".$anvil->Convert->bytes_to_human_readable({'bytes' => $ram_available})."]\n";
+		my $variables = { 
+			ram_in_use     => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_in_use}),
+			configured_ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}), 
+			max_ram        => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}), 
+			available_ram  => $anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram}), 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0378", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 25,
+			message   => "message_0378", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		return(0);
+	}
+	
+	# Is the requested RAM valid?
+	my $requested_ram = $anvil->Convert->human_readable_to_bytes({
+		debug => 2,
+		size  => $anvil->data->{switches}{ram},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { requested_ram => $requested_ram }});
+	if ($requested_ram eq "!!error!!")
+	{
+		my $variables = { requested_ram => $anvil->data->{switches}{ram} };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0473", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0473", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif ($requested_ram > $max_ram)
+	{
+		my $variables = { 
+			requested_ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $requested_ram}),
+			max_ram       => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_ram}), 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0474", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0474", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif ($requested_ram < 655360)
+	{
+		my $variables = { requested_ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $requested_ram}) };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0475", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0475", 
+			variables => $variables, 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Convert the requested bytes to KiB
+	my $new_requested_ram = $anvil->Convert->bytes_to_human_readable({
+		debug   => 2,
+		'bytes' => $requested_ram,
+		base2   => 1,
+		unit    => "k",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ">>new_requested_ram" => $new_requested_ram }});
+	$new_requested_ram =~ s/\s.*$//;
+	$new_requested_ram =~ s/\..*$//;
+	$new_requested_ram =~ s/,//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "<<new_requested_ram" => $new_requested_ram }});
+	
+	# Still here? Update the definition!
+	my $new_server_definition = "";
+	foreach my $line (split/\n/, $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /<memory unit='(.*?)'>(\d+)<\/memory>/)
+		{
+			my $old_unit = $1;
+			my $old_size = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_unit => $old_unit, 
+				old_size => $old_size,
+			}});
+			
+			$line =~ s/<memory unit='.*?'>\d+<\/memory>/<memory unit='KiB'>$new_requested_ram<\/memory>/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		}
+		if ($line =~ /<currentMemory unit='(.*?)'>(\d+)<\/currentMemory>/)
+		{
+			my $old_unit = $1;
+			my $old_size = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_unit => $old_unit, 
+				old_size => $old_size,
+			}});
+			
+			$line =~ s/<currentMemory unit='.*?'>\d+<\/currentMemory>/<currentMemory unit='KiB'>$new_requested_ram<\/currentMemory>/;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		}
+		$new_server_definition .= $line."\n";
+	}
+	
+	# Did the user confirm?
+	if ($anvil->data->{switches}{'job-uuid'})
+	{
+		# Running as a job, don't prompt
+		$anvil->Job->update_progress({
+			progress => 75,
+			message  => "job_0480", 
+		});
+	}
+	elsif ($anvil->data->{switches}{confirm})
+	{
+		# User confirmed
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+	}
+	else
+	{
+		# Ask the user to confirm.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0379", variables => {
+			configured_ram => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}), 
+			requested_ram  => $anvil->Convert->bytes_to_human_readable({'bytes' => $requested_ram}),
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0021"});
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0828", variables => { answer => $answer }});
+		if ((lc($answer) eq "y") or (lc($answer) eq "yes"))
+		{
+			# Proceed
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
+		}
+		else
+		{
+			# Abort
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0022"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	# Record the new config. 
+	my $problem = $anvil->Server->update_definition({
+		debug              => 2, 
+		server             => $server_uuid,
+		new_definition_xml => $new_server_definition, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Failed!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0471"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0471", 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->nice_exit({exit_code => 1});
+	}
+	else
+	{
+		# Update the server_configured_ram (making sure we've got the current DB data first)
+		$anvil->Database->get_servers();
+		$anvil->Database->insert_or_update_servers({
+			debug                           => 2,
+			server_uuid                     => $server_uuid, 
+			server_name                     => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name}, 
+			server_anvil_uuid               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid},
+			server_user_stop                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_user_stop},
+			server_start_after_server_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid},
+			server_start_delay              => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay},
+			server_host_uuid                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid},
+			server_state                    => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state},
+			server_live_migration           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_live_migration},
+			server_pre_migration_file_uuid  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_file_uuid},
+			server_pre_migration_arguments  => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_pre_migration_arguments},
+			server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid},
+			server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments}, 
+			server_ram_in_use               => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use},
+			server_configured_ram           => $requested_ram,
+			server_updated_by_user          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_updated_by_user}, 
+			server_boot_time                => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_boot_time}, 
+		});
+		
+		# Done!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0750"});
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "log_0750", 
+		}) if $anvil->data->{switches}{'job-uuid'};
 	}
 	
 	return(0);
@@ -259,7 +445,7 @@ sub manage_boot_order
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0375"});
 		$anvil->Job->update_progress({
 			progress => 25,
-			message  => "log_0802", 
+			message  => "message_0375", 
 		}) if $anvil->data->{switches}{'job-uuid'};
 		
 		# Parse the user's input.
