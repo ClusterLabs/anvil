@@ -27,6 +27,10 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .TP
 When called without a value, it shows if the boot menu is enabled or not. If called with 'yes', it enables the boot menu. If called with 'no', the boot meny is disabled.
 .TP
+\fB\-\-boot\-order\fR <dev1,dev2,...,devN>
+.TP
+When called without a value, it shows if the current order of boot devices. To set a new boot device order, use a comma-separated list of boot devices. Note that any boot devices that are not specified will be moved in their original order to boot after the specified devices are moved up. For this reason, you can just specify the device you want to boot, and it will be moved to the front of the list.
+.TP
 \fB\-\-job\-uuid\fR
 This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
 .TP

@@ -41,6 +41,7 @@ $anvil->Get->switches({list => [
 	"anvil", 
 	"boot", 
 	"boot-menu", 
+	"boot-order", 
 	"confirm", 
 	"disk", 
 	"eject", 
@@ -108,9 +109,9 @@ elsif ($anvil->data->{switches}{ram})
 {
 	#manage_ram($anvil);
 }
-elsif ($anvil->data->{switches}{boot})
+elsif ($anvil->data->{switches}{'boot-order'})
 {
-	manage_boot($anvil);
+	manage_boot_order($anvil);
 }
 elsif ($anvil->data->{switches}{'boot-menu'})
 {
@@ -133,7 +134,7 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub manage_boot
+sub manage_boot_order
 {
 	my ($anvil) = @_;
 	
@@ -166,20 +167,258 @@ sub manage_boot
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
 	}
 	
-	if ($anvil->data->{switches}{boot} eq "#!SET!#")
+	if ($anvil->data->{switches}{'boot-order'} eq "#!SET!#")
 	{
-		print "Boot device order for: [".$server_name."]\n";
+		# Show the existing boot devices and their boot order
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0372", variables => { server_name => $server_name }});
 		foreach my $boot_order (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}})
 		{
 			my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_target};
 			my $device        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_type};
 			my $path          = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
-			print " ".$boot_order.") Target: [".$device_target."], Device: [".$device."], Path: [".$path."]\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0373", variables => { 
+				boot_order    => $boot_order,
+				device_target => $device_target, 
+				device        => $device, 
+				path          => $path, 
+			}});
 		}
-		print "To change the boot device, use '--boot <target>' or --boot <target1>,<target2>,...\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0374"});
 		return(0);
 	}
-	print "Updating boot devices.\n";
+	else
+	{
+		# Updating boot devices.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0375"});
+		$anvil->Job->update_progress({
+			progress => 25,
+			message  => "log_0802", 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		
+		# Parse the user's input.
+		my $boot_order = $anvil->data->{switches}{'boot-order'};
+		my $boot_count = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_order => $boot_order }});
+		foreach my $device_target (split/,/, $boot_order)
+		{
+			$boot_count++;
+			$anvil->data->{new_boot_order}{$device_target}{order}       = $boot_count;
+			$anvil->data->{new_boot_order}{$device_target}{device_type} = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				device_target                      => $device_target,
+				boot_count                         => $boot_count, 
+				"new_boot_order::${device_target}" => $anvil->data->{new_boot_order}{$device_target},
+			}});
+			
+			if (not exists $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device_target}{$device_target}{type})
+			{
+				# The device was not found, exit.
+				my $variables = { device_target => $device_target };
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0469", variables => $variables});
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "error_0469", 
+					variables => $variables, 
+				}) if $anvil->data->{switches}{'job-uuid'};
+				$anvil->nice_exit({exit_code => 1});
+			}
+			else
+			{
+				my $device                                                     = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device_target}{$device_target}{type};
+				   $anvil->data->{new_boot_order}{$device_target}{device_type} = $device;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"new_boot_order::${device_target}::device_type" => $anvil->data->{new_boot_order}{$device_target}{device_type},
+				}});
+			}
+		}
+		
+		# Find any unlisted devices and bump up their boot order as needed.
+		foreach my $boot_order (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}})
+		{
+			my $device_target = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_target};
+			my $device        = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{boot_order}{$boot_order}{device_type};
+			
+			if (not exists $anvil->data->{new_boot_order}{$device_target})
+			{
+				$anvil->data->{new_boot_order}{$device_target}{order}       = $boot_order + $boot_count;
+				$anvil->data->{new_boot_order}{$device_target}{device_type} = $device;
+			}
+		}
+		
+		# Make sortable
+		foreach my $device_target (sort {$a cmp $b} keys %{$anvil->data->{new_boot_order}})
+		{
+			my $boot_order = $anvil->data->{new_boot_order}{$device_target}{order};
+			my $device     = $anvil->data->{new_boot_order}{$device_target}{device_type};
+
+			$anvil->data->{new_boot_order}{$device_target}{order}  = $boot_order;
+			$anvil->data->{new_boot_order}{$device_target}{target} = $device_target;
+			$anvil->data->{new_boot_order}{$device_target}{device} = $device;
+			$anvil->data->{new_boot_order}{$device_target}{path}   = $anvil->data->{server}{$short_host_name}{$server_name}{$from_source}{device}{$device}{target}{$device_target}{path};
+			$anvil->data->{new_order}{$boot_order}{target}         = $device_target;
+		}
+		
+		# Show what the new boot order will be
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0376"});
+		$anvil->data->{'say'}{cdrom} = $anvil->Words->string({key => "type_0001"});
+		$anvil->data->{'say'}{disk}  = $anvil->Words->string({key => "type_0004"});
+		foreach my $boot_order (sort {$a <=> $b} keys %{$anvil->data->{new_order}})
+		{
+			my $device_target = $anvil->data->{new_order}{$boot_order}{target};
+			my $device        = $anvil->data->{new_boot_order}{$device_target}{device};
+			my $path          = $anvil->data->{new_boot_order}{$device_target}{path};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0377", variables => {
+				boot_order    => $boot_order, 
+				path          => $path, 
+				device_target => $device_target, 
+				device        => $anvil->data->{'say'}{$device},
+			}});
+		}
+		
+		# Tell the job we're about to create the new definition
+		$anvil->Job->update_progress({
+			progress  => 50,
+			message   => "job_0478", 
+		}) if $anvil->data->{switches}{'job-uuid'};
+		
+		# Update the definition.
+		my $in_disk               = 0;
+		my $device_target         = "";
+		my $boot_order_seen       = 0;
+		my $new_server_definition = "";
+		foreach my $line (split/\n/, $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /<disk /)
+			{
+				$in_disk = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_disk => $in_disk }});
+			}
+			if ($in_disk)
+			{
+				if ($line =~ /<\/disk>/)
+				{
+					# If we didn't see the old boot order, or if it was too soon, add the
+					# boot order now.
+					if ((not $boot_order_seen) && ($device_target))
+					{
+						my $new_boot_order        =  $anvil->data->{new_boot_order}{$device_target}{order};
+						   $new_server_definition .= "      <boot order='".$new_boot_order."'/>\n";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_boot_order => $new_boot_order }});
+					}
+					$in_disk         = 0;
+					$boot_order_seen = 0;
+					$device_target   = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						in_disk         => $in_disk,
+						boot_order_seen => $boot_order_seen, 
+						device_target   => $device_target, 
+					}});
+				}
+				elsif ($line =~ /<target dev='(.*?)'/)
+				{
+					$device_target = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device_target => $device_target }});
+				}
+				elsif ($line =~ /boot order='(\d+)'/)
+				{
+					# If we have a device_target, update the line. Otherwise, skip it and
+					# we'll insert it later.
+					my $old_boot_order = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_boot_order => $old_boot_order }});
+					if ($device_target)
+					{
+						   $boot_order_seen =  1;
+						my $new_boot_order  =  $anvil->data->{new_boot_order}{$device_target}{order};
+						   $line            =~ s/boot order='.*?'/boot order='$new_boot_order'/;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_order_seen => $boot_order_seen }});
+					}
+				}
+			}
+			$new_server_definition .= $line."\n";
+		}
+		
+		my $problem = $anvil->Server->parse_definition({
+			debug      => 2,
+			host       => $short_host_name,
+			server     => $server_name, 
+			source     => "test_xml",
+			definition => $new_server_definition, 
+		});
+		if ($problem)
+		{
+			# The new definition is bad
+			my $variables = { new_server_definition => $new_server_definition };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0470", variables => $variables});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "error_0470", 
+				variables => $variables, 
+			}) if $anvil->data->{switches}{'job-uuid'};
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Did the user confirm?
+		if ($anvil->data->{switches}{'job-uuid'})
+		{
+			# Running as a job, don't prompt
+			$anvil->Job->update_progress({
+				progress => 75,
+				message  => "job_0480", 
+			});
+		}
+		elsif ($anvil->data->{switches}{confirm})
+		{
+			# User confirmed
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+		}
+		else
+		{
+			# Ask the user to confirm.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0021"});
+			my $answer = <STDIN>;
+			chomp $answer;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0828", variables => { answer => $answer }});
+			if ((lc($answer) eq "y") or (lc($answer) eq "yes"))
+			{
+				# Proceed
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
+			}
+			else
+			{
+				# Abort
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0022"});
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		
+		# Record the new config. 
+		$problem = $anvil->Server->update_definition({
+			debug              => 2, 
+			server             => $server_uuid,
+			new_definition_xml => $new_server_definition, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Failed!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0471"});
+			$anvil->Job->update_progress({
+				progress => 100,
+				message  => "error_0471", 
+			}) if $anvil->data->{switches}{'job-uuid'};
+			$anvil->nice_exit({exit_code => 1});
+		}
+		else
+		{
+			# Done!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0750"});
+			$anvil->Job->update_progress({
+				progress => 100,
+				message  => "log_0750", 
+			}) if $anvil->data->{switches}{'job-uuid'};
+		}
+	}
 	
 	return(0);
 }
