@@ -42,11 +42,11 @@ $anvil->Get->switches({list => [
 	"job-uuid",
 	"license-file",
 	"link",
-	"list", 
 	"protect",
 	"protocol",
 	"remove",
 	"server",
+	"show", 
 	"unlink",
 	"update",
 	"Yes"], man => $THIS_FILE});
@@ -2485,26 +2485,45 @@ sub process_protect
 		
 		# Is there enough space on DR?
 		my $space_on_dr = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$dr_host_uuid}{vg_free};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			space_on_dr  => $anvil->Convert->add_commas({number => $space_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}).")", 
-			space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
-		}});
-		if ($space_needed > $space_on_dr)
+		if ((not defined $space_on_dr) or ($space_on_dr !~ /^\d+$/))
 		{
+			# The DR host doesn't have a VG in the SG.
 			my $variables = {
 				space_needed       => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}), 
 				space_needed_bytes => $anvil->Convert->add_commas({number => $space_needed}),
 				storage_group      => $storage_group_name, 
-				space_on_dr        => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}), 
-				space_on_dr_bytes  => $anvil->Convert->add_commas({number => $space_on_dr}), 
 			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0344", variables => $variables});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0468", variables => $variables});
 			$anvil->Job->update_progress({
 				progress  => 100,
 				message   => "error_0344", 
 				variables => $variables
 			});
 			$problem = 1;
+		}
+		else
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				space_on_dr  => $anvil->Convert->add_commas({number => $space_on_dr})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}).")", 
+				space_needed => $anvil->Convert->add_commas({number => $space_needed})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}).")", 
+			}});
+			if ($space_needed > $space_on_dr)
+			{
+				my $variables = {
+					space_needed       => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_needed}), 
+					space_needed_bytes => $anvil->Convert->add_commas({number => $space_needed}),
+					storage_group      => $storage_group_name, 
+					space_on_dr        => $anvil->Convert->bytes_to_human_readable({'bytes' => $space_on_dr}), 
+					space_on_dr_bytes  => $anvil->Convert->add_commas({number => $space_on_dr}), 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0344", variables => $variables});
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "error_0344", 
+					variables => $variables
+				});
+				$problem = 1;
+			}
 		}
 	}
 	if ($problem)
