@@ -736,6 +736,20 @@ The XML that failed sanity check was:
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
 		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
 		<key name="error_0467"><![CDATA[[ Error ] - The repartition attemp failed! Reloading the partition table now!]]]></key>
+		<key name="error_0468">We need: [#!variable!space_needed!# (#!variable!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but the requested DR host does not appear to have a volume group in this storage group. Hint, please use 'anvil-manage-storage-groups' to resolve. Unable to proceed.</key>
+		<key name="error_0469">[ Error ] - The device: [#!variable!device_target!#] was not found, exiting.</key>
+		<key name="error_0470">[ Error ] - The new definition is bad:
+========
+#!variable!new_server_definition!#
+========
+[ Error ] - The new definition, shown above failed its test parsing, aborting.</key>
+		<key name="error_0471">[ Error ] - There was a problem trying to save the new definition. Details should be in the logs. It's possible the update partially applied.</key>
+		<key name="error_0472">[ Error ] - The RAM being recorded for the server: [#!variable!server_name!#] is too low, and likely a program error. The minimum RAM that can be allocated to a server is 640 KiB (655,360 bytes), but this server tried to record allocated: [#!variable!allocated_ram!#] and in-use: [#!variable!ram_in_use!#] RAM.</key>
+		<key name="error_0473">[ Error ] - The requested size: [#!variable!requested_ram!#] is not a valid size. Please specify the size in bytes, or specify the size with a base-2 suffix, like '8GiB'.</key>
+		<key name="error_0474">[ Error ] - The requested size: [#!variable!requested_ram!#] is greater than the maximum RAM: [#!variable!max_ram!#].</key>
+		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
+		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
+		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1705,6 +1719,9 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#], job_running: [#!variable!job_running!#].</key>
 		<key name="job_0476">Waiting for a bit, then will check again.</key>
 		<key name="job_0477">Waiting for both subnodes to be configured and out of maintenance mode.</key>
+		<key name="job_0478">Preparing the new definition file</key>
+		<key name="job_0479">The new definition is ready, saving it.</key>
+		<key name="job_0480">Running as a job, not prompting the user to confirm.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -3236,6 +3253,24 @@ proceeding.
 		<key name="message_0369">- No DR hosts exist yet</key>
 		<key name="message_0370">- Server name: [#!variable!server_name!#] on Anvil! Node: [#!variable!anvil_name!#]</key>
 		<key name="message_0371">- No servers yet installed</key>
+		<key name="message_0372">Boot device order for: [#!variable!server_name!#]</key>
+		<key name="message_0373"> #!variable!boot_order!#) Target: [#!variable!device_target!#], Device: [#!variable!device!#], Path: [#!variable!path!#]</key>
+		<key name="message_0374"><![CDATA[To change the boot device, use '--boot-order <target>' or --boot-order <target1>,<target2>,...]]></key>
+		<key name="message_0375">Updating boot devices.</key>
+		<key name="message_0376">- New boot order will be:</key>
+		<key name="message_0377"> - #!variable!boot_order!#: Path: [#!variable!path!#], Device: [#!variable!device_target!#] (#!variable!device!#)</key>
+		<key name="message_0378">- RAM in use, [#!variable!ram_in_use!#], configured: [#!variable!configured_ram!#], maximum: [#!variable!max_ram!#]
+- RAM Available: [#!variable!available_ram!#]</key>
+		<key name="message_0379">Update the system RAM from: [#!variable!configured_ram!#] to: [#!variable!requested_ram!#]?</key>
+		<key name="message_0380">- The CPU core count is: [#!variable!total_cores!#] specified as;
+  - Sockets: [#!variable!sockets!#], Cores per socket: [#!variable!cores!#], Threads per code: [#!variable!threads!#]
+- The Anvil! node has: [#!variable!host_cores!#] cores and: [#!variable!host_threads!#] threads.
+- The maximum that can be allocated is: [#!variable!max_cores!#], with the recommended max cores being: [#!variable!recommended_max!#].</key>
+		<key name="message_0381"><![CDATA[- Changing the CPU allocation;
+  - Sockets: ........ [#!variable!old_sockets!#] -> [#!variable!new_sockets!#]
+  - Cores per Socket: [#!variable!old_cores!#] -> [#!variable!new_cores!#]
+  - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
+  - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3688,6 +3723,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="type_0001">ISO (optical disc)</key>
 		<key name="type_0002">Script (program)</key>
 		<key name="type_0003">Other file type</key>
+		<key name="type_0004">Disk (virtual drive)</key>
 		
 		<!-- These are units, words and so on used when displaying information. -->
 		<key name="unit_0001">Yes</key>

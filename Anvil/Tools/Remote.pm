@@ -1007,6 +1007,13 @@ sub test_access
 		user     => $user,
 	}});
 	
+	# Make sure we've got the target in our known_hosts file.
+	$anvil->Remote->add_target_to_known_hosts({
+		debug  => $debug, 
+		target => $target, 
+		user   => getpwuid($<),
+	});
+	
 	# Call the target
 	my ($output, $error, $return_code) = $anvil->Remote->call({
 		debug       => $debug, 

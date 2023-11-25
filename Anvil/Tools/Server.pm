@@ -2461,6 +2461,7 @@ sub parse_definition
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{path}              = $device_path;
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{io}        = $driver_io;
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache}     = $driver_cache;
+			$anvil->data->{server}{$target}{$server}{$source}{device_target}{$device_target}{type}                        = $device;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::address::domain"   => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{domain},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::address::slot"     => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{slot},
@@ -2468,6 +2469,7 @@ sub parse_definition
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::path"              => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{path},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::driver::io"        => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{io},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::driver::cache"     => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{driver}{cache},
+				"server::${target}::${server}::${source}::device_target::${device_target}::type"                          => $anvil->data->{server}{$target}{$server}{$source}{device_target}{$device_target}{type},
 			}});
 			
 			my $on_lv    = defined $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       ? $anvil->data->{drbd}{config}{$host}{drbd_path}{$device_path}{on}       : "";
@@ -2524,11 +2526,13 @@ sub parse_definition
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{unit}       = $address_unit;
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{target}     = $address_target;
 			$anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{path}                = $device_path;
+			$anvil->data->{server}{$target}{$server}{$source}{device_target}{$device_target}{type}                          = $device;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::address::controller" => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{controller},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::address::unit"       => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{unit},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::address::target"     => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{address}{target},
 				"server::${target}::${server}::${source}::device::${device}::target::${device_target}::path"                => $anvil->data->{server}{$target}{$server}{$source}{device}{$device}{target}{$device_target}{path},
+				"server::${target}::${server}::${source}::device_target::${device_target}::type"                            => $anvil->data->{server}{$target}{$server}{$source}{device_target}{$device_target}{type},
 			}});
 		
 		}
