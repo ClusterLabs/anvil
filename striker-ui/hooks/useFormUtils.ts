@@ -90,6 +90,8 @@ const useFormUtils = <
       getErrorMsg,
       msgKey = 'api',
       method,
+      onError,
+      onSuccess,
       setMsg = messageGroupRef?.current?.setMessage,
       successMsg,
       url,
@@ -103,6 +105,8 @@ const useFormUtils = <
             children: successMsg,
             type: 'info',
           });
+
+          onSuccess?.call(null);
         })
         .catch((apiError) => {
           const emsg = handleAPIError(apiError);
@@ -110,6 +114,8 @@ const useFormUtils = <
           emsg.children = getErrorMsg(emsg.children);
 
           setMsg?.call(null, msgKey, emsg);
+
+          onError?.call(null);
         })
         .finally(() => {
           setFormSubmitting(false);
