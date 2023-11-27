@@ -16,8 +16,8 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
 
     response.cookie(cname('session'), {
       expires: session?.cookie?.expires,
+      user,
     });
-    response.cookie(cname('user'), user);
   }
 
   response.status(204).send();
