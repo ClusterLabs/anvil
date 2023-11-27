@@ -1,3 +1,11 @@
 type CookieJar = Record<string, unknown>;
 
-type SessionUser = { name: string; uuid: string };
+type SessionCookieUser = {
+  name: string;
+  uuid: string;
+};
+
+type SessionCookie = {
+  expires: string;
+  user: SessionCookieUser;
+};
