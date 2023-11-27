@@ -7,13 +7,16 @@ export const login: RequestHandler<unknown, unknown, AuthLoginRequestBody> = (
   request,
   response,
 ) => {
-  const { user } = request;
+  const { session, user } = request;
 
   if (user) {
     const { name: userName } = user;
 
     stdout(`Successfully authenticated user [${userName}]`);
 
+    response.cookie(cname('session'), {
+      expires: session?.cookie?.expires,
+    });
     response.cookie(cname('user'), user);
   }
 
