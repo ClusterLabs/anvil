@@ -309,7 +309,9 @@ const StrikerInitForm: FC = () => {
 
               setIsSubmittingForm(false);
               setSubmitMessage({
-                children: (
+                children: reconfig ? (
+                  <>Successfully initiated reconfiguration.</>
+                ) : (
                   <>
                     Successfully registered the configuration job! You can check
                     the progress at the top right icon. Once the job completes,
