@@ -1179,6 +1179,10 @@ resource #!variable!server!# {
 		<key name="header_0114">Completed Jobs</key>
 		<key name="header_0115">-=] DR Hosts</key>
 		<key name="header_0116">-=] Servers</key>
+		<key name="header_0117">Subnode</key>
+		<key name="header_0118">Host State</key>
+		<key name="header_0119">Pacemaker State</key>
+		<key name="header_0120">Maintenance Mode</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3202,7 +3206,7 @@ Proceed? [y/N]</key>
 		<key name="message_0336">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], Replication Volume: [#!variable!drbd_resource!#/#!variable!drbd_volume!#]</key>
 		<key name="message_0337"> |- Resource / LV / Metadata sizes: [#!variable!resource_size!# / #!variable!lv_size!# / #!variable!metadata_size!#], free space: [#!variable!max_free_space!#]</key>
 		<key name="message_0338">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], ISO: [#!variable!device_path!#]</key>
-		<key name="message_0339">Sub-Nodes:</key>
+		<key name="message_0339">Subnodes:</key>
 		<key name="message_0340">DR Hosts:</key>
 		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!ariable!host_uuid!#]</key>
 		<key name="message_0342">   |- Volume: [#!variable!volume_number!#], backing device: [#!variable!backing_disk!#], DRBD minor: [#!variable!device_minor!#], size: [#!variable!volume_size!#]
@@ -3622,6 +3626,14 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
 		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
 		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! node, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
+		<key name="striker_0307">Powered Off</key>
+		<key name="striker_0308">Online</key>
+		<key name="striker_0309">Stopping</key>
+		<key name="striker_0310">Booting</key>
+		<key name="striker_0311">Offline</key>
+		<key name="striker_0312">Transitioning</key>
+		<key name="striker_0313">Maintenance Mode</key>
+		<key name="striker_0314">Normal Operation</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

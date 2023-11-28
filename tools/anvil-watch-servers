@@ -1,0 +1,370 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+use Text::Diff;
+use Term::Cap;
+use Time::Local;
+
+$| = 1;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+my $anvil = Anvil::Tools->new();
+
+# Get a list of all interfaces with IP addresses.
+$anvil->Get->switches({debug => 2, list => ["watch"]});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, exit.
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
+	$anvil->nice_exit({ exit_code => 1 });
+}
+
+our $t = Term::Cap->Tgetent;
+
+# One shot or continuous?
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'switches::watch' => $anvil->data->{switches}{watch},
+}});
+if ($anvil->data->{switches}{watch})
+{
+	# Disconnect before we go into the loop
+	$anvil->Database->disconnect();
+	
+	# Do we have an interval?
+	my $interval = 2;
+	if ($anvil->data->{switches}{watch} =~ /^\d+$/)
+	{
+		$interval = $anvil->data->{switches}{watch};
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { interval => $interval }});
+	
+	# Loop until terminated.
+	while(1)
+	{
+		$anvil->refresh();
+		$anvil->Database->connect();
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+		
+		if ($anvil->data->{sys}{database}{connections})
+		{
+			show_status($anvil);
+			$anvil->Database->disconnect();
+		}
+		else
+		{
+			# No databases available.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0738"});
+		}
+		sleep $interval;
+	}
+}
+else
+{
+	# Once and exit.
+	$anvil->Database->connect();
+	show_status($anvil);
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub show_status
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		system('clear');
+		print $t->Tgoto("cm", 0, 0);
+	}
+	
+	if ($anvil->data->{switches}{watch})
+	{
+		my $date = $anvil->Get->date_and_time();
+		print "-=] Updated: ".$date." - Press '<ctrl> + <c>' to exit\n";
+	}
+	
+	### TODO: Add support for checking/monitoring DR hosts
+	# Get the node states
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		print "This must be run on a subnode. Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	### TODO: Make this work outside the cluster, for cases when servers are running outside the 
+	###       pacemaker cluster stack.
+	# Are we a cluster member?
+	my $problem = $anvil->Cluster->parse_cib();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		print "This subnode is not in the cluster (failed to parse the CIB). Exiting.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Load host information so that we can check for IPMI configs, if needed.
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_anvils();
+	
+	show_servers($anvil);
+	print "\n";
+	
+	show_nodes($anvil);
+	
+	return(0);
+}
+
+sub show_servers
+{
+	my ($anvil) = @_;
+	
+	# Show the server states
+	
+	return(0);
+}
+
+sub show_nodes
+{
+	my ($anvil) = @_;
+	
+	# Headers
+	$anvil->data->{'say'}{subnode}          = $anvil->Words->string({key => "header_0117"});
+	$anvil->data->{'say'}{host_status}      = $anvil->Words->string({key => "header_0118"});
+	$anvil->data->{'say'}{pacemaker_status} = $anvil->Words->string({key => "header_0119"});
+	$anvil->data->{'say'}{maintenance_mode} = $anvil->Words->string({key => "header_0120"});
+	
+	my $longest_node_name        = length($anvil->data->{'say'}{subnode});
+	my $longest_host_status      = length($anvil->data->{'say'}{host_status});
+	my $longest_pacemaker_status = length($anvil->data->{'say'}{pacemaker_status});
+	my $longest_maintenance_mode = length($anvil->data->{'say'}{maintenance_mode});
+	
+	### Strings
+	# host states
+	$anvil->data->{'say'}{unknown}     = $anvil->Words->string({key => "unit_0004"});
+	$anvil->data->{'say'}{online}      = $anvil->Words->string({key => "striker_0308"});
+	$anvil->data->{'say'}{powered_off} = $anvil->Words->string({key => "striker_0307"});
+	$anvil->data->{'say'}{stopping}    = $anvil->Words->string({key => "striker_0309"});
+	$anvil->data->{'say'}{booting}     = $anvil->Words->string({key => "striker_0310"});
+	
+	# Cluster states (online from above)
+	$anvil->data->{'say'}{offline}       = $anvil->Words->string({key => "striker_0311"});
+	$anvil->data->{'say'}{transitioning} = $anvil->Words->string({key => "striker_0312"});
+	
+	# Maintenance mode.
+	$anvil->data->{'say'}{maintenance_mode} = $anvil->Words->string({key => "striker_0313"});
+	$anvil->data->{'say'}{normal_operation} = $anvil->Words->string({key => "striker_0314"});
+
+	# Get the length of the node strings.
+	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		my $host_uuid        = $anvil->Database->get_host_uuid_from_string({string => $node_name});
+		my $host_status      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
+		my $maintenance_mode = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'};
+		my $in_ccm           = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm};
+		my $crmd             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd};
+		my $join             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'};
+		my $ready            = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node_name'        => $node_name,
+			's2:host_uuid'        => $host_uuid, 
+			's3:host_status'      => $host_status, 
+			's4:maintenance_mode' => $maintenance_mode, 
+			's5:in_ccm'           => $in_ccm, 
+			's6:crmd'             => $crmd, 
+			's7:join'             => $join, 
+			's8:ready'            => $ready, 
+		}});
+		
+		# Convert the host state to a string.
+		my $say_host_status = $anvil->data->{'say'}{unknown};
+		if ($host_status eq "online")
+		{
+			$say_host_status = $anvil->data->{'say'}{online};
+		}
+		elsif ($host_status eq "powered off")
+		{
+			$say_host_status = $anvil->data->{'say'}{powered_off};
+		}
+		elsif ($host_status eq "stopping")
+		{
+			$say_host_status = $anvil->data->{'say'}{stopping};
+		}
+		elsif ($host_status eq "booting")
+		{
+			$say_host_status = $anvil->data->{'say'}{booting};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_host_status => $say_host_status }});
+		
+		# Convert the Pacemaker state.
+		my $say_pacemaker_status = $anvil->data->{'say'}{unknown};
+		if ($ready)
+		{
+			$say_pacemaker_status = $anvil->data->{'say'}{online};
+		}
+		elsif (($in_ccm) or ($crmd) or ($join))
+		{
+			# Transitioning
+			$say_pacemaker_status = $anvil->data->{'say'}{transitioning};
+		}
+		else
+		{
+			$say_pacemaker_status = $anvil->data->{'say'}{offline};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_pacemaker_status => $say_pacemaker_status }});
+		
+		# Maintenance mode
+		my $anvil_maintenance_mode = $anvil->System->maintenance_mode({host_uuid => $host_uuid});
+		my $say_maintenance_mode = (($maintenance_mode) or ($anvil_maintenance_mode)) ? $anvil->data->{'say'}{maintenance_mode} : $anvil->data->{'say'}{normal_operation};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_maintenance_mode => $anvil_maintenance_mode,
+			say_maintenance_mode   => $say_maintenance_mode, 
+		}});
+		
+		# Update the lengths, if needed
+		if (length($node_name) > $longest_node_name)
+		{
+			$longest_node_name = length($node_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_node_name => $longest_node_name }});
+		}
+		if (length($say_host_status) > $longest_host_status)
+		{
+			$longest_host_status = length($say_host_status);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_host_status => $longest_host_status }});
+		}
+		if (length($say_pacemaker_status) > $longest_pacemaker_status)
+		{
+			$longest_pacemaker_status = length($say_pacemaker_status);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_pacemaker_status => $longest_pacemaker_status }});
+		}
+		if (length($say_maintenance_mode) > $longest_maintenance_mode)
+		{
+			$longest_maintenance_mode = length($say_maintenance_mode);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_maintenance_mode => $longest_maintenance_mode }});
+		}
+	}
+=cut
+Subnode Status:
++---------+---------------+--------------------+-------------------+
+| Subnode | Host Status   | Pacemaker Status   | Maintenance Mode  |  
++---------+---------------+--------------------+-------------------+
+| <node1> | <host status> | <Pacemaker status> | <mainteance mode> |
+| <node2> | <Host status> | <Pacemaker status> | <mainteance mode> |
++---------+---------------+--------------------+-------------------+
+
+Servers:
++-------------+----------------+------------------+-------------+-----------------+--------------+
+| server name | <server state> | <resource state> | <host node> | <prefered host> | <dbrd fence> |
++-------------+----------------+------------------+-------------+-----------------+--------------+
+=cut
+	
+	# Now look again to show the subnode states
+	my $subnode_divider          = ""; for (1..$longest_node_name)        { $subnode_divider          .= "-"; }
+	my $host_status_divider      = ""; for (1..$longest_host_status)      { $host_status_divider      .= "-"; }
+	my $pacemaker_status_divider = ""; for (1..$longest_pacemaker_status) { $pacemaker_status_divider .= "-"; }
+	my $maintenance_mode_divider = ""; for (1..$longest_maintenance_mode) { $maintenance_mode_divider .= "-"; }
+
+	my $say_subnode_header          = $anvil->Words->center_text({string => $anvil->data->{'say'}{subnode}, width => $longest_node_name});
+	my $say_host_status_header      = $anvil->Words->center_text({string => $anvil->data->{'say'}{host_status}, width => $longest_host_status});
+	my $say_pacemaker_status_header = $anvil->Words->center_text({string => $anvil->data->{'say'}{pacemaker_status}, width => $longest_pacemaker_status});
+	my $say_maintenance_mode_header = $anvil->Words->center_text({string => $anvil->data->{'say'}{maintenance_mode}, width => $longest_maintenance_mode});
+	
+	my $divider_line = "+-".$subnode_divider."-+-".$host_status_divider."-+-".$pacemaker_status_divider."-+-".$maintenance_mode_divider."-+\n";
+	print $divider_line;
+	print "| ".$say_subnode_header." | ".$say_host_status_header." | ".$say_pacemaker_status_header." | ".$say_maintenance_mode_header." |\n";
+	print $divider_line;
+	foreach my $node_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}})
+	{
+		my $host_uuid        = $anvil->Database->get_host_uuid_from_string({string => $node_name});
+		my $host_status      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
+		my $maintenance_mode = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'};
+		my $in_ccm           = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{in_ccm};
+		my $crmd             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{crmd};
+		my $join             = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'join'};
+		my $ready            = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{ready};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node_name'        => $node_name,
+			's2:host_uuid'        => $host_uuid, 
+			's3:host_status'      => $host_status, 
+			's4:maintenance_mode' => $maintenance_mode, 
+			's5:in_ccm'           => $in_ccm, 
+			's6:crmd'             => $crmd, 
+			's7:join'             => $join, 
+			's8:ready'            => $ready, 
+		}});
+		
+		# Convert the host state to a string.
+		my $say_host_status = $anvil->data->{'say'}{unknown};
+		if ($host_status eq "online")
+		{
+			$say_host_status = $anvil->data->{'say'}{online};
+		}
+		elsif ($host_status eq "powered off")
+		{
+			$say_host_status = $anvil->data->{'say'}{powered_off};
+		}
+		elsif ($host_status eq "stopping")
+		{
+			$say_host_status = $anvil->data->{'say'}{stopping};
+		}
+		elsif ($host_status eq "booting")
+		{
+			$say_host_status = $anvil->data->{'say'}{booting};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_host_status => $say_host_status }});
+		
+		# Convert the Pacemaker state.
+		my $say_pacemaker_status = $anvil->data->{'say'}{unknown};
+		if ($ready)
+		{
+			$say_pacemaker_status = $anvil->data->{'say'}{online};
+		}
+		elsif (($in_ccm) or ($crmd) or ($join))
+		{
+			# Transitioning
+			$say_pacemaker_status = $anvil->data->{'say'}{transitioning};
+		}
+		else
+		{
+			$say_pacemaker_status = $anvil->data->{'say'}{offline};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { say_pacemaker_status => $say_pacemaker_status }});
+		
+		# Maintenance mode
+		my $anvil_maintenance_mode = $anvil->System->maintenance_mode({host_uuid => $host_uuid});
+		my $say_maintenance_mode = (($maintenance_mode) or ($anvil_maintenance_mode)) ? $anvil->data->{'say'}{maintenance_mode} : $anvil->data->{'say'}{normal_operation};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			anvil_maintenance_mode => $anvil_maintenance_mode,
+			say_maintenance_mode   => $say_maintenance_mode, 
+		}});
+		
+		print "| ";
+		print sprintf("%-${longest_node_name}s", $node_name)." | ";
+		print sprintf("%-${longest_host_status}s", $say_host_status)." | ";
+		print sprintf("%-${longest_pacemaker_status}s", $say_pacemaker_status)." | ";
+		print sprintf("%-${longest_maintenance_mode}s", $say_maintenance_mode)." |\n";
+		
+	}
+	print $divider_line;
+	
+	return(0);
+}
