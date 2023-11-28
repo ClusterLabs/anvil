@@ -11,7 +11,7 @@ export const logout: RequestHandler = (request, response) => {
       return response.status(500).send();
     }
 
-    response.clearCookie(cname('user'));
+    response.clearCookie(cname('session'));
     response.clearCookie(cname('sid'));
 
     return response.status(204).send();

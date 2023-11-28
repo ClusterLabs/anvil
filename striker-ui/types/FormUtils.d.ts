@@ -27,6 +27,8 @@ type SubmitFormFunction = (args: {
   ) => import('react').ReactNode;
   msgKey?: string;
   method: 'delete' | 'post' | 'put';
+  onError?: () => void;
+  onSuccess?: () => void;
   setMsg?: import('../components/MessageGroup').MessageGroupForwardedRefContent['setMessage'];
   successMsg?: import('react').ReactNode;
   url: string;

@@ -5,7 +5,8 @@ import useIsFirstRender from './useIsFirstRender';
 const useCookieJar = (): {
   cookieJar: CookieJar;
   getCookie: <T>(key: string) => T | undefined;
-  getSessionUser: () => SessionUser | undefined;
+  getSession: () => SessionCookie | undefined;
+  getSessionUser: () => SessionCookieUser | undefined;
 } => {
   const isFirstRender = useIsFirstRender();
 
@@ -17,10 +18,12 @@ const useCookieJar = (): {
     [cookieJar],
   );
 
-  const getSessionUser = useCallback(
-    () => getCookie<SessionUser>('user'),
+  const getSession = useCallback(
+    () => getCookie<SessionCookie>('session'),
     [getCookie],
   );
+
+  const getSessionUser = useCallback(() => getSession()?.user, [getSession]);
 
   useEffect(() => {
     if (isFirstRender) {
@@ -52,7 +55,12 @@ const useCookieJar = (): {
     }
   }, [isFirstRender]);
 
-  return { cookieJar, getCookie, getSessionUser };
+  return {
+    cookieJar,
+    getCookie,
+    getSession,
+    getSessionUser,
+  };
 };
 
 export default useCookieJar;
