@@ -1500,10 +1500,51 @@ const ProvisionServerDialog = ({
         setFileSelectItems(ueFileSelectItems);
         setStorageGroupSelectItems(ueStorageGroupSelectItems);
 
-        initLimits({
+        const limits: Parameters<UpdateLimitsFunction>[0] = {
           allAnvils: ueAllAnvils,
           storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        });
+        };
+
+        // Auto-select the only option when there's only 1.
+        // Reminder to update the form limits after changing any value.
+
+        if (ueAnvilSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueAnvilSelectItems;
+
+          setInputAnvilValue(uuid);
+
+          limits.includeAnvilUUIDs = [uuid];
+        }
+
+        if (ueFileSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueFileSelectItems;
+
+          setInputInstallISOFileUUID(uuid);
+
+          limits.fileUUIDs = [uuid, ''];
+        }
+
+        if (ueStorageGroupSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueStorageGroupSelectItems;
+
+          setVirtualDisks((previous) => {
+            const current = { ...previous };
+
+            current.inputStorageGroupUUIDs[0] = uuid;
+
+            limits.virtualDisks = current;
+
+            return current;
+          });
+        }
+
+        initLimits(limits);
 
         setOSAutocompleteOptions(
           Object.entries(data.oses as Record<string, string>).map(
