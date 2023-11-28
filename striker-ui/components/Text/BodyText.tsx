@@ -7,6 +7,7 @@ import {
 import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
 type BodyTextOptionalProps = {
+  edge?: 'start' | 'end' | null;
   inheritColour?: boolean;
   inline?: boolean;
   inverted?: boolean;
@@ -20,6 +21,7 @@ type BodyTextProps = MUITypographyProps & BodyTextOptionalProps;
 const BODY_TEXT_CLASS_PREFIX = 'BodyText';
 
 const BODY_TEXT_DEFAULT_PROPS: Required<BodyTextOptionalProps> = {
+  edge: null,
   inheritColour: false,
   inline: false,
   inverted: false,
