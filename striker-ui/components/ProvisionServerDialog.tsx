@@ -1342,9 +1342,9 @@ const ProvisionServerDialog = ({
   };
 
   const createConfirmDialogContent = () => {
-    const gridColumns = 8;
+    const gridColumns = 10;
     const c1 = 2;
-    const c2 = 3;
+    const c2 = 5;
     const c3 = 3;
     const c2n3 = c2 + c3;
 
@@ -1366,12 +1366,14 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2}>
             <BodyText>
-              <InlineMonoText text={inputCPUCoresValue} /> core(s)
+              <InlineMonoText edge="start">{inputCPUCoresValue}</InlineMonoText>{' '}
+              core(s)
             </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <InlineMonoText text={inputCPUCoresMax} /> core(s) available
+              <InlineMonoText edge="start">{inputCPUCoresMax}</InlineMonoText>{' '}
+              core(s) available
             </BodyText>
           </Grid>
         </Grid>
@@ -1381,14 +1383,16 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2}>
             <BodyText>
-              <InlineMonoText>
+              <InlineMonoText edge="start">
                 {inputMemoryValue} {inputMemoryUnit}
               </InlineMonoText>
             </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <InlineMonoText text={`${inputMemoryMax} ${inputMemoryUnit}`} />{' '}
+              <InlineMonoText edge="start">
+                {inputMemoryMax} {inputMemoryUnit}
+              </InlineMonoText>{' '}
               available
             </BodyText>
           </Grid>
@@ -1417,13 +1421,17 @@ const ProvisionServerDialog = ({
               </Grid>
               <Grid item xs={c2}>
                 <BodyText>
-                  <InlineMonoText text={`${vdInputSize} ${vdInputUnit}`} /> on{' '}
-                  {vdStorageGroupName}
+                  <InlineMonoText edge="start">
+                    {vdInputSize} {vdInputUnit}
+                  </InlineMonoText>{' '}
+                  on <InlineMonoText>{vdStorageGroupName}</InlineMonoText>
                 </BodyText>
               </Grid>
               <Grid item xs={c3}>
                 <BodyText>
-                  <InlineMonoText text={`${vdInputMax} ${vdInputUnit}`} />{' '}
+                  <InlineMonoText edge="start">
+                    {vdInputMax} {vdInputUnit}
+                  </InlineMonoText>{' '}
                   available
                 </BodyText>
               </Grid>
@@ -1436,7 +1444,7 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2n3}>
             <BodyText>
-              <InlineMonoText>
+              <InlineMonoText edge="start">
                 {fileUUIDMapToData[inputInstallISOFileUUID].fileName}
               </InlineMonoText>
             </BodyText>
@@ -1449,7 +1457,7 @@ const ProvisionServerDialog = ({
           <Grid item xs={c2n3}>
             <BodyText>
               {fileUUIDMapToData[inputDriverISOFileUUID] ? (
-                <InlineMonoText>
+                <InlineMonoText edge="start">
                   {fileUUIDMapToData[inputDriverISOFileUUID].fileName}
                 </InlineMonoText>
               ) : (
@@ -1463,7 +1471,9 @@ const ProvisionServerDialog = ({
             <BodyText text="Optimize for OS" />
           </Grid>
           <Grid item xs={c2n3}>
-            <BodyText text={`${inputOptimizeForOSValue?.label}`} />
+            <BodyText>
+              <InlineMonoText edge="start">{`${inputOptimizeForOSValue?.label}`}</InlineMonoText>
+            </BodyText>
           </Grid>
         </Grid>
       </Grid>
