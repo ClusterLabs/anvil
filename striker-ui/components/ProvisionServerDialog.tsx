@@ -1350,7 +1350,7 @@ const ProvisionServerDialog = ({
 
     return (
       <Grid container columns={gridColumns} direction="column">
-        <Grid direction="row" item xs={gridColumns}>
+        <Grid item xs={gridColumns}>
           <BodyText>
             Server <InlineMonoText text={inputServerNameValue} /> will be
             created on anvil node{' '}
