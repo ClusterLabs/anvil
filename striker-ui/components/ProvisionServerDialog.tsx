@@ -1007,6 +1007,7 @@ const ProvisionServerDialog = ({
         },
         value: inputServerNameValue,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1051,6 +1052,7 @@ const ProvisionServerDialog = ({
         },
         value: inputCPUCoresValue,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1083,6 +1085,7 @@ const ProvisionServerDialog = ({
         },
         value: memory,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1108,6 +1111,7 @@ const ProvisionServerDialog = ({
         },
         value: inputInstallISOFileUUID,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
     anvil: {
@@ -1117,6 +1121,7 @@ const ProvisionServerDialog = ({
         },
         value: inputAnvilValue,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
     optimizeForOS: {
@@ -1126,6 +1131,7 @@ const ProvisionServerDialog = ({
         },
         value: inputOptimizeForOSValue?.key,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
   };
@@ -1141,6 +1147,7 @@ const ProvisionServerDialog = ({
         },
         value: virtualDisks.sizes[vdIndex],
       },
+      isRequired: true,
       onFinishBatch: () => {
         setVirtualDisks({ ...virtualDisks });
       },
@@ -1173,6 +1180,7 @@ const ProvisionServerDialog = ({
         },
         value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
       },
+      isRequired: true,
       onFinishBatch: () => {
         setVirtualDisks({ ...virtualDisks });
       },
