@@ -4,6 +4,7 @@ import {
   SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import { Box, Dialog, DialogProps, Grid } from '@mui/material';
@@ -24,7 +25,6 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
 import SelectWithLabel from './SelectWithLabel';
-import Slider, { SliderProps } from './Slider';
 import Spinner from './Spinner';
 import {
   testInput as baseTestInput,
@@ -221,23 +221,6 @@ const PROVISION_BUTTON_STYLES = {
     backgroundColor: BLUE,
   },
 };
-
-const createOutlinedSlider = (
-  id: string,
-  label: string,
-  value: number,
-  sliderProps?: Partial<SliderProps>,
-): JSX.Element => (
-  <Slider
-    {...{
-      isAllowTextInput: true,
-      label,
-      labelId: `${id}-label`,
-      value,
-      ...sliderProps,
-    }}
-  />
-);
 
 const createMaxValueButton = (
   maxValue: string,
@@ -999,6 +982,16 @@ const ProvisionServerDialog = ({
   const [successfulProvisionCount, setSuccessfulProvisionCount] =
     useState<number>(0);
 
+  const inputCpuCoresOptions = useMemo(() => {
+    const result: number[] = [];
+
+    for (let i = CPU_CORES_MIN; i <= inputCPUCoresMax; i += 1) {
+      result.push(i);
+    }
+
+    return result;
+  }, [inputCPUCoresMax]);
+
   const inputTests: InputTestBatches = {
     serverName: {
       defaults: {
@@ -1582,38 +1575,43 @@ const ProvisionServerDialog = ({
                 messageBoxProps={inputServerNameMessage}
               />
             </Box>
-            {createOutlinedSlider(
-              'ps-cpu-cores',
-              'CPU cores',
-              inputCPUCoresValue,
-              {
-                messageBoxProps: inputCPUCoresMessage,
-                sliderProps: {
-                  onChange: (value) => {
-                    const newCPUCoresValue = value as number;
+            <Autocomplete
+              id="ps-cpu-cores"
+              disableClearable
+              extendRenderInput={({ inputLabelProps = {} }) => {
+                inputLabelProps.isNotifyRequired = inputCPUCoresValue <= 0;
+              }}
+              getOptionLabel={(option) => String(option)}
+              label="CPU cores"
+              messageBoxProps={inputCPUCoresMessage}
+              noOptionsText="No available number of cores."
+              onChange={(event, value) => {
+                if (!value || value === inputCPUCoresValue) return;
 
-                    if (newCPUCoresValue !== inputCPUCoresValue) {
-                      setInputCPUCoresValue(newCPUCoresValue);
+                setInputCPUCoresValue(value);
 
-                      const { maxCPUCores: newCPUCoresMax } = updateLimits({
-                        cpuCores: newCPUCoresValue,
-                      });
+                const { maxCPUCores: newCPUCoresMax } = updateLimits({
+                  cpuCores: value,
+                });
 
-                      testInput({
-                        inputs: {
-                          cpuCores: {
-                            max: newCPUCoresMax,
-                            value: newCPUCoresValue,
-                          },
-                        },
-                      });
-                    }
+                testInput({
+                  inputs: {
+                    cpuCores: {
+                      max: newCPUCoresMax,
+                      value,
+                    },
                   },
-                  max: inputCPUCoresMax,
-                  min: CPU_CORES_MIN,
-                },
-              },
-            )}
+                });
+              }}
+              openOnFocus
+              options={inputCpuCoresOptions}
+              renderOption={(optionProps, option) => (
+                <li {...optionProps} key={`ps-cpu-cores-${option}`}>
+                  {option}
+                </li>
+              )}
+              value={inputCPUCoresValue}
+            />
             <OutlinedLabeledInputWithSelect
               id="ps-memory"
               label="Memory"
