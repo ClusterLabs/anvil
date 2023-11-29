@@ -192,19 +192,19 @@ sub create_constraint
 	my $rule_found = 0;
 	my $rule_name  = "drbd-fenced_".$target_server;
 	my $shell_call = $conf->{path}{exe}{pcs}." constraint location config show ".$target_server;
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 1});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
 	{
 		# This should not generate output.
 		chomp;
 		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 1});
 		
 		if ($line =~ /Expression: $rule_name /)
 		{
 			$rule_found = 1;
-			to_log($conf, {message => "rule_found: [".$rule_found."]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "rule_found: [".$rule_found."]", 'line' => __LINE__, level => 1});
 			last;
 		}
 	}
@@ -220,14 +220,14 @@ sub create_constraint
 	# Set the node attribute
 	my $rule_set   = 0;
 	$shell_call = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --update 1";
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 1});
 	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
 	{
 		# This should not generate output.
 		chomp;
 		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 1});
 	}
 	close $file_handle;
 	
@@ -235,19 +235,19 @@ sub create_constraint
 	   $rule_set    = 0;
 	my $rule_output = "";
 	$shell_call = $conf->{path}{exe}{crm_attribute}." --type nodes --node ".$target_node." --name ".$rule_name." --query";
-	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 1});
 	open ($file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
 	{
 		# This should not generate output.
 		chomp;
 		my $line = $_;
-		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 1});
 		
 		if (($line =~ /name=$rule_name/) && ($line =~ /value=1/))
 		{
 			$rule_set = 1;
-			to_log($conf, {message => "rule_set: [".$rule_set."]", 'line' => __LINE__, level => 2});
+			to_log($conf, {message => "rule_set: [".$rule_set."]", 'line' => __LINE__, level => 1});
 			last;
 		}
 		else
