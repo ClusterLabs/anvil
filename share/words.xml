@@ -1180,9 +1180,15 @@ resource #!variable!server!# {
 		<key name="header_0115">-=] DR Hosts</key>
 		<key name="header_0116">-=] Servers</key>
 		<key name="header_0117">Subnode</key>
-		<key name="header_0118">Host State</key>
-		<key name="header_0119">Pacemaker State</key>
+		<key name="header_0118">Host Status</key>
+		<key name="header_0119">Pacemaker Status</key>
 		<key name="header_0120">Maintenance Mode</key>
+		<key name="header_0121">Server Name</key>
+		<key name="header_0122">Server Status</key>
+		<key name="header_0123">Resource Status</key>
+		<key name="header_0124">Preferred Host</key>
+		<key name="header_0125">DRBD Fence</key>
+		<key name="header_0126">Booted</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3634,6 +3640,18 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0312">Transitioning</key>
 		<key name="striker_0313">Maintenance Mode</key>
 		<key name="striker_0314">Normal Operation</key>
+		<key name="striker_0315">Unknown</key>
+		<key name="striker_0316">Running</key>
+		<key name="striker_0317">Blocked</key>
+		<key name="striker_0318">Paused</key>
+		<key name="striker_0319">Shutting Down</key>
+		<key name="striker_0320">Shut Off</key>
+		<key name="striker_0321">Crashed</key>
+		<key name="striker_0322">PM Suspended</key>
+		<key name="striker_0323">Started</key>
+		<key name="striker_0324">Starting</key>
+		<key name="striker_0325">Migrating</key>
+		<key name="striker_0326">Stopped</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>
