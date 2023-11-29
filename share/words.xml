@@ -458,7 +458,7 @@ Failed to parse the XML in the new definition file. The error was:
 
 Giving up.
 		</key>
-		<key name="error_0332">This must be run on a node active in the cluster hosting the server being managed. Exiting.</key>
+		<key name="error_0332">This must be run on a subnode active in the cluster hosting the server being managed. Exiting.</key>
 		<key name="error_0333">There are no DR hosts connected to this Anvil! node yet.</key>
 		<key name="error_0334">Failed to find an IP we can access the DR host: [#!variable!host_name!#]. Has it been configured? Is it running? Exiting.</key>
 		<key name="error_0335">Failed to access the DR host: [#!variable!host_name!#] using the IP: [#!variable!ip_address!#]. Is it running? Exiting.</key>
@@ -750,6 +750,8 @@ The XML that failed sanity check was:
 		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
 		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
 		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
+		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
+		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3281,6 +3283,7 @@ proceeding.
   - Cores per Socket: [#!variable!old_cores!#] -> [#!variable!new_cores!#]
   - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
   - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
+		<key name="message_0382"><![CDATA[-=] Updated: #!variable!date!# - Press '<ctrl> + <c>' to exit]]></key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
