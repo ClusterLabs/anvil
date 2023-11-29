@@ -43,6 +43,7 @@ while(1)
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		show_power_data($anvil);
+		$anvil->Database->disconnect();
 	}
 	else
 	{

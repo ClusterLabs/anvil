@@ -49,6 +49,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-watch-bonds \
 			  anvil-watch-drbd \
 			  anvil-watch-power \
+			  anvil-watch-servers \
 			  scancore \
 			  striker-auto-initialize-all \
 			  striker-boot-machine \

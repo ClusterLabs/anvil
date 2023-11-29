@@ -3597,6 +3597,10 @@ This returns C<< 1 >> if maintenance mode is enabled and C<< 0 >> if disabled.
 
 Parameters;
 
+=head3 host_uuid (optional, default 'Get->host_uuid')
+
+If set, this can check or set the maintenance mode on another host.
+
 =head3 set (optional)
 
 If this is set to C<< 1 >>, maintenance mode is enabled. If this is set to C<< 0 >>, maintenance mode is disabled.
@@ -3610,8 +3614,18 @@ sub maintenance_mode
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->maintenance_mode()" }});
 	
-	my $set = defined $parameter->{set} ? $parameter->{set} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set => $set }});
+	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
+	my $set       = defined $parameter->{set}       ? $parameter->{set}       : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid, 
+		set       => $set,
+	}});
+	
+	if (not $host_uuid)
+	{
+		$host_uuid = $anvil->Get->host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
 	
 	if (($set) or ($set eq "0"))
 	{
@@ -3627,7 +3641,7 @@ sub maintenance_mode
 				variable_default      => "0", 
 				variable_description  => "striker_0087", 
 				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_uuid  => $host_uuid, 
 				variable_source_table => "hosts", 
 			});
 		}
@@ -3641,7 +3655,7 @@ sub maintenance_mode
 				variable_default      => "0", 
 				variable_description  => "striker_0087", 
 				variable_section      => "system", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
+				variable_source_uuid  => $host_uuid, 
 				variable_source_table => "hosts", 
 			});
 		}
@@ -3657,10 +3671,9 @@ sub maintenance_mode
 		debug                 => $debug, 
 		variable_name         => "maintenance_mode",
 		variable_source_table => "hosts",
-		variable_source_uuid  => $anvil->Get->host_uuid,
+		variable_source_uuid  => $host_uuid,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		debug            => $debug, 
 		maintenance_mode => $maintenance_mode, 
 		variable_uuid    => $variable_uuid, 
 		modified_date    => $modified_date, 
