@@ -177,32 +177,35 @@ const FullSize: FC<FullSizeProps> = ({
 
   const vncDisconnectElement = useMemo(
     () => (
-      <IconButton
-        onClick={(...args) => {
-          disconnectServerVnc();
-          onClickCloseButton?.call(null, ...args);
-        }}
-        variant="redcontained"
-      >
-        <CloseIcon />
-      </IconButton>
+      <Box>
+        <IconButton
+          onClick={(...args) => {
+            disconnectServerVnc();
+            onClickCloseButton?.call(null, ...args);
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Box>
     ),
     [disconnectServerVnc, onClickCloseButton],
   );
 
   const returnHomeElement = useMemo(
     () => (
-      <IconButton
-        onClick={() => {
-          if (!window) return;
+      <Box>
+        <IconButton
+          onClick={() => {
+            if (!window) return;
 
-          disconnectServerVnc();
+            disconnectServerVnc();
 
-          window.location.assign('/');
-        }}
-      >
-        <DashboardIcon />
-      </IconButton>
+            window.location.assign('/');
+          }}
+        >
+          <DashboardIcon />
+        </IconButton>
+      </Box>
     ),
     [disconnectServerVnc],
   );
