@@ -1,5 +1,6 @@
 import {
   Close as CloseIcon,
+  Dashboard as DashboardIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
 import { Box, Menu, styled, Typography } from '@mui/material';
@@ -100,17 +101,18 @@ const FullSize: FC<FullSizeProps> = ({
   }, [serverUUID]);
 
   const disconnectServerVnc = useCallback(() => {
+    if (rfb?.current) {
+      rfb.current.disconnect();
+      rfb.current = null;
+    }
+
     setRfbConnectArgs(undefined);
   }, []);
 
   const reconnectServerVnc = useCallback(() => {
-    if (!rfb?.current) return;
-
-    rfb.current.disconnect();
-    rfb.current = null;
-
+    disconnectServerVnc();
     connectServerVnc();
-  }, [connectServerVnc]);
+  }, [connectServerVnc, disconnectServerVnc]);
 
   const updateVncReconnectTimer = useCallback((): void => {
     const intervalId = setInterval((): void => {
@@ -188,15 +190,33 @@ const FullSize: FC<FullSizeProps> = ({
     [disconnectServerVnc, onClickCloseButton],
   );
 
+  const returnHomeElement = useMemo(
+    () => (
+      <IconButton
+        onClick={() => {
+          if (!window) return;
+
+          disconnectServerVnc();
+
+          window.location.assign('/');
+        }}
+      >
+        <DashboardIcon />
+      </IconButton>
+    ),
+    [disconnectServerVnc],
+  );
+
   const vncToolbarElement = useMemo(
     () =>
       showScreen && (
         <>
           {keyboardMenuElement}
+          {returnHomeElement}
           {vncDisconnectElement}
         </>
       ),
-    [keyboardMenuElement, showScreen, vncDisconnectElement],
+    [keyboardMenuElement, returnHomeElement, showScreen, vncDisconnectElement],
   );
 
   useEffect(() => {
