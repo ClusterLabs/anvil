@@ -1,7 +1,6 @@
 import { Add as AddIcon } from '@mui/icons-material';
 import { Box, Divider, Grid } from '@mui/material';
 import Head from 'next/head';
-import { NextRouter, useRouter } from 'next/router';
 import { FC, useEffect, useRef, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
@@ -28,10 +27,7 @@ type ServerListItem = ServerOverviewMetadata & {
   timestamp: number;
 };
 
-const createServerPreviewContainer = (
-  servers: ServerListItem[],
-  router: NextRouter,
-) => (
+const createServerPreviewContainer = (servers: ServerListItem[]) => (
   <Grid
     alignContent="stretch"
     columns={{ xs: 1, sm: 2, md: 3, xl: 4 }}
@@ -84,16 +80,12 @@ const createServerPreviewContainer = (
                 {anvilName}
               </Link>,
             ]}
+            hrefPreview={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`}
             isExternalLoading={loading}
             isExternalPreviewStale={isScreenshotStale}
             isFetchPreview={false}
             isShowControls={false}
             isUseInnerPanel
-            onClickPreview={() => {
-              router.push(
-                `/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`,
-              );
-            }}
             serverState={serverState}
             serverUUID={serverUUID}
           />
@@ -129,7 +121,6 @@ const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
 
 const Dashboard: FC = () => {
   const componentMountedRef = useRef(true);
-  const router = useRouter();
 
   const [allServers, setAllServers] = useState<ServerListItem[]>([]);
   const [excludeServers, setExcludeServers] = useState<ServerListItem[]>([]);
@@ -244,11 +235,11 @@ const Dashboard: FC = () => {
                 value={inputSearchTerm}
               />
             </PanelHeader>
-            {createServerPreviewContainer(includeServers, router)}
+            {createServerPreviewContainer(includeServers)}
             {includeServers.length > 0 && (
               <Divider sx={{ backgroundColor: DIVIDER }} />
             )}
-            {createServerPreviewContainer(excludeServers, router)}
+            {createServerPreviewContainer(excludeServers)}
           </>
         )}
       </Panel>
