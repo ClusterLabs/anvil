@@ -47,8 +47,6 @@ import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
-const MSG_ID_MANIFEST_API = 'api';
-
 const getFormData = (
   ...[{ target }]: DivFormEventHandlerParameters
 ): APIBuildManifestRequestBody => {
@@ -190,7 +188,7 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid, setMessage } = formUtils;
+  const { isFormInvalid, setApiMessage } = formUtils;
 
   const runFormUtils = useFormUtils(
     [
@@ -245,22 +243,19 @@ const ManageManifestPanel: FC = () => {
       api
         .request({ data: body, method, url })
         .then(() => {
-          setMessage(MSG_ID_MANIFEST_API, {
-            children: successMsg,
-            type: 'info',
-          });
+          setApiMessage({ children: successMsg, type: 'info' });
         })
         .catch((apiError) => {
           const emsg = handleAPIError(apiError);
 
           emsg.children = getErrorMsg(emsg.children);
-          setMessage(MSG_ID_MANIFEST_API, emsg);
+          setApiMessage(emsg);
         })
         .finally(() => {
           setIsSubmittingForm(false);
         });
     },
-    [setIsSubmittingForm, setMessage],
+    [setApiMessage, setIsSubmittingForm],
   );
 
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(

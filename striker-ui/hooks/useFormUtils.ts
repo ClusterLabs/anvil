@@ -20,6 +20,12 @@ const useFormUtils = <
   const [formSubmitting, setFormSubmitting] = useProtectedState<boolean>(false);
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
+  const setApiMessage = useCallback(
+    (message?: Message) =>
+      messageGroupRef?.current?.setMessage?.call(null, 'api', message),
+    [messageGroupRef],
+  );
+
   const setMessage = useCallback(
     (key: keyof M, message?: Message) => {
       messageGroupRef?.current?.setMessage?.call(null, String(key), message);
@@ -136,6 +142,7 @@ const useFormUtils = <
     formValidity,
     isFormInvalid: formInvalid,
     isFormSubmitting: formSubmitting,
+    setApiMessage,
     setFormValidity,
     setMessage,
     setMessageRe,
