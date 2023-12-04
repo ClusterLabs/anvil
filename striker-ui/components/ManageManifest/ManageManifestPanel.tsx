@@ -163,6 +163,9 @@ const ManageManifestPanel: FC = () => {
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useProtectedState<boolean>(true);
+  const [manifestOverviews, setManifestOverviews] = useProtectedState<
+    APIManifestOverviewList | undefined
+  >(undefined);
   const [manifestDetail, setManifestDetail] = useProtectedState<
     APIManifestDetail | undefined
   >(undefined);
@@ -170,10 +173,17 @@ const ManageManifestPanel: FC = () => {
     APIManifestTemplate | undefined
   >(undefined);
 
-  const { data: manifestOverviews, isLoading: isLoadingManifestOverviews } =
+  const { isLoading: isLoadingManifestOverviews } =
     periodicFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {
+      onSuccess: (data) => setManifestOverviews(data),
       refreshInterval: 60000,
     });
+
+  const getManifestOverviews = useCallback(() => {
+    api.get('/manifest').then(({ data }) => {
+      setManifestOverviews(data);
+    });
+  }, [setManifestOverviews]);
 
   const formUtils = useFormUtils(
     [
@@ -254,6 +264,7 @@ const ManageManifestPanel: FC = () => {
                 <>Failed to add install manifest. {parentMsg}</>
               ),
               method: 'post',
+              onSuccess: () => getManifestOverviews(),
               successMsg: 'Successfully added install manifest',
               url: '/manifest',
             });
@@ -267,6 +278,7 @@ const ManageManifestPanel: FC = () => {
     }),
     [
       formUtils,
+      getManifestOverviews,
       knownFences,
       knownUpses,
       mtemplateDomain,
@@ -301,6 +313,7 @@ const ManageManifestPanel: FC = () => {
                 <>Failed to update install manifest. {parentMsg}</>
               ),
               method: 'put',
+              onSuccess: () => getManifestOverviews(),
               successMsg: `Successfully updated install manifest ${mdetailName}`,
               url: `/manifest/${mdetailUuid}`,
             });
@@ -323,6 +336,7 @@ const ManageManifestPanel: FC = () => {
       setConfirmDialogProps,
       submitForm,
       mdetailUuid,
+      getManifestOverviews,
     ],
   );
 
@@ -423,6 +437,7 @@ const ManageManifestPanel: FC = () => {
                     <>Delete manifest(s) failed. {parentMsg}</>
                   ),
                   method: 'delete',
+                  onSuccess: () => getManifestOverviews(),
                   url: `/manifest`,
                 });
               },
@@ -475,6 +490,7 @@ const ManageManifestPanel: FC = () => {
       checks,
       getCheck,
       getManifestDetail,
+      getManifestOverviews,
       hasChecks,
       isEditManifests,
       manifestOverviews,
