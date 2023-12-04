@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
@@ -163,8 +163,6 @@ const ManageManifestPanel: FC = () => {
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useProtectedState<boolean>(true);
-  const [isSubmittingForm, setIsSubmittingForm] =
-    useProtectedState<boolean>(false);
   const [manifestDetail, setManifestDetail] = useProtectedState<
     APIManifestDetail | undefined
   >(undefined);
@@ -188,7 +186,7 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid, setApiMessage } = formUtils;
+  const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
 
   const runFormUtils = useFormUtils(
     [
@@ -198,7 +196,11 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid: isRunFormInvalid } = runFormUtils;
+  const {
+    isFormInvalid: isRunFormInvalid,
+    isFormSubmitting: isRunFormSubmitting,
+    submitForm: submitRunForm,
+  } = runFormUtils;
 
   const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
     useChecklist({
@@ -222,40 +224,6 @@ const ManageManifestPanel: FC = () => {
   } = useMemo<Partial<APIManifestTemplate>>(
     () => manifestTemplate ?? {},
     [manifestTemplate],
-  );
-
-  const submitForm = useCallback(
-    ({
-      body,
-      getErrorMsg,
-      method,
-      successMsg,
-      url,
-    }: {
-      body: Record<string, unknown>;
-      getErrorMsg: (parentMsg: ReactNode) => ReactNode;
-      method: 'delete' | 'post' | 'put';
-      successMsg?: ReactNode;
-      url: string;
-    }) => {
-      setIsSubmittingForm(true);
-
-      api
-        .request({ data: body, method, url })
-        .then(() => {
-          setApiMessage({ children: successMsg, type: 'info' });
-        })
-        .catch((apiError) => {
-          const emsg = handleAPIError(apiError);
-
-          emsg.children = getErrorMsg(emsg.children);
-          setApiMessage(emsg);
-        })
-        .finally(() => {
-          setIsSubmittingForm(false);
-        });
-    },
-    [setApiMessage, setIsSubmittingForm],
   );
 
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
@@ -378,7 +346,7 @@ const ManageManifestPanel: FC = () => {
           actionProceedText: 'Run',
           content: <FormSummary entries={body} hasPassword />,
           onProceedAppend: () => {
-            submitForm({
+            submitRunForm({
               body,
               getErrorMsg: (parentMsg) => (
                 <>Failed to run install manifest. {parentMsg}</>
@@ -405,7 +373,7 @@ const ManageManifestPanel: FC = () => {
       mdetailName,
       mdetailHosts,
       setConfirmDialogProps,
-      submitForm,
+      submitRunForm,
       mdetailUuid,
     ],
   );
@@ -582,7 +550,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...addManifestFormDialogProps}
         disableProceed={isFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isFormSubmitting}
         preActionArea={messageArea}
         ref={addManifestFormDialogRef}
         scrollContent
@@ -591,7 +559,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...editManifestFormDialogProps}
         disableProceed={isFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isFormSubmitting}
         preActionArea={messageArea}
         ref={editManifestFormDialogRef}
         scrollContent
@@ -600,7 +568,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...runManifestFormDialogProps}
         disableProceed={isRunFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isRunFormSubmitting}
         preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent
