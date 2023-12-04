@@ -130,6 +130,9 @@ const ManageFencePanel: FC = () => {
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
 
+  const [fenceOverviews, setFenceOverviews] = useProtectedState<
+    APIFenceOverview | undefined
+  >(undefined);
   const [fenceTemplate, setFenceTemplate] = useProtectedState<
     APIFenceTemplate | undefined
   >(undefined);
@@ -137,10 +140,17 @@ const ManageFencePanel: FC = () => {
   const [isLoadingFenceTemplate, setIsLoadingFenceTemplate] =
     useProtectedState<boolean>(true);
 
-  const { data: fenceOverviews, isLoading: isFenceOverviewsLoading } =
+  const { isLoading: isFenceOverviewsLoading } =
     periodicFetch<APIFenceOverview>(`${API_BASE_URL}/fence`, {
+      onSuccess: (data) => setFenceOverviews(data),
       refreshInterval: 60000,
     });
+
+  const getFenceOverviews = useCallback(() => {
+    api.get('/fence').then(({ data }) => {
+      setFenceOverviews(data);
+    });
+  }, [setFenceOverviews]);
 
   const formUtils = useFormUtils([INPUT_ID_FENCE_AGENT], messageGroupRef);
   const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
@@ -195,6 +205,7 @@ const ManageFencePanel: FC = () => {
                       <>Failed to add fence device. {parentMsg}</>
                     ),
                     method: 'post',
+                    onSuccess: () => getFenceOverviews(),
                     successMsg: `Added fence device ${name}`,
                     url: '/fence',
                   });
@@ -227,6 +238,7 @@ const ManageFencePanel: FC = () => {
                     <>Failed to delete fence device(s). {parentMsg}</>
                   ),
                   method: 'delete',
+                  onSuccess: () => getFenceOverviews(),
                   url: '/fence',
                 });
               },
@@ -284,6 +296,7 @@ const ManageFencePanel: FC = () => {
                       <>Failed to update fence device. {parentMsg}</>
                     ),
                     method: 'put',
+                    onSuccess: () => getFenceOverviews(),
                     successMsg: `Updated fence device ${fenceName}`,
                     url: `/fence/${fenceUUID}`,
                   });
@@ -356,6 +369,7 @@ const ManageFencePanel: FC = () => {
       fenceTemplate,
       formUtils,
       getCheck,
+      getFenceOverviews,
       getFormSummaryEntryLabel,
       hasChecks,
       isEditFences,
