@@ -212,10 +212,16 @@ const ManageManifestPanel: FC = () => {
     submitForm: submitRunForm,
   } = runFormUtils;
 
-  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist({
-      list: manifestOverviews,
-    });
+  const {
+    buildDeleteDialogProps,
+    checks,
+    getCheck,
+    hasChecks,
+    resetChecklist,
+    setCheck,
+  } = useChecklist({
+    list: manifestOverviews,
+  });
 
   const {
     hostConfig: { hosts: mdetailHosts = {} } = {},
@@ -437,7 +443,10 @@ const ManageManifestPanel: FC = () => {
                     <>Delete manifest(s) failed. {parentMsg}</>
                   ),
                   method: 'delete',
-                  onSuccess: () => getManifestOverviews(),
+                  onSuccess: () => {
+                    getManifestOverviews();
+                    resetChecklist();
+                  },
                   url: `/manifest`,
                 });
               },
@@ -494,6 +503,7 @@ const ManageManifestPanel: FC = () => {
       hasChecks,
       isEditManifests,
       manifestOverviews,
+      resetChecklist,
       setCheck,
       setConfirmDialogProps,
       setManifestDetail,

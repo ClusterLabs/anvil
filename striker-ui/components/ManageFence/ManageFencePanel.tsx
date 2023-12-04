@@ -155,8 +155,14 @@ const ManageFencePanel: FC = () => {
   const formUtils = useFormUtils([INPUT_ID_FENCE_AGENT], messageGroupRef);
   const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
 
-  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist({ list: fenceOverviews });
+  const {
+    buildDeleteDialogProps,
+    checks,
+    getCheck,
+    hasChecks,
+    resetChecklist,
+    setCheck,
+  } = useChecklist({ list: fenceOverviews });
 
   const getFormSummaryEntryLabel = useCallback<GetFormEntryLabelFunction>(
     ({ cap, depth, key }) => (depth === 0 ? cap(key) : key),
@@ -238,7 +244,10 @@ const ManageFencePanel: FC = () => {
                     <>Failed to delete fence device(s). {parentMsg}</>
                   ),
                   method: 'delete',
-                  onSuccess: () => getFenceOverviews(),
+                  onSuccess: () => {
+                    getFenceOverviews();
+                    resetChecklist();
+                  },
                   url: '/fence',
                 });
               },
@@ -373,6 +382,7 @@ const ManageFencePanel: FC = () => {
       getFormSummaryEntryLabel,
       hasChecks,
       isEditFences,
+      resetChecklist,
       setCheck,
       setConfirmDialogProps,
       setFormDialogProps,
