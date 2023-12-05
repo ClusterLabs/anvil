@@ -63,12 +63,12 @@ sub striker_checks
 {
 	my ($anvil) = @_;
 	
+	# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
+	update_file_location_ready($anvil);
+	
 	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
 	# entries are copied.
 	update_dr_links($anvil);
-	
-	# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
-	update_file_location_ready($anvil);
 
 	# This replaces anvil_uuid with host_uuid to support more granular location info to support the new
 	# multi-target DR system

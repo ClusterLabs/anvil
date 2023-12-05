@@ -1210,6 +1210,7 @@ sub _set_paths
 				'grep'				=>	"/usr/bin/grep", 
 				groupadd			=>	"/usr/sbin/groupadd",
 				head				=>	"/usr/bin/head",
+				hostname			=>	"/usr/bin/hostname",
 				hostnamectl			=>	"/usr/bin/hostnamectl",
 				hpacucli			=>	"/usr/sbin/hpacucli",
 				htpasswd			=>	"/usr/bin/htpasswd",

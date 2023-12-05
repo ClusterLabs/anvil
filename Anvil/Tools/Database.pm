@@ -9606,9 +9606,9 @@ sub insert_or_update_hosts
 	my $line        = defined $parameter->{line}        ? $parameter->{line}        : "";
 	my $host_ipmi   = defined $parameter->{host_ipmi}   ? $parameter->{host_ipmi}   : "";
 	my $host_key    = defined $parameter->{host_key}    ? $parameter->{host_key}    : "";
-	my $host_name   = defined $parameter->{host_name}   ? $parameter->{host_name}   : $anvil->Get->host_name;
-	my $host_type   = defined $parameter->{host_type}   ? $parameter->{host_type}   : $anvil->Get->host_type;
-	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : $anvil->Get->host_uuid;
+	my $host_name   = defined $parameter->{host_name}   ? $parameter->{host_name}   : "";
+	my $host_type   = defined $parameter->{host_type}   ? $parameter->{host_type}   : "";
+	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : "";
 	my $host_status = defined $parameter->{host_status} ? $parameter->{host_status} : "no_change";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		uuid        => $uuid, 
@@ -9624,15 +9624,34 @@ sub insert_or_update_hosts
 	
 	if (not $host_name)
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_name" }});
-		return("");
+		# Can we get it?
+		$host_name = $anvil->Get->host_name({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		
+		if (not $host_name)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_name" }});
+			return("");
+		}
+	}
+	if (not $host_type)
+	{
+		$host_type = $anvil->Get->host_type({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
 	}
 	if (not $host_uuid)
 	{
-		# Throw an error and exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_uuid" }});
-		return("");
+		# Can we get it?
+		$host_uuid = $anvil->Get->host_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+		
+		if (not $host_uuid)
+		{
+			# Throw an error and exit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_hosts()", parameter => "host_uuid" }});
+			return("");
+		}
 	}
 	
 	# If we're looking at ourselves and we don't have the host_key, read it in.
