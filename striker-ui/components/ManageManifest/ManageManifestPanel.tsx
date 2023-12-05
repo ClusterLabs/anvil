@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
@@ -46,8 +46,6 @@ import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
-
-const MSG_ID_MANIFEST_API = 'api';
 
 const getFormData = (
   ...[{ target }]: DivFormEventHandlerParameters
@@ -165,8 +163,9 @@ const ManageManifestPanel: FC = () => {
     useProtectedState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useProtectedState<boolean>(true);
-  const [isSubmittingForm, setIsSubmittingForm] =
-    useProtectedState<boolean>(false);
+  const [manifestOverviews, setManifestOverviews] = useProtectedState<
+    APIManifestOverviewList | undefined
+  >(undefined);
   const [manifestDetail, setManifestDetail] = useProtectedState<
     APIManifestDetail | undefined
   >(undefined);
@@ -174,10 +173,17 @@ const ManageManifestPanel: FC = () => {
     APIManifestTemplate | undefined
   >(undefined);
 
-  const { data: manifestOverviews, isLoading: isLoadingManifestOverviews } =
+  const { isLoading: isLoadingManifestOverviews } =
     periodicFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {
+      onSuccess: (data) => setManifestOverviews(data),
       refreshInterval: 60000,
     });
+
+  const getManifestOverviews = useCallback(() => {
+    api.get('/manifest').then(({ data }) => {
+      setManifestOverviews(data);
+    });
+  }, [setManifestOverviews]);
 
   const formUtils = useFormUtils(
     [
@@ -190,7 +196,7 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid, setMessage } = formUtils;
+  const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
 
   const runFormUtils = useFormUtils(
     [
@@ -200,12 +206,22 @@ const ManageManifestPanel: FC = () => {
     ],
     messageGroupRef,
   );
-  const { isFormInvalid: isRunFormInvalid } = runFormUtils;
+  const {
+    isFormInvalid: isRunFormInvalid,
+    isFormSubmitting: isRunFormSubmitting,
+    submitForm: submitRunForm,
+  } = runFormUtils;
 
-  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist({
-      list: manifestOverviews,
-    });
+  const {
+    buildDeleteDialogProps,
+    checks,
+    getCheck,
+    hasChecks,
+    resetChecklist,
+    setCheck,
+  } = useChecklist({
+    list: manifestOverviews,
+  });
 
   const {
     hostConfig: { hosts: mdetailHosts = {} } = {},
@@ -224,43 +240,6 @@ const ManageManifestPanel: FC = () => {
   } = useMemo<Partial<APIManifestTemplate>>(
     () => manifestTemplate ?? {},
     [manifestTemplate],
-  );
-
-  const submitForm = useCallback(
-    ({
-      body,
-      getErrorMsg,
-      method,
-      successMsg,
-      url,
-    }: {
-      body: Record<string, unknown>;
-      getErrorMsg: (parentMsg: ReactNode) => ReactNode;
-      method: 'delete' | 'post' | 'put';
-      successMsg?: ReactNode;
-      url: string;
-    }) => {
-      setIsSubmittingForm(true);
-
-      api
-        .request({ data: body, method, url })
-        .then(() => {
-          setMessage(MSG_ID_MANIFEST_API, {
-            children: successMsg,
-            type: 'info',
-          });
-        })
-        .catch((apiError) => {
-          const emsg = handleAPIError(apiError);
-
-          emsg.children = getErrorMsg(emsg.children);
-          setMessage(MSG_ID_MANIFEST_API, emsg);
-        })
-        .finally(() => {
-          setIsSubmittingForm(false);
-        });
-    },
-    [setIsSubmittingForm, setMessage],
   );
 
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
@@ -291,6 +270,7 @@ const ManageManifestPanel: FC = () => {
                 <>Failed to add install manifest. {parentMsg}</>
               ),
               method: 'post',
+              onSuccess: () => getManifestOverviews(),
               successMsg: 'Successfully added install manifest',
               url: '/manifest',
             });
@@ -304,6 +284,7 @@ const ManageManifestPanel: FC = () => {
     }),
     [
       formUtils,
+      getManifestOverviews,
       knownFences,
       knownUpses,
       mtemplateDomain,
@@ -338,6 +319,7 @@ const ManageManifestPanel: FC = () => {
                 <>Failed to update install manifest. {parentMsg}</>
               ),
               method: 'put',
+              onSuccess: () => getManifestOverviews(),
               successMsg: `Successfully updated install manifest ${mdetailName}`,
               url: `/manifest/${mdetailUuid}`,
             });
@@ -360,6 +342,7 @@ const ManageManifestPanel: FC = () => {
       setConfirmDialogProps,
       submitForm,
       mdetailUuid,
+      getManifestOverviews,
     ],
   );
 
@@ -383,7 +366,7 @@ const ManageManifestPanel: FC = () => {
           actionProceedText: 'Run',
           content: <FormSummary entries={body} hasPassword />,
           onProceedAppend: () => {
-            submitForm({
+            submitRunForm({
               body,
               getErrorMsg: (parentMsg) => (
                 <>Failed to run install manifest. {parentMsg}</>
@@ -410,7 +393,7 @@ const ManageManifestPanel: FC = () => {
       mdetailName,
       mdetailHosts,
       setConfirmDialogProps,
-      submitForm,
+      submitRunForm,
       mdetailUuid,
     ],
   );
@@ -460,6 +443,10 @@ const ManageManifestPanel: FC = () => {
                     <>Delete manifest(s) failed. {parentMsg}</>
                   ),
                   method: 'delete',
+                  onSuccess: () => {
+                    getManifestOverviews();
+                    resetChecklist();
+                  },
                   url: `/manifest`,
                 });
               },
@@ -512,9 +499,11 @@ const ManageManifestPanel: FC = () => {
       checks,
       getCheck,
       getManifestDetail,
+      getManifestOverviews,
       hasChecks,
       isEditManifests,
       manifestOverviews,
+      resetChecklist,
       setCheck,
       setConfirmDialogProps,
       setManifestDetail,
@@ -587,7 +576,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...addManifestFormDialogProps}
         disableProceed={isFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isFormSubmitting}
         preActionArea={messageArea}
         ref={addManifestFormDialogRef}
         scrollContent
@@ -596,7 +585,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...editManifestFormDialogProps}
         disableProceed={isFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isFormSubmitting}
         preActionArea={messageArea}
         ref={editManifestFormDialogRef}
         scrollContent
@@ -605,7 +594,7 @@ const ManageManifestPanel: FC = () => {
       <FormDialog
         {...runManifestFormDialogProps}
         disableProceed={isRunFormInvalid}
-        loadingAction={isSubmittingForm}
+        loadingAction={isRunFormSubmitting}
         preActionArea={messageArea}
         ref={runManifestFormDialogRef}
         scrollContent

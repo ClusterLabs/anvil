@@ -27,6 +27,7 @@ type PreviewOptionalProps = {
   externalPreview?: string;
   externalTimestamp?: number;
   headerEndAdornment?: ReactNode;
+  hrefPreview?: string;
   isExternalLoading?: boolean;
   isExternalPreviewStale?: boolean;
   isFetchPreview?: boolean;
@@ -43,12 +44,19 @@ type PreviewProps = PreviewOptionalProps & {
 };
 
 const PREVIEW_DEFAULT_PROPS: Required<
-  Omit<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'>
+  Omit<
+    PreviewOptionalProps,
+    'hrefPreview' | 'onClickConnectButton' | 'onClickPreview'
+  >
 > &
-  Pick<PreviewOptionalProps, 'onClickConnectButton' | 'onClickPreview'> = {
+  Pick<
+    PreviewOptionalProps,
+    'hrefPreview' | 'onClickConnectButton' | 'onClickPreview'
+  > = {
   externalPreview: '',
   externalTimestamp: 0,
   headerEndAdornment: null,
+  hrefPreview: undefined,
   isExternalLoading: false,
   isExternalPreviewStale: false,
   isFetchPreview: true,
@@ -90,6 +98,7 @@ const Preview: FC<PreviewProps> = ({
   externalPreview = PREVIEW_DEFAULT_PROPS.externalPreview,
   externalTimestamp = PREVIEW_DEFAULT_PROPS.externalTimestamp,
   headerEndAdornment,
+  hrefPreview,
   isExternalLoading = PREVIEW_DEFAULT_PROPS.isExternalLoading,
   isExternalPreviewStale = PREVIEW_DEFAULT_PROPS.isExternalPreviewStale,
   isFetchPreview = PREVIEW_DEFAULT_PROPS.isFetchPreview,
@@ -153,6 +162,44 @@ const Preview: FC<PreviewProps> = ({
     ],
   );
 
+  const iconButton = useMemo(() => {
+    if (isPreviewLoading) {
+      return <Spinner mb="1em" mt="1em" />;
+    }
+
+    const disabled = !preview;
+    const sx: MUIIconButtonProps['sx'] = {
+      borderRadius: BORDER_RADIUS,
+      color: GREY,
+      padding: 0,
+    };
+
+    if (hrefPreview) {
+      return (
+        <MUIIconButton disabled={disabled} href={hrefPreview} sx={sx}>
+          {previewButtonContent}
+        </MUIIconButton>
+      );
+    }
+
+    return (
+      <MUIIconButton
+        component="span"
+        disabled={disabled}
+        onClick={previewClickHandler}
+        sx={sx}
+      >
+        {previewButtonContent}
+      </MUIIconButton>
+    );
+  }, [
+    hrefPreview,
+    isPreviewLoading,
+    preview,
+    previewButtonContent,
+    previewClickHandler,
+  ]);
+
   useEffect(() => {
     if (isFetchPreview) {
       (async () => {
@@ -195,24 +242,7 @@ const Preview: FC<PreviewProps> = ({
       </PreviewPanelHeader>
       <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
         {/* Box wrapper below is required to keep external preview size sane. */}
-        <Box textAlign="center">
-          {isPreviewLoading ? (
-            <Spinner mt="1em" mb="1em" />
-          ) : (
-            <MUIIconButton
-              component="span"
-              disabled={!preview}
-              onClick={previewClickHandler}
-              sx={{
-                borderRadius: BORDER_RADIUS,
-                color: GREY,
-                padding: 0,
-              }}
-            >
-              {previewButtonContent}
-            </MUIIconButton>
-          )}
-        </Box>
+        <Box textAlign="center">{iconButton}</Box>
         {isShowControls && preview && (
           <FlexBox>
             <IconButton onClick={connectButtonClickHandle}>

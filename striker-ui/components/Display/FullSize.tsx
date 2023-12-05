@@ -1,5 +1,6 @@
 import {
   Close as CloseIcon,
+  Dashboard as DashboardIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
 import { Box, Menu, styled, Typography } from '@mui/material';
@@ -100,17 +101,18 @@ const FullSize: FC<FullSizeProps> = ({
   }, [serverUUID]);
 
   const disconnectServerVnc = useCallback(() => {
+    if (rfb?.current) {
+      rfb.current.disconnect();
+      rfb.current = null;
+    }
+
     setRfbConnectArgs(undefined);
   }, []);
 
   const reconnectServerVnc = useCallback(() => {
-    if (!rfb?.current) return;
-
-    rfb.current.disconnect();
-    rfb.current = null;
-
+    disconnectServerVnc();
     connectServerVnc();
-  }, [connectServerVnc]);
+  }, [connectServerVnc, disconnectServerVnc]);
 
   const updateVncReconnectTimer = useCallback((): void => {
     const intervalId = setInterval((): void => {
@@ -175,17 +177,37 @@ const FullSize: FC<FullSizeProps> = ({
 
   const vncDisconnectElement = useMemo(
     () => (
-      <IconButton
-        onClick={(...args) => {
-          disconnectServerVnc();
-          onClickCloseButton?.call(null, ...args);
-        }}
-        variant="redcontained"
-      >
-        <CloseIcon />
-      </IconButton>
+      <Box>
+        <IconButton
+          onClick={(...args) => {
+            disconnectServerVnc();
+            onClickCloseButton?.call(null, ...args);
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Box>
     ),
     [disconnectServerVnc, onClickCloseButton],
+  );
+
+  const returnHomeElement = useMemo(
+    () => (
+      <Box>
+        <IconButton
+          onClick={() => {
+            if (!window) return;
+
+            disconnectServerVnc();
+
+            window.location.assign('/');
+          }}
+        >
+          <DashboardIcon />
+        </IconButton>
+      </Box>
+    ),
+    [disconnectServerVnc],
   );
 
   const vncToolbarElement = useMemo(
@@ -193,10 +215,11 @@ const FullSize: FC<FullSizeProps> = ({
       showScreen && (
         <>
           {keyboardMenuElement}
+          {returnHomeElement}
           {vncDisconnectElement}
         </>
       ),
-    [keyboardMenuElement, showScreen, vncDisconnectElement],
+    [keyboardMenuElement, returnHomeElement, showScreen, vncDisconnectElement],
   );
 
   useEffect(() => {
