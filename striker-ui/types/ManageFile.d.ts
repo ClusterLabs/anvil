@@ -52,6 +52,7 @@ type AddFileFormProps = Pick<FileInputGroupProps, 'anvils' | 'drHosts'>;
 /** EditFileForm */
 
 type EditFileFormProps = Pick<FileInputGroupProps, 'anvils' | 'drHosts'> & {
+  onSuccess?: () => void;
   previous: APIFileDetail;
 };
 
