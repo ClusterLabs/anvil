@@ -1,0 +1,201 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Sys::Virt;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# We'll try to connect in case we're adding additional peers.
+$anvil->Database->connect({debug => 3});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+
+print "DBs: [".$anvil->data->{sys}{database}{connections}."]\n";
+
+scan($anvil);
+
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub scan
+{
+	my ($anvil) = @_;
+	
+	# Get a list of interfaces.
+	get_interfaces($anvil);
+	
+	
+	return(0);
+}
+
+sub get_interfaces
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values uuid,type connection show";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /^(.*?):(.*?)$/)
+		{
+			my $uuid = $1;
+			my $type = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				uuid => $uuid, 
+				type => $type,
+			}});
+			next if $type eq "loopback";
+			
+			$anvil->data->{interface}{uuid}{$uuid}{type} = $type;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				uuid => $uuid, 
+				type => $type,
+			}});
+		}
+	}
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{interface}{uuid}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
+		
+		# Collect all the rest of the data now.
+		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection show ".$uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			if ($line =~ /^(.*?):\s+(.*)$/)
+			{
+				my $variable = $1;
+				my $value    = $2;
+				$anvil->data->{interface}{uuid}{$uuid}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"interface::uuid::${uuid}::${variable}" => $anvil->data->{interface}{uuid}{$uuid}{$variable},
+				}});
+			}
+		}
+	}
+	
+	# Now loop through and look for the name that maps to what's shown in 'ip addr list'. This can be a bit tricky.
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{interface}{uuid}})
+	{
+		my $connection_interface_name = $anvil->data->{interface}{uuid}{$uuid}{'connection.interface-name'} // "";
+		my $general_devices           = $anvil->data->{interface}{uuid}{$uuid}{'GENERAL.DEVICES'}           // "";
+		my $device                    = $connection_interface_name ne "--" ? $connection_interface_name : $general_devices;
+		my $name                      = 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:uuid'                      => $uuid,
+			's2:connection_interface_name' => $connection_interface_name, 
+			's3:general_devices'           => $general_devices, 
+			's4:device'                    => $device, 
+		}});
+		
+		if ($device)
+		{
+			$anvil->data->{interface}{device}{$device}{uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"interface::device::${device}::uuid" => $anvil->data->{interface}{device}{$device}{uuid}, 
+			}});
+		
+			### Get some data from sysfs.
+			$anvil->data->{interface}{uuid}{$uuid}{mac_address} = "";
+			$anvil->data->{interface}{uuid}{$uuid}{type}        = "";
+			$anvil->data->{interface}{uuid}{$uuid}{mtu}         = 0;
+			
+			# MAC address
+			my $mac_address_file = "/sys/class/net/".$device."/address";
+			my $type_file        = "/sys/class/net/".$device."/type";
+			my $mtu_file         = "/sys/class/net/".$device."/mtu";
+			if (-e $mac_address_file)
+			{
+				my $mac_address = $anvil->Storage->read_file({file => $mac_address_file});
+				   $mac_address =~ s/\n$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
+				
+				if (($mac_address) && ($mac_address ne "!!error!!"))
+				{
+					$anvil->data->{interface}{uuid}{$uuid}{mac_address} = $mac_address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"interface::uuid::${uuid}::mac_address" => $anvil->data->{interface}{uuid}{$uuid}{mac_address},
+					}});
+				}
+			}
+			if (-e $type_file)
+			{
+				my $type = $anvil->Storage->read_file({file => $type_file});
+				   $type =~ s/\n$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+				
+				if (($type) && ($type ne "!!error!!"))
+				{
+					$anvil->data->{interface}{uuid}{$uuid}{type} = $type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"interface::uuid::${uuid}::type" => $anvil->data->{interface}{uuid}{$uuid}{type},
+					}});
+				}
+			}
+			if (-e $mtu_file)
+			{
+				my $mtu = $anvil->Storage->read_file({file => $mtu_file});
+				   $mtu =~ s/\n$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu => $mtu }});
+				
+				if (($mtu) && ($mtu ne "!!error!!"))
+				{
+					$anvil->data->{interface}{uuid}{$uuid}{mtu} = $mtu;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"interface::uuid::${uuid}::mtu" => $anvil->data->{interface}{uuid}{$uuid}{mtu},
+					}});
+				}
+			}
+		}
+	}
+	
+	# Now lets confirm we got all the interfaces, including the down'ed ones.
+	foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{interface}{device}})
+	{
+		my $uuid        = $anvil->data->{interface}{device}{$device}{uuid};
+		my $name        = $anvil->data->{interface}{uuid}{$uuid}{'connection.id'};
+		my $mac_address = $anvil->data->{interface}{uuid}{$uuid}{mac_address};
+		my $type        = $anvil->data->{interface}{uuid}{$uuid}{type};
+		my $mtu_type    = $anvil->data->{interface}{uuid}{$uuid}{'802-3-ethernet.mtu'};
+		my $mtu         = $anvil->data->{interface}{uuid}{$uuid}{mtu};
+		
+		print "- Device: [".$device."], UUID: [".$uuid."], name: [".$name."]\n";
+		print " - MAC: [".$mac_address."], Type: [".$type."], MTU: [".$mtu."] MTU type: [".$mtu_type."]\n";
+	}
+	
+	return(0);
+}
