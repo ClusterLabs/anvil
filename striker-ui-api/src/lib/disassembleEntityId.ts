@@ -1,7 +1,7 @@
 export const getEntityName = (id: string) => id.replace(/\d*$/, '');
 
 export const getEntityNumber = (id: string) =>
-  Number.parseInt(id.replace(/^[^\d]*/, ''));
+  Number(id.replace(/^[^\d]*/, ''));
 
 export const getEntityParts = (id: string) => {
   let name = '';
@@ -13,7 +13,7 @@ export const getEntityParts = (id: string) => {
     const parts = matchResult;
 
     name = parts[1];
-    number = Number.parseInt(parts[2]);
+    number = Number(parts[2]);
   }
 
   return { name, number };

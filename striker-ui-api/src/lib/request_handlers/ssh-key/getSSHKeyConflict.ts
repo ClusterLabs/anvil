@@ -38,7 +38,7 @@ export const getSSHKeyConflict = buildGetRequestHandler(
 
       previous[hostUUIDKey][stateUUID] = {
         badFile,
-        badLine: parseInt(badLine),
+        badLine: Number(badLine),
         hostName,
         hostUUID,
         ipAddress,

@@ -15,7 +15,7 @@ const buildHostConnections = (
 ) =>
   Object.entries(databaseHash).reduce<HostConnectionOverview>(
     (previous, [hostUUID, { host: ipAddress, ping, port: rawPort, user }]) => {
-      const port = parseInt(rawPort);
+      const port = Number(rawPort);
 
       if (hostUUID === fromHostUUID) {
         previous.inbound.port = port;
@@ -91,8 +91,8 @@ export const getHostConnection = buildGetRequestHandler(
                 hostUUID,
                 ipAddress,
                 ipAddressUUID,
-                networkLinkNumber: parseInt(rawNetworkLinkNumber),
-                networkNumber: parseInt(rawNetworkNumber),
+                networkLinkNumber: Number(rawNetworkLinkNumber),
+                networkNumber: Number(rawNetworkNumber),
                 networkType,
               };
             },

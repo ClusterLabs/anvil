@@ -263,12 +263,12 @@ const buildQueryAnvilDetail = ({
                 anvilUUID,
                 anvilName,
                 anvilDescription,
-                anvilTotalCPUCores: parseInt(anvilTotalCPUCores),
+                anvilTotalCPUCores: Number(anvilTotalCPUCores),
                 anvilTotalMemory: String(anvilTotalMemory),
-                anvilTotalAllocatedCPUCores: parseInt(
+                anvilTotalAllocatedCPUCores: Number(
                   anvilTotalAllocatedCPUCores,
                 ),
-                anvilTotalAvailableCPUCores: parseInt(
+                anvilTotalAvailableCPUCores: Number(
                   anvilTotalAvailableCPUCores,
                 ),
               } as AnvilDetailForProvisionServer;
@@ -280,7 +280,7 @@ const buildQueryAnvilDetail = ({
               hosts[hostUUID] = {
                 hostUUID,
                 hostName,
-                hostCPUCores: parseInt(hostCPUCores),
+                hostCPUCores: Number(hostCPUCores),
                 hostMemory: String(hostMemory),
               };
             }
@@ -297,7 +297,7 @@ const buildQueryAnvilDetail = ({
               servers[serverUUID] = {
                 serverUUID,
                 serverName,
-                serverCPUCores: parseInt(serverCPUCores),
+                serverCPUCores: Number(serverCPUCores),
                 serverMemory,
               };
             }

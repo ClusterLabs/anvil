@@ -217,7 +217,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
     name,
     networkConfig: {
       dnsCsv,
-      mtu: Number.parseInt(mtu),
+      mtu: Number(mtu),
       networks: Object.entries(networkList)
         .sort(handleSortNetworks)
         .reduce<ManifestDetailNetworkList>(
@@ -252,7 +252,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
       ntpCsv,
     },
     prefix,
-    sequence: Number.parseInt(sequence),
+    sequence: Number(sequence),
   };
 
   response.status(200).send(manifestData);
