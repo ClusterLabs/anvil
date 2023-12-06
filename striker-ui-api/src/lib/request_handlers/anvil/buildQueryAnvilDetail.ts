@@ -258,7 +258,7 @@ const buildQueryAnvilDetail = ({
               stores = {};
             }
 
-            if (!previous[anvilUUID]) {
+            if (anvilUUID && !previous[anvilUUID]) {
               previous[anvilUUID] = {
                 anvilUUID,
                 anvilName,
@@ -276,7 +276,7 @@ const buildQueryAnvilDetail = ({
               puuid = anvilUUID;
             }
 
-            if (!hosts[hostUUID]) {
+            if (hostUUID && !hosts[hostUUID]) {
               hosts[hostUUID] = {
                 hostUUID,
                 hostName,
@@ -285,7 +285,7 @@ const buildQueryAnvilDetail = ({
               };
             }
 
-            if (!servers[serverUUID]) {
+            if (serverUUID && !servers[serverUUID]) {
               const serverMemory =
                 dSize(serverMemoryValue, {
                   fromUnit: serverMemoryUnit,
@@ -302,7 +302,7 @@ const buildQueryAnvilDetail = ({
               };
             }
 
-            if (!stores[storageGroupUUID]) {
+            if (storageGroupUUID && !stores[storageGroupUUID]) {
               stores[storageGroupUUID] = {
                 storageGroupUUID,
                 storageGroupName,
@@ -311,7 +311,7 @@ const buildQueryAnvilDetail = ({
               };
             }
 
-            if (!files[fileUUID]) {
+            if (fileUUID && !files[fileUUID]) {
               files[fileUUID] = {
                 fileUUID,
                 fileName,
