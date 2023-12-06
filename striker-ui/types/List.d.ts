@@ -27,6 +27,7 @@ type ListOptionalProps<T extends unknown = unknown> = {
   listItemProps?: import('@mui/material').ListItemProps;
   listItems?: Record<string, T>;
   listProps?: import('@mui/material').ListProps;
+  loading?: boolean;
   onAdd?: import('../components/IconButton').IconButtonProps['onClick'];
   onDelete?: import('../components/IconButton').IconButtonProps['onClick'];
   onEdit?: import('../components/IconButton').IconButtonProps['onClick'];
