@@ -160,7 +160,7 @@ const ManageFencePanel: FC = () => {
     checks,
     getCheck,
     hasChecks,
-    resetChecklist,
+    resetChecks,
     setCheck,
   } = useChecklist({ list: fenceOverviews });
 
@@ -246,7 +246,7 @@ const ManageFencePanel: FC = () => {
                   method: 'delete',
                   onSuccess: () => {
                     getFenceOverviews();
-                    resetChecklist();
+                    resetChecks();
                   },
                   url: '/fence',
                 });
@@ -382,7 +382,7 @@ const ManageFencePanel: FC = () => {
       getFormSummaryEntryLabel,
       hasChecks,
       isEditFences,
-      resetChecklist,
+      resetChecks,
       setCheck,
       setConfirmDialogProps,
       setFormDialogProps,
