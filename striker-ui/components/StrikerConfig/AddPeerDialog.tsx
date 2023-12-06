@@ -103,6 +103,15 @@ const AddPeerDialog = forwardRef<
                     input={
                       <OutlinedInputWithLabel
                         id="add-peer-ip-address-input"
+                        inputProps={{
+                          // Initiallize the field as read-only, then unlock
+                          // when the user focuses; this avoids browser's
+                          // auto-complete.
+                          readOnly: true,
+                          onFocus: (event) => {
+                            event.target.readOnly = false;
+                          },
+                        }}
                         label={LABEL.ipAddress}
                       />
                     }
