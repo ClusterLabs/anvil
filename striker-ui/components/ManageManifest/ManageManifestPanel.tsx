@@ -217,7 +217,7 @@ const ManageManifestPanel: FC = () => {
     checks,
     getCheck,
     hasChecks,
-    resetChecklist,
+    resetChecks,
     setCheck,
   } = useChecklist({
     list: manifestOverviews,
@@ -445,7 +445,7 @@ const ManageManifestPanel: FC = () => {
                   method: 'delete',
                   onSuccess: () => {
                     getManifestOverviews();
-                    resetChecklist();
+                    resetChecks();
                   },
                   url: `/manifest`,
                 });
@@ -503,7 +503,7 @@ const ManageManifestPanel: FC = () => {
       hasChecks,
       isEditManifests,
       manifestOverviews,
-      resetChecklist,
+      resetChecks,
       setCheck,
       setConfirmDialogProps,
       setManifestDetail,

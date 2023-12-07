@@ -16,7 +16,7 @@ const useChecklist = ({
   hasAllChecks: boolean;
   hasChecks: boolean;
   multipleItems: boolean;
-  resetChecklist: () => void;
+  resetChecks: () => void;
   setAllChecks: SetAllChecksFunction;
   setCheck: SetCheckFunction;
 } => {
@@ -62,7 +62,7 @@ const useChecklist = ({
     [checklist],
   );
 
-  const resetChecklist = useCallback(() => setChecklist({}), []);
+  const resetChecks = useCallback(() => setChecklist({}), []);
 
   const setAllChecks = useCallback<SetAllChecksFunction>(
     (checked) =>
@@ -92,7 +92,7 @@ const useChecklist = ({
     hasAllChecks,
     hasChecks,
     multipleItems,
-    resetChecklist,
+    resetChecks,
     setAllChecks,
     setCheck,
   };

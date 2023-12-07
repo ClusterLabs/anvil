@@ -48,7 +48,7 @@ export const uuidgen = (...args: string[]) =>
   systemCall(SERVER_PATHS.usr.bin.uuidgen.self, args);
 
 export const resolveId = (id: number | string, database: string) =>
-  Number.parseInt(getent(database, String(id)).split(':', 3)[2]);
+  Number(getent(database, String(id)).split(':', 3)[2]);
 
 export const resolveGid = (id: number | string) => resolveId(id, 'group');
 

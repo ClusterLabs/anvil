@@ -105,7 +105,7 @@ export const getManifestTemplate: RequestHandler = async (
       }
 
       if (lastSequence) {
-        previous.sequence = Number.parseInt(lastSequence) + 1;
+        previous.sequence = Number(lastSequence) + 1;
       }
 
       return previous;

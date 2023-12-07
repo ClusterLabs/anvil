@@ -463,7 +463,7 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   const [[vncinfo]] = rows;
   const [domain, rPort] = vncinfo.split(':');
 
-  const port = Number.parseInt(rPort);
+  const port = Number(rPort);
   const protocol = 'ws';
 
   return { domain, port, protocol };

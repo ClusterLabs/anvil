@@ -12,13 +12,13 @@ import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
 import EditFileForm from './EditFileForm';
 import FlexBox from '../FlexBox';
-import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, MonoText } from '../Text';
+import useActiveFetch from '../../hooks/useActiveFetch';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
@@ -118,15 +118,29 @@ const ManageFilePanel: FC = () => {
   const [file, setFile] = useProtectedState<APIFileDetail | undefined>(
     undefined,
   );
-  const [loadingFile, setLoadingFile] = useProtectedState<boolean>(false);
-
-  const { data: rows, isLoading: loadingFiles } = periodicFetch<string[][]>(
-    `${API_BASE_URL}/file`,
+  const [files, setFiles] = useProtectedState<APIFileOverviewList | undefined>(
+    undefined,
   );
 
-  const files = useMemo(
-    () => (rows ? toFileOverviewList(rows) : undefined),
-    [rows],
+  const { isLoading: loadingFilesPeriodic } = periodicFetch<string[][]>(
+    `${API_BASE_URL}/file`,
+    {
+      onSuccess: (rows) => {
+        setFiles(toFileOverviewList(rows));
+      },
+    },
+  );
+
+  const { fetch: getFiles, loading: loadingFilesActive } = useActiveFetch<
+    string[][]
+  >({
+    onData: (data) => setFiles(toFileOverviewList(data)),
+    url: '/file',
+  });
+
+  const loadingFiles = useMemo<boolean>(
+    () => loadingFilesPeriodic || loadingFilesActive,
+    [loadingFilesActive, loadingFilesPeriodic],
   );
 
   const {
@@ -136,6 +150,7 @@ const ManageFilePanel: FC = () => {
     hasAllChecks,
     hasChecks,
     multipleItems,
+    resetChecks,
     setAllChecks,
     setCheck,
   } = useChecklist({
@@ -148,28 +163,16 @@ const ManageFilePanel: FC = () => {
     [],
   );
 
-  const getFileDetail = useCallback(
-    (fileUuid: string) => {
-      setLoadingFile(true);
-
-      api
-        .get<string[][]>(`file/${fileUuid}`)
-        .then(({ data }) => {
-          setFile(toFileDetail(data));
-        })
-        .catch((error) => {
-          const emsg = handleAPIError(error);
-
-          emsg.children = <>Failed to get file detail. {emsg.children}</>;
-
-          setApiMessage(emsg);
-        })
-        .finally(() => {
-          setLoadingFile(false);
-        });
+  const { fetch: getFile, loading: loadingFile } = useActiveFetch<string[][]>({
+    onData: (data) => setFile(toFileDetail(data)),
+    onError: ({ children: previous, ...rest }) => {
+      setApiMessage({
+        children: <>Failed to get file detail. {previous}</>,
+        ...rest,
+      });
     },
-    [setApiMessage, setFile, setLoadingFile],
-  );
+    url: '/file/',
+  });
 
   const { data: rawAnvils, loading: loadingAnvils } =
     useFetch<APIAnvilOverviewArray>('/anvil', {
@@ -226,7 +229,13 @@ const ManageFilePanel: FC = () => {
           setConfirmDialogProps(
             buildDeleteDialogProps({
               onProceedAppend: () => {
-                checks.forEach((fileUuid) => api.delete(`/file/${fileUuid}`));
+                const promises = checks.map((fileUuid) =>
+                  api.delete(`/file/${fileUuid}`),
+                );
+
+                Promise.all(promises).then(() => getFiles());
+
+                resetChecks();
               },
               getConfirmDialogTitle: (count) =>
                 `Delete the following ${count} file(s)?`,
@@ -243,7 +252,7 @@ const ManageFilePanel: FC = () => {
         }}
         onItemClick={(value, uuid) => {
           editFormDialogRef.current?.setOpen(true);
-          getFileDetail(uuid);
+          getFile(uuid);
         }}
         renderListItem={(uuid, { checksum, name, size, type }) => (
           <FlexBox columnSpacing={0} fullWidth md="row" xs="column">
@@ -266,10 +275,12 @@ const ManageFilePanel: FC = () => {
       edit,
       files,
       getCheck,
-      getFileDetail,
+      getFile,
+      getFiles,
       hasAllChecks,
       hasChecks,
       multipleItems,
+      resetChecks,
       setAllChecks,
       setCheck,
       setConfirmDialogProps,
@@ -289,13 +300,14 @@ const ManageFilePanel: FC = () => {
   );
 
   const loadingAddForm = useMemo<boolean>(
-    () => loadingFiles || loadingAnvils || loadingDrHosts,
-    [loadingAnvils, loadingDrHosts, loadingFiles],
+    () => loadingFilesPeriodic || loadingAnvils || loadingDrHosts,
+    [loadingAnvils, loadingDrHosts, loadingFilesPeriodic],
   );
 
   const loadingEditForm = useMemo<boolean>(
-    () => loadingFiles || loadingAnvils || loadingDrHosts || loadingFile,
-    [loadingAnvils, loadingDrHosts, loadingFile, loadingFiles],
+    () =>
+      loadingFilesPeriodic || loadingAnvils || loadingDrHosts || loadingFile,
+    [loadingAnvils, loadingDrHosts, loadingFile, loadingFilesPeriodic],
   );
 
   const addForm = useMemo(
@@ -309,9 +321,16 @@ const ManageFilePanel: FC = () => {
       anvils &&
       drHosts &&
       file && (
-        <EditFileForm anvils={anvils} drHosts={drHosts} previous={file} />
+        <EditFileForm
+          anvils={anvils}
+          drHosts={drHosts}
+          onSuccess={() => {
+            getFiles();
+          }}
+          previous={file}
+        />
       ),
-    [anvils, drHosts, file],
+    [anvils, drHosts, file, getFiles],
   );
 
   return (

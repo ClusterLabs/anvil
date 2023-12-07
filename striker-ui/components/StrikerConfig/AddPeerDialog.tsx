@@ -11,7 +11,6 @@ import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 import api from '../../lib/api';
 import buildMapToMessageSetter from '../../lib/buildMapToMessageSetter';
-import buildNumberTestBatch from '../../lib/test_input/buildNumberTestBatch';
 import buildObjectStateSetterCallback from '../../lib/buildObjectStateSetterCallback';
 import CheckboxWithLabel from '../CheckboxWithLabel';
 import ConfirmDialog from '../ConfirmDialog';
@@ -27,8 +26,7 @@ import {
   buildIPAddressTestBatch,
   buildPeacefulStringTestBatch,
 } from '../../lib/test_input';
-import { BodyText, HeaderText } from '../Text';
-import useProtect from '../../hooks/useProtect';
+import { HeaderText } from '../Text';
 import useProtectedState from '../../hooks/useProtectedState';
 
 const IT_IDS = {
@@ -51,8 +49,6 @@ const AddPeerDialog = forwardRef<
   ConfirmDialogForwardedRefContent,
   AddPeerDialogProps
 >(({ formGridColumns = 2 }, ref) => {
-  const { protect } = useProtect();
-
   const inputPeerDBPortRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerIPAddressRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputPeerPasswordRef = useRef<InputForwardedRefContent<'string'>>({});
@@ -65,7 +61,7 @@ const AddPeerDialog = forwardRef<
   }>({});
   const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
   const [isSubmittingAddPeer, setIsSubmittingAddPeer] =
-    useProtectedState<boolean>(false, protect);
+    useProtectedState<boolean>(false);
 
   const buildInputFirstRenderFunction = useCallback(
     (key: string) =>
@@ -100,42 +96,22 @@ const AddPeerDialog = forwardRef<
         <Grid
           columns={{ xs: 1, sm: formGridColumns }}
           layout={{
-            'add-peer-user-and-ip-address': {
+            'add-peer-ip-address': {
               children: (
                 <FlexBox row spacing=".3em">
                   <InputWithRef
                     input={
                       <OutlinedInputWithLabel
-                        formControlProps={{
-                          sx: { minWidth: '4.6em', width: '25%' },
-                        }}
-                        id="add-peer-user-input"
-                        inputProps={{ placeholder: 'admin' }}
-                        label={LABEL.user}
-                      />
-                    }
-                    inputTestBatch={buildPeacefulStringTestBatch(
-                      LABEL.user,
-                      () => {
-                        msgSetters.user();
-                      },
-                      {
-                        onFinishBatch: buildFinishInputTestBatchFunction(
-                          IT_IDS.user,
-                        ),
-                      },
-                      (message) => {
-                        msgSetters.user({ children: message });
-                      },
-                    )}
-                    onFirstRender={buildInputFirstRenderFunction(IT_IDS.user)}
-                    ref={inputPeerUserRef}
-                  />
-                  <BodyText>@</BodyText>
-                  <InputWithRef
-                    input={
-                      <OutlinedInputWithLabel
                         id="add-peer-ip-address-input"
+                        inputProps={{
+                          // Initiallize the field as read-only, then unlock
+                          // when the user focuses; this avoids browser's
+                          // auto-complete.
+                          readOnly: true,
+                          onFocus: (event) => {
+                            event.target.readOnly = false;
+                          },
+                        }}
                         label={LABEL.ipAddress}
                       />
                     }
@@ -191,64 +167,6 @@ const AddPeerDialog = forwardRef<
                   ref={inputPeerPasswordRef}
                   required
                 />
-              ),
-            },
-            'add-peer-db-and-ssh-port': {
-              children: (
-                <FlexBox row>
-                  <InputWithRef
-                    input={
-                      <OutlinedInputWithLabel
-                        id="add-peer-db-port-input"
-                        inputProps={{ placeholder: '5432' }}
-                        label={LABEL.dbPort}
-                      />
-                    }
-                    inputTestBatch={buildNumberTestBatch(
-                      LABEL.dbPort,
-                      () => {
-                        msgSetters.dbPort();
-                      },
-                      {
-                        onFinishBatch: buildFinishInputTestBatchFunction(
-                          IT_IDS.dbPort,
-                        ),
-                      },
-                      (message) => {
-                        msgSetters.dbPort({ children: message });
-                      },
-                    )}
-                    onFirstRender={buildInputFirstRenderFunction(IT_IDS.dbPort)}
-                    ref={inputPeerDBPortRef}
-                  />
-                  <InputWithRef
-                    input={
-                      <OutlinedInputWithLabel
-                        id="add-peer-ssh-port-input"
-                        inputProps={{ placeholder: '22' }}
-                        label={LABEL.sshPort}
-                      />
-                    }
-                    inputTestBatch={buildNumberTestBatch(
-                      LABEL.sshPort,
-                      () => {
-                        msgSetters.sshPort();
-                      },
-                      {
-                        onFinishBatch: buildFinishInputTestBatchFunction(
-                          IT_IDS.sshPort,
-                        ),
-                      },
-                      (message) => {
-                        msgSetters.sshPort({ children: message });
-                      },
-                    )}
-                    onFirstRender={buildInputFirstRenderFunction(
-                      IT_IDS.sshPort,
-                    )}
-                    ref={inputPeerSSHPortRef}
-                  />
-                </FlexBox>
               ),
             },
             'add-peer-is-ping': {

@@ -66,7 +66,7 @@ const toEditFileRequestBody = (
 };
 
 const EditFileForm: FC<EditFileFormProps> = (props) => {
-  const { anvils, drHosts, previous: file } = props;
+  const { anvils, drHosts, onSuccess, previous: file } = props;
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
@@ -113,6 +113,8 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
         .put(`/file/${file.uuid}`, body)
         .then(() => {
           setApiMessage({ children: <>File updated.</> });
+
+          onSuccess?.call(null);
         })
         .catch((error) => {
           const emsg = handleAPIError(error);
