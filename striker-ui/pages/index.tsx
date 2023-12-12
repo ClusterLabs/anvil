@@ -16,6 +16,7 @@ import OutlinedInput from '../components/OutlinedInput';
 import { Panel, PanelHeader } from '../components/Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from '../components/ProvisionServerDialog';
+import ServerMenu from '../components/ServerMenu';
 import Spinner from '../components/Spinner';
 import { HeaderText } from '../components/Text';
 import { last } from '../lib/time';
@@ -79,6 +80,12 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
               >
                 {anvilName}
               </Link>,
+              <ServerMenu
+                key={`server_${serverUUID}_power_options`}
+                serverName={serverName}
+                serverState={serverState}
+                serverUuid={serverUUID}
+              />,
             ]}
             hrefPreview={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`}
             isExternalLoading={loading}
