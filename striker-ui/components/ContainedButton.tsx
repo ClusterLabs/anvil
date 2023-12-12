@@ -59,4 +59,6 @@ const ContainedButton = styled(Base)((props) => {
   };
 });
 
+export { MAP_TO_COLOUR };
+
 export default ContainedButton;
