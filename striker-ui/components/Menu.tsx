@@ -5,6 +5,7 @@ import MenuItem from './MenuItem';
 
 const Menu: FC<MenuProps> = (props) => {
   const {
+    getItemDisabled,
     items = {},
     muiMenuProps: menuProps,
     onItemClick,
@@ -18,6 +19,7 @@ const Menu: FC<MenuProps> = (props) => {
     () =>
       pairs.map(([key, value]) => (
         <MenuItem
+          disabled={getItemDisabled?.call(null, key, value)}
           onClick={(...parent) =>
             onItemClick?.call(null, key, value, ...parent)
           }
@@ -28,7 +30,7 @@ const Menu: FC<MenuProps> = (props) => {
           {renderItem?.call(null, key, value)}
         </MenuItem>
       )),
-    [onItemClick, pairs, renderItem],
+    [getItemDisabled, onItemClick, pairs, renderItem],
   );
 
   return (

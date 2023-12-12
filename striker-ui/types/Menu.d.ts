@@ -1,6 +1,7 @@
 type MuiMenuProps = import('@mui/material').MenuProps;
 
 type MenuOptionalProps<T = unknown> = Pick<MuiMenuProps, 'open'> & {
+  getItemDisabled?: (key: string, value: T) => boolean;
   items?: Record<string, T>;
   muiMenuProps?: Partial<MuiMenuProps>;
   onItemClick?: (
