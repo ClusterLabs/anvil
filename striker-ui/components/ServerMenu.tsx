@@ -9,7 +9,18 @@ import { BodyText } from './Text';
 import useConfirmDialog from '../hooks/useConfirmDialog';
 
 const ServerMenu: FC<ServerMenuProps> = (props) => {
-  const { serverName, serverState, serverUuid } = props;
+  const {
+    // Props to ignore, for now:
+    getItemDisabled,
+    items,
+    onItemClick,
+    renderItem,
+    // ----------
+    serverName,
+    serverState,
+    serverUuid,
+    ...buttonWithMenuProps
+  } = props;
 
   const {
     confirmDialog,
@@ -119,6 +130,7 @@ const ServerMenu: FC<ServerMenuProps> = (props) => {
             </BodyText>
           );
         }}
+        {...buttonWithMenuProps}
       />
       {confirmDialog}
     </Box>

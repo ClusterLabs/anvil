@@ -9,6 +9,8 @@ import Menu from './Menu';
 const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
   const {
     children,
+    containedButtonProps,
+    iconButtonProps,
     muiMenuProps,
     onButtonClick,
     onItemClick,
@@ -38,16 +40,24 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
   const buttonElement = useMemo(() => {
     if (variant === 'contained') {
       return (
-        <ContainedButton onClick={buttonClickHandler}>
+        <ContainedButton onClick={buttonClickHandler} {...containedButtonProps}>
           {buttonContent}
         </ContainedButton>
       );
     }
 
     return (
-      <IconButton onClick={buttonClickHandler}>{buttonContent}</IconButton>
+      <IconButton onClick={buttonClickHandler} {...iconButtonProps}>
+        {buttonContent}
+      </IconButton>
     );
-  }, [buttonClickHandler, buttonContent, variant]);
+  }, [
+    buttonClickHandler,
+    buttonContent,
+    containedButtonProps,
+    iconButtonProps,
+    variant,
+  ]);
 
   const itemClickHandler = useCallback<
     Exclude<MenuProps['onItemClick'], undefined>

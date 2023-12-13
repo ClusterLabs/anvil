@@ -81,6 +81,7 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
                 {anvilName}
               </Link>,
               <ServerMenu
+                iconButtonProps={{ size: 'small' }}
                 key={`server_${serverUUID}_power_options`}
                 serverName={serverName}
                 serverState={serverState}
