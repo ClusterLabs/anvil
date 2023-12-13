@@ -1,3 +1,4 @@
+import { PowerSettingsNew as PowerSettingsNewIcon } from '@mui/icons-material';
 import { Box } from '@mui/material';
 import { FC, useMemo } from 'react';
 
@@ -131,7 +132,11 @@ const ServerMenu: FC<ServerMenuProps> = (props) => {
           );
         }}
         {...buttonWithMenuProps}
-      />
+      >
+        <PowerSettingsNewIcon
+          fontSize={buttonWithMenuProps?.iconButtonProps?.size}
+        />
+      </ButtonWithMenu>
       {confirmDialog}
     </Box>
   );

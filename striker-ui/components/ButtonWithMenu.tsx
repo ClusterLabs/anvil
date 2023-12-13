@@ -22,7 +22,17 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
 
   const open = useMemo(() => Boolean(anchorEl), [anchorEl]);
 
-  const buttonContent = useMemo(() => children ?? <MoreVertIcon />, [children]);
+  const buttonContent = useMemo(() => {
+    if (children) {
+      return children;
+    }
+
+    if (variant === 'icon') {
+      return <MoreVertIcon fontSize={iconButtonProps?.size} />;
+    }
+
+    return 'Options';
+  }, [children, iconButtonProps?.size, variant]);
 
   const buttonClickHandler = useCallback<MouseEventHandler<HTMLButtonElement>>(
     (...args) => {
