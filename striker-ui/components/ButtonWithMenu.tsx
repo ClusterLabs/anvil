@@ -89,5 +89,5 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
 };
 
 export default ButtonWithMenu as <T>(
-  props: ButtonWithMenuProps<T>,
+  ...args: Parameters<FC<ButtonWithMenuProps<T>>>
 ) => ReturnType<FC<ButtonWithMenuProps<T>>>;
