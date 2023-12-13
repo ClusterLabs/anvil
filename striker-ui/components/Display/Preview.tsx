@@ -19,6 +19,7 @@ import api from '../../lib/api';
 import FlexBox from '../FlexBox';
 import IconButton, { IconButtonProps } from '../IconButton';
 import { InnerPanel, InnerPanelHeader, Panel, PanelHeader } from '../Panels';
+import ServerMenu from '../ServerMenu';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import { elapsed, last, now } from '../../lib/time';
@@ -105,7 +106,7 @@ const Preview: FC<PreviewProps> = ({
   isShowControls = PREVIEW_DEFAULT_PROPS.isShowControls,
   isUseInnerPanel = PREVIEW_DEFAULT_PROPS.isUseInnerPanel,
   onClickPreview: previewClickHandler,
-  serverName,
+  serverName = PREVIEW_DEFAULT_PROPS.serverName,
   serverState = PREVIEW_DEFAULT_PROPS.serverState,
   serverUUID,
   onClickConnectButton: connectButtonClickHandle = previewClickHandler,
@@ -239,12 +240,18 @@ const Preview: FC<PreviewProps> = ({
     <PreviewPanel isUseInnerPanel={isUseInnerPanel}>
       <PreviewPanelHeader isUseInnerPanel={isUseInnerPanel} text={serverName}>
         {headerEndAdornment}
+        <ServerMenu
+          iconButtonProps={{ size: isUseInnerPanel ? 'small' : undefined }}
+          serverName={serverName}
+          serverState={serverState}
+          serverUuid={serverUUID}
+        />
       </PreviewPanelHeader>
       <FlexBox row sx={{ '& > :first-child': { flexGrow: 1 } }}>
         {/* Box wrapper below is required to keep external preview size sane. */}
         <Box textAlign="center">{iconButton}</Box>
         {isShowControls && preview && (
-          <FlexBox>
+          <FlexBox spacing=".3em">
             <IconButton onClick={connectButtonClickHandle}>
               <DesktopWindowsIcon />
             </IconButton>

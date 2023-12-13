@@ -20,6 +20,7 @@ const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
     onProceed = handleAction,
     proceedColour,
     proceedProps,
+    showCancel = true,
     // Dependents
     cancelChildren = cancelProps?.children,
     proceedChildren = proceedProps?.children,
@@ -61,36 +62,36 @@ const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
     [closeOnProceed, dialogContext, onProceed, proceedProps?.onClick],
   );
 
-  const actions = useMemo(
-    () => (
-      <ActionGroup
-        actions={[
-          {
-            ...cancelProps,
-            children: cancelChildren,
-            onClick: cancelHandler,
-          },
-          {
-            background: proceedColour,
-            ...proceedProps,
-            children: proceedChildren,
-            onClick: proceedHandler,
-          },
-        ]}
-        loading={loading}
-      />
-    ),
-    [
-      cancelChildren,
-      cancelHandler,
-      cancelProps,
-      loading,
-      proceedChildren,
-      proceedColour,
-      proceedHandler,
-      proceedProps,
-    ],
-  );
+  const actions = useMemo(() => {
+    const acts: ContainedButtonProps[] = [
+      {
+        background: proceedColour,
+        ...proceedProps,
+        children: proceedChildren,
+        onClick: proceedHandler,
+      },
+    ];
+
+    if (showCancel) {
+      acts.unshift({
+        ...cancelProps,
+        children: cancelChildren,
+        onClick: cancelHandler,
+      });
+    }
+
+    return <ActionGroup actions={acts} loading={loading} />;
+  }, [
+    cancelChildren,
+    cancelHandler,
+    cancelProps,
+    loading,
+    proceedChildren,
+    proceedColour,
+    proceedHandler,
+    proceedProps,
+    showCancel,
+  ]);
 
   return actions;
 };

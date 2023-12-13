@@ -39,6 +39,8 @@ const ConfirmDialog: ForwardRefExoticComponent<
       proceedColour = 'blue',
       scrollContent = false,
       scrollBoxProps,
+      showActionArea = true,
+      showCancel,
       showClose,
       titleText,
       wide,
@@ -64,6 +66,48 @@ const ConfirmDialog: ForwardRefExoticComponent<
       [contentElement, scrollBoxProps, scrollContent],
     );
 
+    const actionArea = useMemo(
+      () =>
+        showActionArea && (
+          <DialogActionArea
+            cancelProps={{
+              children: actionCancelText,
+              onClick: (...args) => {
+                onActionAppend?.call(null, ...args);
+                onCancelAppend?.call(null, ...args);
+              },
+            }}
+            closeOnProceed={closeOnProceed}
+            loading={loadingAction}
+            proceedProps={{
+              background: proceedColour,
+              children: actionProceedText,
+              disabled: disableProceed,
+              onClick: (...args) => {
+                onActionAppend?.call(null, ...args);
+                onProceedAppend?.call(null, ...args);
+              },
+              ...proceedButtonProps,
+            }}
+            showCancel={showCancel}
+          />
+        ),
+      [
+        actionCancelText,
+        actionProceedText,
+        closeOnProceed,
+        disableProceed,
+        loadingAction,
+        onActionAppend,
+        onCancelAppend,
+        onProceedAppend,
+        proceedButtonProps,
+        proceedColour,
+        showActionArea,
+        showCancel,
+      ],
+    );
+
     useImperativeHandle(
       ref,
       () => ({
@@ -85,27 +129,7 @@ const ConfirmDialog: ForwardRefExoticComponent<
         <FlexBox {...contentContainerProps}>
           {bodyElement}
           {preActionArea}
-          <DialogActionArea
-            cancelProps={{
-              children: actionCancelText,
-              onClick: (...args) => {
-                onActionAppend?.call(null, ...args);
-                onCancelAppend?.call(null, ...args);
-              },
-            }}
-            closeOnProceed={closeOnProceed}
-            loading={loadingAction}
-            proceedProps={{
-              background: proceedColour,
-              children: actionProceedText,
-              disabled: disableProceed,
-              onClick: (...args) => {
-                onActionAppend?.call(null, ...args);
-                onProceedAppend?.call(null, ...args);
-              },
-              ...proceedButtonProps,
-            }}
-          />
+          {actionArea}
         </FlexBox>
       </DialogWithHeader>
     );

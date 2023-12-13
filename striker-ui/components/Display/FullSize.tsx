@@ -12,6 +12,7 @@ import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
 import MenuItem from '../MenuItem';
 import { Panel, PanelHeader } from '../Panels';
+import ServerMenu from '../ServerMenu';
 import Spinner from '../Spinner';
 import { HeaderText } from '../Text';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
@@ -215,11 +216,23 @@ const FullSize: FC<FullSizeProps> = ({
       showScreen && (
         <>
           {keyboardMenuElement}
+          <ServerMenu
+            serverName={serverName}
+            serverState="running"
+            serverUuid={serverUUID}
+          />
           {returnHomeElement}
           {vncDisconnectElement}
         </>
       ),
-    [keyboardMenuElement, returnHomeElement, showScreen, vncDisconnectElement],
+    [
+      keyboardMenuElement,
+      returnHomeElement,
+      serverName,
+      serverUUID,
+      showScreen,
+      vncDisconnectElement,
+    ],
   );
 
   useEffect(() => {
