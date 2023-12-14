@@ -27,7 +27,28 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 $anvil->Database->connect({debug => 3});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 
-print "DBs: [".$anvil->data->{sys}{database}{connections}."]\n";
+#print "DBs: [".$anvil->data->{sys}{database}{connections}."]\n";
+
+$anvil->data->{network_manager}{want}{ifn1_link1}{mac_address} = "52:54:00:d3:19:cc";
+$anvil->data->{network_manager}{want}{ifn1_link1}{device}      = "enp1s0";
+$anvil->data->{network_manager}{want}{ifn1_link1}{found}       = 0;
+$anvil->data->{network_manager}{want}{ifn1_link2}{mac_address} = "52:54:00:fc:82:b0";
+$anvil->data->{network_manager}{want}{ifn1_link2}{device}      = "enp7s0";
+$anvil->data->{network_manager}{want}{ifn1_link2}{found}       = 0;
+
+$anvil->data->{network_manager}{want}{bcn1_link1}{mac_address} = "52:54:00:86:f5:1d";
+$anvil->data->{network_manager}{want}{bcn1_link1}{device}      = "enp8s0";
+$anvil->data->{network_manager}{want}{bcn1_link1}{found}       = 0;
+$anvil->data->{network_manager}{want}{bcn1_link2}{mac_address} = "52:54:00:16:c5:33";
+$anvil->data->{network_manager}{want}{bcn1_link2}{device}      = "enp9s0";
+$anvil->data->{network_manager}{want}{bcn1_link2}{found}       = 0;
+
+$anvil->data->{network_manager}{want}{sn1_link1}{mac_address}  = "52:54:00:37:6f:22";
+$anvil->data->{network_manager}{want}{sn1_link1}{device}       = "enp10s0";
+$anvil->data->{network_manager}{want}{sn1_link1}{found}        = 0;
+$anvil->data->{network_manager}{want}{sn1_link2}{mac_address}  = "52:54:00:2f:02:1b";
+$anvil->data->{network_manager}{want}{sn1_link2}{device}       = "enp11s0";
+$anvil->data->{network_manager}{want}{sn1_link2}{found}        = 0;
 
 scan($anvil);
 
@@ -52,7 +73,7 @@ sub get_interfaces
 {
 	my ($anvil) = @_;
 	
-	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values uuid,type connection show";
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values uuid,type,active,state connection show";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -63,20 +84,27 @@ sub get_interfaces
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		if ($line =~ /^(.*?):(.*?)$/)
+		if ($line =~ /^(.*?):(.*?):(.*?):(.*?)$/)
 		{
-			my $uuid = $1;
-			my $type = $2;
+			my $uuid   = $1;
+			my $type   = $2;
+			my $active = $3;
+			my $state  = $4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				uuid => $uuid, 
-				type => $type,
+				uuid    => $uuid, 
+				type    => $type,
+				active  => $active, 
+				'state' => $state, 
 			}});
 			next if $type eq "loopback";
 			
-			$anvil->data->{interface}{uuid}{$uuid}{type} = $type;
+			$anvil->data->{interface}{uuid}{$uuid}{type}    = $type;
+			$anvil->data->{interface}{uuid}{$uuid}{active}  = lc($active) eq "yes" ? 1 : 0;
+			$anvil->data->{interface}{uuid}{$uuid}{'state'} = lc($state);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				uuid => $uuid, 
-				type => $type,
+				"interface::uuid::${uuid}::type"   => $anvil->data->{interface}{uuid}{$uuid}{type}, 
+				"interface::uuid::${uuid}::active" => $anvil->data->{interface}{uuid}{$uuid}{active}, 
+				"interface::uuid::${uuid}::state"  => $anvil->data->{interface}{uuid}{$uuid}{'state'}, 
 			}});
 		}
 	}
@@ -104,6 +132,117 @@ sub get_interfaces
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"interface::uuid::${uuid}::${variable}" => $anvil->data->{interface}{uuid}{$uuid}{$variable},
 				}});
+				
+				if ($variable =~ /IP(\d).ADDRESS\[(\d+)\]/)
+				{
+					my $ip_type  = $1;
+					my $sequence = $2;
+					my $hash_key = "ipv".$ip_type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						ip_type  => $ip_type, 
+						sequence => $sequence,
+						hash_key => $hash_key, 
+					}});
+					
+					if (($ip_type == 4) && ($value =~ /^(.*?)\/(.*)$/))
+					{
+						my $ip_address  = $1;
+						my $subnet_mask = $2;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							ip_address  => $ip_address,
+							subnet_mask => $subnet_mask, 
+						}});
+						
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $1;
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = $2;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
+							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
+						}});
+					}
+					else
+					{
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $value;
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
+							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
+						}});
+					}
+					
+					# Make sure the DNS key exists.
+					if (not exists $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns})
+					{
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns} = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{interface}{uuid}{$uuid}{$sequence}{dns},
+						}});
+					}
+					if (not exists $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway})
+					{
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway} = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{interface}{uuid}{$uuid}{$sequence}{gateway},
+						}});
+					}
+					$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway} = $value;
+				}
+				if ($variable =~ /IP(\d).ROUTE\[(\d+)\]/)
+				{
+					my $ip_type  = $1;
+					my $sequence = $2;
+					my $hash_key = "ipv".$ip_type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						ip_type  => $ip_type, 
+						sequence => $sequence,
+						hash_key => $hash_key, 
+					}});
+					
+					$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{route}{$sequence} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"interface::uuid::${uuid}::${hash_key}::route::${sequence}" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{route}{$sequence},
+					}});
+				}
+				if ($variable =~ /IP(\d).DNS\[(\d+)\]/)
+				{
+					my $ip_type  = $1;
+					my $sequence = $2;
+					my $hash_key = "ipv".$ip_type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						ip_type  => $ip_type, 
+						sequence => $sequence,
+						hash_key => $hash_key, 
+					}});
+					
+					if ((exists $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns}) and ($anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns} ne ""))
+					{
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns} .= ",".$value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{interface}{uuid}{$uuid}{$sequence}{dns},
+						}});
+					}
+					else
+					{
+						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns} = $value;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"interface::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns},
+						}});
+					}
+				}
+				if ($variable =~ /IP(\d).GATEWAY/)
+				{
+					my $ip_type  = $1;
+					my $hash_key = "ipv".$ip_type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						ip_type  => $ip_type, 
+						hash_key => $hash_key, 
+					}});
+					
+					$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway} = $value;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"interface::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway},
+					}});
+				}
 			}
 		}
 	}
@@ -134,6 +273,13 @@ sub get_interfaces
 			$anvil->data->{interface}{uuid}{$uuid}{type}        = "";
 			$anvil->data->{interface}{uuid}{$uuid}{mtu}         = 0;
 			
+			# The 'connection.timestamp' seems to be where the 'connected' (as in, have an IP) 
+			# comes from.
+			$anvil->data->{interface}{uuid}{$uuid}{connected} = $anvil->data->{interface}{uuid}{$uuid}{'connection.timestamp'} ? $anvil->data->{interface}{uuid}{$uuid}{'connection.timestamp'} : 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"interface::uuid::${uuid}::connected" => $anvil->data->{interface}{uuid}{$uuid}{connected},
+			}});
+			
 			# MAC address
 			my $mac_address_file = "/sys/class/net/".$device."/address";
 			my $type_file        = "/sys/class/net/".$device."/type";
@@ -146,9 +292,11 @@ sub get_interfaces
 				
 				if (($mac_address) && ($mac_address ne "!!error!!"))
 				{
-					$anvil->data->{interface}{uuid}{$uuid}{mac_address} = $mac_address;
+					$anvil->data->{interface}{uuid}{$uuid}{mac_address}        = $mac_address;
+					$anvil->data->{interface}{mac_address}{$mac_address}{uuid} = $uuid;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"interface::uuid::${uuid}::mac_address" => $anvil->data->{interface}{uuid}{$uuid}{mac_address},
+						"interface::uuid::${uuid}::mac_address"        => $anvil->data->{interface}{uuid}{$uuid}{mac_address},
+						"interface::mac_address::${mac_address}::uuid" => $anvil->data->{interface}{mac_address}{$mac_address}{uuid},
 					}});
 				}
 			}
@@ -186,15 +334,123 @@ sub get_interfaces
 	# Now lets confirm we got all the interfaces, including the down'ed ones.
 	foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{interface}{device}})
 	{
-		my $uuid        = $anvil->data->{interface}{device}{$device}{uuid};
-		my $name        = $anvil->data->{interface}{uuid}{$uuid}{'connection.id'};
-		my $mac_address = $anvil->data->{interface}{uuid}{$uuid}{mac_address};
-		my $type        = $anvil->data->{interface}{uuid}{$uuid}{type};
-		my $mtu_type    = $anvil->data->{interface}{uuid}{$uuid}{'802-3-ethernet.mtu'};
-		my $mtu         = $anvil->data->{interface}{uuid}{$uuid}{mtu};
+		my $uuid         = $anvil->data->{interface}{device}{$device}{uuid};
+		my $name         = $anvil->data->{interface}{uuid}{$uuid}{'connection.id'};
+		my $mac_address  = $anvil->data->{interface}{uuid}{$uuid}{mac_address};
+		my $type         = $anvil->data->{interface}{uuid}{$uuid}{type};
+		my $mtu_type     = $anvil->data->{interface}{uuid}{$uuid}{'802-3-ethernet.mtu'};
+		my $mtu          = $anvil->data->{interface}{uuid}{$uuid}{mtu};
+		my $active       = $anvil->data->{interface}{uuid}{$uuid}{active};
+		my $state        = $anvil->data->{interface}{uuid}{$uuid}{'state'};
+		my $connected    = $anvil->data->{interface}{uuid}{$uuid}{connected};
+		my $ipv4_dns     = $anvil->data->{interface}{uuid}{$uuid}{ipv4}{dns}     // "--";
+		my $ipv4_gateway = $anvil->data->{interface}{uuid}{$uuid}{ipv4}{gateway} // "--";
+		my $ip_count     = keys %{$anvil->data->{interface}{uuid}{$uuid}{ipv4}{ip}};
+		my $route_count  = keys %{$anvil->data->{interface}{uuid}{$uuid}{ipv4}{route}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s01:device"       => $device,
+			"s02:uuid"         => $uuid, 
+			"s03:name"         => $name, 
+			"s04:mac_address"  => $mac_address, 
+			"s05:type"         => $type, 
+			"s06:mtu_type"     => $mtu_type, 
+			"s07:active"       => $active, 
+			"s08:state"        => $state, 
+			"s09:connected"    => $connected, 
+			"s10:ipv4_dns"     => $ipv4_dns, 
+			"s11:ipv4_gateway" => $ipv4_gateway, 
+			"s12:ip_count"     => $ip_count, 
+			"s13:route_count"  => $route_count, 
+		}});
 		
-		print "- Device: [".$device."], UUID: [".$uuid."], name: [".$name."]\n";
-		print " - MAC: [".$mac_address."], Type: [".$type."], MTU: [".$mtu."] MTU type: [".$mtu_type."]\n";
+		print "- Device: [".$device."], Name: [".$name."], MAC: [".$mac_address."], UUID: [".$uuid."]\n";
+# $anvil->data->{network_manager}{want}{ifn1_link1}{mac_address} = "52:54:00:d3:19:cc";
+# $anvil->data->{network_manager}{want}{ifn1_link1}{device}      = "enp1s0";
+# $anvil->data->{network_manager}{want}{ifn1_link1}{found}       = 0;
+		if (exists $anvil->data->{network_manager}{want}{$device})
+		{
+			# We know this device. Does it match the expected MAC address?
+			my $wanted_mac_address = $anvil->data->{network_manager}{want}{ifn1_link1}{mac_address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wanted_mac_address => $wanted_mac_address }});
+			if (lc($wanted_mac_address) eq lc($mac_address))
+			{
+				print " - Interface is configured as desired.\n";
+			}
+			else
+			{
+				print " - The MAC address doesn't match the desired MAC address!\n";
+			}
+		}
+		else
+		{
+			print " - This interface isn't one of the matched ones. Check if this should be reconfigured.\n";
+			my $reconfigure_to = "";
+			foreach my $wanted_interface (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{want}})
+			{
+				my $wanted_device      = $anvil->data->{network_manager}{want}{$wanted_interface}{device};
+				my $wanted_mac_address = $anvil->data->{network_manager}{want}{$wanted_interface}{mac_address};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					wanted_interface   => $wanted_interface, 
+					wanted_device      => $wanted_device, 
+					wanted_mac_address => $wanted_mac_address,
+				}});
+				
+				# If this device already exists, skip it.
+				if (exists $anvil->data->{interface}{device}{$wanted_interface})
+				{
+					next;
+				}
+				
+				if ($mac_address eq $wanted_mac_address)
+				{
+					# MAC address always takes priority.
+					$reconfigure_to = $wanted_interface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reconfigure_to => $reconfigure_to }});
+					next;
+				}
+				elsif ((not $reconfigure_to) && ($wanted_device eq $name))
+				{
+					$reconfigure_to = $wanted_interface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reconfigure_to => $reconfigure_to }});
+					next;
+				}
+			}
+			if ($reconfigure_to)
+			{
+				# Reconfigure!
+				print " - This should be: [".$reconfigure_to."]\n";
+			}
+		}
+		
+		#print "- Device: [".$device."], UUID: [".$uuid."], name: [".$name."], state: [".$active."], active?: [".$active."], state: [".$state."], connected: [".$connected."]\n";
+		#print " - MAC: [".$mac_address."], Type: [".$type."], MTU: [".$mtu."] MTU type: [".$mtu_type."], IPv4 DNS: [".$ipv4_dns."], Gateway: [".$ipv4_gateway."], IPs: [".$ip_count."], routes: [".$route_count."]\n";
+		if ($ip_count)
+		{
+			foreach my $sequence (sort {$a <=> $b} keys %{$anvil->data->{interface}{uuid}{$uuid}{ipv4}{ip}})
+			{
+				my $ip_address  = $anvil->data->{interface}{uuid}{$uuid}{ipv4}{ip}{$sequence}{ip_address};
+				my $subnet_mask = $anvil->data->{interface}{uuid}{$uuid}{ipv4}{ip}{$sequence}{subnet_mask};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:sequence"    => $sequence, 
+					"s2:ip_address"  => $ip_address, 
+					"s3:subnet_mask" => $subnet_mask, 
+				}});
+				print " - ".$sequence.": IPv4 IP: [".$ip_address."], subnet mask: [".$subnet_mask."]\n";
+			}
+		}
+		if ($route_count)
+		{
+			foreach my $sequence (sort {$a <=> $b} keys %{$anvil->data->{interface}{uuid}{$uuid}{ipv4}{route}})
+			{
+				my $route = $anvil->data->{interface}{uuid}{$uuid}{ipv4}{route}{$sequence};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:sequence" => $sequence, 
+					"s2:route"    => $route, 
+				}});
+				#print " - ".$sequence.": Route: [".$route."]\n";
+			}
+		}
+		#print "--------\n";
 	}
 	
 	return(0);
