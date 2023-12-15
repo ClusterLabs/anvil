@@ -173,16 +173,16 @@ export const buildManifest = async (
         `Host number must be an integer; got [${hostNumber}]`,
       );
 
-      assert(
-        REP_IPV4.test(ipmiIp),
-        `IPMI IP of ${hostId} must be an IPv4; got [${ipmiIp}]`,
-      );
+      if (ipmiIp) {
+        assert(
+          REP_IPV4.test(ipmiIp),
+          `IPMI IP of ${hostId} must be an IPv4; got [${ipmiIp}]`,
+        );
+
+        hosts[`${hostId}_ipmi_ip`] = ipmiIp;
+      }
 
       assert.ok(networks, `Host networks is required`);
-
-      const ipmiIpKey = `${hostId}_ipmi_ip`;
-
-      hosts[ipmiIpKey] = ipmiIp;
 
       try {
         Object.values(networks).forEach(
