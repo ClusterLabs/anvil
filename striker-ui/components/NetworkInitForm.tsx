@@ -233,7 +233,7 @@ const createNetworkInterfaceTableColumns = (
           colour={networkInterfaceState === 'up' ? 'ok' : 'off'}
           sx={{ height: 'auto' }}
         />
-        <SmallText text={value} />
+        <MonoText>{value}</MonoText>
       </MUIBox>
     ),
   },

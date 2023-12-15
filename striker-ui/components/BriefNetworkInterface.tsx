@@ -9,7 +9,7 @@ import { Close as MUICloseIcon } from '@mui/icons-material';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
-import { BodyText } from './Text';
+import { MonoText } from './Text';
 
 type BriefNetworkInterfaceOptionalProps = {
   isFloating?: boolean;
@@ -66,7 +66,7 @@ const BriefNetworkInterface: FC<
         ...restRootProps,
       }}
     >
-      <BodyText text={networkInterfaceName} />
+      <MonoText>{networkInterfaceName}</MonoText>
       {onClose && (
         <MUIIconButton onClick={onClose} size="small" sx={{ color: GREY }}>
           <MUICloseIcon />
