@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use Data::Dumper;
-use Sys::Virt;
+use Text::Diff;
 use Anvil::Tools;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
@@ -50,13 +50,200 @@ $anvil->data->{network_manager}{want}{sn1_link2}{mac_address}  = "52:54:00:2f:02
 $anvil->data->{network_manager}{want}{sn1_link2}{device}       = "enp11s0";
 $anvil->data->{network_manager}{want}{sn1_link2}{found}        = 0;
 
+$anvil->data->{sys}{reboot_needed} = 0;
+
 scan($anvil);
 
+reconfigure($anvil);
 
+
+$anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub reconfigure
+{
+	my ($anvil) = @_;
+	
+	my $reconfigure_count = keys %{$anvil->data->{network_manager}{reconfigure}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reconfigure_count => $reconfigure_count }});
+	if (not $reconfigure_count)
+	{
+		return(0);
+	}
+	
+	foreach my $wanted_interface (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{reconfigure}})
+	{
+		my $uuid        = $anvil->data->{network_manager}{reconfigure}{$wanted_interface}{from_uuid};
+		my $old_device  = $anvil->data->{interface}{uuid}{$uuid}{device};
+		my $name        = $anvil->data->{interface}{uuid}{$uuid}{'connection.id'};
+		my $mac_address = $anvil->data->{interface}{uuid}{$uuid}{mac_address};
+		my $type        = $anvil->data->{interface}{uuid}{$uuid}{type};
+		print "Renaming old device/name: [".$old_device."/".$name."] with MAC: [".$mac_address."] to: [".$wanted_interface."] using UUID: [".$uuid."]\n";
+		
+		# Read persistent-net and see if it needs to be updated.
+		my $new_persistent_net = "";
+		my $old_persistent_net = "";
+		if (-e $anvil->data->{path}{configs}{'persistent-net'})
+		{
+			$old_persistent_net = $anvil->Storage->read_file({debug => 2, file => $anvil->data->{path}{configs}{'persistent-net'}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_persistent_net => $old_persistent_net }});
+		}
+		foreach my $line (split/\n/, $old_persistent_net)
+		{
+			# If this MAC or device name exists already, delete the line.
+			if (($line =~ /"$mac_address"/) or ($line =~ /"$wanted_interface"/))
+			{
+				next;
+			}
+			$new_persistent_net .= $line."\n";
+		}
+		$new_persistent_net .= "SUBSYSTEM==\"net\",ACTION==\"add\",ATTR{address}==\"".$mac_address."\",ATTR{type}==\"".$type."\",NAME=\"".$wanted_interface."\"\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_persistent_net => $new_persistent_net }});
+		
+		my $difference = diff \$old_persistent_net, \$new_persistent_net, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+		
+		# Write the new file.
+		if ($difference)
+		{
+			print "- Updating the udev file: [".$anvil->data->{path}{configs}{'persistent-net'}."]\n";
+			my $problem = $anvil->Storage->write_file({
+				file      => $anvil->data->{path}{configs}{'persistent-net'}, 
+				body      => $new_persistent_net,
+				overwrite => 1,
+				user  => "admin", 
+				group => "admin", 
+				mode  => "0644",
+				
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if ($problem)
+			{
+				print "[ Error ] - Failed to write the new: [".$anvil->data->{path}{configs}{'persistent-net'}."] file, aborting!\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		
+		# Update the connection.interface-name
+		my $connection_interface_name = $anvil->data->{interface}{uuid}{$uuid}{'connection.interface-name'} ? $anvil->data->{interface}{uuid}{$uuid}{'connection.interface-name'} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_interface_name => $connection_interface_name }});
+		if ($connection_interface_name)
+		{
+			print "- Removing the old 'connection.interface-name': [".$connection_interface_name."]\n";
+			my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." connection.interface-name \"\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.interface-name connection show ".$uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			if ($output)
+			{
+				# This should have been blank
+				print "[ Error ] - Failed to delete the 'connection.interface-name', got: [".$output."] and it should bhave been blank, aborting!\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		
+		# We'll log what it was, and change it anyway
+		my $match_interface_name = $anvil->data->{interface}{uuid}{$uuid}{'match.interface-name'} ? $anvil->data->{interface}{uuid}{$uuid}{'match.interface-name'} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match_interface_name => $match_interface_name }});
+		if (1)
+		{
+			print "- Matching the new interface name: [".$wanted_interface."] to the bios device name: [".$old_device."]\n";
+			my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." match.interface-name \"".$wanted_interface." ".$old_device."\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			# Read it back
+			$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values match.interface-name connection show ".$uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			if (($output ne $wanted_interface.",".$old_device) && ($output ne $old_device.",".$wanted_interface))
+			{
+				# This should have been blank
+				print "[ Error ] - Failed to create the 'match.interface-name' value. Expected: [".$wanted_interface.",".$old_device."], got: [".$output."], aborting!\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			# Set the connection.id to the old name.
+			print "- Setting the connection.id to the bios device name: [".$old_device."]\n";
+			$shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." connection.id \"".$old_device."\"";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			# Read it back
+			$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.id connection show ".$uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+		}
+		
+		# Set the reboot flag.
+		$anvil->data->{sys}{reboot_needed} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::reboot_needed" => $anvil->data->{sys}{reboot_needed} }});
+	}
+	
+	if ($anvil->data->{sys}{reboot_needed})
+	{
+		print "Reboot needed.\n";
+		print "- Regenerating dracute initrd image, this can take a moment...\n";
+		my $shell_call = $anvil->data->{path}{exe}{dracut}." --force";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		print "- New initrd image created, rebooting in 60 seconds (press 'ctrl + c' to abort).\n";
+		my $timeout = 60;
+		while($timeout)
+		{
+			if ($timeout % 10)
+			{
+				print "."
+			}
+			else
+			{
+				print $timeout;
+			}
+			sleep 1;
+			$timeout--;
+		}
+		print "0\n";
+		
+	}
+	
+	return(0);
+}
 
 sub scan
 {
@@ -64,7 +251,6 @@ sub scan
 	
 	# Get a list of interfaces.
 	get_interfaces($anvil);
-	
 	
 	return(0);
 }
@@ -116,6 +302,7 @@ sub get_interfaces
 		# Collect all the rest of the data now.
 		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection show ".$uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			output      => $output,
@@ -269,6 +456,7 @@ sub get_interfaces
 			}});
 		
 			### Get some data from sysfs.
+			$anvil->data->{interface}{uuid}{$uuid}{device}      = $device;
 			$anvil->data->{interface}{uuid}{$uuid}{mac_address} = "";
 			$anvil->data->{interface}{uuid}{$uuid}{type}        = "";
 			$anvil->data->{interface}{uuid}{$uuid}{mtu}         = 0;
@@ -363,7 +551,7 @@ sub get_interfaces
 			"s13:route_count"  => $route_count, 
 		}});
 		
-		print "- Device: [".$device."], Name: [".$name."], MAC: [".$mac_address."], UUID: [".$uuid."]\n";
+		#print "- Device: [".$device."], Name: [".$name."], MAC: [".$mac_address."], UUID: [".$uuid."]\n";
 # $anvil->data->{network_manager}{want}{ifn1_link1}{mac_address} = "52:54:00:d3:19:cc";
 # $anvil->data->{network_manager}{want}{ifn1_link1}{device}      = "enp1s0";
 # $anvil->data->{network_manager}{want}{ifn1_link1}{found}       = 0;
@@ -374,16 +562,16 @@ sub get_interfaces
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wanted_mac_address => $wanted_mac_address }});
 			if (lc($wanted_mac_address) eq lc($mac_address))
 			{
-				print " - Interface is configured as desired.\n";
+				#print " - Interface is configured as desired.\n";
 			}
 			else
 			{
-				print " - The MAC address doesn't match the desired MAC address!\n";
+				#print " - The MAC address doesn't match the desired MAC address!\n";
 			}
 		}
 		else
 		{
-			print " - This interface isn't one of the matched ones. Check if this should be reconfigured.\n";
+			#print " - This interface isn't one of the matched ones. Check if this should be reconfigured.\n";
 			my $reconfigure_to = "";
 			foreach my $wanted_interface (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{want}})
 			{
@@ -418,7 +606,11 @@ sub get_interfaces
 			if ($reconfigure_to)
 			{
 				# Reconfigure!
-				print " - This should be: [".$reconfigure_to."]\n";
+				#print " - This should be: [".$reconfigure_to."]\n";
+				$anvil->data->{network_manager}{reconfigure}{$reconfigure_to}{from_uuid} = $uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"network_manager::reconfigure::${reconfigure_to}::from_uuid" => $anvil->data->{network_manager}{reconfigure}{$reconfigure_to}{from_uuid},
+				}});
 			}
 		}
 		
@@ -435,7 +627,7 @@ sub get_interfaces
 					"s2:ip_address"  => $ip_address, 
 					"s3:subnet_mask" => $subnet_mask, 
 				}});
-				print " - ".$sequence.": IPv4 IP: [".$ip_address."], subnet mask: [".$subnet_mask."]\n";
+				#print " - ".$sequence.": IPv4 IP: [".$ip_address."], subnet mask: [".$subnet_mask."]\n";
 			}
 		}
 		if ($route_count)
