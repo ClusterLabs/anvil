@@ -9,7 +9,6 @@ import { Close as MUICloseIcon } from '@mui/icons-material';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
-import Decorator from './Decorator';
 import { BodyText } from './Text';
 
 type BriefNetworkInterfaceOptionalProps = {
@@ -32,7 +31,7 @@ const BriefNetworkInterface: FC<
     }
 > = ({
   isFloating,
-  networkInterface: { networkInterfaceName, networkInterfaceState },
+  networkInterface: { networkInterfaceName },
   onClose,
   sx: rootSx,
   ...restRootProps
@@ -54,9 +53,9 @@ const BriefNetworkInterface: FC<
         sx: {
           display: 'flex',
           flexDirection: 'row',
+          alignItems: 'center',
 
           '& > :not(:first-child)': {
-            alignSelf: 'center',
             marginLeft: '.5em',
           },
 
@@ -67,10 +66,6 @@ const BriefNetworkInterface: FC<
         ...restRootProps,
       }}
     >
-      <Decorator
-        colour={networkInterfaceState === 'up' ? 'ok' : 'off'}
-        sx={{ height: 'auto' }}
-      />
       <BodyText text={networkInterfaceName} />
       {onClose && (
         <MUIIconButton onClick={onClose} size="small" sx={{ color: GREY }}>
