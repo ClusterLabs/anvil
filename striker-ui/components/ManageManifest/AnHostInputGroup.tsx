@@ -377,7 +377,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                       inputIdAHIpmiIp,
                     )}
                     onUnmount={buildInputUnmountFunction(inputIdAHIpmiIp)}
-                    required
                   />
                 ),
               },
