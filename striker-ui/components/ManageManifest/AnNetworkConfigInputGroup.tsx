@@ -1,3 +1,4 @@
+import { Netmask } from 'netmask';
 import { ReactElement, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -30,8 +31,45 @@ const DEFAULT_DNS_CSV = '8.8.8.8,8.8.4.4';
 
 const NETWORK_TYPE_ENTRIES = Object.entries(NETWORK_TYPES);
 
+const MAP_TO_NETWORK_DEFAULTS: Record<string, { base: string; mask: string }> =
+  {
+    bcn: { base: '10.201.0.0', mask: '255.255.0.0' },
+    mn: { base: '10.199.0.0', mask: '255.255.0.0' },
+    sn: { base: '10.101.0.0', mask: '255.255.0.0' },
+  };
+
 const assertIfn = (type: string) => type === 'ifn';
 const assertMn = (type: string) => type === 'mn';
+
+const guessNetworkMinIp = ({
+  entries,
+  type,
+}: {
+  entries: [string, ManifestNetwork][];
+  type: string;
+}): { base?: string; mask?: string } => {
+  const last = entries
+    .filter(([, { networkType }]) => networkType === type)
+    .sort(([, { networkNumber: a }], [, { networkNumber: b }]) =>
+      a > b ? 1 : -1,
+    )
+    .pop();
+
+  if (!last) {
+    return MAP_TO_NETWORK_DEFAULTS[type] ?? {};
+  }
+
+  const [, { networkMinIp, networkSubnetMask }] = last;
+
+  try {
+    const block = new Netmask(`${networkMinIp}/${networkSubnetMask}`);
+    const { base, mask } = block.next();
+
+    return { base, mask };
+  } catch (error) {
+    return {};
+  }
+};
 
 const AnNetworkConfigInputGroup = <
   M extends MapToInputTestID & {
@@ -105,17 +143,25 @@ const AnNetworkConfigInputGroup = <
     }: Partial<ManifestNetwork> = {}): {
       network: ManifestNetwork;
       networkId: string;
-    } => ({
-      network: {
-        networkGateway,
-        networkMinIp,
-        networkNumber,
-        networkSubnetMask,
-        networkType,
-      },
-      networkId: uuidv4(),
-    }),
-    [getNetworkNumber],
+    } => {
+      const { base = networkMinIp, mask = networkSubnetMask } =
+        guessNetworkMinIp({
+          entries: networkListEntries,
+          type: networkType,
+        });
+
+      return {
+        network: {
+          networkGateway,
+          networkMinIp: base,
+          networkNumber,
+          networkSubnetMask: mask,
+          networkType,
+        },
+        networkId: uuidv4(),
+      };
+    },
+    [getNetworkNumber, networkListEntries],
   );
 
   const setNetwork = useCallback(
@@ -156,7 +202,13 @@ const AnNetworkConfigInputGroup = <
 
       const newList = networkListEntries.reduce<ManifestNetworkList>(
         (previous, [networkId, networkValue]) => {
-          const { networkNumber: initnn, networkType: initnt } = networkValue;
+          const {
+            networkNumber: initnn,
+            networkType: initnt,
+            networkMinIp: initbase,
+            networkSubnetMask: initmask,
+            ...restNetworkValue
+          } = networkValue;
 
           let networkNumber = initnn;
           let networkType = initnt;
@@ -180,8 +232,18 @@ const AnNetworkConfigInputGroup = <
               networkNumber -= 1;
             }
 
+            const {
+              base: networkMinIp = initbase,
+              mask: networkSubnetMask = initmask,
+            } = guessNetworkMinIp({
+              entries: networkListEntries,
+              type: networkType,
+            });
+
             previous[networkId] = {
-              ...networkValue,
+              ...restNetworkValue,
+              networkMinIp,
+              networkSubnetMask,
               networkNumber,
               networkType,
             };
