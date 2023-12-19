@@ -47,6 +47,8 @@ import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 import useProtectedState from '../../hooks/useProtectedState';
 
+const REQ_BODY_MAX_DEPTH = 6;
+
 const getFormData = (
   ...[{ target }]: DivFormEventHandlerParameters
 ): APIBuildManifestRequestBody => {
@@ -262,7 +264,7 @@ const ManageManifestPanel: FC = () => {
 
         setConfirmDialogProps({
           actionProceedText: 'Add',
-          content: <FormSummary entries={body} />,
+          content: <FormSummary entries={body} maxDepth={REQ_BODY_MAX_DEPTH} />,
           onProceedAppend: () => {
             submitForm({
               body,
@@ -311,7 +313,7 @@ const ManageManifestPanel: FC = () => {
 
         setConfirmDialogProps({
           actionProceedText: 'Edit',
-          content: <FormSummary entries={body} />,
+          content: <FormSummary entries={body} maxDepth={REQ_BODY_MAX_DEPTH} />,
           onProceedAppend: () => {
             submitForm({
               body,
@@ -605,6 +607,7 @@ const ManageManifestPanel: FC = () => {
         {...confirmDialogProps}
         ref={confirmDialogRef}
         scrollContent
+        wide
       />
     </>
   );

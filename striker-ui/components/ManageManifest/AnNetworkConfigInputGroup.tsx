@@ -124,6 +124,26 @@ const AnNetworkConfigInputGroup = <
     [setNetworkList],
   );
 
+  const setNetworkProp = useCallback(
+    <P extends keyof ManifestNetwork>(
+      nkey: string,
+      pkey: P,
+      value: ManifestNetwork[P],
+    ) =>
+      setNetworkList((previous) => {
+        const nyu = { ...previous };
+
+        const { [nkey]: nw } = nyu;
+
+        if (nw) {
+          nw[pkey] = value;
+        }
+
+        return nyu;
+      }),
+    [setNetworkList],
+  );
+
   const handleNetworkTypeChange = useCallback<AnNetworkTypeChangeEventHandler>(
     (
       { networkId: targetId, networkType: previousType },
@@ -243,6 +263,14 @@ const AnNetworkConfigInputGroup = <
               networkType={networkType}
               networkTypeOptions={networkTypeOptions}
               onClose={handleNetworkRemove}
+              onNetworkMinIpChange={(
+                { networkId: nid },
+                { target: { value } },
+              ) => setNetworkProp(nid, 'networkMinIp', value)}
+              onNetworkSubnetMaskChange={(
+                { networkId: nid },
+                { target: { value } },
+              ) => setNetworkProp(nid, 'networkSubnetMask', value)}
               onNetworkTypeChange={handleNetworkTypeChange}
               previous={{
                 gateway: networkGateway,
@@ -265,11 +293,12 @@ const AnNetworkConfigInputGroup = <
 
     return result;
   }, [
-    formUtils,
     networkListEntries,
+    formUtils,
     networkTypeOptions,
     handleNetworkRemove,
     handleNetworkTypeChange,
+    setNetworkProp,
   ]);
 
   return (
