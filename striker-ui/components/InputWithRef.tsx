@@ -198,6 +198,23 @@ const InputWithRef = forwardRef(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    /**
+     * Update the input value to the init value until it's changed by the user.
+     * This allows us to populate the input based on value from other field(s).
+     */
+    useEffect(() => {
+      if (isChangedByUser || !initValue) return;
+
+      const valid =
+        testInput?.call(null, {
+          inputs: { [INPUT_TEST_ID]: { value: initValue } },
+          isIgnoreOnCallbacks: true,
+        }) ?? false;
+
+      setIsInputValid(valid);
+      setInputValue(initValue);
+    }, [initValue, isChangedByUser, testInput]);
+
     useImperativeHandle(
       ref,
       () => ({
