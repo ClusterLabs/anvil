@@ -80,10 +80,12 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             fences: previousFenceList = {},
             hostNumber,
             hostType,
-            ipmiIp,
+            ipmiIp: previousIpmiIp,
             networks: previousNetworkList = {},
             upses: previousUpsList = {},
           }: ManifestHost = previousHostArgs;
+
+          let ipmiIp = previousIpmiIp;
 
           const fences = knownFenceListValues.reduce<ManifestHostFenceList>(
             (fenceList, { fenceName }) => {
@@ -96,6 +98,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             },
             {},
           );
+
           const networks = networkListEntries.reduce<ManifestHostNetworkList>(
             (
               networkList,
@@ -116,6 +119,16 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
                 });
               }
 
+              if (!ipmiIp && networkType === 'bcn' && networkNumber === 1) {
+                ipmiIp = guessHostIpOnNetwork({
+                  anSeq: anSequence,
+                  minIp: networkMinIp,
+                  offset3: 11,
+                  subnetMask: networkSubnetMask,
+                  subSeq: hostNumber,
+                });
+              }
+
               networkList[networkId] = {
                 networkIp,
                 networkNumber,
@@ -126,6 +139,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             },
             {},
           );
+
           const upses = knownUpsListValues.reduce<ManifestHostUpsList>(
             (upsList, { upsName }) => {
               const { [upsName]: { isUsed = true } = {} } = previousUpsList;
