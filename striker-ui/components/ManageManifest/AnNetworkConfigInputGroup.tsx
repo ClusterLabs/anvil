@@ -136,7 +136,11 @@ const AnNetworkConfigInputGroup = <
     ({
       networkMinIp = '',
       networkSubnetMask = '',
-      networkType = 'ifn',
+      networkType = networkListEntries.some(([, { networkType: nt }]) =>
+        assertMn(nt),
+      )
+        ? 'ifn'
+        : 'mn',
       // Params that depend on others.
       networkGateway = assertIfn(networkType) ? '' : undefined,
       networkNumber = getNetworkNumber(networkType) + 1,
