@@ -267,24 +267,29 @@ const AnNetworkConfigInputGroup = <
 
   const handleNetworkRemove = useCallback<AnNetworkCloseEventHandler>(
     ({ networkId: rmId, networkType: rmType }) => {
-      let isIdMatch = false;
+      let postMatch = false;
       let networkNumber = 0;
 
       const newList = networkListEntries.reduce<ManifestNetworkList>(
         (previous, [networkId, networkValue]) => {
           if (networkId === rmId) {
-            isIdMatch = true;
-          } else {
-            const { networkType } = networkValue;
+            postMatch = true;
 
-            if (networkType === rmType) {
-              networkNumber += 1;
-            }
+            return previous;
+          }
 
-            previous[networkId] = isIdMatch
+          const { networkType } = networkValue;
+
+          const change = networkType === rmType;
+
+          if (change) {
+            networkNumber += 1;
+          }
+
+          previous[networkId] =
+            postMatch && change
               ? { ...networkValue, networkNumber }
               : networkValue;
-          }
 
           return previous;
         },
