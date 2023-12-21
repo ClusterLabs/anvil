@@ -95,6 +95,139 @@ sub reconfigure
 	return(0);
 }
 
+sub reconfigure_ip_addresses
+{
+	my ($anvil) = @_;
+	
+	
+	
+	return(0);
+}
+
+sub reconfigure_bridges
+{
+	my ($anvil) = @_;
+	
+	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{want}{bridge}})
+	{
+		my $on_device = $anvil->data->{network_manager}{want}{bridge}{$bridge_name}{on};
+		print "Checking if the bridge: [".$bridge_name."] exists and that it is on: [".$on_device."]\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bridge_name => $bridge_name,
+			on_device   => $on_device, 
+		}});
+		
+		if (exists $anvil->data->{interface}{bridge}{$bridge_name})
+		{
+			# The bridge exists.
+			print "- The bridge exists!\n";
+		}
+		else
+		{
+			# Create the bridge.
+			my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection add type bridge con-name ".$bridge_name." ifname ".$bridge_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			
+			if ($return_code)
+			{
+				print "[ Error ] - The attempt to add the bridge failed! The return code was: [".$return_code."]. The output, if any, was:\n";
+				print "========\n";
+				print $output."\n";
+				print "========\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			my $bridge_uuid = ($output =~ /\((.*?)\) successfully added/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_uuid => $bridge_uuid }});
+			
+			if ($bridge_uuid)
+			{
+				print " - Disabling DHCP on the new bridge device: [".$bridge_uuid."].\n";
+				my ($output, $return_code) = modify_connection($anvil, $bridge_uuid, "ipv4.method", "disabled");
+				   ($output, $return_code) = modify_connection($anvil, $bridge_uuid, "ipv6.method", "disabled");
+				
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bridge_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+			
+			# Rescan.
+			print " - Done! Rescanning the network config.\n";
+			collect_data($anvil);
+		}
+		
+		print "- Checking that the device: [".$on_device."] is connected to this bridge.\n";
+		my $bridge_uuid          = $anvil->data->{interface}{bridge}{$bridge_name}{uuid};
+		my $on_device_uuid       = $anvil->data->{interface}{device}{$on_device}{uuid}                       // "";
+		my $on_device_parent     = $anvil->data->{interface}{uuid}{$on_device_uuid}{'connection.master'}     // "";
+		my $on_device_child_type = $anvil->data->{interface}{uuid}{$on_device_uuid}{'connection.slave-type'} // "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			bridge_uuid          => $bridge_uuid,
+			on_device_uuid       => $on_device_uuid, 
+			on_device_parent     => $on_device_parent, 
+			on_device_child_type => $on_device_child_type, 
+		}});
+		
+		die if not $on_device_uuid;
+		
+		if ($on_device_parent)
+		{
+			if ($on_device_parent eq $bridge_name)
+			{
+				print "- The device is connected to the bridge already.\n";
+				next;
+			}
+			else
+			{
+				print "- The device is on the bridge: [".$on_device_parent."], moving it.\n";
+			}
+		}
+		else
+		{
+			print "- The device is not on this bridge, connecting it.\n";
+		}
+		
+		print " - Disabling DHCP on the device: [".$on_device."] (".$on_device_uuid.") before connecting it.\n";
+		my ($output, $return_code) = modify_connection($anvil, $on_device_uuid, "ipv4.method", "disabled");
+		   ($output, $return_code) = modify_connection($anvil, $on_device_uuid, "ipv6.method", "disabled");
+		
+		print " - Connecting it now.\n";
+		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$on_device_uuid." master ".$bridge_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		if ($return_code)
+		{
+			print "[ Error ] - The attempt to add the bridge failed! The return code was: [".$return_code."]. The output, if any, was:\n";
+			print "========\n";
+			print $output."\n";
+			print "========\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		print " - Done! Rescanning the network config.\n";
+		($output, $return_code) = reset_connection($anvil, $on_device_uuid);
+		
+		# Rescan.
+		collect_data($anvil);
+	}
+	
+	return(0);
+}
+
 sub reconfigure_bonds
 {
 	my ($anvil) = @_;
@@ -142,6 +275,14 @@ sub reconfigure_bonds
 				print " - Disabling DHCP on the new bond device: [".$bond_uuid."].\n";
 				my ($output, $return_code) = modify_connection($anvil, $bond_uuid, "ipv4.method", "disabled");
 				   ($output, $return_code) = modify_connection($anvil, $bond_uuid, "ipv6.method", "disabled");
+				
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bond_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
 			}
 			
 			# Rescan.
@@ -213,32 +354,6 @@ sub reconfigure_bonds
 			collect_data($anvil);
 		}
 	}
-	
-	return(0);
-}
-
-sub reconfigure_bridges
-{
-	my ($anvil) = @_;
-	
-	foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{want}{bridge}})
-	{
-		my $on_device = $anvil->data->{network_manager}{want}{bridge}{$bridge_name}{on};
-		print "Checking if the bridge: [".$bridge_name."] exists and that it is on: [".$on_device."]\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			bridge_name => $bridge_name,
-			on_device   => $on_device, 
-		}});
-	}
-	
-	return(0);
-}
-
-sub reconfigure_ip_addresses
-{
-	my ($anvil) = @_;
-	
-	
 	
 	return(0);
 }
@@ -469,6 +584,13 @@ sub collect_data
 					"interface::bond::${device}::uuid" => $anvil->data->{interface}{bond}{$device}{uuid},
 				}});
 			}
+			elsif ($device_type eq "bridge")
+			{
+				$anvil->data->{interface}{bridge}{$device}{uuid} = $uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"interface::bridge::${device}::uuid" => $anvil->data->{interface}{bridge}{$device}{uuid},
+				}});
+			}
 			elsif ($device_type eq "802-3-ethernet")
 			{
 				$anvil->data->{interface}{phy}{$device}{uuid} = $uuid;
@@ -535,7 +657,7 @@ sub collect_data
 		my $name         = $anvil->data->{interface}{uuid}{$uuid}{'connection.id'};
 		my $mac_address  = $anvil->data->{interface}{uuid}{$uuid}{mac_address};
 		my $type         = $anvil->data->{interface}{uuid}{$uuid}{type};
-		my $mtu_type     = $anvil->data->{interface}{uuid}{$uuid}{'802-3-ethernet.mtu'};
+		my $mtu_type     = $anvil->data->{interface}{uuid}{$uuid}{'802-3-ethernet.mtu'} // "";
 		my $mtu          = $anvil->data->{interface}{uuid}{$uuid}{mtu};
 		my $active       = $anvil->data->{interface}{uuid}{$uuid}{active};
 		my $state        = $anvil->data->{interface}{uuid}{$uuid}{'state'};
