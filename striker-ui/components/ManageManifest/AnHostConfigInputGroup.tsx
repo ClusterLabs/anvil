@@ -1,3 +1,4 @@
+import { Netmask } from 'netmask';
 import { ReactElement, useMemo } from 'react';
 
 import AnHostInputGroup from './AnHostInputGroup';
@@ -19,7 +20,39 @@ const DEFAULT_HOST_LIST: ManifestHostList = {
   },
 };
 
+const guessHostIpOnNetwork = ({
+  anSeq,
+  minIp,
+  offset3 = 10,
+  step3 = 2,
+  subnetMask,
+  subSeq,
+}: {
+  anSeq: number;
+  minIp: string;
+  offset3?: number;
+  step3?: number;
+  subnetMask: string;
+  subSeq: number;
+}): string => {
+  try {
+    const block = new Netmask(`${minIp}/${subnetMask}`);
+
+    if (block.bitmask !== 16) {
+      return `${block.base.replace(/\.0/g, '')}.`;
+    }
+
+    const third = (anSeq - 1) * step3 + offset3;
+    const fourth = subSeq;
+
+    return minIp.replace(/^((\d+\.){2})\d+\.\d+$/, `$1${third}.${fourth}`);
+  } catch (error) {
+    return '';
+  }
+};
+
 const AnHostConfigInputGroup = <M extends MapToInputTestID>({
+  anSequence,
   formUtils,
   knownFences = {},
   knownUpses = {},
@@ -47,10 +80,12 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             fences: previousFenceList = {},
             hostNumber,
             hostType,
-            ipmiIp,
+            ipmiIp: previousIpmiIp,
             networks: previousNetworkList = {},
             upses: previousUpsList = {},
           }: ManifestHost = previousHostArgs;
+
+          let ipmiIp = previousIpmiIp;
 
           const fences = knownFenceListValues.reduce<ManifestHostFenceList>(
             (fenceList, { fenceName }) => {
@@ -63,10 +98,36 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             },
             {},
           );
+
           const networks = networkListEntries.reduce<ManifestHostNetworkList>(
-            (networkList, [networkId, { networkNumber, networkType }]) => {
-              const { [networkId]: { networkIp = '' } = {} } =
+            (
+              networkList,
+              [
+                networkId,
+                { networkMinIp, networkNumber, networkSubnetMask, networkType },
+              ],
+            ) => {
+              let { [networkId]: { networkIp = '' } = {} } =
                 previousNetworkList;
+
+              if (!networkIp) {
+                networkIp = guessHostIpOnNetwork({
+                  anSeq: anSequence,
+                  minIp: networkMinIp,
+                  subnetMask: networkSubnetMask,
+                  subSeq: hostNumber,
+                });
+              }
+
+              if (!ipmiIp && networkType === 'bcn' && networkNumber === 1) {
+                ipmiIp = guessHostIpOnNetwork({
+                  anSeq: anSequence,
+                  minIp: networkMinIp,
+                  offset3: 11,
+                  subnetMask: networkSubnetMask,
+                  subSeq: hostNumber,
+                });
+              }
 
               networkList[networkId] = {
                 networkIp,
@@ -78,6 +139,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
             },
             {},
           );
+
           const upses = knownUpsListValues.reduce<ManifestHostUpsList>(
             (upsList, { upsName }) => {
               const { [upsName]: { isUsed = true } = {} } = previousUpsList;
@@ -110,6 +172,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
         {},
       ),
     [
+      anSequence,
       formUtils,
       hostListEntries,
       knownFenceListValues,

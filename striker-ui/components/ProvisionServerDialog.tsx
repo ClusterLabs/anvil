@@ -4,6 +4,7 @@ import {
   SetStateAction,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 import { Box, Dialog, DialogProps, Grid } from '@mui/material';
@@ -24,7 +25,6 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
 import SelectWithLabel from './SelectWithLabel';
-import Slider, { SliderProps } from './Slider';
 import Spinner from './Spinner';
 import {
   testInput as baseTestInput,
@@ -221,23 +221,6 @@ const PROVISION_BUTTON_STYLES = {
     backgroundColor: BLUE,
   },
 };
-
-const createOutlinedSlider = (
-  id: string,
-  label: string,
-  value: number,
-  sliderProps?: Partial<SliderProps>,
-): JSX.Element => (
-  <Slider
-    {...{
-      isAllowTextInput: true,
-      label,
-      labelId: `${id}-label`,
-      value,
-      ...sliderProps,
-    }}
-  />
-);
 
 const createMaxValueButton = (
   maxValue: string,
@@ -999,6 +982,16 @@ const ProvisionServerDialog = ({
   const [successfulProvisionCount, setSuccessfulProvisionCount] =
     useState<number>(0);
 
+  const inputCpuCoresOptions = useMemo(() => {
+    const result: number[] = [];
+
+    for (let i = CPU_CORES_MIN; i <= inputCPUCoresMax; i += 1) {
+      result.push(i);
+    }
+
+    return result;
+  }, [inputCPUCoresMax]);
+
   const inputTests: InputTestBatches = {
     serverName: {
       defaults: {
@@ -1007,6 +1000,7 @@ const ProvisionServerDialog = ({
         },
         value: inputServerNameValue,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1051,6 +1045,7 @@ const ProvisionServerDialog = ({
         },
         value: inputCPUCoresValue,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1083,6 +1078,7 @@ const ProvisionServerDialog = ({
         },
         value: memory,
       },
+      isRequired: true,
       tests: [
         {
           onFailure: () => {
@@ -1108,6 +1104,7 @@ const ProvisionServerDialog = ({
         },
         value: inputInstallISOFileUUID,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
     anvil: {
@@ -1117,6 +1114,7 @@ const ProvisionServerDialog = ({
         },
         value: inputAnvilValue,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
     optimizeForOS: {
@@ -1126,6 +1124,7 @@ const ProvisionServerDialog = ({
         },
         value: inputOptimizeForOSValue?.key,
       },
+      isRequired: true,
       tests: [{ test: testNotBlank }],
     },
   };
@@ -1141,6 +1140,7 @@ const ProvisionServerDialog = ({
         },
         value: virtualDisks.sizes[vdIndex],
       },
+      isRequired: true,
       onFinishBatch: () => {
         setVirtualDisks({ ...virtualDisks });
       },
@@ -1173,6 +1173,7 @@ const ProvisionServerDialog = ({
         },
         value: virtualDisks.inputStorageGroupUUIDs[vdIndex],
       },
+      isRequired: true,
       onFinishBatch: () => {
         setVirtualDisks({ ...virtualDisks });
       },
@@ -1341,15 +1342,15 @@ const ProvisionServerDialog = ({
   };
 
   const createConfirmDialogContent = () => {
-    const gridColumns = 8;
+    const gridColumns = 10;
     const c1 = 2;
-    const c2 = 3;
+    const c2 = 5;
     const c3 = 3;
     const c2n3 = c2 + c3;
 
     return (
       <Grid container columns={gridColumns} direction="column">
-        <Grid direction="row" item xs={gridColumns}>
+        <Grid item xs={gridColumns}>
           <BodyText>
             Server <InlineMonoText text={inputServerNameValue} /> will be
             created on anvil node{' '}
@@ -1365,12 +1366,14 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2}>
             <BodyText>
-              <InlineMonoText text={inputCPUCoresValue} /> core(s)
+              <InlineMonoText edge="start">{inputCPUCoresValue}</InlineMonoText>{' '}
+              core(s)
             </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <InlineMonoText text={inputCPUCoresMax} /> core(s) available
+              <InlineMonoText edge="start">{inputCPUCoresMax}</InlineMonoText>{' '}
+              core(s) available
             </BodyText>
           </Grid>
         </Grid>
@@ -1380,14 +1383,16 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2}>
             <BodyText>
-              <InlineMonoText>
+              <InlineMonoText edge="start">
                 {inputMemoryValue} {inputMemoryUnit}
               </InlineMonoText>
             </BodyText>
           </Grid>
           <Grid item xs={c3}>
             <BodyText>
-              <InlineMonoText text={`${inputMemoryMax} ${inputMemoryUnit}`} />{' '}
+              <InlineMonoText edge="start">
+                {inputMemoryMax} {inputMemoryUnit}
+              </InlineMonoText>{' '}
               available
             </BodyText>
           </Grid>
@@ -1416,13 +1421,17 @@ const ProvisionServerDialog = ({
               </Grid>
               <Grid item xs={c2}>
                 <BodyText>
-                  <InlineMonoText text={`${vdInputSize} ${vdInputUnit}`} /> on{' '}
-                  {vdStorageGroupName}
+                  <InlineMonoText edge="start">
+                    {vdInputSize} {vdInputUnit}
+                  </InlineMonoText>{' '}
+                  on <InlineMonoText>{vdStorageGroupName}</InlineMonoText>
                 </BodyText>
               </Grid>
               <Grid item xs={c3}>
                 <BodyText>
-                  <InlineMonoText text={`${vdInputMax} ${vdInputUnit}`} />{' '}
+                  <InlineMonoText edge="start">
+                    {vdInputMax} {vdInputUnit}
+                  </InlineMonoText>{' '}
                   available
                 </BodyText>
               </Grid>
@@ -1435,7 +1444,7 @@ const ProvisionServerDialog = ({
           </Grid>
           <Grid item xs={c2n3}>
             <BodyText>
-              <InlineMonoText>
+              <InlineMonoText edge="start">
                 {fileUUIDMapToData[inputInstallISOFileUUID].fileName}
               </InlineMonoText>
             </BodyText>
@@ -1448,7 +1457,7 @@ const ProvisionServerDialog = ({
           <Grid item xs={c2n3}>
             <BodyText>
               {fileUUIDMapToData[inputDriverISOFileUUID] ? (
-                <InlineMonoText>
+                <InlineMonoText edge="start">
                   {fileUUIDMapToData[inputDriverISOFileUUID].fileName}
                 </InlineMonoText>
               ) : (
@@ -1462,7 +1471,9 @@ const ProvisionServerDialog = ({
             <BodyText text="Optimize for OS" />
           </Grid>
           <Grid item xs={c2n3}>
-            <BodyText text={`${inputOptimizeForOSValue?.label}`} />
+            <BodyText>
+              <InlineMonoText edge="start">{`${inputOptimizeForOSValue?.label}`}</InlineMonoText>
+            </BodyText>
           </Grid>
         </Grid>
       </Grid>
@@ -1499,10 +1510,51 @@ const ProvisionServerDialog = ({
         setFileSelectItems(ueFileSelectItems);
         setStorageGroupSelectItems(ueStorageGroupSelectItems);
 
-        initLimits({
+        const limits: Parameters<UpdateLimitsFunction>[0] = {
           allAnvils: ueAllAnvils,
           storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        });
+        };
+
+        // Auto-select the only option when there's only 1.
+        // Reminder to update the form limits after changing any value.
+
+        if (ueAnvilSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueAnvilSelectItems;
+
+          setInputAnvilValue(uuid);
+
+          limits.includeAnvilUUIDs = [uuid];
+        }
+
+        if (ueFileSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueFileSelectItems;
+
+          setInputInstallISOFileUUID(uuid);
+
+          limits.fileUUIDs = [uuid, ''];
+        }
+
+        if (ueStorageGroupSelectItems.length === 1) {
+          const {
+            0: { value: uuid },
+          } = ueStorageGroupSelectItems;
+
+          setVirtualDisks((previous) => {
+            const current = { ...previous };
+
+            current.inputStorageGroupUUIDs[0] = uuid;
+
+            limits.virtualDisks = current;
+
+            return current;
+          });
+        }
+
+        initLimits(limits);
 
         setOSAutocompleteOptions(
           Object.entries(data.oses as Record<string, string>).map(
@@ -1574,38 +1626,43 @@ const ProvisionServerDialog = ({
                 messageBoxProps={inputServerNameMessage}
               />
             </Box>
-            {createOutlinedSlider(
-              'ps-cpu-cores',
-              'CPU cores',
-              inputCPUCoresValue,
-              {
-                messageBoxProps: inputCPUCoresMessage,
-                sliderProps: {
-                  onChange: (value) => {
-                    const newCPUCoresValue = value as number;
+            <Autocomplete
+              id="ps-cpu-cores"
+              disableClearable
+              extendRenderInput={({ inputLabelProps = {} }) => {
+                inputLabelProps.isNotifyRequired = inputCPUCoresValue <= 0;
+              }}
+              getOptionLabel={(option) => String(option)}
+              label="CPU cores"
+              messageBoxProps={inputCPUCoresMessage}
+              noOptionsText="No available number of cores."
+              onChange={(event, value) => {
+                if (!value || value === inputCPUCoresValue) return;
 
-                    if (newCPUCoresValue !== inputCPUCoresValue) {
-                      setInputCPUCoresValue(newCPUCoresValue);
+                setInputCPUCoresValue(value);
 
-                      const { maxCPUCores: newCPUCoresMax } = updateLimits({
-                        cpuCores: newCPUCoresValue,
-                      });
+                const { maxCPUCores: newCPUCoresMax } = updateLimits({
+                  cpuCores: value,
+                });
 
-                      testInput({
-                        inputs: {
-                          cpuCores: {
-                            max: newCPUCoresMax,
-                            value: newCPUCoresValue,
-                          },
-                        },
-                      });
-                    }
+                testInput({
+                  inputs: {
+                    cpuCores: {
+                      max: newCPUCoresMax,
+                      value,
+                    },
                   },
-                  max: inputCPUCoresMax,
-                  min: CPU_CORES_MIN,
-                },
-              },
-            )}
+                });
+              }}
+              openOnFocus
+              options={inputCpuCoresOptions}
+              renderOption={(optionProps, option) => (
+                <li {...optionProps} key={`ps-cpu-cores-${option}`}>
+                  {option}
+                </li>
+              )}
+              value={inputCPUCoresValue}
+            />
             <OutlinedLabeledInputWithSelect
               id="ps-memory"
               label="Memory"

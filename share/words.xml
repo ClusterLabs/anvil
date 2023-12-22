@@ -458,7 +458,7 @@ Failed to parse the XML in the new definition file. The error was:
 
 Giving up.
 		</key>
-		<key name="error_0332">This must be run on a node active in the cluster hosting the server being managed. Exiting.</key>
+		<key name="error_0332">This must be run on a subnode active in the cluster hosting the server being managed. Exiting.</key>
 		<key name="error_0333">There are no DR hosts connected to this Anvil! node yet.</key>
 		<key name="error_0334">Failed to find an IP we can access the DR host: [#!variable!host_name!#]. Has it been configured? Is it running? Exiting.</key>
 		<key name="error_0335">Failed to access the DR host: [#!variable!host_name!#] using the IP: [#!variable!ip_address!#]. Is it running? Exiting.</key>
@@ -750,6 +750,8 @@ The XML that failed sanity check was:
 		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
 		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
 		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
+		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
+		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1179,6 +1181,16 @@ resource #!variable!server!# {
 		<key name="header_0114">Completed Jobs</key>
 		<key name="header_0115">-=] DR Hosts</key>
 		<key name="header_0116">-=] Servers</key>
+		<key name="header_0117">Subnode</key>
+		<key name="header_0118">Host Status</key>
+		<key name="header_0119">Pacemaker Status</key>
+		<key name="header_0120">Maintenance Mode</key>
+		<key name="header_0121">Server Name</key>
+		<key name="header_0122">Server Status</key>
+		<key name="header_0123">Resource Status</key>
+		<key name="header_0124">Preferred Host</key>
+		<key name="header_0125">DRBD Fence</key>
+		<key name="header_0126">Booted</key>
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
@@ -3202,7 +3214,7 @@ Proceed? [y/N]</key>
 		<key name="message_0336">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], Replication Volume: [#!variable!drbd_resource!#/#!variable!drbd_volume!#]</key>
 		<key name="message_0337"> |- Resource / LV / Metadata sizes: [#!variable!resource_size!# / #!variable!lv_size!# / #!variable!metadata_size!#], free space: [#!variable!max_free_space!#]</key>
 		<key name="message_0338">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], ISO: [#!variable!device_path!#]</key>
-		<key name="message_0339">Sub-Nodes:</key>
+		<key name="message_0339">Subnodes:</key>
 		<key name="message_0340">DR Hosts:</key>
 		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!ariable!host_uuid!#]</key>
 		<key name="message_0342">   |- Volume: [#!variable!volume_number!#], backing device: [#!variable!backing_disk!#], DRBD minor: [#!variable!device_minor!#], size: [#!variable!volume_size!#]
@@ -3271,6 +3283,7 @@ proceeding.
   - Cores per Socket: [#!variable!old_cores!#] -> [#!variable!new_cores!#]
   - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
   - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
+		<key name="message_0382"><![CDATA[-=] Updated: #!variable!date!# - Press '<ctrl> + <c>' to exit]]></key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -3622,6 +3635,26 @@ If you are comfortable that the target has changed for a known reason, you can s
 		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
 		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
 		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! node, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
+		<key name="striker_0307">Powered Off</key>
+		<key name="striker_0308">Online</key>
+		<key name="striker_0309">Stopping</key>
+		<key name="striker_0310">Booting</key>
+		<key name="striker_0311">Offline</key>
+		<key name="striker_0312">Transitioning</key>
+		<key name="striker_0313">Maintenance Mode</key>
+		<key name="striker_0314">Normal Operation</key>
+		<key name="striker_0315">Unknown</key>
+		<key name="striker_0316">Running</key>
+		<key name="striker_0317">Blocked</key>
+		<key name="striker_0318">Paused</key>
+		<key name="striker_0319">Shutting Down</key>
+		<key name="striker_0320">Shut Off</key>
+		<key name="striker_0321">Crashed</key>
+		<key name="striker_0322">PM Suspended</key>
+		<key name="striker_0323">Started</key>
+		<key name="striker_0324">Starting</key>
+		<key name="striker_0325">Migrating</key>
+		<key name="striker_0326">Stopped</key>
 
 		<!-- These are generally units and appended to numbers -->
 		<key name="suffix_0001">#!variable!number!#/sec</key>

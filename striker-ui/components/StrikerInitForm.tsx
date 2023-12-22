@@ -27,6 +27,7 @@ import NetworkInitForm, {
   NetworkInitFormValues,
 } from './NetworkInitForm';
 import { Panel, PanelHeader } from './Panels';
+import setMapNetwork from '../lib/setMapNetwork';
 import Spinner from './Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
 import useProtectedState from '../hooks/useProtectedState';
@@ -303,9 +304,14 @@ const StrikerInitForm: FC = () => {
           api
             .put('/init', requestBody)
             .then(() => {
+              // Stop network mapping only on successful form submission.
+              setMapNetwork(0);
+
               setIsSubmittingForm(false);
               setSubmitMessage({
-                children: (
+                children: reconfig ? (
+                  <>Successfully initiated reconfiguration.</>
+                ) : (
                   <>
                     Successfully registered the configuration job! You can check
                     the progress at the top right icon. Once the job completes,

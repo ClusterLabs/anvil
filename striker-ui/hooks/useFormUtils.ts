@@ -20,6 +20,12 @@ const useFormUtils = <
   const [formSubmitting, setFormSubmitting] = useProtectedState<boolean>(false);
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
+  const setApiMessage = useCallback(
+    (message?: Message) =>
+      messageGroupRef?.current?.setMessage?.call(null, 'api', message),
+    [messageGroupRef],
+  );
+
   const setMessage = useCallback(
     (key: keyof M, message?: Message) => {
       messageGroupRef?.current?.setMessage?.call(null, String(key), message);
@@ -90,6 +96,8 @@ const useFormUtils = <
       getErrorMsg,
       msgKey = 'api',
       method,
+      onError,
+      onSuccess,
       setMsg = messageGroupRef?.current?.setMessage,
       successMsg,
       url,
@@ -103,6 +111,8 @@ const useFormUtils = <
             children: successMsg,
             type: 'info',
           });
+
+          onSuccess?.call(null);
         })
         .catch((apiError) => {
           const emsg = handleAPIError(apiError);
@@ -110,6 +120,8 @@ const useFormUtils = <
           emsg.children = getErrorMsg(emsg.children);
 
           setMsg?.call(null, msgKey, emsg);
+
+          onError?.call(null);
         })
         .finally(() => {
           setFormSubmitting(false);
@@ -130,6 +142,7 @@ const useFormUtils = <
     formValidity,
     isFormInvalid: formInvalid,
     isFormSubmitting: formSubmitting,
+    setApiMessage,
     setFormValidity,
     setMessage,
     setMessageRe,

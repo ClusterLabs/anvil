@@ -22,6 +22,7 @@ import Checkbox from './Checkbox';
 import Divider from './Divider';
 import FlexBox from './FlexBox';
 import IconButton from './IconButton';
+import Spinner from './Spinner';
 import { BodyText } from './Text';
 
 const List = forwardRef(
@@ -43,6 +44,7 @@ const List = forwardRef(
     listItemProps: { sx: listItemSx, ...restListItemProps } = {},
     listItems,
     listProps: { sx: listSx, ...restListProps } = {},
+    loading,
     onAdd,
     onDelete,
     onEdit,
@@ -186,48 +188,47 @@ const List = forwardRef(
     );
 
     const listItemElements = useMemo(() => {
-      let result = listEmptyElement;
+      if (loading) return <Spinner mt={0} />;
 
-      if (listItems) {
-        const entries = Object.entries(listItems);
+      if (!listItems) return listEmptyElement;
 
-        if (entries.length > 0) {
-          result = entries.map(([key, value]) => {
-            const listItem = renderListItem(key, value);
+      const entries = Object.entries(listItems);
 
-            return (
-              <MUIListItem
-                {...restListItemProps}
-                key={`${listItemKeyPrefix}-${key}`}
-                sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+      if (entries.length <= 0) return listEmptyElement;
+
+      return entries.map(([key, value]) => {
+        const listItem = renderListItem(key, value);
+
+        return (
+          <MUIListItem
+            {...restListItemProps}
+            key={`${listItemKeyPrefix}-${key}`}
+            sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
+          >
+            {listItemCheckbox(
+              key,
+              renderListItemCheckboxState?.call(null, key, value),
+              getListItemCheckboxProps?.call(null, key, value),
+            )}
+            {isAllowItemButton ? (
+              <ListItemButton
+                onClick={(...args) => {
+                  onItemClick?.call(null, value, key, ...args);
+                }}
+                sx={{ borderRadius: BORDER_RADIUS }}
               >
-                {listItemCheckbox(
-                  key,
-                  renderListItemCheckboxState?.call(null, key, value),
-                  getListItemCheckboxProps?.call(null, key, value),
-                )}
-                {isAllowItemButton ? (
-                  <ListItemButton
-                    onClick={(...args) => {
-                      onItemClick?.call(null, value, key, ...args);
-                    }}
-                    sx={{ borderRadius: BORDER_RADIUS }}
-                  >
-                    {listItem}
-                  </ListItemButton>
-                ) : (
-                  listItem
-                )}
-              </MUIListItem>
-            );
-          });
-        }
-      }
-
-      return result;
+                {listItem}
+              </ListItemButton>
+            ) : (
+              listItem
+            )}
+          </MUIListItem>
+        );
+      });
     }, [
-      listEmptyElement,
+      loading,
       listItems,
+      listEmptyElement,
       renderListItem,
       restListItemProps,
       listItemKeyPrefix,

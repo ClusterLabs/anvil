@@ -1,8 +1,5 @@
 type MuiInputBaseProps = import('@mui/material').InputBaseProps;
 
-type ReactChangeEventHandler =
-  import('react').ChangeEventHandler<HTMLInputElement>;
-
 type MuiInputBasePropsBlurEventHandler = Exclude<
   MuiInputBaseProps['onBlur'],
   undefined
@@ -19,7 +16,7 @@ type UncontrolledInputComponentUnmountEventHandler = () => void;
 
 type UncontrolledInputOptionalProps = {
   onBlur?: ExtendableEventHandler<MuiInputBasePropsBlurEventHandler>;
-  onChange?: ExtendableEventHandler<ReactChangeEventHandler>;
+  onChange?: ExtendableEventHandler<React.ChangeEventHandler<HTMLInputElement>>;
   onFocus?: ExtendableEventHandler<MuiInputBasePropsFocusEventHandler>;
   onMount?: UncontrolledInputComponentMountEventHandler;
   onUnmount?: UncontrolledInputComponentUnmountEventHandler;

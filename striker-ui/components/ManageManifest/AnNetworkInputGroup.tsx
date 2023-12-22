@@ -1,3 +1,4 @@
+import { debounce } from 'lodash';
 import { ReactElement, ReactNode, useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
@@ -77,6 +78,7 @@ const buildInputIdANSubnetMask = (networkId: string): string =>
   `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-subnet-mask`;
 
 const AnNetworkInputGroup = <M extends MapToInputTestID>({
+  debounceWait = 500,
   formUtils: {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -91,6 +93,9 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   networkType,
   networkTypeOptions,
   onClose,
+  onNetworkGatewayChange,
+  onNetworkMinIpChange,
+  onNetworkSubnetMaskChange,
   onNetworkTypeChange,
   previous: {
     gateway: previousGateway,
@@ -146,6 +151,24 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [isShowGateway],
   );
 
+  const debounceNetworkGatewayChangeHandler = useMemo(
+    () =>
+      onNetworkGatewayChange && debounce(onNetworkGatewayChange, debounceWait),
+    [debounceWait, onNetworkGatewayChange],
+  );
+
+  const debounceNetworkMinIpChangeHandler = useMemo(
+    () => onNetworkMinIpChange && debounce(onNetworkMinIpChange, debounceWait),
+    [debounceWait, onNetworkMinIpChange],
+  );
+
+  const debounceNetworkSubnetMaskChangeHandler = useMemo(
+    () =>
+      onNetworkSubnetMaskChange &&
+      debounce(onNetworkSubnetMaskChange, debounceWait),
+    [debounceWait, onNetworkSubnetMaskChange],
+  );
+
   const closeButtonElement = useMemo<ReactNode>(
     () =>
       isShowCloseButton && (
@@ -172,6 +195,14 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     if (isShowGateway && inputIdGateway) {
       result = (
         <InputWithRef
+          createInputOnChangeHandlerOptions={{
+            postSet: (...args) =>
+              debounceNetworkGatewayChangeHandler?.call(
+                null,
+                { networkId, networkType },
+                ...args,
+              ),
+          }}
           input={
             <OutlinedInputWithLabel
               baseInputProps={{
@@ -213,6 +244,8 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
     buildInputUnmountFunction,
+    debounceNetworkGatewayChangeHandler,
+    networkType,
     setMessage,
   ]);
 
@@ -256,6 +289,14 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
             [inputCellIdIp]: {
               children: (
                 <InputWithRef
+                  createInputOnChangeHandlerOptions={{
+                    postSet: (...args) =>
+                      debounceNetworkMinIpChangeHandler?.call(
+                        null,
+                        { networkId, networkType },
+                        ...args,
+                      ),
+                  }}
                   input={
                     <OutlinedInputWithLabel
                       baseInputProps={{
@@ -289,6 +330,14 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
             [inputCellIdSubnetMask]: {
               children: (
                 <InputWithRef
+                  createInputOnChangeHandlerOptions={{
+                    postSet: (...args) =>
+                      debounceNetworkSubnetMaskChangeHandler?.call(
+                        null,
+                        { networkId, networkType },
+                        ...args,
+                      ),
+                  }}
                   input={
                     <OutlinedInputWithLabel
                       baseInputProps={{

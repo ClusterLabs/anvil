@@ -57,6 +57,10 @@ const AddManifestInputGroup = <
   const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
     previousNetworkConfig;
 
+  const [anSequence, setAnSequence] = useState<number>(
+    previousAnId?.sequence ?? 0,
+  );
+
   const [networkList, setNetworkList] =
     useState<ManifestNetworkList>(previousNetworkList);
 
@@ -67,7 +71,17 @@ const AddManifestInputGroup = <
 
   return (
     <FlexBox>
-      <AnIdInputGroup formUtils={formUtils} previous={previousAnId} />
+      <AnIdInputGroup
+        formUtils={formUtils}
+        onSequenceChange={(event) => {
+          const {
+            target: { value },
+          } = event;
+
+          setAnSequence(Number(value));
+        }}
+        previous={previousAnId}
+      />
       <AnNetworkConfigInputGroup
         formUtils={formUtils}
         networkListEntries={networkListEntries}
@@ -75,6 +89,7 @@ const AddManifestInputGroup = <
         setNetworkList={setNetworkList}
       />
       <AnHostConfigInputGroup
+        anSequence={anSequence}
         formUtils={formUtils}
         knownFences={knownFences}
         knownUpses={knownUpses}

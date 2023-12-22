@@ -51,6 +51,7 @@ dist_man8_MANS		= \
 			  anvil-watch-bonds.8 \
 			  anvil-watch-drbd.8 \
 			  anvil-watch-power.8 \
+			  anvil-watch-servers.8 \
 			  fence_delay.8 \
 			  fence_pacemaker.8 \
 			  scancore.8 \

@@ -27,6 +27,8 @@ type SubmitFormFunction = (args: {
   ) => import('react').ReactNode;
   msgKey?: string;
   method: 'delete' | 'post' | 'put';
+  onError?: () => void;
+  onSuccess?: () => void;
   setMsg?: import('../components/MessageGroup').MessageGroupForwardedRefContent['setMessage'];
   successMsg?: import('react').ReactNode;
   url: string;
@@ -39,17 +41,12 @@ type FormUtils<M extends MapToInputTestID> = {
   formValidity: FormValidity<M>;
   isFormInvalid: boolean;
   isFormSubmitting: boolean;
+  setApiMessage: (message?: Message) => void;
   setFormValidity: import('react').Dispatch<
     import('react').SetStateAction<FormValidity<M>>
   >;
-  setMessage: (
-    key: keyof M,
-    message?: import('../components/MessageBox').Message,
-  ) => void;
-  setMessageRe: (
-    re: RegExp,
-    message?: import('../components/MessageBox').Message,
-  ) => void;
+  setMessage: (key: keyof M, message?: Message) => void;
+  setMessageRe: (re: RegExp, message?: Message) => void;
   setValidity: (key: keyof M, value?: boolean) => void;
   setValidityRe: (re: RegExp, value?: boolean) => void;
   submitForm: SubmitFormFunction;

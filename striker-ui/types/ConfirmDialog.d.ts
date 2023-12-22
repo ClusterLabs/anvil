@@ -17,9 +17,11 @@ type ConfirmDialogOptionalProps = {
   proceedColour?: 'blue' | 'red';
   scrollContent?: boolean;
   scrollBoxProps?: import('@mui/material').BoxProps;
+  showActionArea?: boolean;
 };
 
 type ConfirmDialogProps = Omit<DialogWithHeaderProps, 'header'> &
+  Pick<DialogActionGroupProps, 'showCancel'> &
   ConfirmDialogOptionalProps & {
     actionProceedText: string;
     titleText: import('react').ReactNode;

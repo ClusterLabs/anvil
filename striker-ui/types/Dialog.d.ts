@@ -31,6 +31,7 @@ type DialogActionGroupOptionalProps = {
   proceedChildren?: ContainedButtonProps['children'];
   proceedColour?: ContainedButtonProps['background'];
   proceedProps?: Partial<ContainedButtonProps>;
+  showCancel?: boolean;
 };
 
 type DialogActionGroupProps = DialogActionGroupOptionalProps;

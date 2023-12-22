@@ -37,12 +37,10 @@ import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 import NETWORK_TYPES from '../lib/consts/NETWORK_TYPES';
 import { REP_IPV4, REP_IPV4_CSV } from '../lib/consts/REG_EXP_PATTERNS';
 
-import api from '../lib/api';
 import BriefNetworkInterface from './BriefNetworkInterface';
 import Decorator from './Decorator';
 import DropArea from './DropArea';
 import FlexBox from './FlexBox';
-import handleAPIError from '../lib/handleAPIError';
 import IconButton from './IconButton';
 import InputWithRef, { InputForwardedRefContent } from './InputWithRef';
 import { Message } from './MessageBox';
@@ -51,6 +49,7 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
+import setMapNetwork from '../lib/setMapNetwork';
 import Spinner from './Spinner';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
 import { BodyText, MonoText, SmallText } from './Text';
@@ -234,7 +233,7 @@ const createNetworkInterfaceTableColumns = (
           colour={networkInterfaceState === 'up' ? 'ok' : 'off'}
           sx={{ height: 'auto' }}
         />
-        <SmallText text={value} />
+        <MonoText>{value}</MonoText>
       </MUIBox>
     ),
   },
@@ -873,20 +872,9 @@ const NetworkInitForm = forwardRef<
       [networkInputs],
     );
 
-    const setMapNetwork = useCallback(
-      (value: 0 | 1) => {
-        api.put('/init/set-map-network', { value }).catch((error) => {
-          const emsg = handleAPIError(error);
-
-          emsg.children = (
-            <>
-              Failed to {value ? 'enable' : 'disable'} network mapping.{' '}
-              {emsg.children}
-            </>
-          );
-
-          setMessage(MSG_ID_API, emsg);
-        });
+    const handleSetMapNetworkError = useCallback(
+      (msg: Message): void => {
+        setMessage(MSG_ID_API, msg);
       },
       [setMessage],
     );
@@ -1383,7 +1371,7 @@ const NetworkInitForm = forwardRef<
 
     useEffect(() => {
       // Enable network mapping on component mount.
-      setMapNetwork(1);
+      setMapNetwork(1, handleSetMapNetworkError);
 
       if (window) {
         window.addEventListener(
@@ -1401,9 +1389,9 @@ const NetworkInitForm = forwardRef<
 
       return () => {
         // Disable network mapping on component unmount.
-        setMapNetwork(0);
+        setMapNetwork(0, handleSetMapNetworkError);
       };
-    }, [setMapNetwork]);
+    }, [handleSetMapNetworkError]);
 
     useImperativeHandle(
       ref,

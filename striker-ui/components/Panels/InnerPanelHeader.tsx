@@ -26,6 +26,10 @@ const InnerPanelHeader: FC = ({ children }) => (
         '& > :first-child': {
           flexGrow: 1,
         },
+
+        '& > :not(:first-child, :last-child)': {
+          marginRight: '.3em',
+        },
       }}
     >
       {children}

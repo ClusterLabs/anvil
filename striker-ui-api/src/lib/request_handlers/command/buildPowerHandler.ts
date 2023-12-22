@@ -49,8 +49,10 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     job_name: 'set_power::off',
     job_title: 'job_0332',
   }),
-  stopserver: ({ uuid } = {}) => ({
-    job_command: `${SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self} --server-uuid '${uuid}'`,
+  stopserver: ({ force, uuid } = {}) => ({
+    job_command: `${
+      SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self
+    } --server-uuid '${uuid}'${force ? ' --immediate' : ''}`,
     job_description: 'job_0343',
     job_name: 'set_power::server::off',
     job_title: 'job_0342',
@@ -76,7 +78,10 @@ export const buildPowerHandler: (
   (task) => async (request, response) => {
     const {
       params: { uuid },
+      query: { force: rForce },
     } = request;
+
+    const force = sanitize(rForce, 'boolean');
 
     try {
       if (uuid) {
@@ -92,7 +97,7 @@ export const buildPowerHandler: (
     }
 
     try {
-      await queuePowerJob(task, { uuid });
+      await queuePowerJob(task, { force, uuid });
     } catch (error) {
       stderr(`Failed to ${task} ${uuid ?? LOCAL}; CAUSE: ${error}`);
 

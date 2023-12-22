@@ -43,8 +43,8 @@ export const getAnvilStore: RequestHandler<
           b.storage_group_name,
           d.scan_lvm_vg_size,
           d.scan_lvm_vg_free,
-          SUM(d.scan_lvm_vg_size) AS total_vg_size,
-          SUM(d.scan_lvm_vg_free) AS total_vg_free
+          MIN(d.scan_lvm_vg_size) AS total_vg_size,
+          MIN(d.scan_lvm_vg_free) AS total_vg_free
         FROM anvils AS a
         JOIN storage_groups AS b
           ON a.anvil_uuid = b.storage_group_anvil_uuid

@@ -2694,7 +2694,7 @@ sub is_primary
 
 =head2 manage_fence_delay
 
-This method checks or sets the fence delay that controls which node survives in a network split. Generally, this is the node hosting servers, as ScanCore's C<< scan-cluster >> should set this based on where the servers are runn.
+This method checks or sets the fence delay that controls which node survives in a network split. Generally, this is the node hosting servers, as ScanCore's C<< scan-cluster >> should set this based on where the servers are run.
 
 If C<< set >> is given an invalid host name, or if this is called on a node that is not a cluster member, C<< !!error!! >> is returned. Otherwise, the node with the delay favouring it is returned. If, somehow, neither node has a delay, then an empty string is returned.
 
@@ -3387,8 +3387,25 @@ sub parse_cib
 					"cib::parsed::configuration::constraints::location::${id}::score"    => $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score}, 
 				}});
 				
-				# If there's no 'node', this is probably a drbd fence constraint.
-				if (not $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node})
+				# If there's no 'node', this is probably a drbd fence constraint. If there is
+				# a node, make it easier to look up the score for each node.
+				if ($anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node})
+				{
+					my $server = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{resource};
+					my $node   = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{node};
+					my $score  = $anvil->data->{cib}{parsed}{configuration}{constraints}{location}{$id}{score};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"s1:server" => $server, 
+						"s2:node"   => $node, 
+						"s3:score"  => $score, 
+					}});
+					
+					$anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{node}{$node}{score} = $score;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"cib::parsed::data::location_constraint::${server}::node::${node}::score" => $anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{node}{$node}{score}, 
+					}});
+				}
+				else
 				{
 					foreach my $rule_id ($constraint->findnodes('./rule'))
 					{
@@ -3851,6 +3868,11 @@ sub parse_cib
 											"s2:node_name" => $node_name, 
 											"s3:value"     => $value,
 										}});
+										
+										$anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_node}{$node_name}{value} = $value;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+											"cib::parsed::data::server::${lrm_resource_id}::drbd_fence_node::${node_name}::value" => $anvil->data->{cib}{parsed}{data}{server}{$lrm_resource_id}{drbd_fence_node}{$node_name}{value},
+										}});
 									}
 								}
 							}
@@ -3863,6 +3885,37 @@ sub parse_cib
 				}
 			}
 		}
+	}
+	
+	# Sort out which node a given server prefers.
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{location_constraint}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
+		my $highest_score  = 0;
+		my $preferred_host = "";
+		foreach my $node (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{node}})
+		{
+			my $this_score = $anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{node}{$node}{score};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:node"       => $node,
+				"s2:this_score" => $this_score,
+			}});
+			
+			if ($this_score > $highest_score)
+			{
+				$highest_score  = $this_score;
+				$preferred_host = $node;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:highest_score"  => $highest_score,
+					"s2:preferred_host" => $preferred_host,
+				}});
+			}
+		}
+		
+		$anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{preferred_host} = $preferred_host;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"cib::parsed::data::location_constraint::${server}::preferred_host" => $anvil->data->{cib}{parsed}{data}{location_constraint}{$server}{preferred_host},
+		}});
 	}
 	
 	# Now call 'crm_mon --output-as=xml' to determine which resource are running where. As of the time 
@@ -3893,6 +3946,7 @@ sub parse_cib
 			# Starting
 			# Migrating
 			# Stopping
+			# Stopped
 			$status = $active ? "running" : "off";
 			
 			# If the role is NOT 'migrating', and we have a database connection, check to see if 

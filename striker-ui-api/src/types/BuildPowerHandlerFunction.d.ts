@@ -9,6 +9,7 @@ type PowerTask =
 type PowerJobParams = Omit<JobParams, 'file' | 'line'>;
 
 type BuildPowerJobParamsOptions = {
+  force?: boolean;
   isStopServers?: boolean;
   uuid?: string;
 };

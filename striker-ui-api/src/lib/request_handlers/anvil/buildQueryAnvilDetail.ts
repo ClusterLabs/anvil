@@ -258,17 +258,17 @@ const buildQueryAnvilDetail = ({
               stores = {};
             }
 
-            if (!previous[anvilUUID]) {
+            if (anvilUUID && !previous[anvilUUID]) {
               previous[anvilUUID] = {
                 anvilUUID,
                 anvilName,
                 anvilDescription,
-                anvilTotalCPUCores: parseInt(anvilTotalCPUCores),
+                anvilTotalCPUCores: Number(anvilTotalCPUCores),
                 anvilTotalMemory: String(anvilTotalMemory),
-                anvilTotalAllocatedCPUCores: parseInt(
+                anvilTotalAllocatedCPUCores: Number(
                   anvilTotalAllocatedCPUCores,
                 ),
-                anvilTotalAvailableCPUCores: parseInt(
+                anvilTotalAvailableCPUCores: Number(
                   anvilTotalAvailableCPUCores,
                 ),
               } as AnvilDetailForProvisionServer;
@@ -276,16 +276,16 @@ const buildQueryAnvilDetail = ({
               puuid = anvilUUID;
             }
 
-            if (!hosts[hostUUID]) {
+            if (hostUUID && !hosts[hostUUID]) {
               hosts[hostUUID] = {
                 hostUUID,
                 hostName,
-                hostCPUCores: parseInt(hostCPUCores),
+                hostCPUCores: Number(hostCPUCores),
                 hostMemory: String(hostMemory),
               };
             }
 
-            if (!servers[serverUUID]) {
+            if (serverUUID && !servers[serverUUID]) {
               const serverMemory =
                 dSize(serverMemoryValue, {
                   fromUnit: serverMemoryUnit,
@@ -297,12 +297,12 @@ const buildQueryAnvilDetail = ({
               servers[serverUUID] = {
                 serverUUID,
                 serverName,
-                serverCPUCores: parseInt(serverCPUCores),
+                serverCPUCores: Number(serverCPUCores),
                 serverMemory,
               };
             }
 
-            if (!stores[storageGroupUUID]) {
+            if (storageGroupUUID && !stores[storageGroupUUID]) {
               stores[storageGroupUUID] = {
                 storageGroupUUID,
                 storageGroupName,
@@ -311,7 +311,7 @@ const buildQueryAnvilDetail = ({
               };
             }
 
-            if (!files[fileUUID]) {
+            if (fileUUID && !files[fileUUID]) {
               files[fileUUID] = {
                 fileUUID,
                 fileName,

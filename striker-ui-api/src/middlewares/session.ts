@@ -4,14 +4,12 @@ import expressSession, {
   Store as BaseSessionStore,
 } from 'express-session';
 
-import { DELETED } from '../lib/consts';
+import { COOKIE_ORIGINAL_MAX_AGE, DELETED } from '../lib/consts';
 
 import { getLocalHostUUID, query, timestamp, write } from '../lib/accessModule';
 import { cname } from '../lib/cname';
 import { getSessionSecret } from '../lib/getSessionSecret';
 import { stderr, stdout, stdoutVar, uuid } from '../lib/shell';
-
-const DEFAULT_COOKIE_ORIGINAL_MAX_AGE = 28800000; // 8 hours
 
 export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
@@ -85,7 +83,7 @@ export class SessionStore extends BaseSessionStore {
     const data: SessionData = {
       cookie: {
         maxAge: cookieMaxAge,
-        originalMaxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE,
+        originalMaxAge: COOKIE_ORIGINAL_MAX_AGE,
       },
       passport: { user: userUuid },
     };
@@ -148,28 +146,32 @@ export class SessionStore extends BaseSessionStore {
   ): Promise<void> {
     stdoutVar({ session }, `Touch session ${sid}: `);
 
-    try {
-      const wcode = await write(
-        `UPDATE sessions
-          SET modified_date = '${timestamp()}'
-          WHERE session_uuid = '${sid}';`,
-      );
+    // The intent of updating the session modified date is to avoid expiring the
+    // session when it's actively used by the user. But since the updates are
+    // flooding the database's history table, disable it for now.
 
-      assert(wcode === 0, `Write exited with code ${wcode}`);
-    } catch (error) {
-      stderr(
-        `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
-      );
+    // try {
+    //   const wcode = await write(
+    //     `UPDATE sessions
+    //       SET modified_date = '${timestamp()}'
+    //       WHERE session_uuid = '${sid}';`,
+    //   );
 
-      return done?.call(null, error);
-    }
+    //   assert(wcode === 0, `Write exited with code ${wcode}`);
+    // } catch (error) {
+    //   stderr(
+    //     `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
+    //   );
+
+    //   return done?.call(null, error);
+    // }
 
     return done?.call(null);
   }
 
   public static calculateCookieMaxAge(
     sessionModifiedDate: string,
-    cookieOriginalMaxAge: number = DEFAULT_COOKIE_ORIGINAL_MAX_AGE,
+    cookieOriginalMaxAge: number = COOKIE_ORIGINAL_MAX_AGE,
   ) {
     const sessionModifiedEpoch = Date.parse(sessionModifiedDate);
     const sessionDeadlineEpoch = sessionModifiedEpoch + cookieOriginalMaxAge;
@@ -185,7 +187,7 @@ export default (async () =>
   expressSession({
     cookie: {
       httpOnly: true,
-      maxAge: DEFAULT_COOKIE_ORIGINAL_MAX_AGE,
+      maxAge: COOKIE_ORIGINAL_MAX_AGE,
       secure: false,
     },
     genid: ({ originalUrl }) => {
