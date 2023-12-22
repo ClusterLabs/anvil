@@ -54,7 +54,9 @@ const UncontrolledInput = forwardRef(
 
     const [value, setValue] = useState<MapToInputType[ValueType]>(inputValue);
 
-    const baseChangeEventHandler = useCallback<ReactChangeEventHandler>(
+    const baseChangeEventHandler = useCallback<
+      React.ChangeEventHandler<HTMLInputElement>
+    >(
       ({ target: { [valueKey]: changed } }) => {
         const converted = MAP_TO_VALUE_CONVERTER[valueType](
           changed,
@@ -65,7 +67,9 @@ const UncontrolledInput = forwardRef(
       [valueKey, valueType],
     );
 
-    const changeEventHandler = useCallback<ReactChangeEventHandler>(
+    const changeEventHandler = useCallback<
+      React.ChangeEventHandler<HTMLInputElement>
+    >(
       (...args) =>
         onChange?.call(
           null,

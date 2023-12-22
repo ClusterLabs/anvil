@@ -74,6 +74,10 @@ type MapToManifestFormInputHandler = Record<string, ManifestFormInputHandler>;
 /** ---------- Component types ---------- */
 
 type AnIdInputGroupOptionalProps = {
+  debounceWait?: number;
+  onSequenceChange?: import('react').ChangeEventHandler<
+    HTMLInputElement | HTMLTextAreaElement
+  >;
   previous?: Partial<ManifestAnId>;
 };
 
@@ -86,21 +90,32 @@ type AnNetworkEventHandlerPreviousArgs = {
   networkId: string;
 } & Pick<ManifestNetwork, 'networkType'>;
 
-type AnNetworkCloseEventHandler = (
+type AnNetworkChangeEventHandler<Handler> = (
   args: AnNetworkEventHandlerPreviousArgs,
-  ...handlerArgs: Parameters<IconButtonMouseEventHandler>
-) => ReturnType<IconButtonMouseEventHandler>;
+  ...handlerArgs: Parameters<Handler>
+) => ReturnType<Handler>;
 
-type AnNetworkTypeChangeEventHandler = (
-  args: AnNetworkEventHandlerPreviousArgs,
-  ...handlerArgs: Parameters<SelectChangeEventHandler>
-) => ReturnType<SelectChangeEventHandler>;
+type AnNetworkCloseEventHandler =
+  AnNetworkChangeEventHandler<IconButtonMouseEventHandler>;
+
+type AnNetworkTypeChangeEventHandler =
+  AnNetworkChangeEventHandler<SelectChangeEventHandler>;
 
 type AnNetworkInputGroupOptionalProps = {
+  debounceWait?: number;
   inputGatewayLabel?: string;
   inputMinIpLabel?: string;
   inputSubnetMaskLabel?: string;
   onClose?: AnNetworkCloseEventHandler;
+  onNetworkGatewayChange?: AnNetworkChangeEventHandler<
+    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  >;
+  onNetworkMinIpChange?: AnNetworkChangeEventHandler<
+    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  >;
+  onNetworkSubnetMaskChange?: AnNetworkChangeEventHandler<
+    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
+  >;
   onNetworkTypeChange?: AnNetworkTypeChangeEventHandler;
   previous?: {
     gateway?: string;
@@ -155,6 +170,7 @@ type AnHostConfigInputGroupOptionalProps = {
 
 type AnHostConfigInputGroupProps<M extends MapToInputTestID> =
   AnHostConfigInputGroupOptionalProps & {
+    anSequence: number;
     formUtils: FormUtils<M>;
     networkListEntries: Array<[string, ManifestNetwork]>;
   };

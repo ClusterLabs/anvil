@@ -1,4 +1,5 @@
 import { InputBaseProps } from '@mui/material';
+import { debounce } from 'lodash';
 import {
   cloneElement,
   ForwardedRef,
@@ -24,6 +25,7 @@ type InputWithRefOptionalPropsWithDefault<
 type InputWithRefOptionalPropsWithoutDefault<
   TypeName extends keyof MapToInputType,
 > = {
+  debounceWait?: number;
   inputTestBatch?: InputTestBatch;
   onBlurAppend?: InputBaseProps['onBlur'];
   onFirstRender?: InputFirstRenderFunction;
@@ -62,6 +64,7 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 > &
   InputWithRefOptionalPropsWithoutDefault<'string'> = {
   createInputOnChangeHandlerOptions: {},
+  debounceWait: 500,
   required: false,
   valueType: 'string',
 };
@@ -69,6 +72,7 @@ const INPUT_WITH_REF_DEFAULT_PROPS: Required<
 const InputWithRef = forwardRef(
   <TypeName extends keyof MapToInputType, InputComponent extends ReactElement>(
     {
+      debounceWait = INPUT_WITH_REF_DEFAULT_PROPS.debounceWait,
       input,
       inputTestBatch,
       onBlurAppend,
@@ -125,6 +129,25 @@ const InputWithRef = forwardRef(
       return result;
     }, [inputTestBatch, isRequired]);
 
+    const doTestAndSet = useCallback(
+      (value: MapToInputType[TypeName]) => {
+        const valid =
+          testInput?.call(null, {
+            inputs: { [INPUT_TEST_ID]: { value } },
+            isIgnoreOnCallbacks: true,
+          }) ?? false;
+
+        onFirstRender?.call(null, { isValid: valid });
+        setIsInputValid(valid);
+      },
+      [onFirstRender, testInput],
+    );
+
+    const debounceDoTestAndSet = useMemo(
+      () => debounce(doTestAndSet, debounceWait),
+      [debounceWait, doTestAndSet],
+    );
+
     const onBlur = useMemo<InputBaseProps['onBlur']>(
       () =>
         initOnBlur ??
@@ -152,12 +175,16 @@ const InputWithRef = forwardRef(
             initOnChange?.call(null, ...args);
             postSetAppend?.call(null, ...args);
           },
-          set: setValue,
+          set: (value) => {
+            setValue(value);
+            debounceDoTestAndSet(value as MapToInputType[TypeName]);
+          },
           setType: valueType,
           valueKey: vKey,
           ...restCreateInputOnChangeHandlerOptions,
         }),
       [
+        debounceDoTestAndSet,
         initOnChange,
         postSetAppend,
         restCreateInputOnChangeHandlerOptions,
@@ -185,18 +212,24 @@ const InputWithRef = forwardRef(
      * render function completes.
      */
     useEffect(() => {
-      const isValid =
-        testInput?.call(null, {
-          inputs: { [INPUT_TEST_ID]: { value: inputValue } },
-          isIgnoreOnCallbacks: true,
-        }) ?? false;
-
-      onFirstRender?.call(null, { isValid });
+      doTestAndSet(inputValue);
 
       return onUnmount;
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    /**
+     * Update the input value to the init value until it's changed by the user.
+     * This allows us to populate the input based on value from other field(s).
+     */
+    useEffect(() => {
+      if (isChangedByUser || inputValue === initValue || !initValue) return;
+
+      doTestAndSet(initValue);
+
+      setInputValue(initValue);
+    }, [doTestAndSet, initValue, inputValue, isChangedByUser]);
 
     useImperativeHandle(
       ref,
