@@ -45,19 +45,19 @@ $anvil->data->{network_manager}{want}{interface}{sn1_link2}{mac_address}  = "52:
 $anvil->data->{network_manager}{want}{interface}{sn1_link2}{device}       = "enp11s0";
 
 # Bonds
-#$anvil->data->{network_manager}{want}{bond}{ifn1_bond1}{interfaces}  = ["ifn1_link1", "ifn1_link2"];	# First interface is primary
+$anvil->data->{network_manager}{want}{bond}{ifn1_bond1}{interfaces}  = ["ifn1_link1", "ifn1_link2"];	# First interface is primary
 $anvil->data->{network_manager}{want}{bond}{bcn1_bond1}{interfaces}  = ["bcn1_link1", "bcn1_link2"];
 $anvil->data->{network_manager}{want}{bond}{sn1_bond1}{interfaces}   = ["sn1_link1", "sn1_link2"];
 
 # Bridges
-#$anvil->data->{network_manager}{want}{bridge}{ifn1_bridge1}{on} = "ifn1_bond1";
+$anvil->data->{network_manager}{want}{bridge}{ifn1_bridge1}{on} = "ifn1_bond1";
 $anvil->data->{network_manager}{want}{bridge}{bcn1_bridge1}{on} = "bcn1_bond1";
 
 # IP addresses.
-#$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{ip_address}  = "192.168.6.42";
-#$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{subnet_mask} = "255.255.0.0";
-#$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{gateway}     = "192.168.255.254";
-#$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{dns}         = "8.8.8.8,8.8.4.4";
+$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{ip_address}  = "192.168.6.42";
+$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{subnet_mask} = "255.255.0.0";
+$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{gateway}     = "192.168.255.254";
+$anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{dns}         = "8.8.8.8,8.8.4.4";
 
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{ip_address}  = "10.101.4.42";
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{subnet_mask} = "255.255.0.0";
@@ -99,7 +99,122 @@ sub reconfigure_ip_addresses
 {
 	my ($anvil) = @_;
 	
-	
+	foreach my $on_device (sort {$a cmp $b} keys %{$anvil->data->{network_manager}{want}{ip_on}})
+	{
+		my $on_device_uuid = $anvil->data->{interface}{device}{$on_device}{uuid};
+		my $ip_address     = $anvil->data->{network_manager}{want}{ip_on}{$on_device}{ip_address};
+		my $subnet_mask    = $anvil->data->{network_manager}{want}{ip_on}{$on_device}{subnet_mask};
+		my $gateway        = $anvil->data->{network_manager}{want}{ip_on}{$on_device}{gateway};
+		my $dns            = $anvil->data->{network_manager}{want}{ip_on}{$on_device}{dns};
+		my $clear_ip_from  = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:on_device'      => $on_device, 
+			's2:on_device_uuid' => $on_device_uuid,  
+			's3:ip_address'     => $ip_address, 
+			's4:subnet_mask'    => $subnet_mask, 
+			's5:gateway'        => $gateway, 
+			's6:dns'            => $dns,
+		}});
+		if (($subnet_mask !~ /^\d+$/) or ($subnet_mask < 1) or ($subnet_mask > 32))
+		{
+			# Convert to CIDR
+			my $cidr = $anvil->Convert->cidr({subnet_mask => $subnet_mask});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cidr => $cidr }});
+			if (not $cidr)
+			{
+				print "[ ERROR ] - The subnet_mask: [".$subnet_mask."] is not valid. It must be either a CIDR notation, or a dotted-decimal mask that can be translated to CIDR notation.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+			$subnet_mask = $cidr;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_mask => $subnet_mask }});
+		}
+		
+		print "Checking to see if the IP address: [".$ip_address."/".$subnet_mask."] is assigned to: [".$on_device."] yet.\n";
+		if (exists $anvil->data->{interface}{ipv4}{$ip_address})
+		{
+			my $ip_uuid             = $anvil->data->{interface}{ipv4}{$ip_address}{on_uuid};
+			my $current_device      = $anvil->data->{interface}{uuid}{$ip_uuid}{device};
+			my $ip_sequence         = $anvil->data->{interface}{ipv4}{$ip_address}{sequence};
+			my $current_subnet_mask = $anvil->data->{interface}{uuid}{$ip_uuid}{ipv4}{ip}{$ip_sequence}{subnet_mask};
+			my $current_gateway     = $anvil->data->{interface}{uuid}{$ip_uuid}{ipv4}{gateway};
+			my $current_dns         = $anvil->data->{interface}{uuid}{$ip_uuid}{ipv4}{dns};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:ip_uuid'             => $ip_uuid, 
+				's2:current_device'      => $current_device, 
+				's3:ip_sequence'         => $ip_sequence, 
+				's4:current_subnet_mask' => $current_subnet_mask, 
+				's5:current_gateway'     => $current_gateway, 
+				's6:current_dns'         => $current_dns, 
+			}});
+			die if not $ip_uuid;
+			
+			print "- The IP exists, checking if it needs to be updated.\n";
+			if ($on_device ne $current_device)
+			{
+				print "- The IP address is on: [".$current_device."], will move the IP.\n";
+				$clear_ip_from = $current_device;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { clear_ip_from => $clear_ip_from }});
+			}
+			elsif ($subnet_mask ne $current_subnet_mask)
+			{
+				print "- The current subnet mask is: [".$current_subnet_mask."], will update.\n";
+			}
+			elsif ($gateway ne $current_gateway)
+			{
+				print "- The current gateway is: [".$current_gateway."], will update.\n";
+			}
+			elsif ($dns ne $current_dns)
+			{
+				print "- The current DNS is: [".$current_dns."], will update.\n";
+			}
+			else
+			{
+				print "- No update is needed.\n";
+				next;
+			}
+		}
+		else
+		{
+			print "- The IP address needs to be assigned.\n";
+		}
+		
+		if ($clear_ip_from)
+		{
+			my $old_uuid = $anvil->data->{interface}{device}{$clear_ip_from}{uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_uuid => $old_uuid }});
+			print " - Clearing the IP from: [".$old_uuid."] (".$clear_ip_from.")\n";
+			
+			my ($output, $return_code) = modify_connection($anvil, $old_uuid, "ipv4.method", "disabled");
+			   ($output, $return_code) = modify_connection($anvil, $old_uuid, "ipv6.method", "disabled");
+			   ($output, $return_code) = reset_connection($anvil, $old_uuid);
+		}
+		
+		# Now assign the IP.
+		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$on_device_uuid." ipv4.method manual ipv4.addresses ".$ip_address."/".$subnet_mask;
+		if ($gateway)
+		{
+			$shell_call .= " ipv4.gateway ".$gateway;
+		}
+		if ($dns)
+		{
+			$shell_call .= " ipv4.dns ".$dns;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		# Restart the interface
+		print " - Restarting the interface.\n";
+		($output, $return_code) = reset_connection($anvil, $on_device_uuid);
+		
+		# Rescan.
+		collect_data($anvil);
+	}
 	
 	return(0);
 }
@@ -176,8 +291,6 @@ sub reconfigure_bridges
 			on_device_parent     => $on_device_parent, 
 			on_device_child_type => $on_device_child_type, 
 		}});
-		
-		die if not $on_device_uuid;
 		
 		if ($on_device_parent)
 		{
@@ -450,19 +563,28 @@ sub collect_data
 						
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $1;
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = $2;
+						$anvil->data->{interface}{ipv4}{$ip_address}{on_uuid}                         = $uuid;
+						$anvil->data->{interface}{ipv4}{$ip_address}{sequence}                        = $sequence;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
 							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
+							"interface::ipv4::${ip_address}::on_uuid"                             => $anvil->data->{interface}{ipv4}{$ip_address}{on_uuid}, 
+							"interface::ipv4::${ip_address}::sequence"                            => $anvil->data->{interface}{ipv4}{$ip_address}{sequence}, 
 						}});
 					}
 					else
 					{
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $value;
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = "";
+						$anvil->data->{interface}{ipv4}{$value}{on_uuid}                              = $value;
+						$anvil->data->{interface}{ipv4}{$value}{sequence}                             = $sequence;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
 							"interface::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
+							"interface::ipv4::${value}::on_uuid"                                  => $anvil->data->{interface}{ipv4}{$value}{on_uuid}, 
+							"interface::ipv4::${value}::sequence"                                 => $anvil->data->{interface}{ipv4}{$value}{sequence}, 
 						}});
+						
 					}
 					
 					# Make sure the DNS key exists.
@@ -470,14 +592,14 @@ sub collect_data
 					{
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns} = "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"interface::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{interface}{uuid}{$uuid}{$sequence}{dns},
+							"interface::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{dns},
 						}});
 					}
 					if (not exists $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway})
 					{
 						$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway} = "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"interface::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{interface}{uuid}{$uuid}{$sequence}{gateway},
+							"interface::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway},
 						}});
 					}
 					$anvil->data->{interface}{uuid}{$uuid}{$hash_key}{gateway} = $value;
