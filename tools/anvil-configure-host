@@ -494,6 +494,7 @@ ORDER BY
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 		
+=cut
 		my $count = 0;
 		if    ($network_type eq "bcn") { $count = $bcn_count; }
 		elsif ($network_type eq "sn")  { $count = $sn_count;  }
@@ -1355,7 +1356,9 @@ ORDER BY
 				next;
 			}
 		}
+=cut
 	}
+die;
 	
 	# If we should reset, do so now.
 	if ($anvil->data->{sys}{reboot})

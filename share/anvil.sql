@@ -1011,8 +1011,10 @@ CREATE TRIGGER trigger_bonds
 CREATE TABLE network_interfaces (
     network_interface_uuid           uuid                        not null    primary key,
     network_interface_host_uuid      uuid                        not null,
-    network_interface_mac_address    text                        not null,
-    network_interface_name           text                        not null,                   -- This is the current name of the interface. 
+    network_interface_nmcli_uuid     uuid,                                                   -- This is the nmcli UUID used to track the device. It can change, so we can't used this as the main UUID
+    network_interface_mac_address    text                        not null,                   -- This is the interface MAC address, and it can change if a failed controller it replaced.
+    network_interface_name           text                        not null,                   -- This is the current name (network manager's connection.id) of the interface. 
+    network_interface_device         text                        not null,                   -- This is the current device name (network manager's ) of the interface. 
     network_interface_speed          bigint                      not null,                   -- This is the speed, in bits-per-second, of the interface.
     network_interface_mtu            bigint                      not null,                   -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
     network_interface_link_state     text                        not null,                   -- 0 or 1
@@ -1033,8 +1035,10 @@ CREATE TABLE history.network_interfaces (
     history_id                       bigserial,
     network_interface_uuid           uuid                        not null,
     network_interface_host_uuid      uuid,
+    network_interface_nmcli_uuid     uuid,
     network_interface_mac_address    text,
     network_interface_name           text,
+    network_interface_device         text,
     network_interface_speed          bigint,
     network_interface_mtu            bigint,
     network_interface_link_state     text,
@@ -1056,8 +1060,10 @@ BEGIN
     INSERT INTO history.network_interfaces
         (network_interface_uuid,
          network_interface_host_uuid, 
+         network_interface_nmcli_uuid, 
          network_interface_mac_address, 
          network_interface_name,
+         network_interface_device, 
          network_interface_speed, 
          network_interface_mtu, 
          network_interface_link_state, 
@@ -1070,8 +1076,10 @@ BEGIN
     VALUES
         (history_network_interfaces.network_interface_uuid,
          history_network_interfaces.network_interface_host_uuid, 
+         history_network_interfaces.network_interface_nmcli_uuid, 
          history_network_interfaces.network_interface_mac_address, 
          history_network_interfaces.network_interface_name,
+         history_network_interfaces.network_interface_device, 
          history_network_interfaces.network_interface_speed, 
          history_network_interfaces.network_interface_mtu, 
          history_network_interfaces.network_interface_link_state, 
@@ -1167,6 +1175,8 @@ CREATE TRIGGER trigger_ip_addresses
     FOR EACH ROW EXECUTE PROCEDURE history_ip_addresses();
 
 
+/*
+  TODO - This will be added only if we need to use it if the existing network tables aren't sufficient
 -- This stores information about network interfaces on hosts. It is mainly used to match a MAC address to a
 -- host. Given that it is possible that network devices can move, the linkage to the host_uuid can change.
 CREATE TABLE network_manager (
@@ -1247,6 +1257,7 @@ ALTER FUNCTION history_network_manager() OWNER TO admin;
 CREATE TRIGGER trigger_network_manager
     AFTER INSERT OR UPDATE ON network_manager
     FOR EACH ROW EXECUTE PROCEDURE history_network_manager();
+*/
 
 
 -- This stores files made available to Anvil! systems and DR hosts.

@@ -75,6 +75,7 @@ $anvil->System->wait_on_dnf();
 $anvil->Database->connect({
 	check_if_configured => 1, 
 	check_for_resync    => 2,
+	debug               => 2,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
@@ -425,6 +426,9 @@ sub set_delay
 	return($delay);
 }
 
+### NOTE: This used to call 'Network->check_network', which is now 'scan_network' and no longer tries to 
+###       bring up downed connections. Likely this entire method can be removed, now that we're not using 
+###       ifcfg-X files.
 # This checks to see if it's time to see if the network is ok and, if the system has been up long enough, 
 # checks and tries to repair network issues.
 sub check_network
@@ -450,18 +454,10 @@ sub check_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 			}
 			
-			#$anvil->Network->check_network({heal => "all"});
-			
 			$anvil->data->{sys}{network}{initial_checks} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::network::initial_checks" => $anvil->data->{sys}{network}{initial_checks},
 			}});
-		}
-		else
-		{
-			### NOTE: This is constantly trying to "fix" healthy bonds, without a know way to
-			###       trigger to debug. As such, disabling for now.
-			#$anvil->Network->check_network({heal => "down_only"});
 		}
 		
 		check_firewall($anvil);

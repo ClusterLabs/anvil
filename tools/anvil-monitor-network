@@ -44,10 +44,16 @@ $anvil->data->{network_manager}{want}{interface}{sn1_link1}{device}       = "enp
 $anvil->data->{network_manager}{want}{interface}{sn1_link2}{mac_address}  = "52:54:00:2f:02:1b";
 $anvil->data->{network_manager}{want}{interface}{sn1_link2}{device}       = "enp11s0";
 
+$anvil->data->{network_manager}{want}{interface}{mn1_link1}{mac_address}  = "";
+$anvil->data->{network_manager}{want}{interface}{mn1_link1}{device}       = "";
+$anvil->data->{network_manager}{want}{interface}{mn1_link2}{mac_address}  = "";
+$anvil->data->{network_manager}{want}{interface}{mn1_link2}{device}       = "";
+
 # Bonds
 $anvil->data->{network_manager}{want}{bond}{ifn1_bond1}{interfaces}  = ["ifn1_link1", "ifn1_link2"];	# First interface is primary
 $anvil->data->{network_manager}{want}{bond}{bcn1_bond1}{interfaces}  = ["bcn1_link1", "bcn1_link2"];
 $anvil->data->{network_manager}{want}{bond}{sn1_bond1}{interfaces}   = ["sn1_link1", "sn1_link2"];
+$anvil->data->{network_manager}{want}{bond}{mn1_bond1}{interfaces}   = ["mn1_link1", "mn1_link2"];
 
 # Bridges
 $anvil->data->{network_manager}{want}{bridge}{ifn1_bridge1}{on} = "ifn1_bond1";
@@ -59,15 +65,20 @@ $anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{subnet_mask} = "255.2
 $anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{gateway}     = "192.168.255.254";
 $anvil->data->{network_manager}{want}{ip_on}{ifn1_bridge1}{dns}         = "8.8.8.8,8.8.4.4";
 
+$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{ip_address}  = "10.201.4.42";
+$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{subnet_mask} = "255.255.0.0";
+$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{gateway}     = "";
+$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{dns}         = "";
+
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{ip_address}  = "10.101.4.42";
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{subnet_mask} = "255.255.0.0";
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{gateway}     = "";
 $anvil->data->{network_manager}{want}{ip_on}{sn1_bond1}{dns}         = "";
 
-$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{ip_address}  = "10.201.4.42";
-$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{subnet_mask} = "255.255.0.0";
-$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{gateway}     = "";
-$anvil->data->{network_manager}{want}{ip_on}{bcn1_bridge1}{dns}         = "";
+$anvil->data->{network_manager}{want}{ip_on}{mn1_bond1}{ip_address}  = "10.199.4.42";
+$anvil->data->{network_manager}{want}{ip_on}{mn1_bond1}{subnet_mask} = "255.255.0.0";
+$anvil->data->{network_manager}{want}{ip_on}{mn1_bond1}{gateway}     = "";
+$anvil->data->{network_manager}{want}{ip_on}{mn1_bond1}{dns}         = "";
 
 $anvil->data->{sys}{reboot_needed} = 0;
 $anvil->data->{sys}{make_changes}  = 1;

@@ -26,6 +26,7 @@ my $THIS_FILE = "System.pm";
 # check_if_configured
 # check_ssh_keys
 # check_memory
+# check_network_type
 # check_storage
 # collect_ipmi_data
 # configure_ipmi
@@ -1276,6 +1277,51 @@ sub check_ssh_keys
 	}
 	
 	return(0);
+}
+
+
+=head2 check_network_type
+
+This method checks to see if this host is using network manager to configure the network, versus the older C<< ifcfg-X >> based config. It does this by looking for any C<< ifcfg-X >> files in C<< /etc/sysconfig/network-scripts >>. 
+
+If any 'ifcfg-X' files are found, C<< ifcfg >> is returned. Otherwise, C<< nm >> is returned.
+
+This method takes no parameters.
+
+=cut
+sub check_network_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_storage()" }});
+	
+	# Open the 'ifcfg' directory, if it exists, and see if there are any 'ifcfg-X' files.
+	my $type      = "nm";
+	my $directory = $anvil->data->{path}{directories}{ifcfg};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	
+	if (-e $directory)
+	{
+		local(*DIRECTORY);
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
+			if ($file =~ /^ifcfg-(.*)$/)
+			{
+				$type = "ifcfg";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+				last;
+			}
+		}
+		closedir(DIRECTORY);
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+	return($type);
 }
 
 

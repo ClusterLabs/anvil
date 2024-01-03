@@ -2165,6 +2165,11 @@ sub os_type
 		$os_type = "centos-stream".$1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
 	}
+	elsif ($release =~ /AlmaLinux .*? (\d+)/)
+	{
+		$os_type = "alma".$1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
+	}
 	elsif ($release =~ /CentOS .*? (\d+)\./)
 	{
 		# CentOS, with the major version number appended
