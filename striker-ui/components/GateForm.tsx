@@ -75,7 +75,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const formUtils = useFormUtils(
-      [INPUT_ID_GATE_ID, INPUT_ID_GATE_PASSPHRASE],
+      [identifierId, passphraseId],
       messageGroupRef,
     );
     const {
@@ -101,10 +101,10 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           const { elements } = target as HTMLFormElement;
 
           const { value: identifierValue } = elements.namedItem(
-            INPUT_ID_GATE_ID,
+            identifierId,
           ) as HTMLInputElement;
           const { value: passphraseValue } = elements.namedItem(
-            INPUT_ID_GATE_PASSPHRASE,
+            passphraseId,
           ) as HTMLInputElement;
 
           onSubmitAppend?.call(
@@ -118,7 +118,14 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
             ...args,
           );
         }),
-      [onSubmit, onSubmitAppend, setIsSubmitting, setMessage],
+      [
+        identifierId,
+        onSubmit,
+        onSubmitAppend,
+        passphraseId,
+        setIsSubmitting,
+        setMessage,
+      ],
     );
 
     const submitElement = useMemo(
