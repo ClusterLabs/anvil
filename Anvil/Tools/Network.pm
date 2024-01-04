@@ -1172,15 +1172,32 @@ sub collect_data
 	{
 		my $connection_interface_name = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'} // "";
 		my $general_devices           = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.DEVICES'}           // "";
+		my $general_ip_iface          = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}          // "";
 		my $device_type               = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}           // "";
-		my $device                    = $connection_interface_name ne "--" ? $connection_interface_name : $general_devices;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:uuid'                      => $uuid,
 			's2:connection_interface_name' => $connection_interface_name, 
 			's3:general_devices'           => $general_devices, 
-			's4:device_type'               => $device_type, 
-			's5:device'                    => $device, 
+			's4:general_ip_iface'          => $general_ip_iface, 
+			's5:device_type'               => $device_type, 
 		}});
+		
+		my $device = "";
+		if (($general_ip_iface) && ($general_ip_iface ne "--"))
+		{
+			$device = $general_ip_iface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
+		}
+		elsif (($connection_interface_name) && ($connection_interface_name ne "--"))
+		{
+			$device = $connection_interface_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
+		}
+		elsif (($general_devices) && ($general_devices ne "--"))
+		{
+			$device = $connection_interface_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
+		}
 		
 		if ($device)
 		{

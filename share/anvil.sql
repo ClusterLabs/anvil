@@ -855,6 +855,7 @@ CREATE TRIGGER trigger_jobs
 CREATE TABLE bridges (
     bridge_uuid           uuid                        not null    primary key,
     bridge_host_uuid      uuid                        not null,
+    bridge_nm_uuid        uuid                        not null,                  -- This is the network manager UUID for this bridge interface
     bridge_name           text                        not null,
     bridge_id             text                        not null,
     bridge_mac_address    text                        not null,
@@ -870,6 +871,7 @@ CREATE TABLE history.bridges (
     history_id            bigserial,
     bridge_uuid           uuid,
     bridge_host_uuid      uuid,
+    bridge_nm_uuid        uuid, 
     bridge_name           text,
     bridge_id             text,
     bridge_mac_address    text,
@@ -888,6 +890,7 @@ BEGIN
     INSERT INTO history.bridges
         (bridge_uuid, 
          bridge_host_uuid, 
+         bridge_nm_uuid, 
          bridge_name, 
          bridge_id, 
          bridge_mac_address, 
@@ -897,6 +900,7 @@ BEGIN
     VALUES
         (history_bridges.bridge_uuid, 
          history_bridges.bridge_host_uuid, 
+         history_bridges.bridge_nm_uuid, 
          history_bridges.bridge_name, 
          history_bridges.bridge_id, 
          history_bridges.bridge_mac_address, 
@@ -918,6 +922,7 @@ CREATE TRIGGER trigger_bridges
 CREATE TABLE bonds (
     bond_uuid                    uuid                        not null    primary key,
     bond_host_uuid               uuid                        not null,
+    bond_nm_uuid                 uuid                        not null,                   -- The is the network manager UUID for this bond.
     bond_name                    text                        not null,
     bond_mode                    text                        not null,                   -- This is the numerical bond type (will translate to the user's language in the Anvil!)
     bond_mtu                     bigint                      not null,
@@ -941,6 +946,7 @@ CREATE TABLE history.bonds (
     history_id                   bigserial,
     bond_uuid                    uuid,
     bond_host_uuid               uuid,
+    bond_nm_uuid                 uuid, 
     bond_name                    text,
     bond_mode                    text,
     bond_mtu                     bigint,
@@ -964,8 +970,9 @@ DECLARE
 BEGIN
     SELECT INTO history_bonds * FROM bonds WHERE bond_uuid = new.bond_uuid;
     INSERT INTO history.bonds
-        (bond_uuid,
-         bond_host_uuid,
+        (bond_uuid, 
+         bond_host_uuid, 
+         bond_nm_uuid, 
          bond_name, 
          bond_mode, 
          bond_mtu, 
@@ -980,8 +987,9 @@ BEGIN
          bond_bridge_uuid, 
          modified_date)
     VALUES
-        (history_bonds.bond_uuid,
-         history_bonds.bond_host_uuid,
+        (history_bonds.bond_uuid, 
+         history_bonds.bond_host_uuid, 
+         history_bonds.bond_nm_uuid, 
          history_bonds.bond_name, 
          history_bonds.bond_mode, 
          history_bonds.bond_mtu, 
@@ -1011,10 +1019,10 @@ CREATE TRIGGER trigger_bonds
 CREATE TABLE network_interfaces (
     network_interface_uuid           uuid                        not null    primary key,
     network_interface_host_uuid      uuid                        not null,
-    network_interface_nmcli_uuid     uuid,                                                   -- This is the nmcli UUID used to track the device. It can change, so we can't used this as the main UUID
+    network_interface_nm_uuid        uuid,                                                   -- This is the network manager UUID used to track the device. It can change, so we can't used this as the main UUID
     network_interface_mac_address    text                        not null,                   -- This is the interface MAC address, and it can change if a failed controller it replaced.
     network_interface_name           text                        not null,                   -- This is the current name (network manager's connection.id) of the interface. 
-    network_interface_device         text                        not null,                   -- This is the current device name (network manager's ) of the interface. 
+    network_interface_device         text                        not null,                   -- This is the current device name (network manager's GENERAL.IP-IFACE) of the interface. 
     network_interface_speed          bigint                      not null,                   -- This is the speed, in bits-per-second, of the interface.
     network_interface_mtu            bigint                      not null,                   -- This is the MTU (Maximum Transmitable Size), in bytes, for this interface.
     network_interface_link_state     text                        not null,                   -- 0 or 1
@@ -1035,7 +1043,7 @@ CREATE TABLE history.network_interfaces (
     history_id                       bigserial,
     network_interface_uuid           uuid                        not null,
     network_interface_host_uuid      uuid,
-    network_interface_nmcli_uuid     uuid,
+    network_interface_nm_uuid        uuid,
     network_interface_mac_address    text,
     network_interface_name           text,
     network_interface_device         text,
@@ -1060,7 +1068,7 @@ BEGIN
     INSERT INTO history.network_interfaces
         (network_interface_uuid,
          network_interface_host_uuid, 
-         network_interface_nmcli_uuid, 
+         network_interface_nm_uuid, 
          network_interface_mac_address, 
          network_interface_name,
          network_interface_device, 
@@ -1076,7 +1084,7 @@ BEGIN
     VALUES
         (history_network_interfaces.network_interface_uuid,
          history_network_interfaces.network_interface_host_uuid, 
-         history_network_interfaces.network_interface_nmcli_uuid, 
+         history_network_interfaces.network_interface_nm_uuid, 
          history_network_interfaces.network_interface_mac_address, 
          history_network_interfaces.network_interface_name,
          history_network_interfaces.network_interface_device, 

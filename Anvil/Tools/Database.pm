@@ -786,7 +786,11 @@ If the system is already configured, this method will do nothing, so it is safe 
 
 If the method completes, C<< 0 >> is returned. If this method is called without C<< root >> access, it returns C<< 1 >> without doing anything. If there is a problem, C<< !!error!! >> is returned.
 
-This method takes no parameters.
+Parameters;
+
+=head3 check_db_exists (optional, default 0)
+
+If set, the database will be checked to see if the schema exists. This is normally not needed, but can be triggered if the database was DROP'ed by a user.
 
 =cut
 ### TODO: Much of this logic is in striker-prep-database, consolidate!
@@ -797,6 +801,11 @@ sub configure_pgsql
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->configure_pgsql()" }});
+
+	my $check_db_exists = defined $parameter->{check_db_exists} ? $parameter->{check_db_exists} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		check_db_exists => $check_db_exists, 
+	}});
 	
 	# The local host_uuid is the ID of the local database, so get that.
 	my $uuid = $anvil->Get->host_uuid();
@@ -1012,7 +1021,7 @@ sub configure_pgsql
 		's2:update_postgresql_file' => $update_postgresql_file, 
 		's3:update_pg_hba_file'     => $update_pg_hba_file, 
 	}});
-	if (($initialized) or ($update_postgresql_file) or ($update_pg_hba_file))
+	if (($initialized) or ($update_postgresql_file) or ($update_pg_hba_file) or ($check_db_exists))
 	{
 		# Create the .pgpass file, if needed.
 		my $created_pgpass = 0;
@@ -1366,7 +1375,11 @@ sub connect
 	# This method just returns if nothing is needed.
 	if (($local_host_type eq "striker") && ($check_if_configured) && ($< == 0) && ($> == 0))
 	{
-		$anvil->Database->configure_pgsql({debug => 2, uuid => $local_host_uuid});
+		$anvil->Database->configure_pgsql({
+			debug           => 2, 
+			uuid            => $local_host_uuid,
+			check_db_exists => $check_if_configured,
+		});
 	}
 	
 	# Now setup or however-many connections
@@ -11422,7 +11435,7 @@ This is the maximum transmit unit (MTU) that this interface supports, in bytes p
 
 This is the nmcli 'connection.id' name (bios device name) for the current device of this interface. If the previously recorded MAC address is no longer found, but a new/unknown interface with this name is found, it is sane to configure the device with this name as the replacement 'network_interface_device'.
 
-=head3 network_interface_nmcli_uuid (optional)
+=head3 network_interface_nm_uuid (optional)
 
 This is the network manager's UUID for this interface. 
 
@@ -11463,7 +11476,7 @@ sub insert_or_update_network_interfaces
 	my $network_interface_medium      = defined $parameter->{network_interface_medium}      ? $parameter->{network_interface_medium}      : "";
 	my $network_interface_mtu         = defined $parameter->{network_interface_mtu}         ? $parameter->{network_interface_mtu}         : 0;
 	my $network_interface_name        = defined $parameter->{network_interface_name}        ? $parameter->{network_interface_name}        : "";
-	my $network_interface_nmcli_uuid  = defined $parameter->{network_interface_nmcli_uuid}  ? $parameter->{network_interface_nmcli_uuid}  : "";
+	my $network_interface_nm_uuid     = defined $parameter->{network_interface_nm_uuid}     ? $parameter->{network_interface_nm_uuid}     : "";
 	my $network_interface_speed       = defined $parameter->{network_interface_speed}       ? $parameter->{network_interface_speed}       : 0;
 	my $network_interface_uuid        = defined $parameter->{network_interface_uuid}        ? $parameter->{network_interface_uuid}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -11483,7 +11496,7 @@ sub insert_or_update_network_interfaces
 		network_interface_medium      => $network_interface_medium, 
 		network_interface_mtu         => $network_interface_mtu, 
 		network_interface_name        => $network_interface_name,
-		network_interface_nmcli_uuid  => $network_interface_nmcli_uuid, 
+		network_interface_nm_uuid     => $network_interface_nm_uuid, 
 		network_interface_speed       => $network_interface_speed, 
 		network_interface_uuid        => $network_interface_uuid,
 	}});
@@ -11624,7 +11637,7 @@ WHERE
 		my $query = "
 SELECT 
     network_interface_host_uuid, 
-    network_interface_nmcli_uuid, 
+    network_interface_nm_uuid, 
     network_interface_mac_address, 
     network_interface_name,
     network_interface_device,
@@ -11658,7 +11671,7 @@ WHERE
 		foreach my $row (@{$results})
 		{
 			my $old_network_interface_host_uuid   =         $row->[0];
-			my $old_network_interface_nmcli_uuid  = defined $row->[1]  ? $row->[1] : 'NULL';
+			my $old_network_interface_nm_uuid     = defined $row->[1]  ? $row->[1] : 'NULL';
 			my $old_network_interface_mac_address =         $row->[1];
 			my $old_network_interface_name        =         $row->[2];
 			my $old_network_interface_device      =         $row->[3];
@@ -11672,7 +11685,7 @@ WHERE
 			my $old_network_interface_bridge_uuid = defined $row->[11] ? $row->[11] : 'NULL';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_network_interface_host_uuid   => $old_network_interface_host_uuid,
-				old_network_interface_nmcli_uuid  => $old_network_interface_nmcli_uuid, 
+				old_network_interface_nm_uuid     => $old_network_interface_nm_uuid, 
 				old_network_interface_mac_address => $old_network_interface_mac_address,
 				old_network_interface_name        => $old_network_interface_name,
 				old_network_interface_device      => $old_network_interface_device,
@@ -11689,7 +11702,7 @@ WHERE
 			# If 'link_only' is set, we're only checking/updating a subset of values.
 			if ($link_only)
 			{
-				if (($network_interface_nmcli_uuid  ne $old_network_interface_nmcli_uuid)  or 
+				if (($network_interface_nm_uuid     ne $old_network_interface_nm_uuid)     or 
 				    ($network_interface_name        ne $old_network_interface_name)        or 
 				    ($network_interface_device      ne $old_network_interface_device)      or 
 				    ($network_interface_link_state  ne $old_network_interface_link_state)  or 
@@ -11703,7 +11716,7 @@ UPDATE
     network_interfaces
 SET 
     network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid).", 
-    network_interface_nmcli_uuid  = ".$anvil->Database->quote($network_interface_nmcli_uuid).", 
+    network_interface_nm_uuid     = ".$anvil->Database->quote($network_interface_nm_uuid).", 
     network_interface_name        = ".$anvil->Database->quote($network_interface_name).", 
     network_interface_device      = ".$anvil->Database->quote($network_interface_device).", 
     network_interface_link_state  = ".$anvil->Database->quote($network_interface_link_state).", 
@@ -11725,7 +11738,7 @@ WHERE
 			# not passed in, we want to not compare it.
 			if (($network_interface_bond_uuid   ne $old_network_interface_bond_uuid)   or 
 			    ($network_interface_bridge_uuid ne $old_network_interface_bridge_uuid) or 
-			    ($network_interface_nmcli_uuid  ne $old_network_interface_nmcli_uuid)  or 
+			    ($network_interface_nm_uuid     ne $old_network_interface_nm_uuid)     or 
 			    ($network_interface_name        ne $old_network_interface_name)        or 
 			    ($network_interface_device      ne $old_network_interface_device)      or 
 			    ($network_interface_duplex      ne $old_network_interface_duplex)      or 
@@ -11743,7 +11756,7 @@ UPDATE
     network_interfaces
 SET 
     network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid).", 
-    network_interface_nmcli_uuid  = ".$anvil->Database->quote($network_interface_nmcli_uuid).", 
+    network_interface_nm_uuid     = ".$anvil->Database->quote($network_interface_nm_uuid).", 
     network_interface_bond_uuid   = ".$anvil->Database->quote($network_interface_bond_uuid).", 
     network_interface_bridge_uuid = ".$anvil->Database->quote($network_interface_bridge_uuid).", 
     network_interface_name        = ".$anvil->Database->quote($network_interface_name).", 
@@ -11776,7 +11789,7 @@ INSERT INTO
     network_interfaces 
 (
     network_interface_uuid, 
-    network_interface_nmcli_uuid, 
+    network_interface_nm_uuid, 
     network_interface_bond_uuid, 
     network_interface_bridge_uuid, 
     network_interface_name, 
@@ -11792,7 +11805,7 @@ INSERT INTO
     modified_date
 ) VALUES (
     ".$anvil->Database->quote($network_interface_uuid).",  
-    ".$anvil->Database->quote($network_interface_nmcli_uuid).",  
+    ".$anvil->Database->quote($network_interface_nm_uuid).",  
     ".$anvil->Database->quote($network_interface_bond_uuid).", 
     ".$anvil->Database->quote($network_interface_bridge_uuid).", 
     ".$anvil->Database->quote($network_interface_name).", 

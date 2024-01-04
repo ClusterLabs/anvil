@@ -537,27 +537,28 @@ sub collect_data
 		{
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
+			my $nm_uuid     = $anvil->data->{nmcli}{interface}{$interface}{uuid} ? $anvil->data->{nmcli}{interface}{$interface}{uuid} : "";
+			my $nm_device   = "";
 			my $link_state  = -e $full_path."/carrier"         ? $anvil->Storage->read_file({file => $full_path."/carrier"})         : 0;
+			   $link_state  =~ s/\n$//;
 			my $mtu         = -e $full_path."/mtu"             ? $anvil->Storage->read_file({file => $full_path."/mtu"})             : 0;
+			   $mtu         =~ s/\n$//;
 			my $duplex      = -e $full_path."/duplex"          ? $anvil->Storage->read_file({file => $full_path."/duplex"})          : "unknown";	# full or half?
+			   $duplex      =~ s/\n$//;
 			my $operational = -e $full_path."/operstate"       ? $anvil->Storage->read_file({file => $full_path."/operstate"})       : "unknown";	# up or down
+			   $operational =~ s/\n$//;
 			my $modalias    = -e $full_path."/device/modalias" ? $anvil->Storage->read_file({file => $full_path."/device/modalias"}) : "unknown";
+			   $modalias    =~ s/\n$//;
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
+			   $speed       =~ s/\n$//;
 			my $media       = "unknown";
 			my $type        = "interface";
 			my $driver      = "";
 			my $tx_bytes    = 0;	# How many bytes transmitted
 			my $rx_bytes    = 0;	# How many bytes received
-			
-			# Clean up some newlines.
-			$link_state  =~ s/\n$//;
-			$mtu         =~ s/\n$//;
-			$duplex      =~ s/\n$//;
-			$operational =~ s/\n$//;
-			$speed       =~ s/\n$//;
-			$modalias    =~ s/\n$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
+				nm_uuid     => $nm_uuid, 
 				link_state  => $link_state, 
 				mtu         => $mtu,
 				duplex      => $duplex, 
@@ -680,7 +681,12 @@ sub collect_data
 			{
 				# Yup, we'll neet to dig into the bond proc files to get the proper slaved 
 				# interface MAC addresses.
-				$type = "bond";
+				$type    = "bond";
+				$nm_uuid = $anvil->data->{nmcli}{bond}{$interface}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					type    => $type,
+					nm_uuid => $nm_uuid, 
+				}});
 				
 				# Read the bond mode.
 				$bond_mode            =  $anvil->Storage->read_file({file => "/sys/devices/virtual/net/".$interface."/bonding/mode"});
@@ -722,15 +728,17 @@ sub collect_data
 			{
 				# It's a bridge
 				$type               =  "bridge";
+				$nm_uuid            =  $anvil->data->{nmcli}{bridge}{$interface}{uuid};
 				$bridge_id          =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/bridge_id"});
 				$bridge_stp_enabled =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/stp_state"});
 				$bridge_id          =~ s/\n$//;
 				$bridge_stp_enabled =~ s/\n$//;
 				$speed              = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					type               => $type,
+					nm_uuid            => $nm_uuid, 
 					bridge_id          => $bridge_id, 
 					bridge_stp_enabled => $bridge_stp_enabled, 
-					type               => $type,
 				}});
 				if ($bridge_stp_enabled eq "0")
 				{
@@ -745,6 +753,12 @@ sub collect_data
 					$bridge_stp_enabled = "enabled_userland";
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_stp_enabled => $bridge_stp_enabled }});
+			}
+			
+			if ($nm_uuid)
+			{
+				$nm_device = $anvil->data->{nmcli}{uuid}{$nm_uuid}{device};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_device => $nm_device }});
 			}
 			
 			# If this is a 'vnet' device, set 'operational' to up
@@ -822,6 +836,8 @@ sub collect_data
 			}
 			
 			# Store new information we found.
+			$anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid}              = $nm_uuid; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{nm_device}            = $nm_device; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{active_interface}     = $active_interface; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode}            = $bond_mode; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_master}          = $bond_master; 
@@ -843,6 +859,8 @@ sub collect_data
 			$anvil->data->{network}{$local_host}{interface}{$interface}{type}                 = $type; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{up_delay}             = $up_delay; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"network::${local_host}::interface::${interface}::nm_uuid"              => $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid},
+				"network::${local_host}::interface::${interface}::nm_device"            => $anvil->data->{network}{$local_host}{interface}{$interface}{nm_device},
 				"network::${local_host}::interface::${interface}::active_interface"     => $anvil->data->{network}{$local_host}{interface}{$interface}{active_interface},
 				"network::${local_host}::interface::${interface}::bond_mode"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode},
 				"network::${local_host}::interface::${interface}::bond_master"          => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master},
@@ -881,7 +899,139 @@ sub collect_data
 	}
 	closedir(DIRECTORY);
 	
-	die;
+	# Find what interfaces are connected to which bridges
+	$anvil->Network->bridge_info({debug => 2});
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
+	{
+		my $ip_address = $anvil->data->{network}{$local_host}{interface}{$interface}{ip};
+		my $type       = $anvil->data->{network}{$local_host}{interface}{$interface}{type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			interface  => $interface, 
+			ip_address => $ip_address, 
+			type       => $type,
+		}});
+		
+		$anvil->data->{interface}{name_to_type}{$interface} = $type;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"interface::name_to_type::${interface}" => $anvil->data->{interface}{name_to_type}{$interface}, 
+		}});
+		
+		if ($type eq "bridge")
+		{
+			# Store the bridge
+			$anvil->data->{new}{bridge}{$interface}{nm_uuid}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
+			$anvil->data->{new}{bridge}{$interface}{id}          = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id};
+			$anvil->data->{new}{bridge}{$interface}{mac_address} = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}; 
+			$anvil->data->{new}{bridge}{$interface}{mtu}         = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu};
+			$anvil->data->{new}{bridge}{$interface}{stp_enabled} = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled};
+			$anvil->data->{new}{bridge}{$interface}{tx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
+			$anvil->data->{new}{bridge}{$interface}{rx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::bridge::${interface}::nm_uuid"     => $anvil->data->{new}{bridge}{$interface}{nm_uuid}, 
+				"new::bridge::${interface}::id"          => $anvil->data->{new}{bridge}{$interface}{id}, 
+				"new::bridge::${interface}::mac_address" => $anvil->data->{new}{bridge}{$interface}{mac_address}, 
+				"new::bridge::${interface}::mtu"         => $anvil->data->{new}{bridge}{$interface}{mtu}, 
+				"new::bridge::${interface}::stp_enabled" => $anvil->data->{new}{bridge}{$interface}{stp_enabled}, 
+				"new::bridge::${interface}::tx_bytes"    => $anvil->data->{new}{bridge}{$interface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bridge}{$interface}{tx_bytes}}).")", 
+				"new::bridge::${interface}::rx_bytes"    => $anvil->data->{new}{bridge}{$interface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bridge}{$interface}{rx_bytes}}).")", 
+			}});
+		}
+		elsif ($type eq "bond")
+		{
+			# Store the bond
+			$anvil->data->{new}{bond}{$interface}{nm_uuid}              = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
+			$anvil->data->{new}{bond}{$interface}{mode}                 = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode};
+			$anvil->data->{new}{bond}{$interface}{mtu}                  = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu}; 
+			$anvil->data->{new}{bond}{$interface}{master}               = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
+			$anvil->data->{new}{bond}{$interface}{link_state}           = $anvil->data->{network}{$local_host}{interface}{$interface}{link_state}; 
+			$anvil->data->{new}{bond}{$interface}{operational}          = $anvil->data->{network}{$local_host}{interface}{$interface}{operational}; 
+			$anvil->data->{new}{bond}{$interface}{mac_address}          = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}; 
+			$anvil->data->{new}{bond}{$interface}{primary_interface}    = $anvil->data->{network}{$local_host}{interface}{$interface}{primary_interface}; 
+			$anvil->data->{new}{bond}{$interface}{primary_reselect}     = $anvil->data->{network}{$local_host}{interface}{$interface}{primary_reselect}; 
+			$anvil->data->{new}{bond}{$interface}{active_interface}     = $anvil->data->{network}{$local_host}{interface}{$interface}{active_interface}; 
+			$anvil->data->{new}{bond}{$interface}{mii_polling_interval} = $anvil->data->{network}{$local_host}{interface}{$interface}{mii_polling_interval}; 
+			$anvil->data->{new}{bond}{$interface}{up_delay}             = $anvil->data->{network}{$local_host}{interface}{$interface}{up_delay}; 
+			$anvil->data->{new}{bond}{$interface}{down_delay}           = $anvil->data->{network}{$local_host}{interface}{$interface}{down_delay}; 
+			$anvil->data->{new}{bond}{$interface}{bridge_uuid}          = ""; 	# We'll dig his out later as the bridge might not be in the database yet.
+			$anvil->data->{new}{bond}{$interface}{tx_bytes}             = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
+			$anvil->data->{new}{bond}{$interface}{rx_bytes}             = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::bond::${interface}::nm_uuid"              => $anvil->data->{new}{bond}{$interface}{nm_uuid}, 
+				"new::bond::${interface}::mode"                 => $anvil->data->{new}{bond}{$interface}{mode}, 
+				"new::bond::${interface}::mtu"                  => $anvil->data->{new}{bond}{$interface}{mtu}, 
+				"new::bond::${interface}::master"               => $anvil->data->{new}{bond}{$interface}{master}, 
+				"new::bond::${interface}::link_state"           => $anvil->data->{new}{bond}{$interface}{link_state}, 
+				"new::bond::${interface}::operational"          => $anvil->data->{new}{bond}{$interface}{operational}, 
+				"new::bond::${interface}::mac_address"          => $anvil->data->{new}{bond}{$interface}{mac_address}, 
+				"new::bond::${interface}::primary_interface"    => $anvil->data->{new}{bond}{$interface}{primary_interface}, 
+				"new::bond::${interface}::primary_reselect"     => $anvil->data->{new}{bond}{$interface}{primary_reselect}, 
+				"new::bond::${interface}::active_interface"     => $anvil->data->{new}{bond}{$interface}{active_interface}, 
+				"new::bond::${interface}::mii_polling_interval" => $anvil->data->{new}{bond}{$interface}{mii_polling_interval}, 
+				"new::bond::${interface}::up_delay"             => $anvil->data->{new}{bond}{$interface}{up_delay}, 
+				"new::bond::${interface}::down_delay"           => $anvil->data->{new}{bond}{$interface}{down_delay}, 
+				"new::bond::${interface}::bridge_uuid"          => $anvil->data->{new}{bond}{$interface}{bridge_uuid}, 
+				"new::bond::${interface}::tx_bytes"             => $anvil->data->{new}{bond}{$interface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bond}{$interface}{tx_bytes}}).")", 
+				"new::bond::${interface}::rx_bytes"             => $anvil->data->{new}{bond}{$interface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bond}{$interface}{rx_bytes}}).")", 
+			}});
+		}
+		elsif ($type eq "interface")
+		{
+			# Store the interface
+			$anvil->data->{new}{interface}{$interface}{nm_uuid}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
+			$anvil->data->{new}{interface}{$interface}{nm_device}   = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_device};
+			$anvil->data->{new}{interface}{$interface}{bond_uuid}   = "";
+			$anvil->data->{new}{interface}{$interface}{bond_name}   = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
+			$anvil->data->{new}{interface}{$interface}{bridge_uuid} = ""; 
+			$anvil->data->{new}{interface}{$interface}{bridge_name} = ""; 
+			$anvil->data->{new}{interface}{$interface}{duplex}      = $anvil->data->{network}{$local_host}{interface}{$interface}{duplex}; 
+			$anvil->data->{new}{interface}{$interface}{link_state}  = $anvil->data->{network}{$local_host}{interface}{$interface}{link_state}; 
+			$anvil->data->{new}{interface}{$interface}{operational} = $anvil->data->{network}{$local_host}{interface}{$interface}{operational}; 
+			$anvil->data->{new}{interface}{$interface}{mac_address} = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}; 
+			$anvil->data->{new}{interface}{$interface}{medium}      = $anvil->data->{network}{$local_host}{interface}{$interface}{media}; 
+			$anvil->data->{new}{interface}{$interface}{mtu}         = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu}; 
+			$anvil->data->{new}{interface}{$interface}{speed}       = $anvil->data->{network}{$local_host}{interface}{$interface}{speed}; 
+			$anvil->data->{new}{interface}{$interface}{tx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
+			$anvil->data->{new}{interface}{$interface}{rx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::interface::${interface}::nm_uuid"     => $anvil->data->{new}{interface}{$interface}{nm_uuid}, 
+				"new::interface::${interface}::nm_device"   => $anvil->data->{new}{interface}{$interface}{nm_device}, 
+				"new::interface::${interface}::bond_uuid"   => $anvil->data->{new}{interface}{$interface}{bond_uuid}, 
+				"new::interface::${interface}::bond_name"   => $anvil->data->{new}{interface}{$interface}{bond_name}, 
+				"new::interface::${interface}::bridge_uuid" => $anvil->data->{new}{interface}{$interface}{bridge_uuid}, 
+				"new::interface::${interface}::bridge_name" => $anvil->data->{new}{interface}{$interface}{bridge_name}, 
+				"new::interface::${interface}::duplex"      => $anvil->data->{new}{interface}{$interface}{duplex}, 
+				"new::interface::${interface}::link_state"  => $anvil->data->{new}{interface}{$interface}{link_state}, 
+				"new::interface::${interface}::operational" => $anvil->data->{new}{interface}{$interface}{operational}, 
+				"new::interface::${interface}::mac_address" => $anvil->data->{new}{interface}{$interface}{mac_address}, 
+				"new::interface::${interface}::medium"      => $anvil->data->{new}{interface}{$interface}{medium}, 
+				"new::interface::${interface}::mtu"         => $anvil->data->{new}{interface}{$interface}{mtu}, 
+				"new::interface::${interface}::speed"       => $anvil->data->{new}{interface}{$interface}{speed}, 
+				"new::interface::${interface}::tx_bytes"    => $anvil->data->{new}{interface}{$interface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{interface}{$interface}{tx_bytes}}).")", 
+				"new::interface::${interface}::rx_bytes"    => $anvil->data->{new}{interface}{$interface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{interface}{$interface}{rx_bytes}}).")", 
+			}});
+		}
+		
+		# Record the IP address info.
+		if ($ip_address)
+		{
+			$anvil->data->{new}{ip_address}{$ip_address}{on_interface}    = $interface;
+			$anvil->data->{new}{ip_address}{$ip_address}{subnet_mask}     = $anvil->data->{network}{$local_host}{interface}{$interface}{subnet_mask};
+			$anvil->data->{new}{ip_address}{$ip_address}{gateway}         = $anvil->data->{network}{$local_host}{interface}{$interface}{gateway};
+			$anvil->data->{new}{ip_address}{$ip_address}{default_gateway} = $anvil->data->{network}{$local_host}{interface}{$interface}{default_gateway};
+			$anvil->data->{new}{ip_address}{$ip_address}{dns}             = $anvil->data->{network}{$local_host}{interface}{$interface}{dns};
+			$anvil->data->{new}{ip_address}{$ip_address}{on_uuid}         = "";
+			$anvil->data->{new}{ip_address}{$ip_address}{note}            = "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::ip_address::${ip_address}::on_interface"    => $anvil->data->{new}{ip_address}{$ip_address}{on_interface}, 
+				"new::ip_address::${ip_address}::subnet_mask"     => $anvil->data->{new}{ip_address}{$ip_address}{subnet_mask}, 
+				"new::ip_address::${ip_address}::gateway"         => $anvil->data->{new}{ip_address}{$ip_address}{gateway}, 
+				"new::ip_address::${ip_address}::default_gateway" => $anvil->data->{new}{ip_address}{$ip_address}{default_gateway}, 
+				"new::ip_address::${ip_address}::dns"             => $anvil->data->{new}{ip_address}{$ip_address}{dns}, 
+				"new::ip_address::${ip_address}::on_uuid"         => $anvil->data->{new}{ip_address}{$ip_address}{on_uuid}, 
+				"new::ip_address::${ip_address}::note"            => $anvil->data->{new}{ip_address}{$ip_address}{note}, 
+			}});
+		}
+	}
 	
 	return(0);
 }
@@ -1288,6 +1438,7 @@ sub collect_data_ifcfg
 		if ($type eq "bridge")
 		{
 			# Store the bridge
+			$anvil->data->{new}{bridge}{$interface}{nm_uuid}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
 			$anvil->data->{new}{bridge}{$interface}{id}          = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id};
 			$anvil->data->{new}{bridge}{$interface}{mac_address} = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}; 
 			$anvil->data->{new}{bridge}{$interface}{mtu}         = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu};
@@ -1295,6 +1446,7 @@ sub collect_data_ifcfg
 			$anvil->data->{new}{bridge}{$interface}{tx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
 			$anvil->data->{new}{bridge}{$interface}{rx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::bridge::${interface}::nm_uuid"     => $anvil->data->{new}{bridge}{$interface}{nm_uuid}, 
 				"new::bridge::${interface}::id"          => $anvil->data->{new}{bridge}{$interface}{id}, 
 				"new::bridge::${interface}::mac_address" => $anvil->data->{new}{bridge}{$interface}{mac_address}, 
 				"new::bridge::${interface}::mtu"         => $anvil->data->{new}{bridge}{$interface}{mtu}, 
@@ -1306,6 +1458,7 @@ sub collect_data_ifcfg
 		elsif ($type eq "bond")
 		{
 			# Store the bond
+			$anvil->data->{new}{bond}{$interface}{nm_uuid}              = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
 			$anvil->data->{new}{bond}{$interface}{mode}                 = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode};
 			$anvil->data->{new}{bond}{$interface}{mtu}                  = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu}; 
 			$anvil->data->{new}{bond}{$interface}{master}               = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
@@ -1322,6 +1475,7 @@ sub collect_data_ifcfg
 			$anvil->data->{new}{bond}{$interface}{tx_bytes}             = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
 			$anvil->data->{new}{bond}{$interface}{rx_bytes}             = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::bond::${interface}::nm_uuid"              => $anvil->data->{new}{bond}{$interface}{nm_uuid}, 
 				"new::bond::${interface}::mode"                 => $anvil->data->{new}{bond}{$interface}{mode}, 
 				"new::bond::${interface}::mtu"                  => $anvil->data->{new}{bond}{$interface}{mtu}, 
 				"new::bond::${interface}::master"               => $anvil->data->{new}{bond}{$interface}{master}, 
@@ -1342,6 +1496,8 @@ sub collect_data_ifcfg
 		elsif ($type eq "interface")
 		{
 			# Store the interface
+			$anvil->data->{new}{interface}{$interface}{nm_uuid}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
+			$anvil->data->{new}{interface}{$interface}{nm_device}   = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_device};
 			$anvil->data->{new}{interface}{$interface}{bond_uuid}   = "";
 			$anvil->data->{new}{interface}{$interface}{bond_name}   = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
 			$anvil->data->{new}{interface}{$interface}{bridge_uuid} = ""; 
@@ -1356,6 +1512,8 @@ sub collect_data_ifcfg
 			$anvil->data->{new}{interface}{$interface}{tx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
 			$anvil->data->{new}{interface}{$interface}{rx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"new::interface::${interface}::nm_uuid"     => $anvil->data->{new}{interface}{$interface}{nm_uuid}, 
+				"new::interface::${interface}::nm_device"   => $anvil->data->{new}{interface}{$interface}{nm_device}, 
 				"new::interface::${interface}::bond_uuid"   => $anvil->data->{new}{interface}{$interface}{bond_uuid}, 
 				"new::interface::${interface}::bond_name"   => $anvil->data->{new}{interface}{$interface}{bond_name}, 
 				"new::interface::${interface}::bridge_uuid" => $anvil->data->{new}{interface}{$interface}{bridge_uuid}, 
@@ -2719,8 +2877,12 @@ sub check_interfaces
 {
 	my ($anvil) = @_;
 	
+	my $interfaces = keys %{$anvil->data->{new}{interface}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interfaces => $interfaces }});
 	foreach my $network_interface_name (sort {$a cmp $b} keys %{$anvil->data->{new}{interface}})
 	{
+		my $new_nm_uuid     = $anvil->data->{new}{interface}{$network_interface_name}{nm_uuid};
+		my $new_nm_device   = $anvil->data->{new}{interface}{$network_interface_name}{nm_device};
 		my $new_bond_uuid   = $anvil->data->{new}{interface}{$network_interface_name}{bond_uuid};
 		my $new_bond_name   = $anvil->data->{new}{interface}{$network_interface_name}{bond_name};
 		my $new_bridge_uuid = $anvil->data->{new}{interface}{$network_interface_name}{bridge_uuid};
@@ -2736,6 +2898,8 @@ sub check_interfaces
 		my $new_rx_bytes    = $anvil->data->{new}{interface}{$network_interface_name}{rx_bytes};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			network_interface_name => $network_interface_name, 
+			new_nm_uuid            => $new_nm_uuid, 
+			new_nm_device          => $new_nm_device, 
 			new_bond_uuid          => $new_bond_uuid,
 			new_bond_name          => $new_bond_name, 
 			new_bridge_uuid        => $new_bridge_uuid,
@@ -2750,8 +2914,6 @@ sub check_interfaces
 			new_tx_bytes           => $new_tx_bytes,
 			new_rx_bytes           => $new_rx_bytes,
 		}});
-		
-		my $new_nmcli_uuid = "";
 		
 		# Find the bridge, if any, and the bond UUID, if there's a bond name.
 		if ($new_bond_name)
@@ -3155,11 +3317,11 @@ sub check_interfaces
 			{
 				my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 					debug                         => 2,
-					network_interface_nmcli_uuid  => $new_nmcli_uuid, 
+					network_interface_nm_uuid     => $new_nm_uuid, 
 					network_interface_bond_uuid   => $new_bond_uuid, 
 					network_interface_bridge_uuid => $new_bridge_uuid, 
 					network_interface_name        => $network_interface_name,
-					network_interface_device      => $network_interface_device,
+					network_interface_device      => $new_nm_device,
 					network_interface_duplex      => $new_duplex, 
 					network_interface_link_state  => $new_link_state, 
 					network_interface_operational => $new_operational, 
@@ -3290,11 +3452,11 @@ sub check_interfaces
 			# Record the interface
 			my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 				debug                         => 2,
-				network_interface_nmcli_uuid  => $new_nmcli_uuid, 
+				network_interface_nm_uuid     => $new_nm_uuid, 
 				network_interface_bond_uuid   => $new_bond_uuid, 
 				network_interface_bridge_uuid => $new_bridge_uuid, 
 				network_interface_name        => $network_interface_name,
-				network_interface_device      => $network_interface_device,
+				network_interface_device      => $new_nm_device,
 				network_interface_duplex      => $new_duplex, 
 				network_interface_link_state  => $new_link_state, 
 				network_interface_operational => $new_operational, 
@@ -3423,6 +3585,7 @@ sub check_bonds
 	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{new}{bond}})
 	{
 		# Store the bond
+		my $new_nm_uuid              = $anvil->data->{new}{bond}{$bond_name}{nm_uuid};
 		my $new_mode                 = $anvil->data->{new}{bond}{$bond_name}{mode};
 		my $new_mtu                  = $anvil->data->{new}{bond}{$bond_name}{mtu};
 		my $new_operational          = $anvil->data->{new}{bond}{$bond_name}{operational};
@@ -3793,6 +3956,7 @@ sub check_bonds
 			{
 				my $bond_uuid = $anvil->Database->insert_or_update_bonds({
 					debug                     => 2,
+					bond_nm_uuid              => $new_nm_uuid, 
 					bond_name                 => $bond_name,
 					bond_mode                 => $new_mode, 
 					bond_mtu                  => $new_mtu, 
