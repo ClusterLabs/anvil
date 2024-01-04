@@ -1,8 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 import api from '../lib/api';
 import handleAPIError from '../lib/handleAPIError';
-import useProtectedState from './useProtectedState';
 
 type ActiveFetchSetter<T> = (data: T) => void;
 
@@ -22,7 +21,7 @@ const useActiveFetch = <Data>(
 ): ActiveFetchHookResponse => {
   const { onError, onData, url: urlPrefix = '' } = options;
 
-  const [loading, setLoading] = useProtectedState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const fetch = useCallback<ActiveFetcher>(
     (urlPostfix = '') => {

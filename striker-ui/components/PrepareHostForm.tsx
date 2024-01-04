@@ -31,8 +31,6 @@ import { Panel, PanelHeader } from './Panels';
 import RadioGroupWithLabel from './RadioGroupWithLabel';
 import Spinner from './Spinner';
 import { BodyText, HeaderText, MonoText } from './Text';
-import useProtect from '../hooks/useProtect';
-import useProtectedState from '../hooks/useProtectedState';
 
 const ENTERPRISE_KEY_LABEL = 'Alteeve enterprise key';
 const HOST_IP_LABEL = 'Host IP address';
@@ -55,8 +53,6 @@ const GRID_COLUMNS: Exclude<GridProps['columns'], undefined> = {
 const GRID_SPACING: Exclude<GridProps['spacing'], undefined> = '1em';
 
 const PrepareHostForm: FC = () => {
-  const { protect } = useProtect();
-
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const inputEnterpriseKeyRef = useRef<InputForwardedRefContent<'string'>>({});
   const inputHostNameRef = useRef<InputForwardedRefContent<'string'>>({});
@@ -77,13 +73,10 @@ const PrepareHostForm: FC = () => {
   const [connectedHostIPAddress, setConnectedHostIPAddress] = useState<
     string | undefined
   >();
-  const [connectedHostPassword, setConnectedHostPassword] = useProtectedState<
+  const [connectedHostPassword, setConnectedHostPassword] = useState<
     string | undefined
-  >(undefined, protect);
-  const [connectedHostUUID, setConnectedHostUUID] = useProtectedState<string>(
-    '',
-    protect,
-  );
+  >();
+  const [connectedHostUUID, setConnectedHostUUID] = useState<string>('');
   const [inputHostType, setInputHostType] = useState<string>('');
   const [isInputEnterpriseKeyValid, setIsInputEnterpriseKeyValid] =
     useState<boolean>(true);

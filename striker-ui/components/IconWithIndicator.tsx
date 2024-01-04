@@ -11,14 +11,13 @@ import {
   useCallback,
   useImperativeHandle,
   useMemo,
+  useState,
 } from 'react';
 
 import { BLACK, BLUE } from '../lib/consts/DEFAULT_THEME';
 
 import FlexBox, { FlexBoxProps } from './FlexBox';
 import { BodyText, BodyTextProps } from './Text';
-import useProtect from '../hooks/useProtect';
-import useProtectedState from '../hooks/useProtectedState';
 
 type IndicatorValue = boolean | number;
 
@@ -79,10 +78,9 @@ const IconWithIndicator = forwardRef<
     },
     ref,
   ) => {
-    const { protect } = useProtect();
-    const [indicatorValue, setIndicatorValue] = useProtectedState<
-      boolean | number
-    >(initialIndicatorValue, protect);
+    const [indicatorValue, setIndicatorValue] = useState<boolean | number>(
+      initialIndicatorValue,
+    );
 
     const buildIndicator = useCallback(
       (
