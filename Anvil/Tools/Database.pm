@@ -3984,7 +3984,7 @@ AND
 		}});
 		
 		$anvil->data->{host_from_uuid}{$host_uuid}{full}  = $host_name;
-		$anvil->data->{host_from_uuid}{$host_uuid}{short} = $short_host_name;
+		$anvil->data->{host_from_uuid}{$host_uuid}{short} = $short_host_name ? $short_host_name : $host_name;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"host_from_uuid::${host_uuid}::full"  => $anvil->data->{host_from_uuid}{$host_uuid}{full},
 			"host_from_uuid::${host_uuid}::short" => $anvil->data->{host_from_uuid}{$host_uuid}{short},
@@ -7542,7 +7542,6 @@ WHERE
 	return($anvil_uuid);
 }
 
-
 =head2 insert_or_update_bridges
 
 This updates (or inserts) a record in the 'bridges' table. The C<< bridge_uuid >> referencing the database row will be returned.
@@ -7574,6 +7573,10 @@ This is the host that the IP address is on. If not passed, the local C<< sys::ho
 =head3 bridge_name (required)
 
 This is the bridge's device name.
+
+=head3 bridge_nm_uuid (optional)
+
+This is the network manager UUID for the bridge.
 
 =head3 bridge_id (optional)
 
@@ -7611,6 +7614,7 @@ sub insert_or_update_bridges
 	my $bridge_uuid        = defined $parameter->{bridge_uuid}        ? $parameter->{bridge_uuid}        : "";
 	my $bridge_host_uuid   = defined $parameter->{bridge_host_uuid}   ? $parameter->{bridge_host_uuid}   : $anvil->data->{sys}{host_uuid};
 	my $bridge_name        = defined $parameter->{bridge_name}        ? $parameter->{bridge_name}        : "";
+	my $bridge_nm_uuid     =         $parameter->{bridge_nm_uuid}     ? $parameter->{bridge_nm_uuid}     : 'NULL';
 	my $bridge_id          = defined $parameter->{bridge_id}          ? $parameter->{bridge_id}          : "";
 	my $bridge_mac_address = defined $parameter->{bridge_mac_address} ? $parameter->{bridge_mac_address} : "";
 	my $bridge_mtu         = defined $parameter->{bridge_mtu}         ? $parameter->{bridge_mtu}         : "";
@@ -7623,6 +7627,7 @@ sub insert_or_update_bridges
 		bridge_uuid        => $bridge_uuid, 
 		bridge_host_uuid   => $bridge_host_uuid, 
 		bridge_name        => $bridge_name, 
+		bridge_nm_uuid     => $bridge_nm_uuid, 
 		bridge_id          => $bridge_id, 
 		bridge_mac_address => $bridge_mac_address, 
 		bridge_mtu         => $bridge_mtu, 
@@ -7755,6 +7760,7 @@ INSERT INTO
 (
     bridge_uuid, 
     bridge_host_uuid, 
+    bridge_nm_uuid, 
     bridge_name, 
     bridge_id, 
     bridge_mac_address, 
@@ -7764,6 +7770,7 @@ INSERT INTO
 ) VALUES (
     ".$anvil->Database->quote($bridge_uuid).", 
     ".$anvil->Database->quote($bridge_host_uuid).", 
+    ".$anvil->Database->quote($bridge_nm_uuid).", 
     ".$anvil->Database->quote($bridge_name).", 
     ".$anvil->Database->quote($bridge_id).", 
     ".$anvil->Database->quote($bridge_mac_address).", 
@@ -7772,6 +7779,7 @@ INSERT INTO
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
+		$query =~ s/'NULL'/NULL/g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
@@ -7781,6 +7789,7 @@ INSERT INTO
 		my $query = "
 SELECT 
     bridge_host_uuid, 
+    bridge_nm_uuid, 
     bridge_name, 
     bridge_id, 
     bridge_mac_address, 
@@ -7807,14 +7816,16 @@ WHERE
 		}
 		foreach my $row (@{$results})
 		{
-			my $old_bridge_host_uuid   = $row->[0];
-			my $old_bridge_name        = $row->[1];
-			my $old_bridge_id          = $row->[2];
-			my $old_bridge_mac_address = $row->[3];
-			my $old_bridge_mtu         = $row->[4];
-			my $old_bridge_stp_enabled = $row->[5];
+			my $old_bridge_host_uuid   =         $row->[0];
+			my $old_bridge_nm_uuid     = defined $row->[1] ? $row->[1] : 'NULL';
+			my $old_bridge_name        =         $row->[2];
+			my $old_bridge_id          =         $row->[3];
+			my $old_bridge_mac_address =         $row->[4];
+			my $old_bridge_mtu         =         $row->[5];
+			my $old_bridge_stp_enabled =         $row->[6];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bridge_host_uuid   => $old_bridge_host_uuid, 
+				old_bridge_nm_uuid     => $old_bridge_nm_uuid, 
 				old_bridge_name        => $old_bridge_name, 
 				old_bridge_id          => $old_bridge_id,
 				old_bridge_mac_address => $old_bridge_mac_address, 
@@ -7824,6 +7835,7 @@ WHERE
 			
 			# Anything change?
 			if (($old_bridge_host_uuid   ne $bridge_host_uuid)   or 
+			    ($old_bridge_nm_uuid     ne $bridge_nm_uuid)     or 
 			    ($old_bridge_name        ne $bridge_name)        or 
 			    ($old_bridge_id          ne $bridge_id)          or 
 			    ($old_bridge_mac_address ne $bridge_mac_address) or 
@@ -7836,6 +7848,7 @@ UPDATE
     bridges 
 SET 
     bridge_host_uuid   = ".$anvil->Database->quote($bridge_host_uuid).",  
+    bridge_nm_uuid     = ".$anvil->Database->quote($bridge_nm_uuid).",  
     bridge_name        = ".$anvil->Database->quote($bridge_name).", 
     bridge_id          = ".$anvil->Database->quote($bridge_id).", 
     bridge_mac_address = ".$anvil->Database->quote($bridge_mac_address).", 
@@ -7845,6 +7858,7 @@ SET
 WHERE 
     bridge_uuid        = ".$anvil->Database->quote($bridge_uuid)." 
 ";
+				$query =~ s/'NULL'/NULL/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 			}
@@ -7890,6 +7904,10 @@ This is the host that the IP address is on. If not passed, the local C<< sys::ho
 =head3 bond_name (required)
 
 This is the bond's device name.
+
+=head3 bond_nm_uuid (optional)
+
+This is the network manager UUID for this bond.
 
 =head3 bond_mode (required)
 
@@ -7951,6 +7969,7 @@ sub insert_or_update_bonds
 	my $bond_uuid                 = defined $parameter->{bond_uuid}                 ? $parameter->{bond_uuid}                 : "";
 	my $bond_host_uuid            = defined $parameter->{bond_host_uuid}            ? $parameter->{bond_host_uuid}            : $anvil->data->{sys}{host_uuid};
 	my $bond_name                 = defined $parameter->{bond_name}                 ? $parameter->{bond_name}                 : "";
+	my $bond_nm_uuid              =         $parameter->{bond_nm_uuid}              ? $parameter->{bond_nm_uuid}              : 'NULL';
 	my $bond_mode                 = defined $parameter->{bond_mode}                 ? $parameter->{bond_mode}                 : "";
 	my $bond_mtu                  = defined $parameter->{bond_mtu}                  ? $parameter->{bond_mtu}                  : "";
 	my $bond_primary_interface    = defined $parameter->{bond_primary_interface}    ? $parameter->{bond_primary_interface}    : "";
@@ -7961,7 +7980,7 @@ sub insert_or_update_bonds
 	my $bond_down_delay           = defined $parameter->{bond_down_delay}           ? $parameter->{bond_down_delay}           : "";
 	my $bond_mac_address          = defined $parameter->{bond_mac_address}          ? $parameter->{bond_mac_address}          : "";
 	my $bond_operational          = defined $parameter->{bond_operational}          ? $parameter->{bond_operational}          : "";
-	my $bond_bridge_uuid          = defined $parameter->{bond_bridge_uuid}          ? $parameter->{bond_bridge_uuid}          : 'NULL';
+	my $bond_bridge_uuid          =         $parameter->{bond_bridge_uuid}          ? $parameter->{bond_bridge_uuid}          : 'NULL';
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                      => $uuid, 
 		file                      => $file, 
@@ -7970,6 +7989,7 @@ sub insert_or_update_bonds
 		bond_uuid                 => $bond_uuid, 
 		bond_host_uuid            => $bond_host_uuid, 
 		bond_name                 => $bond_name, 
+		bond_nm_uuid              => $bond_nm_uuid, 
 		bond_mode                 => $bond_mode, 
 		bond_mtu                  => $bond_mtu, 
 		bond_primary_interface    => $bond_primary_interface, 
@@ -8121,6 +8141,7 @@ INSERT INTO
 (
     bond_uuid, 
     bond_host_uuid, 
+    bond_nm_uuid, 
     bond_name, 
     bond_mode, 
     bond_mtu, 
@@ -8137,6 +8158,7 @@ INSERT INTO
 ) VALUES (
     ".$anvil->Database->quote($bond_uuid).", 
     ".$anvil->Database->quote($bond_host_uuid).", 
+    ".$anvil->Database->quote($bond_nm_uuid).", 
     ".$anvil->Database->quote($bond_name).", 
     ".$anvil->Database->quote($bond_mode).", 
     ".$anvil->Database->quote($bond_mtu).", 
@@ -8162,6 +8184,7 @@ INSERT INTO
 		my $query = "
 SELECT 
     bond_host_uuid, 
+    bond_nm_uuid, 
     bond_name, 
     bond_mode, 
     bond_mtu, 
@@ -8196,20 +8219,22 @@ WHERE
 		foreach my $row (@{$results})
 		{
 			my $old_bond_host_uuid            =         $row->[0];
-			my $old_bond_name                 =         $row->[1];
-			my $old_bond_mode                 =         $row->[2];
-			my $old_bond_mtu                  =         $row->[3];
-			my $old_bond_primary_interface    =         $row->[4];
-			my $old_bond_primary_reselect     =         $row->[5];
-			my $old_bond_active_interface     =         $row->[6];
-			my $old_bond_mii_polling_interval =         $row->[7];
-			my $old_bond_up_delay             =         $row->[8];
-			my $old_bond_down_delay           =         $row->[9];
-			my $old_bond_mac_address          =         $row->[10];
-			my $old_bond_operational          =         $row->[11];
-			my $old_bond_bridge_uuid          = defined $row->[12] ? $row->[12] : 'NULL';
+			my $old_bond_nm_uuid              = defined $row->[1]  ? $row->[1] : 'NULL';
+			my $old_bond_name                 =         $row->[2];
+			my $old_bond_mode                 =         $row->[3];
+			my $old_bond_mtu                  =         $row->[4];
+			my $old_bond_primary_interface    =         $row->[5];
+			my $old_bond_primary_reselect     =         $row->[6];
+			my $old_bond_active_interface     =         $row->[7];
+			my $old_bond_mii_polling_interval =         $row->[8];
+			my $old_bond_up_delay             =         $row->[9];
+			my $old_bond_down_delay           =         $row->[10];
+			my $old_bond_mac_address          =         $row->[11];
+			my $old_bond_operational          =         $row->[12];
+			my $old_bond_bridge_uuid          = defined $row->[13] ? $row->[12] : 'NULL';
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				old_bond_host_uuid            => $old_bond_host_uuid, 
+				old_bond_nm_uuid              => $old_bond_nm_uuid, 
 				old_bond_name                 => $old_bond_name, 
 				old_bond_mode                 => $old_bond_mode, 
 				old_bond_mtu                  => $old_bond_mtu, 
@@ -8226,6 +8251,7 @@ WHERE
 			
 			# Anything change?
 			if (($old_bond_host_uuid            ne $bond_host_uuid)            or 
+			    ($old_bond_nm_uuid              ne $bond_nm_uuid)              or 
 			    ($old_bond_name                 ne $bond_name)                 or 
 			    ($old_bond_mode                 ne $bond_mode)                 or 
 			    ($old_bond_mtu                  ne $bond_mtu)                  or 
@@ -8245,6 +8271,7 @@ UPDATE
     bonds 
 SET 
     bond_host_uuid            = ".$anvil->Database->quote($bond_host_uuid).",  
+    bond_nm_uuid              = ".$anvil->Database->quote($bond_nm_uuid).",  
     bond_name                 = ".$anvil->Database->quote($bond_name).", 
     bond_mode                 = ".$anvil->Database->quote($bond_mode).", 
     bond_mtu                  = ".$anvil->Database->quote($bond_mtu).", 
@@ -18990,6 +19017,7 @@ sub write
 				's1:test' => $test,
 				's2:$@'   => $@,
 			}});
+			
 			if (not $test)
 			{
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0090", variables => { 

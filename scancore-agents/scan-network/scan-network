@@ -124,7 +124,7 @@ sub clear_old_interfaces
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			uuid => $anvil->Database->get_host_from_uuid({short => 1, host_uuid => $uuid})." (".$uuid.")", 
+			uuid => $anvil->Database->get_host_from_uuid({debug => 2, short => 1, host_uuid => $uuid})." (".$uuid.")", 
 		}});
 		my $query = "
 SELECT 

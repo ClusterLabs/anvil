@@ -855,7 +855,7 @@ CREATE TRIGGER trigger_jobs
 CREATE TABLE bridges (
     bridge_uuid           uuid                        not null    primary key,
     bridge_host_uuid      uuid                        not null,
-    bridge_nm_uuid        uuid                        not null,                  -- This is the network manager UUID for this bridge interface
+    bridge_nm_uuid        uuid,                                                  -- This is the network manager UUID for this bridge interface
     bridge_name           text                        not null,
     bridge_id             text                        not null,
     bridge_mac_address    text                        not null,
@@ -922,7 +922,7 @@ CREATE TRIGGER trigger_bridges
 CREATE TABLE bonds (
     bond_uuid                    uuid                        not null    primary key,
     bond_host_uuid               uuid                        not null,
-    bond_nm_uuid                 uuid                        not null,                   -- The is the network manager UUID for this bond.
+    bond_nm_uuid                 uuid,                                                   -- The is the network manager UUID for this bond.
     bond_name                    text                        not null,
     bond_mode                    text                        not null,                   -- This is the numerical bond type (will translate to the user's language in the Anvil!)
     bond_mtu                     bigint                      not null,
