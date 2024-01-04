@@ -127,7 +127,7 @@ const IconWithIndicator = forwardRef<
             ...indicatorTextSx,
           }}
         >
-          {value > INDICATOR_MAX ? `${INDICATOR_MAX}+` : value}
+          {Number(value) > INDICATOR_MAX ? `${INDICATOR_MAX}+` : value}
         </BodyText>
       ),
       [indicatorTextSx, restIndicatorTextProps],
