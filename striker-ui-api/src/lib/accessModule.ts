@@ -59,7 +59,6 @@ class Access extends EventEmitter {
     gid = PGID,
     restartInterval = 10000,
     stdio = 'pipe',
-    timeout = 10000,
     uid = PUID,
     ...restSpawnOptions
   }: AccessStartOptions = {}) {
@@ -68,7 +67,6 @@ class Access extends EventEmitter {
       gid,
       restartInterval,
       stdio,
-      timeout,
       uid,
       ...restSpawnOptions,
     };
@@ -78,7 +76,6 @@ class Access extends EventEmitter {
     const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
       gid,
       stdio,
-      timeout,
       uid,
       ...restSpawnOptions,
     });
