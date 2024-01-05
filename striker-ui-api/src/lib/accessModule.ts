@@ -190,21 +190,17 @@ class Access extends EventEmitter {
 }
 
 const access = new Access();
-const rootAccess = new Access({ spawnOptions: { gid: 0, uid: 0 } });
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
     params = [],
     pre = ['Database'],
-    root,
   }: {
     params?: unknown[];
     pre?: string[];
-    root?: boolean;
   } = {},
 ) => {
-  const selectedAccess = root ? rootAccess : access;
   const chain = `${pre.join('->')}->${subroutine}`;
 
   const subParams: string[] = params.map<string>((p) => {
@@ -219,7 +215,7 @@ const subroutine = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await selectedAccess.interact<{
+  const { sub_results: results } = await access.interact<{
     sub_results: T;
   }>('x', chain, ...subParams);
 
