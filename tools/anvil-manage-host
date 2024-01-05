@@ -29,12 +29,9 @@ $anvil->Get->switches({list => [
 	"auto-grow-pv",
 	"check-configured", 
 	"check-database", 
-	"check-network-mapping", 
 	"confirm", 
 	"database-active", 
 	"database-inactive", 
-	"disable-network-mapping", 
-	"enable-network-mapping", 
 	"mark-configured", 
 	"mark-unconfigured", 
 	"resync-database"], man => $THIS_FILE});
@@ -57,10 +54,6 @@ if (($anvil->data->{switches}{'mark-configured'}) or ($anvil->data->{switches}{'
 elsif (($anvil->data->{switches}{'database-active'}) or ($anvil->data->{switches}{'database-inactive'}) or ($anvil->data->{switches}{'check-database'}))
 {
 	update_database($anvil);
-}
-elsif (($anvil->data->{switches}{'enable-network-mapping'}) or ($anvil->data->{switches}{'disable-network-mapping'}) or ($anvil->data->{switches}{'check-network-mapping'}))
-{
-	update_network_mapping($anvil);
 }
 elsif ($anvil->data->{switches}{'age-out-database'})
 {
@@ -276,118 +269,6 @@ sub update_database
 		}
 	}
 	
-	return(0);
-}
-
-sub update_network_mapping
-{
-	my ($anvil) = @_;
-	
-	my $variable_name                                                                          = "config::map_network";
-	my ($map_network_value, $map_network_uuid, $map_network_mtime, $map_network_modified_date) = $anvil->Database->read_variable({
-		variable_name         => $variable_name,
-		variable_source_table => "hosts",
-		variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:variable_name'             => $variable_name, 
-		's2:map_network_value'         => $map_network_value, 
-		's3:map_network_mtime'         => $map_network_mtime, 
-		's4:map_network_modified_date' => $map_network_modified_date, 
-		's5:map_network_uuid'          => $map_network_uuid, 
-	}});
-	if ($anvil->data->{switches}{'check-network-mapping'})
-	{
-		# We'll run for a day (should be cancelled by the program when the user's done, so this 
-		# shouldn't fire in practice).
-		my $expire_age      = 86400;
-		my $map_network_age = 0;
-		if ($map_network_uuid)
-		{
-			$map_network_age = time - $map_network_mtime;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { map_network_age => $map_network_age }});
-		}
-		if ($map_network_value)
-		{
-			# How long ago was it set?
-			$anvil->data->{switches}{'clear-mapping'} = "" if not defined $anvil->data->{switches}{'clear-mapping'};
-			if (($map_network_age >= $expire_age) or ($anvil->data->{switches}{'clear-mapping'}))
-			{
-				# Clear it.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0470"});
-				$anvil->Database->insert_or_update_variables({
-					debug             => 3,
-					variable_value    => 0, 
-					variable_uuid     => $map_network_uuid, 
-					update_value_only => 1, 
-				});
-			}
-			else
-			{
-				# Mark it so we only track the network.
-				my $say_age = $anvil->Convert->add_commas({number => $expire_age});
-				my $timeout = $anvil->Convert->add_commas({number => ($expire_age - $map_network_age)});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0471", variables => { 
-					age     => $say_age, 
-					timeout => $timeout,
-				}});
-			}
-		}
-		else
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0820"});
-		}
-		return(0);
-	}
-	
-	if ($anvil->data->{switches}{'enable-network-mapping'})
-	{
-		if ($map_network_value)
-		{
-			# Nothing to do.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0353"});
-		}
-		else
-		{
-			# Enable network configuring.
-			my $variable_uuid = $anvil->Database->insert_or_update_variables({
-				variable_name         => $variable_name, 
-				variable_value        => 1, 
-				variable_default      => "", 
-				variable_description  => "striker_0202", 
-				variable_section      => "config", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0354"});
-		}
-	}
-
-	if ($anvil->data->{switches}{'disable-network-mapping'})
-	{
-		if ($map_network_value)
-		{
-			# Disable network configuring.
-			my $variable_uuid = $anvil->Database->insert_or_update_variables({
-				variable_name         => $variable_name, 
-				variable_value        => 0, 
-				variable_default      => "", 
-				variable_description  => "striker_0202", 
-				variable_section      => "config", 
-				variable_source_uuid  => $anvil->Get->host_uuid, 
-				variable_source_table => "hosts", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0356"});
-		}
-		else
-		{
-			# Nothing to do.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0355"});
-		}
-	}
-
 	return(0);
 }
 

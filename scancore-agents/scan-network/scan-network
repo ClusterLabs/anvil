@@ -69,6 +69,9 @@ if ($anvil->data->{switches}{purge})
 	$anvil->nice_exit({exit_code => 0});
 }
 
+# If there's no DB (or cached data isn't recorded to the database yet), this will store those records.
+$anvil->data->{cache}{new_file} = "# interface,timestamp,mac_address,speed,link_state,operational,nm_uuid,nm_device\n";
+process_interface_cache($anvil);
 
 # Read the data.
 collect_data($anvil);
@@ -88,6 +91,18 @@ clear_old_variables($anvil);
 # This removes network interfaces that have been marked as DELETED for a while now.
 clear_old_interfaces($anvil);
 
+# Write out the interface cache
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	"cache::new_file"           => $anvil->data->{cache}{new_file}, 
+	"path::data::network_cache" => $anvil->data->{path}{data}{network_cache}, 
+}});
+$anvil->Storage->write_file({
+	body      => $anvil->data->{cache}{new_file},
+	file      => $anvil->data->{path}{data}{network_cache},
+	overwrite => 1,
+	backup    => 0,
+});
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -95,6 +110,67 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This reads in the interface cache file and looks for records that haven't been stored in the database yet.
+sub process_interface_cache
+{
+	my ($anvil) = @_;
+	
+	# Does the file exist? If so, read it in.
+	if (-e $anvil->data->{path}{data}{network_cache})
+	{
+		my $body = $anvil->Storage->read_file({debug => 2, cache => 0, force_read => 1, file => $anvil->data->{path}{data}{network_cache}});
+		foreach my $line (split/\n/, $body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			next if $line =~ /^#/;
+			my ($interface, $timestamp, $mac_address, $speed, $link_state, $operational, $nm_uuid, $nm_device) = (split/,/, $line);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface   => $interface, 
+				timestamp   => $timestamp, 
+				speed       => $speed, 
+				mac_address => $mac_address, 
+				link_state  => $link_state, 
+				operational => $operational, 
+				nm_uuid     => $nm_uuid,
+				nm_device   => $nm_device, 
+			}});
+			
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				my ($network_interface_uuid) = $anvil->Database->insert_or_update_network_interfaces({
+					debug                         => 2, 
+					link_only                     => 1,
+					timestamp                     => $timestamp, 
+					network_interface_name        => $interface, 
+					network_interface_link_state  => $link_state, 
+					network_interface_mac_address => $mac_address, 
+					network_interface_operational => $operational, 
+					network_interface_speed       => $speed, 
+					network_interface_nm_uuid     => $nm_uuid, 
+					network_interface_device      => $nm_device,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { network_interface_uuid => $network_interface_uuid }});
+				if (not $network_interface_uuid)
+				{
+					# Failed to update, could be that we cached data for an interface not yet 
+					# seen. If so, the coming scan will add it and this cache should flush out 
+					# next time.
+					$anvil->data->{cache}{new_file} .= $line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
+				}
+			}
+			else
+			{
+				# No database, re-cache
+				$anvil->data->{cache}{new_file} .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "cache::new_file" => $anvil->data->{cache}{new_file} }});
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # This removes network interfaces that have been marked as DELETED for a while now.
 sub clear_old_interfaces
@@ -459,7 +535,6 @@ OR
 sub collect_data
 {
 	my ($anvil) = @_;
-	
 	
 	# The 'local_host' is needed to pull data recorded by Network->get_ips();
 	$anvil->Network->get_ips({debug => 2});
@@ -890,7 +965,7 @@ sub collect_data
 			# If this is a link and there's no database connections, cache the data.
 			if (($type eq "interface") && (not $anvil->data->{sys}{database}{connections}))
 			{
-				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational."\n";
+				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational.",".$nm_uuid.",".$nm_device."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});
@@ -1409,7 +1484,7 @@ sub collect_data_ifcfg
 			# If this is a link and there's no database connections, cache the data.
 			if (($type eq "interface") && (not $anvil->data->{sys}{database}{connections}))
 			{
-				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational."\n";
+				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational.",NULL,NULL\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});

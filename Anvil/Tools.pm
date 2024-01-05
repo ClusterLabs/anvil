@@ -1170,7 +1170,6 @@ sub _set_paths
 				'anvil-special-operations'	=>	"/usr/sbin/anvil-special-operations",
 				'anvil-sync-shared'		=>	"/usr/sbin/anvil-sync-shared",
 				'anvil-update-files'		=>	"/usr/sbin/anvil-update-files",
-				'anvil-update-states'		=>	"/usr/sbin/anvil-update-states",
 				'anvil-update-system'		=>	"/usr/sbin/anvil-update-system",
 				'anvil-version-changes'		=>	"/usr/sbin/anvil-version-changes",
 				augtool				=>	"/usr/bin/augtool",

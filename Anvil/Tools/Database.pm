@@ -18591,7 +18591,6 @@ sub track_files
 			}});
 			next if $file_type eq "DELETED";
 			
-			### TODO - Left off here, not adding DR links.
 			my $anvil_needs_file = 0;
 			foreach my $host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
 			{
