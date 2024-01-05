@@ -3,14 +3,16 @@ import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
 import {
-  SERVER_PATHS,
+  DEFAULT_JOB_PROGRESS,
+  DEBUG_ACCESS,
   PGID,
   PUID,
-  DEFAULT_JOB_PROGRESS,
   REP_UUID,
+  SERVER_PATHS,
 } from './consts';
 
 import { formatSql } from './formatSql';
+import { repeat } from './repeat';
 import {
   date,
   stderr as sherr,
@@ -53,7 +55,7 @@ class Access extends EventEmitter {
   }
 
   private start({
-    args = ['--emit-events'],
+    args = ['--emit-events', repeat('v', DEBUG_ACCESS, { prefix: '-' })],
     gid = PGID,
     restartInterval = 10000,
     stdio = 'pipe',
