@@ -1,4 +1,4 @@
-import { ChildProcess, spawn, SpawnOptions } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
@@ -26,9 +26,13 @@ import {
  * * This daemon's lifecycle events should follow the naming from systemd.
  */
 class Access extends EventEmitter {
+  private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
+    prefix: '-',
+  });
+
   private ps: ChildProcess;
 
-  private readonly mapToExternalEventHandler: Record<
+  private readonly MAP_TO_EVT_HDL: Record<
     string,
     (args: { options: AccessStartOptions; ps: ChildProcess }) => void
   > = {
@@ -44,18 +48,24 @@ class Access extends EventEmitter {
 
   constructor({
     eventEmitterOptions = {},
-    spawnOptions = {},
+    startOptions = {},
   }: {
     eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
-    spawnOptions?: SpawnOptions;
+    startOptions?: AccessStartOptions;
   } = {}) {
     super(eventEmitterOptions);
 
-    this.ps = this.start(spawnOptions);
+    const { args: initial = [], ...rest } = startOptions;
+
+    const args = [...initial, '--emit-events', Access.VERBOSE].filter(
+      (value) => value !== '',
+    );
+
+    this.ps = this.start({ args, ...rest });
   }
 
   private start({
-    args = ['--emit-events', repeat('v', DEBUG_ACCESS, { prefix: '-' })],
+    args = [],
     gid = PGID,
     restartInterval = 10000,
     stdio = 'pipe',
@@ -114,7 +124,7 @@ class Access extends EventEmitter {
 
         const { 1: n = '', 2: event } = parts;
 
-        this.mapToExternalEventHandler[event]?.call(null, { options, ps });
+        this.MAP_TO_EVT_HDL[event]?.call(null, { options, ps });
 
         return n;
       });
