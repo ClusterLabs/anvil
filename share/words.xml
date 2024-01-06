@@ -752,6 +752,7 @@ The XML that failed sanity check was:
 		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
+		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
