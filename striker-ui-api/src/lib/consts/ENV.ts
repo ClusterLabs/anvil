@@ -16,6 +16,13 @@ export const COOKIE_ORIGINAL_MAX_AGE: number =
   Number(process.env.COOKIE_ORIGINAL_MAX_AGE) || 28800000;
 
 /**
+ * The debug level to pass to anvil-access-module; 1 is '-v', 2 is '-vv', ...
+ *
+ * @default 0
+ */
+export const DEBUG_ACCESS = Number(process.env.DEBUG_ACCESS) || 0;
+
+/**
  * The fallback job progress value when queuing jobs.
  *
  * Ignore jobs by setting this to `100`.
