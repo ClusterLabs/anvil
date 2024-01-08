@@ -12,6 +12,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Job.pm";
 
 ### Methods;
+# bump_progress
 # clear
 # get_job_details
 # get_job_uuid
@@ -79,6 +80,84 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 bump_progress
+
+This method is meant to make it easier to bump the progress of a jump by some number of steps when a job doesn't run in a linear fashion. 
+
+It does this by storing the progress in the C<< sys::job_progress >> hash and incrementing it by the C<< steps >> parameter value (setting it to C<< 0 >> if it doesn't exist or exists with a non-digit value). If the progress goes over C<< 99 >>, it will return C<< 99 >>. 
+
+If you want to set the progress to C<< 0 >> or C<< 100 >>, use the C<< set >> parameter.
+
+Parameters;
+
+=head3 set (optional)
+
+If you want to set the progress to a specific value, use this parameter. 
+
+B<< NOTE >>: If the set value is less than the current value, the current progress + 1 will be returns. This is meant to prevent progress bars from backing up.
+
+=head3 steps (default '1')
+
+This takes an integer and it will increase the job progress by that value. If this is not specified, or if it is set to a non-integer value, C<< 1 >> will be used.
+
+=cut
+sub bump_progress
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->bump_progress()" }});
+	
+	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
+	my $steps = defined $parameter->{steps} ? $parameter->{steps} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		set   => $set,
+		steps => $steps, 
+	}});
+	
+	if ((not exists $anvil->data->{sys}{job_progress}) or ($anvil->data->{sys}{job_progress} !~ /^\d+$/))
+	{
+		$anvil->data->{sys}{job_progress} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::job_progress" => $anvil->data->{sys}{job_progress},
+		}});
+	}
+	
+	if ($set =~ /^\d+$/)
+	{
+		if ($set > 100)
+		{
+			$anvil->data->{sys}{job_progress} = 100;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::job_progress" => $anvil->data->{sys}{job_progress},
+			}});
+		}
+		elsif ($set > $anvil->data->{sys}{job_progress})
+		{
+			$anvil->data->{sys}{job_progress}++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::job_progress" => $anvil->data->{sys}{job_progress},
+			}});
+		}
+	}
+	
+	$anvil->data->{sys}{job_progress} += $steps;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::job_progress" => $anvil->data->{sys}{job_progress},
+	}});
+	if ($anvil->data->{sys}{job_progress} > 99)
+	{
+		$anvil->data->{sys}{job_progress} = 99;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::job_progress" => $anvil->data->{sys}{job_progress},
+		}});
+	}
+	
+	return($anvil->data->{sys}{job_progress});
+}
+
 
 =head2 clear
 

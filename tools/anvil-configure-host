@@ -83,10 +83,9 @@ $anvil->Database->insert_or_update_variables({
 
 update_passwords($anvil);
 $anvil->Job->update_progress({
-	debug    => 3, 
-	progress => 100, 
-	message  => "",
-	job_uuid => $anvil->data->{job}{uuid},
+	progress  => 100, 
+	message   => "",
+	job_uuid  => $anvil->data->{job}{uuid},
 });
 
 # Clear maintenance mode.
@@ -113,28 +112,38 @@ sub do_reboot
 {
 	my ($anvil) = @_;
 
-### TODO: Nothing should be killing us, anything that could should be updated to hold while we run.
-# 	# Mark that a reboot is needed, in case something kills us before we actually reboot.
-# 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0693!#" }});
-# 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
-# 		file            => $THIS_FILE, 
-# 		line            => __LINE__, 
-# 		job_command     => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches, 
-# 		job_data        => "", 
-# 		job_name        => "reboot::system", 
-# 		job_title       => "job_0009", 
-# 		job_description => "job_0006", 
-# 		job_progress    => 0,
-# 	});
-# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-	
+	# Tell the user why we're rebooting
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({set => 10}), 
+		message   => "message_0388", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
+	});
 	my $time_left = 60;
 	while ($time_left)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0626", variables => { seconds => $time_left }});
+		# Give them the countdown.
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({set => 10}), 
+			message   => "log_0626", 
+			job_uuid  => $anvil->data->{job}{uuid},
+			'print'   => 1,
+			log_level => 1,
+			variables => { seconds => $time_left },
+		});
 		sleep 10;
 		$time_left -= 10;
 	}
+	
+	# Last, log that we're going down now.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({set => 10}), 
+		message   => "message_0389", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
+	});
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
@@ -174,7 +183,15 @@ sub update_passwords
 		if ($error)
 		{
 			# Couldn't write the temp file.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "message_0030", variables => { file => $temp_file }});
+			$anvil->Job->update_progress({
+				progress   => 100, 
+				message    => "message_0030", 
+				log_leve   => 1,
+				'print'    => 1, 
+				job_uuid   => $anvil->data->{job}{uuid},
+				job_status => "failed", 
+				variables  => { file => $temp_file },
+			});
 			$anvil->nice_exit({exit_code => 5});
 		}
 		else
@@ -237,18 +254,17 @@ sub reconfigure_network
 {
 	my ($anvil) = @_;
 	
-	my $reboot_needed    = 0;
-	my $local_host       = $anvil->Get->short_host_name();
-	my $prefix           = $anvil->data->{config}{prefix};
-	my $sequence         = $anvil->data->{config}{sequence};
-	my $domain           = $anvil->data->{config}{domain};
-	my $new_host_name    = $anvil->data->{config}{host_name};
-	my $organization     = $anvil->data->{config}{organization};
-	my $bcn_count        = $anvil->data->{config}{bcn_count};
-	my $ifn_count        = $anvil->data->{config}{ifn_count};
-	my $sn_count         = $anvil->data->{config}{sn_count};
-	my $mn_count         = $anvil->data->{config}{mn_count};
-	my $type             = $anvil->Get->host_type();
+	my $local_host    = $anvil->Get->short_host_name();
+	my $prefix        = $anvil->data->{config}{prefix};
+	my $sequence      = $anvil->data->{config}{sequence};
+	my $domain        = $anvil->data->{config}{domain};
+	my $new_host_name = $anvil->data->{config}{host_name};
+	my $organization  = $anvil->data->{config}{organization};
+	my $bcn_count     = $anvil->data->{config}{bcn_count};
+	my $ifn_count     = $anvil->data->{config}{ifn_count};
+	my $sn_count      = $anvil->data->{config}{sn_count};
+	my $mn_count      = $anvil->data->{config}{mn_count};
+	my $type          = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		prefix        => $prefix, 
 		sequence      => $sequence,
@@ -304,24 +320,29 @@ sub reconfigure_network
 		{
 			# Success
 			$anvil->Job->update_progress({
-				progress => 10, 
-				message  => "message_0016,!!host_name!$new_host_name!!", 
-				job_uuid => $anvil->data->{job}{uuid},
+				progress  => $anvil->Job->bump_progress({set => 10}), 
+				message   => "message_0016", 
+				job_uuid  => $anvil->data->{job}{uuid},
+				'print'   => 1,
+				log_level => 1,
+				variables => { host_name => $new_host_name },
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "message_0016", variables => { host_name => $new_host_name }});
 		}
 		else
 		{
 			# Failed
 			$anvil->Job->update_progress({
-				progress => 0, 
-				message  => "message_0017,!!host_name!$new_host_name!!,!!bad_host_name!$host_name!!", 
-				job_uuid => $anvil->data->{job}{uuid},
+				progress   => 100, 
+				message    => "message_0017", 
+				job_uuid   => $anvil->data->{job}{uuid},
+				'print'    => 1,
+				log_level  => 1,
+				job_status => "failed", 
+				variables  => {
+					host_name     => $new_host_name,
+					bad_host_name => $host_name,
+				},
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "message_0017", variables => { 
-				host_name     => $new_host_name,
-				bad_host_name => $host_name,
-			}});
 			$anvil->nice_exit({exit_code => 4});
 		}
 	}
@@ -458,17 +479,17 @@ ORDER BY
 			else
 			{
 				# Fail out!
-				my $variables = {
-					mac_address => $variable_value, 
-					iface1      => $macs->{$variable_value}, 
-					iface2      => $device, 
-				};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0376", variables => $variables});
 				$anvil->Job->update_progress({
 					progress   => 100,
 					message    => "error_0376", 
-					variables  => $variables, 
 					job_status => "failed", 
+					'print'    => 1, 
+					log_level  => 1, 
+					variables  => {
+						mac_address => $variable_value, 
+						iface1      => $macs->{$variable_value}, 
+						iface2      => $device, 
+					},
 				});
 				$anvil->nice_exit({exit_code => 8});
 			}
@@ -500,9 +521,9 @@ ORDER BY
 	else
 	{
 		# Configure the network using Network Manager
-		reconfigure_bridges($anvil);
-		reconfigure_bonds($anvil);
 		reconfigure_interfaces($anvil);
+		reconfigure_bonds($anvil);
+		reconfigure_bridges($anvil);
 		reconfigure_ip_addresses($anvil);
 	}
 	die;
@@ -571,7 +592,7 @@ ORDER BY
 	
 	# We're half-way there.
 	$anvil->Job->update_progress({
-		progress => 50, 
+		progress => $anvil->Job->bump_progress({set => 50}), 
 		job_uuid => $anvil->data->{job}{uuid},
 	});
 	
@@ -654,7 +675,7 @@ ORDER BY
 	}
 	
 	$anvil->Job->update_progress({
-		progress => 75, 
+		progress => $anvil->Job->bump_progress({set => 75}), 
 		job_uuid => $anvil->data->{job}{uuid},
 	});
 
@@ -671,35 +692,21 @@ sub reconfigure_bridges
 
 sub reconfigure_bonds
 {
-	my ($anvil) = @_;
+	my ($anvil, $wanted_link_name, $nm_uuid) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		wanted_link_name => $wanted_link_name,
+		nm_uuid          => $nm_uuid, 
+	}});
 	
-	
-	return(0);
-}
-
-sub reconfigure_ip_addresses
-{
-	my ($anvil) = @_;
-	
-	
-	return(0);
-}
-
-
-sub reconfigure_interfaces
-{
-	my ($anvil) = @_;
-	
-	my $reboot_needed = 0;
-	my $local_host    = $anvil->Get->short_host_name();
-	my $prefix        = $anvil->data->{config}{prefix};
-	my $sequence      = $anvil->data->{config}{sequence};
-	my $domain        = $anvil->data->{config}{domain};
-	my $bcn_count     = $anvil->data->{config}{bcn_count};
-	my $ifn_count     = $anvil->data->{config}{ifn_count};
-	my $sn_count      = $anvil->data->{config}{sn_count};
-	my $mn_count      = $anvil->data->{config}{mn_count};
-	my $type          = $anvil->Get->host_type();
+	my $local_host = $anvil->Get->short_host_name();
+	my $prefix     = $anvil->data->{config}{prefix};
+	my $sequence   = $anvil->data->{config}{sequence};
+	my $domain     = $anvil->data->{config}{domain};
+	my $bcn_count  = $anvil->data->{config}{bcn_count};
+	my $ifn_count  = $anvil->data->{config}{ifn_count};
+	my $sn_count   = $anvil->data->{config}{sn_count};
+	my $mn_count   = $anvil->data->{config}{mn_count};
+	my $type       = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		local_host    => $local_host,
 		prefix        => $prefix, 
@@ -720,69 +727,187 @@ sub reconfigure_interfaces
 		# This is the old type of network config
 		foreach my $i (1..$count)
 		{
-			my $link1_mac_key = $network_type.$i."_link1_mac_to_set";
-			my $link2_mac_key = $network_type.$i."_link2_mac_to_set";
+			my $bond_name = $network_type.$i."_bond1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_name => $bond_name }});
+			
+			# Skip if this isn't marked to become a bond.
+			next if not exists $anvil->data->{config}{$bond_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				i             => $i,
-				link1_mac_key => $link1_mac_key, 
-				link2_mac_key => $link2_mac_key, 
+				"config::${bond_name}" => $anvil->data->{config}{$bond_name},
 			}});
 			
-			my $wanted_link1_name = $network_type.$i."_link1";
-			my $wanted_link1_mac  = $anvil->data->{config}{$link1_mac_key};
-			my $wanted_link2_name = $network_type.$i."_link2";
-			my $wanted_link2_mac  = exists $anvil->data->{config}{$link2_mac_key} ? $anvil->data->{config}{$link2_mac_key} : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				wanted_link1_name => $wanted_link1_name,
-				wanted_link1_mac  => $wanted_link1_mac, 
-				wanted_link2_name => $wanted_link2_name, 
-				wanted_link2_mac  => $wanted_link2_mac, 
-			}});
-			
-			# Loop through our interfaces to see if we can find this interface.
-			my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_nm_uuid => $link1_nm_uuid }});
-			
-			# Get the Network Manager UUIDs.
-			if (not $link1_nm_uuid)
+			# Check if the bond exists or not.
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({set => 10}), 
+				message   => "message_0390", 
+				job_uuid  => $anvil->data->{job}{uuid},
+				'print'   => 1,
+				log_level => 1,
+				variables => { bond_name => $bond_name },
+			});
+			if (exists $anvil->data->{nmcli}{bond}{$bond_name})
 			{
+				# It does.
 				$anvil->Job->update_progress({
-					progress  => 100, 
-					message   => "error_0480", 
-					log_leve  => 1,
-					'print'   => 1, 
+					progress  => $anvil->Job->bump_progress({set => 10}), 
+					message   => "message_0391", 
 					job_uuid  => $anvil->data->{job}{uuid},
-					variables => {
-						mac_address    => $wanted_link1_mac,
-						interface_name => $wanted_link1_name, 
+					'print'   => 1,
+					log_level => 1,
+					variables => { nm_uuid => $anvil->data->{nmcli}{bond}{$bond_name}{uuid} },
+				});
+			}
+			else
+			{
+				# It doesn't, create it.
+				my $link1_name    = $network_type.$i."_link1";
+				my $link1_mac_key = $network_type.$i."_link1_mac_to_set";
+				my $link1_mac     = $anvil->data->{config}{$link1_mac_key};
+				my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link1_mac}{uuid};
+				
+				my $link2_name    = $network_type.$i."_link2";
+				my $link2_mac_key = $network_type.$i."_link2_mac_to_set";
+				my $link2_mac     = $anvil->data->{config}{$link2_mac_key};
+				my $link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link2_mac}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					link1_name    => $link1_name, 
+					link1_mac_key => $link1_mac_key,
+					link1_mac     => $link1_mac, 
+					link1_nm_uuid => $link1_nm_uuid, 
+					link2_name    => $link2_name, 
+					link2_mac_key => $link2_mac_key,
+					link2_mac     => $link2_mac, 
+					link2_nm_uuid => $link2_nm_uuid, 
+				}});
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({set => 10}), 
+					message   => "message_0392", 
+					job_uuid  => $anvil->data->{job}{uuid},
+					'print'   => 1,
+					log_level => 1,
+					variables => { 
+						bond_name     => $bond_name,
+						link1_name    => $link1_name, 
+						link1_mac     => $link1_mac, 
+						link1_nm_uuid => $link1_nm_uuid, 
+						link2_name    => $link2_name, 
+						link2_mac     => $link2_mac, 
+						link2_nm_uuid => $link2_nm_uuid, 
 					},
 				});
-				$anvil->nice_exit({exit_code => 1});
+				die;
+				
+				
+# 				my $primary_interface = $anvil->data->{network_manager}{want}{bond}{$bond_name}{interfaces}->[0];
+# 				if (not $primary_interface)
+# 				{
+# 					print "[ Error ] - There appears to be no primary interface specified for this bond!\n";
+# 					$anvil->nice_exit({exit_code => 1});
+# 				}
+# 				print "- It does not, creating it with the primary interface: [".$primary_interface."] now.\n";
+# 				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection add type bond con-name ".$bond_name." ifname ".$bond_name." bond.options \"mode=active-backup,miimon=100,downdelay=0,updelay=120000,primary=".$primary_interface."\"";
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+# 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 					output      => $output,
+# 					return_code => $return_code, 
+# 				}});
+# 				
+# 				if ($return_code)
+# 				{
+# 					print "[ Error ] - The attempt to add the bond failed! The return code was: [".$return_code."]. The output, if any, was:\n";
+# 					print "========\n";
+# 					print $output."\n";
+# 					print "========\n";
+# 					$anvil->nice_exit({exit_code => 1});
+# 				}
+# 				
+# 				my $bond_uuid = ($output =~ /\((.*?)\) successfully added/)[0];
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
+# 				
+# 				if ($bond_uuid)
+# 				{
+# 					print " - Disabling DHCP on the new bond device: [".$bond_uuid."].\n";
+# 					my ($output, $return_code) = modify_connection($anvil, $bond_uuid, "ipv4.method", "disabled");
+# 					($output, $return_code) = modify_connection($anvil, $bond_uuid, "ipv6.method", "disabled");
+# 					
+# 					my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bond_name;
+# 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+# 					($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+# 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 						output      => $output,
+# 						return_code => $return_code, 
+# 					}});
+# 				}
+# 				
+# 				# Rescan.
+# 				print " - Done! Rescanning the network config.\n";
+# 				collect_data($anvil);
 			}
-			rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
 			
-			my $link2_nm_uuid = "";
-			if ($link2_nm_uuid)
-			{
-				$link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_nm_uuid => $link2_nm_uuid }});
-				if (not $link2_nm_uuid)
-				{
-					$anvil->Job->update_progress({
-						progress  => 100, 
-						message   => "error_0480", 
-						log_leve  => 1,
-						'print'   => 1, 
-						job_uuid  => $anvil->data->{job}{uuid},
-						variables => {
-							mac_address    => $wanted_link2_mac,
-							interface_name => $wanted_link2_name, 
-						},
-					});
-					$anvil->nice_exit({exit_code => 1});
-				}
-				rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
-			}
+			# Now add the interfaces, disabling their ipv4.method first.
+# 			foreach my $interface_name (@{$anvil->data->{network_manager}{want}{bond}{$bond_name}{interfaces}})
+# 			{
+# 				# What is the interface UUID?
+# 				my $interface_uuid   = $anvil->data->{interface}{device}{$interface_name}{uuid};
+# 				my $parent_bond_name = $anvil->data->{interface}{uuid}{$interface_uuid}{'connection.master'};
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 					interface_name   => $interface_name, 
+# 					interface_uuid   => $interface_uuid, 
+# 					parent_bond_name => $parent_bond_name, 
+# 				}});
+# 				if ($parent_bond_name eq "--")
+# 				{
+# 					$parent_bond_name = "";
+# 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { parent_bond_name => $parent_bond_name }});
+# 				}
+# 				
+# 				if ($parent_bond_name)
+# 				{
+# 					if ($parent_bond_name eq $bond_name)
+# 					{
+# 						print "- The interface: [".$interface_name."] (".$interface_uuid.") is already a member of the bond.\n";
+# 						next;
+# 					}
+# 					else
+# 					{
+# 						print "- The interface: [".$interface_name."] (".$interface_uuid.") is a member of the bond: [".$parent_bond_name."], switching it to this bond.\n";
+# 					}
+# 				}
+# 				else
+# 				{
+# 					print "- The interface: [".$interface_name."] (".$interface_uuid.") needs to be connected to the bond.\n";
+# 				}
+# 				
+# 				print " - Disabling DHCP on the interface\n";
+# 				my ($output, $return_code) = modify_connection($anvil, $interface_uuid, "ipv4.method", "disabled");
+# 				($output, $return_code) = modify_connection($anvil, $interface_uuid, "ipv6.method", "disabled");
+# 				
+# 				print " - Connecting the interface to the bond.\n";
+# 				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$interface_uuid." connection.master ".$bond_name." connection.slave-type bond";
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+# 				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+# 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+# 					output      => $output,
+# 					return_code => $return_code, 
+# 				}});
+# 				
+# 				if ($return_code)
+# 				{
+# 					print "[ Error ] - The attempt to add the bond failed! The return code was: [".$return_code."]. The output, if any, was:\n";
+# 					print "========\n";
+# 					print $output."\n";
+# 					print "========\n";
+# 					$anvil->nice_exit({exit_code => 1});
+# 				}
+# 				
+# 				# Rescan.
+# 				print " - Done! Rescanning the network config.\n";
+# 				($output, $return_code) = reset_connection($anvil, $interface_uuid);
+# 				
+# 				# Rescan.
+# 				collect_data($anvil);
+# 			}
 		}
 	}
 	
@@ -833,27 +958,142 @@ To make it easier to find interfaces, the following look up hash is available.
 * nmcli::mac_address::<mac_address>::uuid = $anvil->data->{nmcli}{mac_address}{$mac_address}{uuid},
 
 
-bcn1_ip: [10.201.4.1]
-bcn1_link1_mac_to_set: [52:54:00:84:b3:2c]
-bcn1_subnet_mask: [255.255.0.0]
-bcn_count: [1]
-dns: [8.8.8.8,8.8.4.4]
-domain: [alteeve.com]
-gateway: [192.168.255.254]
-gateway_interface: [ifn1]
-host_name: [an9-striker01.alteeve.com]
-mn_count: [0]
-organization: [Alteeve]
-prefix: [an9]
-sequence: [1]
-sn_count: [0]
-striker_password: [Initial1]
-striker_user: [admin]
 =cut
 
 	foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{config}})
 	{
 		print $variable.": [".$anvil->data->{config}{$variable}."]\n";
+	}
+	
+	return(0);
+}
+
+sub reconfigure_ip_addresses
+{
+	my ($anvil) = @_;
+	
+	
+	return(0);
+}
+
+
+sub reconfigure_interfaces
+{
+	my ($anvil) = @_;
+	
+	my $local_host = $anvil->Get->short_host_name();
+	my $prefix     = $anvil->data->{config}{prefix};
+	my $sequence   = $anvil->data->{config}{sequence};
+	my $domain     = $anvil->data->{config}{domain};
+	my $bcn_count  = $anvil->data->{config}{bcn_count};
+	my $ifn_count  = $anvil->data->{config}{ifn_count};
+	my $sn_count   = $anvil->data->{config}{sn_count};
+	my $mn_count   = $anvil->data->{config}{mn_count};
+	my $type       = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		local_host    => $local_host,
+		prefix        => $prefix, 
+		sequence      => $sequence,
+		domain        => $domain, 
+		type          => $type, 
+	}});
+	foreach my $network_type ("bcn", "sn", "mn", "ifn")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+		my $count = 0;
+		if    ($network_type eq "bcn") { $count = $bcn_count; }
+		elsif ($network_type eq "sn")  { $count = $sn_count;  }
+		elsif ($network_type eq "ifn") { $count = $ifn_count; }
+		elsif ($network_type eq "mn")  { $count = $mn_count;  }
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		# This is the old type of network config
+		foreach my $i (1..$count)
+		{
+			my $link1_mac_key = $network_type.$i."_link1_mac_to_set";
+			my $link2_mac_key = $network_type.$i."_link2_mac_to_set";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				i             => $i,
+				link1_mac_key => $link1_mac_key, 
+				link2_mac_key => $link2_mac_key, 
+			}});
+			
+			# If the user had the option to create a network but didn't, there will be no link1 
+			# mac to set.
+			next if not exists $anvil->data->{config}{$link1_mac_key};
+			next if not $anvil->data->{config}{$link1_mac_key};
+			
+			my $wanted_link1_name = $network_type.$i."_link1";
+			my $wanted_link1_mac  = $anvil->data->{config}{$link1_mac_key};
+			my $wanted_link2_name = $network_type.$i."_link2";
+			my $wanted_link2_mac  = exists $anvil->data->{config}{$link2_mac_key} ? $anvil->data->{config}{$link2_mac_key} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				wanted_link1_name => $wanted_link1_name,
+				wanted_link1_mac  => $wanted_link1_mac, 
+				wanted_link2_name => $wanted_link2_name, 
+				wanted_link2_mac  => $wanted_link2_mac, 
+			}});
+			
+			# Loop through our interfaces to see if we can find this interface.
+			my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_nm_uuid => $link1_nm_uuid }});
+			
+			# Get the Network Manager UUIDs.
+			if (not $link1_nm_uuid)
+			{
+				$anvil->Job->update_progress({
+					progress   => 100, 
+					message    => "error_0480", 
+					log_leve   => 1,
+					'print'    => 1, 
+					job_uuid   => $anvil->data->{job}{uuid},
+					job_status => "failed", 
+					variables  => {
+						mac_address    => $wanted_link1_mac,
+						interface_name => $wanted_link1_name, 
+					},
+				});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
+			
+			my $link2_nm_uuid = "";
+			if ($link2_nm_uuid)
+			{
+				$link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_nm_uuid => $link2_nm_uuid }});
+				if (not $link2_nm_uuid)
+				{
+					$anvil->Job->update_progress({
+						progress   => 100, 
+						message    => "error_0480", 
+						log_leve   => 1,
+						'print'    => 1, 
+						job_uuid   => $anvil->data->{job}{uuid},
+						job_status => "failed", 
+						variables  => {
+							mac_address    => $wanted_link2_mac,
+							interface_name => $wanted_link2_name, 
+						},
+					});
+					$anvil->nice_exit({exit_code => 1});
+				}
+				rename_interface($anvil, $wanted_link2_name, $link2_nm_uuid);
+				
+				# There's a second interface, so create a bond.
+				my $bond_name = $network_type.$i."_bond1";
+				$anvil->data->{config}{$bond_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"config::${bond_name}" => $anvil->data->{config}{$bond_name},
+				}});
+			}
+		}
+	}
+	
+	# There is no way (that we've found) to get the network interface ames to be updated without a reboot. 
+	if ($anvil->data->{sys}{reboot_needed})
+	{
+		do_reboot($anvil);
 	}
 	
 	return(0);
@@ -880,8 +1120,21 @@ sub rename_interface
 		's6:type'             => $type, 
 	}});
 	
-	print "Renaming old device/name: [".$old_device."/".$name."] with MAC: [".$mac_address."] to: [".$wanted_link_name."] using UUID: [".$nm_uuid."]\n";
-	die;
+	# Tell the user what we're about to rename
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		message   => "message_0383", 
+		log_leve  => 1,
+		'print'   => 1, 
+		job_uuid  => $anvil->data->{job}{uuid},
+		variables => {
+			mac_address => $mac_address, 
+			old_device  => $old_device, 
+			old_name    => $name, 
+			new_name    => $wanted_link_name, 
+			nm_uuid     => $nm_uuid, 
+		},
+	});
 	
 	# Read persistent-net and see if it needs to be updated.
 	my $new_persistent_net = "";
@@ -909,7 +1162,15 @@ sub rename_interface
 	# Write the new file.
 	if ($difference)
 	{
-		print "- Updating the udev file: [".$anvil->data->{path}{configs}{'persistent-net'}."]\n";
+		# Updating the udev file
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 2}), 
+			message   => "message_0384", 
+			log_leve  => 1,
+			'print'   => 1, 
+			job_uuid  => $anvil->data->{job}{uuid},
+			variables => { file => $anvil->data->{path}{configs}{'persistent-net'} },
+		});
 		my $problem = $anvil->Storage->write_file({
 			file      => $anvil->data->{path}{configs}{'persistent-net'}, 
 			body      => $new_persistent_net,
@@ -922,7 +1183,16 @@ sub rename_interface
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
-			print "[ Error ] - Failed to write the new: [".$anvil->data->{path}{configs}{'persistent-net'}."] file, aborting!\n";
+			# Failed to write the udev file
+			$anvil->Job->update_progress({
+				progress   => 100, 
+				message    => "error_0043", 
+				log_leve   => 1,
+				'print'    => 1, 
+				job_uuid   => $anvil->data->{job}{uuid},
+				job_status => "failed", 
+				variables  => { file => $anvil->data->{path}{configs}{'persistent-net'} },
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -932,7 +1202,15 @@ sub rename_interface
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_interface_name => $connection_interface_name }});
 	if ($connection_interface_name)
 	{
-		print "- Removing the old 'connection.interface-name': [".$connection_interface_name."]\n";
+		# Removing the old 'connection.interface-name'
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 2}), 
+			message   => "message_0385", 
+			log_leve  => 1,
+			'print'   => 1, 
+			job_uuid  => $anvil->data->{job}{uuid},
+			variables => { name => $connection_interface_name },
+		});
 		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." connection.interface-name \"\"";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -951,8 +1229,16 @@ sub rename_interface
 		
 		if ($output)
 		{
-			# This should have been blank
-			print "[ Error ] - Failed to delete the 'connection.interface-name', got: [".$output."] and it should bhave been blank, aborting!\n";
+			# Failed to delete the 'connection.interface-name', This should have been blank
+			$anvil->Job->update_progress({
+				progress   => 100, 
+				message    => "error_0481", 
+				log_leve   => 1,
+				'print'    => 1, 
+				job_uuid   => $anvil->data->{job}{uuid},
+				job_status => "failed", 
+				variables  => { output => $output },
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -960,57 +1246,85 @@ sub rename_interface
 	# We'll log what it was, and change it anyway
 	my $match_interface_name = $anvil->data->{nmcli}{uuid}{$nm_uuid}{'match.interface-name'} ? $anvil->data->{nmcli}{uuid}{$nm_uuid}{'match.interface-name'} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match_interface_name => $match_interface_name }});
-	if (1)
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		message   => "message_0386", 
+		log_leve  => 1,
+		'print'   => 1, 
+		job_uuid  => $anvil->data->{job}{uuid},
+		variables => { 
+			new_name   => $wanted_link_name,
+			old_device => $old_device, 
+		},
+	});
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." match.interface-name \"".$wanted_link_name." ".$old_device."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Read it back
+	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values match.interface-name connection show ".$nm_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	if (($output ne $wanted_link_name.",".$old_device) && ($output ne $old_device.",".$wanted_link_name))
 	{
-		print "- Matching the new interface name: [".$wanted_link_name."] to the bios device name: [".$old_device."]\n";
-		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." match.interface-name \"".$wanted_link_name." ".$old_device."\"";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
-		
-		# Read it back
-		$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values match.interface-name connection show ".$nm_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
-		
-		if (($output ne $wanted_link_name.",".$old_device) && ($output ne $old_device.",".$wanted_link_name))
-		{
-			# This should have been blank
-			print "[ Error ] - Failed to create the 'match.interface-name' value. Expected: [".$wanted_link_name.",".$old_device."], got: [".$output."], aborting!\n";
-			$anvil->nice_exit({exit_code => 1});
-		}
-		
-		# Set the connection.id to the old name.
-		print "- Setting the connection.id to the bios device name: [".$old_device."]\n";
-		$shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." connection.id \"".$old_device."\"";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
-		
-		# Read it back
-		$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.id connection show ".$nm_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
+		# This should have been blank
+		$anvil->Job->update_progress({
+			progress   => 100, 
+			message    => "error_0482", 
+			log_leve   => 1,
+			'print'    => 1, 
+			job_uuid   => $anvil->data->{job}{uuid},
+			job_status => "failed", 
+			variables  => { 
+				new_name   => $wanted_link_name,
+				old_device => $old_device, 
+				output     => $output, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
 	}
+	
+	# Set the connection.id to the old name.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		message   => "message_0387", 
+		log_leve  => 1,
+		'print'   => 1, 
+		job_uuid  => $anvil->data->{job}{uuid},
+		variables => { old_device => $old_device },
+	});
+	$shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." connection.id \"".$old_device."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Read it back
+	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.id connection show ".$nm_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Re-read the updated data 
+	$anvil->Network->collect_data({debug => 2});
 	
 	# Set the reboot flag.
 	$anvil->data->{sys}{reboot_needed} = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::reboot_needed" => $anvil->data->{sys}{reboot_needed} }});
-	
 	
 	return(0);
 }
@@ -2120,9 +2434,11 @@ AND
 	
 	# Record that we've picked up this job.
 	$anvil->Job->update_progress({
-		progress => 1, 
-		message  => "message_0015", 
-		job_uuid => $anvil->data->{job}{uuid},
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
+		message   => "message_0015", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
 	});
 	
 	# If we're in a cluster, abort.
@@ -2139,11 +2455,13 @@ AND
 		{
 			# We're in a cluster, abort.
 			$anvil->Job->update_progress({
-				progress => 100, 
-				message  => "error_0250", 
-				job_uuid => $anvil->data->{job}{uuid},
+				progress   => 100, 
+				message    => "error_0250", 
+				job_uuid   => $anvil->data->{job}{uuid},
+				job_status => "failed", 
+				'print'    => 1,
+				log_level  => 1,
 			});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0250"});
 			$anvil->nice_exit({exit_code => 7});
 		}
 	}

@@ -1170,17 +1170,40 @@ sub collect_data
 	# Now loop through and look for the name that maps to what's shown in 'ip addr list'. This can be a bit tricky.
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
 	{
+		my $connection_id             = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}             // "";
 		my $connection_interface_name = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'} // "";
 		my $general_devices           = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.DEVICES'}           // "";
 		my $general_ip_iface          = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}          // "";
 		my $device_type               = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}           // "";
+		my $match_interface_name      = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'}      // "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:uuid'                      => $uuid,
-			's2:connection_interface_name' => $connection_interface_name, 
-			's3:general_devices'           => $general_devices, 
-			's4:general_ip_iface'          => $general_ip_iface, 
-			's5:device_type'               => $device_type, 
+			's2:connection_id'             => $connection_id, 
+			's3:connection_interface_name' => $connection_interface_name, 
+			's4:general_devices'           => $general_devices, 
+			's5:general_ip_iface'          => $general_ip_iface, 
+			's6:device_type'               => $device_type, 
+			's7:match_interface_name'      => $match_interface_name, 
 		}});
+		
+		# If there isn't a GENERAL.DEVICES or GENERAL.IP-IFACE, the link is down. Use the match.interface-name.
+		if (((not $general_devices) or (not $general_ip_iface)) && ($match_interface_name))
+		{
+			foreach my $interface (split/,/, $match_interface_name)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+				next if $connection_id eq $interface;
+				if ($interface)
+				{
+					$general_devices  = $interface if not $general_devices;
+					$general_ip_iface = $interface if not $general_ip_iface;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						general_devices  => $general_devices,
+						general_ip_iface => $general_ip_iface, 
+					}});
+				}
+			}
+		}
 		
 		my $device = "";
 		if (($general_ip_iface) && ($general_ip_iface ne "--"))

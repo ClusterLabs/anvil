@@ -753,6 +753,8 @@ The XML that failed sanity check was:
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
+		<key name="error_0481">[ Error ] - Failed to delete the 'connection.interface-name', got: [#!variable!output!#] and it should bhave been blank, aborting!</key>
+		<key name="error_0482">[ Error ] - Failed to create the 'match.interface-name' value. Expected: [#!variable!new_name!#,#!variable!old_device!#], got: [#!variable!output!#], aborting!</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3285,6 +3287,16 @@ proceeding.
   - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
   - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
 		<key name="message_0382"><![CDATA[-=] Updated: #!variable!date!# - Press '<ctrl> + <c>' to exit]]></key>
+		<key name="message_0383">Renaming old device/name: [#!variable!old_device!#/#!variable!old_name!#] with MAC: [#!variable!mac_address!#] to: [#!variable!new_name!#] using UUID: [#!variable!nm_uuid!#].</key>
+		<key name="message_0384">- Updating the udev file: [#!variable!file!#].</key>
+		<key name="message_0385">- Removing the old 'connection.interface-name': [#!variable!name!#].</key>
+		<key name="message_0386">- Matching the new interface name: [#!variable!new_name!#] to the bios device name: [#!variable!old_device!#].</key>
+		<key name="message_0387">- Setting the connection.id to the bios device name: [#!variable!old_device!#]</key>
+		<key name="message_0388">The new interface names need a reboot to take effect.</key>
+		<key name="message_0389">Rebooting NOW! The job will restart on reboot.</key>
+		<key name="message_0390">Checking if the bond: [#!variable!bond_name!#] exists or not.</key>
+		<key name="message_0391">- It does, its UUID is: [#!variable!nm_uuid!#].</key>
+		<key name="message_0392">- The bond: [#!variable!bond_name!#] doesn't exist. Will create it using the primary interface: [#!variable!link1_name!#] (MAC: [#!variable!link1_mac!#], NM UUID: [#!variable!link1_nm_uuid!#) and the backup interface: : [#!variable!link2_name!#] (MAC: [#!variable!link2_mac!#], NM UUID: [#!variable!link2_nm_uuid!#).</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
