@@ -186,7 +186,7 @@ sub update_passwords
 			$anvil->Job->update_progress({
 				progress   => 100, 
 				message    => "message_0030", 
-				log_leve   => 1,
+				log_level  => 1,
 				'print'    => 1, 
 				job_uuid   => $anvil->data->{job}{uuid},
 				job_status => "failed", 
@@ -1044,7 +1044,7 @@ sub reconfigure_interfaces
 				$anvil->Job->update_progress({
 					progress   => 100, 
 					message    => "error_0480", 
-					log_leve   => 1,
+					log_level  => 1,
 					'print'    => 1, 
 					job_uuid   => $anvil->data->{job}{uuid},
 					job_status => "failed", 
@@ -1058,16 +1058,16 @@ sub reconfigure_interfaces
 			rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
 			
 			my $link2_nm_uuid = "";
-			if ($link2_nm_uuid)
+			if ($wanted_link2_mac)
 			{
-				$link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
+				$link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link2_mac}{uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_nm_uuid => $link2_nm_uuid }});
 				if (not $link2_nm_uuid)
 				{
 					$anvil->Job->update_progress({
 						progress   => 100, 
 						message    => "error_0480", 
-						log_leve   => 1,
+						log_level  => 1,
 						'print'    => 1, 
 						job_uuid   => $anvil->data->{job}{uuid},
 						job_status => "failed", 
@@ -1089,6 +1089,8 @@ sub reconfigure_interfaces
 			}
 		}
 	}
+	
+	die;
 	
 	# There is no way (that we've found) to get the network interface ames to be updated without a reboot. 
 	if ($anvil->data->{sys}{reboot_needed})
@@ -1124,7 +1126,7 @@ sub rename_interface
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 2}), 
 		message   => "message_0383", 
-		log_leve  => 1,
+		log_level => 1,
 		'print'   => 1, 
 		job_uuid  => $anvil->data->{job}{uuid},
 		variables => {
@@ -1166,7 +1168,7 @@ sub rename_interface
 		$anvil->Job->update_progress({
 			progress  => $anvil->Job->bump_progress({steps => 2}), 
 			message   => "message_0384", 
-			log_leve  => 1,
+			log_level => 1,
 			'print'   => 1, 
 			job_uuid  => $anvil->data->{job}{uuid},
 			variables => { file => $anvil->data->{path}{configs}{'persistent-net'} },
@@ -1187,7 +1189,7 @@ sub rename_interface
 			$anvil->Job->update_progress({
 				progress   => 100, 
 				message    => "error_0043", 
-				log_leve   => 1,
+				log_level  => 1,
 				'print'    => 1, 
 				job_uuid   => $anvil->data->{job}{uuid},
 				job_status => "failed", 
@@ -1206,7 +1208,7 @@ sub rename_interface
 		$anvil->Job->update_progress({
 			progress  => $anvil->Job->bump_progress({steps => 2}), 
 			message   => "message_0385", 
-			log_leve  => 1,
+			log_level => 1,
 			'print'   => 1, 
 			job_uuid  => $anvil->data->{job}{uuid},
 			variables => { name => $connection_interface_name },
@@ -1233,7 +1235,7 @@ sub rename_interface
 			$anvil->Job->update_progress({
 				progress   => 100, 
 				message    => "error_0481", 
-				log_leve   => 1,
+				log_level  => 1,
 				'print'    => 1, 
 				job_uuid   => $anvil->data->{job}{uuid},
 				job_status => "failed", 
@@ -1249,7 +1251,7 @@ sub rename_interface
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 2}), 
 		message   => "message_0386", 
-		log_leve  => 1,
+		log_level => 1,
 		'print'   => 1, 
 		job_uuid  => $anvil->data->{job}{uuid},
 		variables => { 
@@ -1257,6 +1259,13 @@ sub rename_interface
 			old_device => $old_device, 
 		},
 	});
+	
+	if ($old_device eq $wanted_link_name)
+	{
+		print "Both the netbios name: [".$wanted_link_name."], IP device name: [".$old_device."] are the same, match would break!\n";
+		die;
+	}
+	
 	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$nm_uuid." match.interface-name \"".$wanted_link_name." ".$old_device."\"";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -1280,7 +1289,7 @@ sub rename_interface
 		$anvil->Job->update_progress({
 			progress   => 100, 
 			message    => "error_0482", 
-			log_leve   => 1,
+			log_level  => 1,
 			'print'    => 1, 
 			job_uuid   => $anvil->data->{job}{uuid},
 			job_status => "failed", 
@@ -1297,7 +1306,7 @@ sub rename_interface
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 2}), 
 		message   => "message_0387", 
-		log_leve  => 1,
+		log_level => 1,
 		'print'   => 1, 
 		job_uuid  => $anvil->data->{job}{uuid},
 		variables => { old_device => $old_device },
