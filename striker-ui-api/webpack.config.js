@@ -32,5 +32,5 @@ module.exports = {
     extensions: ['.js', '.ts'],
   },
   stats: 'detailed',
-  target: 'node10',
+  target: ['node10', 'node16'],
 };

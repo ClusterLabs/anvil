@@ -1,3 +1,9 @@
+/**
+ * Notes:
+ * - Option `timeout` for child_process.spawn was added in node15.13.0 to limit
+ *   the lifespan of the child process; this is **not** the max wait time before
+ *   the child process starts successfully.
+ */
 type AccessStartOptions = {
   args?: readonly string[];
   restartInterval?: number;

@@ -1,16 +1,18 @@
-import { ChildProcess, spawn, SpawnOptions } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
 
 import {
-  SERVER_PATHS,
+  DEFAULT_JOB_PROGRESS,
+  DEBUG_ACCESS,
   PGID,
   PUID,
-  DEFAULT_JOB_PROGRESS,
   REP_UUID,
+  SERVER_PATHS,
 } from './consts';
 
 import { formatSql } from './formatSql';
+import { repeat } from './repeat';
 import {
   date,
   stderr as sherr,
@@ -24,9 +26,13 @@ import {
  * * This daemon's lifecycle events should follow the naming from systemd.
  */
 class Access extends EventEmitter {
+  private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
+    prefix: '-',
+  });
+
   private ps: ChildProcess;
 
-  private readonly mapToExternalEventHandler: Record<
+  private readonly MAP_TO_EVT_HDL: Record<
     string,
     (args: { options: AccessStartOptions; ps: ChildProcess }) => void
   > = {
@@ -42,22 +48,27 @@ class Access extends EventEmitter {
 
   constructor({
     eventEmitterOptions = {},
-    spawnOptions = {},
+    startOptions = {},
   }: {
     eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
-    spawnOptions?: SpawnOptions;
+    startOptions?: AccessStartOptions;
   } = {}) {
     super(eventEmitterOptions);
 
-    this.ps = this.start(spawnOptions);
+    const { args: initial = [], ...rest } = startOptions;
+
+    const args = [...initial, '--emit-events', Access.VERBOSE].filter(
+      (value) => value !== '',
+    );
+
+    this.ps = this.start({ args, ...rest });
   }
 
   private start({
-    args = ['--emit-events'],
+    args = [],
     gid = PGID,
     restartInterval = 10000,
     stdio = 'pipe',
-    timeout = 10000,
     uid = PUID,
     ...restSpawnOptions
   }: AccessStartOptions = {}) {
@@ -66,7 +77,6 @@ class Access extends EventEmitter {
       gid,
       restartInterval,
       stdio,
-      timeout,
       uid,
       ...restSpawnOptions,
     };
@@ -76,7 +86,6 @@ class Access extends EventEmitter {
     const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
       gid,
       stdio,
-      timeout,
       uid,
       ...restSpawnOptions,
     });
@@ -115,7 +124,7 @@ class Access extends EventEmitter {
 
         const { 1: n = '', 2: event } = parts;
 
-        this.mapToExternalEventHandler[event]?.call(null, { options, ps });
+        this.MAP_TO_EVT_HDL[event]?.call(null, { options, ps });
 
         return n;
       });
@@ -190,21 +199,17 @@ class Access extends EventEmitter {
 }
 
 const access = new Access();
-const rootAccess = new Access({ spawnOptions: { gid: 0, uid: 0 } });
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
     params = [],
     pre = ['Database'],
-    root,
   }: {
     params?: unknown[];
     pre?: string[];
-    root?: boolean;
   } = {},
 ) => {
-  const selectedAccess = root ? rootAccess : access;
   const chain = `${pre.join('->')}->${subroutine}`;
 
   const subParams: string[] = params.map<string>((p) => {
@@ -219,7 +224,7 @@ const subroutine = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await selectedAccess.interact<{
+  const { sub_results: results } = await access.interact<{
     sub_results: T;
   }>('x', chain, ...subParams);
 
