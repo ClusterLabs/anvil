@@ -670,7 +670,7 @@ sub handle_mail_servers
 	{
 		# Do we have what we need?
 		my $problem = 0;
-		foreach my $switch ("mail-server-address", "mail-server-port", "mail-server-username", "mail-server-password", "mail-server-security", "mail-server-authentication", "mail-server-helo-domain")
+		foreach my $switch ("mail-server-address", "mail-server-port", "mail-server-security", "mail-server-authentication", "mail-server-helo-domain")
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				switch              => $switch,
