@@ -7,6 +7,7 @@ import fileRouter from './file';
 import hostRouter from './host';
 import initRouter from './init';
 import jobRouter from './job';
+import mailServerRouter from './mail-server';
 import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
@@ -23,6 +24,7 @@ const routes = {
     file: fileRouter,
     host: hostRouter,
     job: jobRouter,
+    'mail-server': mailServerRouter,
     manifest: manifestRouter,
     'network-interface': networkInterfaceRouter,
     server: serverRouter,
