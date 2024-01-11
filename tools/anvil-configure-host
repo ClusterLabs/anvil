@@ -981,6 +981,37 @@ sub reconfigure_interfaces
 {
 	my ($anvil) = @_;
 	
+	# Before we start, we need to make sure all interfaces are up. Otherwise, there's no way to match a 
+	# network manager device to the ip addr name or the biosdevname.
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
+	{
+		### TODO: Left off here... any devices that are down, set:
+		###       nmcli connection modify <uuid> ipv4.method manual ipv4.addresses 169.0.0.x/8' (x == Wired connection x)
+		my $connection_id        = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}        // "";
+		my $general_ip_iface     = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}     // "";
+		   $general_ip_iface     = "" if $general_ip_iface eq "--";
+		my $device_type          = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}      // "";
+		my $match_interface_name = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'} // "";
+		my $active               = $anvil->data->{nmcli}{uuid}{$uuid}{active};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:uuid'                      => $uuid,
+			's2:connection_id'             => $connection_id, 
+			's3:general_ip_iface'          => $general_ip_iface, 
+			's4:device_type'               => $device_type, 
+			's5:match_interface_name'      => $match_interface_name, 
+			's6:active'                    => $active, 
+		}});
+		
+		# Try activating it.
+		if ((not $general_ip_iface) && (not $active))
+		{
+			
+			# Rescan.
+			$anvil->Network->collect_data({debug => 2});
+		}
+	}
+	
+	
 	my $local_host = $anvil->Get->short_host_name();
 	my $prefix     = $anvil->data->{config}{prefix};
 	my $sequence   = $anvil->data->{config}{sequence};
@@ -1038,9 +1069,35 @@ sub reconfigure_interfaces
 			my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link1_mac}{uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_nm_uuid => $link1_nm_uuid }});
 			
+			# Are the link(s) already configured? 
+			my $configure_link1 = 0;
+			my $configure_link2 = 0;
+			
 			# Get the Network Manager UUIDs.
-			if (not $link1_nm_uuid)
+			if ($link1_nm_uuid)
 			{
+				my $found                = 0;
+				my $match_interface_name = $anvil->data->{nmcli}{uuid}{$link1_nm_uuid}{'match.interface-name'} // "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match_interface_name => $match_interface_name }});
+				foreach my $interface (split/,/, $match_interface_name)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+					if ($interface eq $wanted_link1_name)
+					{
+						$found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+						last;
+					}
+				}
+				if (not $found)
+				{
+					$configure_link1 = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link1 => $configure_link1 }});
+				}
+			}
+			else
+			{
+				# We're dead.
 				$anvil->Job->update_progress({
 					progress   => 100, 
 					message    => "error_0480", 
@@ -1055,14 +1112,40 @@ sub reconfigure_interfaces
 				});
 				$anvil->nice_exit({exit_code => 1});
 			}
-			rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link1 => $configure_link1 }});
+			if ($configure_link1)
+			{
+				rename_interface($anvil, $wanted_link1_name, $link1_nm_uuid);
+			}
 			
 			my $link2_nm_uuid = "";
 			if ($wanted_link2_mac)
 			{
 				$link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$wanted_link2_mac}{uuid};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_nm_uuid => $link2_nm_uuid }});
-				if (not $link2_nm_uuid)
+				if ($link2_nm_uuid)
+				{
+					my $found                = 0;
+					my $match_interface_name = $anvil->data->{nmcli}{uuid}{$link2_nm_uuid}{'match.interface-name'} // "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match_interface_name => $match_interface_name }});
+					foreach my $interface (split/,/, $match_interface_name)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+						if ($interface eq $wanted_link2_name)
+						{
+							$found = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+							last;
+						}
+					}
+					if (not $found)
+					{
+						$configure_link2 = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link1 => $configure_link1 }});
+					}
+				}
+				else
 				{
 					$anvil->Job->update_progress({
 						progress   => 100, 
@@ -1078,7 +1161,12 @@ sub reconfigure_interfaces
 					});
 					$anvil->nice_exit({exit_code => 1});
 				}
-				rename_interface($anvil, $wanted_link2_name, $link2_nm_uuid);
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link2 => $configure_link2 }});
+				if ($configure_link2)
+				{
+					rename_interface($anvil, $wanted_link2_name, $link2_nm_uuid);
+				}
 				
 				# There's a second interface, so create a bond.
 				my $bond_name = $network_type.$i."_bond1";
@@ -1089,8 +1177,6 @@ sub reconfigure_interfaces
 			}
 		}
 	}
-	
-	die;
 	
 	# There is no way (that we've found) to get the network interface ames to be updated without a reboot. 
 	if ($anvil->data->{sys}{reboot_needed})
@@ -1121,6 +1207,9 @@ sub rename_interface
 		's5:mac_address'      => $mac_address, 
 		's6:type'             => $type, 
 	}});
+	
+	die if not $wanted_link_name;
+	die if not $old_device;
 	
 	# Tell the user what we're about to rename
 	$anvil->Job->update_progress({

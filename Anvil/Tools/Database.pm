@@ -11601,6 +11601,68 @@ AND
 			$network_interface_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
 		}
+		elsif ($network_interface_device)
+		{
+			# Try again using the device name.
+			my $query = "
+SELECT 
+    network_interface_uuid 
+FROM 
+    network_interfaces 
+WHERE ";
+			if ($network_interface_name !~ /^vnet/)
+			{
+				$query .= "
+    network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
+AND ";
+			}
+			### TODO: We may need to switch this to 'device' if the name or MAC address isn't found
+			$query .= "
+    network_interface_device      = ".$anvil->Database->quote($network_interface_device)."
+AND 
+    network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			if ($count)
+			{
+				$network_interface_uuid = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+			}
+		}
+		elsif ($network_interface_name !~ /^vnet/)
+		{
+			# Try finding it by MAC
+			my $query = "
+SELECT 
+    network_interface_uuid 
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_mac_address = ".$anvil->Database->quote($network_interface_mac_address)." 
+AND 
+    network_interface_host_uuid   = ".$anvil->Database->quote($network_interface_host_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			if ($count)
+			{
+				$network_interface_uuid = $results->[0]->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
+			}
+		}
 		
 		if (($link_only) && (not $network_interface_uuid))
 		{

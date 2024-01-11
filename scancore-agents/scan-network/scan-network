@@ -70,7 +70,7 @@ if ($anvil->data->{switches}{purge})
 }
 
 # If there's no DB (or cached data isn't recorded to the database yet), this will store those records.
-$anvil->data->{cache}{new_file} = "# interface,timestamp,mac_address,speed,link_state,operational,nm_uuid,nm_device\n";
+$anvil->data->{cache}{new_file} = "# interface (nm_device),timestamp,mac_address,speed,link_state,operational,nm_uuid,nm_name\n";
 process_interface_cache($anvil);
 
 # Read the data.
@@ -124,9 +124,8 @@ sub process_interface_cache
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			next if $line =~ /^#/;
-			my ($interface, $timestamp, $mac_address, $speed, $link_state, $operational, $nm_uuid, $nm_device) = (split/,/, $line);
+			my ($nm_device, $timestamp, $mac_address, $speed, $link_state, $operational, $nm_uuid, $nm_name) = (split/,/, $line);
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				interface   => $interface, 
 				timestamp   => $timestamp, 
 				speed       => $speed, 
 				mac_address => $mac_address, 
@@ -142,7 +141,7 @@ sub process_interface_cache
 					debug                         => 2, 
 					link_only                     => 1,
 					timestamp                     => $timestamp, 
-					network_interface_name        => $interface, 
+					network_interface_name        => $nm_device, 
 					network_interface_link_state  => $link_state, 
 					network_interface_mac_address => $mac_address, 
 					network_interface_operational => $operational, 
@@ -610,10 +609,10 @@ sub collect_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
 		if (-d $full_path)
 		{
+			### NOTE: The 'interface' maps to the network manager 'GENERAL.IP-IFACE', which is 
+			###       'network_interface_device'. The 'network_interface_name' is the biosdevname.
 			# Pull out the data I want. Note that some of these don't exist with virtio-net interfaces.
 			my $interface   = $file;
-			my $nm_uuid     = $anvil->data->{nmcli}{interface}{$interface}{uuid} ? $anvil->data->{nmcli}{interface}{$interface}{uuid} : "";
-			my $nm_device   = "";
 			my $link_state  = -e $full_path."/carrier"         ? $anvil->Storage->read_file({file => $full_path."/carrier"})         : 0;
 			   $link_state  =~ s/\n$//;
 			my $mtu         = -e $full_path."/mtu"             ? $anvil->Storage->read_file({file => $full_path."/mtu"})             : 0;
@@ -626,20 +625,44 @@ sub collect_data
 			   $modalias    =~ s/\n$//;
 			my $speed       = $link_state ? $anvil->Storage->read_file({file => $full_path."/speed"}) : 0;	# Mbps (ie: 1000 = Gbps), gives a very high number for unplugged link
 			   $speed       =~ s/\n$//;
-			my $media       = "unknown";
-			my $type        = "interface";
-			my $driver      = "";
-			my $tx_bytes    = 0;	# How many bytes transmitted
-			my $rx_bytes    = 0;	# How many bytes received
+			my $media       =  "unknown";
+			my $type        =  "interface";
+			my $driver      =  "";
+			my $tx_bytes    =  0;	# How many bytes transmitted
+			my $rx_bytes    =  0;	# How many bytes received
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				interface   => $interface, 
-				nm_uuid     => $nm_uuid, 
 				link_state  => $link_state, 
 				mtu         => $mtu,
 				duplex      => $duplex, 
 				operational => $operational,
 				speed       => $speed, 
 				modalias    => $modalias, 
+			}});
+			
+			# Try to find the nm_uuid
+			my $nm_uuid = "";
+			if ((exists $anvil->data->{nmcli}{name}{$interface}) && ($anvil->data->{nmcli}{name}{$interface}{uuid}))
+			{
+				$nm_uuid = $anvil->data->{nmcli}{name}{$interface}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_uuid => $nm_uuid }});
+			}
+			elsif ((exists $anvil->data->{nmcli}{device}{$interface}) && ($anvil->data->{nmcli}{device}{$interface}{uuid}))
+			{
+				$nm_uuid = $anvil->data->{nmcli}{device}{$interface}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_uuid => $nm_uuid }});
+			}
+			
+			my $nm_device = "";	# biosdevname
+			my $nm_name   = "";	# ip name
+			if ($nm_uuid)
+			{
+				$nm_device = $anvil->data->{nmcli}{uuid}{$nm_uuid}{device};
+				$nm_name   = $anvil->data->{nmcli}{uuid}{$nm_uuid}{name};
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				nm_device => $nm_device,
+				nm_name   => $nm_name, 
 			}});
 			
 			### NOTE: This only parses virtio so far.
@@ -803,7 +826,6 @@ sub collect_data
 			{
 				# It's a bridge
 				$type               =  "bridge";
-				$nm_uuid            =  $anvil->data->{nmcli}{bridge}{$interface}{uuid};
 				$bridge_id          =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/bridge_id"});
 				$bridge_stp_enabled =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/stp_state"});
 				$bridge_id          =~ s/\n$//;
@@ -811,7 +833,6 @@ sub collect_data
 				$speed              = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					type               => $type,
-					nm_uuid            => $nm_uuid, 
 					bridge_id          => $bridge_id, 
 					bridge_stp_enabled => $bridge_stp_enabled, 
 				}});
@@ -828,12 +849,6 @@ sub collect_data
 					$bridge_stp_enabled = "enabled_userland";
 				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_stp_enabled => $bridge_stp_enabled }});
-			}
-			
-			if ($nm_uuid)
-			{
-				$nm_device = $anvil->data->{nmcli}{uuid}{$nm_uuid}{device};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_device => $nm_device }});
 			}
 			
 			# If this is a 'vnet' device, set 'operational' to up
@@ -891,7 +906,7 @@ sub collect_data
 			}
 			
 			# Find the media, if possible.
-			(my $ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." $interface"});
+			(my $ethtool, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{ethtool}." ".$interface});
 			foreach my $line (split/\n/, $ethtool)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -913,6 +928,7 @@ sub collect_data
 			# Store new information we found.
 			$anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid}              = $nm_uuid; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{nm_device}            = $nm_device; 
+			$anvil->data->{network}{$local_host}{interface}{$interface}{nm_name}              = $nm_name; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{active_interface}     = $active_interface; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode}            = $bond_mode; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_master}          = $bond_master; 
@@ -936,6 +952,7 @@ sub collect_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"network::${local_host}::interface::${interface}::nm_uuid"              => $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid},
 				"network::${local_host}::interface::${interface}::nm_device"            => $anvil->data->{network}{$local_host}{interface}{$interface}{nm_device},
+				"network::${local_host}::interface::${interface}::nm_name"              => $anvil->data->{network}{$local_host}{interface}{$interface}{nm_name},
 				"network::${local_host}::interface::${interface}::active_interface"     => $anvil->data->{network}{$local_host}{interface}{$interface}{active_interface},
 				"network::${local_host}::interface::${interface}::bond_mode"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode},
 				"network::${local_host}::interface::${interface}::bond_master"          => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master},
@@ -965,7 +982,12 @@ sub collect_data
 			# If this is a link and there's no database connections, cache the data.
 			if (($type eq "interface") && (not $anvil->data->{sys}{database}{connections}))
 			{
-				$anvil->data->{cache}{new_file} .= $interface.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational.",".$nm_uuid.",".$nm_device."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					nm_name   => $nm_name,
+					nm_device => $nm_device, 
+				}});
+								 # nm_device,timestamp,mac_address,speed,link_state,operational,nm_uuid,nm_name
+				$anvil->data->{cache}{new_file} .= $nm_device.",".$anvil->Database->refresh_timestamp.",".$mac_address.",".$speed.",".$link_state.",".$operational.",".$nm_uuid.",".$nm_name."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"cache::new_file" => $anvil->data->{cache}{new_file},
 				}});
@@ -1054,6 +1076,7 @@ sub collect_data
 			# Store the interface
 			$anvil->data->{new}{interface}{$interface}{nm_uuid}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_uuid};
 			$anvil->data->{new}{interface}{$interface}{nm_device}   = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_device};
+			$anvil->data->{new}{interface}{$interface}{nm_name}     = $anvil->data->{network}{$local_host}{interface}{$interface}{nm_name};
 			$anvil->data->{new}{interface}{$interface}{bond_uuid}   = "";
 			$anvil->data->{new}{interface}{$interface}{bond_name}   = $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master};
 			$anvil->data->{new}{interface}{$interface}{bridge_uuid} = ""; 
@@ -1070,6 +1093,7 @@ sub collect_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"new::interface::${interface}::nm_uuid"     => $anvil->data->{new}{interface}{$interface}{nm_uuid}, 
 				"new::interface::${interface}::nm_device"   => $anvil->data->{new}{interface}{$interface}{nm_device}, 
+				"new::interface::${interface}::nm_name"     => $anvil->data->{new}{interface}{$interface}{nm_name}, 
 				"new::interface::${interface}::bond_uuid"   => $anvil->data->{new}{interface}{$interface}{bond_uuid}, 
 				"new::interface::${interface}::bond_name"   => $anvil->data->{new}{interface}{$interface}{bond_name}, 
 				"new::interface::${interface}::bridge_uuid" => $anvil->data->{new}{interface}{$interface}{bridge_uuid}, 
@@ -1114,6 +1138,7 @@ sub collect_data
 ### TODO: Remove this when ifcfg support is dropped.
 sub collect_data_ifcfg
 {
+=cut
 	my ($anvil) = @_;
 	
 	# Read the data from the ifcfg files, if available. We'll use this to check for bond interfaces that 
@@ -1670,6 +1695,7 @@ sub collect_data_ifcfg
 	}
 
 	return(0);
+=cut
 }
 
 # This reads in the states from the last can
@@ -2349,9 +2375,11 @@ sub load_interface_data
 	# Process interfaces
 	my $query = "
 SELECT 
-    network_interface_uuid, 
+    network_interface_uuid,  
+    network_interface_nm_uuid, 
     network_interface_mac_address, 
     network_interface_name, 
+    network_interface_device, 
     network_interface_speed, 
     network_interface_mtu, 
     network_interface_link_state, 
@@ -2376,12 +2404,14 @@ WHERE
 	foreach my $row (@{$results})
 	{
 		my $network_interface_uuid        = $row->[0];
-		my $network_interface_mac_address = $row->[1];
-		my $network_interface_name        = $row->[2];
+		my $network_interface_mac_address = $row->[2];
+		my $network_interface_name        = $row->[3];
+		my $network_interface_device      = $row->[4];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			network_interface_uuid        => $network_interface_uuid,
 			network_interface_mac_address => $network_interface_mac_address, 
 			network_interface_name        => $network_interface_name, 
+			network_interface_device      => $network_interface_device, 
 		}});
 		
 		# Read in the RX/TX values, set to '0' if not found.
@@ -2404,23 +2434,27 @@ WHERE
 			tx_variable_uuid => $tx_variable_uuid, 
 		}});
 		
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_nm_uuid}     =         $row->[1];
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address} =         $network_interface_mac_address;
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_name}        =         $network_interface_name;
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_speed}       =         $row->[3];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mtu}         =         $row->[4];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_link_state}  =         $row->[5];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational} =         $row->[6];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_duplex}      =         $row->[7];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_medium}      =         $row->[8];
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid}   = defined $row->[9]  ? $row->[9]  : '';
-		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid} = defined $row->[10] ? $row->[10] : '';
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_device}      =         $network_interface_device;
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_speed}       =         $row->[5];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mtu}         =         $row->[6];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_link_state}  =         $row->[7];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational} =         $row->[8];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_duplex}      =         $row->[9];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_medium}      =         $row->[10];
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid}   = defined $row->[11] ? $row->[11] : '';
+		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid} = defined $row->[12] ? $row->[12] : '';
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_bytes}                      = $rx_bytes =~ /^\d+$/ ? $rx_bytes : 0;
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_variable_uuid}              = $rx_variable_uuid;
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_bytes}                      = $tx_bytes =~ /^\d+$/ ? $tx_bytes : 0;
 		$anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_variable_uuid}              = $tx_variable_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_nm_uuid"     => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_nm_uuid},
 			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_mac_address" => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address},
 			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_name"        => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_name},
+			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_device"      => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_device},
 			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_speed"       => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_speed},
 			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_mtu"         => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mtu},
 			"old::network_interfaces::network_interface_uuid::${network_interface_uuid}::network_interface_link_state"  => $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_link_state},
@@ -2436,11 +2470,13 @@ WHERE
 		}});
 		
 		$anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name}       = $network_interface_uuid;
+		$anvil->data->{network_interfaces}{device_to_uuid}{$network_interface_device}   = $network_interface_uuid;
 		$anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid}       = $network_interface_name;
 		$anvil->data->{network_interfaces}{mac_to_uuid}{$network_interface_mac_address} = $network_interface_uuid;
 		$anvil->data->{interface}{name_to_uuid}{$network_interface_name}                = $network_interface_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"network_interfaces::name_to_uuid::${network_interface_name}"       => $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name},
+			"network_interfaces::device_to_uuid::${network_interface_device}"   => $anvil->data->{network_interfaces}{device_to_uuid}{$network_interface_device},
 			"network_interfaces::uuid_to_name::${network_interface_name}"       => $anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid},
 			"network_interfaces::mac_to_uuid::${network_interface_mac_address}" => $anvil->data->{network_interfaces}{mac_to_uuid}{$network_interface_mac_address},
 			"interface::name_to_uuid::${network_interface_name}"                => $anvil->data->{interface}{name_to_uuid}{$network_interface_name}, 
@@ -2676,7 +2712,6 @@ sub check_ip_addresses
 	{
 		my $on_interface        = $anvil->data->{new}{ip_address}{$ip_address}{on_interface};
 		my $new_on_type         = $anvil->data->{interface}{name_to_type}{$on_interface};
-		my $new_on_uuid         = $anvil->data->{interface}{name_to_uuid}{$on_interface};
 		my $new_subnet_mask     = $anvil->data->{new}{ip_address}{$ip_address}{subnet_mask};
 		my $new_gateway         = $anvil->data->{new}{ip_address}{$ip_address}{gateway};
 		my $new_default_gateway = $anvil->data->{new}{ip_address}{$ip_address}{default_gateway};
@@ -2685,12 +2720,22 @@ sub check_ip_addresses
 			ip_address          => $ip_address, 
 			on_interface        => $on_interface, 
 			new_on_type         => $new_on_type, 
-			new_on_uuid         => $new_on_uuid, 
 			new_subnet_mask     => $new_subnet_mask, 
 			new_gateway         => $new_gateway, 
 			new_default_gateway => $new_default_gateway, 
 			new_dns             => $new_dns, 
 		}});
+		my $new_on_uuid = "";
+		if ($anvil->data->{interface}{name_to_uuid}{$on_interface})
+		{
+			$new_on_uuid = $anvil->data->{interface}{name_to_uuid}{$on_interface};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_on_uuid => $new_on_uuid }});
+		}
+		elsif ($anvil->data->{interface}{device_to_uuid}{$on_interface})
+		{
+			$new_on_uuid = $anvil->data->{interface}{device_to_uuid}{$on_interface};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_on_uuid => $new_on_uuid }});
+		}
 		
 		if (exists $anvil->data->{old}{ip_addresses}{ip_to_uuid}{$ip_address})
 		{
@@ -2957,6 +3002,7 @@ sub check_interfaces
 	foreach my $network_interface_name (sort {$a cmp $b} keys %{$anvil->data->{new}{interface}})
 	{
 		my $new_nm_uuid     = $anvil->data->{new}{interface}{$network_interface_name}{nm_uuid};
+		my $new_nm_name     = $anvil->data->{new}{interface}{$network_interface_name}{nm_name};
 		my $new_nm_device   = $anvil->data->{new}{interface}{$network_interface_name}{nm_device};
 		my $new_bond_uuid   = $anvil->data->{new}{interface}{$network_interface_name}{bond_uuid};
 		my $new_bond_name   = $anvil->data->{new}{interface}{$network_interface_name}{bond_name};
@@ -2974,6 +3020,7 @@ sub check_interfaces
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			network_interface_name => $network_interface_name, 
 			new_nm_uuid            => $new_nm_uuid, 
+			new_nm_name            => $new_nm_name, 
 			new_nm_device          => $new_nm_device, 
 			new_bond_uuid          => $new_bond_uuid,
 			new_bond_name          => $new_bond_name, 
@@ -3008,26 +3055,45 @@ sub check_interfaces
 		}
 		
 		# New or existing?
+		my $network_interface_uuid = "";
 		if (exists $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name})
 		{
+			$network_interface_uuid = $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+		}
+		elsif (exists $anvil->data->{network_interfaces}{device_to_uuid}{$network_interface_name})
+		{
+			$network_interface_uuid = $anvil->data->{network_interfaces}{device_to_uuid}{$network_interface_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+		}
+		elsif (($new_mac_address) && (exists $anvil->data->{network_interfaces}{mac_to_uuid}{$new_mac_address}))
+		{
+			$network_interface_uuid = $anvil->data->{network_interfaces}{mac_to_uuid}{$new_mac_address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+		}
+		if ($network_interface_uuid)
+		{
 			# Existing. Changes?
-			my $network_interface_uuid = $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name}; 
-			my $old_bond_uuid          = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid};
-			my $old_bond_name          = "";
-			my $old_bridge_uuid        = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid};
-			my $old_bridge_name        = "";
-			my $old_duplex             = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_duplex};
-			my $old_link_state         = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_link_state};
-			my $old_operational        = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational};
-			my $old_mac_address        = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address};
-			my $old_medium             = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_medium};
-			my $old_mtu                = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mtu};
-			my $old_speed              = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_speed};
-			my $old_rx_bytes           = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_bytes};
-			my $rx_variable_uuid       = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_variable_uuid};
-			my $old_tx_bytes           = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_bytes};
-			my $tx_variable_uuid       = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_variable_uuid};
+			my $old_nm_name      = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_name};
+			my $old_nm_device    = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_device};
+			my $old_bond_uuid    = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bond_uuid};
+			my $old_bond_name    = "";
+			my $old_bridge_uuid  = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_bridge_uuid};
+			my $old_bridge_name  = "";
+			my $old_duplex       = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_duplex};
+			my $old_link_state   = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_link_state};
+			my $old_operational  = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_operational};
+			my $old_mac_address  = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mac_address};
+			my $old_medium       = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_medium};
+			my $old_mtu          = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_mtu};
+			my $old_speed        = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{network_interface_speed};
+			my $old_rx_bytes     = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_bytes};
+			my $rx_variable_uuid = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{rx_variable_uuid};
+			my $old_tx_bytes     = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_bytes};
+			my $tx_variable_uuid = $anvil->data->{old}{network_interfaces}{network_interface_uuid}{$network_interface_uuid}{tx_variable_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				old_nm_name      => $old_nm_name, 
+				old_nm_device    => $old_nm_device, 
 				old_bond_uuid    => $old_bond_uuid,
 				old_bridge_uuid  => $old_bridge_uuid,
 				old_duplex       => $old_duplex,
@@ -3061,6 +3127,52 @@ sub check_interfaces
 			
 			# Look for changes.
 			my $changes = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				new_nm_name => $new_nm_name,
+				old_nm_name => $old_nm_name,
+			}});
+			if ($new_nm_name ne $old_nm_name)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				
+				my $variables = {
+					name => $network_interface_name,
+					old  => $old_nm_name, 
+					new  => $new_nm_name,
+				};
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0062", variables => $variables});
+				$anvil->Alert->register({
+					alert_level => "notice", 
+					message     => "scan_network_alert_0062", 
+					variables   => $variables,
+					set_by      => $THIS_FILE,
+				});
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				new_nm_device => $new_nm_device,
+				old_nm_device => $old_nm_device,
+			}});
+			if ($new_nm_device ne $old_nm_device)
+			{
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+				
+				my $variables = {
+					name => $network_interface_name,
+					old  => $old_nm_device, 
+					new  => $new_nm_device,
+				};
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0063", variables => $variables});
+				$anvil->Alert->register({
+					alert_level => "notice", 
+					message     => "scan_network_alert_0063", 
+					variables   => $variables,
+					set_by      => $THIS_FILE,
+				});
+			}
 			if ($new_bond_uuid ne $old_bond_uuid)
 			{
 				# We're making this a warning level alert as it should not be changing.
@@ -3390,13 +3502,17 @@ sub check_interfaces
 			
 			if ($changes)
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					new_nm_name   => $new_nm_name,
+					new_nm_device => $new_nm_device, 
+				}});
 				my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 					debug                         => 2,
 					network_interface_nm_uuid     => $new_nm_uuid, 
 					network_interface_bond_uuid   => $new_bond_uuid, 
 					network_interface_bridge_uuid => $new_bridge_uuid, 
-					network_interface_name        => $network_interface_name,
-					network_interface_device      => $new_nm_device,
+					network_interface_name        => $new_nm_name,   # biosdevname
+					network_interface_device      => $new_nm_device, # ip name 
 					network_interface_duplex      => $new_duplex, 
 					network_interface_link_state  => $new_link_state, 
 					network_interface_operational => $new_operational, 
@@ -3525,13 +3641,18 @@ sub check_interfaces
 		else
 		{
 			# Record the interface
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				new_nm_name            => $new_nm_name,
+				network_interface_name => $network_interface_name,
+				new_nm_device          => $new_nm_device, 
+			}});
 			my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 				debug                         => 2,
 				network_interface_nm_uuid     => $new_nm_uuid, 
 				network_interface_bond_uuid   => $new_bond_uuid, 
 				network_interface_bridge_uuid => $new_bridge_uuid, 
-				network_interface_name        => $network_interface_name,
-				network_interface_device      => $new_nm_device,
+				network_interface_name        => $new_nm_name,
+				network_interface_device      => $network_interface_name,
 				network_interface_duplex      => $new_duplex, 
 				network_interface_link_state  => $new_link_state, 
 				network_interface_operational => $new_operational, 
@@ -3547,11 +3668,13 @@ sub check_interfaces
 			$anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid} = $network_interface_name;
 			$anvil->data->{network_interfaces}{mac_to_uuid}{$new_mac_address}         = $network_interface_uuid;
 			$anvil->data->{interface}{name_to_uuid}{$network_interface_name}          = $network_interface_uuid;
+			$anvil->data->{interface}{device_to_uuid}{$new_nm_device}                 = $network_interface_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"network_interfaces::name_to_uuid::${network_interface_name}" => $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name}, 
 				"network_interfaces::uuid_to_name::${network_interface_uuid}" => $anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid}, 
 				"network_interfaces::mac_to_uuid::${new_mac_address}"         => $anvil->data->{network_interfaces}{mac_to_uuid}{$new_mac_address}, 
 				"interface::name_to_uuid::${network_interface_name}"          => $anvil->data->{interface}{name_to_uuid}{$network_interface_name},
+				"interface::device_to_uuid::${new_nm_device}"                 => $anvil->data->{interface}{device_to_uuid}{$new_nm_device},
 			}});
 			
 			# Store the rx_bytes and tx_bytes
