@@ -535,6 +535,10 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
+	# Read in data from Network Manager
+	$anvil->Network->collect_data({debug => 2});
+	
+	### TODO: We can get the IPs from collect_data, we should phase this out.
 	# The 'local_host' is needed to pull data recorded by Network->get_ips();
 	$anvil->Network->get_ips({debug => 2});
 	my $local_host = $anvil->Get->short_host_name();
@@ -2474,12 +2478,14 @@ WHERE
 		$anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid}       = $network_interface_name;
 		$anvil->data->{network_interfaces}{mac_to_uuid}{$network_interface_mac_address} = $network_interface_uuid;
 		$anvil->data->{interface}{name_to_uuid}{$network_interface_name}                = $network_interface_uuid;
+		$anvil->data->{interface}{device_to_uuid}{$network_interface_device}            = $network_interface_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"network_interfaces::name_to_uuid::${network_interface_name}"       => $anvil->data->{network_interfaces}{name_to_uuid}{$network_interface_name},
 			"network_interfaces::device_to_uuid::${network_interface_device}"   => $anvil->data->{network_interfaces}{device_to_uuid}{$network_interface_device},
 			"network_interfaces::uuid_to_name::${network_interface_name}"       => $anvil->data->{network_interfaces}{uuid_to_name}{$network_interface_uuid},
 			"network_interfaces::mac_to_uuid::${network_interface_mac_address}" => $anvil->data->{network_interfaces}{mac_to_uuid}{$network_interface_mac_address},
 			"interface::name_to_uuid::${network_interface_name}"                => $anvil->data->{interface}{name_to_uuid}{$network_interface_name}, 
+			"interface::device_to_uuid::${network_interface_device}"            => $anvil->data->{interface}{device_to_uuid}{$network_interface_device}, 
 		}});
 	}
 	

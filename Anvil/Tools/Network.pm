@@ -32,8 +32,10 @@ my $THIS_FILE = "Network.pm";
 # load_interfces
 # load_ips
 # manage_firewall
+# modify_connection
 # ping
 # read_nmcli
+# reset_connection
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -4320,6 +4322,68 @@ sub manage_firewall
 	return(0);
 }
 
+=head3 modify_connection
+
+This takes a network manager connection UUID, and changes the requested variable to be set to the given value.
+
+The command output and return code are returned. If there is a problem, C<< !!error!! >>  is returned.
+
+Parameters
+
+=head3 uuid (required) 
+
+This is the network manager UUID of the connection being worked on.
+
+=head3 variable (required)
+
+This is the name of the variable to set (as shown in C<< nmcli connection show <uuid> >>). 
+
+=head3 value (optional, defult "")
+
+This is the value to set. Note that and empty string (C<< "" >>) deletes the variable.
+
+=cut
+sub modify_connection
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->modify_connection()" }});
+
+	my $uuid     = defined $parameter->{uuid}     ? $parameter->{uuid}     : "";
+	my $variable = defined $parameter->{variable} ? $parameter->{variable} : "";
+	my $value    = defined $parameter->{value}    ? $parameter->{value}    : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid     => $uuid, 
+		variable => $variable, 
+		value    => $value, 
+	}});
+	
+	if (not $uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->modify_connection()", parameter => "uuid" }});
+		return("!!error!!");
+	}
+	
+	if (not $variable)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->modify_connection()", parameter => "variable" }});
+		return("!!error!!");
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." ".$variable." ".$value;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	return($output, $return_code);
+}
+
+
 
 =head2 ping
 
@@ -4753,6 +4817,59 @@ sub read_nmcli
 	
 	return(0);
 }
+
+
+=head2 reset_connection
+
+This method takes a network manager connection UUID and resets the connection by calling it C<< down >> and then C<< up >>. 
+
+If there is a problem, C<< !!error!! >> is returned. Otherwise, the output and return code from the C<< up >> call are returned.
+
+Parameters;
+
+=head3 uuid (required)
+
+This is the UUID of the connection to reset.
+
+=cut
+sub reset_connection
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->reset_connection()" }});
+
+	my $uuid = defined $parameter->{uuid} ? $parameter->{uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid => $uuid, 
+	}});
+	
+	if (not $uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->reset_connection()", parameter => "uuid" }});
+		return("!!error!!");
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection down ".$uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	$shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	return($output, $return_code);
+}
+
 
 #############################################################################################################
 # Private functions                                                                                         #

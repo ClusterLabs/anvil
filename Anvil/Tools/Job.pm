@@ -616,9 +616,17 @@ B<< Note >>: Some special C<< job_status >> processing is done to support some s
 
 Parameters;
 
+=head3 file (optional)
+
+When logging as well, this is the file causing the update. Use with C<< line >>. Ignored if C<< log_level >> is not set, or such that it wouldn't be logged anyway.
+
 =head3 job_uuid (optional, default 'jobs::job_uuid')
 
 This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >> is set, it will be used. If that is also not set, 
+
+=head3 line (optional_
+
+When logging as well, this is the line the update came from. Use with C<< file >>. Ignored if C<< log_level >> is not set, or such that it wouldn't be logged anyway.
 
 =head3 log_level (optional)
 
@@ -663,7 +671,9 @@ sub update_progress
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->update_progress()" }});
 
+	my $file         = defined $parameter->{file}         ? $parameter->{file}         : $THIS_FILE;
 	my $job_uuid     = defined $parameter->{job_uuid}     ? $parameter->{job_uuid}     : "";
+	my $line         = defined $parameter->{line}         ? $parameter->{line}         : __LINE__;
 	my $log_level    = defined $parameter->{log_level}    ? $parameter->{log_level}    : "";
 	my $message      = defined $parameter->{message}      ? $parameter->{message}      : "";
 	my $picked_up_by = defined $parameter->{picked_up_by} ? $parameter->{picked_up_by} : "";
@@ -673,11 +683,13 @@ sub update_progress
 	my $secure       = defined $parameter->{secure}       ? $parameter->{secure}       : "";
 	my $variables    = defined $parameter->{variables}    ? $parameter->{variables}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file         => $file, 
 		job_uuid     => $job_uuid, 
+		line         => $line, 
+		log_level    => $log_level, 
 		picked_up_by => $picked_up_by, 
 		'print'      => $print, 
 		progress     => $progress,
-		log_level    => $log_level, 
 		message      => $message, 
 		variables    => $variables, 
 		secure       => $secure, 
@@ -687,7 +699,7 @@ sub update_progress
 	if (($message ne "clear") && ($log_level =~ /^\d+$/))
 	{
 		# Log this message.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, 'print' => $print, secure => $secure, priority => $priority, key => $message, variables => $variables});
+		$anvil->Log->entry({source => $file, line => $line, level => $log_level, 'print' => $print, secure => $secure, priority => $priority, key => $message, variables => $variables});
 	}
 	
 	if ($picked_up_by eq "")
