@@ -405,6 +405,27 @@ sub check_network
 		}
 	}
 	
+	# Check that there's at least one entry in 'network_interfaces' and, if not, call scan-network.
+	if (1)
+	{
+		my $query = "SELECT COUNT(*) FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if (not $count)
+		{
+			# Run scan-network
+			my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-network/scan-network".$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
+	}
+	
 	return(0);
 }
 

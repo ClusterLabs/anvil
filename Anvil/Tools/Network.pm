@@ -1354,6 +1354,15 @@ sub collect_data
 						}
 						next;
 					}
+					if ($line =~ / (\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/i)
+					{
+						# This is the real MAC address of the link.
+						my $mac_address                                      = $1;
+						   $anvil->data->{nmcli}{perm_mac_address}{$in_link} = $mac_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"nmcli::perm_mac_address::${in_link}" => $anvil->data->{nmcli}{perm_mac_address}{$in_link},
+						}});
+					}
 				}
 				else
 				{
@@ -1427,6 +1436,8 @@ sub collect_data
 			my $mtu_file         = "/sys/class/net/".$device."/mtu";
 			if (-e $mac_address_file)
 			{
+				### NOTE: This will always be the active link's MAC in a bond, so tis gets 
+				###       overwritten when the bond device is parsed.
 				my $mac_address = $anvil->Storage->read_file({file => $mac_address_file});
 				$mac_address =~ s/\n$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
@@ -1469,6 +1480,29 @@ sub collect_data
 					}});
 				}
 			}
+		}
+	}
+	
+	# Loop through interfaces and see if the MAC address needs to be updated if it's the backup interface
+	# in a bond.
+	foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{interface}})
+	{
+		my $uuid = $anvil->data->{nmcli}{interface}{$device}{uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:device" => $device, 
+			"s2:uuid"   => $uuid,
+		}});
+		
+		if ((exists $anvil->data->{nmcli}{perm_mac_address}{$device}) && ($anvil->data->{nmcli}{perm_mac_address}{$device}))
+		{
+			# There's a permanent MAC address, overwrite the one we read earlier.
+			my $perm_mac_address                                           = $anvil->data->{nmcli}{perm_mac_address}{$device};
+			   $anvil->data->{nmcli}{uuid}{$uuid}{mac_address}             = $perm_mac_address;
+			   $anvil->data->{nmcli}{mac_address}{$perm_mac_address}{uuid} = $uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:nmcli::uuid::${uuid}::mac_address"             => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
+				"s2:nmcli::mac_address::${perm_mac_address}::uuid" => $anvil->data->{nmcli}{mac_address}{$perm_mac_address}{uuid},
+			}});
 		}
 	}
 	
