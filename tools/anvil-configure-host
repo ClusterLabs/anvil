@@ -479,7 +479,7 @@ ORDER BY
 	$anvil->data->{sys}{reboot} = 0;
 	
 	# Read the existing network data 
-	$anvil->Network->collect_data({debug => 2});
+	$anvil->Network->collect_data({debug => 2, start => 1});
 	
 	# This will be set to '1' if we make a change.
 	my $changes        = 0;
@@ -939,10 +939,11 @@ sub reconfigure_bonds
 			if (not $anvil->data->{config}{$bond_name})
 			{
 				# No bond on this network.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"config::${bond_name}" => $anvil->data->{config}{$bond_name},
-				}});
+				next;
 			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"config::${bond_name}" => $anvil->data->{config}{$bond_name},
+			}});
 			
 			my $link_nm_uuids = [];
 			
@@ -1088,6 +1089,8 @@ sub reconfigure_bonds
 			}
 			
 			# Now add the interfaces, disabling their ipv4.method first.
+			my $uuid_count = @{$link_nm_uuids};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid_count => $uuid_count }});
 			foreach my $nm_uuid (@{$link_nm_uuids})
 			{
 				my $link_name        = $anvil->data->{nmcli}{uuid}{$nm_uuid}{name};
