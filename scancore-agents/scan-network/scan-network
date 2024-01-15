@@ -590,12 +590,12 @@ sub collect_data
 	### TODO: Remove this check when ifcfg-X support is dropped.
 	my $network_type = $anvil->System->check_network_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
-	if ($network_type eq "ifcfg")
-	{
-		# Using the old 'ifcfg-X' style.
-		collect_data_ifcfg($anvil);
-		return(0);
-	}
+# 	if ($network_type eq "ifcfg")
+# 	{
+# 		# Using the old 'ifcfg-X' style.
+# 		collect_data_ifcfg($anvil);
+# 		return(0);
+# 	}
 	
 	# Collect data from nmcli
 	$anvil->Network->collect_data({debug => 2});
