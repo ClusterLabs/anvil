@@ -25,7 +25,12 @@ const useConfirmDialog = (
   finishConfirm: (title: ReactNode, message: Message) => void;
 } => {
   const {
-    initial: { actionProceedText = '', content = '', titleText = '' } = {},
+    initial: {
+      actionProceedText = '',
+      closeOnProceed,
+      content = '',
+      titleText = '',
+    } = {},
   } = args;
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent | null>(
@@ -57,8 +62,14 @@ const useConfirmDialog = (
   );
 
   const confirmDialog = useMemo<ReactElement>(
-    () => <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />,
-    [confirmDialogProps],
+    () => (
+      <ConfirmDialog
+        closeOnProceed={closeOnProceed}
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
+    ),
+    [closeOnProceed, confirmDialogProps],
   );
 
   return {
