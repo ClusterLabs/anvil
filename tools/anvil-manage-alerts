@@ -1817,7 +1817,8 @@ sub check_switches
 		{
 			# normal_password
 			$anvil->data->{sys}{say_new_auth}                      = "name_0001";
-			$anvil->data->{switches}{"mail-server-authentication"} = "normal_password";
+			# TODO: revisit translation(s) after verifying against config syntax
+			# $anvil->data->{switches}{"mail-server-authentication"} = "normal_password";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
 				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
