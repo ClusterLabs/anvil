@@ -3,9 +3,9 @@ import { FC, useCallback, useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
-import convertFormikErrorsToMessages from '../../lib/convertFormikErrorsToMessages';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
+import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import fileListSchema from './schema';
@@ -131,7 +131,7 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
   });
 
   const formikErrors = useMemo<Messages>(
-    () => convertFormikErrorsToMessages(formik.errors),
+    () => getFormikErrorMessages(formik.errors),
     [formik.errors],
   );
 

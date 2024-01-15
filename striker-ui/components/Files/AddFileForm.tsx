@@ -13,9 +13,9 @@ import { v4 as uuidv4 } from 'uuid';
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
 import ContainedButton from '../ContainedButton';
-import convertFormikErrorsToMessages from '../../lib/convertFormikErrorsToMessages';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
+import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
@@ -111,7 +111,7 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
   });
 
   const formikErrors = useMemo<Messages>(
-    () => convertFormikErrorsToMessages(formik.errors),
+    () => getFormikErrorMessages(formik.errors),
     [formik.errors],
   );
 
