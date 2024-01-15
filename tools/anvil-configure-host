@@ -40,6 +40,9 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => ["job-uuid"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
 if (($< != 0) && ($> != 0))
@@ -1125,7 +1128,7 @@ sub reconfigure_bonds
 							file      => $THIS_FILE, 
 							line      => __LINE__, 
 							variables => {
-								link_name => $link_name, 
+								link_name => $link_device ? $link_device : $link_name, 
 								nm_uuid   => $nm_uuid, 
 							},
 						});
@@ -1143,7 +1146,7 @@ sub reconfigure_bonds
 							file      => $THIS_FILE, 
 							line      => __LINE__, 
 							variables => {
-								link_name => $link_name, 
+								link_name => $link_device ? $link_device : $link_name, 
 								nm_uuid   => $nm_uuid, 
 								old_bond  => $parent_bond_name,
 							},
@@ -1162,7 +1165,7 @@ sub reconfigure_bonds
 						file      => $THIS_FILE, 
 						line      => __LINE__, 
 						variables => {
-							link_name => $link_name, 
+							link_name => $link_device ? $link_device : $link_name, 
 							nm_uuid   => $nm_uuid, 
 						},
 					});
@@ -1178,7 +1181,7 @@ sub reconfigure_bonds
 					file      => $THIS_FILE, 
 					line      => __LINE__,
 					variables => { 
-						device      => $link_name,
+						device      => $link_device ? $link_device : $link_name,
 						device_uuid => $nm_uuid, 
 					},
 				});
@@ -1195,7 +1198,7 @@ sub reconfigure_bonds
 					file      => $THIS_FILE, 
 					line      => __LINE__, 
 					variables => {
-						link_name => $link_name, 
+						link_name => $link_device ? $link_device : $link_name, 
 						bond_name => $bond_name, 
 					},
 				});
@@ -1218,7 +1221,7 @@ sub reconfigure_bonds
 						job_uuid   => $anvil->data->{job}{uuid},
 						job_status => "failed", 
 						variables  => {
-							link_name   => $link_name,
+							link_name   => $link_device ? $link_device : $link_name,
 							bond_name   => $bond_name, 
 							return_code => $return_code,
 							output      => $output, 
@@ -1237,7 +1240,7 @@ sub reconfigure_bonds
 					file      => $THIS_FILE, 
 					line      => __LINE__,
 					variables => { 
-						device      => $link_name,
+						device      => $link_device ? $link_device : $link_name,
 						device_uuid => $nm_uuid, 
 					},
 				});
