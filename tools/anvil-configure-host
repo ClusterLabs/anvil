@@ -153,7 +153,7 @@ sub do_reboot
 	return(0);
 }
 
-# This updates the passwords on the root user, admin user, database and apache user.
+# This updates the passwords on the root user, admin user, database and striker-ui-api user.
 sub update_passwords
 {
 	my ($anvil) = @_;
@@ -354,10 +354,11 @@ sub reconfigure_network
 		}
 	}
 	
+	### NOTE: No longer needed, we don't use apache anymore.
 	# If we're a striker, check apache's config.
 	if ($type eq "striker")
 	{
-		$anvil->Striker->check_httpd_conf({debug => 2});
+		#$anvil->Striker->check_httpd_conf({debug => 2});
 	}
 	
 	# Now configure the network.

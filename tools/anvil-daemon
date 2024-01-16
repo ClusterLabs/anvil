@@ -1123,7 +1123,7 @@ sub check_journald
 	return(0);
 }
 
-# This creates, as needed, the setuid wrappers used by apache to make certain system calls.
+# This creates, as needed, the setuid wrappers used by striker-ui-api to make certain system calls.
 sub check_setuid_wrappers
 {
 	my ($anvil) = @_;
@@ -1366,7 +1366,7 @@ AND
 	# Check the firewall needs to be updated.
 	check_firewall($anvil);
 	
-	# If we're a striker, check apache
+	# If we're a striker, check striker-ui-api
 	my $host_type = $anvil->Get->host_type;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "striker")
@@ -1538,10 +1538,6 @@ sub run_jobs
 	# changed on disk.
 	$anvil->data->{sys}{jobs_running} = 0;
 	
-	# If we're not configured, we won't hold on starting jobs
-	my $configured = $anvil->System->check_if_configured;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
-	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
 	
@@ -1596,8 +1592,14 @@ sub run_jobs
 				's14:updated_seconds_ago'  => $updated_seconds_ago, 
 			}});
 			
-			# If we're mapping, we'll only run 'anvil-configure-host' jobs on this host.
-			next if $job_command !~ /anvil-configure-host/;
+			# If we're not configured, we will only run the 'anvil-configure-host' job
+			my $configured = $anvil->System->check_if_configured;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+			
+			if ((not $configured) && ($job_command !~ /anvil-configure-host/))
+			{
+				next;
+			}
 			
 			# To minimize the chance of race conditions, any given command will be called only 
 			# once at a time. If two jobs of the same command exist, only one will be called.
@@ -1880,8 +1882,8 @@ sub run_jobs
 		overwrite => 1,
 		backup    => 0,
 		mode      => "0644", 
-		user      => "apache", 
-		group     => "apache",
+		user      => "striker-ui-api", 
+		group     => "striker-ui-api",
 	});
 	
 	return(0);
@@ -1921,8 +1923,8 @@ sub check_files
 		{
 			my $failed = $anvil->Storage->make_directory({
 				directory => $directory,
-				group     => "apache", 
-				user      => "apache",
+				group     => "striker-ui-api", 
+				user      => "striker-ui-api",
 				mode      => "0777",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});

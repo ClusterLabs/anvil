@@ -91,8 +91,8 @@ sub refresh_unified_metadata
 			backup    => 0,
 			file      => $anvil->data->{path}{data}{fences_unified_metadata}, 
 			body      => $anvil->data->{fences}{unified_xml}, 
-			user      => "apache", 
-			group     => "apache", 
+			user      => "striker-ui-api", 
+			group     => "striker-ui-api", 
 			mode      => "0666",
 		});
 	}

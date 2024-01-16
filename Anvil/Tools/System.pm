@@ -3237,8 +3237,8 @@ sub generate_state_json
 		backup    => 0, 
 		file      => $json_file, 
 		body      => $json, 
-		group     => "apache",
-		user      => "apache",
+		group     => "striker-ui-api",
+		user      => "striker-ui-api",
 		mode      => "0644",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});
