@@ -3330,7 +3330,7 @@ proceeding.
 		<key name="message_0399"> - Connecting the interface: [#!variable!link_name!#] to the bond: [#!variable!bond_name!#].</key>
 		<key name="message_0400">Checking if the bridge: [#!variable!bridge_name!#] exists and that it is on: [#!variable!on_device!#]</key>
 		<key name="message_0401">- The bridge exists!</key>
-		<key name="message_0402">- The IP address is on: [#!variable!current_device!#], will move the IP.</key>
+		<key name="message_0402">- The IP address is on: [#!variable!device!#], will move the IP.</key>
 		<key name="message_0403"> - Resetting the device: [#!variable!device!#] (#!variable!device_uuid!#) to make sure the new config takes effect.</key>
 		<key name="message_0404">- Checking that the device: [#!variable!on_device!#] is connected to this bridge.</key>
 		<key name="message_0405">- The device is connected to the bridge already.</key>

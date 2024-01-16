@@ -944,11 +944,31 @@ sub reconfigure_bonds
 				# No bond on this network.
 				next;
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"config::${bond_name}" => $anvil->data->{config}{$bond_name},
-			}});
 			
 			my $link_nm_uuids = [];
+			my $link1_name    = $network_type.$i."_link1";
+			my $link1_mac_key = $network_type.$i."_link1_mac_to_set";
+			my $link1_mac     = $anvil->data->{config}{$link1_mac_key};
+			my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link1_mac}{uuid};
+			
+			my $link2_name    = $network_type.$i."_link2";
+			my $link2_mac_key = $network_type.$i."_link2_mac_to_set";
+			my $link2_mac     = $anvil->data->{config}{$link2_mac_key};
+			my $link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link2_mac}{uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				link1_name    => $link1_name, 
+				link1_mac_key => $link1_mac_key,
+				link1_mac     => $link1_mac, 
+				link1_nm_uuid => $link1_nm_uuid, 
+				link2_name    => $link2_name, 
+				link2_mac_key => $link2_mac_key,
+				link2_mac     => $link2_mac, 
+				link2_nm_uuid => $link2_nm_uuid, 
+			}});
+			
+			# Push the two nm_uuids into the array for later checking/adding to the bond.
+			push @{$link_nm_uuids}, $link1_nm_uuid;
+			push @{$link_nm_uuids}, $link2_nm_uuid;
 			
 			# Check if the bond exists or not.
 			$anvil->Job->update_progress({
@@ -978,29 +998,6 @@ sub reconfigure_bonds
 			else
 			{
 				# It doesn't, create it.
-				my $link1_name    = $network_type.$i."_link1";
-				my $link1_mac_key = $network_type.$i."_link1_mac_to_set";
-				my $link1_mac     = $anvil->data->{config}{$link1_mac_key};
-				my $link1_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link1_mac}{uuid};
-				
-				my $link2_name    = $network_type.$i."_link2";
-				my $link2_mac_key = $network_type.$i."_link2_mac_to_set";
-				my $link2_mac     = $anvil->data->{config}{$link2_mac_key};
-				my $link2_nm_uuid = $anvil->data->{nmcli}{mac_address}{$link2_mac}{uuid};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					link1_name    => $link1_name, 
-					link1_mac_key => $link1_mac_key,
-					link1_mac     => $link1_mac, 
-					link1_nm_uuid => $link1_nm_uuid, 
-					link2_name    => $link2_name, 
-					link2_mac_key => $link2_mac_key,
-					link2_mac     => $link2_mac, 
-					link2_nm_uuid => $link2_nm_uuid, 
-				}});
-				
-				push @{$link_nm_uuids}, $link1_nm_uuid;
-				push @{$link_nm_uuids}, $link2_nm_uuid;
-				
 				$anvil->Job->update_progress({
 					progress  => $anvil->Job->bump_progress({steps => 2}), 
 					message   => "message_0392", 

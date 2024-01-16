@@ -980,6 +980,11 @@ sub collect_data
 		start => $start, 
 	}});
 	
+	if (exists $anvil->data->{nmcli})
+	{
+		delete $anvil->data->{nmcli};
+	}
+	
 	# Use nmcli to collect the data. 
 	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values uuid,type,active,state,name connection show";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
