@@ -1,7 +1,4 @@
-import assert from 'assert';
 import { RequestHandler } from 'express';
-
-import { REP_UUID } from '../../consts';
 
 import { execManageAlerts } from '../../execManageAlerts';
 import { getMailServerRequestBody } from './getMailServerRequestBody';
@@ -22,9 +19,7 @@ export const updateMailServer: RequestHandler<
   let body: MailServerRequestBody;
 
   try {
-    assert(REP_UUID.test(uuid), `Expected valid UUIDv4; got [${uuid}]`);
-
-    body = getMailServerRequestBody(rBody);
+    body = getMailServerRequestBody(rBody, uuid);
   } catch (error) {
     stderr(`Failed to process mail server input; CAUSE: ${error}`);
 

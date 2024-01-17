@@ -1,9 +1,12 @@
 import assert from 'assert';
 
+import { REP_UUID } from '../../consts';
+
 import { sanitize } from '../../sanitize';
 
 export const getMailServerRequestBody = (
   body: Partial<MailServerRequestBody>,
+  uuid?: string,
 ): MailServerRequestBody => {
   const {
     address: rAddress,
@@ -24,6 +27,10 @@ export const getMailServerRequestBody = (
   const port = sanitize(rPort, 'number', { fallback: 587 });
   const security = sanitize(rSecurity, 'string', { fallback: 'none' });
   const username = sanitize(rUsername, 'string');
+
+  if (uuid) {
+    assert(REP_UUID.test(uuid), `Expected valid UUIDv4; got [${uuid}]`);
+  }
 
   assert.ok(address.length, `Expected address; got [${address}]`);
 
