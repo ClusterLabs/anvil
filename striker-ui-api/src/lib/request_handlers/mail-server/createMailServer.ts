@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 
-import { execManageAlerts } from './execManageAlerts';
+import { execManageAlerts } from '../../execManageAlerts';
 import { getMailServerRequestBody } from './getMailServerRequestBody';
 import { stderr, stdout } from '../../shell';
 

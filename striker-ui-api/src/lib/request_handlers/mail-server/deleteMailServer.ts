@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 
-import { execManageAlerts } from './execManageAlerts';
+import { execManageAlerts } from '../../execManageAlerts';
 import { stderr } from '../../shell';
 
 export const deleteMailServer: RequestHandler<MailServerParamsDictionary> = (

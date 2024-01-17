@@ -1,12 +1,17 @@
 import assert from 'assert';
 import { spawnSync } from 'child_process';
 
-import { SERVER_PATHS } from '../../consts';
+import { SERVER_PATHS } from './consts';
 
-import { stdoutVar } from '../../shell';
+import { stdoutVar } from './shell';
 
 const MAP_TO_FLAG_BUNDLE = {
-  'alert-overrides': {},
+  'alert-overrides': {
+    '--alert-override-alert-level': 'level',
+    '--alert-override-host-uuid': 'hostUuid',
+    '--alert-override-recipient-uuid': 'recipientUuid',
+    '--alert-override-uuid': 'uuid',
+  },
   'mail-servers': {
     '--mail-server-address': 'address',
     '--mail-server-authentication': 'authentication',
@@ -17,7 +22,13 @@ const MAP_TO_FLAG_BUNDLE = {
     '--mail-server-username': 'username',
     '--mail-server-uuid': 'uuid',
   },
-  recipients: {},
+  recipients: {
+    '--recipient-email': 'email',
+    '--recipient-language': 'language',
+    '--recipient-level': 'level',
+    '--recipient-name': 'name',
+    '--recipient-uuid': 'uuid',
+  },
 };
 
 export const execManageAlerts = (

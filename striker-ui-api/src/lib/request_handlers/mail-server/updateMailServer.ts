@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 
 import { REP_UUID } from '../../consts';
 
-import { execManageAlerts } from './execManageAlerts';
+import { execManageAlerts } from '../../execManageAlerts';
 import { getMailServerRequestBody } from './getMailServerRequestBody';
 import { stderr, stdout } from '../../shell';
 
