@@ -4579,51 +4579,37 @@ AND
 				$on_interface = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network_interfaces}{network_interface_uuid}{$ip_address_on_uuid}{network_interface_name};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_interface => $on_interface }});
 			}
-			my $on_network = ($on_interface =~ /^(.*?)_/)[0];
-			if (not defined $on_network)
-			{
-				# This isn't a network we should know about (ie: it might be a stray 'virbrX'
-				# birdge), delete this IP.
-				my $query = "
-UPDATE 
-    ip_addresses 
-SET 
-    ip_address_note = 'DELETED', 
-    modified_date   = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
-WHERE 
-    ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid)."
-;";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-				next;
-			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_network => $on_network }});
 			
-			# Store it.
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}   = $ip_address_address;
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}  = $ip_address_subnet_mask;
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface} = $on_interface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hosts::host_uuid::${host_uuid}::network::${on_network}::ip_address"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}, 
-				"hosts::host_uuid::${host_uuid}::network::${on_network}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}, 
-				"hosts::host_uuid::${host_uuid}::network::${on_network}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface}, 
-			}});
-			
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}  = $ip_address_subnet_mask;
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface} = $on_interface;
-			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}   = $on_network;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}, 
-				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface}, 
-				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_network"   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}, 
-			}});
-			
-			# We also want to be able to map IPs to hosts.
+			# We want to be able to map IPs to hosts.
 			$anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}       = $ip_address_host_uuid;
 			$anvil->data->{ip_addresses}{$ip_address_address}{ip_address_uuid} = $ip_address_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ip_addresses::${ip_address_address}::host_uuid"       => $anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}, 
 				"ip_addresses::${ip_address_address}::ip_address_uuid" => $anvil->data->{ip_addresses}{$ip_address_address}{ip_address_uuid}, 
+			}});
+			
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}  = $ip_address_subnet_mask;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface} = $on_interface;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::subnet_mask"  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{subnet_mask}, 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_interface" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_interface}, 
+			}});
+			
+			# If this is an interface that doesn't belong to us, we're done.
+			my $on_network = ($on_interface =~ /^(.*?)_/)[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { on_network => $on_network }});
+			next if not $on_network;
+			
+			# Store it by network.
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}            = $ip_address_address;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}           = $ip_address_subnet_mask;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface}          = $on_interface;
+			$anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network} = $on_network;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::ip_address"            => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{ip_address}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::subnet_mask"           => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{subnet_mask}, 
+				"hosts::host_uuid::${host_uuid}::network::${on_network}::on_interface"          => $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$on_network}{on_interface}, 
+				"hosts::host_uuid::${host_uuid}::ip_address::${ip_address_address}::on_network" => $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address}{on_network}, 
 			}});
 		}
 		

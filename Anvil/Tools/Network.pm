@@ -2435,7 +2435,7 @@ sub get_ip_from_mac
 
 =head2 get_ips
 
-This method checks the local system for interfaces and stores them in:
+This method checks the target system for interfaces and stores them in:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
 * C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
