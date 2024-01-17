@@ -5,29 +5,33 @@ import { SERVER_PATHS } from './consts';
 
 import { stdoutVar } from './shell';
 
-const MAP_TO_FLAG_BUNDLE = {
+const MAP_TO_FLAG_BUNDLE: {
+  'alert-overrides': Record<keyof AlertOverrideRequestBody | 'uuid', string>;
+  'mail-servers': Record<keyof MailServerRequestBody | 'uuid', string>;
+  recipients: Record<keyof MailRecipientRequestBody | 'uuid', string>;
+} = {
   'alert-overrides': {
-    '--alert-override-alert-level': 'level',
-    '--alert-override-host-uuid': 'hostUuid',
-    '--alert-override-recipient-uuid': 'recipientUuid',
-    '--alert-override-uuid': 'uuid',
+    hostUuid: '--alert-override-host-uuid',
+    level: '--alert-override-alert-level',
+    mailRecipientUuid: '--alert-override-recipient-uuid',
+    uuid: '--alert-override-uuid',
   },
   'mail-servers': {
-    '--mail-server-address': 'address',
-    '--mail-server-authentication': 'authentication',
-    '--mail-server-helo-domain': 'heloDomain',
-    '--mail-server-password': 'password',
-    '--mail-server-port': 'port',
-    '--mail-server-security': 'security',
-    '--mail-server-username': 'username',
-    '--mail-server-uuid': 'uuid',
+    address: '--mail-server-address',
+    authentication: '--mail-server-authentication',
+    heloDomain: '--mail-server-helo-domain',
+    password: '--mail-server-password',
+    port: '--mail-server-port',
+    security: '--mail-server-security',
+    username: '--mail-server-username',
+    uuid: '--mail-server-uuid',
   },
   recipients: {
-    '--recipient-email': 'email',
-    '--recipient-language': 'language',
-    '--recipient-level': 'level',
-    '--recipient-name': 'name',
-    '--recipient-uuid': 'uuid',
+    email: '--recipient-email',
+    language: '--recipient-language',
+    level: '--recipient-level',
+    name: '--recipient-name',
+    uuid: '--recipient-uuid',
   },
 };
 
@@ -51,7 +55,7 @@ export const execManageAlerts = (
   const commandArgs: string[] = Object.entries(
     MAP_TO_FLAG_BUNDLE[entities],
   ).reduce(
-    (previous, [flag, key]) => {
+    (previous, [key, flag]) => {
       const value = shallow[key];
 
       if (value) {
