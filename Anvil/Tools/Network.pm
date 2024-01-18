@@ -2079,7 +2079,7 @@ sub find_matches
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "first" }});
 		return("");
 	}
-	elsif (ref($anvil->data->{network}{$first}) ne "HASH")
+	if (ref($anvil->data->{network}{$first}) ne "HASH")
 	{
 		$anvil->Network->load_ips({
 			debug => $debug, 
@@ -2096,12 +2096,13 @@ sub find_matches
 			return("");
 		}
 	}
+	
 	if (not $second)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "second" }});
 		return("");
 	}
-	elsif (ref($anvil->data->{network}{$second}) ne "HASH")
+	if (ref($anvil->data->{network}{$second}) ne "HASH")
 	{
 		$anvil->Network->load_ips({
 			debug => $debug, 
@@ -2145,13 +2146,14 @@ sub find_matches
 			
 			foreach my $second_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$second}{interface}})
 			{
+				next if not exists $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
 				my $second_ip          = $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
 				my $second_subnet_mask = $anvil->data->{network}{$second}{interface}{$second_interface}{subnet_mask};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					second             => $second,
-					second_interface   => $second_interface,
-					second_ip          => $second_ip,
-					second_subnet_mask => $second_subnet_mask,  
+					's1:second'             => $second,
+					's2:second_interface'   => $second_interface,
+					's3:second_ip'          => $second_ip,
+					's4:second_subnet_mask' => $second_subnet_mask,  
 				}});
 				if (($second_ip) && ($second_subnet_mask))
 				{

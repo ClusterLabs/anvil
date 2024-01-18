@@ -2836,6 +2836,7 @@ sub disable_daemon
 	return($return_code);
 }
 
+
 =head2 generate_state_json
 
 This method generates the C<< all_status.json >> file. 
@@ -2925,13 +2926,14 @@ sub generate_state_json
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:interface"   => $interface,
-				"s2:mac_address" => $mac_address, 
-				"s3:type"        => $type,
-				"s4:mtu"         => $mtu,
-				"s5:configured"  => $configured, 
-				"s6:host_uuid"   => $host_uuid, 
-				"s7:host_key"    => $host_key, 
+				"s1:host"        => $host,
+				"s2:interface"   => $interface,
+				"s3:mac_address" => $mac_address, 
+				"s4:type"        => $type,
+				"s5:mtu"         => $mtu,
+				"s6:configured"  => $configured, 
+				"s7:host_uuid"   => $host_uuid, 
+				"s8:host_key"    => $host_key, 
 			}});
 			$iface_hash->{name}        = $interface;
 			$iface_hash->{type}        = $type;

@@ -91,8 +91,10 @@ $anvil->Storage->record_md5sums();
 # Connect to DBs.
 wait_for_database($anvil);
 
+### NOTE: We need to collect data from the start. Once confirmed this isn't introducing old problems, remove 
+###       this function
 # If we're not configured, sleep.
-wait_until_configured($anvil);
+#wait_until_configured($anvil);
 
 # Startup tasks.
 startup_tasks($anvil);

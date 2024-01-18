@@ -209,7 +209,6 @@ while(1)
 	
 	# Mark that we don't want to check the database now.
 	$check_if_database_is_configured = 0;
-	
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
