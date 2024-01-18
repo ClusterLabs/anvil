@@ -2,13 +2,15 @@ type Checklist = Record<string, boolean>;
 
 type ArrayChecklist = (keyof Checklist)[];
 
-type BuildDeleteDialogPropsFunction = (
-  args: {
+type BuildDeleteDialogPropsArgs = Pick<ConfirmDialogProps, 'onProceedAppend'> &
+  Pick<FormSummaryProps<Checklist>, 'renderEntry'> & {
     confirmDialogProps?: Partial<Omit<ConfirmDialogProps, 'content'>>;
     formSummaryProps?: Omit<FormSummaryProps<Checklist>, 'entries'>;
     getConfirmDialogTitle: (length: number) => ReactNode;
-  } & Pick<ConfirmDialogProps, 'onProceedAppend'> &
-    Pick<FormSummaryProps<Checklist>, 'renderEntry'>,
+  };
+
+type BuildDeleteDialogPropsFunction = (
+  args: BuildDeleteDialogPropsArgs,
 ) => ConfirmDialogProps;
 
 type GetCheckFunction = (key: string) => boolean;
