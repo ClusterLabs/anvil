@@ -5,13 +5,6 @@ import { useCallback, useMemo } from 'react';
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
 
-type UseFormik<Values extends FormikValues> = typeof useFormik<Values>;
-
-type Formik<Values extends FormikValues> = ReturnType<UseFormik<Values>>;
-
-type FormikChangeHandler<Values extends FormikValues> =
-  Formik<Values>['handleChange'];
-
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   ...formikArgs: Parameters<UseFormik<Values>>
 ): {
