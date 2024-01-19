@@ -7,10 +7,19 @@ type CrudListFormTools = {
   };
 };
 
+type CrudListItemClickHandler = Exclude<
+  ListProps<Overview>['onItemClick'],
+  undefined
+>;
+
 type CrudListOptionalProps<Overview> = {
   getAddLoading?: (previous?: boolean) => boolean;
   getEditLoading?: (previous?: boolean) => boolean;
   listProps?: Partial<ListProps<Overview>>;
+  onItemClick?: (
+    base: CrudListItemClickHandler,
+    ...args: Parameters<CrudListItemClickHandler>
+  ) => ReturnType<CrudListItemClickHandler>;
   refreshInterval?: number;
 };
 

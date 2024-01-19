@@ -32,6 +32,7 @@ const CrudList = <
     getEditLoading = (previous?: boolean) => previous,
     listEmpty,
     listProps,
+    onItemClick = (base, ...args) => base(...args),
     refreshInterval = 5000,
     renderAddForm,
     renderDeleteItem,
@@ -168,11 +169,13 @@ const CrudList = <
           setConfirmDialogOpen(true);
         }}
         onEdit={() => setEdit((previous) => !previous)}
-        onItemClick={(value, key) => {
-          editDialogRef?.current?.setOpen(true);
+        onItemClick={(...args) =>
+          onItemClick((value, key) => {
+            editDialogRef?.current?.setOpen(true);
 
-          getEntry(`/${key}`);
-        }}
+            getEntry(`/${key}`);
+          }, ...args)
+        }
         renderListItem={renderListItem}
         {...listProps}
       />
