@@ -1286,6 +1286,8 @@ This method checks to see if this host is using network manager to configure the
 
 If any 'ifcfg-X' files are found, C<< ifcfg >> is returned. Otherwise, C<< nm >> is returned.
 
+The results are cached in C<< sys::network_type >>.
+
 This method takes no parameters.
 
 =cut
@@ -1296,6 +1298,13 @@ sub check_network_type
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_storage()" }});
+	
+	if ((exists $anvil->data->{sys}{network_type}) && ($anvil->data->{sys}{network_type}))
+	{
+		# Cached.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network_type" => $anvil->data->{sys}{network_type} }});
+		return($anvil->data->{sys}{network_type});
+	}
 	
 	# Open the 'ifcfg' directory, if it exists, and see if there are any 'ifcfg-X' files.
 	my $type      = "nm";
@@ -1320,8 +1329,10 @@ sub check_network_type
 		closedir(DIRECTORY);
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
-	return($type);
+	# Cache the results
+	$anvil->data->{sys}{network_type} = $type;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network_type" => $anvil->data->{sys}{network_type} }});
+	return($anvil->data->{sys}{network_type});
 }
 
 

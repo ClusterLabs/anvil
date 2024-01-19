@@ -122,7 +122,7 @@ sub do_reboot
 	{
 		# Give them the countdown.
 		$anvil->Job->update_progress({
-			progress  => $anvil->Job->bump_progress({steps => 2}), 
+			progress  => $anvil->Job->bump_progress({steps => 1}), 
 			message   => "log_0626", 
 			job_uuid  => $anvil->data->{job}{uuid},
 			'print'   => 1,
@@ -137,7 +137,7 @@ sub do_reboot
 	
 	# Last, log that we're going down now.
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0389", 
 		job_uuid  => $anvil->data->{job}{uuid},
 		'print'   => 1,
@@ -484,99 +484,87 @@ ORDER BY
 	
 	my $network_type = $anvil->System->check_network_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
-	if ($network_type eq "ifcfg")
+
+	# Configure the network using Network Manager
+	reconfigure_interfaces($anvil);
+	
+	### NOTE: If we're not a striker, the update the job to say we're disconnecting to 
+	###       reconfigure the network.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
 	{
-		foreach my $network_type ("bcn", "sn", "mn", "ifn")
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
-		
-			# This is the old type of network config
-			#configure_ifcfg_network($anvil, $network_type);
-		}
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({set => 50}), 
+			message   => "message_0415", 
+			log_level => 1,
+			'print'   => 1, 
+			job_uuid  => $anvil->data->{job}{uuid},
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
+		$anvil->Database->disconnect({debug => 2});
 	}
-	else
+	
+	# These can brake the connection.
+	reconfigure_bonds($anvil);
+	reconfigure_bridges($anvil);
+	reconfigure_ip_addresses($anvil);
+	
+	# Reconnect!
+	if ($host_type ne "striker")
 	{
-		# Configure the network using Network Manager
-		reconfigure_interfaces($anvil);
-		
-		### NOTE: If we're not a striker, the update the job to say we're disconnecting to 
-		###       reconfigure the network.
-		my $host_type = $anvil->Get->host_type();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-		if ($host_type ne "striker")
+		my $time_now   = time;
+		my $wait_until = $time_now + 120;
+		my $waiting    = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			time_now   => $time_now, 
+			wait_until => $wait_until,
+		}});
+		while ($waiting)
 		{
-			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({set => 50}), 
-				message   => "message_0415", 
-				log_level => 1,
-				'print'   => 1, 
-				job_uuid  => $anvil->data->{job}{uuid},
-				file      => $THIS_FILE, 
-				line      => __LINE__,
-			});
-			$anvil->Database->disconnect({debug => 2});
-		}
-		
-		# These can brake the connection.
-		reconfigure_bonds($anvil);
-		reconfigure_bridges($anvil);
-		reconfigure_ip_addresses($anvil);
-		
-		# Reconnect!
-		if ($host_type ne "striker")
-		{
-			my $time_now   = time;
-			my $wait_until = $time_now + 120;
-			my $waiting    = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				time_now   => $time_now, 
-				wait_until => $wait_until,
-			}});
-			while ($waiting)
+			$anvil->refresh();
+			$anvil->Database->connect({debug => 2});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+			if ($anvil->data->{sys}{database}{connections})
 			{
-				$anvil->refresh();
-				$anvil->Database->connect({debug => 2});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
-				if ($anvil->data->{sys}{database}{connections})
+				# We're back! 
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+			else
+			{
+				# Sleep for a bit.
+				my $now_time  = time;
+				my $time_left = $wait_until - $now_time;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					now_time  => $now_time,
+					time_left => $time_left, 
+				}});
+				if ($time_left > 0)
 				{
-					# We're back! 
-					$waiting = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0829", variables => { time_left => $time_left }});
+					sleep 5;
 				}
 				else
 				{
-					# Sleep for a bit.
-					my $now_time  = time;
-					my $time_left = $wait_until - $now_time;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						now_time  => $now_time,
-						time_left => $time_left, 
-					}});
-					if ($time_left > 0)
-					{
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0829", variables => { time_left => $time_left }});
-						sleep 5;
-					}
-					else
-					{
-						# Give up and reboot.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0169"});
-						do_reboot($anvil);
-					}
+					# Give up and reboot.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0169"});
+					do_reboot($anvil);
 				}
 			}
-			
-			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({set => 75}), 
-				message   => "message_0416", 
-				log_level => 1,
-				'print'   => 1, 
-				job_uuid  => $anvil->data->{job}{uuid},
-				file      => $THIS_FILE, 
-				line      => __LINE__,
-			});
 		}
+		
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({set => 75}), 
+			message   => "message_0416", 
+			log_level => 1,
+			'print'   => 1, 
+			job_uuid  => $anvil->data->{job}{uuid},
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 	}
 	
 	# If any virtio bridges exist, remove it/them.
@@ -658,7 +646,7 @@ ORDER BY
 	}
 	
 	$anvil->Job->update_progress({
-		progress => $anvil->Job->bump_progress({steps => 2}), 
+		progress => $anvil->Job->bump_progress({steps => 1}), 
 		job_uuid => $anvil->data->{job}{uuid},
 	});
 
@@ -708,7 +696,7 @@ sub reconfigure_bridges
 			
 			# Checking if the bridge exists and that it is on the requested device
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0400", 
 				log_level => 1,
 				'print'   => 1, 
@@ -725,7 +713,7 @@ sub reconfigure_bridges
 			{
 				# The bridge exists.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0401", 
 					log_level => 1,
 					'print'   => 1, 
@@ -737,6 +725,31 @@ sub reconfigure_bridges
 			}
 			else
 			{
+				# If there are ifcfg files for this bridge, move it.
+				my $network_type = $anvil->System->check_network_type({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+				if ($network_type eq "ifcfg")
+				{
+					my $ifcfg_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$bridge_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifcfg_file => $ifcfg_file }});
+					if (-f $ifcfg_file)
+					{
+						# It exists, move it.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
+							message   => "message_0417", 
+							log_level => 1,
+							'print'   => 1, 
+							file      => $THIS_FILE, 
+							line      => __LINE__,
+							job_uuid  => $anvil->data->{job}{uuid},
+							variables => { file => $ifcfg_file },
+						});
+						$anvil->Storage->backup({debug => 2, file => $ifcfg_file});
+						unlink $ifcfg_file;
+					}
+				}
+				
 				# Create the bridge.
 				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection add type bridge con-name ".$bridge_name." ifname ".$bridge_name;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -772,7 +785,7 @@ sub reconfigure_bridges
 				{
 					# Disabling DHCP on the new bridge 
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0408", 
 						log_level => 1,
 						'print'   => 1, 
@@ -798,7 +811,7 @@ sub reconfigure_bridges
 				
 				# Rescan.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0394", 
 					log_level => 1,
 					'print'   => 1, 
@@ -812,7 +825,7 @@ sub reconfigure_bridges
 			
 			# Checking that the device is connected to this bridge
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0404", 
 				log_level => 1,
 				'print'   => 1, 
@@ -838,7 +851,7 @@ sub reconfigure_bridges
 				{
 					# The device is connected to the bridge already.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0405", 
 						log_level => 1,
 						'print'   => 1, 
@@ -853,7 +866,7 @@ sub reconfigure_bridges
 				{
 					# The device is on another bridge, moving it.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0406", 
 						log_level => 1,
 						'print'   => 1, 
@@ -868,7 +881,7 @@ sub reconfigure_bridges
 			{
 				# The device is not on this bridge, connecting it
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0407", 
 					log_level => 1,
 					'print'   => 1, 
@@ -881,7 +894,7 @@ sub reconfigure_bridges
 			
 			# Disabling DHCP on the device before connecting it.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0408", 
 				log_level => 1,
 				'print'   => 1, 
@@ -898,7 +911,7 @@ sub reconfigure_bridges
 			
 			# Connect it now.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0409", 
 				log_level => 1,
 				'print'   => 1, 
@@ -937,7 +950,7 @@ sub reconfigure_bridges
 			
 			# Reset the device.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0403", 
 				log_level => 1,
 				'print'   => 1, 
@@ -953,7 +966,7 @@ sub reconfigure_bridges
 			
 			# Rescan.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0394", 
 				log_level => 1,
 				'print'   => 1, 
@@ -1042,7 +1055,7 @@ sub reconfigure_bonds
 			
 			# Check if the bond exists or not.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0390", 
 				job_uuid  => $anvil->data->{job}{uuid},
 				'print'   => 1,
@@ -1055,7 +1068,7 @@ sub reconfigure_bonds
 			{
 				# It does.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0391", 
 					job_uuid  => $anvil->data->{job}{uuid},
 					'print'   => 1,
@@ -1069,7 +1082,7 @@ sub reconfigure_bonds
 			{
 				# It doesn't, create it.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0392", 
 					job_uuid  => $anvil->data->{job}{uuid},
 					'print'   => 1,
@@ -1086,6 +1099,31 @@ sub reconfigure_bonds
 						link2_nm_uuid => $link2_nm_uuid, 
 					},
 				});
+				
+				# If there are ifcfg files for this bond, move it.
+				my $network_type = $anvil->System->check_network_type({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+				if ($network_type eq "ifcfg")
+				{
+					my $ifcfg_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$bond_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifcfg_file => $ifcfg_file }});
+					if (-f $ifcfg_file)
+					{
+						# It exists, move it.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
+							message   => "message_0417", 
+							log_level => 1,
+							'print'   => 1, 
+							file      => $THIS_FILE, 
+							line      => __LINE__,
+							job_uuid  => $anvil->data->{job}{uuid},
+							variables => { file => $ifcfg_file },
+						});
+						$anvil->Storage->backup({debug => 2, file => $ifcfg_file});
+						unlink $ifcfg_file;
+					}
+				}
 				
 				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection add type bond con-name ".$bond_name." ifname ".$bond_name." bond.options \"mode=active-backup,miimon=100,downdelay=0,updelay=120000,primary=".$link1_name."\"";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1121,7 +1159,7 @@ sub reconfigure_bonds
 				{
 					# Disabling DHCP on the new bond device
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0408", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1147,7 +1185,7 @@ sub reconfigure_bonds
 				
 				# Done! Rescanning the network config
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0394", 
 					job_uuid  => $anvil->data->{job}{uuid},
 					'print'   => 1,
@@ -1187,7 +1225,7 @@ sub reconfigure_bonds
 					{
 						# Already a member of the bond.
 						$anvil->Job->update_progress({
-							progress  => $anvil->Job->bump_progress({steps => 2}), 
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
 							message   => "message_0395", 
 							job_uuid  => $anvil->data->{job}{uuid},
 							'print'   => 1,
@@ -1205,7 +1243,7 @@ sub reconfigure_bonds
 					{
 						# The interface is a member of another bond, switching it to this bond.\n";
 						$anvil->Job->update_progress({
-							progress  => $anvil->Job->bump_progress({steps => 2}), 
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
 							message   => "message_0396", 
 							job_uuid  => $anvil->data->{job}{uuid},
 							'print'   => 1,
@@ -1224,7 +1262,7 @@ sub reconfigure_bonds
 				{
 					# The interface needs to be connected to the bond.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0397", 
 						job_uuid  => $anvil->data->{job}{uuid},
 						'print'   => 1,
@@ -1240,7 +1278,7 @@ sub reconfigure_bonds
 				
 				# Disabling DHCP on the interface
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0408", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1257,7 +1295,7 @@ sub reconfigure_bonds
 				
 				# Connecting the interface to the bond
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0399", 
 					job_uuid  => $anvil->data->{job}{uuid},
 					'print'   => 1,
@@ -1299,7 +1337,7 @@ sub reconfigure_bonds
 				
 				# Reset the interface.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0403", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1315,7 +1353,7 @@ sub reconfigure_bonds
 				
 				# Rescan.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0394", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1476,7 +1514,7 @@ sub reconfigure_ip_addresses
 			
 			# Check to see if the IP address is assigned yet.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0393", 
 				log_level => 1,
 				'print'   => 1, 
@@ -1525,7 +1563,7 @@ sub reconfigure_ip_addresses
 				
 				# The IP exists, checking if it needs to be updated.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0398", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1538,7 +1576,7 @@ sub reconfigure_ip_addresses
 				{
 					# The IP address is on another device, we'll move it
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0402", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1554,7 +1592,7 @@ sub reconfigure_ip_addresses
 				{
 					# The current subnet mask is different, will update.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0410", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1568,7 +1606,7 @@ sub reconfigure_ip_addresses
 				{
 					# The current gateway is different, will update.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0411", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1582,7 +1620,7 @@ sub reconfigure_ip_addresses
 				{
 					# The current DNS is different, will update.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0412", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1596,7 +1634,7 @@ sub reconfigure_ip_addresses
 				{
 					# No update is needed.
 					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 2}), 
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
 						message   => "message_0413", 
 						log_level => 1,
 						'print'   => 1, 
@@ -1612,7 +1650,7 @@ sub reconfigure_ip_addresses
 			{
 				# The IP address needs to be assigned.
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0414", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1628,7 +1666,7 @@ sub reconfigure_ip_addresses
 				# Clear the IP off the old device
 				my $old_uuid = $anvil->data->{nmcli}{device}{$clear_ip_from}{uuid};
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0408", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1644,7 +1682,7 @@ sub reconfigure_ip_addresses
 				   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $old_uuid, variable => "ipv6.method", value => "disabled"});
 				
 				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 2}), 
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
 					message   => "message_0403", 
 					log_level => 1,
 					'print'   => 1, 
@@ -1682,7 +1720,7 @@ sub reconfigure_ip_addresses
 			
 			# Restart the interface
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0403", 
 				log_level => 1,
 				'print'   => 1, 
@@ -1698,7 +1736,7 @@ sub reconfigure_ip_addresses
 			
 			# Rescan.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0394", 
 				log_level => 1,
 				'print'   => 1, 
@@ -1713,7 +1751,6 @@ sub reconfigure_ip_addresses
 	
 	return(0);
 }
-
 
 sub reconfigure_interfaces
 {
@@ -1746,7 +1783,7 @@ sub reconfigure_interfaces
 			
 			# Rescan.
 			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 2}), 
+				progress  => $anvil->Job->bump_progress({steps => 1}), 
 				message   => "message_0394", 
 				log_level => 1,
 				'print'   => 1, 
@@ -1965,7 +2002,7 @@ sub rename_interface
 	
 	# Tell the user what we're about to rename
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0383", 
 		log_level => 1,
 		'print'   => 1, 
@@ -1980,6 +2017,39 @@ sub rename_interface
 			nm_uuid     => $nm_uuid, 
 		},
 	});
+	
+	# If there are ifcfg files for this device, move them.
+	my $network_type = $anvil->System->check_network_type({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+	if ($network_type eq "ifcfg")
+	{
+		my $old_ifcfg_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$old_device;
+		my $new_ifcfg_file = $anvil->data->{path}{directories}{ifcfg}."/ifcfg-".$wanted_link_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			old_ifcfg_file => $old_ifcfg_file,
+			new_ifcfg_file => $new_ifcfg_file, 
+		}});
+		foreach my $file ($old_ifcfg_file, $new_ifcfg_file)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+			if (-f $file)
+			{
+				# It exists, move it.
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
+					message   => "message_0417", 
+					log_level => 1,
+					'print'   => 1, 
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					job_uuid  => $anvil->data->{job}{uuid},
+					variables => { file => $file },
+				});
+				$anvil->Storage->backup({debug => 2, file => $file});
+				unlink $file;
+			}
+		}
+	}
 	
 	# Read persistent-net and see if it needs to be updated.
 	my $new_persistent_net = "";
@@ -2009,7 +2079,7 @@ sub rename_interface
 	{
 		# Updating the udev file
 		$anvil->Job->update_progress({
-			progress  => $anvil->Job->bump_progress({steps => 2}), 
+			progress  => $anvil->Job->bump_progress({steps => 1}), 
 			message   => "message_0384", 
 			log_level => 1,
 			'print'   => 1, 
@@ -2053,7 +2123,7 @@ sub rename_interface
 	{
 		# Removing the old 'connection.interface-name'
 		$anvil->Job->update_progress({
-			progress  => $anvil->Job->bump_progress({steps => 2}), 
+			progress  => $anvil->Job->bump_progress({steps => 1}), 
 			message   => "message_0385", 
 			log_level => 1,
 			'print'   => 1, 
@@ -2100,7 +2170,7 @@ sub rename_interface
 	my $match_interface_name = $anvil->data->{nmcli}{uuid}{$nm_uuid}{'match.interface-name'} ? $anvil->data->{nmcli}{uuid}{$nm_uuid}{'match.interface-name'} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match_interface_name => $match_interface_name }});
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0386", 
 		log_level => 1,
 		'print'   => 1, 
@@ -2173,7 +2243,7 @@ sub rename_interface
 	
 	# Set the connection.id to the old name.
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0387", 
 		log_level => 1,
 		'print'   => 1, 
@@ -2201,7 +2271,7 @@ sub rename_interface
 	
 	# Re-read the updated data 
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}), 
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0394", 
 		log_level => 1,
 		'print'   => 1, 
