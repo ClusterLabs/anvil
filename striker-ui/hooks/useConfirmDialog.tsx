@@ -20,6 +20,7 @@ const useConfirmDialog = (
 ): {
   confirmDialog: ReactElement;
   confirmDialogRef: MutableRefObject<ConfirmDialogForwardedRefContent | null>;
+  setConfirmDialogLoading: (value: boolean) => void;
   setConfirmDialogOpen: (value: boolean) => void;
   setConfirmDialogProps: Dispatch<SetStateAction<ConfirmDialogProps>>;
   finishConfirm: (title: ReactNode, message: Message) => void;
@@ -43,6 +44,15 @@ const useConfirmDialog = (
       content,
       titleText,
     });
+
+  const setConfirmDialogLoading = useCallback(
+    (value: boolean) =>
+      setConfirmDialogProps(({ loading, ...rest }) => ({
+        ...rest,
+        loading: value,
+      })),
+    [],
+  );
 
   const setConfirmDialogOpen = useCallback(
     (value: boolean) => confirmDialogRef?.current?.setOpen?.call(null, value),
@@ -75,6 +85,7 @@ const useConfirmDialog = (
   return {
     confirmDialog,
     confirmDialogRef,
+    setConfirmDialogLoading,
     setConfirmDialogOpen,
     setConfirmDialogProps,
     finishConfirm,
