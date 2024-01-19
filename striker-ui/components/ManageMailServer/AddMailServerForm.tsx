@@ -1,11 +1,12 @@
 import { Grid } from '@mui/material';
-import { FC, ReactNode, useCallback, useMemo, useRef } from 'react';
+import { FC, ReactNode, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
+import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
-import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
+import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import mailServerListSchema from './schema';
 import SelectWithLabel from '../SelectWithLabel';
@@ -16,21 +17,13 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
   const {
     localhostDomain = '',
     mailServerUuid,
-    onSubmit,
     previousFormikValues,
+    tools,
   } = props;
 
   const msUuid = useMemo<string>(
     () => mailServerUuid ?? uuidv4(),
     [mailServerUuid],
-  );
-
-  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
-
-  const setApiMessage = useCallback(
-    (message?: Message) =>
-      messageGroupRef.current.setMessage?.call(null, 'api', message),
-    [],
   );
 
   const {
@@ -50,46 +43,58 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         uuid: msUuid,
       },
     },
-    onSubmit: (...args) => {
-      onSubmit(
-        {
-          mailServer: args[0][msUuid],
-          onConfirmCancel: (values, { setSubmitting }) => setSubmitting(false),
-          onConfirmProceed: (values, { setSubmitting }) => {
-            let errorMessage: ReactNode = <>Failed to add mail server.</>;
-            let method: 'post' | 'put' = 'post';
-            let successMessage = <>Mail server added.</>;
-            let url = '/mail-server';
+    onSubmit: (values, { setSubmitting }) => {
+      const { [msUuid]: mailServer } = values;
+      const { confirm } = tools;
 
-            if (previousFormikValues) {
-              errorMessage = <>Failed to update mail server.</>;
-              method = 'put';
-              successMessage = <>Mail server updated.</>;
-              url += `/${msUuid}`;
-            }
+      let actionProceedText: string = 'Add';
+      let errorMessage: ReactNode = <>Failed to add mail server.</>;
+      let method: 'post' | 'put' = 'post';
+      let successMessage = <>Mail server added.</>;
+      let titleText: string = 'Add mail server with the following?';
+      let url = '/mail-server';
 
-            api[method](url, values[msUuid])
-              .then(() => {
-                setApiMessage({ children: successMessage });
-              })
-              .catch((error) => {
-                const emsg = handleAPIError(error);
+      if (previousFormikValues) {
+        actionProceedText = 'Update';
+        errorMessage = <>Failed to update mail server.</>;
+        method = 'put';
+        successMessage = <>Mail server updated.</>;
+        titleText = `Update ${mailServer.address}:${mailServer.port} with the following?`;
+        url += `/${msUuid}`;
+      }
 
-                emsg.children = (
-                  <>
-                    {errorMessage} {emsg.children}
-                  </>
-                );
+      const { confirmPassword, uuid, ...rest } = mailServer;
 
-                setApiMessage(emsg);
-              })
-              .finally(() => {
-                setSubmitting(false);
-              });
-          },
+      confirm.prepare({
+        actionProceedText,
+        content: <FormSummary entries={rest} />,
+        onCancelAppend: () => setSubmitting(false),
+        onProceedAppend: () => {
+          confirm.loading(true);
+
+          api[method](url, mailServer)
+            .then(() => {
+              confirm.finish('Success', { children: successMessage });
+            })
+            .catch((error) => {
+              const emsg = handleAPIError(error);
+
+              emsg.children = (
+                <>
+                  {errorMessage} {emsg.children}
+                </>
+              );
+
+              confirm.finish('Error', emsg);
+            })
+            .finally(() => {
+              setSubmitting(false);
+            });
         },
-        ...args,
-      );
+        titleText,
+      });
+
+      confirm.open(true);
     },
     validationSchema: mailServerListSchema,
   });
@@ -222,6 +227,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           input={
             <OutlinedInputWithLabel
               id={passwordChain}
+              inputProps={disableAutocomplete()}
               label="Server password"
               name={passwordChain}
               onBlur={formik.handleBlur}
@@ -238,6 +244,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           input={
             <OutlinedInputWithLabel
               id={confirmPasswordChain}
+              inputProps={disableAutocomplete()}
               label="Confirm password"
               name={confirmPasswordChain}
               onBlur={formik.handleBlur}
@@ -249,7 +256,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         />
       </Grid>
       <Grid item width="100%">
-        <MessageGroup count={1} messages={formikErrors} ref={messageGroupRef} />
+        <MessageGroup count={1} messages={formikErrors} />
       </Grid>
       <Grid item width="100%">
         <ActionGroup

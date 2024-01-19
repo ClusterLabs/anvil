@@ -16,9 +16,6 @@ type MailServerFormikValues = {
 
 /** AddMailServerForm */
 
-type FormikSubmitHandler =
-  import('formik').FormikConfig<MailServerFormikValues>['onSubmit'];
-
 type AddMailServerFormOptionalProps = {
   localhostDomain?: string;
   mailServerUuid?: string;
@@ -26,14 +23,7 @@ type AddMailServerFormOptionalProps = {
 };
 
 type AddMailServerFormProps = AddMailServerFormOptionalProps & {
-  onSubmit: (
-    tools: {
-      mailServer: MailServerFormikMailServer;
-      onConfirmCancel: FormikSubmitHandler;
-      onConfirmProceed: FormikSubmitHandler;
-    },
-    ...args: Parameters<FormikSubmitHandler>
-  ) => ReturnType<FormikSubmitHandler>;
+  tools: CrudListFormTools;
 };
 
 /** EditMailServerForm */
