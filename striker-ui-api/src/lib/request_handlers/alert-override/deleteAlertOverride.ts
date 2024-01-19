@@ -3,9 +3,10 @@ import { RequestHandler } from 'express';
 import { execManageAlerts } from '../../execManageAlerts';
 import { stderr } from '../../shell';
 
-export const deleteAlertOverride: RequestHandler<
-  AlertOverrideParamsDictionary
-> = (request, response) => {
+export const deleteAlertOverride: RequestHandler<AlertOverrideReqParams> = (
+  request,
+  response,
+) => {
   const {
     params: { uuid },
   } = request;

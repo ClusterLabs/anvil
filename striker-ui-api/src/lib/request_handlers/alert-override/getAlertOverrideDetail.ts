@@ -7,7 +7,7 @@ import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { getShortHostName } from '../../disassembleHostName';
 import { sanitize } from '../../sanitize';
 
-export const getAlertOverrideDetail: RequestHandler<AlertOverrideParamsDictionary> =
+export const getAlertOverrideDetail: RequestHandler<AlertOverrideReqParams> =
   buildGetRequestHandler((request, options) => {
     const {
       params: { uuid: rUuid },

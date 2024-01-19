@@ -5,7 +5,7 @@ import { getAlertOverrideRequestBody } from './getAlertOverrideRequestBody';
 import { stderr, stdout } from '../../shell';
 
 export const updateAlertOverride: RequestHandler<
-  AlertOverrideParamsDictionary,
+  AlertOverrideReqParams,
   undefined,
   AlertOverrideRequestBody
 > = (request, response) => {

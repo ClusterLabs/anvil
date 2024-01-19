@@ -11,7 +11,11 @@ type AlertOverrideOverviewList = {
   [uuid: string]: AlertOverrideOverview;
 };
 
-type AlertOverrideParamsDictionary = {
+type AlertOverrideReqQuery = {
+  'mail-recipient': string | string[];
+};
+
+type AlertOverrideReqParams = {
   uuid: string;
 };
 
