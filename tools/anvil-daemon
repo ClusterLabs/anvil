@@ -1365,14 +1365,6 @@ AND
 	# Check the firewall needs to be updated.
 	check_firewall($anvil);
 	
-	# If we're a striker, check striker-ui-api
-	my $host_type = $anvil->Get->host_type;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-	if ($host_type eq "striker")
-	{
-		$anvil->Striker->check_httpd_conf({debug => 3});
-	}
-	
 	return(0);
 }
 
