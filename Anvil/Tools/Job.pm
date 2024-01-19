@@ -745,6 +745,12 @@ sub update_progress
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::last_update" => $anvil->data->{sys}{last_update} }});
 	}
 	
+	# If we don't have a database connection, we're done.
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		return(0);
+	}
+	
 	# Add variables to the message, if required
 	if (ref($variables) eq "HASH")
 	{

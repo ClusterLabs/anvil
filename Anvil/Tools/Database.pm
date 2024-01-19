@@ -1688,7 +1688,6 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 			
 			my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
 			if ($count < 1)
 			{
@@ -1778,6 +1777,9 @@ sub connect
 			
 			# Record this as successful
 			$anvil->data->{sys}{database}{connections}++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+			}});
 			push @{$successful_connections}, $uuid;
 		}
 		
@@ -1838,6 +1840,9 @@ sub connect
 				$anvil->data->{sys}{database}{primary_db} = "" if $anvil->data->{sys}{database}{read_active} eq $uuid;
 				$anvil->data->{sys}{database}{read_uuid}  = "" if $anvil->data->{sys}{database}{read_uuid}   eq $uuid;
 				$anvil->data->{sys}{database}{connections}--;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+				}});
 				delete $anvil->data->{database}{$uuid};
 				next;
 			}

@@ -2708,6 +2708,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 </key>
 		<key name="log_0827">The physical volume: [#!variable!pv_name!#] has been resized!</key>
 		<key name="log_0828">The user answered: [#!variable!answer!#]</key>
+		<key name="log_0829">Failed to connect to any database, waiting before trying to connect again. We will reboot if we do not connect in: [#!variable!time_left!#] second.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3343,6 +3344,8 @@ proceeding.
 		<key name="message_0412">- The current DNS is: [#!variable!current_dns!#], will update.</key>
 		<key name="message_0413">- No update is needed.</key>
 		<key name="message_0414">- The IP address needs to be assigned.</key>
+		<key name="message_0415">[ Note ] - Reconfiguring the network will break connections. Disconnecting from the database before starting. It might take a bit before this system reconnects and progress can be seen.</key>
+		<key name="message_0416">[ Note ] - The network has reconnected to the database, configuring will complete shortly.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -4153,6 +4156,7 @@ We will try to proceed anyway.</key>
 ====
 </key>
 		<key name="warning_0168">Please specify a storage group to use to add the new drive to.</key>
+		<key name="warning_0169">[ Warning ] - After reconfiguring the network, we've failed to connect to any database for two minutes. Rebooting in case this fixes the connection.</key>
 		
 	</language>
 	<!-- 日本語 -->
