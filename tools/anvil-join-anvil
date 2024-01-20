@@ -495,20 +495,52 @@ sub configure_pacemaker
 			}
 			if (time > $start_again)
 			{
-				# Call cluster start again.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0272"});
-				   $start_again = time + 60;
-				my $shell_call  = $anvil->data->{path}{exe}{pcs}." cluster start --all";
+				### NOTE: We can't just call 'start --all' again anymore. Now we need to 
+				###       stop -> start. Before we do this, make sure there are no servers
+				###       running.
+				   $start_again  = time + 60;
+				my $restart      = 1;
+				my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					start_again => $start_again, 
-					shell_call  => $shell_call,
+					start_again  => $start_again, 
+					server_count => $server_count,
 				}});
+				foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"cib::parsed::data::server::${server}::active" => $anvil->data->{cib}{parsed}{data}{server}{$server}{active},
+					}});
+					if ($anvil->data->{cib}{parsed}{data}{server}{$server}{active})
+					{
+						$restart = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { restart => $restart }});
+					}
+				}
 				
-				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output,
-					return_code => $return_code, 
-				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { restart => $restart }});
+				if ($restart)
+				{
+					# Call cluster start again.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0272"});
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster stop --all";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						start_again => $start_again, 
+						shell_call  => $shell_call,
+					}});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					$shell_call  = $anvil->data->{path}{exe}{pcs}." cluster start --all";
+					($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
 			}
 			sleep 5 if not $both_online;
 		}
