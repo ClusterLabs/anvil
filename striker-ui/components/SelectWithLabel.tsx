@@ -11,31 +11,38 @@ import OutlinedInput from './OutlinedInput';
 import OutlinedInputLabel from './OutlinedInputLabel';
 import Select from './Select';
 
-const SelectWithLabel: FC<SelectWithLabelProps> = ({
-  id,
-  label,
-  selectItems,
-  checkItem,
-  disableItem,
-  formControlProps,
-  hideItem,
-  inputLabelProps = {},
-  isReadOnly = false,
-  messageBoxProps = {},
-  name,
-  onBlur,
-  onChange,
-  onFocus,
-  required: isRequired,
-  selectProps: {
-    multiple: selectMultiple,
-    sx: selectSx,
-    ...restSelectProps
-  } = {},
-  value: selectValue,
-  // Props with initial value that depend on others.
-  isCheckableItems = selectMultiple,
-}) => {
+const SelectWithLabel = <
+  Value = string,
+  Display extends React.ReactNode = React.ReactNode,
+>(
+  ...[props]: Parameters<FC<SelectWithLabelProps<Value, Display>>>
+): ReturnType<FC<SelectWithLabelProps<Value, Display>>> => {
+  const {
+    id,
+    label,
+    selectItems,
+    checkItem,
+    disableItem,
+    formControlProps,
+    hideItem,
+    inputLabelProps = {},
+    isReadOnly = false,
+    messageBoxProps = {},
+    name,
+    onBlur,
+    onChange,
+    onFocus,
+    required: isRequired,
+    selectProps: {
+      multiple: selectMultiple,
+      sx: selectSx,
+      ...restSelectProps
+    } = {},
+    value: selectValue,
+    // Props with initial value that depend on others.
+    isCheckableItems = selectMultiple,
+  } = props;
+
   const combinedSx = useMemo(
     () =>
       isReadOnly
@@ -96,8 +103,10 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   const menuItemElements = useMemo(
     () =>
       selectItems.map((item) => {
-        const { value, displayValue = value }: SelectItem =
-          typeof item === 'string' ? { value: item } : item;
+        const { value, displayValue }: SelectItem<Value, Display> =
+          typeof item === 'object'
+            ? item
+            : { displayValue: item as Display, value: item as Value };
 
         return createMenuItem(value, displayValue);
       }),
@@ -107,7 +116,7 @@ const SelectWithLabel: FC<SelectWithLabelProps> = ({
   return (
     <MUIFormControl fullWidth {...formControlProps}>
       {labelElement}
-      <Select
+      <Select<Value>
         id={selectId}
         input={inputElement}
         multiple={selectMultiple}

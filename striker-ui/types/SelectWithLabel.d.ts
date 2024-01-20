@@ -1,18 +1,18 @@
 type SelectItem<
-  ValueType = string,
-  DisplayValueType = ValueType | import('react').ReactNode,
+  Value = string,
+  Display extends React.ReactNode = React.ReactNode,
 > = {
-  displayValue?: DisplayValueType;
-  value: ValueType;
+  displayValue?: Display;
+  value: Value;
 };
 
-type OperateSelectItemFunction = (value: string) => boolean;
+type OperateSelectItemFunction<Value = string> = (value: Value) => boolean;
 
-type SelectWithLabelOptionalProps = {
-  checkItem?: OperateSelectItemFunction;
-  disableItem?: OperateSelectItemFunction;
+type SelectWithLabelOptionalProps<Value = string> = {
+  checkItem?: OperateSelectItemFunction<Value>;
+  disableItem?: OperateSelectItemFunction<Value>;
   formControlProps?: import('@mui/material').FormControlProps;
-  hideItem?: OperateSelectItemFunction;
+  hideItem?: OperateSelectItemFunction<Value>;
   isCheckableItems?: boolean;
   isReadOnly?: boolean;
   inputLabelProps?: Partial<
@@ -21,11 +21,17 @@ type SelectWithLabelOptionalProps = {
   label?: string;
   messageBoxProps?: Partial<import('../components/MessageBox').MessageBoxProps>;
   required?: boolean;
-  selectProps?: Partial<SelectProps>;
+  selectProps?: Partial<SelectProps<Value>>;
 };
 
-type SelectWithLabelProps = SelectWithLabelOptionalProps &
-  Pick<SelectProps, 'name' | 'onBlur' | 'onChange' | 'onFocus' | 'value'> & {
+type SelectWithLabelProps<
+  Value = string,
+  Display extends React.ReactNode = React.ReactNode,
+> = SelectWithLabelOptionalProps<Value> &
+  Pick<
+    SelectProps<Value>,
+    'name' | 'onBlur' | 'onChange' | 'onFocus' | 'value'
+  > & {
     id: string;
-    selectItems: Array<SelectItem | string>;
+    selectItems: Array<SelectItem<Value, Display> | string>;
   };

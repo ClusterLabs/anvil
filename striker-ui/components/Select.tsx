@@ -12,10 +12,10 @@ import { FC, useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
-const Select: FC<SelectProps> = ({
-  onClearIndicatorClick,
-  ...muiSelectProps
-}) => {
+const Select = <Value = string,>(
+  ...[props]: Parameters<FC<SelectProps<Value>>>
+) => {
+  const { onClearIndicatorClick, ...muiSelectProps } = props;
   const { sx: selectSx, value, ...restMuiSelectProps } = muiSelectProps;
 
   const combinedSx = useMemo(
@@ -58,7 +58,7 @@ const Select: FC<SelectProps> = ({
   );
 
   return (
-    <MUISelect
+    <MUISelect<Value>
       endAdornment={clearIndicatorElement}
       value={value}
       {...restMuiSelectProps}
