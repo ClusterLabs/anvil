@@ -7,15 +7,7 @@ import getFormikErrorMessages from '../lib/getFormikErrorMessages';
 
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   ...formikArgs: Parameters<UseFormik<Values>>
-): {
-  disableAutocomplete: (
-    overwrite?: Partial<OutlinedInputProps>,
-  ) => OutlinedInputProps;
-  disabledSubmit: boolean;
-  formik: Formik<Values>;
-  formikErrors: Messages;
-  handleChange: FormikChangeHandler<Values>;
-} => {
+): FormikUtils<Values> => {
   const [formikConfig, ...restFormikArgs] = formikArgs;
 
   const formik = useFormik<Values>({ ...formikConfig }, ...restFormikArgs);
