@@ -22,6 +22,7 @@ use Anvil::Tools;
 use Data::Dumper;
 use String::ShellQuote;
 use Text::Diff;
+use NetAddr::IP;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -63,6 +64,9 @@ update_passwords($anvil);
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
 
+# Wait until we can ping our peer on all networks.
+wait_for_access($anvil);
+
 # (wait for out peer and) Configure pacemaker
 configure_pacemaker($anvil);
 
@@ -97,6 +101,144 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub wait_for_access
+{
+	my ($anvil) = @_;
+	
+	# NOTE: This logic is a copy of anvil-safe-start.
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_anvils();
+	my $host_uuid            = $anvil->Get->host_uuid();
+	my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	my $peer_host_uuid       = $anvil->data->{sys}{peer_host_uuid};
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $peer_password        = $anvil->data->{sys}{peer_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_uuid            => $host_uuid,
+		short_host_name      => $short_host_name, 
+		peer_host_uuid       => $peer_host_uuid, 
+		peer_short_host_name => $peer_short_host_name, 
+		peer_password        => $anvil->Log->is_secure($peer_password), 
+	}});
+	
+	my $waiting = 1;
+	while ($waiting)
+	{
+		# This will get set back to '1' if 
+		$waiting = 0;
+		
+		# Load IPs (again, to catch changes that might be delaying startup)
+		$anvil->Network->load_ips({
+			clear     => 1,
+			host      => $short_host_name,
+			host_uuid => $host_uuid, 
+			
+		});
+		$anvil->Network->load_ips({
+			clear     => 1,
+			host      => $peer_short_host_name,
+			host_uuid => $peer_host_uuid, 
+			
+		});
+		
+		# Loop through our interfaces and then loop our peers. Test access over them and set 
+		# 'waiting' back to '1' if the connection fails.
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$short_host_name}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				interface => $interface,
+				waiting   => $waiting, 
+			}});
+			
+			# Only care about our networks.
+			next if $waiting;
+			if (not $anvil->Network->is_our_interface({interface => $interface}))
+			{
+				# Not an interface we care about
+				next;
+			}
+			
+			my $this_network = ($interface =~ /^(.*?)_/)[0];
+			my $ip_address   = $anvil->data->{network}{$short_host_name}{interface}{$interface}{ip};
+			my $subnet_mask  = $anvil->data->{network}{$short_host_name}{interface}{$interface}{subnet_mask};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_network' => $this_network, 
+				's2:ip_address'   => $ip_address, 
+				's3:subnet_mask'  => $subnet_mask, 
+			}});
+			
+			### NOTE: I know I could match interface names, but that's not certain enough. It's 
+			###       possible (if unlikely) that the network name+numbre differs on our peer. So
+			###       this is safer.
+			# Loop through my peer's interfaces and see if we're sharing this one.
+			my $local_network    = NetAddr::IP->new($ip_address."/".$subnet_mask);
+			my $peer_match_found = 0;
+			foreach my $peer_interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$peer_short_host_name}{interface}})
+			{
+				last if $peer_match_found;
+				my $peer_ip_address  = $anvil->data->{network}{$peer_short_host_name}{interface}{$peer_interface}{ip};
+				my $peer_subnet_mask = $anvil->data->{network}{$peer_short_host_name}{interface}{$peer_interface}{subnet_mask};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					peer_interface   => $peer_interface, 
+					peer_ip_address  => $peer_ip_address, 
+					peer_subnet_mask => $peer_subnet_mask, 
+				}});
+				
+				# This the matching network?
+				next if $subnet_mask ne $peer_subnet_mask;
+				
+				my $peer_network = NetAddr::IP->new($peer_ip_address."/".$peer_subnet_mask);
+				if ($peer_network->within($local_network))
+				{
+					# Match, test access.
+					   $peer_match_found = 1;
+					my $access           = $anvil->Remote->test_access({
+						target   => $peer_ip_address,
+						password => $peer_password,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+					if ($access)
+					{
+						# This network is good.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0604", variables => {
+							peer    => $peer_short_host_name, 
+							network => $this_network, 
+							peer_ip => $peer_ip_address,
+						}});
+						
+						$anvil->data->{sys}{peer_target_ip} = $peer_ip_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"sys::peer_target_ip" => $anvil->data->{sys}{peer_target_ip},
+						}});
+					}
+					else
+					{
+						# No access, wait and try it again.
+						$waiting = 1;
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0605", variables => {
+							peer    => $peer_short_host_name, 
+							network => $this_network, 
+							peer_ip => $peer_ip_address,
+						}});
+					}
+				} 
+				
+			}
+		}
+		
+		if ($waiting)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0606", variables => { peer => $peer_short_host_name }});
+			sleep 5;
+		}
+	}
+	
+	# All networks are up.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0607", variables => { peer => $peer_short_host_name }});
+	
+	return(0);
+}
 
 # Configure DRBD
 sub configure_drbd
