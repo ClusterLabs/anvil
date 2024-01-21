@@ -348,7 +348,7 @@ sub start_pacemaker
 		while ($waiting)
 		{
 			   $waiting   = 0;
-			my ($problem) = $anvil->Cluster->parse_cib({debug => 3});
+			my ($problem) = $anvil->Cluster->parse_cib({debug => 2});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if ($problem)
 			{
