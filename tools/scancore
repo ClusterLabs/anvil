@@ -143,7 +143,7 @@ while(1)
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
-		$anvil->ScanCore->call_scan_agents();
+		$anvil->ScanCore->call_scan_agents({debug => 2});
 		
 		# Do post-scan analysis.
 		$anvil->ScanCore->post_scan_analysis({debug => 2});
