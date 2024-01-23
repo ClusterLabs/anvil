@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import useSWR, { BareFetcher, SWRConfiguration } from 'swr';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
@@ -10,20 +11,31 @@ type FetchHookResponse<D, E extends Error = Error> = {
   loading: boolean;
 };
 
-const useFetch = <Data,>(
+const useFetch = <Data, Alt = Data>(
   url: string,
   options: SWRConfiguration<Data> & {
-    fetcher?: BareFetcher<Data>;
     baseUrl?: string;
+    fetcher?: BareFetcher<Data>;
+    mod?: (data: Data) => Alt;
   } = {},
-): FetchHookResponse<Data> => {
-  const { fetcher = fetchJSON, baseUrl = API_BASE_URL, ...config } = options;
+): FetchHookResponse<Data> & { altData?: Alt } => {
+  const {
+    baseUrl = API_BASE_URL,
+    fetcher = fetchJSON,
+    mod,
+    ...config
+  } = options;
 
   const { data, error } = useSWR<Data>(`${baseUrl}${url}`, fetcher, config);
 
+  const altData = useMemo<Alt | undefined>(
+    () => mod && data && mod(data),
+    [data, mod],
+  );
+
   const loading = !error && !data;
 
-  return { data, error, loading };
+  return { altData, data, error, loading };
 };
 
 export default useFetch;
