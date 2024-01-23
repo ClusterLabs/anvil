@@ -28,9 +28,9 @@ const useConfirmDialog = (
   const {
     initial: {
       actionProceedText = '',
-      closeOnProceed,
       content = '',
       titleText = '',
+      ...restInitialProps
     } = {},
   } = args;
 
@@ -74,12 +74,12 @@ const useConfirmDialog = (
   const confirmDialog = useMemo<ReactElement>(
     () => (
       <ConfirmDialog
-        closeOnProceed={closeOnProceed}
+        {...restInitialProps}
         {...confirmDialogProps}
         ref={confirmDialogRef}
       />
     ),
-    [closeOnProceed, confirmDialogProps],
+    [confirmDialogProps, restInitialProps],
   );
 
   return {
