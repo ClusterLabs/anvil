@@ -58,7 +58,7 @@ export const execManageAlerts = (
     (previous, [key, flag]) => {
       const value = shallow[key];
 
-      if (value) {
+      if (value !== undefined) {
         previous.push(flag, String(value));
       }
 
