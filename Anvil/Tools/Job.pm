@@ -501,8 +501,8 @@ sub html_list
 			}
 			
 			# Convert the double-banged strings into a proper message.
-			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
-			my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({debug => $debug, key_string => $job_title})       : "";
+			my $say_description = $job_description ? $anvil->Words->parse_banged_string({debug => $debug, key_string => $job_description}) : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				job_title       => $job_title, 
 				say_description => $say_description, 
