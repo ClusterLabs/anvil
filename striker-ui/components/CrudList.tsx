@@ -49,7 +49,7 @@ const CrudList = <
     setConfirmDialogLoading,
     setConfirmDialogOpen,
     setConfirmDialogProps,
-  } = useConfirmDialog();
+  } = useConfirmDialog({ initial: { scrollContent: true } });
 
   const [edit, setEdit] = useState<boolean>(false);
   const [entry, setEntry] = useState<Detail | undefined>();
