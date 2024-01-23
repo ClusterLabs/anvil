@@ -75,6 +75,10 @@ const Autocomplete = <
     paper: {
       sx: {
         backgroundColor: TEXT,
+
+        [`& .${muiAutocompleteClasses.groupLabel}`]: {
+          backgroundColor: TEXT,
+        },
       },
     },
 
