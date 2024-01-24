@@ -27,6 +27,7 @@ const ManageMailServer: FC = () => {
         getDeleteSuccessMessage={() => ({
           children: <>Successfully deleted mail server(s).</>,
         })}
+        listEmpty="No mail server(s) found"
         renderAddForm={(tools) =>
           host && (
             <AddMailServerForm localhostDomain={host.domain} tools={tools} />

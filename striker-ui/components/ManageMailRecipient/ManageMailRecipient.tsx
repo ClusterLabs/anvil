@@ -167,6 +167,7 @@ const ManageMailRecipient: FC = () => {
           children: <>Successfully deleted mail recipient(s).</>,
         })}
         getEditLoading={(previous) => previous || loadingAlertOverrides}
+        listEmpty="No mail recipient(s) found."
         onItemClick={(base, ...args) => {
           const [, mailRecipientUuid] = args;
 
