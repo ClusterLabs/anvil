@@ -55,6 +55,9 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
+# Make sure the hosts file has entries for all nets for both subnodes
+wait_for_etc_hosts($anvil);
+
 # Hold until both subnodes are marked as configured and not in maintenance mode.
 wait_for_subnodes($anvil);
 
@@ -67,6 +70,7 @@ check_local_network($anvil);
 # Wait until we can ping our peer on all networks.
 wait_for_access($anvil);
 
+### TODO: Change corosync.conf to use IPs, including MN if it exists.
 # (wait for out peer and) Configure pacemaker
 configure_pacemaker($anvil);
 
@@ -101,6 +105,271 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Make sure the hosts file has entries for all nets for both subnodes
+sub wait_for_etc_hosts
+{
+	my ($anvil) = @_;
+	
+	my $anvil_uuid           = $anvil->data->{sys}{anvil_uuid};
+	my $node1_host_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $manifest_uuid        = $anvil->data->{sys}{manifest_uuid};
+	my $i_am                 = $anvil->data->{sys}{machine};
+	my $peer_is              = $i_am eq "node1" ? "node2" : "node1";
+	my $peer_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{"anvil_".$peer_is."_host_uuid"};
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:anvil_uuid'           => $anvil_uuid, 
+		's2:manifest_uuid'        => $manifest_uuid, 
+		's3:node1_host_uuid'      => $node1_host_uuid, 
+		's4:node2_host_uuid'      => $node2_host_uuid, 
+		's5:i_am'                 => $i_am,
+		's6:peer_is'              => $peer_is,
+		's7:peer_host_uuid'       => $peer_host_uuid, 
+		's8:peer_short_host_name' => $peer_short_host_name, 
+	}});
+	
+	my $problem = $anvil->Striker->load_manifest({debug => 2, manifest_uuid => $manifest_uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		manifest_uuid => $anvil->data->{sys}{manifest_uuid},
+		problem       => $problem, 
+	}});
+	if ($problem)
+	{
+		# Something went wrong, fatally. Abort the job.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "job_0076", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
+		update_progress($anvil, 100, "job_0076,!!uuid!".$anvil->data->{sys}{manifest_uuid}."!!");
+		$anvil->nice_exit({exit_code => 2});
+	}
+	
+	# Create the list of host names we need to see in /etc/hosts and the hostnames to use in corosync.
+	foreach my $machine (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}})
+	{
+		my $this_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{"anvil_".$machine."_host_uuid"};
+		my $this_short_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}})
+		{
+			my $host_name  = $this_short_host_name.".".$network_name;
+			my $ip_address = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}{$network_name}{ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:network_name' => $network_name,
+				's2:host_name'    => $host_name, 
+				's3:ip_address'   => $ip_address,
+			}});
+			
+			$anvil->data->{networks}{$host_name}{ip_address} = $ip_address;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:networks::${host_name}::ip_address" => $anvil->data->{networks}{$host_name}{ip_address},
+			}});
+		}
+	}
+	
+	my $waiting = 1;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0477");
+	while($waiting)
+	{
+		# Update the /etc/hosts file. Note that this doesn't add hosts that are not yet trusted, so 
+		# anything not found will be inserted here.
+		$anvil->System->update_hosts({debug => 2});
+		
+		# Now lets see if all expected hosts names are in the /etc/hosts file yet.
+		my $ready      = 1;
+		my $hosts_file = $anvil->Storage->read_file({
+			file       => $anvil->data->{path}{configs}{hosts},
+			force_read => 1,
+			cache      => 0,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hosts_file => $hosts_file }});
+		
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{networks}})
+		{
+			my $found      = 0;
+			my $ip_address = $anvil->data->{networks}{$host_name}{ip_address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_name'  => $host_name,
+				's2:ip_address' => $ip_address, 
+			}});
+			
+			foreach my $line (split/\n/, $hosts_file)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				$line =~ s/#.*$//;
+				if ($line =~ /^(\d.*?)\s+(.*)$/)
+				{
+					my $this_ip = $1;
+					my $hosts   = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_ip => $this_ip,
+						hosts   => $hosts, 
+					}});
+					
+					if ($anvil->Validate->ip({ip => $this_ip}))
+					{
+						foreach my $this_host (split/\s+/, $hosts)
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_host => $this_host }});
+							
+							if ($host_name eq $this_host)
+							{
+								my $variables = {
+									host_name  => $host_name, 
+									ip_address => $ip_address,
+									found_ip   => $this_ip,
+								};
+								if ($ip_address eq $this_ip)
+								{
+									# Found it
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0830", variables => $variables });
+									$found = 1;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+								}
+								else
+								{
+									# Found the host, but the IP doesn't match.
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0831", variables => $variables });
+								}
+							}
+							last if $found;
+						}
+					}
+				}
+				last if $found;
+			}
+			
+			if (not $found)
+			{
+				$ready = 0;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0832", variables => { host_name => $host_name }});
+				
+				# Add the IP to be added to /etc/hosts.
+				$anvil->data->{to_add}{$host_name} = $ip_address;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "to_add::${ip_address}" => $anvil->data->{to_add}{$host_name} }});
+			}
+		}
+		
+		if ($ready)
+		{
+			# Ready!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0833"});
+			
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+		}
+		else
+		{
+			# Not ready, wait a bit.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0834"});
+			
+			# Add the values to /etc/hosts.
+			my $new_hosts_body = "";
+			foreach my $line (split/\n/, $hosts_file)
+			{
+				# See if this line needs to be modified.
+				if ($line =~ /^(\d.*?)\s+(.*)$/)
+				{
+					my $this_ip = $1;
+					my $hosts   = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_ip => $this_ip,
+						hosts   => $hosts, 
+					}});
+					if ($anvil->Validate->ip({ip => $this_ip}))
+					{
+						my $changes   = 0;
+						my $new_hosts =  "";
+						my $comment   =  ($hosts =~ /(#.*)$/)[0];
+						   $comment   =  "" if not defined $comment;
+						   $hosts     =~ s/#.*?//;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							comment => $comment,
+							hosts   => $hosts, 
+						}});
+						foreach my $host_name (split/\s+/, $hosts)
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+							
+							if ((exists $anvil->data->{to_add}{$host_name}) && 
+							    ($anvil->data->{to_add}{$host_name})        && 
+							    ($this_ip ne $anvil->data->{to_add}{$host_name}))
+							{
+								# Remove this host.
+								$changes = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+								
+								delete $anvil->data->{to_add}{$host_name};
+								next;
+							}
+							$new_hosts .= $host_name." ";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts => $new_hosts }});
+						}
+						
+						# Do we have any names to add to this IP?
+						foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{to_add}})
+						{
+							if ($this_ip eq $anvil->data->{to_add}{$host_name})
+							{
+								# Add it.
+								$new_hosts .= $host_name." ";
+								
+								$changes = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+								
+								delete $anvil->data->{to_add}{$host_name};
+							}
+						}
+						
+						if ($changes)
+						{
+							$new_hosts_body .= $this_ip."\t".$new_hosts.$comment."\n";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+							next;
+						}
+					}
+				}
+				
+				# If we're alive here, just add the old line.
+				$new_hosts_body .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts_body => $new_hosts_body }});
+			}
+			
+			# Add any hosts still not processed.
+			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{to_add}})
+			{
+				$new_hosts_body .= $anvil->data->{to_add}{$host_name}."\t".$host_name."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts_body => $new_hosts_body }});
+				
+				delete $anvil->data->{to_add}{$host_name};
+			}
+			
+			# If there's a difference, write the new hosts file.
+			my $difference = diff \$new_hosts_body, \$hosts_file, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+			
+			if ($difference)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0112"});
+				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0835"});
+				my $failed = $anvil->Storage->write_file({
+					debug     => 2,
+					overwrite => 1, 
+					file      => $anvil->data->{path}{configs}{hosts}, 
+					body      => $new_hosts_body, 
+					user      => "root", 
+					group     => "root", 
+					mode      => "0644", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			}
+			sleep 1;
+		}
+	}
+	
+	return(0);
+}
 
 sub wait_for_access
 {
@@ -1329,7 +1598,7 @@ sub configure_pacemaker
 		}
 	}
 	
-	# Update (if needed) corosync.conf to use the BCN1 and SN1 as knet networks.
+	# Update (if needed) corosync.conf to use the BCN1, MN1 and SN1 as knet networks.
 	if ($machine eq "node1")
 	{
 		update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0344");
@@ -1363,6 +1632,7 @@ sub check_corosync
 	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	while ($waiting)
 	{
+		### TODO: Add MN where appropriate
 		my $problem          =  $anvil->Cluster->parse_cib({debug => 3});
 		my $peer_ready       =  $anvil->data->{cib}{parsed}{peer}{ready};
 		my $peer_name        =  $anvil->data->{cib}{parsed}{peer}{name};
@@ -2431,11 +2701,6 @@ sub check_local_network
 			})
 		}
 	}
-	
-	# Update the hosts file.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0112"});
-	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
-	$anvil->System->update_hosts({debug => 3});
 	
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0113"});

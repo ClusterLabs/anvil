@@ -2709,6 +2709,12 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0827">The physical volume: [#!variable!pv_name!#] has been resized!</key>
 		<key name="log_0828">The user answered: [#!variable!answer!#]</key>
 		<key name="log_0829">Failed to connect to any database, waiting before trying to connect again. We will reboot if we do not connect in: [#!variable!time_left!#] second.</key>
+		<key name="log_0830">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file with the expected IP: [#!variable!ip_address!#]!</key>
+		<key name="log_0831">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file, but the expected IP: [#!variable!ip_address!#] doesn't match the found IP: [#!variable!found_ip!#]! Ignoring this entry.</key>
+		<key name="log_0832">The host: [#!variable!host_name!#] was found not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
+		<key name="log_0833">All host names were found in '/etc/hosts', ready to proceed!</key>
+		<key name="log_0834">One or more hosts are not yet in the '/etc/hosts' file with expected IPs. We'll wait a short bit and check again.</key>
+		<key name="log_0835">There are entries we need to add to the '/etc/hosts' file before we can form the cluster, updating it now.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
