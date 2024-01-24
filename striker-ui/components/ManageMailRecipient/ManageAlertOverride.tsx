@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 import AlertOverrideInputGroup from './AlertOverrideInputGroup';
 import List from '../List';
-import useChecklist from '../../hooks/useChecklist';
 
 const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
   const {
@@ -18,12 +17,9 @@ const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
   } = formik;
   const { alertOverrides } = mailRecipient;
 
-  const { hasChecks } = useChecklist(alertOverrides);
-
   return (
     <List
       allowAddItem
-      disableDelete={!hasChecks}
       edit
       header="Alert override rules"
       listEmpty="No alert overrides(s)"
@@ -48,7 +44,7 @@ const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
         });
       }}
       renderListItem={(valueId, value) =>
-        !value.delete && (
+        !value.remove && (
           <AlertOverrideInputGroup
             alertOverrideTargetOptions={alertOverrideTargetOptions}
             alertOverrideValueId={valueId}

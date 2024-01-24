@@ -121,81 +121,35 @@ const getAlertOverrideRequestList = (
   if (!mailRecipientUuid) return [];
 
   return Object.values(current.alertOverrides).reduce<AlertOverrideRequest[]>(
-    (previous, value) => {
-      if (value.delete && value.uuids) {
-        /**
-         * 1 or more existing records marked for removal.
-         */
+    (previous, { remove, level, target, uuids: existingOverrides }) => {
+      /**
+       * There's no update, just delete every record and create the new records.
+       *
+       * This is not optimal, but keep it until there's a better solution.
+       */
+
+      if (existingOverrides) {
         previous.push(
-          ...Object.keys(value.uuids).map<AlertOverrideRequest>((uuid) => ({
-            method: 'delete',
-            url: `${urlPrefix}/${uuid}`,
-          })),
-        );
-
-        return previous;
-      }
-
-      const { level, target, uuids } = value;
-
-      if (!target) return previous;
-
-      const hosts: string[] = target.subnodes ?? [target.uuid];
-
-      if (uuids) {
-        /**
-         * Found existing alert override UUIDs; the requests must be updates.
-         */
-
-        const slots: string[] = Object.keys(uuids);
-
-        const longest = Math.max(slots.length, hosts.length);
-
-        previous.push(
-          ...Array.from({ length: longest }).map<AlertOverrideRequest>(
-            (ignore, i) => {
-              const host = hosts[i];
-              const slot = slots[i];
-
-              if (!slot) {
-                return {
-                  body: { hostUuid: host, level, mailRecipientUuid },
-                  method: 'post',
-                  url: urlPrefix,
-                };
-              }
-
-              const url = `${urlPrefix}/${slot}`;
-
-              if (!host) {
-                return {
-                  method: 'delete',
-                  url,
-                };
-              }
-
-              return {
-                body: { hostUuid: host, level, mailRecipientUuid },
-                method: 'put',
-                url,
-              };
-            },
+          ...Object.keys(existingOverrides).map<AlertOverrideRequest>(
+            (overrideUuid) => ({
+              method: 'delete',
+              url: `${urlPrefix}/${overrideUuid}`,
+            }),
           ),
         );
-
-        return previous;
       }
 
-      /**
-       * No existing alert override UUIDs, meaning these are new records.
-       */
-      previous.push(
-        ...hosts.map<AlertOverrideRequest>((hostUuid) => ({
-          body: { hostUuid, level, mailRecipientUuid },
-          method: 'post',
-          url: urlPrefix,
-        })),
-      );
+      if (target && !remove) {
+        const newHosts: string[] = target.subnodes ?? [target.uuid];
+
+        previous.push(
+          ...newHosts.map<AlertOverrideRequest>((hostUuid) => ({
+            body: { hostUuid, level, mailRecipientUuid },
+            method: 'post',
+            url: urlPrefix,
+          })),
+        );
+      }
 
       return previous;
     },
@@ -263,18 +217,20 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
           <>
             <FormSummary entries={mrBody} />
             <FormSummary
-              entries={Object.entries(alertOverrides).reduce<
-                Record<string, { level: number; name: string }>
-              >((previous, [valueId, value]) => {
-                if (!value.target) return previous;
+              entries={{
+                alertOverrides: Object.entries(alertOverrides).reduce<
+                  Record<string, { level: number; name: string }>
+                >((previous, [valueId, value]) => {
+                  if (value.remove || !value.target) return previous;
 
-                previous[valueId] = {
-                  level: value.level,
-                  name: value.target.name,
-                };
+                  previous[valueId] = {
+                    level: value.level,
+                    name: value.target.name,
+                  };
 
-                return previous;
-              }, {})}
+                  return previous;
+                }, {}),
+              }}
             />
           </>
         ),

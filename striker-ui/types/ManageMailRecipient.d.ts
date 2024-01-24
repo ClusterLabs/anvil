@@ -18,8 +18,8 @@ type AlertOverrideTarget = {
 };
 
 type AlertOverrideFormikAlertOverride = {
-  delete?: boolean;
   level: number;
+  remove?: boolean;
   target: AlertOverrideTarget | null;
   uuids?: Record<string, string>;
 };

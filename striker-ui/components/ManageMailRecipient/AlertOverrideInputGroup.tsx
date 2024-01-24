@@ -47,8 +47,8 @@ const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
     [aoVid, mrUuid],
   );
 
-  const deleteChain = useMemo<string>(
-    () => `${overrideChain}.delete`,
+  const removeChain = useMemo<string>(
+    () => `${overrideChain}.remove`,
     [overrideChain],
   );
   const targetChain = useMemo<string>(
@@ -116,7 +116,7 @@ const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
           mapPreset="delete"
           onClick={() => {
             if (alertOverride.uuids) {
-              formik.setFieldValue(deleteChain, true, true);
+              formik.setFieldValue(removeChain, true, true);
             } else {
               formik.setValues((previous) => {
                 const shallow = { ...previous };
