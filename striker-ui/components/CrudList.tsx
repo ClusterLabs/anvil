@@ -28,6 +28,7 @@ const CrudList = <
     getAddLoading,
     getDeleteErrorMessage,
     getDeleteHeader,
+    getDeletePromiseChain = (base, ...args) => base(...args),
     getDeleteSuccessMessage,
     getEditLoading = (previous?: boolean) => previous,
     listEmpty,
@@ -146,7 +147,11 @@ const CrudList = <
                 setConfirmDialogLoading(true);
 
                 Promise.all(
-                  checks.map((key) => api.delete(`${entriesUrl}/${key}`)),
+                  getDeletePromiseChain(
+                    (cl, up) => cl.map((key) => api.delete(`${up}/${key}`)),
+                    checks,
+                    entriesUrl,
+                  ),
                 )
                   .then(() => {
                     finishConfirm('Success', getDeleteSuccessMessage());

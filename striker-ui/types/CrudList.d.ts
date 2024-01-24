@@ -12,8 +12,17 @@ type CrudListItemClickHandler = Exclude<
   undefined
 >;
 
+type DeletePromiseChainGetter<T> = (
+  checks: ArrayChecklist,
+  urlPrefix: string,
+) => Promise<T>[];
+
 type CrudListOptionalProps<Overview> = {
   getAddLoading?: (previous?: boolean) => boolean;
+  getDeletePromiseChain?: <T>(
+    base: DeletePromiseChainGetter<T>,
+    ...args: Parameters<DeletePromiseChainGetter<T>>
+  ) => ReturnType<DeletePromiseChainGetter<T>>;
   getEditLoading?: (previous?: boolean) => boolean;
   listProps?: Partial<ListProps<Overview>>;
   onItemClick?: (
