@@ -1,4 +1,5 @@
 import { Grid, menuClasses as muiMenuClasses } from '@mui/material';
+import { AxiosError } from 'axios';
 import { FC, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -191,8 +192,6 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
       let titleText: string = `Add mail recipient with the following?`;
       let url: string = '/mail-recipient';
 
-      let alertOverrideRequestList: AlertOverrideRequest[];
-
       if (previousFormikValues) {
         actionProceedText = 'Update';
         errorMessage = <>Failed to update mail server.</>;
@@ -200,13 +199,6 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
         successMessage = <>Mail recipient updated.</>;
         titleText = `Update ${mailRecipient.name} with the following?`;
         url += `/${mrUuid}`;
-
-        alertOverrideRequestList = getAlertOverrideRequestList(
-          mailRecipient,
-          previousFormikValues[mrUuid],
-        );
-      } else {
-        alertOverrideRequestList = getAlertOverrideRequestList(mailRecipient);
       }
 
       const { alertOverrides, uuid: ignore, ...mrBody } = mailRecipient;
@@ -235,29 +227,51 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
           </>
         ),
         onCancelAppend: () => setSubmitting(false),
-        onProceedAppend: () => {
+        onProceedAppend: async () => {
           confirm.loading(true);
 
-          const promises = [api[method](url, mrBody)];
+          const handleError = (error: AxiosError) => {
+            const emsg = handleAPIError(error);
 
-          alertOverrideRequestList.forEach((request) => {
-            promises.push(api[request.method](request.url, request.body));
-          });
+            emsg.children = (
+              <>
+                {errorMessage} {emsg.children}
+              </>
+            );
 
-          Promise.all(promises)
-            .then(() => confirm.finish('Success', { children: successMessage }))
-            .catch((error) => {
-              const emsg = handleAPIError(error);
+            confirm.finish('Error', emsg);
+          };
 
-              emsg.children = (
-                <>
-                  {errorMessage} {emsg.children}
-                </>
+          // Handle the mail recipient first, wait until it's done to process
+          // the related alert override records.
+
+          api[method](url, mrBody)
+            .then((response) => {
+              const { data } = response;
+
+              const shallow = { ...mailRecipient };
+
+              if (data) {
+                shallow.uuid = data.uuid;
+              }
+
+              const initial =
+                previousFormikValues && previousFormikValues[mrUuid];
+
+              const promises = getAlertOverrideRequestList(
+                shallow,
+                initial,
+              ).map((request) =>
+                api[request.method](request.url, request.body),
               );
 
-              confirm.finish('Error', emsg);
+              Promise.all(promises)
+                .then(() =>
+                  confirm.finish('Success', { children: successMessage }),
+                )
+                .catch(handleError);
             })
-            .finally(() => setSubmitting(false));
+            .catch(handleError);
         },
         titleText,
       });
