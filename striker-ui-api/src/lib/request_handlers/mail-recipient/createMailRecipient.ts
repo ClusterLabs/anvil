@@ -6,30 +6,36 @@ import { stderr, stdout } from '../../shell';
 
 export const createMailRecipient: RequestHandler<
   undefined,
-  undefined,
+  MailRecipientResponseBody | undefined,
   MailRecipientRequestBody
 > = (request, response) => {
   const { body: rBody = {} } = request;
 
   stdout('Begin creating alert recipient.');
 
-  let body: MailRecipientRequestBody;
+  let reqBody: MailRecipientRequestBody;
 
   try {
-    body = getMailRecipientRequestBody(rBody);
+    reqBody = getMailRecipientRequestBody(rBody);
   } catch (error) {
     stderr(`Failed to process alert recipient input; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
 
+  let resBody: MailRecipientResponseBody | undefined;
+
   try {
-    execManageAlerts('recipients', 'add', { body });
+    const { uuid = '' } = execManageAlerts('recipients', 'add', {
+      body: reqBody,
+    });
+
+    resBody = { uuid };
   } catch (error) {
     stderr(`Failed to create alert recipient; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
 
-  return response.status(201).send();
+  return response.status(201).send(resBody);
 };

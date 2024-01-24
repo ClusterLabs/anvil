@@ -1,7 +1,7 @@
 import assert from 'assert';
-import { spawnSync } from 'child_process';
+import { SpawnSyncReturns, spawnSync } from 'child_process';
 
-import { SERVER_PATHS } from './consts';
+import { P_UUID, SERVER_PATHS } from './consts';
 
 import { stdoutVar } from './shell';
 
@@ -45,7 +45,7 @@ export const execManageAlerts = (
     body?: Record<string, unknown>;
     uuid?: string;
   } = {},
-) => {
+): { uuid?: string } => {
   const shallow = { ...body };
 
   if (uuid) {
@@ -69,12 +69,16 @@ export const execManageAlerts = (
 
   stdoutVar({ commandArgs }, 'Manage alerts with args: ');
 
+  let result: SpawnSyncReturns<string>;
+
   try {
-    const { error, signal, status, stderr, stdout } = spawnSync(
+    result = spawnSync(
       SERVER_PATHS.usr.sbin['anvil-manage-alerts'].self,
       commandArgs,
       { encoding: 'utf-8', timeout: 10000 },
     );
+
+    const { error, signal, status, stderr, stdout } = result;
 
     stdoutVar(
       { error, signal, status, stderr, stdout },
@@ -95,4 +99,8 @@ export const execManageAlerts = (
   } catch (error) {
     throw new Error(`Failed to complete manage alerts; CAUSE: ${error}`);
   }
+
+  return {
+    uuid: result.stdout.match(new RegExp(P_UUID))?.[0],
+  };
 };

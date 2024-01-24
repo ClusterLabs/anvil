@@ -18,3 +18,5 @@ type MailRecipientParamsDictionary = {
 };
 
 type MailRecipientRequestBody = Omit<MailRecipientDetail, 'uuid'>;
+
+type MailRecipientResponseBody = Pick<MailRecipientDetail, 'uuid'>;
