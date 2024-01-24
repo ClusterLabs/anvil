@@ -111,6 +111,98 @@ const MAP_TO_LEVEL_LABEL: Record<number, string> = {
   4: 'Info',
 };
 
+const getAlertOverrideRequestList = (
+  current: MailRecipientFormikMailRecipient,
+  initial?: MailRecipientFormikMailRecipient,
+  urlPrefix = '/alert-override',
+): AlertOverrideRequest[] => {
+  const { uuid: mailRecipientUuid } = current;
+
+  if (!mailRecipientUuid) return [];
+
+  return Object.values(current.alertOverrides).reduce<AlertOverrideRequest[]>(
+    (previous, value) => {
+      if (value.delete && value.uuids) {
+        /**
+         * 1 or more existing records marked for removal.
+         */
+        previous.push(
+          ...Object.keys(value.uuids).map<AlertOverrideRequest>((uuid) => ({
+            method: 'delete',
+            url: `${urlPrefix}/${uuid}`,
+          })),
+        );
+
+        return previous;
+      }
+
+      const { level, target, uuids } = value;
+
+      if (!target) return previous;
+
+      const hosts: string[] = target.subnodes ?? [target.uuid];
+
+      if (uuids) {
+        /**
+         * Found existing alert override UUIDs; the requests must be updates.
+         */
+
+        const slots: string[] = Object.keys(uuids);
+
+        const longest = Math.max(slots.length, hosts.length);
+
+        previous.push(
+          ...Array.from({ length: longest }).map<AlertOverrideRequest>(
+            (ignore, i) => {
+              const host = hosts[i];
+              const slot = slots[i];
+
+              if (!slot) {
+                return {
+                  body: { hostUuid: host, level, mailRecipientUuid },
+                  method: 'post',
+                  url: urlPrefix,
+                };
+              }
+
+              const url = `${urlPrefix}/${slot}`;
+
+              if (!host) {
+                return {
+                  method: 'delete',
+                  url,
+                };
+              }
+
+              return {
+                body: { hostUuid: host, level, mailRecipientUuid },
+                method: 'put',
+                url,
+              };
+            },
+          ),
+        );
+
+        return previous;
+      }
+
+      /**
+       * No existing alert override UUIDs, meaning these are new records.
+       */
+      previous.push(
+        ...hosts.map<AlertOverrideRequest>((hostUuid) => ({
+          body: { hostUuid, level, mailRecipientUuid },
+          method: 'post',
+          url: urlPrefix,
+        })),
+      );
+
+      return previous;
+    },
+    [],
+  );
+};
+
 const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
   const {
     alertOverrideTargetOptions,
@@ -132,7 +224,6 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
         language: 'en_CA',
         level: 2,
         name: '',
-        uuid: mrUuid,
       },
     },
     onSubmit: (values, { setSubmitting }) => {
@@ -146,6 +237,8 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
       let titleText: string = `Add mail recipient with the following?`;
       let url: string = '/mail-recipient';
 
+      let alertOverrideRequestList: AlertOverrideRequest[];
+
       if (previousFormikValues) {
         actionProceedText = 'Update';
         errorMessage = <>Failed to update mail server.</>;
@@ -153,18 +246,49 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
         successMessage = <>Mail recipient updated.</>;
         titleText = `Update ${mailRecipient.name} with the following?`;
         url += `/${mrUuid}`;
+
+        alertOverrideRequestList = getAlertOverrideRequestList(
+          mailRecipient,
+          previousFormikValues[mrUuid],
+        );
+      } else {
+        alertOverrideRequestList = getAlertOverrideRequestList(mailRecipient);
       }
 
-      const { alertOverrides, uuid, ...mrBody } = mailRecipient;
+      const { alertOverrides, uuid: ignore, ...mrBody } = mailRecipient;
 
       confirm.prepare({
         actionProceedText,
-        content: <FormSummary entries={mrBody} />,
+        content: (
+          <>
+            <FormSummary entries={mrBody} />
+            <FormSummary
+              entries={Object.entries(alertOverrides).reduce<
+                Record<string, { level: number; name: string }>
+              >((previous, [valueId, value]) => {
+                if (!value.target) return previous;
+
+                previous[valueId] = {
+                  level: value.level,
+                  name: value.target.name,
+                };
+
+                return previous;
+              }, {})}
+            />
+          </>
+        ),
         onCancelAppend: () => setSubmitting(false),
         onProceedAppend: () => {
           confirm.loading(true);
 
-          api[method](url, mrBody)
+          const promises = [api[method](url, mrBody)];
+
+          alertOverrideRequestList.forEach((request) => {
+            promises.push(api[request.method](request.url, request.body));
+          });
+
+          Promise.all(promises)
             .then(() => confirm.finish('Success', { children: successMessage }))
             .catch((error) => {
               const emsg = handleAPIError(error);

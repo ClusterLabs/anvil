@@ -1,23 +1,36 @@
+type AlertOverrideRequest = {
+  body?: {
+    hostUuid: string;
+    level: number;
+    mailRecipientUuid: string;
+  };
+  method: 'delete' | 'post' | 'put';
+  url: string;
+};
+
 type AlertOverrideTarget = {
   description?: string;
   name: string;
   node: string;
+  subnodes?: string[];
   type: 'node' | 'subnode';
   uuid: string;
 };
 
 type AlertOverrideFormikAlertOverride = {
+  delete?: boolean;
   level: number;
   target: AlertOverrideTarget | null;
-  uuid: string;
+  uuids?: Record<string, string>;
 };
 
 type AlertOverrideFormikValues = {
-  [uuid: string]: AlertOverrideFormikAlertOverride;
+  [valueId: string]: AlertOverrideFormikAlertOverride;
 };
 
-type MailRecipientFormikMailRecipient = APIMailRecipientDetail & {
+type MailRecipientFormikMailRecipient = Omit<APIMailRecipientDetail, 'uuid'> & {
   alertOverrides: AlertOverrideFormikValues;
+  uuid?: string;
 };
 
 type MailRecipientFormikValues = {
@@ -54,7 +67,7 @@ type ManageAlertOverrideProps = Required<
 /** AlertOverrideInputGroup */
 
 type AlertOverrideInputGroupOptionalProps = {
-  alertOverrideUuid?: string;
+  alertOverrideValueId?: string;
 };
 
 type AlertOverrideInputGroupProps = AlertOverrideInputGroupOptionalProps &

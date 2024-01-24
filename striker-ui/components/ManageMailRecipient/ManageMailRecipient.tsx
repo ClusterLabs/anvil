@@ -24,26 +24,34 @@ const ManageMailRecipient: FC = () => {
       Object.values(nodes)
         .sort((a, b) => a.name.localeCompare(b.name))
         .reduce<AlertOverrideTarget[]>((options, node) => {
-          options.push({
+          const nodeTarget: AlertOverrideTarget = {
             description: node.description,
             name: node.name,
             node: node.uuid,
+            subnodes: [],
             type: 'node',
             uuid: node.uuid,
-          });
+          };
 
-          Object.values(node.hosts)
+          const subnodeTargets = Object.values(node.hosts)
             .sort((a, b) => a.name.localeCompare(b.name))
-            .forEach((subnode) => {
-              if (subnode.type === 'dr') return;
+            .reduce<AlertOverrideTarget[]>((previous, subnode) => {
+              if (subnode.type === 'dr') return previous;
 
-              options.push({
+              previous.push({
                 name: subnode.name,
                 node: node.uuid,
                 type: 'subnode',
                 uuid: subnode.uuid,
               });
-            });
+
+              nodeTarget.subnodes?.push(subnode.uuid);
+
+              return previous;
+            }, []);
+
+          // Append the options in sequence: node followed by its subnode(s).
+          options.push(nodeTarget, ...subnodeTargets);
 
           return options;
         }, []),
@@ -59,40 +67,87 @@ const ManageMailRecipient: FC = () => {
   const formikAlertOverrides = useMemo<
     AlertOverrideFormikValues | undefined
   >(() => {
-    if (!alertOverrides) return undefined;
+    if (!nodes || !alertOverrides) return undefined;
 
-    const groups: Record<string, number> = {};
+    /**
+     * Group alert override rules based on node UUID. The groups will be used
+     * for comparison to see whether the subnodes are assigned the same alert
+     * level.
+     *
+     * If subnodes have the same level, they will be consolidated into a single
+     * target for display. Otherwise, every subnode will get its own visual.
+     */
+    const groups = Object.values(alertOverrides).reduce<
+      Record<string, APIAlertOverrideOverview[]>
+    >((previous, override) => {
+      const {
+        node: { uuid: nodeUuid },
+      } = override;
 
-    return Object.values(alertOverrides).reduce<AlertOverrideFormikValues>(
-      (previous, value) => {
-        const { level, node, subnode, uuid } = value;
+      if (previous[nodeUuid]) {
+        previous[nodeUuid].push(override);
+      } else {
+        previous[nodeUuid] = [override];
+      }
 
-        groups[node.uuid] = groups[node.uuid] ? groups[node.uuid] + 1 : 1;
+      return previous;
+    }, {});
 
-        previous[uuid] = {
-          level,
-          target:
-            groups[node.uuid] > 1
-              ? {
-                  name: node.name,
-                  node: node.uuid,
-                  type: 'node',
-                  uuid: node.uuid,
-                }
-              : {
-                  name: subnode.name,
-                  node: node.uuid,
-                  type: 'subnode',
-                  uuid: subnode.uuid,
-                },
-          uuid,
-        };
+    return Object.entries(groups).reduce<AlertOverrideFormikValues>(
+      (previous, pair) => {
+        const [nodeUuid, overrides] = pair;
+        const [firstOverride, ...restOverrides] = overrides;
+
+        const sameLevel =
+          overrides.length > 1 &&
+          restOverrides.every(({ level }) => level === firstOverride.level);
+
+        if (sameLevel) {
+          const {
+            0: { level },
+          } = overrides;
+
+          const { [nodeUuid]: node } = nodes;
+
+          previous[nodeUuid] = {
+            level,
+            target: {
+              description: node.description,
+              name: node.name,
+              node: node.uuid,
+              subnodes: overrides.map<string>(({ subnode: { uuid } }) => uuid),
+              type: 'node',
+              uuid: node.uuid,
+            },
+            uuids: overrides.reduce<Record<string, string>>(
+              (uuids, { subnode, uuid: overrideUuid }) => {
+                uuids[overrideUuid] = subnode.uuid;
+
+                return uuids;
+              },
+              {},
+            ),
+          };
+        } else {
+          overrides.forEach(({ level, node, subnode, uuid: overrideUuid }) => {
+            previous[subnode.uuid] = {
+              level,
+              target: {
+                name: subnode.name,
+                node: node.uuid,
+                type: 'subnode',
+                uuid: subnode.uuid,
+              },
+              uuids: { [overrideUuid]: subnode.uuid },
+            };
+          });
+        }
 
         return previous;
       },
       {},
     );
-  }, [alertOverrides]);
+  }, [alertOverrides, nodes]);
 
   return (
     <>

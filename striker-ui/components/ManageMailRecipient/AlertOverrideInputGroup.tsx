@@ -10,6 +10,7 @@ import { BodyText, SmallText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 
 const LEVEL_OPTIONS: SelectItem<number>[] = [
+  { displayValue: 'Ignore', value: 0 },
   { displayValue: 'Critical', value: 1 },
   { displayValue: 'Warning', value: 2 },
   { displayValue: 'Notice', value: 3 },
@@ -19,14 +20,18 @@ const LEVEL_OPTIONS: SelectItem<number>[] = [
 const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
   const {
     alertOverrideTargetOptions,
-    alertOverrideUuid,
+    alertOverrideValueId,
     mailRecipientUuid: mrUuid,
     formikUtils,
   } = props;
 
-  const aoUuid = useMemo<string>(
-    () => alertOverrideUuid ?? uuidv4(),
-    [alertOverrideUuid],
+  /**
+   * This is the alert override formik value identifier; not to be confused
+   * with the alert override UUID.
+   */
+  const aoVid = useMemo<string>(
+    () => alertOverrideValueId ?? uuidv4(),
+    [alertOverrideValueId],
   );
 
   const { formik } = formikUtils;
@@ -34,12 +39,17 @@ const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
     values: { [mrUuid]: mailRecipient },
   } = formik;
   const {
-    alertOverrides: { [aoUuid]: alertOverride },
+    alertOverrides: { [aoVid]: alertOverride },
   } = mailRecipient;
 
   const overrideChain = useMemo<string>(
-    () => `${mrUuid}.alertOverrides.${aoUuid}`,
-    [aoUuid, mrUuid],
+    () => `${mrUuid}.alertOverrides.${aoVid}`,
+    [aoVid, mrUuid],
+  );
+
+  const deleteChain = useMemo<string>(
+    () => `${overrideChain}.delete`,
+    [overrideChain],
   );
   const targetChain = useMemo<string>(
     () => `${overrideChain}.target`,
@@ -105,7 +115,19 @@ const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
         <IconButton
           mapPreset="delete"
           onClick={() => {
-            formik.setFieldValue(overrideChain, undefined, true);
+            if (alertOverride.uuids) {
+              formik.setFieldValue(deleteChain, true, true);
+            } else {
+              formik.setValues((previous) => {
+                const shallow = { ...previous };
+                const { [mrUuid]: mr } = shallow;
+                const { [aoVid]: remove, ...keep } = mr.alertOverrides;
+
+                mr.alertOverrides = { ...keep };
+
+                return shallow;
+              });
+            }
           }}
           size="small"
         />

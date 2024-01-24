@@ -29,28 +29,34 @@ const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
       listEmpty="No alert overrides(s)"
       listItems={alertOverrides}
       onAdd={() => {
-        const aoUuid = uuidv4();
+        /**
+         * This is **not** the same as an alert override UUID because 1 alert
+         * override formik value can reference _n_ alert override rules, where
+         * _n_ is the number of subnodes per node. */
+        const valueId = uuidv4();
 
         formik.setValues((previous) => {
-          const current = { ...previous };
+          const shallow = { ...previous };
+          const { [mrUuid]: mr } = shallow;
 
-          current[mrUuid].alertOverrides[aoUuid] = {
-            level: 2,
-            target: null,
-            uuid: aoUuid,
+          mr.alertOverrides = {
+            ...mr.alertOverrides,
+            [valueId]: { level: 2, target: null },
           };
 
-          return current;
+          return shallow;
         });
       }}
-      renderListItem={(uuid) => (
-        <AlertOverrideInputGroup
-          alertOverrideTargetOptions={alertOverrideTargetOptions}
-          alertOverrideUuid={uuid}
-          formikUtils={formikUtils}
-          mailRecipientUuid={mrUuid}
-        />
-      )}
+      renderListItem={(valueId, value) =>
+        !value.delete && (
+          <AlertOverrideInputGroup
+            alertOverrideTargetOptions={alertOverrideTargetOptions}
+            alertOverrideValueId={valueId}
+            formikUtils={formikUtils}
+            mailRecipientUuid={mrUuid}
+          />
+        )
+      }
     />
   );
 };
