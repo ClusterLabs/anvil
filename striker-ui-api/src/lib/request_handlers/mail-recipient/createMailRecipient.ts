@@ -11,14 +11,14 @@ export const createMailRecipient: RequestHandler<
 > = (request, response) => {
   const { body: rBody = {} } = request;
 
-  stdout('Begin creating alert recipient.');
+  stdout('Begin creating mail recipient.');
 
   let reqBody: MailRecipientRequestBody;
 
   try {
     reqBody = getMailRecipientRequestBody(rBody);
   } catch (error) {
-    stderr(`Failed to process alert recipient input; CAUSE: ${error}`);
+    stderr(`Failed to process mail recipient input; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -32,7 +32,7 @@ export const createMailRecipient: RequestHandler<
 
     resBody = { uuid };
   } catch (error) {
-    stderr(`Failed to create alert recipient; CAUSE: ${error}`);
+    stderr(`Failed to create mail recipient; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
