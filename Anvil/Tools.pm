@@ -1079,6 +1079,7 @@ sub _set_paths
 				postfix_relay_password		=>	"/etc/postfix/relay_password",
 				'qemu.conf'			=>	"/etc/libvirt/qemu.conf",
 				ssh_config			=>	"/etc/ssh/ssh_config",
+				sshd_root_password		=>	"/etc/ssh/sshd_config.d/01-permitrootlogin.conf",
 				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",
 				'type.node'			=>	"/etc/anvil/type.node",

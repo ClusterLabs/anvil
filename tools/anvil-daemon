@@ -1020,9 +1020,49 @@ sub run_once
 	# Check journald is configured for persistent storage.
 	check_journald($anvil);
 	
+	# Make sure root can ssh
+	chech_sshd($anvil);
+	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub chech_sshd
+{
+	my ($anvil) = @_;
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::configs::sshd_root_password' => $anvil->data->{path}{configs}{sshd_root_password} }});
+	if (not -f $anvil->data->{path}{configs}{sshd_root_password})
+	{
+		# Write it out
+		my $body = "# This file was added to enable root login by password, which is needed while
+# forming the Anvil! cluster. Once the cluster is formed, passwordless SSH 
+# should be enabled and you can disable this feature. Please remove during a
+# maintanence window or after testing in a lab environment.
+PermitRootLogin yes
+";
+		# Update the config
+		$anvil->Storage->write_file({
+			debug  => 2,
+			secure => 0, 
+			file   => $anvil->data->{path}{configs}{sshd_root_password}, 
+			body   => $body, 
+			mode   => "0644",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0418", variables => { file => $anvil->data->{path}{configs}{sshd_root_password} }});
+		
+		# Restart the journald service.
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart sshd.service";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
 	}
 	
 	return(0);
