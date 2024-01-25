@@ -183,7 +183,6 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
     },
     onSubmit: (values, { setSubmitting }) => {
       const { [mrUuid]: mailRecipient } = values;
-      const { confirm } = tools;
 
       let actionProceedText: string = 'Add';
       let errorMessage: React.ReactNode = <>Failed to add mail recipient.</>;
@@ -203,7 +202,7 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
 
       const { alertOverrides, uuid: ignore, ...mrBody } = mailRecipient;
 
-      confirm.prepare({
+      tools.confirm.prepare({
         actionProceedText,
         content: (
           <>
@@ -228,7 +227,7 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
         ),
         onCancelAppend: () => setSubmitting(false),
         onProceedAppend: async () => {
-          confirm.loading(true);
+          tools.confirm.loading(true);
 
           const handleError = (error: AxiosError) => {
             const emsg = handleAPIError(error);
@@ -239,7 +238,9 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
               </>
             );
 
-            confirm.finish('Error', emsg);
+            tools.confirm.finish('Error', emsg);
+
+            setSubmitting(false);
           };
 
           // Handle the mail recipient first, wait until it's done to process
@@ -266,9 +267,11 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
               );
 
               Promise.all(promises)
-                .then(() =>
-                  confirm.finish('Success', { children: successMessage }),
-                )
+                .then(() => {
+                  tools.confirm.finish('Success', { children: successMessage });
+
+                  tools[method === 'post' ? 'add' : 'edit'].open(false);
+                })
                 .catch(handleError);
             })
             .catch(handleError);
@@ -276,7 +279,7 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
         titleText,
       });
 
-      confirm.open(true);
+      tools.confirm.open(true);
     },
     validationSchema: mailRecipientListSchema,
   });
