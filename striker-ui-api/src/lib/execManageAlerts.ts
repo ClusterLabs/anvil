@@ -75,7 +75,7 @@ export const execManageAlerts = (
     result = spawnSync(
       SERVER_PATHS.usr.sbin['anvil-manage-alerts'].self,
       commandArgs,
-      { encoding: 'utf-8', timeout: 10000 },
+      { encoding: 'utf-8', timeout: 30000 },
     );
 
     const { error, signal, status, stderr, stdout } = result;
