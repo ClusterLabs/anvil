@@ -45,7 +45,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
     },
     onSubmit: (values, { setSubmitting }) => {
       const { [msUuid]: mailServer } = values;
-      const { confirm } = tools;
 
       let actionProceedText: string = 'Add';
       let errorMessage: ReactNode = <>Failed to add mail server.</>;
@@ -65,16 +64,18 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
 
       const { confirmPassword, uuid, ...rest } = mailServer;
 
-      confirm.prepare({
+      tools.confirm.prepare({
         actionProceedText,
         content: <FormSummary entries={rest} />,
         onCancelAppend: () => setSubmitting(false),
         onProceedAppend: () => {
-          confirm.loading(true);
+          tools.confirm.loading(true);
 
           api[method](url, mailServer)
             .then(() => {
-              confirm.finish('Success', { children: successMessage });
+              tools.confirm.finish('Success', { children: successMessage });
+
+              tools[method === 'post' ? 'add' : 'edit'].open(false);
             })
             .catch((error) => {
               const emsg = handleAPIError(error);
@@ -85,16 +86,15 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
                 </>
               );
 
-              confirm.finish('Error', emsg);
-            })
-            .finally(() => {
+              tools.confirm.finish('Error', emsg);
+
               setSubmitting(false);
             });
         },
         titleText,
       });
 
-      confirm.open(true);
+      tools.confirm.open(true);
     },
     validationSchema: mailServerListSchema,
   });
