@@ -1131,6 +1131,7 @@ sub _set_paths
 					provision			=>	"/mnt/shared/provision",
 					temp				=>	"/mnt/shared/temp",
 				},
+				'sshd_config.d'			=>	"/etc/ssh/sshd_config.d",
 				skins				=>	"/var/www/html/skins",
 				status				=>	"/var/www/html/status",
 				syslinux			=>	"/usr/share/syslinux",

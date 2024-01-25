@@ -101,6 +101,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	}
 	else
 	{
+		# Striker can't initialize us unless it can ssh into us, so make sure root login is enabled.
+		chech_sshd($anvil);
+		
 		# Wait until we have one.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0075"});
 		
@@ -1034,6 +1037,13 @@ sub run_once
 sub chech_sshd
 {
 	my ($anvil) = @_;
+	
+	# On EL8, the 'sshd_config.d' directory doesn't exist and root is enabled.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::directories::sshd_config.d' => $anvil->data->{path}{directories}{'sshd_config.d'} }});
+	if (not -d $anvil->data->{path}{directories}{'sshd_config.d'})
+	{
+		return(0);
+	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::configs::sshd_root_password' => $anvil->data->{path}{configs}{sshd_root_password} }});
 	if (not -f $anvil->data->{path}{configs}{sshd_root_password})
