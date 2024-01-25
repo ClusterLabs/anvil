@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build && next export",
+    "build": "next build",
     "dev": "next dev",
     "eslint:base": "eslint --config .eslintrc.json --ext js,jsx,ts,tsx --max-warnings=0",
     "lint": "npm run eslint:base -- . && npm run prettier:base -- --check",
