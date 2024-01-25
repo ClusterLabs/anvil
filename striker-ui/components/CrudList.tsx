@@ -87,11 +87,17 @@ const CrudList = <
 
   const formTools = useMemo<CrudListFormTools>(
     () => ({
+      add: {
+        open: (v = true) => addDialogRef?.current?.setOpen(v),
+      },
       confirm: {
         finish: finishConfirm,
         loading: setConfirmDialogLoading,
-        open: setConfirmDialogOpen,
+        open: (v = true) => setConfirmDialogOpen(v),
         prepare: setConfirmDialogProps,
+      },
+      edit: {
+        open: (v = true) => editDialogRef?.current?.setOpen(v),
       },
     }),
     [

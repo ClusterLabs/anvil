@@ -2,8 +2,14 @@ type CrudListFormTools = {
   confirm: {
     finish: (header: React.ReactNode, message: Message) => void;
     loading: (value: boolean) => void;
-    open: (value: boolean) => void;
+    open: (value?: boolean) => void;
     prepare: (value: React.SetStateAction<ConfirmDialogProps>) => void;
+  };
+  add: {
+    open: (value?: boolean) => void;
+  };
+  edit: {
+    open: (value?: boolean) => void;
   };
 };
 
