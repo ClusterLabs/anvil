@@ -1,16 +1,14 @@
 import { OutlinedInputProps } from '@mui/material';
-import { FormikValues, useFormik } from 'formik';
+import { FormikConfig, FormikValues, useFormik } from 'formik';
 import { useCallback, useMemo } from 'react';
 
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
 
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
-  ...formikArgs: Parameters<UseFormik<Values>>
+  formikConfig: FormikConfig<Values>,
 ): FormikUtils<Values> => {
-  const [formikConfig, ...restFormikArgs] = formikArgs;
-
-  const formik = useFormik<Values>({ ...formikConfig }, ...restFormikArgs);
+  const formik = useFormik<Values>({ ...formikConfig });
 
   const getFieldChanged = useCallback(
     (field: string) => {

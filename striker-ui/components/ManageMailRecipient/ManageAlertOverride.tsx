@@ -31,7 +31,7 @@ const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
          * _n_ is the number of subnodes per node. */
         const valueId = uuidv4();
 
-        formik.setValues((previous) => {
+        formik.setValues((previous: MailRecipientFormikValues) => {
           const shallow = { ...previous };
           const { [mrUuid]: mr } = shallow;
 
@@ -43,7 +43,7 @@ const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
           return shallow;
         });
       }}
-      renderListItem={(valueId, value) =>
+      renderListItem={(valueId, value: AlertOverrideFormikAlertOverride) =>
         !value.remove && (
           <AlertOverrideInputGroup
             alertOverrideTargetOptions={alertOverrideTargetOptions}

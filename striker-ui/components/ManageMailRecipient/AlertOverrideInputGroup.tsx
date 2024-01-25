@@ -118,7 +118,7 @@ const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
             if (alertOverride.uuids) {
               formik.setFieldValue(removeChain, true, true);
             } else {
-              formik.setValues((previous) => {
+              formik.setValues((previous: MailRecipientFormikValues) => {
                 const shallow = { ...previous };
                 const { [mrUuid]: mr } = shallow;
                 const { [aoVid]: remove, ...keep } = mr.alertOverrides;
