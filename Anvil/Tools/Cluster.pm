@@ -105,6 +105,10 @@ This takes a server name, finds where it is running and then adds it to pacemake
 
 Parameters;
 
+=head3 ok_if_exists (optional, default '0')
+
+Normally, if the server is already in the cluster, C<< !!error!! >> is returned. If this is set to C<< 1 >> and the server is already in pacemaker, we'll return C<< 0 >> instead.
+
 =head3 server_name (required)
 
 This is the name of the server being added.
@@ -118,9 +122,11 @@ sub add_server
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->add_server()" }});
 	
-	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	my $ok_if_exists = defined $parameter->{ok_if_exists} ? $parameter->{ok_if_exists} : "";
+	my $server_name  = defined $parameter->{server_name}  ? $parameter->{server_name}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		server_name => $server_name,
+		ok_if_exists => $ok_if_exists, 
+		server_name  => $server_name,
 	}});
 	
 	if (not $server_name)
@@ -146,6 +152,10 @@ sub add_server
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::cib::resources::primitive::${server_name}::type" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type}, 
 		}});
+		if ($ok_if_exists)
+		{
+			return(0);
+		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0213", variables => { server_name => $server_name }});
 		return("!!error!!");
 	}
