@@ -1,7 +1,17 @@
+import { capitalize } from 'lodash';
+
 const getFormikErrorMessages = (
   errors: object,
   {
-    build = (field, error) => ({ children: error, type: 'warning' }),
+    build = (field, error) => {
+      let children = error;
+
+      if (typeof children === 'string') {
+        children = capitalize(children.replace(/^[^\s]+\.([^.]+)/, '$1'));
+      }
+
+      return { children, type: 'warning' };
+    },
     chain = '',
     skip,
   }: {
