@@ -148,6 +148,7 @@ sub wait_for_etc_hosts
 	{
 		my $this_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{"anvil_".$machine."_host_uuid"};
 		my $this_short_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+		my $bcn_name             = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}})
 		{
@@ -163,6 +164,22 @@ sub wait_for_etc_hosts
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:networks::${host_name}::ip_address" => $anvil->data->{networks}{$host_name}{ip_address},
 			}});
+			
+			# If this is the first BCN, record it's name (in case BCN1 isn't used here) and IP 
+			# address, and add the short and full host names.
+			if (($network_name =~ /^bcn/) && (not $bcn_name))
+			{
+				   $bcn_name       = $network_name;
+				my $this_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{host_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_name => $bcn_name }});
+				
+				$anvil->data->{networks}{$this_short_host_name}{ip_address} = $ip_address;
+				$anvil->data->{networks}{$this_host_name}{ip_address}       = $ip_address;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:networks::${this_short_host_name}::ip_address" => $anvil->data->{networks}{$this_short_host_name}{ip_address},
+					"s2:networks::${this_host_name}::ip_address"       => $anvil->data->{networks}{$this_host_name}{ip_address},
+				}});
+			}
 		}
 	}
 	
