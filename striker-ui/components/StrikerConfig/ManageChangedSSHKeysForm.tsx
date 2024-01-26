@@ -1,4 +1,4 @@
-import { FC, useMemo, useRef } from 'react';
+import { FC, useMemo, useRef, useState } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
@@ -14,7 +14,6 @@ import { ExpandablePanel } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { BodyText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
   mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
@@ -22,14 +21,10 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
 }) => {
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
 
-  const [apiMessage, setAPIMessage] = useProtectedState<Message | undefined>(
-    undefined,
-  );
-  const [changedSSHKeys, setChangedSSHKeys] = useProtectedState<ChangedSSHKeys>(
-    {},
-  );
+  const [apiMessage, setApiMessage] = useState<Message | undefined>();
+  const [changedSSHKeys, setChangedSSHKeys] = useState<ChangedSSHKeys>({});
   const [confirmDialogProps, setConfirmDialogProps] =
-    useProtectedState<ConfirmDialogProps>({
+    useState<ConfirmDialogProps>({
       actionProceedText: '',
       content: '',
       titleText: '',
@@ -51,7 +46,7 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
     `${API_BASE_URL}/ssh-key/conflict`,
     {
       onError: (error) => {
-        setAPIMessage({
+        setApiMessage({
           children: `Failed to fetch SSH key conflicts. Error: ${error}`,
           type: 'error',
         });
@@ -177,7 +172,7 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
 
                       emsg.children = `Failed to delete selected SSH key conflicts. ${emsg.children}`;
 
-                      setAPIMessage(emsg);
+                      setApiMessage(emsg);
                     });
                 },
                 proceedColour: 'red',

@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router';
-import { FC, useCallback, useEffect, useMemo, useRef } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '../lib/api';
 import ConfirmDialog from './ConfirmDialog';
@@ -22,7 +22,6 @@ import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import { HeaderText } from './Text';
 import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
 import useFormUtils from '../hooks/useFormUtils';
-import useProtectedState from '../hooks/useProtectedState';
 
 const INPUT_ID_PREP_NET_HOST_NAME = 'prepare-network-host-name-input';
 
@@ -107,16 +106,14 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
 
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
 
-  const [hostDetail, setHostDetail] = useProtectedState<
-    APIHostDetail | undefined
-  >(undefined);
-  const [fatalErrorMessage, setFatalErrorMessage] = useProtectedState<
+  const [hostDetail, setHostDetail] = useState<APIHostDetail | undefined>();
+  const [fatalErrorMessage, setFatalErrorMessage] = useState<
     Message | undefined
-  >(undefined);
-  const [isLoadingHostDetail, setIsLoadingHostDetail] =
-    useProtectedState<boolean>(true);
-  const [previousHostUUID, setPreviousHostUUID] =
-    useProtectedState<PrepareNetworkFormProps['hostUUID']>(undefined);
+  >();
+  const [isLoadingHostDetail, setIsLoadingHostDetail] = useState<boolean>(true);
+  const [previousHostUUID, setPreviousHostUUID] = useState<
+    string | undefined
+  >();
 
   const {
     buildFinishInputTestBatchFunction,

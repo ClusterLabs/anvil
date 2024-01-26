@@ -11,16 +11,12 @@ import {
   ComplexOperationsPanel,
   SimpleOperationsPanel,
 } from '../../components/StrikerConfig';
-import useProtect from '../../hooks/useProtect';
-import useProtectedState from '../../hooks/useProtectedState';
 
 // This page can't be reused, and default is set within the render function.
 // eslint-disable-next-line react/require-default-props
 const Config: FC<{ refreshInterval?: number }> = ({
   refreshInterval = 60000,
 }) => {
-  const { protect } = useProtect();
-
   const [isOpenConfirmDialog, setIsOpenConfirmDialog] =
     useState<boolean>(false);
   const [confirmDialogProps, setConfirmDialogProps] =
@@ -37,11 +33,10 @@ const Config: FC<{ refreshInterval?: number }> = ({
       },
       titleText: '',
     });
-  const [simpleOpsInstallTarget, setSimpleOpsInstallTarget] = useProtectedState<
+  const [simpleOpsInstallTarget, setSimpleOpsInstallTarget] = useState<
     APIHostInstallTarget | undefined
-  >(undefined, protect);
-  const [simpleOpsPanelHeader, setSimpleOpsPanelHeader] =
-    useProtectedState<string>('', protect);
+  >();
+  const [simpleOpsPanelHeader, setSimpleOpsPanelHeader] = useState<string>('');
 
   const { data: hostDetail, isLoading: loadingHostDetail } =
     periodicFetch<APIHostDetail>(`${API_BASE_URL}/host/local`, {

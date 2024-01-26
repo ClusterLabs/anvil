@@ -27,7 +27,6 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
-import useProtectedState from '../../hooks/useProtectedState';
 
 type UpsFormData = {
   agent: string;
@@ -115,12 +114,11 @@ const ManageUpsPanel: FC = () => {
 
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
+
   const [isEditUpses, setIsEditUpses] = useState<boolean>(false);
   const [isLoadingUpsTemplate, setIsLoadingUpsTemplate] =
-    useProtectedState<boolean>(true);
-  const [upsTemplate, setUpsTemplate] = useProtectedState<
-    APIUpsTemplate | undefined
-  >(undefined);
+    useState<boolean>(true);
+  const [upsTemplate, setUpsTemplate] = useState<APIUpsTemplate | undefined>();
 
   const { data: upsOverviews, isLoading: isUpsOverviewLoading } =
     periodicFetch<APIUpsOverview>(`${API_BASE_URL}/ups`, {

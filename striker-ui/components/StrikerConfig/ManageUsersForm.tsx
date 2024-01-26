@@ -20,7 +20,6 @@ import { BodyText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const getFormEntries = (
   ...[{ target }]: DivFormEventHandlerParameters
@@ -51,12 +50,12 @@ const ManageUsersForm: FC = () => {
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
 
   const [editUsers, setEditUsers] = useState<boolean>(false);
-  const [listMessage, setListMessage] = useProtectedState<Message>({
+  const [listMessage, setListMessage] = useState<Message>({
     children: `No users found.`,
   });
-  const [userDetail, setUserDetail] = useProtectedState<
+  const [userDetail, setUserDetail] = useState<
     UserOverviewMetadata | undefined
-  >(undefined);
+  >();
 
   const { data: users, isLoading: loadingUsers } =
     periodicFetch<UserOverviewMetadataList>(`${API_BASE_URL}/user`, {
