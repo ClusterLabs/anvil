@@ -1,9 +1,31 @@
 import { OutlinedInputProps } from '@mui/material';
 import { FormikConfig, FormikValues, useFormik } from 'formik';
+import { isEqual, isObject } from 'lodash';
 import { useCallback, useMemo } from 'react';
 
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
+
+const isChainEqual = (
+  chain: string[],
+  current: Tree<unknown>,
+  initial: Tree<unknown>,
+): boolean => {
+  const [part, ...remain] = chain;
+
+  if (!(part in current)) {
+    return false;
+  }
+
+  const a = current[part];
+  const b = initial[part];
+
+  if (isObject(a) && isObject(b) && remain.length) {
+    return isChainEqual(remain, a as Tree<unknown>, b as Tree<unknown>);
+  }
+
+  return !isEqual(a, b);
+};
 
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   formikConfig: FormikConfig<Values>,
@@ -14,22 +36,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     (field: string) => {
       const parts = field.split('.');
 
-      const traverse = (values: Tree<unknown>): boolean =>
-        parts.reduce<boolean>((previous, part) => {
-          if (!(part in values)) {
-            return false;
-          }
-
-          const value = values[part];
-
-          if (value !== null && typeof value === 'object') {
-            return traverse(value as Tree<unknown>);
-          }
-
-          return value === formik.initialValues[part];
-        }, false);
-
-      return traverse(formik.values);
+      return isChainEqual(parts, formik.values, formik.initialValues);
     },
     [formik.initialValues, formik.values],
   );
