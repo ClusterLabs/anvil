@@ -52,6 +52,8 @@ This is the desired override alert level.
 
 Valid values are: 
 
+0 = "ignore" all alerts
+
 1 = "critical" alerts only
 
 2 = "warning" and critical alerts
@@ -140,11 +142,28 @@ Valid values are:
 
 1 = "critical" alerts only
 
+Critical alerts are events that could lead to imminent service interruption or unexpected loss of redundancy.
+
+These alerts will go to all recipients except for those ignoring the source system entirely.
+
+Alerts at this level should trigger alarm systems for all administrators as well as management who may be impacted by service interruptions.
+
 2 = "warning" and critical alerts
+
+Warning alerts may require attention, such as intentional loss of redundancy caused by load shedding, hardware in pre-failure, loss of input power, temperature anomalies, etc.
+
+Alerts at this level should trigger alarm systems for administrative staff.
 
 3 = "notice", warning and critical alerts
 
-4 = "info"; All alerts. This generates almost constant alerts! 
+Notice alerts are generally safe to ignore, but might provide early warnings of developing issues or insight into system behaviour.
+
+Alerts at this level should not trigger alarm systems. Periodic review is sufficient.
+
+4 = "info"; All alerts. This generates almost constant alerts!
+
+Info alerts are almost always safe to ignore, but may be useful in testing and debugging.
+
 .TP
 \fB\-\-test\fR
 Tells the program to send a test alert at the desired \fB\-\-level\fR. The requested level is required.
