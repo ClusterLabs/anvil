@@ -132,7 +132,7 @@ sub show_status
 	if ($anvil->data->{switches}{watch})
 	{
 		my $date = $anvil->Get->date_and_time();
-		print $anvil->Words->string({key => "message_0382", variables => { date => $date }})."\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0382", variables => { date => $date }});
 	}
 	print $anvil->data->{display}{status};
 	

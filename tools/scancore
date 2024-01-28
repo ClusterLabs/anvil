@@ -91,10 +91,8 @@ $anvil->Storage->record_md5sums();
 # Connect to DBs.
 wait_for_database($anvil);
 
-### NOTE: We need to collect data from the start. Once confirmed this isn't introducing old problems, remove 
-###       this function
 # If we're not configured, sleep.
-#wait_until_configured($anvil);
+wait_until_configured($anvil);
 
 # Startup tasks.
 startup_tasks($anvil);
@@ -143,7 +141,7 @@ while(1)
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
-		$anvil->ScanCore->call_scan_agents({debug => 2});
+		$anvil->ScanCore->call_scan_agents();
 		
 		# Do post-scan analysis.
 		$anvil->ScanCore->post_scan_analysis({debug => 2});

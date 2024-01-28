@@ -483,7 +483,7 @@ sub process_incoming_file
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	# Change the owner as it'll be striker-ui-api, which won't be a valid users on anvil members.
+	# Change the owner as it'll be apache, which won't be a valid users on anvil members.
 	$anvil->Storage->change_owner({
 		debug => 2, 
 		path  => $target_file, 

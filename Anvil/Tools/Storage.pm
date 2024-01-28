@@ -3232,8 +3232,6 @@ fi;";
 
 =head2 manage_lvm_conf
 
-B<< Note >>: This only works on EL8. If used on another distro, this method will return without actually doing anything.
-
 This method configures C<< lvm.conf >> to add the C<< filter = [ ... ] >> to ensure DRBD devices aren't scanned.
 
 If there was a problem, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
@@ -3275,18 +3273,6 @@ sub manage_lvm_conf
 		remote_user => $remote_user, 
 		target      => $target,
 	}});
-	
-	### NOTE: Only add the filter on EL8 machines.
-	my ($os_type, $os_arch) = $anvil->Get->os_type({debug => $debug});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		os_type => $os_type, 
-		os_arch => $os_arch,
-	}});
-	if ($os_type !~ /\D8/)
-	{
-		# Not EL8, return
-		return(0);
-	}
 	
 	my $body = $anvil->Storage->read_file({
 		debug       => $debug,

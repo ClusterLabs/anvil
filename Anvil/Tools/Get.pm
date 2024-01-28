@@ -1513,29 +1513,10 @@ sub host_name
 			{
 				# Failed to read the file, too. What the hell? Exit out.
 				print "Failed to query the hostname using 'hostnamectl --static' and failed to read the content of: [".$anvil->data->{path}{configs}{hostname}."]. Something is very wrong, exiting.\n";
-				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 		else
 		{
-			# Did we get a real answer? If it's "unet", the string will be emtpy.
-			if (not $host_name)
-			{
-				# Try seeing if there is a transient hostname.
-				($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostnamectl}." --transient"});
-				if (not $host_name)
-				{
-					# OK, can we get it from the 'hostname' command?
-					($host_name, my $return_code) = $anvil->System->call({debug => 9999, shell_call => $anvil->data->{path}{exe}{hostname}});
-					if (not $host_name)
-					{
-						# Failed to find the hostname at all.
-						print "Failed to query the hostname using 'hostnamectl --static', 'hostnamectl --transient' or 'hostname'. Something is very wrong, exiting.\n";
-						$anvil->nice_exit({exit_code => 1});
-					}
-				}
-			}
-			
 			# Cache the answer
 			$anvil->data->{sys}{host_name} = $host_name;
 		}
@@ -2163,11 +2144,6 @@ sub os_type
 	elsif ($release =~ /CentOS Stream .*? (\d+)/)
 	{
 		$os_type = "centos-stream".$1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
-	}
-	elsif ($release =~ /AlmaLinux .*? (\d+)/)
-	{
-		$os_type = "alma".$1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { os_type => $os_type }});
 	}
 	elsif ($release =~ /CentOS .*? (\d+)\./)

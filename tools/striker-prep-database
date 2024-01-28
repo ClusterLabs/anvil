@@ -475,7 +475,7 @@ if ($local_uuid)
 	#####################################################################################################
 	
 	### TODO: This will need to set the proper SELinux context.
-	# striker-ui-api run scripts can't call the system UUID, so we'll write it to a text file.
+	# Apache run scripts can't call the system UUID, so we'll write it to a text file.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "path::data::host_uuid" => $anvil->data->{path}{data}{host_uuid} }});
 	if (not -e $anvil->data->{path}{data}{host_uuid})
 	{
@@ -483,8 +483,8 @@ if ($local_uuid)
 			debug     => 3,
 			file      => $anvil->data->{path}{data}{host_uuid}, 
 			body      => $anvil->Get->host_uuid,
-			user      => "striker-ui-api", 
-			group     => "striker-ui-api",
+			user      => "apache", 
+			group     => "apache",
 			mode      => "0666",
 			overwrite => 0,
 		});

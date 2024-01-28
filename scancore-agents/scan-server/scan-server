@@ -856,7 +856,6 @@ sub collect_data
 				new_anvil_name => $anvil->Get->anvil_name_from_uuid({anvil_uuid => $server_anvil_uuid}),
 				new_anvil_uuid => $server_anvil_uuid,
 			};
-			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0009", variables => $variables});
 			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0009", variables => $variables, set_by => $THIS_FILE});
 			$update = 1;

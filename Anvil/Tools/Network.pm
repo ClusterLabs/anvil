@@ -15,8 +15,8 @@ my $THIS_FILE = "Network.pm";
 ### Methods;
 # bridge_info
 # check_firewall
+# check_network
 # check_internet
-# collect_data
 # download
 # find_access
 # find_matches
@@ -31,10 +31,8 @@ my $THIS_FILE = "Network.pm";
 # load_interfces
 # load_ips
 # manage_firewall
-# modify_connection
 # ping
 # read_nmcli
-# reset_connection
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -384,6 +382,408 @@ sub check_firewall
 }
 
 
+=head2 check_network
+
+B<< NOTE >>: This method is not yet implemented.
+
+This method checks to see if bridges and the links in bonds are up. It can simply report the bridge, bond and link states, or it can try to bring up interfaces that are down.
+
+This method returns C<< 0 >> if nothing was done. It returns C<< 1 >> if any repairs were done.
+
+Data is stored in the hash;
+
+* bridge_health::<bridge_name>::up                               = [0,1]
+* bond_health::<bond_name>::up                                   = [0,1]
+* bond_health::<bond_name>::active_links                         = <number of interfaces active in the bond, but not necessarily up>
+* bond_health::<bond_name>::up_links                             = <number of links that are 'up' or 'going back'>
+* bond_health::<bond_name>::configured_links                     = <the number of interfaces configured to be members of this bond>
+* bond_health::<bond_name>::interface::<interface_name>::in_bond = [0,1] <set to '1' if the interface is active in the bond>
+* bond_health::<bond_name>::interface::<interface_name>::up      = [0,1] <set to '1' if 'up' or 'going back'>
+* bond_health::<bond_name>::interface::<interface_name>::carrier = [0,1] <set to '1' if carrier detected>
+* bond_health::<bond_name>::interface::<interface_name>::name    = <This is the NetworkManager name of the interface>
+
+Parameters;
+
+=head3 heal (optional, default 'down_only')
+
+When set to C<< down_only >>, a bond where both links are down will attempt to up the links. However, bonds with at least one link up will be left alone. This is the default behaviour as it's not uncommon for admins to remotely down a single interface that is failing to stop alerts until a physical repair can be made.
+
+When set to C<< all >>, any interfaces that are found to be down will attempt to brought up. 
+
+Wen set to C<< none >>, no attempts will be made to bring up any interfaces. The states will simply be recorded.
+
+B<< Note >>: Interfaces that show no carrier will not be started in any case.
+
+=cut
+sub check_network
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
+	
+	# This is causing more problems than it solves. Disabled for the time being.
+	return(0);
+	
+	my $heal = defined $parameter->{heal} ? $parameter->{heal} : "down_only";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		heal => $heal, 
+	}});
+	
+	# Find out the bonds that are up.
+	my $host = $anvil->Get->short_host_name();
+	$anvil->Network->bridge_info({debug => $debug});
+	
+	if (exists $anvil->data->{bond_health})
+	{
+		delete $anvil->data->{bond_health};
+	}
+	
+	# Read in the network configuration files to track which interfaces are bound to which bonds.
+	my $repaired  = 0;
+	my $interface = "";
+	my $directory = $anvil->data->{path}{directories}{ifcfg};
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		if ($file =~ /^ifcfg-(.*)$/)
+		{
+			$interface = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+			
+			# We'll check these, so this just makes sure we don't get an undefined variable error.
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE}   = "";
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE} = "";
+			$anvil->data->{raw_network}{interface}{$interface}{variable}{MASTER} = "";
+		}
+		else
+		{
+			next;
+		}
+		my $full_path = $directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		my $device  = "";
+		my $is_link = "";
+		my $in_bond = "";
+		my $is_bond = "";
+		
+		# Read in the file. 
+		my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			$line =~ s/#.*$//;
+			if ($line =~ /^(.*?)=(.*)$/)
+			{
+				my $variable =  $1;
+				my $value    =  $2;
+				   $value    =~ s/^"(.*)"$/$1/;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				$anvil->data->{raw_network}{interface}{$interface}{variable}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"raw_network::interface::${interface}::variable::${variable}" => $anvil->data->{raw_network}{interface}{$interface}{variable}{$variable},
+				}});
+			}
+		}
+		$interface = "";
+	}
+	closedir(DIRECTORY);
+	
+	# Process
+	foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
+	{
+		my $type   =  $anvil->data->{raw_network}{interface}{$interface}{variable}{TYPE};
+		my $device =  $anvil->data->{raw_network}{interface}{$interface}{variable}{DEVICE};
+		my $name   =  defined $anvil->data->{raw_network}{interface}{$interface}{variable}{NAME} ? $anvil->data->{raw_network}{interface}{$interface}{variable}{NAME} : $device;
+		   $name   =~ s/ /_/g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			interface => $interface,
+			type      => $type,
+			device    => $device,
+			name      => $name,
+		}});
+		
+		# Is this a bridge?
+		if (lc($type) eq "bridge")
+		{
+			# Yup!
+			$anvil->data->{bridge_health}{$device}{up}   = 0;
+			$anvil->data->{bridge_health}{$device}{name} = $name;
+			if ((exists $anvil->data->{bridge}{$host}{$device}) && ($anvil->data->{bridge}{$host}{$device}{found}))
+			{
+				$anvil->data->{bridge_health}{$device}{up} = 1;
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"bridge_health::${device}::up"   => $anvil->data->{bridge_health}{$device}{up},
+				"bridge_health::${device}::name" => $anvil->data->{bridge_health}{$device}{name},
+			}});
+		}
+		
+		# Is this a bond?
+		if (lc($type) eq "bond")
+		{
+			# Yes! 
+			$anvil->data->{bond_health}{$device}{configured_links} = 0;
+			$anvil->data->{bond_health}{$device}{active_links}     = 0;
+			$anvil->data->{bond_health}{$device}{up_links}         = 0;
+			$anvil->data->{bond_health}{$device}{name}             = $name;
+			
+			# Find the links configured to be under this bond.
+			foreach my $this_interface (sort {$a cmp $b} keys %{$anvil->data->{raw_network}{interface}})
+			{
+				# Is this a bond?
+				my $this_type   = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{TYPE};
+				my $this_device = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{DEVICE};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					this_interface => $this_interface,
+					this_type      => $this_type,
+					this_device    => $this_device,
+				}});
+				next if lc($this_type) ne "ethernet";
+				
+				my $master = $anvil->data->{raw_network}{interface}{$this_interface}{variable}{MASTER};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { master => $master }});
+				if (($master) && ($master eq $device))
+				{
+					# This interface belongs to this bond.
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{in_bond} = 0;
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{up}      = "unknown";
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier} = "unknown";
+					$anvil->data->{bond_health}{$device}{interface}{$this_device}{name}    = $this_interface;
+					$anvil->data->{bond_health}{$device}{configured_links}++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"bond_health::${device}::interface::${this_device}::name" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{name},
+						"bond_health::${device}::configured_links"                => $anvil->data->{bond_health}{$device}{configured_links},
+					}});
+					
+					# Read the interface's carrier
+					my $carrier_file = "/sys/class/net/".$this_device."/carrier";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier_file => $carrier_file }});
+					
+					if (-e $carrier_file)
+					{
+						my $carrier = $anvil->Storage->read_file({debug => ($debug+1), file => $carrier_file});
+						chomp $carrier;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier => $carrier }});
+						
+						$anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier} = $carrier;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"bond_health::${device}::interface::${this_device}::carrier" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{carrier},
+						}});
+					}
+					
+					my $operstate_file = "/sys/class/net/".$this_device."/operstate";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate_file => $operstate_file }});
+					
+					if (-e $operstate_file)
+					{
+						my $operstate = $anvil->Storage->read_file({debug => ($debug+1), file => $operstate_file});
+						chomp $operstate;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate => $operstate }});
+						
+						$anvil->data->{bond_health}{$device}{interface}{$this_device}{up} = $operstate eq "up" ? 1 : 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"bond_health::${device}::interface::${this_device}::operstate" => $anvil->data->{bond_health}{$device}{interface}{$this_device}{operstate},
+						}});
+					}
+				}
+			}
+			
+			# Read in the /proc file.
+			my $proc_file = "/proc/net/bonding/".$device;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
+			
+			my $in_link   = "";
+			my $file_body = $anvil->Storage->read_file({debug => $debug, file => $proc_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+			foreach my $line (split/\n/, $file_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				if ($line =~ /Slave Interface: (.*)$/)
+				{
+					$in_link                                                           = $1;
+					$anvil->data->{bond_health}{$device}{active_links}++;
+					$anvil->data->{bond_health}{$device}{interface}{$in_link}{in_bond} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"bond_health::${device}::active_links"                   => $anvil->data->{bond_health}{$device}{active_links},
+						"bond_health::${device}::interface::${in_link}::in_bond" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{in_bond},
+					}});
+					next;
+				}
+				if (not $line)
+				{
+					$in_link = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_link => $in_link }});
+					next;
+				}
+				if ($in_link)
+				{
+					if ($line =~ /MII Status: (.*)$/)
+					{
+						my $status = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
+						if ($status eq "up")
+						{
+							$anvil->data->{bond_health}{$device}{up_links}++;
+							$anvil->data->{bond_health}{$device}{interface}{$in_link}{up} = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"bond_health::${device}::up_links"                  => $anvil->data->{bond_health}{$device}{up_links},
+								"bond_health::${device}::interface::${in_link}::up" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{up},
+							}});
+						}
+						else
+						{
+							$anvil->data->{bond_health}{$device}{interface}{$in_link}{up} = 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"bond_health::${device}::interface::${in_link}::up" => $anvil->data->{bond_health}{$device}{interface}{$in_link}{up},
+							}});
+						}
+						next;
+					}
+				}
+				else
+				{
+					if ($line =~ /MII Status: (.*)$/)
+					{
+						my $status                                  = $1;
+						   $anvil->data->{bond_health}{$device}{up} = $status eq "up" ? 1 : 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							status                       => $status, 
+							"bond_health::${device}::up" => $anvil->data->{bond_health}{$device}{up},
+						}});
+						next;
+					}
+				}
+			}
+		}
+	}
+	
+	# Before we check the bonds, check the bridges. Bonds won't come up if they're in a bridge that is 
+	# down.
+	my $bridge_count = keys %{$anvil->data->{bridge_health}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_count => $bridge_count }});
+	if (($bridge_count) && (not $heal eq "none"))
+	{
+		foreach my $bridge (sort {$a cmp $b} keys %{$anvil->data->{bridge_health}})
+		{
+			my $up   = $anvil->data->{bridge_health}{$bridge}{up};
+			my $name = $anvil->data->{bridge_health}{$bridge}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				bridge => $bridge,
+				name   => $name,
+				up     => $up,
+			}});
+			
+			if (not $up)
+			{
+				# Try to recover the interface
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0632", variables => { bridge => $bridge }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					'output'      => $output,
+					'return_code' => $return_code, 
+				}});
+			}
+		}
+	}
+	
+	foreach my $bond (sort {$a cmp $b} keys %{$anvil->data->{bond_health}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:bond_health::${bond}::name"             => $anvil->data->{bond_health}{$bond}{name},
+			"s2:bond_health::${bond}::up"               => $anvil->data->{bond_health}{$bond}{up},
+			"s3:bond_health::${bond}::configured_links" => $anvil->data->{bond_health}{$bond}{configured_links},
+			"s4:bond_health::${bond}::active_links"     => $anvil->data->{bond_health}{$bond}{active_links},
+			"s5:bond_health::${bond}::up_links"         => $anvil->data->{bond_health}{$bond}{up_links},
+		}});
+		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:bond_health::${bond}::interface::${interface}::name"    => $anvil->data->{bond_health}{$bond}{interface}{$interface}{name},
+				"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
+				"s3:bond_health::${bond}::interface::${interface}::up"      => $anvil->data->{bond_health}{$bond}{interface}{$interface}{up},
+				"s4:bond_health::${bond}::interface::${interface}::carrier" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier},
+			}});
+		}
+		
+		if ($anvil->data->{bond_health}{$bond}{configured_links} != $anvil->data->{bond_health}{$bond}{up_links})
+		{
+			next if $heal eq "none";
+			next if (($anvil->data->{bond_health}{$bond}{up}) && ($heal eq "down_only"));
+			
+			# Log that we're going to try to heal this bond.
+			if ($heal eq "down_only")
+			{
+				# Log that we're healing fully down bonds.
+				$repaired = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0627", variables => { bond => $bond }});
+			}
+			else
+			{
+				# Log that we're healing all bond links
+				$repaired = 1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0628", variables => { bond => $bond }});
+			}
+			
+			# For good measure, try to up the bond as well.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0630", variables => { bond => $bond }});
+			
+			my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				'output'      => $output,
+				'return_code' => $return_code, 
+			}});
+			
+			# If we're here, try to bring up down'ed interfaces.
+			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{bond_health}{$bond}{interface}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s2:bond_health::${bond}::interface::${interface}::in_bond" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond},
+					"s4:bond_health::${bond}::interface::${interface}::carrier" => $anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier},
+				}});
+				if ((not $anvil->data->{bond_health}{$bond}{interface}{$interface}{in_bond}) && ($anvil->data->{bond_health}{$bond}{interface}{$interface}{carrier}))
+				{
+					# Link shown, try to start the interface.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0629", variables => { 
+						bond      => $bond,
+						interface => $interface." (".$anvil->data->{bond_health}{$bond}{interface}{$interface}{name}.")",
+					}});
+					
+					my $shell_call = $anvil->data->{path}{exe}{ifup}." ".$anvil->data->{bond_health}{$bond}{interface}{$interface}{name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 1, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						'output'      => $output,
+						'return_code' => $return_code, 
+					}});
+				}
+			}
+		}
+	}
+	
+	return($repaired);
+}
+
+
 =head2 check_internet
 
 This method tries to connect to the internet. If successful, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
@@ -503,678 +903,6 @@ sub check_internet
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
 	return($access);
 }
-
-
-### NOTE: This is the new way of collecting data from nmcli, it is the method to use going forward.
-=head2 collect_data
-
-This method uses Network Manager, sysfs and procfs to collect data about the current state of the network.
-
-Stored data:
-
-* nmcli::uuid::<uuid>::device      = 'connection.interface-name', or 'GENERAL.DEVICES'. See note below
-* nmcli::uuid::<uuid>::type        = interface, bond, bridge, etc
-* nmcli::uuid::<uuid>::active      = 1,0
-* nmcli::uuid::<uuid>::state       = activated,activating,etc
-* nmcli::uuid::<uuid>::<variable>  = all 'variable: value' pairs returned by 'nmcli connection show <uuid>'
-* nmcli::uuid::<uuid>::mac_address = MAC address (in lower case)
-* nmcli::uuid::<uuid>::connected   = 0 is down, unix timestamp (seconds since epoch) of when it connected if up.
-* nmcli::uuid::<uuid>::mtu         = This is the MTU (maximum transimssion unit in bytes) of the interface.
-
-To make it easier to map a device by name or MAC address to a UUID, this lookup hash is provided. Note that 'device' is 'connection.interface-name' when available, falling back to 'GENERAL.DEVICES' otherwise.
-
-B<< NOTE >>: An inactive interface will not report the 'connection.interface-name', and the bios device name will be returned (which is what is stored in 'GENERAL.DEVICES'. If you're trying to find a device, and the expected name doesn't exist, look up the device by MAC address. If that's not found, then the old GENERAL.DEVICES name can help you identify a replaced interface.
-
-* nmcli::device::<device>::uuid           = interface name (or device name)
-* nmcli::mac_address::<mac_address>::uuid = MAC address (lower case)
-
-Given that a single interface can have multiple IP addresses and routes, the IPs on a given interface are stored using a sequence number <1, 2, 3 ... n>. To make it easier to find what device has an IP, the IPs are stored with a quick access hash.
-
-* nmcli::ipv4::<ip_address>::on_uuid                         = interface UUID 
-* nmcli::ipv4::<ip_address>::sequence                        = sequence number
-* nmcli::uuid::<uuid>::ipv{4,6}::ip::<sequence>::ip_address  = IP address
-* nmcli::uuid::<uuid>::ipv{4,6}::ip::<sequence>::subnet_mask = subnet mask (CIDR notation)
-* nmcli::uuid::<uuid>::ipv{4,6}::dns                         = comma-separated list of DNS IP addresses
-* nmcli::uuid::<uuid>::ipv{4,6}::gateway                     = comma-separated list of DNS IP addresses
-* nmcli::uuid::<uuid>::ipv{4,6}::route::<sequence>           = Route info (ie: 'dst = 0.0.0.0/0, nh = 192.168.255.254, mt = 428', or 'dst = 192.168.0.0/16, nh = 0.0.0.0, mt = 428'.)
-
-Bond data is stored in these hashes;
-
-* nmcli::bond::<bond_device>::uuid                       = The UUID on the bond
-* nmcli::bond::<bond_device>::carrier                    = 1,0 - indicates if the bond has a connection or not.
-* nmcli::bond::<bond_device>::operstate                  = 1,0 - indicates if the bond is operational or not.
-* nmcli::bond::<bond_device>::up                         = 1,0 - indicates if the bond up up or not.
-* nmcli::bond::<bond_device>::interface::<interface>::up = 1,0 - indicates if the child interface is up or not.
-
-Bridge data is simple, but also made easy to find. The only real data is the hash references for the interfaces connected to the bridge.
-
-* nmcli::bridge::<device>::uuid                           = The UUID of the bridge
-* nmcli::bridge::<device>::interface::<interface>::status = This is the link data for the connected interface (ie: 'BROADCAST,MULTICAST,MASTER,UP,LOWER_UP').
-
-To make it easier to find interfaces, the following look up hash is available.
-
-* nmcli::interface::<device>::uuid        = The UUID of the interface
-* nmcli::mac_address::<mac_address>::uuid = MAC address
-
-Parameters;
-
-=head3 start (optional, default '0')
-
-If this is set to C<< 1 >>, any connetions found to be down and not referencing any devices will be assigned the unroutable IP C<< 169.0.0.x >>, where C<< x >> is a sequential number. This should bring up unconfigured devices. 
-
-=cut
-sub collect_data
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
-	
-	my $start = defined $parameter->{start} ? $parameter->{start} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		start => $start, 
-	}});
-	
-	if (exists $anvil->data->{nmcli})
-	{
-		delete $anvil->data->{nmcli};
-	}
-	
-	# Use nmcli to collect the data. 
-	my $shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values uuid,type,active,state,name connection show";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	foreach my $line (split/\n/, $output)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-		if ($line =~ /^(.*?):(.*?):(.*?):(.*?):(.*?)$/)
-		{
-			my $uuid    = $1;
-			my $type    = $2;
-			my $active  = $3;
-			my $state   = $4;
-			my $nm_name = $4;	# biosdevname
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				uuid    => $uuid, 
-				type    => $type,
-				active  => $active, 
-				'state' => $state, 
-				nm_name => $nm_name, 
-			}});
-			next if $type eq "loopback";
-			
-			if ($type eq "802-3-ethernet")
-			{
-				$type = "interface";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
-			}
-			
-			$anvil->data->{nmcli}{uuid}{$uuid}{type}    = $type;
-			$anvil->data->{nmcli}{uuid}{$uuid}{active}  = lc($active) eq "yes" ? 1 : 0;
-			$anvil->data->{nmcli}{uuid}{$uuid}{'state'} = lc($state);
-			$anvil->data->{nmcli}{uuid}{$uuid}{nm_name} = $nm_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::uuid::${uuid}::type"    => $anvil->data->{nmcli}{uuid}{$uuid}{type}, 
-				"nmcli::uuid::${uuid}::active"  => $anvil->data->{nmcli}{uuid}{$uuid}{active}, 
-				"nmcli::uuid::${uuid}::state"   => $anvil->data->{nmcli}{uuid}{$uuid}{'state'}, 
-				"nmcli::uuid::${uuid}::nm_name" => $anvil->data->{nmcli}{uuid}{$uuid}{nm_name}, 
-			}});
-		}
-	}
-	
-	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uuid => $uuid }});
-		
-		# Collect all the rest of the data now.
-		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection show ".$uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			output      => $output,
-			return_code => $return_code, 
-		}});
-		foreach my $line (split/\n/, $output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($line =~ /^(.*?):\s+(.*)$/)
-			{
-				my $variable = $1;
-				my $value    = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:variable' => $variable, 
-					's2:value'    => $value, 
-				}});
-				
-				if ($value eq "--")
-				{
-					$value = "";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
-				}
-				
-				$anvil->data->{nmcli}{uuid}{$uuid}{$variable} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"nmcli::uuid::${uuid}::${variable}" => $anvil->data->{nmcli}{uuid}{$uuid}{$variable},
-				}});
-				
-				if ($variable =~ /IP(\d).ADDRESS\[(\d+)\]/)
-				{
-					my $ip_type  = $1;
-					my $sequence = $2;
-					my $hash_key = "ipv".$ip_type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						ip_type  => $ip_type, 
-						sequence => $sequence,
-						hash_key => $hash_key, 
-					}});
-					
-					if (($ip_type == 4) && ($value =~ /^(.*?)\/(.*)$/))
-					{
-						my $ip_address  = $1;
-						my $subnet_mask = $2;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							ip_address  => $ip_address,
-							subnet_mask => $subnet_mask, 
-						}});
-						
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $1;
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = $2;
-						$anvil->data->{nmcli}{ipv4}{$ip_address}{on_uuid}                         = $uuid;
-						$anvil->data->{nmcli}{ipv4}{$ip_address}{sequence}                        = $sequence;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
-							"nmcli::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
-							"nmcli::ipv4::${ip_address}::on_uuid"                             => $anvil->data->{nmcli}{ipv4}{$ip_address}{on_uuid}, 
-							"nmcli::ipv4::${ip_address}::sequence"                            => $anvil->data->{nmcli}{ipv4}{$ip_address}{sequence}, 
-						}});
-					}
-					else
-					{
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address}  = $value;
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask} = "";
-						$anvil->data->{nmcli}{ipv4}{$value}{on_uuid}                              = $value;
-						$anvil->data->{nmcli}{ipv4}{$value}{sequence}                             = $sequence;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::ip::${sequence}::ip_address"  => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{ip_address},
-							"nmcli::uuid::${uuid}::${hash_key}::ip::${sequence}::subnet_mask" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{ip}{$sequence}{subnet_mask},
-							"nmcli::ipv4::${value}::on_uuid"                                  => $anvil->data->{nmcli}{ipv4}{$value}{on_uuid}, 
-							"nmcli::ipv4::${value}::sequence"                                 => $anvil->data->{nmcli}{ipv4}{$value}{sequence}, 
-						}});
-						
-					}
-					
-					# Make sure the DNS key exists.
-					if (not exists $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns})
-					{
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns} = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns},
-						}});
-					}
-					if (not exists $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway})
-					{
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway} = "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway},
-						}});
-					}
-					$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway},
-					}});
-				}
-				if ($variable =~ /IP(\d).ROUTE\[(\d+)\]/)
-				{
-					my $ip_type  = $1;
-					my $sequence = $2;
-					my $hash_key = "ipv".$ip_type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						ip_type  => $ip_type, 
-						sequence => $sequence,
-						hash_key => $hash_key, 
-					}});
-					
-					$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{route}{$sequence} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::${hash_key}::route::${sequence}" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{route}{$sequence},
-					}});
-				}
-				if ($variable =~ /IP(\d).DNS\[(\d+)\]/)
-				{
-					my $ip_type  = $1;
-					my $sequence = $2;
-					my $hash_key = "ipv".$ip_type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						ip_type  => $ip_type, 
-						sequence => $sequence,
-						hash_key => $hash_key, 
-					}});
-					
-					if ((exists $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns}) and ($anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns} ne ""))
-					{
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns} .= ",".$value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns},
-						}});
-					}
-					else
-					{
-						$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns} = $value;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::uuid::${uuid}::${hash_key}::dns" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{dns},
-						}});
-					}
-				}
-				if ($variable =~ /IP(\d).GATEWAY/)
-				{
-					my $ip_type  = $1;
-					my $hash_key = "ipv".$ip_type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						ip_type  => $ip_type, 
-						hash_key => $hash_key, 
-					}});
-					
-					$anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::${hash_key}::gateway" => $anvil->data->{nmcli}{uuid}{$uuid}{$hash_key}{gateway},
-					}});
-				}
-			}
-		}
-	}
-	
-	# Now loop through and look for the name that maps to what's shown in 'ip addr list'. This can be a 
-	# bit tricky.
-	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
-	{
-		### NOTE: The 'connection_id' is the 'network_interface_name' (biosdevname) and it is always
-		###       available, 'GENERAL.IP-IFACE' is the 'network_interface_device' and is only 
-		###       available when the interface is up.
-		my $connection_id             = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}             // "";
-		my $general_ip_iface          = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}          // "";
-		   $general_ip_iface          = "" if $general_ip_iface eq "--";
-		my $device_type               = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}           // "";
-		my $connection_interface_name = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'} // "";
-		my $match_interface_name      = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'}      // "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:uuid'                      => $uuid,
-			's2:connection_id'             => $connection_id, 
-			's3:general_ip_iface'          => $general_ip_iface, 
-			's4:device_type'               => $device_type, 
-			's5:connection_interface_name' => $connection_interface_name, 
-			's6:match_interface_name'      => $match_interface_name, 
-		}});
-		
-		# An unrenamed interface will have a default 'Wired connection X' name, not he biosdevname 
-		# name. So if there's not 'match.interface_name', use the 'connection.interface-name'.
-		if ((not $match_interface_name) && ($connection_interface_name))
-		{
-			$connection_id = $connection_interface_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_id => $connection_id }});
-		}
-		
-		# If there isn't a GENERAL.DEVICES or GENERAL.IP-IFACE, the link is down. Use the match.interface-name.
-		if ((not $general_ip_iface) && ($match_interface_name))
-		{
-			foreach my $interface (split/,/, $match_interface_name)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
-				next if $connection_id eq $interface;
-				if ($interface)
-				{
-					$general_ip_iface = $interface;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { general_ip_iface => $general_ip_iface }});
-				}
-				last if $general_ip_iface;
-			}
-		}
-		
-		# Make it easier to lookup this device by name.
-		$anvil->data->{nmcli}{name}{$connection_id}{uuid} = $uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::name::${connection_id}::uuid" => $anvil->data->{nmcli}{name}{$connection_id}{uuid}, 
-		}});
-		
-		if ((not $general_ip_iface) && (not $connection_interface_name))
-		{
-			# This connection is down, so it's not linked to a device.
-			next;
-		}
-		
-		my $device = $general_ip_iface ? $general_ip_iface : $connection_interface_name;
-		$anvil->data->{nmcli}{device}{$device}{uuid} = $uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::device::${device}::uuid" => $anvil->data->{nmcli}{device}{$device}{uuid}, 
-		}});
-	
-		### Get some data from sysfs.
-		$anvil->data->{nmcli}{uuid}{$uuid}{name}        = $connection_id;
-		$anvil->data->{nmcli}{uuid}{$uuid}{device}      = $device;
-		$anvil->data->{nmcli}{uuid}{$uuid}{mac_address} = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{type}        = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{mtu}         = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::uuid::${uuid}::device" => $anvil->data->{nmcli}{uuid}{$uuid}{device},
-		}});
-		
-		# The 'connection.timestamp' seems to be where the 'connected' (as in, have an IP) 
-		# comes from.
-		$anvil->data->{nmcli}{uuid}{$uuid}{connected} = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.timestamp'} ? $anvil->data->{nmcli}{uuid}{$uuid}{'connection.timestamp'} : 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::uuid::${uuid}::connected" => $anvil->data->{nmcli}{uuid}{$uuid}{connected},
-		}});
-		
-		if ($device_type eq "bond")
-		{
-			# Bonds always have the name we chose as the connection.id as they don't have 
-			# biosdevnames.
-			$anvil->data->{nmcli}{bond}{$connection_id}{uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::bond::${connection_id}::uuid" => $anvil->data->{nmcli}{bond}{$connection_id}{uuid},
-			}});
-			
-			# Read the interface's carrier
-			my $carrier_file = "/sys/class/net/".$connection_id."/carrier";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier_file => $carrier_file }});
-			
-			if (-e $carrier_file)
-			{
-				my $carrier = $anvil->Storage->read_file({debug => $debug, file => $carrier_file});
-				chomp $carrier;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { carrier => $carrier }});
-				
-				$anvil->data->{nmcli}{bond}{$connection_id}{carrier} = $carrier;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"nmcli::bond::${connection_id}::carrier" => $anvil->data->{nmcli}{bond}{$connection_id}{carrier},
-				}});
-			}
-			
-			my $operstate_file = "/sys/class/net/".$connection_id."/operstate";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate_file => $operstate_file }});
-			
-			if (-e $operstate_file)
-			{
-				my $operstate = $anvil->Storage->read_file({debug => $debug, file => $operstate_file});
-				chomp $operstate;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { operstate => $operstate }});
-				
-				$anvil->data->{nmcli}{bond}{$connection_id}{up} = $operstate eq "up" ? 1 : 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"nmcli::bond::${connection_id}::operstate" => $anvil->data->{nmcli}{bond}{$connection_id}{operstate},
-				}});
-			}
-			
-			# Read in the /proc file.
-			my $proc_file = "/proc/net/bonding/".$connection_id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
-			
-			my $in_link   = "";
-			my $file_body = $anvil->Storage->read_file({debug => $debug, file => $proc_file});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
-			foreach my $line (split/\n/, $file_body)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-				
-				if ($line =~ /Slave Interface: (.*)$/)
-				{
-					$in_link = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_link => $in_link }});
-					next;
-				}
-				if (not $line)
-				{
-					$in_link = "";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { in_link => $in_link }});
-					next;
-				}
-				if ($in_link)
-				{
-					if ($line =~ /MII Status: (.*)$/)
-					{
-						my $status = $1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
-						if ($status eq "up")
-						{
-							$anvil->data->{nmcli}{bond}{$connection_id}{interface}{$in_link}{up} = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								"nmcli::bond::${connection_id}::interface::${in_link}::up" => $anvil->data->{nmcli}{bond}{$connection_id}{interface}{$in_link}{up},
-							}});
-						}
-						else
-						{
-							$anvil->data->{nmcli}{bond}{$connection_id}{interface}{$in_link}{up} = 0;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-								"nmcli::bond::${connection_id}::interface::${in_link}::up" => $anvil->data->{nmcli}{bond}{$connection_id}{interface}{$in_link}{up},
-							}});
-						}
-						next;
-					}
-					if ($line =~ / (\w\w:\w\w:\w\w:\w\w:\w\w:\w\w)$/i)
-					{
-						# This is the real MAC address of the link.
-						my $mac_address                                      = $1;
-						   $anvil->data->{nmcli}{perm_mac_address}{$in_link} = $mac_address;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"nmcli::perm_mac_address::${in_link}" => $anvil->data->{nmcli}{perm_mac_address}{$in_link},
-						}});
-					}
-				}
-				else
-				{
-					if ($line =~ /MII Status: (.*)$/)
-					{
-						my $status                                         = $1;
-						   $anvil->data->{nmcli}{bond}{$connection_id}{up} = $status eq "up" ? 1 : 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							status                       => $status, 
-							"nmcli::bond::${connection_id}::up" => $anvil->data->{nmcli}{bond}{$connection_id}{up},
-						}});
-						next;
-					}
-				}
-			}
-		}
-		elsif ($device_type eq "bridge")
-		{
-			# Bonds always have the name we chose as the connection.id as they don't have 
-			# biosdevnames.
-			$anvil->data->{nmcli}{bridge}{$connection_id}{uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::bridge::${connection_id}::uuid" => $anvil->data->{nmcli}{bridge}{$connection_id}{uuid},
-			}});
-			
-			# See what interfaces are connected to the bridge.
-			my $shell_call = $anvil->data->{path}{exe}{ip}." link show master ".$connection_id;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
-			foreach my $line (split/\n/, $output)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				if ($line =~ /^\d+: (.*?): <(.*?)>/)
-				{
-					my $interface = $1;
-					my $status    = $2;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						interface => $interface,
-						status    => $status, 
-					}});
-					
-					$anvil->data->{nmcli}{bridge}{$connection_id}{interface}{$interface}{status} = $status;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::bridge::${connection_id}::interface::${interface}::status" => $anvil->data->{nmcli}{bridge}{$connection_id}{interface}{$interface}{status}, 
-					}});
-				}
-			}
-		}
-		elsif (($device_type eq "802-3-ethernet") or ($device_type eq "interface"))
-		{
-			# If we've got the if-name, use it. Otherwise, it's likely down and not renamed by 
-			# us, so use the connection id.
-			my $device = $connection_id;
-			if (($general_ip_iface) && ($general_ip_iface ne "--"))
-			{
-				$device = $general_ip_iface;
-			}
-			$anvil->data->{nmcli}{interface}{$device}{uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::interface::${device}::uuid" => $anvil->data->{nmcli}{interface}{$device}{uuid},
-			}});
-			
-			# MAC address
-			my $mac_address_file = "/sys/class/net/".$device."/address";
-			my $type_file        = "/sys/class/net/".$device."/type";
-			my $mtu_file         = "/sys/class/net/".$device."/mtu";
-			if (-e $mac_address_file)
-			{
-				### NOTE: This will always be the active link's MAC in a bond, so tis gets 
-				###       overwritten when the bond device is parsed.
-				my $mac_address = $anvil->Storage->read_file({file => $mac_address_file});
-				$mac_address =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_address => $mac_address }});
-				
-				if (($mac_address) && ($mac_address ne "!!error!!"))
-				{
-					$anvil->data->{nmcli}{uuid}{$uuid}{mac_address}        = $mac_address;
-					$anvil->data->{nmcli}{mac_address}{$mac_address}{uuid} = $uuid;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::mac_address"        => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
-						"nmcli::mac_address::${mac_address}::uuid" => $anvil->data->{nmcli}{mac_address}{$mac_address}{uuid},
-					}});
-				}
-			}
-			if (-e $type_file)
-			{
-				my $type = $anvil->Storage->read_file({file => $type_file});
-					$type =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
-				
-				if (($type) && ($type ne "!!error!!"))
-				{
-					$anvil->data->{nmcli}{uuid}{$uuid}{type} = $type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::type" => $anvil->data->{nmcli}{uuid}{$uuid}{type},
-					}});
-				}
-			}
-			if (-e $mtu_file)
-			{
-				my $mtu = $anvil->Storage->read_file({file => $mtu_file});
-					$mtu =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu => $mtu }});
-				
-				if (($mtu) && ($mtu ne "!!error!!"))
-				{
-					$anvil->data->{nmcli}{uuid}{$uuid}{mtu} = $mtu;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::mtu" => $anvil->data->{nmcli}{uuid}{$uuid}{mtu},
-					}});
-				}
-			}
-		}
-	}
-	
-	# Loop through interfaces and see if the MAC address needs to be updated if it's the backup interface
-	# in a bond.
-	foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{interface}})
-	{
-		my $uuid = $anvil->data->{nmcli}{interface}{$device}{uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:device" => $device, 
-			"s2:uuid"   => $uuid,
-		}});
-		
-		if ((exists $anvil->data->{nmcli}{perm_mac_address}{$device}) && ($anvil->data->{nmcli}{perm_mac_address}{$device}))
-		{
-			# There's a permanent MAC address, overwrite the one we read earlier.
-			my $perm_mac_address                                           = $anvil->data->{nmcli}{perm_mac_address}{$device};
-			   $anvil->data->{nmcli}{uuid}{$uuid}{mac_address}             = $perm_mac_address;
-			   $anvil->data->{nmcli}{mac_address}{$perm_mac_address}{uuid} = $uuid;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:nmcli::uuid::${uuid}::mac_address"             => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
-				"s2:nmcli::mac_address::${perm_mac_address}::uuid" => $anvil->data->{nmcli}{mac_address}{$perm_mac_address}{uuid},
-			}});
-		}
-	}
-	
-	# Should we start interfaces?
-	if ($start)
-	{
-		# Yup, but are there any to start? We'll set this to '1' if so and that will trigger a 
-		# rescan.
-		my $rescan = 0;
-		
-		# Sorted for log consistency on repeat runs
-		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::uuid::${uuid}::active" => $anvil->data->{nmcli}{uuid}{$uuid}{active},
-				"nmcli::uuid::${uuid}::active" => $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'},
-			}});
-			if ((not $anvil->data->{nmcli}{uuid}{$uuid}{active}) && (not $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'}))
-			{
-				# Find an IP
-				my $sequence = 1;
-				my $found    = 0;
-				my $use_ip   = "";
-				until ($found)
-				{
-					my $test_ip = "169.0.0.".$sequence;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ip => $test_ip }});
-					if (not exists $anvil->data->{nmcli}{ipv4}{$test_ip})
-					{
-						$found  = 1;
-						$use_ip = $test_ip;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							found  => $found,
-							use_ip => $use_ip, 
-						}});
-					}
-					else
-					{
-						$sequence++;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sequence => $sequence }});
-					}
-					die "Failed to find an unused IP in 169.0.0.0/24\n" if $sequence > 255;
-				}
-				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." ipv4.method manual ipv4.addresses ".$use_ip."/8";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output,
-					return_code => $return_code, 
-				}});
-				
-				$rescan = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rescan => $rescan }});
-			}
-		}
-		
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rescan => $rescan }});
-		if ($rescan)
-		{
-			# Give things a few seconds to settle
-			sleep 3;
-			
-			# Rescan 
-			$anvil->Network->collect_data({debug => $debug});
-		}
-	}
-	
-	return(0);
-}
-
-
 
 =head2 download
 
@@ -1675,7 +1403,7 @@ sub find_matches
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "first" }});
 		return("");
 	}
-	if (ref($anvil->data->{network}{$first}) ne "HASH")
+	elsif (ref($anvil->data->{network}{$first}) ne "HASH")
 	{
 		$anvil->Network->load_ips({
 			debug => $debug, 
@@ -1692,13 +1420,12 @@ sub find_matches
 			return("");
 		}
 	}
-	
 	if (not $second)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->find_matches()", parameter => "second" }});
 		return("");
 	}
-	if (ref($anvil->data->{network}{$second}) ne "HASH")
+	elsif (ref($anvil->data->{network}{$second}) ne "HASH")
 	{
 		$anvil->Network->load_ips({
 			debug => $debug, 
@@ -1742,14 +1469,13 @@ sub find_matches
 			
 			foreach my $second_interface (sort {$b cmp $a} keys %{$anvil->data->{network}{$second}{interface}})
 			{
-				next if not exists $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
 				my $second_ip          = $anvil->data->{network}{$second}{interface}{$second_interface}{ip};
 				my $second_subnet_mask = $anvil->data->{network}{$second}{interface}{$second_interface}{subnet_mask};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					's1:second'             => $second,
-					's2:second_interface'   => $second_interface,
-					's3:second_ip'          => $second_ip,
-					's4:second_subnet_mask' => $second_subnet_mask,  
+					second             => $second,
+					second_interface   => $second_interface,
+					second_ip          => $second_ip,
+					second_subnet_mask => $second_subnet_mask,  
 				}});
 				if (($second_ip) && ($second_subnet_mask))
 				{
@@ -2033,7 +1759,7 @@ sub get_ip_from_mac
 
 =head2 get_ips
 
-This method checks the target system for interfaces and stores them in:
+This method checks the local system for interfaces and stores them in:
 
 * C<< network::<target>::interface::<iface_name>::ip >>              - If an IP address is set
 * C<< network::<target>::interface::<iface_name>::subnet_mask >>     - If an IP is set
@@ -3959,68 +3685,6 @@ sub manage_firewall
 	return(0);
 }
 
-=head3 modify_connection
-
-This takes a network manager connection UUID, and changes the requested variable to be set to the given value.
-
-The command output and return code are returned. If there is a problem, C<< !!error!! >>  is returned.
-
-Parameters
-
-=head3 uuid (required) 
-
-This is the network manager UUID of the connection being worked on.
-
-=head3 variable (required)
-
-This is the name of the variable to set (as shown in C<< nmcli connection show <uuid> >>). 
-
-=head3 value (optional, defult "")
-
-This is the value to set. Note that and empty string (C<< "" >>) deletes the variable.
-
-=cut
-sub modify_connection
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->modify_connection()" }});
-
-	my $uuid     = defined $parameter->{uuid}     ? $parameter->{uuid}     : "";
-	my $variable = defined $parameter->{variable} ? $parameter->{variable} : "";
-	my $value    = defined $parameter->{value}    ? $parameter->{value}    : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid     => $uuid, 
-		variable => $variable, 
-		value    => $value, 
-	}});
-	
-	if (not $uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->modify_connection()", parameter => "uuid" }});
-		return("!!error!!");
-	}
-	
-	if (not $variable)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->modify_connection()", parameter => "variable" }});
-		return("!!error!!");
-	}
-	
-	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$uuid." ".$variable." ".$value;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	
-	return($output, $return_code);
-}
-
-
 
 =head2 ping
 
@@ -4258,8 +3922,6 @@ sub ping
 	return($pinged, $average_ping_time);
 }
 
-
-### TODO: Phase this out when EL8 / ifcfg-X file support is ended.
 =head2 read_nmcli
 
 This method reads and parses the C<< nmcli >> data. The data is stored as;
@@ -4398,7 +4060,7 @@ sub read_nmcli
 				# Read the file, see if we can find it there.
 				if (-e $filename)
 				{
-					my $file_body = $anvil->Storage->read_file({debug => $debug, file => $filename});
+					my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $filename});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 					
 					foreach my $line (split/\n/, $file_body)
@@ -4454,59 +4116,6 @@ sub read_nmcli
 	
 	return(0);
 }
-
-
-=head2 reset_connection
-
-This method takes a network manager connection UUID and resets the connection by calling it C<< down >> and then C<< up >>. 
-
-If there is a problem, C<< !!error!! >> is returned. Otherwise, the output and return code from the C<< up >> call are returned.
-
-Parameters;
-
-=head3 uuid (required)
-
-This is the UUID of the connection to reset.
-
-=cut
-sub reset_connection
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->reset_connection()" }});
-
-	my $uuid = defined $parameter->{uuid} ? $parameter->{uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		uuid => $uuid, 
-	}});
-	
-	if (not $uuid)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->reset_connection()", parameter => "uuid" }});
-		return("!!error!!");
-	}
-	
-	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection down ".$uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	
-	$shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	
-	return($output, $return_code);
-}
-
 
 #############################################################################################################
 # Private functions                                                                                         #
@@ -4717,7 +4326,7 @@ sub _get_drbd_ports
 		   $full_path =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
 		
-		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
+		my $file_body = $anvil->Storage->read_file({debug => ($debug+1), file => $full_path});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 		
 		foreach my $line (split/\n/, $file_body)

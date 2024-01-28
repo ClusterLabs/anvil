@@ -1288,7 +1288,6 @@ fi;
 						remote_user => "root",
 					}});
 					my ($host_uuid, $error, $return_code) = $anvil->Remote->call({
-						debug      => 2,
 						shell_call => $shell_call, 
 						target     => $ip,
 						password   => $anvil->data->{base}{password}{desired},

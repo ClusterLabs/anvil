@@ -163,7 +163,7 @@ sub add_databases
 	
 	$anvil->Network->get_ips({debug => 3});
 	$anvil->Network->get_ips({
-		debug       => 2,
+		debug       => 3,
 		target      => $target,
 		remote_user => "root",
 		password    => $anvil->data->{data}{password}, 
@@ -171,7 +171,7 @@ sub add_databases
 	});
 	my $local_host = $anvil->Get->short_host_name();
 	my ($match)    = $anvil->Network->find_matches({
-		debug  => 2,
+		debug  => 3,
 		first  => $local_host,
 		second => $target, 
 		source => $THIS_FILE, 
@@ -283,7 +283,6 @@ sub add_databases
 		
 		# Find a match between the target and the peer.
 		my ($match) = $anvil->Network->find_matches({
-			debug  => 2,
 			first  => $target,
 			second => $uuid,
 			source => $THIS_FILE, 

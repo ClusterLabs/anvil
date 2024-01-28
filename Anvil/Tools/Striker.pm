@@ -14,7 +14,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Striker.pm";
 
 ### Methods;
-# check_httpd_conf - Deprecated
+# check_httpd_conf
 # generate_manifest
 # get_fence_data
 # get_local_repo

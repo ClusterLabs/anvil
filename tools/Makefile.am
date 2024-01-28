@@ -42,6 +42,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-test-alerts \
 			  anvil-update-definition \
 			  anvil-update-issue \
+			  anvil-update-states \
 			  anvil-update-system \
 			  anvil-version-changes \
 			  anvil-virsh-wrapper \
