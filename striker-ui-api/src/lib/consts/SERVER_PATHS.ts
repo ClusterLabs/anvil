@@ -34,6 +34,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-delete-server': {},
       'anvil-get-server-screenshot': {},
       'anvil-join-anvil': {},
+      'anvil-manage-alerts': {},
       'anvil-manage-keys': {},
       'anvil-manage-power': {},
       'anvil-provision-server': {},
