@@ -359,7 +359,7 @@ sub collect_remote_data
 	});
 	my $test_file = $target_directory."/tmp/journalctl-previous-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -399,7 +399,7 @@ sub collect_remote_data
 	});
 	$test_file = $target_directory."/journalctl-current-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -439,7 +439,7 @@ sub collect_remote_data
 		});
 		$test_file = $target_directory."/cloud-init.log";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-		if (not -e $test_file)
+		if (-e $test_file)
 		{
 			print "Done.\n";
 		}
@@ -508,7 +508,7 @@ sub collect_remote_data
 	});
 	$test_file = $target_directory."/hosts";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -532,7 +532,7 @@ sub collect_remote_data
 	});
 	$test_file = $target_directory."/anvil.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -570,7 +570,7 @@ sub collect_remote_data
 		});
 		my $test_file = $target_directory."/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-		if (not -e $test_file)
+		if (-e $test_file)
 		{
 			print "Done.\n";
 		}
