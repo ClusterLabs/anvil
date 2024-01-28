@@ -63,12 +63,17 @@ sub striker_checks
 {
 	my ($anvil) = @_;
 	
-	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
-	# entries are copied.
-	update_dr_links($anvil);
+	# This checks to make sure that the new network manager columns are in place
+	update_network_interfaces($anvil);
+	update_bonds($anvil);
+	update_bridges($anvil);
 	
 	# This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
 	update_file_location_ready($anvil);
+	
+	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
+	# entries are copied.
+	update_dr_links($anvil);
 
 	# This replaces anvil_uuid with host_uuid to support more granular location info to support the new
 	# multi-target DR system
@@ -243,11 +248,299 @@ CREATE TRIGGER trigger_dr_links
 	return(0);
 }
 
+sub update_bridges
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bridges' AND column_name = 'bridge_nm_uuid';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.bridges ADD COLUMN bridge_nm_uuid uuid;";
+			push @{$queries}, "ALTER TABLE history.bridges ADD COLUMN bridge_nm_uuid uuid;";
+			push @{$queries}, "DROP FUNCTION history_bridges() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_bridges() RETURNS trigger
+AS $$
+DECLARE
+    history_bridges RECORD;
+BEGIN
+    SELECT INTO history_bridges * FROM bridges WHERE bridge_uuid = new.bridge_uuid;
+    INSERT INTO history.bridges
+        (bridge_uuid, 
+         bridge_host_uuid, 
+         bridge_nm_uuid, 
+         bridge_name, 
+         bridge_id, 
+         bridge_mac_address, 
+         bridge_mtu, 
+         bridge_stp_enabled, 
+         modified_date)
+    VALUES
+        (history_bridges.bridge_uuid, 
+         history_bridges.bridge_host_uuid, 
+         history_bridges.bridge_nm_uuid, 
+         history_bridges.bridge_name, 
+         history_bridges.bridge_id, 
+         history_bridges.bridge_mac_address, 
+         history_bridges.bridge_mtu, 
+         history_bridges.bridge_stp_enabled, 
+         history_bridges.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_bridges() OWNER TO admin;
+
+CREATE TRIGGER trigger_bridges
+    AFTER INSERT OR UPDATE ON bridges
+    FOR EACH ROW EXECUTE PROCEDURE history_bridges();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
+sub update_bonds
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'bonds' AND column_name = 'bond_nm_uuid';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.bonds ADD COLUMN bond_nm_uuid uuid;";
+			push @{$queries}, "ALTER TABLE history.bonds ADD COLUMN bond_nm_uuid uuid;";
+			push @{$queries}, "DROP FUNCTION history_bonds() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_bonds() RETURNS trigger
+AS $$
+DECLARE
+    history_bonds RECORD;
+BEGIN
+    SELECT INTO history_bonds * FROM bonds WHERE bond_uuid = new.bond_uuid;
+    INSERT INTO history.bonds
+        (bond_uuid, 
+         bond_host_uuid, 
+         bond_nm_uuid, 
+         bond_name, 
+         bond_mode, 
+         bond_mtu, 
+         bond_primary_interface, 
+         bond_primary_reselect, 
+         bond_active_interface, 
+         bond_mii_polling_interval, 
+         bond_up_delay, 
+         bond_down_delay, 
+         bond_mac_address, 
+         bond_operational, 
+         bond_bridge_uuid, 
+         modified_date)
+    VALUES
+        (history_bonds.bond_uuid, 
+         history_bonds.bond_host_uuid, 
+         history_bonds.bond_nm_uuid, 
+         history_bonds.bond_name, 
+         history_bonds.bond_mode, 
+         history_bonds.bond_mtu, 
+         history_bonds.bond_primary_interface, 
+         history_bonds.bond_primary_reselect, 
+         history_bonds.bond_active_interface, 
+         history_bonds.bond_mii_polling_interval, 
+         history_bonds.bond_up_delay, 
+         history_bonds.bond_down_delay, 
+         history_bonds.bond_mac_address, 
+         history_bonds.bond_operational, 
+         history_bonds.bond_bridge_uuid, 
+         history_bonds.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_bonds() OWNER TO admin;
+
+CREATE TRIGGER trigger_bonds
+    AFTER INSERT OR UPDATE ON bonds
+    FOR EACH ROW EXECUTE PROCEDURE history_bonds();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
+sub update_network_interfaces
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'network_interfaces' AND column_name = 'network_interface_device';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.network_interfaces ADD COLUMN network_interface_device text not null DEFAULT '';";
+			push @{$queries}, "ALTER TABLE history.network_interfaces ADD COLUMN network_interface_device text;";
+			push @{$queries}, "DROP FUNCTION history_network_interfaces() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_network_interfaces() RETURNS trigger
+AS $$
+DECLARE
+    history_network_interfaces RECORD;
+BEGIN
+    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_uuid = new.network_interface_uuid;
+    INSERT INTO history.network_interfaces
+        (network_interface_uuid,
+         network_interface_host_uuid, 
+         network_interface_nm_uuid, 
+         network_interface_mac_address, 
+         network_interface_name,
+         network_interface_device, 
+         network_interface_speed, 
+         network_interface_mtu, 
+         network_interface_link_state, 
+         network_interface_operational, 
+         network_interface_duplex, 
+         network_interface_medium, 
+         network_interface_bond_uuid, 
+         network_interface_bridge_uuid, 
+         modified_date)
+    VALUES
+        (history_network_interfaces.network_interface_uuid,
+         history_network_interfaces.network_interface_host_uuid, 
+         history_network_interfaces.network_interface_nm_uuid, 
+         history_network_interfaces.network_interface_mac_address, 
+         history_network_interfaces.network_interface_name,
+         history_network_interfaces.network_interface_device, 
+         history_network_interfaces.network_interface_speed, 
+         history_network_interfaces.network_interface_mtu, 
+         history_network_interfaces.network_interface_link_state, 
+         history_network_interfaces.network_interface_operational, 
+         history_network_interfaces.network_interface_duplex, 
+         history_network_interfaces.network_interface_medium, 
+         history_network_interfaces.network_interface_bond_uuid, 
+         history_network_interfaces.network_interface_bridge_uuid, 
+         history_network_interfaces.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_network_interfaces() OWNER TO admin;
+
+CREATE TRIGGER trigger_network_interfaces
+    AFTER INSERT OR UPDATE ON network_interfaces
+    FOR EACH ROW EXECUTE PROCEDURE history_network_interfaces();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+		
+		$query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'network_interfaces' AND column_name = 'network_interface_nm_uuid';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		$count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if (not $count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.network_interfaces ADD COLUMN network_interface_nm_uuid uuid;";
+			push @{$queries}, "ALTER TABLE history.network_interfaces ADD COLUMN network_interface_nm_uuid uuid;";
+			push @{$queries}, "DROP FUNCTION history_network_interfaces() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_network_interfaces() RETURNS trigger
+AS $$
+DECLARE
+    history_network_interfaces RECORD;
+BEGIN
+    SELECT INTO history_network_interfaces * FROM network_interfaces WHERE network_interface_uuid = new.network_interface_uuid;
+    INSERT INTO history.network_interfaces
+        (network_interface_uuid,
+         network_interface_host_uuid, 
+         network_interface_nm_uuid, 
+         network_interface_mac_address, 
+         network_interface_name,
+         network_interface_device, 
+         network_interface_speed, 
+         network_interface_mtu, 
+         network_interface_link_state, 
+         network_interface_operational, 
+         network_interface_duplex, 
+         network_interface_medium, 
+         network_interface_bond_uuid, 
+         network_interface_bridge_uuid, 
+         modified_date)
+    VALUES
+        (history_network_interfaces.network_interface_uuid,
+         history_network_interfaces.network_interface_host_uuid, 
+         history_network_interfaces.network_interface_nm_uuid, 
+         history_network_interfaces.network_interface_mac_address, 
+         history_network_interfaces.network_interface_name,
+         history_network_interfaces.network_interface_device, 
+         history_network_interfaces.network_interface_speed, 
+         history_network_interfaces.network_interface_mtu, 
+         history_network_interfaces.network_interface_link_state, 
+         history_network_interfaces.network_interface_operational, 
+         history_network_interfaces.network_interface_duplex, 
+         history_network_interfaces.network_interface_medium, 
+         history_network_interfaces.network_interface_bond_uuid, 
+         history_network_interfaces.network_interface_bridge_uuid, 
+         history_network_interfaces.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_network_interfaces() OWNER TO admin;
+
+CREATE TRIGGER trigger_network_interfaces
+    AFTER INSERT OR UPDATE ON network_interfaces
+    FOR EACH ROW EXECUTE PROCEDURE history_network_interfaces();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	
+	return(0);
+}
+
 # This checks to make sure that the new 'file_locations' -> 'file_location_ready' column exists.
 sub update_file_location_ready
 {
 	my ($anvil) = @_;
-	
 	
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 	{

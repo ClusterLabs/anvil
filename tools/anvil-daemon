@@ -75,6 +75,7 @@ $anvil->System->wait_on_dnf();
 $anvil->Database->connect({
 	check_if_configured => 1, 
 	check_for_resync    => 2,
+	debug               => 2,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
@@ -100,6 +101,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	}
 	else
 	{
+		# Striker can't initialize us unless it can ssh into us, so make sure root login is enabled.
+		chech_sshd($anvil);
+		
 		# Wait until we have one.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0075"});
 		
@@ -200,7 +204,7 @@ while(1)
 	# Reload defaults, re-read the config and then connect to the database(s)
 	$anvil->refresh();
 	
-	# If, so some reason, anvil.conf is lost, create it.
+	# If, for some reason, anvil.conf is lost, create it.
 	$anvil->System->_check_anvil_conf();
 	
 	$anvil->Database->connect({check_if_configured => $check_if_database_is_configured, check_for_resync => 2});
@@ -208,26 +212,13 @@ while(1)
 	
 	# Mark that we don't want to check the database now.
 	$check_if_database_is_configured = 0;
-	
-	# If this host is mapping the network, we'll skip a lot of stuff. If set for over an hour, we'll 
-	# clear it.
-	$anvil->data->{sys}{mapping_network} = check_if_mapping($anvil);
-	
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks
 		keep_running($anvil);
 		
 		# Handle periodic tasks
-		handle_periodic_tasks($anvil) if not $anvil->data->{sys}{mapping_network};
-	}
-	else
-	{
-		# No databases available, we'll update the state file in case this host is having it's 
-		# network mapped and the interface used to talk to the databases went down. That's all we 
-		# can do though.
-		update_state_file($anvil);
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0202"});
+		handle_periodic_tasks($anvil);
 	}
 	
 	# Exit if 'run-once' selected.
@@ -312,85 +303,6 @@ sub check_ram
 	return(0);
 }
 
-# Check to see if we're mapping the network on this host.
-sub check_if_mapping
-{
-	my ($anvil) = @_;
-	
-	$anvil->data->{sys}{mapping_network} = 0;
-	if ($anvil->data->{sys}{database}{connections})
-	{
-		my ($map_network_value, $map_network_uuid, $map_network_mtime, $map_network_modified_date) = $anvil->Database->read_variable({
-			debug                 => 3,
-			variable_name         => "config::map_network",
-			variable_source_table => "hosts",
-			variable_source_uuid  => $anvil->data->{sys}{host_uuid}, 
-		});
-		# We'll run for a day (should be cancelled by the program when the user's done, so this 
-		# shouldn't fire in practice).
-		my $expire_age      = 86400;
-		my $map_network_age = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:map_network_value'         => $map_network_value, 
-			's2:map_network_mtime'         => $map_network_mtime, 
-			's3:map_network_modified_date' => $map_network_modified_date, 
-			's4:map_network_uuid'          => $map_network_uuid, 
-		}});
-		if ($map_network_uuid)
-		{
-			$map_network_age = time - $map_network_mtime;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { map_network_age => $map_network_age }});
-		}
-		if ($map_network_value)
-		{
-			# How long ago was it set?
-			$anvil->data->{switches}{'clear-mapping'} = "" if not defined $anvil->data->{switches}{'clear-mapping'};
-			if (($map_network_age >= $expire_age) or ($anvil->data->{switches}{'clear-mapping'}))
-			{
-				# Clear it.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0470"});
-				$anvil->Database->insert_or_update_variables({
-					debug             => 3,
-					variable_value    => 0, 
-					variable_uuid     => $map_network_uuid, 
-					update_value_only => 1, 
-				});
-			}
-			else
-			{
-				# Mark it so we only track the network.
-				my $say_age = $anvil->Convert->add_commas({number => $expire_age});
-				my $timeout = $anvil->Convert->add_commas({number => ($expire_age - $map_network_age)});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0471", variables => { 
-					age     => $say_age, 
-					timeout => $timeout,
-				}});
-				
-				$anvil->data->{sys}{mapping_network} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::mapping_network" => $anvil->data->{sys}{mapping_network} }});
-				
-				# Close any open ssh connections.
-				foreach my $ssh_fh_key (keys %{$anvil->data->{cache}{ssh_fh}})
-				{
-					my $ssh_fh = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-						ssh_fh_key => $ssh_fh_key,
-						ssh_fh     => $ssh_fh, 
-					}});
-					if ($ssh_fh =~ /^Net::OpenSSH/)
-					{
-						$ssh_fh->disconnect();
-					}
-					delete $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
-				}
-			}
-		}
-	}
-	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "sys::mapping_network" => $anvil->data->{sys}{mapping_network} }});
-	return($anvil->data->{sys}{mapping_network});
-}
-
 # This decides if the local system will delay daily runs on start-up.
 sub set_delay
 {
@@ -431,6 +343,7 @@ sub check_network
 {
 	my ($anvil) = @_;
 	
+	### TODO: Remove this when EL8 support is dropped. This was an issue with the old ifcfg configured bonds
 	# The network sometimes doesn't come up, but we don't want to try recovering it too soon. As such, 
 	# we'll start watching the network after the uptime is 2 minutes.
 	my $uptime = $anvil->Get->uptime;
@@ -450,18 +363,10 @@ sub check_network
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
 			}
 			
-			#$anvil->Network->check_network({heal => "all"});
-			
 			$anvil->data->{sys}{network}{initial_checks} = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"sys::network::initial_checks" => $anvil->data->{sys}{network}{initial_checks},
 			}});
-		}
-		else
-		{
-			### NOTE: This is constantly trying to "fix" healthy bonds, without a know way to
-			###       trigger to debug. As such, disabling for now.
-			#$anvil->Network->check_network({heal => "down_only"});
 		}
 		
 		check_firewall($anvil);
@@ -500,6 +405,27 @@ sub check_network
 		}
 	}
 	
+	# Check that there's at least one entry in 'network_interfaces' and, if not, call scan-network.
+	if (1)
+	{
+		my $query = "SELECT COUNT(*) FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		if (not $count)
+		{
+			# Run scan-network
+			my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-network/scan-network".$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
+	}
+	
 	return(0);
 }
 
@@ -530,7 +456,7 @@ sub handle_periodic_tasks
 		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
 		$anvil->System->check_ssh_keys({debug => 2});
 		
-		$anvil->System->update_hosts({debug => 3});
+		$anvil->System->update_hosts({debug => 2});
 		
 		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
 		# running.
@@ -559,9 +485,6 @@ sub handle_periodic_tasks
 			parse_output => $parse_output,
 			return_code  => $return_code, 
 		}});
-		
-		# Scan the local network.
-		update_state_file($anvil);
 		
 		# Check shared files.
 		check_files($anvil);
@@ -1100,9 +1023,56 @@ sub run_once
 	# Check journald is configured for persistent storage.
 	check_journald($anvil);
 	
+	# Make sure root can ssh
+	chech_sshd($anvil);
+	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub chech_sshd
+{
+	my ($anvil) = @_;
+	
+	# On EL8, the 'sshd_config.d' directory doesn't exist and root is enabled.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::directories::sshd_config.d' => $anvil->data->{path}{directories}{'sshd_config.d'} }});
+	if (not -d $anvil->data->{path}{directories}{'sshd_config.d'})
+	{
+		return(0);
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'path::configs::sshd_root_password' => $anvil->data->{path}{configs}{sshd_root_password} }});
+	if (not -f $anvil->data->{path}{configs}{sshd_root_password})
+	{
+		# Write it out
+		my $body = "# This file was added to enable root login by password, which is needed while
+# forming the Anvil! cluster. Once the cluster is formed, passwordless SSH 
+# should be enabled and you can disable this feature. Please remove during a
+# maintanence window or after testing in a lab environment.
+PermitRootLogin yes
+";
+		# Update the config
+		$anvil->Storage->write_file({
+			debug  => 2,
+			secure => 0, 
+			file   => $anvil->data->{path}{configs}{sshd_root_password}, 
+			body   => $body, 
+			mode   => "0644",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0418", variables => { file => $anvil->data->{path}{configs}{sshd_root_password} }});
+		
+		# Restart the journald service.
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart sshd.service";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
 	}
 	
 	return(0);
@@ -1200,7 +1170,7 @@ sub check_journald
 	return(0);
 }
 
-# This creates, as needed, the setuid wrappers used by apache to make certain system calls.
+# This creates, as needed, the setuid wrappers used by striker-ui-api to make certain system calls.
 sub check_setuid_wrappers
 {
 	my ($anvil) = @_;
@@ -1432,7 +1402,7 @@ AND
 	}
 	
 	# Make sure /etc/hosts is updated.
-	$anvil->System->update_hosts();
+	$anvil->System->update_hosts({debug => 2});
 	
 	# This handles weird bits for things like bug work-arounds.
 	handle_special_cases($anvil);
@@ -1442,14 +1412,6 @@ AND
 	
 	# Check the firewall needs to be updated.
 	check_firewall($anvil);
-	
-	# If we're a striker, check apache
-	my $host_type = $anvil->Get->host_type;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-	if ($host_type eq "striker")
-	{
-		$anvil->Striker->check_httpd_conf({debug => 3});
-	}
 	
 	return(0);
 }
@@ -1541,7 +1503,7 @@ sub keep_running
 	my ($anvil) = @_;
 	
 	# Check for jobs that were running and now exited.
-	if ((not $anvil->data->{sys}{mapping_network}) && (exists $anvil->data->{processes}))
+	if (exists $anvil->data->{processes})
 	{
 		foreach my $job_uuid (%{$anvil->data->{jobs}{handles}})
 		{
@@ -1572,17 +1534,12 @@ sub keep_running
 	# If we're configured, write out the status JSON file. If we're not configured, Update hardware state files.
 	my $configured = $anvil->System->check_if_configured;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
-	if ((not $anvil->data->{sys}{mapping_network}) && ($configured))
+	if ($configured)
 	{
 		# Write out state information for all known Anvil! systems and the information from 
 		# unconfigured nods and DR hosts, using just database data (hence, fast enough to run 
 		# constantly).
 		$anvil->System->generate_state_json({debug => 2});
-	}
-	else
-	{
-		# Run this to monitor the network in real time.
-		update_state_file($anvil);
 	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
@@ -1619,10 +1576,6 @@ sub run_jobs
 	# This will be set to 1 if any jobs are not complete, preventing a restart of the daemon if it's 
 	# changed on disk.
 	$anvil->data->{sys}{jobs_running} = 0;
-	
-	# If we're not configured, we won't hold on starting jobs
-	my $configured = $anvil->System->check_if_configured;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 	
 	# We'll also update the jobs.json file.
 	my $jobs_file = "{\"jobs\":[\n";
@@ -1676,11 +1629,16 @@ sub run_jobs
 				's12:job_status'           => $job_status, 
 				's13:started_seconds_ago'  => $started_seconds_ago, 
 				's14:updated_seconds_ago'  => $updated_seconds_ago, 
-				's15:sys::mapping_network' => $anvil->data->{sys}{mapping_network},
 			}});
 			
-			# If we're mapping, we'll only run 'anvil-configure-host' jobs on this host.
-			next if (($anvil->data->{sys}{mapping_network}) && ($job_command !~ /anvil-configure-host/));
+			# If we're not configured, we will only run the 'anvil-configure-host' job
+			my $configured = $anvil->System->check_if_configured;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+			
+			if ((not $configured) && ($job_command !~ /anvil-configure-host/))
+			{
+				next;
+			}
 			
 			# To minimize the chance of race conditions, any given command will be called only 
 			# once at a time. If two jobs of the same command exist, only one will be called.
@@ -1793,9 +1751,9 @@ sub run_jobs
 			}
 			
 			# Convert the double-banged strings into a proper message.
-			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
-			my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
-			my $say_status      = $job_status      ? $anvil->Words->parse_banged_string({key_string => $job_status})      : "";
+			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_title})       : "";
+			my $say_description = $job_description ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_description}) : "";
+			my $say_status      = $job_status      ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_status})      : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				job_title       => $job_title, 
 				say_description => $say_description, 
@@ -1963,8 +1921,8 @@ sub run_jobs
 		overwrite => 1,
 		backup    => 0,
 		mode      => "0644", 
-		user      => "apache", 
-		group     => "apache",
+		user      => "striker-ui-api", 
+		group     => "striker-ui-api",
 	});
 	
 	return(0);
@@ -2004,8 +1962,8 @@ sub check_files
 		{
 			my $failed = $anvil->Storage->make_directory({
 				directory => $directory,
-				group     => "apache", 
-				user      => "apache",
+				group     => "striker-ui-api", 
+				user      => "striker-ui-api",
 				mode      => "0777",
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { failed => $failed }});
@@ -2029,27 +1987,6 @@ sub check_files
 	# Look for files on our system that are in file_locations. If they're shown as ready, make sure 
 	# they're there. If they're marked as not ready, see if they now are.
 	$anvil->Storage->check_files({debug => 2});
-	
-	return(0);
-}
-
-# This calls 'anvil-update-states' which will scan the local machine's state (hardware and software) and
-# record write it out to an HTML file 
-sub update_state_file
-{
-	my ($anvil) = @_;
-	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0480"});
-	
-	#my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'}.$anvil->Log->switches;
-	my $shell_call = $anvil->data->{path}{exe}{'anvil-update-states'};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
-	
-	my ($states_output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-		states_output => $states_output,
-		return_code   => $return_code, 
-	}});
 	
 	return(0);
 }

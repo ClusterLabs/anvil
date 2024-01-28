@@ -26,6 +26,7 @@ my $THIS_FILE = "System.pm";
 # check_if_configured
 # check_ssh_keys
 # check_memory
+# check_network_type
 # check_storage
 # collect_ipmi_data
 # configure_ipmi
@@ -1276,6 +1277,62 @@ sub check_ssh_keys
 	}
 	
 	return(0);
+}
+
+
+=head2 check_network_type
+
+This method checks to see if this host is using network manager to configure the network, versus the older C<< ifcfg-X >> based config. It does this by looking for any C<< ifcfg-X >> files in C<< /etc/sysconfig/network-scripts >>. 
+
+If any 'ifcfg-X' files are found, C<< ifcfg >> is returned. Otherwise, C<< nm >> is returned.
+
+The results are cached in C<< sys::network_type >>.
+
+This method takes no parameters.
+
+=cut
+sub check_network_type
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_storage()" }});
+	
+	if ((exists $anvil->data->{sys}{network_type}) && ($anvil->data->{sys}{network_type}))
+	{
+		# Cached.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network_type" => $anvil->data->{sys}{network_type} }});
+		return($anvil->data->{sys}{network_type});
+	}
+	
+	# Open the 'ifcfg' directory, if it exists, and see if there are any 'ifcfg-X' files.
+	my $type      = "nm";
+	my $directory = $anvil->data->{path}{directories}{ifcfg};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	
+	if (-e $directory)
+	{
+		local(*DIRECTORY);
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file => $file }});
+			if ($file =~ /^ifcfg-(.*)$/)
+			{
+				$type = "ifcfg";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+				last;
+			}
+		}
+		closedir(DIRECTORY);
+	}
+	
+	# Cache the results
+	$anvil->data->{sys}{network_type} = $type;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::network_type" => $anvil->data->{sys}{network_type} }});
+	return($anvil->data->{sys}{network_type});
 }
 
 
@@ -2790,6 +2847,7 @@ sub disable_daemon
 	return($return_code);
 }
 
+
 =head2 generate_state_json
 
 This method generates the C<< all_status.json >> file. 
@@ -2879,13 +2937,14 @@ sub generate_state_json
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:interface"   => $interface,
-				"s2:mac_address" => $mac_address, 
-				"s3:type"        => $type,
-				"s4:mtu"         => $mtu,
-				"s5:configured"  => $configured, 
-				"s6:host_uuid"   => $host_uuid, 
-				"s7:host_key"    => $host_key, 
+				"s1:host"        => $host,
+				"s2:interface"   => $interface,
+				"s3:mac_address" => $mac_address, 
+				"s4:type"        => $type,
+				"s5:mtu"         => $mtu,
+				"s6:configured"  => $configured, 
+				"s7:host_uuid"   => $host_uuid, 
+				"s8:host_key"    => $host_key, 
 			}});
 			$iface_hash->{name}        = $interface;
 			$iface_hash->{type}        = $type;
@@ -3191,8 +3250,8 @@ sub generate_state_json
 		backup    => 0, 
 		file      => $json_file, 
 		body      => $json, 
-		group     => "apache",
-		user      => "apache",
+		group     => "striker-ui-api",
+		user      => "striker-ui-api",
 		mode      => "0644",
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { error => $error }});

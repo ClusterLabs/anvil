@@ -353,12 +353,13 @@ sub collect_remote_data
 	# Copying the file
 	print "Done! Copying to here... ";
 	$anvil->Storage->rsync({
+		debug       => 2,
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/tmp/journalctl-previous-boot.log",
 		destination => $target_directory."/",
 	});
 	my $test_file = $target_directory."/tmp/journalctl-previous-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -392,12 +393,13 @@ sub collect_remote_data
 	# Copying the file
 	print "Done! Copying to here... ";
 	$anvil->Storage->rsync({
+		debug       => 2,
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/tmp/journalctl-current-boot.log",
 		destination => $target_directory."/",
 	});
 	$test_file = $target_directory."/journalctl-current-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -431,12 +433,13 @@ sub collect_remote_data
 	{
 		print "- Grabbing cloud-init logs... ";
 		$anvil->Storage->rsync({
+			debug       => 2,
 			source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/var/log/cloud-init*",
 			destination => $target_directory."/",
 		});
 		$test_file = $target_directory."/cloud-init.log";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-		if (not -e $test_file)
+		if (-e $test_file)
 		{
 			print "Done.\n";
 		}
@@ -499,12 +502,13 @@ sub collect_remote_data
 	
 	print "- Grabbing hosts file... ";
 	$anvil->Storage->rsync({
+		debug       => 2,
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/etc/hosts",
 		destination => $target_directory."/",
 	});
 	$test_file = $target_directory."/hosts";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -522,12 +526,13 @@ sub collect_remote_data
 	
 	print "- Grabbing Anvil! log... ";
 	$anvil->Storage->rsync({
+		debug       => 2,
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/var/log/anvil.log",
 		destination => $target_directory."/",
 	});
 	$test_file = $target_directory."/anvil.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	if (not -e $test_file)
+	if (-e $test_file)
 	{
 		print "Done.\n";
 	}
@@ -559,12 +564,13 @@ sub collect_remote_data
 		# Copying the file
 		print "Done! Copying to here... ";
 		$anvil->Storage->rsync({
+			debug       => 2,
 			source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/tmp/cib.xml",
 			destination => $target_directory."/",
 		});
 		my $test_file = $target_directory."/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-		if (not -e $test_file)
+		if (-e $test_file)
 		{
 			print "Done.\n";
 		}
@@ -586,6 +592,7 @@ sub collect_remote_data
 	{
 		print "- Collecting server definitions... ";
 		$anvil->Storage->rsync({
+			debug       => 2,
 			source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/mnt/shared/definitions",
 			destination => $target_directory."/",
 		});
@@ -593,6 +600,7 @@ sub collect_remote_data
 		
 		print "- Collecting replicated storage config... ";
 		$anvil->Storage->rsync({
+			debug       => 2,
 			source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/etc/drbd.d",
 			destination => $target_directory."/",
 		});

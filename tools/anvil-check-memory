@@ -84,7 +84,7 @@ foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 		{
 			my $size = $1;
 			my $type = $2;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				type => $type,
 				size => $size,
 			}});
@@ -94,10 +94,10 @@ foreach my $pid (sort {$a cmp $b} @{$anvil->data->{sys}{pids}})
 			# This uses 'kB' for 'KiB' >_>
 			$type =  lc($type);
 			$type =~ s/b$/ib/ if $type !~ /ib$/;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { type => $type }});
 			
 			my $size_in_bytes = $anvil->Convert->human_readable_to_bytes({size => $size, type => $type, base2 => 1});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				size_in_bytes => $anvil->Convert->add_commas({number => $size_in_bytes})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size_in_bytes}).")",
 			}});
 			

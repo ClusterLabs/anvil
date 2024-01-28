@@ -1,0 +1,12 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - Network Monitor Daemon
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/anvil-monitor-network
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

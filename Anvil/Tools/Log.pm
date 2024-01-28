@@ -491,7 +491,7 @@ sub entry
 			binmode($anvil->data->{HANDLE}{'log'}{main}, ':encoding(utf-8)');
 			print $THIS_FILE." ".__LINE__."; HANDLE::log::main: [".$anvil->data->{HANDLE}{'log'}{main}."]\n" if $test;
 			
-			# Make sure it can be written to by apache.
+			# Make sure it can be written to by striker-ui-api.
 			$anvil->Storage->change_mode({test => $test, debug => $debug, path => $log_file, mode => "0666"});
 		}
 		
@@ -531,7 +531,7 @@ sub entry
 				$anvil->data->{HANDLE}{'log'}{alert} = $file_handle;
 				print $THIS_FILE." ".__LINE__."; HANDLE::log::alert: [".$anvil->data->{HANDLE}{'log'}{alert}."]\n" if $test;
 				
-				# Make sure it can be written to by apache.
+				# Make sure it can be written to by striker-ui-api.
 				$anvil->Storage->change_mode({test => $test, debug => $debug, path => $log_file, mode => "0666"});
 			}
 			

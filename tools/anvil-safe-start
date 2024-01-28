@@ -44,6 +44,11 @@ $anvil->Get->switches({list => [], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
+### TODO: Remove before PR!
+# Force up the logging.
+$anvil->Log->level({set => 2});
+$anvil->Log->secure({set => 1});
+
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
 if (($< != 0) && ($> != 0))
@@ -94,7 +99,7 @@ if (not $anvil->data->{sys}{database}{connections})
 # Check to see if we should run. Also checks/sets enable/disable requests.
 prerun_checks($anvil);
 
-# Wait until I can ping the peer on all three networks. This will not return until access is available on all
+# Wait until I can ping the peer on all networks. This will not return until access is available on all
 # networks. There is no timeout.
 wait_for_access($anvil);
 
@@ -343,7 +348,7 @@ sub start_pacemaker
 		while ($waiting)
 		{
 			   $waiting   = 0;
-			my ($problem) = $anvil->Cluster->parse_cib({debug => 3});
+			my ($problem) = $anvil->Cluster->parse_cib({debug => 2});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if ($problem)
 			{

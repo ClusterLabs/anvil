@@ -1945,7 +1945,7 @@ sub process_remove
 	
 	### If we're here, we can now update the resource config file to remove the DR host.
 	# Refresh the IP info (usually scrubbed by this point)
-	$anvil->Database->get_ip_addresses();
+	$anvil->Database->get_ip_addresses({debug => 2});
 	
 	# First loop to build the node sections, then we'll loop to build the connections
 	my $node1_volumes    = "";
@@ -2901,7 +2901,7 @@ sub process_protect
 	}
 	
 	# Refresh the IP info (usually scrubbed by this point)
-	$anvil->Database->get_ip_addresses();
+	$anvil->Database->get_ip_addresses({debug => 2});
 	
 	# The connections. Node 1 to 2 always uses the BCN, Either node to DR needs 
 	my $storage_network = "sn1";
