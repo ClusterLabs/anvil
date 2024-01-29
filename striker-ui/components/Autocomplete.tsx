@@ -5,11 +5,14 @@ import {
   AutocompleteRenderInputParams as MUIAutocompleteRenderInputParams,
   Box,
   Grow as MUIGrow,
+  ListSubheader,
   outlinedInputClasses as muiOutlinedInputClasses,
   Paper as MUIPaper,
   PaperProps as MUIPaperProps,
   svgIconClasses as muiSvgIconClasses,
+  styled,
 } from '@mui/material';
+import { useMemo } from 'react';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
@@ -24,6 +27,7 @@ type AutocompleteOptionalProps = {
     inputWithLabelProps: OutlinedInputWithLabelProps,
     renderInputParams?: MUIAutocompleteRenderInputParams,
   ) => void;
+  getGroupLabel?: (group: string) => React.ReactNode;
   messageBoxProps?: Partial<MessageBoxProps>;
 };
 
@@ -49,6 +53,12 @@ const GrowPaper = (paperProps: MUIPaperProps): JSX.Element => (
   </MUIGrow>
 );
 
+const GroupChildren = styled('ul')({
+  padding: 0,
+});
+
+const GroupHeader = ListSubheader;
+
 const Autocomplete = <
   T,
   Multiple extends boolean | undefined = undefined,
@@ -60,73 +70,121 @@ const Autocomplete = <
   const {
     componentsProps,
     extendRenderInput,
+    getGroupLabel,
     label,
     messageBoxProps,
+    renderGroup,
     renderInput,
     sx,
     ...autocompleteRestProps
   } = autocompleteProps;
-  const combinedComponentsProps: AutocompleteProps<
-    T,
-    Multiple,
-    DisableClearable,
-    FreeSolo
-  >['componentsProps'] = {
-    paper: {
-      sx: {
-        backgroundColor: TEXT,
-      },
-    },
 
-    ...componentsProps,
-  };
-  const combinedRenderInput =
-    renderInput ??
-    ((renderInputParams) => {
-      const { fullWidth, InputProps, InputLabelProps, inputProps } =
-        renderInputParams;
-      const inputWithLabelProps: OutlinedInputWithLabelProps = {
-        formControlProps: {
-          fullWidth,
-          ref: InputProps.ref,
-        },
-        inputLabelProps: InputLabelProps,
-        inputProps: {
-          className: InputProps.className,
-          endAdornment: InputProps.endAdornment,
-          inputProps,
-          startAdornment: InputProps.startAdornment,
-        },
-        label,
-      };
+  const combinedComponentsProps = useMemo<
+    AutocompleteProps<
+      T,
+      Multiple,
+      DisableClearable,
+      FreeSolo
+    >['componentsProps']
+  >(
+    () => ({
+      paper: {
+        sx: {
+          backgroundColor: TEXT,
 
-      extendRenderInput?.call(null, inputWithLabelProps, renderInputParams);
-
-      return <OutlinedInputWithLabel {...inputWithLabelProps} />;
-    });
-  const combinedSx = {
-    [`& .${muiOutlinedInputClasses.root} .${muiAutocompleteClasses.endAdornment}`]:
-      {
-        right: `7px`,
-
-        [`& .${muiSvgIconClasses.root}`]: {
-          color: GREY,
+          [`& .${muiAutocompleteClasses.groupLabel}`]: {
+            backgroundColor: TEXT,
+          },
         },
       },
 
-    ...sx,
-  };
+      ...componentsProps,
+    }),
+    [componentsProps],
+  );
+
+  const combinedRenderGroup = useMemo<
+    AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['renderGroup']
+  >(() => {
+    if (renderGroup) return renderGroup;
+
+    return (
+      getGroupLabel &&
+      ((params) => (
+        <li key={params.key}>
+          <GroupHeader
+            component="div"
+            className={muiAutocompleteClasses.groupLabel}
+          >
+            {getGroupLabel(params.group)}
+          </GroupHeader>
+          <GroupChildren className={muiAutocompleteClasses.groupUl}>
+            {params.children}
+          </GroupChildren>
+        </li>
+      ))
+    );
+  }, [getGroupLabel, renderGroup]);
+
+  const combinedRenderInput = useMemo<
+    Exclude<
+      AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['renderInput'],
+      undefined
+    >
+  >(
+    () =>
+      renderInput ??
+      ((params) => {
+        const { fullWidth, InputProps, InputLabelProps, inputProps } = params;
+        const inputWithLabelProps: OutlinedInputWithLabelProps = {
+          formControlProps: {
+            fullWidth,
+            ref: InputProps.ref,
+          },
+          inputLabelProps: InputLabelProps,
+          inputProps: {
+            className: InputProps.className,
+            endAdornment: InputProps.endAdornment,
+            inputProps,
+            startAdornment: InputProps.startAdornment,
+          },
+          label,
+        };
+
+        extendRenderInput?.call(null, inputWithLabelProps, params);
+
+        return <OutlinedInputWithLabel {...inputWithLabelProps} />;
+      }),
+    [extendRenderInput, label, renderInput],
+  );
+
+  const combinedSx = useMemo<
+    AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['sx']
+  >(
+    () => ({
+      [`& .${muiOutlinedInputClasses.root} .${muiAutocompleteClasses.endAdornment}`]:
+        {
+          right: `7px`,
+
+          [`& .${muiSvgIconClasses.root}`]: {
+            color: GREY,
+          },
+        },
+
+      ...sx,
+    }),
+    [sx],
+  );
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <MUIAutocomplete
-        {...{
-          PaperComponent: GrowPaper,
-          ...autocompleteRestProps,
-          componentsProps: combinedComponentsProps,
-          renderInput: combinedRenderInput,
-          sx: combinedSx,
-        }}
+        PaperComponent={GrowPaper}
+        {...autocompleteRestProps}
+        componentsProps={combinedComponentsProps}
+        renderGroup={combinedRenderGroup}
+        renderInput={combinedRenderInput}
+        sx={combinedSx}
       />
       <InputMessageBox {...messageBoxProps} />
     </Box>

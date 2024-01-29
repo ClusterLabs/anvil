@@ -1,9 +1,5 @@
-import {
-  Box,
-  List as MUIList,
-  ListItem as MUIListItem,
-  capitalize,
-} from '@mui/material';
+import { Box, List as MUIList, ListItem as MUIListItem } from '@mui/material';
+import { capitalize } from 'lodash';
 import { FC, ReactElement } from 'react';
 
 import FlexBox from './FlexBox';

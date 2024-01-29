@@ -14,6 +14,11 @@ export const ICONS = [
     image: '/pngs/configure_icon_on.png',
     uri: '/config',
   },
+  {
+    text: 'Mail',
+    image: '/pngs/email_on.png',
+    uri: '/mail-config',
+  },
   // {
   //   text: 'Tasks',
   //   image: '/pngs/tasks_no-jobs_icon.png',
@@ -23,11 +28,6 @@ export const ICONS = [
   //   text: 'Striker',
   //   image: '/pngs/striker_icon_on.png',
   //   uri: '/config',
-  // },
-  // {
-  //   text: 'Email',
-  //   image: '/pngs/email_on.png',
-  //   uri: '/striker?email=true',
   // },
   // {
   //   text: 'Logout',

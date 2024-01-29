@@ -58,7 +58,7 @@ const useChecklist = ({
   );
 
   const getCheck = useCallback<GetCheckFunction>(
-    (key) => checklist[key],
+    (key) => Boolean(checklist[key]),
     [checklist],
   );
 
