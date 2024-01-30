@@ -28,7 +28,7 @@ my $THIS_FILE = "Network.pm";
 # is_local
 # is_our_interface
 # is_ip_in_network
-# load_interfces
+# load_interfaces
 # load_ips
 # manage_firewall
 # modify_connection
@@ -2842,7 +2842,7 @@ sub is_ip_in_network
 }
 
 
-=head2 load_interfces
+=head2 load_interfaces
 
 This loads all network information for the given host UUID.
 
@@ -2867,13 +2867,13 @@ This is the optional C<< target >> string to use in the hash where the data is s
 This is the C<< host_uuid >> of the hosts whose IP and interface data that you want to load. The default is to load the local machine's data.
 
 =cut
-sub load_interfces
+sub load_interfaces
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_interfces()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->load_interfaces()" }});
 	
 	my $clear     = defined $parameter->{clear}     ? $parameter->{clear}     : 1;
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->data->{sys}{host_uuid};
@@ -2886,7 +2886,7 @@ sub load_interfces
 	
 	if (not $host_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_interfces()", parameter => "host_uuid" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Network->load_interfaces()", parameter => "host_uuid" }});
 		return("");
 	}
 	
