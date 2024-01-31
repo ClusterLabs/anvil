@@ -555,8 +555,9 @@ sub collect_remote_data
 	# If this is a node, grab the shared files.
 	if ($this_host_type eq "node")
 	{
+		### NOTE: The pcs wrapper was timing out when dumping the CIB, hence statically calling pcs below.
 		print "- Collecting the cluster information base (CIB)... ";
-		$shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib > /tmp/cib.xml";
+		$shell_call = "/usr/sbin/pcs cluster cib > /tmp/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
