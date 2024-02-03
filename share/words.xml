@@ -3250,7 +3250,7 @@ Proceed? [y/N]</key>
 		<key name="message_0338">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], ISO: [#!variable!device_path!#]</key>
 		<key name="message_0339">Subnodes:</key>
 		<key name="message_0340">DR Hosts:</key>
-		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!ariable!host_uuid!#]</key>
+		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!variable!host_uuid!#]</key>
 		<key name="message_0342">   |- Volume: [#!variable!volume_number!#], backing device: [#!variable!backing_disk!#], DRBD minor: [#!variable!device_minor!#], size: [#!variable!volume_size!#]
    ^- In storage group: [#!variable!storage_group_name!#], size: [#!variable!storage_group_size!#], free: [#!variable!storage_group_free_space!#]</key>
 		<key name="message_0343">Anvil! Node: [#!variable!anvil_name!#], UUID: [#!variable!anvil_uuid!#] - Description: [#!variable!anvil_description!#]</key>
