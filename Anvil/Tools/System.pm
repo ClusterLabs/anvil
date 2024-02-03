@@ -693,6 +693,9 @@ sub check_memory
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_memory()" }});
 	
+	### TODO: Re-enable this when we're sure it's not being killed while processing files.
+	return(0);
+	
 	my $program_name = defined $parameter->{program_name} ? $parameter->{program_name} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { program_name => $program_name }});
 	if (not $program_name)
