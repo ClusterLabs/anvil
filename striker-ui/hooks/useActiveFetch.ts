@@ -1,31 +1,35 @@
-import { useCallback } from 'react';
+import { AxiosRequestConfig } from 'axios';
+import { useCallback, useState } from 'react';
 
 import api from '../lib/api';
 import handleAPIError from '../lib/handleAPIError';
-import useProtectedState from './useProtectedState';
 
-type ActiveFetchSetter<T> = (data: T) => void;
+type ActiveFetchSetter<ResData> = (data: ResData) => void;
 
-type ActiveFetcher = (url?: string) => void;
+type ActiveFetcher<ReqData> = (
+  url?: string,
+  config?: AxiosRequestConfig<ReqData>,
+) => void;
 
-type ActiveFetchHookResponse = {
-  fetch: ActiveFetcher;
+type ActiveFetchHookResponse<ReqData> = {
+  fetch: ActiveFetcher<ReqData>;
   loading: boolean;
 };
 
-const useActiveFetch = <Data>(
+const useActiveFetch = <ResData, ReqData = unknown>(
   options: {
-    onData?: ActiveFetchSetter<Data>;
+    config?: AxiosRequestConfig<ReqData>;
+    onData?: ActiveFetchSetter<ResData>;
     onError?: (emsg: Message) => void;
     url?: string;
   } = {},
-): ActiveFetchHookResponse => {
-  const { onError, onData, url: urlPrefix = '' } = options;
+): ActiveFetchHookResponse<ReqData> => {
+  const { config: baseConfig, onError, onData, url: urlPrefix = '' } = options;
 
-  const [loading, setLoading] = useProtectedState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const fetch = useCallback<ActiveFetcher>(
-    (urlPostfix = '') => {
+  const fetch = useCallback<ActiveFetcher<ReqData>>(
+    (urlPostfix = '', config) => {
       const url = `${urlPrefix}${urlPostfix}`;
 
       if (!url) return;
@@ -33,7 +37,7 @@ const useActiveFetch = <Data>(
       setLoading(true);
 
       api
-        .get<Data>(url)
+        .get<ResData>(url, { ...baseConfig, ...config })
         .then(({ data }) => {
           onData?.call(null, data);
         })
@@ -46,7 +50,7 @@ const useActiveFetch = <Data>(
           setLoading(false);
         });
     },
-    [urlPrefix, setLoading, onError, onData],
+    [urlPrefix, baseConfig, onData, onError],
   );
 
   return { fetch, loading };

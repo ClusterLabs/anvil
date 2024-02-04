@@ -29,7 +29,6 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
-import useProtectedState from '../../hooks/useProtectedState';
 
 type FenceFormData = {
   agent: string;
@@ -130,15 +129,15 @@ const ManageFencePanel: FC = () => {
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
 
-  const [fenceOverviews, setFenceOverviews] = useProtectedState<
+  const [fenceOverviews, setFenceOverviews] = useState<
     APIFenceOverview | undefined
-  >(undefined);
-  const [fenceTemplate, setFenceTemplate] = useProtectedState<
+  >();
+  const [fenceTemplate, setFenceTemplate] = useState<
     APIFenceTemplate | undefined
-  >(undefined);
+  >();
   const [isEditFences, setIsEditFences] = useState<boolean>(false);
   const [isLoadingFenceTemplate, setIsLoadingFenceTemplate] =
-    useProtectedState<boolean>(true);
+    useState<boolean>(true);
 
   const { isLoading: isFenceOverviewsLoading } =
     periodicFetch<APIFenceOverview>(`${API_BASE_URL}/fence`, {

@@ -22,7 +22,6 @@ import useActiveFetch from '../../hooks/useActiveFetch';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const toFileOverviewList = (rows: string[][]) =>
   rows.reduce<APIFileOverviewList>((previous, row) => {
@@ -115,12 +114,8 @@ const ManageFilePanel: FC = () => {
 
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [edit, setEdit] = useState<boolean>(false);
-  const [file, setFile] = useProtectedState<APIFileDetail | undefined>(
-    undefined,
-  );
-  const [files, setFiles] = useProtectedState<APIFileOverviewList | undefined>(
-    undefined,
-  );
+  const [file, setFile] = useState<APIFileDetail | undefined>();
+  const [files, setFiles] = useState<APIFileOverviewList | undefined>();
 
   const { isLoading: loadingFilesPeriodic } = periodicFetch<string[][]>(
     `${API_BASE_URL}/file`,

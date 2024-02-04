@@ -27,7 +27,6 @@ import {
   buildPeacefulStringTestBatch,
 } from '../../lib/test_input';
 import { HeaderText } from '../Text';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const IT_IDS = {
   dbPort: 'dbPort',
@@ -61,7 +60,7 @@ const AddPeerDialog = forwardRef<
   }>({});
   const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
   const [isSubmittingAddPeer, setIsSubmittingAddPeer] =
-    useProtectedState<boolean>(false);
+    useState<boolean>(false);
 
   const buildInputFirstRenderFunction = useCallback(
     (key: string) =>

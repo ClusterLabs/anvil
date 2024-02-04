@@ -18,8 +18,6 @@ import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
 import Tabs from '../../components/Tabs';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
-import useProtect from '../../hooks/useProtect';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const TAB_ID_PREPARE_HOST = 'prepare-host';
 const TAB_ID_PREPARE_NETWORK = 'prepare-network';
@@ -54,11 +52,9 @@ const PrepareHostTabContent: FC = () => (
 const PrepareNetworkTabContent: FC = () => {
   const isFirstRender = useIsFirstRender();
 
-  const { protect } = useProtect();
-
-  const [hostOverviewList, setHostOverviewList] = useProtectedState<
+  const [hostOverviewList, setHostOverviewList] = useState<
     APIHostOverviewList | undefined
-  >(undefined, protect);
+  >();
   const [hostSubTabId, setHostSubTabId] = useState<string | false>(false);
 
   const hostSubTabs = useMemo(() => {

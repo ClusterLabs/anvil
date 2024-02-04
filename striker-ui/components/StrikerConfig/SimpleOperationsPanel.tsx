@@ -1,5 +1,5 @@
 import { Grid, Switch } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import api from '../../lib/api';
 import ContainedButton from '../ContainedButton';
@@ -9,8 +9,6 @@ import MessageBox, { Message } from '../MessageBox';
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
-import useProtect from '../../hooks/useProtect';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const StretchedButton: FC<ContainedButtonProps> = (props) => (
   <ContainedButton {...props} sx={{ width: '100%' }} />
@@ -21,12 +19,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
   onSubmit,
   title,
 }) => {
-  const { protect } = useProtect();
-
-  const [message, setMessage] = useProtectedState<Message | undefined>(
-    undefined,
-    protect,
-  );
+  const [message, setMessage] = useState<Message | undefined>();
 
   const headerElement = useMemo(
     () =>

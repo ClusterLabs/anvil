@@ -26,6 +26,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-storage-groups \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
+			  anvil-monitor-network \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
 			  anvil-pcs-wrapper \
@@ -42,7 +43,6 @@ dist_sbin_SCRIPTS	= \
 			  anvil-test-alerts \
 			  anvil-update-definition \
 			  anvil-update-issue \
-			  anvil-update-states \
 			  anvil-update-system \
 			  anvil-version-changes \
 			  anvil-virsh-wrapper \

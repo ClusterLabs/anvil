@@ -105,6 +105,10 @@ This takes a server name, finds where it is running and then adds it to pacemake
 
 Parameters;
 
+=head3 ok_if_exists (optional, default '0')
+
+Normally, if the server is already in the cluster, C<< !!error!! >> is returned. If this is set to C<< 1 >> and the server is already in pacemaker, we'll return C<< 0 >> instead.
+
 =head3 server_name (required)
 
 This is the name of the server being added.
@@ -118,9 +122,11 @@ sub add_server
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 2;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->add_server()" }});
 	
-	my $server_name = defined $parameter->{server_name} ? $parameter->{server_name} : "";
+	my $ok_if_exists = defined $parameter->{ok_if_exists} ? $parameter->{ok_if_exists} : "";
+	my $server_name  = defined $parameter->{server_name}  ? $parameter->{server_name}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		server_name => $server_name,
+		ok_if_exists => $ok_if_exists, 
+		server_name  => $server_name,
 	}});
 	
 	if (not $server_name)
@@ -146,6 +152,10 @@ sub add_server
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"cib::parsed::cib::resources::primitive::${server_name}::type" => $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$server_name}{type}, 
 		}});
+		if ($ok_if_exists)
+		{
+			return(0);
+		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0213", variables => { server_name => $server_name }});
 		return("!!error!!");
 	}
@@ -3585,19 +3595,31 @@ sub parse_cib
 		# The "coming up" order is 'in_ccm' then 'crmd' then 'join'.
 		my $node_id          = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{id};
 		my $maintenance_mode = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'} eq "on"     ? 1 : 0; # 'on' or 'off'         - Node is not monitoring resources
-		my $in_ccm           = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}             eq "true"   ? 1 : 0; # 'true' or 'false'     - Corosync member
-		my $crmd             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               eq "online" ? 1 : 0; # 'online' or 'offline' - In corosync process group
-		my $join             = $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             eq "member" ? 1 : 0; # 'member' or 'down'    - Completed controller join process
-		my $ready            = (($in_ccm) && ($crmd) && ($join))                                                   ? 1 : 0; # Our summary of if the node is "up"
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:node_name'        => $node_name, 
 			's2:node_id'          => $node_id, 
 			's3:maintenance_mode' => $maintenance_mode, 
-			's4:in_ccm'           => $in_ccm, 
-			's5:crmd'             => $crmd,
-			's6:join'             => $join,
-			's7:ready'            => $ready, 
 		}});
+		
+		### These have changed. In older clusters, these are 'true/false' or 'online/offline', but now show as a timestamp.
+		# in_ccm - Corosync member
+		my $in_ccm = 0;
+		if (($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm} eq "true") or ($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm} =~ /^\d+$/))
+		{
+			$in_ccm = 1;
+		}
+		# crmd - In corosync process group
+		my $crmd = 0;
+		if (($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd} eq "online") or ($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd} =~ /^\d+$/))
+		{
+			$crmd = 1; 
+		}
+		# join - Completed controller join process
+		my $join = 0;
+		if (($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'} eq "member") or ($anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'} =~ /^\d+$/))
+		{
+			$join = 1;
+		}
 		
 		# If the global maintenance mode is set, set maintenance mode to true.
 		if (($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'}) && ($anvil->data->{cib}{parsed}{data}{cluster}{'maintenance-mode'} eq "true"))
@@ -3605,6 +3627,14 @@ sub parse_cib
 			$maintenance_mode = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { maintenance_mode => $maintenance_mode }});
 		}
+		# Our summary of if the node is "up"
+		my $ready = (($in_ccm) && ($crmd) && ($join)) ? 1 : 0; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:in_ccm' => $in_ccm, 
+			's2:crmd'   => $crmd,
+			's3:join'   => $join,
+			's4:ready'  => $ready, 
+		}});
 		
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{pacemaker_id}       = $node_id;
 		$anvil->data->{cib}{parsed}{data}{node}{$node_name}{node_state}{'maintenance-mode'} = $maintenance_mode;

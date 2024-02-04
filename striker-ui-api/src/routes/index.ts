@@ -1,3 +1,4 @@
+import alertOverrideRouter from './alert-override';
 import anvilRouter from './anvil';
 import authRouter from './auth';
 import commandRouter from './command';
@@ -7,6 +8,8 @@ import fileRouter from './file';
 import hostRouter from './host';
 import initRouter from './init';
 import jobRouter from './job';
+import mailRecipientRouter from './mail-recipient';
+import mailServerRouter from './mail-server';
 import manifestRouter from './manifest';
 import networkInterfaceRouter from './network-interface';
 import serverRouter from './server';
@@ -17,12 +20,15 @@ import userRouter from './user';
 
 const routes = {
   private: {
+    'alert-override': alertOverrideRouter,
     anvil: anvilRouter,
     command: commandRouter,
     fence: fenceRouter,
     file: fileRouter,
     host: hostRouter,
     job: jobRouter,
+    'mail-recipient': mailRecipientRouter,
+    'mail-server': mailServerRouter,
     manifest: manifestRouter,
     'network-interface': networkInterfaceRouter,
     server: serverRouter,

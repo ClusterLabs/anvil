@@ -6,21 +6,21 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
 import ContainedButton from '../ContainedButton';
-import convertFormikErrorsToMessages from '../../lib/convertFormikErrorsToMessages';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
+import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import fileListSchema from './schema';
 import UploadFileProgress from './UploadFileProgress';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const REQUEST_INCOMPLETE_UPLOAD_LIMIT = 99;
 
@@ -41,9 +41,7 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
 
   const filePickerRef = useRef<HTMLInputElement>(null);
 
-  const [uploads, setUploads] = useProtectedState<UploadFiles | undefined>(
-    undefined,
-  );
+  const [uploads, setUploads] = useState<UploadFiles | undefined>();
 
   const formik = useFormik<FileFormikValues>({
     initialValues: {},
@@ -113,7 +111,7 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
   });
 
   const formikErrors = useMemo<Messages>(
-    () => convertFormikErrorsToMessages(formik.errors),
+    () => getFormikErrorMessages(formik.errors),
     [formik.errors],
   );
 

@@ -8,7 +8,6 @@ import FlexBox from './FlexBox';
 import List from './List';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import { BodyText } from './Text';
-import useProtectedState from '../hooks/useProtectedState';
 
 type AnvilJobs = {
   [jobUUID: string]: {
@@ -58,7 +57,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     },
     ref,
   ) => {
-    const [anvilJobs, setAnvilJobs] = useProtectedState<AnvilJobs>({});
+    const [anvilJobs, setAnvilJobs] = useState<AnvilJobs>({});
     const [isOpenJobSummary, setIsOpenJobSummary] =
       useState<boolean>(openInitially);
     const [menuAnchorElement, setMenuAnchorElement] = useState<

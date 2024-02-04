@@ -15,21 +15,14 @@ import { ExpandablePanel } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
 import State from '../State';
 import { BodyText, MonoText, SmallText } from '../Text';
-import useProtect from '../../hooks/useProtect';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
   refreshInterval = 60000,
 }) => {
-  const { protect } = useProtect();
-
   const addPeerDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
 
-  const [apiMessage, setAPIMessage] = useProtectedState<Message | undefined>(
-    undefined,
-    protect,
-  );
+  const [apiMessage, setApiMessage] = useState<Message | undefined>(undefined);
   const [confirmDialogProps, setConfirmDialogProps] =
     useState<ConfirmDialogProps>({
       actionProceedText: '',
@@ -37,11 +30,12 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
       titleText: '',
     });
   const [inboundConnections, setInboundConnections] =
-    useProtectedState<InboundConnectionList>({}, protect);
+    useState<InboundConnectionList>({});
   const [isEditPeerConnections, setIsEditPeerConnections] =
     useState<boolean>(false);
-  const [peerConnections, setPeerConnections] =
-    useProtectedState<PeerConnectionList>({}, protect);
+  const [peerConnections, setPeerConnections] = useState<PeerConnectionList>(
+    {},
+  );
 
   const apiMessageElement = useMemo(
     () =>
@@ -58,7 +52,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
     {
       refreshInterval,
       onError: (error) => {
-        setAPIMessage({
+        setApiMessage({
           children: `Failed to get connection data. Error: ${error}`,
           type: 'error',
         });
@@ -190,7 +184,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
 
                           emsg.children = `Failed to delete peer connection(s). ${emsg.children}`;
 
-                          setAPIMessage(emsg);
+                          setApiMessage(emsg);
                         });
                     },
                     proceedColour: 'red',

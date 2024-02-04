@@ -1,7 +1,7 @@
 import { Add as AddIcon } from '@mui/icons-material';
 import { Box, Divider, Grid } from '@mui/material';
 import Head from 'next/head';
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
@@ -120,8 +120,6 @@ const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
       );
 
 const Dashboard: FC = () => {
-  const componentMountedRef = useRef(true);
-
   const [allServers, setAllServers] = useState<ServerListItem[]>([]);
   const [excludeServers, setExcludeServers] = useState<ServerListItem[]>([]);
   const [includeServers, setIncludeServers] = useState<ServerListItem[]>([]);
@@ -135,10 +133,6 @@ const Dashboard: FC = () => {
     ...filterArgs: Parameters<typeof filterServers>
   ) => {
     const { exclude, include } = filterServers(...filterArgs);
-
-    if (!componentMountedRef.current) {
-      return;
-    }
 
     setExcludeServers(exclude);
     setIncludeServers(include);
@@ -175,10 +169,6 @@ const Dashboard: FC = () => {
 
               const allServersWithScreenshots = [...serverListItems];
 
-              if (!componentMountedRef.current) {
-                return;
-              }
-
               setAllServers(allServersWithScreenshots);
               // Don't update servers to include or exclude here to avoid
               // updating using an outdated input search term. Remember this
@@ -200,13 +190,6 @@ const Dashboard: FC = () => {
       },
       refreshInterval: 60000,
     },
-  );
-
-  useEffect(
-    () => () => {
-      componentMountedRef.current = false;
-    },
-    [],
   );
 
   return (

@@ -19,7 +19,7 @@ BuildArch:      noarch
 
 # required to detect paths to:
 # systemd unit files
-BuildRequires:  systemd autoconf automake
+BuildRequires:  systemd autoconf automake make
 # fence-agents binaries
 BuildRequires:  fence-agents-common
 # OCFROOT
@@ -247,6 +247,7 @@ setenforce 0
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable --now chronyd.service
 systemctl enable --now anvil-daemon.service
+systemctl enable --now anvil-monitor-network.service
 systemctl enable --now scancore.service
 
 %pre striker
@@ -284,11 +285,6 @@ then
     systemctl set-default graphical.target
     systemctl enable gdm.service
 fi
-
-### This is handled by anvil-daemon now
-#echo "Preparing the database"
-#striker-prep-database
-#anvil-update-states
 
 # Touch the system type file.
 echo "Touching the system type file"

@@ -752,6 +752,33 @@ The XML that failed sanity check was:
 		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
+		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
+		<key name="error_0481">[ Error ] - Failed to delete the 'connection.interface-name', got: [#!variable!output!#] and it should bhave been blank, aborting!</key>
+		<key name="error_0482">[ Error ] - Failed to create the 'match.interface-name' value. Expected: [#!variable!new_name!#,#!variable!old_device!#], got: [#!variable!output!#], aborting!</key>
+		<key name="error_0483">[ Error ] - The attempt to add the bond: [#!variable!bond_name!#] failed! The return code was: [#!variable!return_code!#]. The output, if any, was:
+========
+#!variable!output!#
+========
+</key>
+		<key name="error_0484">[ Error ] - The attempt to add the network link: [#!variable!link_name!#] to the bond: [#!variable!bond_name!#] failed! The return code was: [#!variable!return_code!#]. The output, if any, was:
+========
+#!variable!output!#
+========
+</key>
+		<key name="error_0485">[ Error ] - The attempt to add the bridge: [#!variable!bridge_name!# failed! The return code was: [#!variable!return_code!#]. The output, if any, was:
+========
+#!variable!output!#
+========
+</key>
+		<key name="error_0486">[ Error ] - The attempt to add the device: [#!variable!on_device!#] to the bridge: [#!variable!bridge_name!#] failed! The return code was: [#!variable!return_code!#]. The output, if any, was:
+========
+#!variable!output!#
+========
+</key>
+		<key name="error_0487">[ Error ] - The subnet_mask: [#!variable!subnet_mask!#] is not valid. It must be either a CIDR notation, or a dotted-decimal mask that can be translated to CIDR notation.</key>
+		<key name="error_0488">[ Error ] - Can't find a device to assign the: [#!variable!network!#] IP address: [#!variable!ip_address!#/#!variable!subnet_mask!#] to!</key>
+		<key name="error_0489">[ Error ] - Failed to map the IP address: [#!variable!ip_address!#] to a network manager connection UUID!</key>
+		<key name="error_0490">[ Error ] - Both the netbios name: [#!variable!wanted_link_name!#] and the old device name: [#!variable!old_device!#] are the same, 'match.interface-name' would break!</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2681,6 +2708,13 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 </key>
 		<key name="log_0827">The physical volume: [#!variable!pv_name!#] has been resized!</key>
 		<key name="log_0828">The user answered: [#!variable!answer!#]</key>
+		<key name="log_0829">Failed to connect to any database, waiting before trying to connect again. We will reboot if we do not connect in: [#!variable!time_left!#] second.</key>
+		<key name="log_0830">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file with the expected IP: [#!variable!ip_address!#]!</key>
+		<key name="log_0831">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file, but the expected IP: [#!variable!ip_address!#] doesn't match the found IP: [#!variable!found_ip!#]! Ignoring this entry.</key>
+		<key name="log_0832">The host: [#!variable!host_name!#] was found not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
+		<key name="log_0833">All host names were found in '/etc/hosts', ready to proceed!</key>
+		<key name="log_0834">One or more hosts are not yet in the '/etc/hosts' file with expected IPs. We'll wait a short bit and check again.</key>
+		<key name="log_0835">There are entries we need to add to the '/etc/hosts' file before we can form the cluster, updating it now.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3216,7 +3250,7 @@ Proceed? [y/N]</key>
 		<key name="message_0338">- Target: [#!variable!device_target!#], boot: [#!variable!say_boot!#], ISO: [#!variable!device_path!#]</key>
 		<key name="message_0339">Subnodes:</key>
 		<key name="message_0340">DR Hosts:</key>
-		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!ariable!host_uuid!#]</key>
+		<key name="message_0341"> |- Name: [#!variable!host_name!#], UUID: [#!variable!host_uuid!#]</key>
 		<key name="message_0342">   |- Volume: [#!variable!volume_number!#], backing device: [#!variable!backing_disk!#], DRBD minor: [#!variable!device_minor!#], size: [#!variable!volume_size!#]
    ^- In storage group: [#!variable!storage_group_name!#], size: [#!variable!storage_group_size!#], free: [#!variable!storage_group_free_space!#]</key>
 		<key name="message_0343">Anvil! Node: [#!variable!anvil_name!#], UUID: [#!variable!anvil_uuid!#] - Description: [#!variable!anvil_description!#]</key>
@@ -3284,6 +3318,42 @@ proceeding.
   - Threads per Core: [#!variable!old_threads!#] -> [#!variable!new_threads!#]
   - Total Cores: .... [#!variable!old_total_cores!#] -> [#!variable!new_total_cores!#]]]></key>
 		<key name="message_0382"><![CDATA[-=] Updated: #!variable!date!# - Press '<ctrl> + <c>' to exit]]></key>
+		<key name="message_0383">Renaming old device/name: [#!variable!old_device!#/#!variable!old_name!#] with MAC: [#!variable!mac_address!#] to: [#!variable!new_name!#] using UUID: [#!variable!nm_uuid!#].</key>
+		<key name="message_0384">- Updating the udev file: [#!variable!file!#].</key>
+		<key name="message_0385">- Removing the old 'connection.interface-name': [#!variable!name!#].</key>
+		<key name="message_0386">- Matching the new interface name: [#!variable!new_name!#] to the bios device name: [#!variable!old_device!#].</key>
+		<key name="message_0387">- Setting the connection.id to the bios device name: [#!variable!old_device!#]</key>
+		<key name="message_0388">The new interface names need a reboot to take effect.</key>
+		<key name="message_0389">Rebooting NOW! The job will restart on reboot.</key>
+		<key name="message_0390">Checking if the bond: [#!variable!bond_name!#] exists or not.</key>
+		<key name="message_0391">- It does, its UUID is: [#!variable!nm_uuid!#].</key>
+		<key name="message_0392">- The bond: [#!variable!bond_name!#] doesn't exist. Will create it using the primary interface: [#!variable!link1_name!#] (MAC: [#!variable!link1_mac!#], NM UUID: [#!variable!link1_nm_uuid!#) and the backup interface: [#!variable!link2_name!#] (MAC: [#!variable!link2_mac!#], NM UUID: [#!variable!link2_nm_uuid!#).</key>
+		<key name="message_0393">Checking to see if the IP address: [#!variable!ip_address!#/#!variable!subnet_mask!#] is assigned to: [#!variable!device!#] yet.</key>
+		<key name="message_0394"> - Done! Rescanning the network config.</key>
+		<key name="message_0395">- The interface: [#!variable!link_name!#] (#!variable!nm_uuid!#) is already a member of the bond.</key>
+		<key name="message_0396">- The interface: [#!variable!link_name!#] (#!variable!nm_uuid!#) is a member of the bond: [#!variable!old_bond!#], switching it to this bond.</key>
+		<key name="message_0397">- The interface: [#!variable!link_name!#] (#!variable!nm_uuid!#) needs to be connected to the bond.</key>
+		<key name="message_0398">- The IP exists, checking if it needs to be updated.</key>
+		<key name="message_0399"> - Connecting the interface: [#!variable!link_name!#] to the bond: [#!variable!bond_name!#].</key>
+		<key name="message_0400">Checking if the bridge: [#!variable!bridge_name!#] exists and that it is on: [#!variable!on_device!#]</key>
+		<key name="message_0401">- The bridge exists!</key>
+		<key name="message_0402">- The IP address is on: [#!variable!device!#], will move the IP.</key>
+		<key name="message_0403"> - Resetting the device: [#!variable!device!#] (#!variable!device_uuid!#) to make sure the new config takes effect.</key>
+		<key name="message_0404">- Checking that the device: [#!variable!on_device!#] is connected to this bridge.</key>
+		<key name="message_0405">- The device is connected to the bridge already.</key>
+		<key name="message_0406">- The device is on the bridge: [#!variable!on_device_parent!#], moving it.</key>
+		<key name="message_0407">- The device is not on this bridge, connecting it.</key>
+		<key name="message_0408"> - Disabling DHCP on the device: [#!variable!device!#] (#!variable!device_uuid!#).</key>
+		<key name="message_0409"> - Connecting it now.</key>
+		<key name="message_0410">- The current subnet mask is: [#!variable!current_subnet_mask!#], will update.</key>
+		<key name="message_0411">- The current gateway is: [#!variable!current_gateway!#], will update.</key>
+		<key name="message_0412">- The current DNS is: [#!variable!current_dns!#], will update.</key>
+		<key name="message_0413">- No update is needed.</key>
+		<key name="message_0414">- The IP address needs to be assigned.</key>
+		<key name="message_0415">[ Note ] - Reconfiguring the network will break connections. Disconnecting from the database before starting. It might take a bit before this system reconnects and progress can be seen.</key>
+		<key name="message_0416">[ Note ] - The network has reconnected to the database, configuring will complete shortly.</key>
+		<key name="message_0417">[ Note ] - The old 'ifcfg' style config file: [#!variable!file!#] will be backed up and then removed!</key>
+		<key name="message_0418">[ Note ] - Updated the ssh daemon config file: [#!variable!file!#] to enable ssh access for the root user.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -4094,6 +4164,7 @@ We will try to proceed anyway.</key>
 ====
 </key>
 		<key name="warning_0168">Please specify a storage group to use to add the new drive to.</key>
+		<key name="warning_0169">[ Warning ] - After reconfiguring the network, we've failed to connect to any database for two minutes. Rebooting in case this fixes the connection.</key>
 		
 	</language>
 	<!-- 日本語 -->

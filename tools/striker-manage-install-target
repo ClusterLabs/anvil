@@ -709,7 +709,7 @@ sub setup_boot_environment
 		{
 			# Updated
 			$anvil->Storage->change_mode({path => $kickstart_file, mode => "0664"});
-			$anvil->Storage->change_owner({path => $kickstart_file, user => "apache", group => "apache" });
+			$anvil->Storage->change_owner({path => $kickstart_file, user => "striker-ui-api", group => "striker-ui-api" });
 
 			print $anvil->Words->string({key => "message_0097", variables => { file => $kickstart_file }})."\n";
 			update_progress($anvil, $progress, "message_0097,!!file!".$kickstart_file."!!");

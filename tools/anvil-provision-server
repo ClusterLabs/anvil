@@ -321,8 +321,11 @@ sub run_jobs
 	# Make sure the VNC port is open.
 	$anvil->Network->manage_firewall();
 	
-	# Add the server to the cluster.
-	add_server_to_cluster($anvil);
+	# If we're not the peer, add the server to the cluster.
+	if (not $anvil->data->{job}{peer_mode})
+	{
+		add_server_to_cluster($anvil);
+	}
 	
 	# Update the database by calling select scan agents
 	$anvil->Job->update_progress({
@@ -368,8 +371,9 @@ sub add_server_to_cluster
 	
 	# Is our peer in the cluster? For that matter, are we?
 	my $problem = $anvil->Cluster->add_server({
-		debug       => 2, 
-		server_name => $anvil->data->{job}{server_name},
+		debug        => 2, 
+		server_name  => $anvil->data->{job}{server_name},
+		ok_if_exists => 1,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)

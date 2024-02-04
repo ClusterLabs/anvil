@@ -5,7 +5,7 @@ type ListItemButtonChangeEventHandler = Exclude<
   undefined
 >;
 
-type ListOptionalProps<T extends unknown = unknown> = {
+type ListOptionalProps<T = unknown> = {
   allowAddItem?: boolean;
   allowCheckAll?: boolean;
   allowCheckItem?: boolean;
@@ -46,4 +46,4 @@ type ListOptionalProps<T extends unknown = unknown> = {
   scroll?: boolean;
 };
 
-type ListProps<T extends unknown = unknown> = ListOptionalProps<T>;
+type ListProps<T = unknown> = ListOptionalProps<T>;

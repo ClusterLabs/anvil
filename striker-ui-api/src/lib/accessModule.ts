@@ -411,7 +411,7 @@ const getNetworkData = async (hostUuid: string, hostName?: string) => {
     } = await getHostData());
   }
 
-  await subroutine('load_interfces', {
+  await subroutine('load_interfaces', {
     params: [{ host: replacementKey, host_uuid: hostUuid }],
     pre: ['Network'],
   });

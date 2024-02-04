@@ -45,7 +45,6 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
-import useProtectedState from '../../hooks/useProtectedState';
 
 const REQ_BODY_MAX_DEPTH = 6;
 
@@ -155,25 +154,25 @@ const ManageManifestPanel: FC = () => {
 
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
 
-  const [hostOverviews, setHostOverviews] = useProtectedState<
+  const [hostOverviews, setHostOverviews] = useState<
     APIHostOverviewList | undefined
-  >(undefined);
+  >();
   const [isEditManifests, setIsEditManifests] = useState<boolean>(false);
   const [isLoadingHostOverviews, setIsLoadingHostOverviews] =
-    useProtectedState<boolean>(true);
+    useState<boolean>(true);
   const [isLoadingManifestDetail, setIsLoadingManifestDetail] =
-    useProtectedState<boolean>(true);
+    useState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
-    useProtectedState<boolean>(true);
-  const [manifestOverviews, setManifestOverviews] = useProtectedState<
+    useState<boolean>(true);
+  const [manifestOverviews, setManifestOverviews] = useState<
     APIManifestOverviewList | undefined
-  >(undefined);
-  const [manifestDetail, setManifestDetail] = useProtectedState<
+  >();
+  const [manifestDetail, setManifestDetail] = useState<
     APIManifestDetail | undefined
-  >(undefined);
-  const [manifestTemplate, setManifestTemplate] = useProtectedState<
+  >();
+  const [manifestTemplate, setManifestTemplate] = useState<
     APIManifestTemplate | undefined
-  >(undefined);
+  >();
 
   const { isLoading: isLoadingManifestOverviews } =
     periodicFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {

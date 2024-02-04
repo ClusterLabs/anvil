@@ -12,6 +12,7 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Job.pm";
 
 ### Methods;
+# bump_progress
 # clear
 # get_job_details
 # get_job_uuid
@@ -79,6 +80,84 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 bump_progress
+
+This method is meant to make it easier to bump the progress of a jump by some number of steps when a job doesn't run in a linear fashion. 
+
+It does this by storing the progress in the C<< sys::job_progress >> hash and incrementing it by the C<< steps >> parameter value (setting it to C<< 0 >> if it doesn't exist or exists with a non-digit value). If the progress goes over C<< 99 >>, it will return C<< 99 >>. 
+
+If you want to set the progress to C<< 0 >> or C<< 100 >>, use the C<< set >> parameter.
+
+Parameters;
+
+=head3 set (optional)
+
+If you want to set the progress to a specific value, use this parameter. 
+
+B<< NOTE >>: If the set value is less than the current value, the current progress + 1 will be returns. This is meant to prevent progress bars from backing up.
+
+=head3 steps (default '1')
+
+This takes an integer and it will increase the job progress by that value. If this is not specified, or if it is set to a non-integer value, C<< 1 >> will be used.
+
+=cut
+sub bump_progress
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->bump_progress()" }});
+	
+	my $set   = defined $parameter->{set}   ? $parameter->{set}   : "";
+	my $steps = defined $parameter->{steps} ? $parameter->{steps} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		set   => $set,
+		steps => $steps, 
+	}});
+	
+	if ((not exists $anvil->data->{sys}{job_progress}) or ($anvil->data->{sys}{job_progress} !~ /^\d+$/))
+	{
+		$anvil->data->{sys}{job_progress} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::job_progress" => $anvil->data->{sys}{job_progress},
+		}});
+	}
+	
+	if ($set =~ /^\d+$/)
+	{
+		if ($set > 100)
+		{
+			$anvil->data->{sys}{job_progress} = 100;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::job_progress" => $anvil->data->{sys}{job_progress},
+			}});
+		}
+		elsif ($set > $anvil->data->{sys}{job_progress})
+		{
+			$anvil->data->{sys}{job_progress}++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::job_progress" => $anvil->data->{sys}{job_progress},
+			}});
+		}
+	}
+	
+	$anvil->data->{sys}{job_progress} += $steps;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::job_progress" => $anvil->data->{sys}{job_progress},
+	}});
+	if ($anvil->data->{sys}{job_progress} > 99)
+	{
+		$anvil->data->{sys}{job_progress} = 99;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::job_progress" => $anvil->data->{sys}{job_progress},
+		}});
+	}
+	
+	return($anvil->data->{sys}{job_progress});
+}
+
 
 =head2 clear
 
@@ -501,8 +580,8 @@ sub html_list
 			}
 			
 			# Convert the double-banged strings into a proper message.
-			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
-			my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({debug => $debug, key_string => $job_title})       : "";
+			my $say_description = $job_description ? $anvil->Words->parse_banged_string({debug => $debug, key_string => $job_description}) : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				job_title       => $job_title, 
 				say_description => $say_description, 
@@ -537,9 +616,17 @@ B<< Note >>: Some special C<< job_status >> processing is done to support some s
 
 Parameters;
 
+=head3 file (optional)
+
+When logging as well, this is the file causing the update. Use with C<< line >>. Ignored if C<< log_level >> is not set, or such that it wouldn't be logged anyway.
+
 =head3 job_uuid (optional, default 'jobs::job_uuid')
 
 This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >> is set, it will be used. If that is also not set, 
+
+=head3 line (optional_
+
+When logging as well, this is the line the update came from. Use with C<< file >>. Ignored if C<< log_level >> is not set, or such that it wouldn't be logged anyway.
 
 =head3 log_level (optional)
 
@@ -584,7 +671,9 @@ sub update_progress
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Job->update_progress()" }});
 
+	my $file         = defined $parameter->{file}         ? $parameter->{file}         : $THIS_FILE;
 	my $job_uuid     = defined $parameter->{job_uuid}     ? $parameter->{job_uuid}     : "";
+	my $line         = defined $parameter->{line}         ? $parameter->{line}         : __LINE__;
 	my $log_level    = defined $parameter->{log_level}    ? $parameter->{log_level}    : "";
 	my $message      = defined $parameter->{message}      ? $parameter->{message}      : "";
 	my $picked_up_by = defined $parameter->{picked_up_by} ? $parameter->{picked_up_by} : "";
@@ -594,11 +683,13 @@ sub update_progress
 	my $secure       = defined $parameter->{secure}       ? $parameter->{secure}       : "";
 	my $variables    = defined $parameter->{variables}    ? $parameter->{variables}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		file         => $file, 
 		job_uuid     => $job_uuid, 
+		line         => $line, 
+		log_level    => $log_level, 
 		picked_up_by => $picked_up_by, 
 		'print'      => $print, 
 		progress     => $progress,
-		log_level    => $log_level, 
 		message      => $message, 
 		variables    => $variables, 
 		secure       => $secure, 
@@ -608,7 +699,7 @@ sub update_progress
 	if (($message ne "clear") && ($log_level =~ /^\d+$/))
 	{
 		# Log this message.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, 'print' => $print, secure => $secure, priority => $priority, key => $message, variables => $variables});
+		$anvil->Log->entry({source => $file, line => $line, level => $log_level, 'print' => $print, secure => $secure, priority => $priority, key => $message, variables => $variables});
 	}
 	
 	if ($picked_up_by eq "")
@@ -652,6 +743,12 @@ sub update_progress
 	{
 		$anvil->data->{sys}{last_update} = time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::last_update" => $anvil->data->{sys}{last_update} }});
+	}
+	
+	# If we don't have a database connection, we're done.
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		return(0);
 	}
 	
 	# Add variables to the message, if required

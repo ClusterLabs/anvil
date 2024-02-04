@@ -487,9 +487,9 @@ sub send_alerts
 				if ($alert_title)
 				{
 					my $title = "[ ".$alert_set_by." ] ".$anvil->Words->parse_banged_string({
+						debug      => $debug,
 						language   => $recipient_language, 
 						key_string => $alert_title, 
-						
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { title => $title }});
 					

@@ -20,12 +20,18 @@ const useConfirmDialog = (
 ): {
   confirmDialog: ReactElement;
   confirmDialogRef: MutableRefObject<ConfirmDialogForwardedRefContent | null>;
+  setConfirmDialogLoading: (value: boolean) => void;
   setConfirmDialogOpen: (value: boolean) => void;
   setConfirmDialogProps: Dispatch<SetStateAction<ConfirmDialogProps>>;
   finishConfirm: (title: ReactNode, message: Message) => void;
 } => {
   const {
-    initial: { actionProceedText = '', content = '', titleText = '' } = {},
+    initial: {
+      actionProceedText = '',
+      content = '',
+      titleText = '',
+      ...restInitialProps
+    } = {},
   } = args;
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent | null>(
@@ -38,6 +44,15 @@ const useConfirmDialog = (
       content,
       titleText,
     });
+
+  const setConfirmDialogLoading = useCallback(
+    (value: boolean) =>
+      setConfirmDialogProps(({ loading, ...rest }) => ({
+        ...rest,
+        loading: value,
+      })),
+    [],
+  );
 
   const setConfirmDialogOpen = useCallback(
     (value: boolean) => confirmDialogRef?.current?.setOpen?.call(null, value),
@@ -57,13 +72,20 @@ const useConfirmDialog = (
   );
 
   const confirmDialog = useMemo<ReactElement>(
-    () => <ConfirmDialog {...confirmDialogProps} ref={confirmDialogRef} />,
-    [confirmDialogProps],
+    () => (
+      <ConfirmDialog
+        {...restInitialProps}
+        {...confirmDialogProps}
+        ref={confirmDialogRef}
+      />
+    ),
+    [confirmDialogProps, restInitialProps],
   );
 
   return {
     confirmDialog,
     confirmDialogRef,
+    setConfirmDialogLoading,
     setConfirmDialogOpen,
     setConfirmDialogProps,
     finishConfirm,

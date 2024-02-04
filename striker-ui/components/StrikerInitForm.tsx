@@ -30,7 +30,6 @@ import { Panel, PanelHeader } from './Panels';
 import setMapNetwork from '../lib/setMapNetwork';
 import Spinner from './Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from './Text';
-import useProtectedState from '../hooks/useProtectedState';
 
 const StrikerInitForm: FC = () => {
   const {
@@ -51,9 +50,7 @@ const StrikerInitForm: FC = () => {
   const [isSubmittingForm, setIsSubmittingForm] = useState<boolean>(false);
   const [hostNumber, setHostNumber] = useState<string | undefined>();
 
-  const [hostDetail, setHostDetail] = useProtectedState<
-    APIHostDetail | undefined
-  >(undefined);
+  const [hostDetail, setHostDetail] = useState<APIHostDetail | undefined>();
 
   const allowGetHostDetail = useRef<boolean>(true);
 

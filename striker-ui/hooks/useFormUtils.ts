@@ -7,7 +7,6 @@ import buildObjectStateSetterCallback, {
 import handleAPIError from '../lib/handleAPIError';
 import { Message } from '../components/MessageBox';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
-import useProtectedState from './useProtectedState';
 
 const useFormUtils = <
   U extends string,
@@ -17,7 +16,7 @@ const useFormUtils = <
   ids: I,
   messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
 ): FormUtils<M> => {
-  const [formSubmitting, setFormSubmitting] = useProtectedState<boolean>(false);
+  const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
   const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
 
   const setApiMessage = useCallback(

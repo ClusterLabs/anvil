@@ -14,7 +14,6 @@ import {
   Theme,
 } from '@mui/material';
 import { FC, forwardRef, useCallback, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';
 
@@ -40,7 +39,7 @@ const List = forwardRef(
     insertHeader: isInsertHeader = true,
     listEmpty,
     listItemIconMinWidth = '56px',
-    listItemKeyPrefix = uuidv4(),
+    listItemKeyPrefix = 'list',
     listItemProps: { sx: listItemSx, ...restListItemProps } = {},
     listItems,
     listProps: { sx: listSx, ...restListProps } = {},
@@ -226,18 +225,18 @@ const List = forwardRef(
         );
       });
     }, [
-      loading,
-      listItems,
-      listEmptyElement,
-      renderListItem,
-      restListItemProps,
-      listItemKeyPrefix,
-      listItemSx,
-      listItemCheckbox,
-      renderListItemCheckboxState,
       getListItemCheckboxProps,
       isAllowItemButton,
+      listEmptyElement,
+      listItemCheckbox,
+      listItemKeyPrefix,
+      listItemSx,
+      listItems,
+      loading,
       onItemClick,
+      renderListItem,
+      renderListItemCheckboxState,
+      restListItemProps,
     ]);
     const listScrollSx: SxProps<Theme> | undefined = useMemo(
       () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
