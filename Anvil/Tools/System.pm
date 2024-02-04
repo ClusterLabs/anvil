@@ -2895,7 +2895,7 @@ sub generate_state_json
 			"s6:host_key"        => $host_key, 
 		}});
 		
-		$anvil->Network->load_interfces({
+		$anvil->Network->load_interfaces({
 			debug     => $debug,
 			host_uuid => $host_uuid, 
 			host      => $short_host_name,

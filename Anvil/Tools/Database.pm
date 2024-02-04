@@ -4365,7 +4365,7 @@ AND
 		
 		# Read in the IP addresses and network information. Data is loaded under 
 		# 'network::host_uuid::x'.
-		$anvil->Network->load_interfces({debug => $debug, host_uuid => $host_uuid});
+		$anvil->Network->load_interfaces({debug => $debug, host_uuid => $host_uuid});
 	}
 	
 	return(0);
