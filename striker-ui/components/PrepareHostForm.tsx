@@ -88,7 +88,6 @@ const PrepareHostForm: FC = () => {
     useState<boolean>(true);
   const [isShowAccessSection, setIsShowAccessSection] =
     useState<boolean>(false);
-  const [isShowAccessSubmit, setIsShowAccessSubmit] = useState<boolean>(true);
   const [isShowOptionalSection, setIsShowOptionalSection] =
     useState<boolean>(false);
   const [isShowRedhatPassword, setIsShowRedhatPassword] =
@@ -191,7 +190,6 @@ const PrepareHostForm: FC = () => {
   const accessSection = useMemo(
     () => (
       <GateForm
-        allowSubmit={isShowAccessSubmit}
         gridProps={{
           wrapperBoxProps: {
             sx: {
@@ -205,7 +203,6 @@ const PrepareHostForm: FC = () => {
           if (connectedHostIPAddress) {
             const isIdentifierChanged = value !== connectedHostIPAddress;
 
-            setIsShowAccessSubmit(isIdentifierChanged);
             setIsShowOptionalSection(!isIdentifierChanged);
             setIsShowRedhatSection(!isIdentifierChanged);
           }
@@ -254,7 +251,6 @@ const PrepareHostForm: FC = () => {
                   setConnectedHostPassword(password);
                   setConnectedHostUUID(hostUUID);
 
-                  setIsShowAccessSubmit(false);
                   setIsShowOptionalSection(true);
                 } else {
                   setGateMessage({
@@ -274,17 +270,10 @@ const PrepareHostForm: FC = () => {
             });
         }}
         passphraseLabel="Host root password"
-        submitLabel="Test access"
+        submitLabel={`${connectedHostUUID ? 'Retest' : 'Test'} access`}
       />
     ),
-    [
-      isShowAccessSection,
-      isShowAccessSubmit,
-      connectedHostIPAddress,
-      setConnectedHostPassword,
-      setConnectedHostUUID,
-      testInput,
-    ],
+    [connectedHostIPAddress, connectedHostUUID, isShowAccessSection, testInput],
   );
 
   const optionalSection = useMemo(
