@@ -1,3 +1,4 @@
+import { AxiosRequestConfig } from 'axios';
 import { useFormik } from 'formik';
 import {
   ChangeEventHandler,
@@ -17,8 +18,7 @@ import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
 import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
-import MessageBox from '../MessageBox';
-import MessageGroup from '../MessageGroup';
+import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import fileListSchema from './schema';
 import UploadFileProgress from './UploadFileProgress';
 
@@ -39,9 +39,17 @@ const setUploadProgress: (
 const AddFileForm: FC<AddFileFormProps> = (props) => {
   const { anvils, drHosts } = props;
 
+  const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
+
   const filePickerRef = useRef<HTMLInputElement>(null);
 
   const [uploads, setUploads] = useState<UploadFiles | undefined>();
+
+  const setApiMessage = useCallback(
+    (msg?: Message) =>
+      messageGroupRef?.current?.setMessage?.call(null, 'api', msg),
+    [],
+  );
 
   const formik = useFormik<FileFormikValues>({
     initialValues: {},
@@ -58,6 +66,15 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
         }, {}),
       );
 
+      setApiMessage({
+        children: (
+          <>
+            Closing this dialog before the upload(s) complete will cancel the
+            upload(s).
+          </>
+        ),
+      });
+
       const promises = files.reduce<Promise<void>[]>(
         (chain, { file, name, uuid }) => {
           if (!file) return chain;
@@ -72,7 +89,9 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
                 'Content-Type': 'multipart/form-data',
               },
               onUploadProgress: (
-                (fileUuid: string) =>
+                (
+                  fileUuid: string,
+                ): AxiosRequestConfig<FormData>['onUploadProgress'] =>
                 ({ loaded, total }) => {
                   setUploads((previous) =>
                     setUploadProgress(
@@ -101,11 +120,27 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
         [],
       );
 
-      Promise.all(promises).catch((error) => {
-        const emsg = handleAPIError(error);
+      Promise.all(promises)
+        .then(() => {
+          setApiMessage({
+            children: (
+              <FlexBox spacing={0}>
+                <span>
+                  Upload(s) completed; file(s) will be listed after the job(s)
+                  to sync them to other host(s) finish.
+                </span>
+                <span>You can close this dialog.</span>
+              </FlexBox>
+            ),
+          });
+        })
+        .catch((error) => {
+          const emsg = handleAPIError(error);
 
-        emsg.children = <>Failed to add file. {emsg.children}</>;
-      });
+          emsg.children = <>Failed to add file. {emsg.children}</>;
+
+          setApiMessage(emsg);
+        });
     },
     validationSchema: fileListSchema,
   });
@@ -173,18 +208,9 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
 
   return (
     <FlexBox>
-      <MessageBox>
-        Uploaded files will be listed automatically, but it may take a while for
-        larger files to finish uploading and appear on the list.
-      </MessageBox>
+      <MessageGroup ref={messageGroupRef} />
       {uploads ? (
-        <>
-          <MessageBox>
-            This dialog can be closed after all uploads complete. Closing before
-            completion will stop the upload.
-          </MessageBox>
-          <UploadFileProgress uploads={uploads} />
-        </>
+        <UploadFileProgress uploads={uploads} />
       ) : (
         <FlexBox
           component="form"
