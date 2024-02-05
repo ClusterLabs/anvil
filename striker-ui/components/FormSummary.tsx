@@ -42,6 +42,7 @@ const buildEntryList = ({
   maxDepth,
   renderEntry,
   renderEntryValue,
+  skip,
 }: {
   depth?: number;
   entries: FormEntries;
@@ -52,6 +53,7 @@ const buildEntryList = ({
   maxDepth: number;
   renderEntry: RenderFormEntryFunction;
   renderEntryValue: RenderFormValueFunction;
+  skip: Exclude<FormSummaryOptionalProps['skip'], undefined>;
 }): ReactElement => {
   const result: ReactElement[] = [];
 
@@ -59,24 +61,33 @@ const buildEntryList = ({
     const itemId = `form-summary-entry-${itemKey}`;
 
     const nest = entry !== null && typeof entry === 'object';
+
     const value = nest ? null : entry;
 
-    result.push(
-      <MUIListItem
-        key={itemId}
-        sx={{ paddingLeft: `${depth}em` }}
-        {...getListItemProps?.call(null, { depth, entry: value, key: itemKey })}
-      >
-        {renderEntry({
-          depth,
-          entry: value,
-          getLabel: getEntryLabel,
-          key: itemKey,
-          nest,
-          renderValue: renderEntryValue,
-        })}
-      </MUIListItem>,
-    );
+    const fnArgs: CommonFormEntryHandlerArgs = {
+      depth,
+      entry: value,
+      key: itemKey,
+    };
+
+    if (skip(({ key }) => !/confirm/i.test(key), fnArgs)) {
+      result.push(
+        <MUIListItem
+          key={itemId}
+          sx={{ paddingLeft: `${depth}em` }}
+          {...getListItemProps?.call(null, fnArgs)}
+        >
+          {renderEntry({
+            depth,
+            entry: value,
+            getLabel: getEntryLabel,
+            key: itemKey,
+            nest,
+            renderValue: renderEntryValue,
+          })}
+        </MUIListItem>,
+      );
+    }
 
     if (nest && depth < maxDepth) {
       result.push(
@@ -88,6 +99,7 @@ const buildEntryList = ({
           maxDepth,
           renderEntry,
           renderEntryValue,
+          skip,
         }),
       );
     }
@@ -134,6 +146,7 @@ const FormSummary = <T extends FormEntries>({
       ? renderEntryValueWithPassword(args)
       : renderEntryValueWithMono(args);
   },
+  skip = (base, ...args) => base(...args),
 }: FormSummaryProps<T>): ReturnType<FC<FormSummaryProps<T>>> =>
   buildEntryList({
     entries,
@@ -143,6 +156,7 @@ const FormSummary = <T extends FormEntries>({
     maxDepth,
     renderEntry,
     renderEntryValue,
+    skip,
   });
 
 export default FormSummary;

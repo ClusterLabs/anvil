@@ -40,6 +40,8 @@ type RenderFormEntryFunction = (
   },
 ) => import('react').ReactElement;
 
+type SkipFormEntryFunction = (args: CommonFormEntryHandlerArgs) => boolean;
+
 type FormSummaryOptionalProps = {
   getEntryLabel?: GetFormEntryLabelFunction;
   getListProps?: GetFormEntriesPropsFunction;
@@ -48,6 +50,10 @@ type FormSummaryOptionalProps = {
   maxDepth?: number;
   renderEntry?: RenderFormEntryFunction;
   renderEntryValue?: RenderFormValueFunction;
+  skip?: (
+    base: SkipFormEntryFunction,
+    ...args: Parameters<SkipFormEntryFunction>
+  ) => ReturnType<SkipFormEntryFunction>;
 };
 
 type FormSummaryProps<T extends FormEntries> = FormSummaryOptionalProps & {
