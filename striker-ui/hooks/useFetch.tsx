@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import useSWR, { BareFetcher, SWRConfiguration } from 'swr';
+import useSWR, { BareFetcher, KeyedMutator, SWRConfiguration } from 'swr';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
@@ -8,6 +8,7 @@ import fetchJSON from '../lib/fetchers/fetchJSON';
 type FetchHookResponse<D, E extends Error = Error> = {
   data?: D;
   error?: E;
+  mutate: KeyedMutator<D>;
   loading: boolean;
 };
 
@@ -26,7 +27,11 @@ const useFetch = <Data, Alt = Data>(
     ...config
   } = options;
 
-  const { data, error } = useSWR<Data>(`${baseUrl}${url}`, fetcher, config);
+  const { data, error, mutate } = useSWR<Data>(
+    `${baseUrl}${url}`,
+    fetcher,
+    config,
+  );
 
   const altData = useMemo<Alt | undefined>(
     () => mod && data && mod(data),
@@ -35,7 +40,7 @@ const useFetch = <Data, Alt = Data>(
 
   const loading = !error && !data;
 
-  return { altData, data, error, loading };
+  return { altData, data, error, mutate, loading };
 };
 
 export default useFetch;
