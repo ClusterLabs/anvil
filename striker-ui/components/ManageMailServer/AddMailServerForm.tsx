@@ -136,7 +136,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={addressChain}
               label="Server address"
               name={addressChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               value={formik.values[msUuid].address}
@@ -151,7 +150,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={portChain}
               label="Server port"
               name={portChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               type="number"
@@ -167,7 +165,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={securityChain}
               label="Server security type"
               name={securityChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               selectItems={['none', 'starttls', 'tls-ssl']}
@@ -183,7 +180,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={authenticationChain}
               label="Server authentication method"
               name={authenticationChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               selectItems={['none', 'plain-text', 'encrypted']}
@@ -199,7 +195,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={heloDomainChain}
               label="HELO domain"
               name={heloDomainChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               value={formik.values[msUuid].heloDomain}
@@ -215,7 +210,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               inputProps={disableAutocomplete()}
               label="Server username"
               name={usernameChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               value={formik.values[msUuid].username}
             />
@@ -230,7 +224,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               inputProps={disableAutocomplete()}
               label="Server password"
               name={passwordChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               type="password"
               value={formik.values[msUuid].password}
@@ -247,7 +240,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               inputProps={disableAutocomplete()}
               label="Confirm password"
               name={confirmPasswordChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               type="password"
               value={formik.values[msUuid].confirmPassword}
