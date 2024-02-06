@@ -14,7 +14,8 @@ const ManageHost: FC = () => {
     <CrudList<APIHostOverview, APIHostDetail>
       addHeader="Initialize host"
       editHeader=""
-      entriesUrl="/host"
+      entriesUrl="/host?types=dr,node"
+      entryUrlPrefix="/host"
       getDeleteErrorMessage={(children, ...rest) => ({
         ...rest,
         children: <>Failed to delete host(s). {children}</>,
