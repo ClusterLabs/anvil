@@ -160,7 +160,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <SelectWithLabel
@@ -176,7 +176,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <SelectWithLabel
@@ -192,7 +192,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
@@ -238,7 +238,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item xs={1} />
+      <Grid display={{ xs: 'none', sm: 'initial' }} item sm={1} />
       <Grid item xs={1}>
         <UncontrolledInput
           input={
