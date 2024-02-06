@@ -44,7 +44,7 @@ type OutlinedInputWithLabelOptionalProps =
 
 type OutlinedInputWithLabelProps = Pick<
   OutlinedInputProps,
-  'name' | 'onBlur' | 'onChange' | 'onFocus'
+  'disableAutofill' | 'name' | 'onBlur' | 'onChange' | 'onFocus'
 > &
   OutlinedInputWithLabelOptionalProps & {
     label: string;
@@ -69,6 +69,7 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOp
 
 const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   baseInputProps,
+  disableAutofill,
   fillRow: isFillRow = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.fillRow,
   formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
   helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
@@ -148,6 +149,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         {label}
       </OutlinedInputLabel>
       <OutlinedInput
+        disableAutofill={disableAutofill}
         endAdornment={
           <MUIInputAdornment
             position="end"

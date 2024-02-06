@@ -15,6 +15,7 @@ import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 type OutlinedInputOptionalProps = {
+  disableAutofill?: boolean;
   onPasswordVisibilityAppend?: (
     inputType: string,
     ...restArgs: Parameters<Exclude<MUIIconButtonProps['onClick'], undefined>>
@@ -25,13 +26,15 @@ type OutlinedInputProps = MUIOutlinedInputProps & OutlinedInputOptionalProps;
 
 const OUTLINED_INPUT_DEFAULT_PROPS: Pick<
   OutlinedInputOptionalProps,
-  'onPasswordVisibilityAppend'
+  'disableAutofill' | 'onPasswordVisibilityAppend'
 > = {
+  disableAutofill: false,
   onPasswordVisibilityAppend: undefined,
 };
 
 const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
   const {
+    disableAutofill = false,
     endAdornment,
     label,
     onPasswordVisibilityAppend,
@@ -68,6 +71,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
       </>
     );
   }, [initialType, onPasswordVisibilityAppend, type]);
+
   const combinedSx = useMemo(
     () => ({
       color: GREY,
@@ -102,6 +106,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     }),
     [label, sx],
   );
+
   const combinedEndAdornment = useMemo(() => {
     let result;
 
@@ -125,18 +130,33 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     return result;
   }, [passwordVisibilityButton, endAdornment]);
 
+  const autofillLock = useMemo<
+    Pick<MUIOutlinedInputProps, 'onFocus' | 'readOnly'> | undefined
+  >(
+    () =>
+      disableAutofill
+        ? {
+            onFocus: (...args) => {
+              const [event] = args;
+
+              event.target.readOnly = false;
+
+              outlinedInputRestProps?.onFocus?.call(null, ...args);
+            },
+            readOnly: true,
+          }
+        : undefined,
+    [disableAutofill, outlinedInputRestProps?.onFocus],
+  );
+
   return (
     <MUIOutlinedInput
-      {...{
-        endAdornment: combinedEndAdornment,
-        label,
-        inputProps: {
-          type,
-          ...inputRestProps,
-        },
-        ...outlinedInputRestProps,
-        sx: combinedSx,
-      }}
+      endAdornment={combinedEndAdornment}
+      label={label}
+      inputProps={{ type, ...inputRestProps }}
+      {...outlinedInputRestProps}
+      {...autofillLock}
+      sx={combinedSx}
     />
   );
 };
