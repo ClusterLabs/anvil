@@ -1,4 +1,3 @@
-import { OutlinedInputProps } from '@mui/material';
 import { FormikConfig, FormikValues, useFormik } from 'formik';
 import { isEqual, isObject } from 'lodash';
 import { useCallback, useMemo } from 'react';
@@ -41,17 +40,6 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     [formik.initialValues, formik.values],
   );
 
-  const disableAutocomplete = useCallback(
-    (overwrite?: Partial<OutlinedInputProps>): OutlinedInputProps => ({
-      readOnly: true,
-      onFocus: (event) => {
-        event.target.readOnly = false;
-      },
-      ...overwrite,
-    }),
-    [],
-  );
-
   const debounceHandleChange = useMemo(
     () => debounce(formik.handleChange),
     [formik.handleChange],
@@ -75,7 +63,6 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   );
 
   return {
-    disableAutocomplete,
     disabledSubmit,
     formik,
     formikErrors,

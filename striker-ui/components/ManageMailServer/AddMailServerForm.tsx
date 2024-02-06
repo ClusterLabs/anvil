@@ -26,78 +26,73 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
     [mailServerUuid],
   );
 
-  const {
-    disableAutocomplete,
-    disabledSubmit,
-    formik,
-    formikErrors,
-    handleChange,
-  } = useFormikUtils<MailServerFormikValues>({
-    initialValues: previousFormikValues ?? {
-      [msUuid]: {
-        address: '',
-        authentication: 'none',
-        heloDomain: localhostDomain,
-        port: 587,
-        security: 'none',
-        uuid: msUuid,
-      },
-    },
-    onSubmit: (values, { setSubmitting }) => {
-      const { [msUuid]: mailServer } = values;
-
-      let actionProceedText: string = 'Add';
-      let errorMessage: ReactNode = <>Failed to add mail server.</>;
-      let method: 'post' | 'put' = 'post';
-      let successMessage = <>Mail server added.</>;
-      let titleText: string = 'Add mail server with the following?';
-      let url = '/mail-server';
-
-      if (previousFormikValues) {
-        actionProceedText = 'Update';
-        errorMessage = <>Failed to update mail server.</>;
-        method = 'put';
-        successMessage = <>Mail server updated.</>;
-        titleText = `Update ${mailServer.address}:${mailServer.port} with the following?`;
-        url += `/${msUuid}`;
-      }
-
-      const { confirmPassword, uuid, ...rest } = mailServer;
-
-      tools.confirm.prepare({
-        actionProceedText,
-        content: <FormSummary entries={rest} />,
-        onCancelAppend: () => setSubmitting(false),
-        onProceedAppend: () => {
-          tools.confirm.loading(true);
-
-          api[method](url, mailServer)
-            .then(() => {
-              tools.confirm.finish('Success', { children: successMessage });
-
-              tools[method === 'post' ? 'add' : 'edit'].open(false);
-            })
-            .catch((error) => {
-              const emsg = handleAPIError(error);
-
-              emsg.children = (
-                <>
-                  {errorMessage} {emsg.children}
-                </>
-              );
-
-              tools.confirm.finish('Error', emsg);
-
-              setSubmitting(false);
-            });
+  const { disabledSubmit, formik, formikErrors, handleChange } =
+    useFormikUtils<MailServerFormikValues>({
+      initialValues: previousFormikValues ?? {
+        [msUuid]: {
+          address: '',
+          authentication: 'none',
+          heloDomain: localhostDomain,
+          port: 587,
+          security: 'none',
+          uuid: msUuid,
         },
-        titleText,
-      });
+      },
+      onSubmit: (values, { setSubmitting }) => {
+        const { [msUuid]: mailServer } = values;
 
-      tools.confirm.open(true);
-    },
-    validationSchema: mailServerListSchema,
-  });
+        let actionProceedText: string = 'Add';
+        let errorMessage: ReactNode = <>Failed to add mail server.</>;
+        let method: 'post' | 'put' = 'post';
+        let successMessage = <>Mail server added.</>;
+        let titleText: string = 'Add mail server with the following?';
+        let url = '/mail-server';
+
+        if (previousFormikValues) {
+          actionProceedText = 'Update';
+          errorMessage = <>Failed to update mail server.</>;
+          method = 'put';
+          successMessage = <>Mail server updated.</>;
+          titleText = `Update ${mailServer.address}:${mailServer.port} with the following?`;
+          url += `/${msUuid}`;
+        }
+
+        const { confirmPassword, uuid, ...rest } = mailServer;
+
+        tools.confirm.prepare({
+          actionProceedText,
+          content: <FormSummary entries={rest} />,
+          onCancelAppend: () => setSubmitting(false),
+          onProceedAppend: () => {
+            tools.confirm.loading(true);
+
+            api[method](url, mailServer)
+              .then(() => {
+                tools.confirm.finish('Success', { children: successMessage });
+
+                tools[method === 'post' ? 'add' : 'edit'].open(false);
+              })
+              .catch((error) => {
+                const emsg = handleAPIError(error);
+
+                emsg.children = (
+                  <>
+                    {errorMessage} {emsg.children}
+                  </>
+                );
+
+                tools.confirm.finish('Error', emsg);
+
+                setSubmitting(false);
+              });
+          },
+          titleText,
+        });
+
+        tools.confirm.open(true);
+      },
+      validationSchema: mailServerListSchema,
+    });
 
   const addressChain = useMemo<string>(() => `${msUuid}.address`, [msUuid]);
   const authenticationChain = useMemo<string>(
@@ -206,8 +201,8 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={usernameChain}
-              inputProps={disableAutocomplete()}
               label="Server username"
               name={usernameChain}
               onChange={handleChange}
@@ -220,8 +215,8 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={passwordChain}
-              inputProps={disableAutocomplete()}
               label="Server password"
               name={passwordChain}
               onChange={handleChange}
@@ -236,8 +231,8 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={confirmPasswordChain}
-              inputProps={disableAutocomplete()}
               label="Confirm password"
               name={confirmPasswordChain}
               onChange={handleChange}
