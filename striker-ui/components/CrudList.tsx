@@ -39,6 +39,8 @@ const CrudList = <
     renderDeleteItem,
     renderEditForm,
     renderListItem,
+    // Dependents
+    entryUrlPrefix = entriesUrl,
   } = props;
 
   const addDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -72,7 +74,7 @@ const CrudList = <
 
   const { fetch: getEntry, loading: loadingEntry } = useActiveFetch<Detail>({
     onData: (data) => setEntry(data),
-    url: entriesUrl,
+    url: entryUrlPrefix,
   });
 
   const addHeader = useMemo<React.ReactNode>(
