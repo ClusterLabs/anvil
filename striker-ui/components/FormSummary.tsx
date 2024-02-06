@@ -1,16 +1,9 @@
 import { Box, List as MUIList, ListItem as MUIListItem } from '@mui/material';
-import { capitalize } from 'lodash';
 import { FC, ReactElement } from 'react';
 
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
-
-const capEntryLabel: CapFormEntryLabel = (value) => {
-  const spaced = value.replace(/([a-z\d])([A-Z])/g, '$1 $2');
-  const lcased = spaced.toLowerCase();
-
-  return capitalize(lcased);
-};
+import disassembleCamel from '../lib/disassembleCamel';
 
 const renderEntryValueWithMono: RenderFormValueFunction = ({ entry }) => (
   <MonoText whiteSpace="nowrap">{String(entry)}</MonoText>
@@ -128,7 +121,9 @@ const FormSummary = <T extends FormEntries>({
   maxDepth = 3,
   renderEntry = ({ depth, entry, getLabel, key, nest, renderValue }) => (
     <FlexBox fullWidth growFirst row maxWidth="100%">
-      <BodyText>{getLabel({ cap: capEntryLabel, depth, entry, key })}</BodyText>
+      <BodyText>
+        {getLabel({ cap: disassembleCamel, depth, entry, key })}
+      </BodyText>
       <Box sx={{ maxWidth: '100%', overflowX: 'scroll' }}>
         {!nest && renderValue({ depth, entry, key })}
       </Box>
