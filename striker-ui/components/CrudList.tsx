@@ -56,21 +56,12 @@ const CrudList = <
 
   const [edit, setEdit] = useState<boolean>(false);
   const [entry, setEntry] = useState<Detail | undefined>();
-  const [entries, setEntries] = useState<OverviewList | undefined>();
 
-  const { loading: loadingEntriesPeriodic } = useFetch<OverviewList>(
-    entriesUrl,
-    {
-      onSuccess: (data) => setEntries(data),
-      refreshInterval,
-    },
-  );
-
-  const { fetch: getEntries, loading: loadingEntriesActive } =
-    useActiveFetch<OverviewList>({
-      onData: (data) => setEntries(data),
-      url: entriesUrl,
-    });
+  const {
+    data: entries,
+    mutate: refreshEntries,
+    loading: loadingEntries,
+  } = useFetch<OverviewList>(entriesUrl, { refreshInterval });
 
   const { fetch: getEntry, loading: loadingEntry } = useActiveFetch<Detail>({
     onData: (data) => setEntry(data),
@@ -108,11 +99,6 @@ const CrudList = <
       setConfirmDialogOpen,
       setConfirmDialogProps,
     ],
-  );
-
-  const loadingEntries = useMemo<boolean>(
-    () => loadingEntriesPeriodic || loadingEntriesActive,
-    [loadingEntriesActive, loadingEntriesPeriodic],
   );
 
   const {
@@ -164,15 +150,16 @@ const CrudList = <
                   .then(() => {
                     finishConfirm('Success', getDeleteSuccessMessage());
 
-                    getEntries();
+                    refreshEntries();
                   })
                   .catch((error) => {
                     const emsg = handleAPIError(error);
 
                     finishConfirm('Error', getDeleteErrorMessage(emsg));
+                  })
+                  .finally(() => {
+                    resetChecks();
                   });
-
-                resetChecks();
               },
               getConfirmDialogTitle: getDeleteHeader,
               renderEntry: (...args) => renderDeleteItem(entries, ...args),
