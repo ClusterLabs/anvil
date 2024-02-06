@@ -54,14 +54,14 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
                 hostIPAddress: ip,
                 hostName: name,
                 hostPassword: password,
-                hostType: type,
+                hostType: type === 'subnode' ? 'node' : type,
                 hostUUID: uuid,
                 redhatPassword,
                 redhatUser: redhatUsername,
               })
               .then(() => {
                 tools.confirm.finish('Success', {
-                  children: <>Host at {ip} prepared.</>,
+                  children: <>Started job to prepare host at {ip}.</>,
                 });
 
                 tools.add.open(false);
