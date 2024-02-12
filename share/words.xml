@@ -2714,7 +2714,12 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0832">The host: [#!variable!host_name!#] was found not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
 		<key name="log_0833">All host names were found in '/etc/hosts', ready to proceed!</key>
 		<key name="log_0834">One or more hosts are not yet in the '/etc/hosts' file with expected IPs. We'll wait a short bit and check again.</key>
-		<key name="log_0835">There are entries we need to add to the '/etc/hosts' file before we can form the cluster, updating it now.</key>
+		<key name="log_0835">The CPU load average is; one minute: [#!variable!one_minute!#], five minutes: [#!variable!five_minutes!#], ten minutes: [#!variable!ten_minutes!#].</key>
+		<key name="log_0836">Processes; total: [#!variable!total!#], running: [#!variable!running!#], blocked: [#!variable!blocked!#], IRQ interrupts: [#!variable!interrupts!#].</key>
+		<key name="log_0837">Time spend (in secs) doing; IO wait: [#!variable!io_wait!#], user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
+		<key name="log_0838">CPU Core: [#!variable!core!#], time doind (seconds); user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
+		<key name="log_0839">Drive: [#!variable!device_name!#], IOs currently in progress: [#!variable!in_progress!#], weighted time spent: [#!variable!weighted_time_spent!# sec].</key>
+		<key name="log_0840">CPU percent time doing; IO wait: [#!variable!iowait!#], user tasks: [#!variable!user!#], system: [#!variable!system!#], nice'd tasks: [#!variable!nice!#], idle: [#!variable!idle!#], involuntary wait: [#!variable!steal!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

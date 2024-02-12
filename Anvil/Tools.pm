@@ -1220,6 +1220,7 @@ sub _set_paths
 				httpd				=>	"/usr/sbin/httpd",
 				ifdown				=>	"/sbin/ifdown",
 				ifup				=>	"/sbin/ifup",
+				iostat				=>	"/usr/bin/iostat",
 				ip				=>	"/usr/sbin/ip",
 				iperf3				=>	"/usr/bin/iperf3", 
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",

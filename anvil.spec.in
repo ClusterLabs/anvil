@@ -56,6 +56,7 @@ Requires:       glibc-all-langpacks
 Requires:       gpm 
 Requires:       hdparm
 Requires:       htop
+Requires:       iotop
 Requires:       iproute
 Requires:       kernel-core
 Requires:       kernel-devel
@@ -106,6 +107,7 @@ Requires:       screen
 Requires:       smartmontools
 Requires:       strace
 Requires:       syslinux
+Requires:       sysstat
 Requires:       tar
 Requires:       tcpdump
 Requires:       tmux
