@@ -66,7 +66,7 @@ sub get_host_networks
 	my $host_name           = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 
 	# Note: the subprocess name matches its definition; there is a typo though.
-	$anvil->Network->load_interfces({ host_uuid => $host_uuid, host => $host_name });
+	$anvil->Network->load_interfaces({ host_uuid => $host_uuid, host => $host_name });
 
 	my $host_networks_data  = $anvil->data->{network}{$host_name};
 	my $interfaces          = $host_networks_data->{interface};
