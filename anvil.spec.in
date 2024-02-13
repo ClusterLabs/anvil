@@ -250,6 +250,7 @@ setenforce 0
 systemctl enable --now chronyd.service
 systemctl enable --now anvil-daemon.service
 systemctl enable --now anvil-monitor-network.service
+systemctl enable --now anvil-monitor-performance.service
 systemctl enable --now scancore.service
 
 %pre striker

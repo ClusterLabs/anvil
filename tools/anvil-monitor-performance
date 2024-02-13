@@ -1,0 +1,147 @@
+#!/usr/bin/perl
+# 
+# This daemon monitors and logs preformance data. This is meant to help debug issues related to (potential)
+# performance issues.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. As such, 
+#       be mindful of what this daemon is used for.
+# 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [
+	"detailed",
+	"interval", 
+	"print", 
+	"run-once",
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Calculate my sum so that we can exit if it changes later.
+$anvil->Storage->record_md5sums;
+my $next_md5sum_check = time + 30;
+
+our $interval = $anvil->data->{switches}{interval} =~ /^\d+$/ ? $anvil->data->{switches}{interval} : 5;
+our $print    = $anvil->data->{switches}{'print'}  ? 1 : 0;
+our $detailed = $anvil->data->{switches}{detailed} ? 1 : 0;
+
+
+# Now go into the main loop
+while(1)
+{
+	my $scan_time = time;
+	
+	record_data($anvil);
+	
+	if ($anvil->data->{switches}{'run-once'})
+	{
+		# We're done.
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	if (time > $next_md5sum_check)
+	{
+		$next_md5sum_check = time + 30;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+		if ($anvil->Storage->check_md5sums)
+		{
+			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0014"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	sleep $interval;
+}
+
+
+sub record_data
+{
+	my ($anvil) = @_;
+	
+	$anvil->Get->load_average({debug => 2});
+
+	# Show the CPU load percents.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0840", variables => { 
+		iowait   => $anvil->data->{loads}{load_percent}{iowait},
+		user     => $anvil->data->{loads}{load_percent}{user}, 
+		steal    => $anvil->data->{loads}{load_percent}{steal}, 
+		idle     => $anvil->data->{loads}{load_percent}{idle}, 
+		nice     => $anvil->data->{loads}{load_percent}{nice}, 
+		'system' => $anvil->data->{loads}{load_percent}{'system'}, 
+	}});
+
+	# Show the CPU load levels
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0835", variables => { 
+		one_minute   => $anvil->data->{loads}{load_average}{one_minute},
+		five_minutes => $anvil->data->{loads}{load_average}{five_minute},
+		ten_minutes  => $anvil->data->{loads}{load_average}{ten_minute},
+	}});
+
+	# Show the processes
+	my $key = $detailed ? "log_0841" : "log_0836";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => $key, variables => { 
+		total      => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{total}}), 
+		running    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{running}}),
+		blocked    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{blocked}}),
+		interrupts => $anvil->Convert->add_commas({number => $anvil->data->{loads}{interrupts}{total}}),
+	}});
+	
+	if ($detailed)
+	{
+		# CPU average load times
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0837", variables => { 
+			io_wait        => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{io_wait} / 100)}), 
+			user_mode      => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{user_mode} / 100)}), 
+			user_mode_nice => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{user_mode_nice} / 100)}), 
+			system_mode    => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{system_mode} / 100)}), 
+			idle_tasks     => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{idle_tasks} / 100)}), 
+			hard_irq       => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{hard_irq} / 100)}), 
+			soft_irq       => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{soft_irq} / 100)}), 
+		}});
+
+		# Show per-cores
+		foreach my $core (sort {$a <=> $b} keys %{$anvil->data->{loads}{cpu}{core}})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0838", variables => { 
+				core           => $core, 
+				user_mode      => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{user_mode} / 100)}), 
+				user_mode_nice => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{user_mode_nice} / 100)}), 
+				system_mode    => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{system_mode} / 100)}), 
+				idle_tasks     => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{idle_tasks} / 100)}), 
+				hard_irq       => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{hard_irq} / 100)}), 
+				soft_irq       => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{core}{$core}{soft_irq} / 100)}), 
+			}});
+		}
+
+		# This is the number of IO operations in progress. When IOs in progress is non-zero, the weighted time (in 1/100ths of a second), doing those IOs.
+		foreach my $device_name (sort {$a cmp $b} keys %{$anvil->data->{loads}{storage}})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0839", variables => { 
+				device_name         => $device_name, 
+				in_progress         => $anvil->data->{loads}{storage}{$device_name}{ios_currently_in_progress}, 
+				weighted_time_spent => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{storage}{$device_name}{weighted_time_spent_doing_ios} / 100)}), 
+			}});
+		}
+	}
+	
+	return(0);
+}
+

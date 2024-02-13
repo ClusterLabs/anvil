@@ -27,6 +27,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
 			  anvil-monitor-network \
+			  anvil-monitor-performance \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
 			  anvil-pcs-wrapper \

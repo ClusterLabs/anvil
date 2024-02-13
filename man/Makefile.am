@@ -28,6 +28,8 @@ dist_man8_MANS		= \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
+			  anvil-monitor-network.8 \
+			  anvil-monitor-performance.8 \
 			  anvil-migrate-server.8 \
 			  anvil-network-profiler.8 \
 			  anvil-parse-fence-agents.8 \
