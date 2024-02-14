@@ -28,6 +28,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"enable",
 	"disable",
+	"log-only",
 	"monitor", 
 	"now", 
 	"start",
@@ -66,14 +67,14 @@ foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemons}{$host_type}}
 	push @{$daemon_list}, $daemon;
 }
 
-if ($anvil->data->{switches}{monitor})
+if (($anvil->data->{switches}{monitor}) or ($anvil->data->{switches}{'log-only'}))
 {
 	# Run as a daemon
 	monitor_daemons($anvil);
 }
 elsif ($anvil->data->{switches}{status})
 {
-	report_status($anvil);
+	report_status($anvil, "stdout");
 }
 else
 {
@@ -103,14 +104,20 @@ $anvil->nice_exit({exit_code => 0});
 
 sub report_status
 {
-	my ($anvil) = @_;
+	my ($anvil, $target) = @_;
 	
 	# Return Code meanings:
 	# - Enabled = 0, Disabled = 1
 	# - Started = 0, Stopped  = 3
 	# - Failed  = 0, OK       = 1, 
-	print "Anvil! Intelligent Availability Daemon Status (Enabled, Started, Failed);\n";
 	check_daemon($anvil);
+	my $print = $target eq "stdout" ? 1 : 0;
+	
+	# Only print the header if we're printing to STDOUT
+	if ($print)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, secure => 0, key => "message_0419"});
+	}
 	my $longest_daemon = $anvil->data->{longest_daemon};
 	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
 	{
@@ -154,7 +161,17 @@ sub report_status
 		{
 			$say_daemon .= ".";
 		}
-		print " - ".$say_daemon." ".$say_enabled." (".$anvil->data->{daemon}{$daemon}{enabled}{string}."), ".$say_started." (".$anvil->data->{daemon}{$daemon}{active}{string}."), ".$say_failed." (".$anvil->data->{daemon}{$daemon}{failed}{string}.")\n";
+		
+		# Report.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, secure => 0, key => "message_0420", variables => { 
+			daemon        => $say_daemon,
+			enabled       => $say_enabled,
+			enable_string => $anvil->data->{daemon}{$daemon}{enabled}{string},
+			started       => $say_started, 
+			start_string  => $anvil->data->{daemon}{$daemon}{active}{string}, 
+			failed        => $say_failed, 
+			fail_string   => $anvil->data->{daemon}{$daemon}{failed}{string}, 
+		}});
 	}
 	
 	return(0);
@@ -294,7 +311,7 @@ sub process_daemons
 	print "Done.\n\n";
 	
 	sleep 1;
-	report_status($anvil);
+	report_status($anvil, "stdout");
 	
 	return(0);
 }
@@ -315,31 +332,37 @@ sub monitor_daemons
 		}
 		
 		check_daemon($anvil);
-		
-		foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
+		if ($anvil->data->{switches}{monitor})
 		{
-			# Return code of '1' is OK, '0' is failed.
-			my $string      = $anvil->data->{daemon}{$daemon}{failed}{string};
-			my $return_code = $anvil->data->{daemon}{$daemon}{failed}{return_code};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"s1:daemon"      => $daemon,
-				"s2:string"      => $string, 
-				"s3:return_code" => $return_code, 
-			}});
-			
-			if (not $return_code)
+			foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "warning_0171", variables => { daemon => $daemon }});
-				
-				my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$daemon;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
-				
-				my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-					output      => $output, 
-					return_code => $return_code,
+				# Return code of '1' is OK, '0' is failed.
+				my $string      = $anvil->data->{daemon}{$daemon}{failed}{string};
+				my $return_code = $anvil->data->{daemon}{$daemon}{failed}{return_code};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:daemon"      => $daemon,
+					"s2:string"      => $string, 
+					"s3:return_code" => $return_code, 
 				}});
+				
+				if (not $return_code)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "warning_0171", variables => { daemon => $daemon }});
+					
+					my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$daemon;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+				}
 			}
+		}
+		else
+		{
+			report_status($anvil, "log");
 		}
 		
 		if (time > $next_md5sum_check)
@@ -353,7 +376,7 @@ sub monitor_daemons
 				$anvil->nice_exit({exit_code => 0});
 			}
 		}
-		sleep 5;
+		sleep 10;
 	}
 	
 	return(0);

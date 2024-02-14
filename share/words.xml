@@ -3361,6 +3361,8 @@ proceeding.
 		<key name="message_0416">[ Note ] - The network has reconnected to the database, configuring will complete shortly.</key>
 		<key name="message_0417">[ Note ] - The old 'ifcfg' style config file: [#!variable!file!#] will be backed up and then removed!</key>
 		<key name="message_0418">[ Note ] - Updated the ssh daemon config file: [#!variable!file!#] to enable ssh access for the root user.</key>
+		<key name="message_0419">Anvil! Intelligent Availability Daemon Status (Enabled, Started, Failed);</key>
+		<key name="message_0420">- #!variable!daemon!# #!variable!enabled!# (#!variable!enable_string!#), #!variable!started!# (#!variable!start_string!#), #!variable!failed!# (#!variable!fail_string!#).</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

@@ -4,7 +4,7 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/sbin/anvil-manage-daemons --monitor
+ExecStart=/usr/sbin/anvil-manage-daemons --log-only
 ExecStop=/bin/kill -WINCH ${MAINPID}
 Restart=always
 RestartSec=60
