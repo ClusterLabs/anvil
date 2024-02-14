@@ -1,0 +1,360 @@
+#!/usr/bin/perl
+# 
+# This daemon monitors and logs preformance data. This is meant to help debug issues related to (potential)
+# performance issues.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. As such, 
+#       be mindful of what this daemon is used for.
+# 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [
+	"enable",
+	"disable",
+	"monitor", 
+	"now", 
+	"start",
+	"status", 
+	"stop",
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Common daemons
+$anvil->data->{daemons}{core}{'anvil-daemon'}              = "anvil-daemon.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-daemons'}     = "anvil-monitor-daemons.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-network'}     = "anvil-monitor-network.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-performance'} = "anvil-monitor-performance.service";
+$anvil->data->{daemons}{core}{'scancore'}                  = "scancore.service";
+
+# Striker dashboards.
+$anvil->data->{daemons}{striker}{'striker-ui-api'} = "striker-ui-api.service";
+
+# Nodes and DR hosts
+$anvil->data->{daemons}{node}{'anvil-safe-start'} = "anvil-safe-start.service";
+$anvil->data->{daemons}{dr}{'anvil-safe-start'}   = "anvil-safe-start.service";
+
+my $host_type = $anvil->Get->host_type();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+
+my $daemon_list = [];
+foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemons}{core}})
+{
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+	push @{$daemon_list}, $daemon;
+}
+foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemons}{$host_type}})
+{
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+	push @{$daemon_list}, $daemon;
+}
+
+if ($anvil->data->{switches}{monitor})
+{
+	# Run as a daemon
+	monitor_daemons($anvil);
+}
+elsif ($anvil->data->{switches}{status})
+{
+	report_status($anvil);
+}
+else
+{
+	# We're staritng, stopping, enabling or disabling. 
+	if (($anvil->data->{switches}{enable})  or 
+	    ($anvil->data->{switches}{disable}) or 
+	    ($anvil->data->{switches}{start})   or 
+	    ($anvil->data->{switches}{stop}))
+	{
+		check_daemon($anvil);
+		process_daemons($anvil);
+	}
+	else
+	{
+		# Bad call
+		print "Please see 'man ".$THIS_FILE." for usage.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+}
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+sub report_status
+{
+	my ($anvil) = @_;
+	
+	# Return Code meanings:
+	# - Enabled = 0, Disabled = 1
+	# - Started = 0, Stopped  = 3
+	# - Failed  = 0, OK       = 1, 
+	print "Anvil! Intelligent Availability Daemon Status (Enabled, Started, Failed);\n";
+	check_daemon($anvil);
+	my $longest_daemon = $anvil->data->{longest_daemon};
+	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
+	{
+		my $say_enabled = "unknown";
+		my $say_started = "unknown";
+		my $say_failed  = "unknown";
+		
+		# Enabled/Disabled
+		if ($anvil->data->{daemon}{$daemon}{enabled}{return_code} == 0)
+		{
+			$say_enabled = "Enabled";
+		}
+		elsif ($anvil->data->{daemon}{$daemon}{enabled}{return_code} == 1)
+		{
+			$say_enabled = "Disabled";
+		}
+		
+		# Started / Stopped
+		if ($anvil->data->{daemon}{$daemon}{active}{return_code} == 0)
+		{
+			$say_started = "Started";
+		}
+		elsif ($anvil->data->{daemon}{$daemon}{active}{return_code} == 3)
+		{
+			$say_started = "Stopped";
+		}
+		
+		# Failed / OK
+		if ($anvil->data->{daemon}{$daemon}{failed}{return_code} == 0)
+		{
+			$say_failed = "Failed!";
+		}
+		elsif ($anvil->data->{daemon}{$daemon}{failed}{return_code} == 1)
+		{
+			$say_failed = "OK";
+		}
+		#my $say_daemon = sprintf("%-${longest_daemon}s", $daemon.";");
+		my $say_daemon = $daemon."; ";
+		my $dots = $longest_daemon - (length($daemon));
+		for (my $i = 0; $i < $dots; $i++)
+		{
+			$say_daemon .= ".";
+		}
+		print " - ".$say_daemon." ".$say_enabled." (".$anvil->data->{daemon}{$daemon}{enabled}{string}."), ".$say_started." (".$anvil->data->{daemon}{$daemon}{active}{string}."), ".$say_failed." (".$anvil->data->{daemon}{$daemon}{failed}{string}.")\n";
+	}
+	
+	return(0);
+}
+
+sub check_daemon
+{
+	my ($anvil) = @_;
+	
+	$anvil->data->{longest_daemon} = 0;
+	foreach my $daemon (sort {$a cmp $b} @{$daemon_list})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+		
+		if (length($daemon) > $anvil->data->{longest_daemon})
+		{
+			$anvil->data->{longest_daemon} = length($daemon);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_daemon => $anvil->data->{longest_daemon} }});
+		}
+		
+		# What's the status of this daemon?
+		foreach my $test ("active", "enabled", "failed")
+		{
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." is-".$test." ".$daemon;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+			  	return_code => $return_code,
+			}});
+			
+			# There should only be one line of output.
+			$anvil->data->{daemon}{$daemon}{$test}{string}      = $output;
+			$anvil->data->{daemon}{$daemon}{$test}{return_code} = $return_code;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"daemon::${daemon}::${test}::string"      => $anvil->data->{daemon}{$daemon}{$test}{string},
+				"daemon::${daemon}::${test}::return_code" => $anvil->data->{daemon}{$daemon}{$test}{return_code},
+			}});
+		}
+	}
+	
+	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+		foreach my $test (sort {$a cmp $b} keys %{$anvil->data->{daemon}{$daemon}})
+		{
+			my $string      = $anvil->data->{daemon}{$daemon}{$test}{string};
+			my $return_code = $anvil->data->{daemon}{$daemon}{$test}{return_code};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:test"        => $test, 
+				"s2:string"      => $string, 
+				"s3:return_code" => $return_code, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+sub process_daemons
+{
+	my ($anvil) = @_;
+	
+	# If enabling now, set the start switch, and inverse for disable
+	if (($anvil->data->{switches}{enable}) && ($anvil->data->{switches}{now}) && (not $anvil->data->{switches}{start}))
+	{
+		print "Will start any stopped daemons ('--enable --now' used) after enabling daemons.\n";
+		$anvil->data->{switches}{start} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { "switches::start" => $anvil->data->{switches}{start} }});
+	}
+	elsif (($anvil->data->{switches}{disable}) && ($anvil->data->{switches}{now}) && (not $anvil->data->{switches}{stop}))
+	{
+		print "Will stop any running daemons ('--disable --now' used) after disabling daemons.\n";
+		$anvil->data->{switches}{stop} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { "switches::stop" => $anvil->data->{switches}{stop} }});
+	}
+
+	# Return Code meanings:
+	# - Enabled = 0, Disabled = 1
+	# - Started = 0, Stopped  = 3
+	# - Failed  = 0, OK       = 1, 
+	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
+	{
+		# Enable or disable?
+		if (($anvil->data->{switches}{enable}) && ($anvil->data->{daemon}{$daemon}{enabled}{return_code} == 1))
+		{
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." enable ".$daemon;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			
+			print "Enabling: [".$daemon."] now...\n";
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+		elsif (($anvil->data->{switches}{disable}) && ($anvil->data->{daemon}{$daemon}{enabled}{return_code} == 0))
+		{
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." disable ".$daemon;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			
+			print "Disabling: [".$daemon."] now...\n";
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+		
+		# Start or stop?
+		if (($anvil->data->{switches}{start}) && ($anvil->data->{daemon}{$daemon}{active}{return_code} == 3))
+		{
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." start ".$daemon;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			
+			print "Starting: [".$daemon."] now...\n";
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+		elsif (($anvil->data->{switches}{stop}) && ($anvil->data->{daemon}{$daemon}{active}{return_code} == 0))
+		{
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." stop ".$daemon;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+			
+			print "Stopping: [".$daemon."] now...\n";
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+		}
+	}
+	print "Done.\n\n";
+	
+	sleep 1;
+	report_status($anvil);
+	
+	return(0);
+}
+
+sub monitor_daemons
+{
+	my ($anvil) = @_;
+
+	# Calculate my sum so that we can exit if it changes later.
+	$anvil->Storage->record_md5sums;
+	my $next_md5sum_check = time + 30;
+	
+	while(1)
+	{
+		if (exists $anvil->data->{daemon})
+		{
+			delete $anvil->data->{daemon};
+		}
+		
+		check_daemon($anvil);
+		
+		foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
+		{
+			# Return code of '1' is OK, '0' is failed.
+			my $string      = $anvil->data->{daemon}{$daemon}{failed}{string};
+			my $return_code = $anvil->data->{daemon}{$daemon}{failed}{return_code};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:daemon"      => $daemon,
+				"s2:string"      => $string, 
+				"s3:return_code" => $return_code, 
+			}});
+			
+			if (not $return_code)
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, secure => 0, key => "warning_0171", variables => { daemon => $daemon }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$daemon;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+			}
+		}
+		
+		if (time > $next_md5sum_check)
+		{
+			$next_md5sum_check = time + 30;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+			if ($anvil->Storage->check_md5sums)
+			{
+				# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0014"});
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		sleep 5;
+	}
+	
+	return(0);
+}
