@@ -4172,6 +4172,7 @@ We will try to proceed anyway.</key>
 </key>
 		<key name="warning_0168">Please specify a storage group to use to add the new drive to.</key>
 		<key name="warning_0169">[ Warning ] - After reconfiguring the network, we've failed to connect to any database for two minutes. Rebooting in case this fixes the connection.</key>
+		<key name="warning_0170">[ Warning ] - The attempt to boot: [#!variable!host_name!#] appears to have failed. The return code received was: [#!variable!return_code!#] (expected '0'). The output, if any, was: [#!variable!output!#].</key>
 		
 	</language>
 	<!-- 日本語 -->

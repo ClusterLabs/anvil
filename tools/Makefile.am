@@ -15,6 +15,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-join-anvil \
 			  anvil-maintenance-mode \
 			  anvil-manage-alerts \
+			  anvil-manage-daemons \
 			  anvil-manage-dr \
 			  anvil-manage-files \
 			  anvil-manage-firewall \

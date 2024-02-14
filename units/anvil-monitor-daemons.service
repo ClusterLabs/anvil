@@ -1,0 +1,13 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - Daemon Monitor
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/anvil-manage-daemons --monitor
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

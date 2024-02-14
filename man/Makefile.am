@@ -20,6 +20,7 @@ dist_man8_MANS		= \
 			  anvil-join-anvil.8 \
 			  anvil-maintenance-mode.8 \
 			  anvil-manage-alerts.8 \
+			  anvil-manage-daemons.8 \
 			  anvil-manage-dr.8 \
 			  anvil-manage-files.8 \
 			  anvil-manage-firewall.8 \

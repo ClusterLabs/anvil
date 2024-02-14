@@ -2721,15 +2721,27 @@ LIMIT 1;";
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0673", variables => { host_name => $host_name }});
 					
 					$shell_call =~ s/--action status/ --action on/;
-					my ($output, $return_code) = $anvil->System->call({debug => $debug, timeout => 30, shell_call => $shell_call});
+					my ($output, $return_code) = $anvil->System->call({debug => 1, timeout => 30, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 					
-					# Mark it as booting.
-					$anvil->Database->update_host_status({
-						debug       => $debug,
-						host_uuid   => $host_uuid,
-						host_status => "booting",
-					});
+					if ($return_code)
+					{
+						# Failed to boot.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0170", variables => { 
+							host_name   => $host_name,
+							return_code => $return_code, 
+							output      => $output, 
+						}});
+					}
+					else
+					{
+						# Mark it as booting.
+						$anvil->Database->update_host_status({
+							debug       => $debug,
+							host_uuid   => $host_uuid,
+							host_status => "booting",
+						});
+					}
 				}
 			}
 		}

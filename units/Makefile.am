@@ -3,6 +3,7 @@ MAINTAINERCLEANFILES	= Makefile.in
 servicedir		= $(SYSTEMD_UNIT_DIR)
 dist_service_DATA	= \
 			  anvil-daemon.service \
+			  anvil-monitor-daemons \
 			  anvil-monitor-network.service \
 			  anvil-monitor-performance.service \
 			  anvil-safe-start.service \
