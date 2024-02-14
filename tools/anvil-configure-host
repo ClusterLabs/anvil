@@ -1762,37 +1762,55 @@ sub reconfigure_interfaces
 	{
 		### TODO: Left off here... any devices that are down, set:
 		###       nmcli connection modify <uuid> ipv4.method manual ipv4.addresses 169.0.0.x/8' (x == Wired connection x)
-		my $connection_id        = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}        // "";
-		my $general_ip_iface     = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}     // "";
-		   $general_ip_iface     = "" if $general_ip_iface eq "--";
-		my $device_type          = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}      // "";
-		my $match_interface_name = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'} // "";
-		my $active               = $anvil->data->{nmcli}{uuid}{$uuid}{active};
+		my $connection_id          = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}          // "";
+		my $general_ip_iface       = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}       // "";
+		   $general_ip_iface       = "" if $general_ip_iface eq "--";
+		my $device_type            = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.type'}        // "";
+		my $match_interface_name   = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'}   // "";
+		my $connection_autoconnect = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.autoconnect'} // "";
+		my $active                 = $anvil->data->{nmcli}{uuid}{$uuid}{active};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:uuid'                      => $uuid,
-			's2:connection_id'             => $connection_id, 
-			's3:general_ip_iface'          => $general_ip_iface, 
-			's4:device_type'               => $device_type, 
-			's5:match_interface_name'      => $match_interface_name, 
-			's6:active'                    => $active, 
+			's1:uuid'                   => $uuid,
+			's2:connection_id'          => $connection_id, 
+			's3:general_ip_iface'       => $general_ip_iface, 
+			's4:device_type'            => $device_type, 
+			's5:match_interface_name'   => $match_interface_name, 
+			's6:connection_autoconnect' => $connection_autoconnect, 
+			's7:active'                 => $active, 
 		}});
 		
-		# Try activating it.
-		if ((not $general_ip_iface) && (not $active))
+		### NOTE: I don't think this is needed, but here's the code in case we change our mind.
+		if (0)
 		{
-			
-			# Rescan.
-			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 1}), 
-				message   => "message_0394", 
-				log_level => 1,
-				'print'   => 1, 
-				job_uuid  => $anvil->data->{job}{uuid},
-				file      => $THIS_FILE, 
-				line      => __LINE__,
-				variables => { },
-			});
-			$anvil->Network->collect_data({debug => 2});
+			# Try activating it.
+			if ((not $general_ip_iface) && (not $active))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0842", variables => { 
+					id   => $connection_id,
+					uuid => $uuid, 
+				}});
+				
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+				
+				# Rescan.
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
+					message   => "message_0394", 
+					log_level => 1,
+					'print'   => 1, 
+					job_uuid  => $anvil->data->{job}{uuid},
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					variables => { },
+				});
+				$anvil->Network->collect_data({debug => 2});
+			}
 		}
 	}
 	
@@ -1885,6 +1903,16 @@ sub reconfigure_interfaces
 					$configure_link1 = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link1 => $configure_link1 }});
 				}
+				
+				# Make sure that the autoconnect is enabled.
+				if ($anvil->data->{nmcli}{uuid}{$link1_nm_uuid}{'connection.autoconnect'} ne "yes")
+				{
+					my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $link1_nm_uuid, variable => "connection.autoconnect", value => "yes"});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
 			}
 			else
 			{
@@ -1934,6 +1962,16 @@ sub reconfigure_interfaces
 					{
 						$configure_link2 = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configure_link1 => $configure_link1 }});
+					}
+				
+					# Make sure that the autoconnect is enabled.
+					if ($anvil->data->{nmcli}{uuid}{$link2_nm_uuid}{'connection.autoconnect'} ne "yes")
+					{
+						my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $link2_nm_uuid, variable => "connection.autoconnect", value => "yes"});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code, 
+						}});
 					}
 				}
 				else
