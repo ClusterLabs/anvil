@@ -2996,6 +2996,22 @@ sub generate_state_json
 			}
 			elsif ($type eq "bond")
 			{
+				if ((not exists $anvil->data->{network}{$host})                        or 
+				    (not exists $anvil->data->{network}{$host}{interface}{$interface}) or 
+				    (not defined $anvil->data->{network}{$host}{interface}{$interface}{mode}))
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						"s1:host"        => $host,
+						"s2:interface"   => $interface,
+						"s3:mac_address" => $mac_address, 
+						"s4:type"        => $type,
+						"s5:mtu"         => $mtu,
+						"s6:configured"  => $configured, 
+						"s7:host_uuid"   => $host_uuid, 
+						"s8:host_key"    => $host_key, 
+					}});
+					next;
+				}
 				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
 				my $primary_interface    = $anvil->data->{network}{$host}{interface}{$interface}{primary_interface}; 
 				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
