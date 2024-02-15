@@ -99,6 +99,51 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This checks to see if any storage groups exist yet. If they don't, an attempt to assemble the storage 
+# groups will be made
+sub check_Storage_groups
+{
+	my ($anvil) = @_;
+	
+	# Make sure we have an anvil_uuid
+	if ($anvil->data->{new_server}{anvil_uuid})
+	{
+		# Nope, nothing to do.
+		return(1);
+	}
+	
+	my $anvil_uuid = $anvil->data->{new_server}{anvil_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	
+	# Load Storage Group data
+	$anvil->Database->get_storage_group_data({debug => 2});
+	
+	if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid})
+	{
+		my $count = 0;
+		if ((exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}) && 
+		    (ref($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}) eq "HASH"))
+		{
+			$count = keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		}
+		
+		if ($count)
+		{
+			# There's a storage group already, nothing to do.
+			return(0);
+		}
+		
+		# Still alive? Try to assemble a storage group.
+		$anvil->Cluster->assemble_storage_groups({
+			debug      => 2,
+			anvil_uuid => $anvil_uuid, 
+		});
+	}
+	
+	return(0);
+}
+
 # This actually provisions a VM.
 sub run_jobs
 {

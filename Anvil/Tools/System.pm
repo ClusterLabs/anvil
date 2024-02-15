@@ -2936,7 +2936,7 @@ sub generate_state_json
 		{
 			my $type        = $anvil->data->{network}{$host}{interface}{$interface}{type};
 			my $uuid        = $anvil->data->{network}{$host}{interface}{$interface}{uuid};
-			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu};
+			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu} ? $anvil->data->{network}{$host}{interface}{$interface}{mtu} : 1500;
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
