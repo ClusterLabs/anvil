@@ -52,6 +52,12 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Because we're working with the network config, we can't reliable use cached connections.
+$anvil->data->{sys}{net}{always_reconnect} = 1;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
+	"sys::net::always_reconnect" => $anvil->data->{sys}{net}{always_reconnect},
+}});
+
 # Connect
 $anvil->Database->connect({debug => 2, check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "message_0031"});

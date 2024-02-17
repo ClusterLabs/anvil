@@ -139,6 +139,9 @@ sub check_Storage_groups
 			debug      => 2,
 			anvil_uuid => $anvil_uuid, 
 		});
+		
+		# Reload in case we created one.
+		$anvil->Database->get_storage_group_data({debug => 2});
 	}
 	
 	return(0);

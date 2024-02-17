@@ -338,6 +338,21 @@ sub call
 			password => $anvil->Log->is_secure($password), 
 		}});
 	}
+	
+	# Is the global "always reconnect" is set, set 'close' to 1 and clear any cached connections.
+	$anvil->data->{sys}{net}{always_reconnect} = 0 if not defined $anvil->data->{sys}{net}{always_reconnect};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::net::always_reconnect" => $anvil->data->{sys}{net}{always_reconnect}, 
+	}});
+	if ($anvil->data->{sys}{net}{always_reconnect})
+	{
+		$close    = 1;
+		$no_cache = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			'close'  => $close,
+			no_cache => $no_cache, 
+		}});
+	}
 
 	### NOTE: This caused problems that are currently unsolved.
 =cut
