@@ -367,7 +367,6 @@ sub wait_for_etc_hosts
 			
 			if ($difference)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0112"});
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0835"});
 				my $failed = $anvil->Storage->write_file({

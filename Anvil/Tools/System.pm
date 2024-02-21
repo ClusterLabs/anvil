@@ -5265,13 +5265,13 @@ sub update_hosts
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line)
 		{
-			$last_line_blank = 0;
+			$last_line_blank =  0;
 			$cleaned_body    .= $line."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
 		}
 		elsif (not $last_line_blank)
 		{
-			$last_line_blank = 1;
+			$last_line_blank =  1;
 			$cleaned_body    .= $line."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
 		}
@@ -5488,6 +5488,41 @@ sub update_hosts
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"lines->${ip_address}" => $lines->{$ip_address},
 		}});
+	}
+	
+	# Clean spaces off the end of lines, and look for invalid entries.
+	$cleaned_body = "";
+	foreach my $line (split/\n/, $new_body)
+	{
+		$line =~ s/\s+$//;
+		$line =~ s/^\s+(\d.*)$/$1/;
+		if ($line =~ /^#/)
+		{
+			$cleaned_body .= $line."\n";
+		}
+		elsif ($line =~ /^(.*?)\s+(.*?)/)
+		{
+			my $ip   = $1;
+			my $name = $2; 
+			if ($anvil->Validate->ip({ip => $ip}))
+			{
+				# Valid
+				$cleaned_body .= $line."\n";
+			}
+			else
+			{
+				# The is not a valid hosts entry.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0172", variables => { line => $line }});
+			}
+		}
+	}
+	$difference = "";
+	$difference = diff \$new_body, \$cleaned_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	if ($difference)
+	{
+		$new_body = $cleaned_body;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
 	}
 	
 	my $new_line_count = @{$ip_order};
