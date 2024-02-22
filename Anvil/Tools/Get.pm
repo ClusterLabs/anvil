@@ -2895,6 +2895,29 @@ sub switches
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
+	# Lastly, if there's a anvil.debug file, set logging to '-vv --log-secure'
+	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
+	{
+		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{vv}           = "#!SET!#";
+		$anvil->data->{switches}{'log-secure'} = "#!SET!#";
+		$anvil->data->{defaults}{'log'}{pids}  = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::V"          => $anvil->data->{switches}{V},
+			"switches::v"          => $anvil->data->{switches}{v},
+			"switches::vv"         => $anvil->data->{switches}{vv},
+			"switches::log-secure" => $anvil->data->{switches}{'log-secure'}, 
+			"defaults::log::pids"  => $anvil->data->{defaults}{'log'}{pids}, 
+		}});
+		
+		### TODO: We might want to set this?
+		#$anvil->data->{sys}{database}{log_transactions} = 1;
+	
+		# Adjust the log level if requested.
+		$anvil->Log->_adjust_log_level();
+	}
+	
 	return(0);
 }
 

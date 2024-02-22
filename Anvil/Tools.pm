@@ -1056,6 +1056,7 @@ sub _set_paths
 			configs			=>	{
 				'alteeve-release.repo'		=>	"/etc/yum.repos.d/alteeve-release.repo",
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
+				'anvil.debug'			=>	"/etc/anvil/anvil.debug",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
 				'cib.xml'			=>	"/var/lib/pacemaker/cib/cib.xml",

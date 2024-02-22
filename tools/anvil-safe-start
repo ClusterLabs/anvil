@@ -44,11 +44,6 @@ $anvil->Get->switches({list => [], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-### TODO: Remove before PR!
-# Force up the logging.
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
 if (($< != 0) && ($> != 0))
