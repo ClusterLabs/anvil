@@ -70,6 +70,9 @@ $anvil->Storage->read_config();
 # If dnf is running, hold.
 $anvil->System->wait_on_dnf();
 
+# If we've got bonds, wait for them to be up.
+$anvil->Network->wait_for_bonds({debug => 2});
+
 # Read switches
 $anvil->Get->switches({list => ["purge", "run-once"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});

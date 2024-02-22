@@ -35,6 +35,7 @@ my $THIS_FILE = "Network.pm";
 # ping
 # read_nmcli
 # reset_connection
+# wait_for_bonds
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -4508,6 +4509,165 @@ sub reset_connection
 }
 
 
+=head2 wait_for_bonds
+
+This method checks for Network Manager bond configurations. If they're found, this method will hold. When at least one interface in each bond is up, this method returns with C<< 0 >>. If no bonds are found, this also returns with C<< 0 >>.
+
+B<< Note >>: This method only works on Network Manager based systems.
+
+Parameters;
+
+=head3 timeout (optional, default '0')
+
+By default, this method will wait forever. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>.
+
+=cut
+sub wait_for_bonds
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_bonds()" }});
+	
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		timeout => $timeout, 
+	}});
+	
+	my $directory = $anvil->data->{path}{directories}{NetworkManager};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	
+	if (not -d $directory)
+	{
+		return(0);
+	}
+	
+	$directory .= "/system-connections";
+	$directory =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	
+	# Find any bonds.
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file !~ /\.nmconnection$/;
+		my $full_path =  $directory."/".$file;
+		   $full_path =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		
+		my $is_bond        = 0;
+		my $interface_name = "";
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			
+			if ($line =~ /^type=bond/)
+			{
+				$is_bond = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_bond => $is_bond }});
+			}
+			if ($line =~ /^interface-name=(.*)$/)
+			{
+				$interface_name = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+			if ((not $interface_name) && ($line =~ /id=(.*)$/))
+			{
+				$interface_name = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+		}
+		
+		if (($is_bond) && ($interface_name))
+		{
+			$anvil->data->{network}{watch_bond}{$interface_name}{ready} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::watch_bond::${interface_name}::ready" => $anvil->data->{network}{watch_bond}{$interface_name}{ready},
+			}});
+		}
+	}
+	closedir(DIRECTORY);
+	
+	my $bond_count = keys %{$anvil->data->{network}{watch_bond}};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_count => $bond_count }});
+	if (not $bond_count)
+	{
+		return(0);
+	}
+	
+	my $waiting  = 1;
+	my $end_time = $timeout ? time + $timeout : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { end_time => $end_time }});
+	while($waiting)
+	{
+		$waiting = 0;
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{watch_bond}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			next if $anvil->data->{network}{watch_bond}{$interface_name}{ready};
+			
+			my $proc_file = $anvil->data->{path}{directories}{bonds}."/".$interface_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
+			
+			if (not -f $proc_file)
+			{
+				$waiting = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+				next;
+			}
+			
+			my $file_body = $anvil->Storage->read_file({debug => $debug, file => $proc_file});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+			
+			foreach my $line (split/\n/, $file_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				if ($line =~ /MII Status: (.*)$/)
+				{
+					my $mii_status = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mii_status => $mii_status }});
+					
+					if ($mii_status eq "up")
+					{
+						# This bond is ready.
+						$anvil->data->{network}{watch_bond}{$interface_name}{ready} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"network::watch_bond::${interface_name}::ready" => $anvil->data->{network}{watch_bond}{$interface_name}{ready},
+						}});
+					}
+					else
+					{
+						$waiting = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+					}
+					last;
+				}
+			}
+		}
+		
+		if ($waiting)
+		{
+			if (($end_time) && ($end_time > time))
+			{
+				# We're done.
+				return(1);
+			}
+			
+			# Sleep for a minute
+			sleep 2;
+		}
+	}
+
+	return(0);
+}
+
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
@@ -4706,7 +4866,7 @@ sub _get_drbd_ports
 		# DRBD isn't installed.
 		return(0);
 	}
-		
+	
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);
