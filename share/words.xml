@@ -2723,7 +2723,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0840">CPU percent time doing; (IO wait / user / system / nice'd / idle / involuntary wait): [#!variable!iowait!# / #!variable!user!# / #!variable!system!# / #!variable!nice!# / #!variable!idle!#/ #!variable!steal!#].</key>
 		<key name="log_0841">Processes; (total / running / blocked / IRQ interrupts): [#!variable!total!# / #!variable!running!# / #!variable!blocked!# / #!variable!interrupts!#].</key>
 		<key name="log_0842">Starting the network manager connection: [#!variable!id!#] (uuid: [#!variable!uuid!#]).</key>
-		<key name="log_0843">Creating the [#!variable!file!#] debug file on: [#!variable!host!#].</key>
+		<key name="log_0843">Creating the: [#!variable!file!#] debug file on: [#!variable!host!#].</key>
+		<key name="log_0844">The bond interface: [#!variable!bond_name!#] is not ready yet, we'll check again shortly.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

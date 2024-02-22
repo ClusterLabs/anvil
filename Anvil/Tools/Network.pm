@@ -4617,6 +4617,8 @@ sub wait_for_bonds
 			
 			if (not -f $proc_file)
 			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0844", variables => { bond_name => $interface_name }});
+				
 				$waiting = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
 				next;
@@ -4644,6 +4646,7 @@ sub wait_for_bonds
 					}
 					else
 					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0844", variables => { bond_name => $interface_name }});
 						$waiting = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
 					}
