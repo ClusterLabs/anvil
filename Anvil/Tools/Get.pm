@@ -2898,6 +2898,7 @@ sub switches
 	# Lastly, if there's a anvil.debug file, set logging to '-vv --log-secure'
 	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
 	{
+		# Set defaults, then see if we should override from the body.
 		$anvil->data->{switches}{v}            = "";
 		$anvil->data->{switches}{v}            = "";
 		$anvil->data->{switches}{vv}           = "#!SET!#";

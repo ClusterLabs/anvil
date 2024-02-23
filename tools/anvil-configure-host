@@ -68,6 +68,14 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Make sure that we set the network->wait_for_bonds() timeout to 60 seconds.
+$anvil->Storage->update_config({
+	debug    => 2,
+	append   => 1,
+	variable => "network::wait_for_bonds::timeout",
+	value    => 60,
+});
+
 # Because we're working with the network config, we can't reliable use cached connections.
 $anvil->data->{sys}{net}{always_reconnect} = 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 
@@ -111,6 +119,14 @@ $anvil->Job->update_progress({
 	progress  => 100, 
 	message   => "",
 	job_uuid  => $anvil->data->{job}{uuid},
+});
+
+# Make sure that we set the network->wait_for_bonds() timeout back to 180.
+$anvil->Storage->update_config({
+	debug    => 2,
+	append   => 1,
+	variable => "network::wait_for_bonds::timeout",
+	value    => 180,
 });
 
 # Clear maintenance mode.

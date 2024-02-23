@@ -4517,9 +4517,9 @@ B<< Note >>: This method only works on Network Manager based systems.
 
 Parameters;
 
-=head3 timeout (optional, default '0')
+=head3 timeout (optional, default '180')
 
-By default, this method will wait forever. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>.
+By default, this method will wait for three minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
 
 =cut
 sub wait_for_bonds
@@ -4530,10 +4530,17 @@ sub wait_for_bonds
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_bonds()" }});
 	
-	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 0;
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 180;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		timeout => $timeout, 
 	}});
+	
+	# If timeout wasn't set, but network::wait_for_bonds::timeout is set, use it.
+	if ((exists $anvil->data->{network}{wait_for_bonds}{timeout}) && ($anvil->data->{network}{wait_for_bonds}{timeout} =~ /^\d+$/))
+	{
+		$timeout = $anvil->data->{network}{wait_for_bonds}{timeout};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+	}
 	
 	my $directory = $anvil->data->{path}{directories}{NetworkManager};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
@@ -4561,16 +4568,22 @@ sub wait_for_bonds
 		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 		
-		my $is_bond        = 0;
+		my $type           = "";
 		my $interface_name = "";
+		my $parent_bond    = "";
 		foreach my $line (split/\n/, $file_body)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 			
-			if ($line =~ /^type=bond/)
+			if ($line =~ /^type=(.*)$/)
 			{
-				$is_bond = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_bond => $is_bond }});
+				$type = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+			}
+			if ($line =~ /^master=(.*)$/)
+			{
+				$parent_bond = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { parent_bond => $parent_bond }});
 			}
 			if ($line =~ /^interface-name=(.*)$/)
 			{
@@ -4584,17 +4597,53 @@ sub wait_for_bonds
 			}
 		}
 		
-		if (($is_bond) && ($interface_name))
+		if (($type eq "bond") && ($interface_name))
 		{
-			$anvil->data->{network}{watch_bond}{$interface_name}{ready} = 0;
+			$anvil->data->{network}{bond}{$interface_name}{ready} = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::watch_bond::${interface_name}::ready" => $anvil->data->{network}{watch_bond}{$interface_name}{ready},
+				"network::bond::${interface_name}::ready" => $anvil->data->{network}{bond}{$interface_name}{ready},
+			}});
+		}
+		if (($type eq "ethernet") && ($parent_bond))
+		{
+			$anvil->data->{network}{ethernet}{$interface_name}{parent_bond} = $parent_bond;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"network::ethernet::${interface_name}::parent_bond" => $anvil->data->{network}{ethernet}{$interface_name}{parent_bond},
 			}});
 		}
 	}
 	closedir(DIRECTORY);
 	
-	my $bond_count = keys %{$anvil->data->{network}{watch_bond}};
+	# We only want to watch bonds with interfaces configured to use it.
+	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{network}{bond}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_name => $bond_name }});
+		
+		# We've got a primary, is it (or any interface) configured for this bond yet?
+		my $interface_found = 0;
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{ethernet}})
+		{
+			my $parent_bond = $anvil->data->{network}{ethernet}{$interface_name}{parent_bond};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			
+			if ($parent_bond eq $bond_name)
+			{
+				# We've got an interface.
+				$interface_found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_found => $interface_found }});
+			}
+		}
+		
+		if (not $interface_found)
+		{
+			# Ignore this bond.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0845", variables => { bond_name => $bond_name }});
+			delete $anvil->data->{network}{bond}{$bond_name};
+			next;
+		}
+	}
+	
+	my $bond_count = keys %{$anvil->data->{network}{bond}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_count => $bond_count }});
 	if (not $bond_count)
 	{
@@ -4602,15 +4651,19 @@ sub wait_for_bonds
 	}
 	
 	my $waiting  = 1;
-	my $end_time = $timeout ? time + $timeout : 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { end_time => $end_time }});
+	my $end_time = $timeout  ? time + $timeout : 0;
+	my $duration = $end_time ? $timeout - time : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		end_time => $end_time,
+		duration => $duration, 
+	}});
 	while($waiting)
 	{
 		$waiting = 0;
-		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{watch_bond}})
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{bond}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
-			next if $anvil->data->{network}{watch_bond}{$interface_name}{ready};
+			next if $anvil->data->{network}{bond}{$interface_name}{ready};
 			
 			my $proc_file = $anvil->data->{path}{directories}{bonds}."/".$interface_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
@@ -4639,9 +4692,9 @@ sub wait_for_bonds
 					if ($mii_status eq "up")
 					{
 						# This bond is ready.
-						$anvil->data->{network}{watch_bond}{$interface_name}{ready} = 1;
+						$anvil->data->{network}{bond}{$interface_name}{ready} = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"network::watch_bond::${interface_name}::ready" => $anvil->data->{network}{watch_bond}{$interface_name}{ready},
+							"network::bond::${interface_name}::ready" => $anvil->data->{network}{bond}{$interface_name}{ready},
 						}});
 					}
 					else
@@ -4655,12 +4708,19 @@ sub wait_for_bonds
 			}
 		}
 		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
 		if ($waiting)
 		{
-			if (($end_time) && ($end_time > time))
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { end_time => $end_time }});
+			if ($end_time)
 			{
-				# We're done.
-				return(1);
+				if (time > $end_time)
+				{
+					# We're done.
+					return(1);
+				}
+				my $time_left = $end_time - time;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_left => $time_left }});
 			}
 			
 			# Sleep for a minute
