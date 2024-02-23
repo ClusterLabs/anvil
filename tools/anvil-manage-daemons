@@ -35,8 +35,8 @@ $anvil->Get->switches({list => [
 	"status", 
 	"stop",
 ], man => $THIS_FILE});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Common daemons
 $anvil->data->{daemons}{core}{'anvil-daemon'}              = "anvil-daemon.service";
@@ -53,17 +53,17 @@ $anvil->data->{daemons}{node}{'anvil-safe-start'} = "anvil-safe-start.service";
 $anvil->data->{daemons}{dr}{'anvil-safe-start'}   = "anvil-safe-start.service";
 
 my $host_type = $anvil->Get->host_type();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
 
 my $daemon_list = [];
 foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemons}{core}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon }});
 	push @{$daemon_list}, $daemon;
 }
 foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemons}{$host_type}})
 {
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon }});
 	push @{$daemon_list}, $daemon;
 }
 
@@ -119,6 +119,7 @@ sub report_status
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, secure => 0, key => "message_0419"});
 	}
 	my $longest_daemon = $anvil->data->{longest_daemon};
+	my $string = "";
 	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
 	{
 		my $say_enabled = "unknown";
@@ -162,8 +163,11 @@ sub report_status
 			$say_daemon .= ".";
 		}
 		
+		$string .= $daemon." [".$say_enabled."/".$say_started."/".$say_failed."], ";
+		
+		### NOTE: Set this to '3' because it was filling the logs when '--debug' is used.
 		# Report.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, secure => 0, key => "message_0420", variables => { 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 3, secure => 0, key => "message_0420", variables => { 
 			daemon        => $say_daemon,
 			enabled       => $say_enabled,
 			enable_string => $anvil->data->{daemon}{$daemon}{enabled}{string},
@@ -173,6 +177,9 @@ sub report_status
 			fail_string   => $anvil->data->{daemon}{$daemon}{failed}{string}, 
 		}});
 	}
+	
+	$string =~ s/, $//gs;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, secure => 0, key => "message_0421", variables => { string => $string }});
 	
 	return(0);
 }
@@ -184,22 +191,22 @@ sub check_daemon
 	$anvil->data->{longest_daemon} = 0;
 	foreach my $daemon (sort {$a cmp $b} @{$daemon_list})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon }});
 		
 		if (length($daemon) > $anvil->data->{longest_daemon})
 		{
 			$anvil->data->{longest_daemon} = length($daemon);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { longest_daemon => $anvil->data->{longest_daemon} }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { longest_daemon => $anvil->data->{longest_daemon} }});
 		}
 		
 		# What's the status of this daemon?
 		foreach my $test ("active", "enabled", "failed")
 		{
 			my $shell_call = $anvil->data->{path}{exe}{systemctl}." is-".$test." ".$daemon;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				output      => $output, 
 			  	return_code => $return_code,
 			}});
@@ -207,7 +214,7 @@ sub check_daemon
 			# There should only be one line of output.
 			$anvil->data->{daemon}{$daemon}{$test}{string}      = $output;
 			$anvil->data->{daemon}{$daemon}{$test}{return_code} = $return_code;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"daemon::${daemon}::${test}::string"      => $anvil->data->{daemon}{$daemon}{$test}{string},
 				"daemon::${daemon}::${test}::return_code" => $anvil->data->{daemon}{$daemon}{$test}{return_code},
 			}});
@@ -216,12 +223,12 @@ sub check_daemon
 	
 	foreach my $daemon (sort {$a cmp $b} keys %{$anvil->data->{daemon}})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { daemon => $daemon }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { daemon => $daemon }});
 		foreach my $test (sort {$a cmp $b} keys %{$anvil->data->{daemon}{$daemon}})
 		{
 			my $string      = $anvil->data->{daemon}{$daemon}{$test}{string};
 			my $return_code = $anvil->data->{daemon}{$daemon}{$test}{return_code};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:test"        => $test, 
 				"s2:string"      => $string, 
 				"s3:return_code" => $return_code, 
@@ -339,7 +346,7 @@ sub monitor_daemons
 				# Return code of '1' is OK, '0' is failed.
 				my $string      = $anvil->data->{daemon}{$daemon}{failed}{string};
 				my $return_code = $anvil->data->{daemon}{$daemon}{failed}{return_code};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"s1:daemon"      => $daemon,
 					"s2:string"      => $string, 
 					"s3:return_code" => $return_code, 
@@ -368,7 +375,7 @@ sub monitor_daemons
 		if (time > $next_md5sum_check)
 		{
 			$next_md5sum_check = time + 30;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { next_md5sum_check => $next_md5sum_check }});
 			if ($anvil->Storage->check_md5sums)
 			{
 				# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
@@ -376,7 +383,7 @@ sub monitor_daemons
 				$anvil->nice_exit({exit_code => 0});
 			}
 		}
-		sleep 10;
+		sleep 60;
 	}
 	
 	return(0);
