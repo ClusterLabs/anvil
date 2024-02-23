@@ -31,8 +31,8 @@ $anvil->Get->switches({list => [
 	"print", 
 	"run-once",
 ], man => $THIS_FILE});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Calculate my sum so that we can exit if it changes later.
 $anvil->Storage->record_md5sums;
@@ -59,7 +59,7 @@ while(1)
 	if (time > $next_md5sum_check)
 	{
 		$next_md5sum_check = time + 30;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { next_md5sum_check => $next_md5sum_check }});
 		if ($anvil->Storage->check_md5sums)
 		{
 			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
@@ -76,36 +76,36 @@ sub record_data
 {
 	my ($anvil) = @_;
 	
-	$anvil->Get->load_average({debug => 2});
+	$anvil->Get->load_average({debug => 3});
 
-	# Show the CPU load percents.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0840", variables => { 
-		iowait   => $anvil->data->{loads}{load_percent}{iowait},
-		user     => $anvil->data->{loads}{load_percent}{user}, 
-		steal    => $anvil->data->{loads}{load_percent}{steal}, 
-		idle     => $anvil->data->{loads}{load_percent}{idle}, 
-		nice     => $anvil->data->{loads}{load_percent}{nice}, 
-		'system' => $anvil->data->{loads}{load_percent}{'system'}, 
-	}});
-
-	# Show the CPU load levels
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0835", variables => { 
-		one_minute   => $anvil->data->{loads}{load_average}{one_minute},
-		five_minutes => $anvil->data->{loads}{load_average}{five_minute},
-		ten_minutes  => $anvil->data->{loads}{load_average}{ten_minute},
-	}});
-
-	# Show the processes
-	my $key = $detailed ? "log_0841" : "log_0836";
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => $key, variables => { 
-		total      => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{total}}), 
-		running    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{running}}),
-		blocked    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{blocked}}),
-		interrupts => $anvil->Convert->add_commas({number => $anvil->data->{loads}{interrupts}{total}}),
-	}});
-	
 	if ($detailed)
 	{
+		# Show the CPU load percents.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0840", variables => { 
+			iowait   => $anvil->data->{loads}{load_percent}{iowait},
+			user     => $anvil->data->{loads}{load_percent}{user}, 
+			steal    => $anvil->data->{loads}{load_percent}{steal}, 
+			idle     => $anvil->data->{loads}{load_percent}{idle}, 
+			nice     => $anvil->data->{loads}{load_percent}{nice}, 
+			'system' => $anvil->data->{loads}{load_percent}{'system'}, 
+		}});
+
+		# Show the CPU load levels
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0835", variables => { 
+			one_minute   => $anvil->data->{loads}{load_average}{one_minute},
+			five_minutes => $anvil->data->{loads}{load_average}{five_minute},
+			ten_minutes  => $anvil->data->{loads}{load_average}{ten_minute},
+		}});
+
+		# Show the processes
+		my $key = $detailed ? "log_0841" : "log_0836";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => $key, variables => { 
+			total      => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{total}}), 
+			running    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{running}}),
+			blocked    => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{blocked}}),
+			interrupts => $anvil->Convert->add_commas({number => $anvil->data->{loads}{interrupts}{total}}),
+		}});
+		
 		# CPU average load times
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0837", variables => { 
 			io_wait        => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{cpu}{average}{io_wait} / 100)}), 
@@ -140,6 +140,18 @@ sub record_data
 				weighted_time_spent => $anvil->Convert->add_commas({number => ($anvil->data->{loads}{storage}{$device_name}{weighted_time_spent_doing_ios} / 100)}), 
 			}});
 		}
+	}
+	else
+	{
+		# This is much more condensed. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 1, key => "log_0846", variables => { 
+			one_minute   => $anvil->data->{loads}{load_average}{one_minute},
+			five_minutes => $anvil->data->{loads}{load_average}{five_minute},
+			ten_minutes  => $anvil->data->{loads}{load_average}{ten_minute},
+			iowait       => $anvil->data->{loads}{load_percent}{iowait},
+			running      => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{running}}),
+			blocked      => $anvil->Convert->add_commas({number => $anvil->data->{loads}{processes}{blocked}}),
+		}});
 	}
 	
 	return(0);

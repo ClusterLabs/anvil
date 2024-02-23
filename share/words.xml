@@ -2726,6 +2726,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0843">Creating the: [#!variable!file!#] debug file on: [#!variable!host!#].</key>
 		<key name="log_0844">The bond interface: [#!variable!bond_name!#] is not ready yet, we'll check again shortly.</key>
 		<key name="log_0845">No interfaces found configured for the bond: [#!variable!bond_name!#], ignoring it.</key>
+		<key name="log_0846">CPU Load Average: [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#], io wait: [#!variable!iowait!#%], running/blocked processes: [#!variable!running!# / #!variable!blocked!#]</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
