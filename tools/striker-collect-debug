@@ -477,7 +477,7 @@ sub collect_remote_data
 				overwrite => 0,
 				backup    => 0,
 			});
-			my $shell_call = $anvil->data->{path}{exe}{pg_dump}." -h ".$anvil->data->{peer}{$short_host_name}{access}{ip}." -U admin anvil 2>/dev/null | ".$anvil->data->{path}{exe}{bzip2}." --stdout > ".$target_directory."/anvil.out.bz2";
+			my $shell_call = $anvil->data->{path}{exe}{pg_dump}." -h ".$anvil->data->{peer}{$short_host_name}{access}{ip}." -U admin anvil > ".$target_directory."/anvil.out.bz2";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -534,16 +534,6 @@ sub collect_remote_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
 	if (-e $test_file)
 	{
-		# Compress the logs.
-		print "Compressing the log... ";
-		my $shell_call = $anvil->data->{path}{exe}{bzip2}." $test_file";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output, 
-			return_code => $return_code, 
-		}});
 		print "Done.\n";
 	}
 	else
@@ -725,17 +715,6 @@ sub collect_local_data
 	
 	print "- Grabbing Anvil! log... ";
 	$shell_call = $anvil->data->{path}{exe}{cp}." /var/log/anvil.log ".$target_directory."/";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	
-	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output, 
-		return_code => $return_code, 
-	}});
-	
-	# Compress the logs.
-	print "Compressing the log... ";
-	$shell_call = $anvil->data->{path}{exe}{bzip2}." ".$target_directory."/anvil.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
