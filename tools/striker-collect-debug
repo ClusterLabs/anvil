@@ -357,7 +357,7 @@ sub collect_remote_data
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/tmp/journalctl-previous-boot.log",
 		destination => $target_directory."/",
 	});
-	my $test_file = $target_directory."/tmp/journalctl-previous-boot.log";
+	my $test_file = $target_directory."/journalctl-previous-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
 	if (-e $test_file)
 	{
@@ -366,7 +366,7 @@ sub collect_remote_data
 	else
 	{
 		print "Failed!\n";
-		print "- For some reason, this file was not collected.\n";
+		print " - [ Warning ] - For some reason, this file was not collected.\n";
 		$anvil->Storage->write_file({
 			file      => $test_file, 
 			body      => $failed_body,
@@ -534,6 +534,16 @@ sub collect_remote_data
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
 	if (-e $test_file)
 	{
+		# Compress the logs.
+		print "Compressing the log... ";
+		my $shell_call = $anvil->data->{path}{exe}{bzip2}." $test_file";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
 		print "Done.\n";
 	}
 	else
@@ -715,6 +725,17 @@ sub collect_local_data
 	
 	print "- Grabbing Anvil! log... ";
 	$shell_call = $anvil->data->{path}{exe}{cp}." /var/log/anvil.log ".$target_directory."/";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	# Compress the logs.
+	print "Compressing the log... ";
+	$shell_call = $anvil->data->{path}{exe}{bzip2}." ".$target_directory."/anvil.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
