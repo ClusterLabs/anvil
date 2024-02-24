@@ -70,7 +70,6 @@ if (($< != 0) && ($> != 0))
 
 # Make sure that we set the network->wait_for_bonds() timeout to 60 seconds.
 $anvil->Storage->update_config({
-	debug    => 2,
 	append   => 1,
 	variable => "network::wait_for_bonds::timeout",
 	value    => 60,
@@ -83,7 +82,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secu
 }});
 
 # Connect
-$anvil->Database->connect({debug => 2, check_for_resync => 1});
+$anvil->Database->connect({check_for_resync => 1});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "message_0031"});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
@@ -104,7 +103,6 @@ reconfigure_network($anvil);
 
 # Record that we've configured this machine.
 $anvil->Database->insert_or_update_variables({
-	debug                 => 2,
 	variable_name         => "system::configured", 
 	variable_value        => 1, 
 	variable_default      => "", 
@@ -123,14 +121,13 @@ $anvil->Job->update_progress({
 
 # Make sure that we set the network->wait_for_bonds() timeout back to 180.
 $anvil->Storage->update_config({
-	debug    => 2,
 	append   => 1,
 	variable => "network::wait_for_bonds::timeout",
 	value    => 180,
 });
 
 # Clear maintenance mode.
-$anvil->System->maintenance_mode({set => 0, debug => 2});
+$anvil->System->maintenance_mode({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0467"});
 
 $anvil->nice_exit({exit_code => 0});
@@ -248,12 +245,8 @@ sub update_passwords
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
-				my ($output, $return_code) = $anvil->System->call({debug => 2, timeout => 15, shell_call => $shell_call });
+				my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call });
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-				foreach my $line (split/\n/, $output)
-				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				}
 				
 				if ($return_code)
 				{
@@ -352,7 +345,7 @@ sub reconfigure_network
 		}
 		
 		# Set the host_name
-		my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name, debug => 3});
+		my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			host_name             => $host_name,
 			descriptive_host_name => $descriptive_host_name, 
@@ -514,7 +507,7 @@ ORDER BY
 	$anvil->data->{sys}{reboot} = 0;
 	
 	# Read the existing network data 
-	$anvil->Network->collect_data({debug => 2, start => 1});
+	$anvil->Network->collect_data({start => 1});
 	
 	# This will be set to '1' if we make a change.
 	my $changes        = 0;
@@ -541,7 +534,7 @@ ORDER BY
 			file      => $THIS_FILE, 
 			line      => __LINE__,
 		});
-		$anvil->Database->disconnect({debug => 2});
+		$anvil->Database->disconnect();
 	}
 	
 	# These can brake the connection.
@@ -562,7 +555,7 @@ ORDER BY
 		while ($waiting)
 		{
 			$anvil->refresh();
-			$anvil->Database->connect({debug => 2});
+			$anvil->Database->connect();
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 			if ($anvil->data->{sys}{database}{connections})
@@ -606,8 +599,11 @@ ORDER BY
 	}
 	
 	# If any virtio bridges exist, remove it/them.
-	my $start                   = 0;
-	my ($bridges, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-list"});
+	my $start      = 0;
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." net-list";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($bridges, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridges => $bridges, return_code => $return_code }});
 	if ($return_code)
 	{
@@ -764,7 +760,7 @@ sub reconfigure_bridges
 			else
 			{
 				# If there are ifcfg files for this bridge, move it.
-				my $network_type = $anvil->System->check_network_type({debug => 2});
+				my $network_type = $anvil->System->check_network_type();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 				if ($network_type eq "ifcfg")
 				{
@@ -783,7 +779,7 @@ sub reconfigure_bridges
 							job_uuid  => $anvil->data->{job}{uuid},
 							variables => { file => $ifcfg_file },
 						});
-						$anvil->Storage->backup({debug => 2, file => $ifcfg_file});
+						$anvil->Storage->backup({file => $ifcfg_file});
 						unlink $ifcfg_file;
 					}
 				}
@@ -835,8 +831,8 @@ sub reconfigure_bridges
 							device_uuid => $bridge_uuid, 
 						},
 					});
-					my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $bridge_uuid, variable => "ipv4.method", value => "disabled"});
-					   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $bridge_uuid, variable => "ipv6.method", value => "disabled"});
+					my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bridge_uuid, variable => "ipv4.method", value => "disabled"});
+					   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bridge_uuid, variable => "ipv6.method", value => "disabled"});
 					
 					my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bridge_name;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -858,7 +854,7 @@ sub reconfigure_bridges
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data({debug => 2});
+				$anvil->Network->collect_data();
 			}
 			
 			# Checking that the device is connected to this bridge
@@ -944,8 +940,8 @@ sub reconfigure_bridges
 					device_uuid => $on_device_uuid, 
 				},
 			});
-			my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $on_device_uuid, variable => "ipv4.method", value => "disabled"});
-			   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $on_device_uuid, variable => "ipv6.method", value => "disabled"});
+			my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $on_device_uuid, variable => "ipv4.method", value => "disabled"});
+			   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $on_device_uuid, variable => "ipv6.method", value => "disabled"});
 			
 			# Connect it now.
 			$anvil->Job->update_progress({
@@ -1000,7 +996,7 @@ sub reconfigure_bridges
 					device_uuid => $on_device_uuid, 
 				},
 			});
-			($output, $return_code) = $anvil->Network->reset_connection({debug => 2, uuid => $on_device_uuid});
+			($output, $return_code) = $anvil->Network->reset_connection({uuid => $on_device_uuid});
 			
 			# Rescan.
 			$anvil->Job->update_progress({
@@ -1013,7 +1009,7 @@ sub reconfigure_bridges
 				line      => __LINE__,
 				variables => { },
 			});
-			$anvil->Network->collect_data({debug => 2});
+			$anvil->Network->collect_data();
 		}
 	}
 	
@@ -1139,7 +1135,7 @@ sub reconfigure_bonds
 				});
 				
 				# If there are ifcfg files for this bond, move it.
-				my $network_type = $anvil->System->check_network_type({debug => 2});
+				my $network_type = $anvil->System->check_network_type();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 				if ($network_type eq "ifcfg")
 				{
@@ -1158,7 +1154,7 @@ sub reconfigure_bonds
 							job_uuid  => $anvil->data->{job}{uuid},
 							variables => { file => $ifcfg_file },
 						});
-						$anvil->Storage->backup({debug => 2, file => $ifcfg_file});
+						$anvil->Storage->backup({file => $ifcfg_file});
 						unlink $ifcfg_file;
 					}
 				}
@@ -1209,8 +1205,8 @@ sub reconfigure_bonds
 							device_uuid => $bond_uuid, 
 						},
 					});
-					my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $bond_uuid, variable => "ipv4.method", value => "disabled"});
-					   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $bond_uuid, variable => "ipv6.method", value => "disabled"});
+					my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bond_uuid, variable => "ipv4.method", value => "disabled"});
+					   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bond_uuid, variable => "ipv6.method", value => "disabled"});
 					
 					my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bond_name;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1231,7 +1227,7 @@ sub reconfigure_bonds
 					file      => $THIS_FILE, 
 					line      => __LINE__,
 				});
-				$anvil->Network->collect_data({debug => 2});
+				$anvil->Network->collect_data();
 			}
 			
 			# Now add the interfaces, disabling their ipv4.method first.
@@ -1328,8 +1324,8 @@ sub reconfigure_bonds
 						device_uuid => $nm_uuid, 
 					},
 				});
-				my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $nm_uuid, variable => "ipv4.method", value => "disabled"});
-				   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $nm_uuid, variable => "ipv6.method", value => "disabled"});
+				my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $nm_uuid, variable => "ipv4.method", value => "disabled"});
+				   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $nm_uuid, variable => "ipv6.method", value => "disabled"});
 				
 				# Connecting the interface to the bond
 				$anvil->Job->update_progress({
@@ -1387,7 +1383,7 @@ sub reconfigure_bonds
 						device_uuid => $nm_uuid, 
 					},
 				});
-				($output, $return_code) = $anvil->Network->reset_connection({debug => 2, uuid => $nm_uuid});
+				($output, $return_code) = $anvil->Network->reset_connection({uuid => $nm_uuid});
 				
 				# Rescan.
 				$anvil->Job->update_progress({
@@ -1400,7 +1396,7 @@ sub reconfigure_bonds
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data({debug => 2});
+				$anvil->Network->collect_data();
 			}
 		}
 	}
@@ -1716,8 +1712,8 @@ sub reconfigure_ip_addresses
 						device_uuid => $old_uuid, 
 					},
 				});
-				my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $old_uuid, variable => "ipv4.method", value => "disabled"});
-				   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $old_uuid, variable => "ipv6.method", value => "disabled"});
+				my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $old_uuid, variable => "ipv4.method", value => "disabled"});
+				   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $old_uuid, variable => "ipv6.method", value => "disabled"});
 				
 				$anvil->Job->update_progress({
 					progress  => $anvil->Job->bump_progress({steps => 1}), 
@@ -1732,7 +1728,7 @@ sub reconfigure_ip_addresses
 						device_uuid => $old_uuid, 
 					},
 				});
-				($output, $return_code) = $anvil->Network->reset_connection({debug => 2, uuid => $old_uuid});
+				($output, $return_code) = $anvil->Network->reset_connection({uuid => $old_uuid});
 			}
 			
 			# Now assign the IP.
@@ -1770,7 +1766,7 @@ sub reconfigure_ip_addresses
 					device_uuid => $on_device_uuid, 
 				},
 			});
-			($output, $return_code) = $anvil->Network->reset_connection({debug => 2, uuid => $on_device_uuid});
+			($output, $return_code) = $anvil->Network->reset_connection({uuid => $on_device_uuid});
 			
 			# Rescan.
 			$anvil->Job->update_progress({
@@ -1783,7 +1779,7 @@ sub reconfigure_ip_addresses
 				line      => __LINE__,
 				variables => { },
 			});
-			$anvil->Network->collect_data({debug => 2});
+			$anvil->Network->collect_data();
 		}
 	}
 	
@@ -1847,7 +1843,7 @@ sub reconfigure_interfaces
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data({debug => 2});
+				$anvil->Network->collect_data();
 			}
 		}
 	}
@@ -1945,7 +1941,7 @@ sub reconfigure_interfaces
 				# Make sure that the autoconnect is enabled.
 				if ($anvil->data->{nmcli}{uuid}{$link1_nm_uuid}{'connection.autoconnect'} ne "yes")
 				{
-					my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $link1_nm_uuid, variable => "connection.autoconnect", value => "yes"});
+					my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $link1_nm_uuid, variable => "connection.autoconnect", value => "yes"});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						output      => $output,
 						return_code => $return_code, 
@@ -2005,7 +2001,7 @@ sub reconfigure_interfaces
 					# Make sure that the autoconnect is enabled.
 					if ($anvil->data->{nmcli}{uuid}{$link2_nm_uuid}{'connection.autoconnect'} ne "yes")
 					{
-						my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $link2_nm_uuid, variable => "connection.autoconnect", value => "yes"});
+						my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $link2_nm_uuid, variable => "connection.autoconnect", value => "yes"});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							output      => $output,
 							return_code => $return_code, 
@@ -2095,7 +2091,7 @@ sub rename_interface
 	});
 	
 	# If there are ifcfg files for this device, move them.
-	my $network_type = $anvil->System->check_network_type({debug => 2});
+	my $network_type = $anvil->System->check_network_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 	if ($network_type eq "ifcfg")
 	{
@@ -2121,7 +2117,7 @@ sub rename_interface
 					job_uuid  => $anvil->data->{job}{uuid},
 					variables => { file => $file },
 				});
-				$anvil->Storage->backup({debug => 2, file => $file});
+				$anvil->Storage->backup({file => $file});
 				unlink $file;
 			}
 		}
@@ -2132,7 +2128,7 @@ sub rename_interface
 	my $old_persistent_net = "";
 	if (-e $anvil->data->{path}{configs}{'persistent-net'})
 	{
-		$old_persistent_net = $anvil->Storage->read_file({debug => 2, file => $anvil->data->{path}{configs}{'persistent-net'}});
+		$old_persistent_net = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'persistent-net'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_persistent_net => $old_persistent_net }});
 	}
 	foreach my $line (split/\n/, $old_persistent_net)
@@ -2356,7 +2352,7 @@ sub rename_interface
 		line      => __LINE__,
 		variables => { },
 	});
-	$anvil->Network->collect_data({debug => 2});
+	$anvil->Network->collect_data();
 	
 	# Set the reboot flag.
 	$anvil->data->{sys}{reboot_needed} = 1;
