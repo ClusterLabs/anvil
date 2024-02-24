@@ -4717,6 +4717,7 @@ sub wait_for_bonds
 				if (time > $end_time)
 				{
 					# We're done.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0847", variables => { timeout => $timeout }});
 					return(1);
 				}
 				my $time_left = $end_time - time;
