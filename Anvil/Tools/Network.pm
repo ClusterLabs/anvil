@@ -36,6 +36,7 @@ my $THIS_FILE = "Network.pm";
 # read_nmcli
 # reset_connection
 # wait_for_bonds
+# wait_for_network
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -4731,6 +4732,61 @@ sub wait_for_bonds
 
 	return(0);
 }
+
+
+=head2 wait_for_network
+
+This method calls C<< nm-online --wait-for-startup --timeout X >>, which in turn waits for Network Manager to report C<< startup complete >> in the journald logs. The default timeout used here is C<< 120 >> seconds (as opposed to the default of C<< 30 >> used by C<< nm-online >> itself). 
+
+From our testing, given the complexity of the network in Anvil! clusters, this much time isn't out of the ordinaryl
+
+ Feb 24 19:13:17 an-a01n01.ci.alteeve.com NetworkManager[1003]: <info>  [1708801997.5155] NetworkManager (version 1.44.0-4.el9_3) is starting... (boot:833ea5be-eb44-4214-9e2d-8c6281dec9b6)
+ ...
+ Feb 24 19:14:53 an-a01n01.ci.alteeve.com NetworkManager[1003]: <info>  [1708802093.9684] manager: startup complete
+
+B<< Note >>: This method only works on Network Manager based systems.
+
+The return code from C<< nm-online >> is returned. See C<< man nm-online >> for details, but the main return codes are C<< 0 >> meaning the connection came up within the timeout, C<< 1 >> if the connection failed to come up within the timeout, and C<< 2 >> if there was any error.
+
+Parameters;
+
+=head3 timeout (optional, default '120')
+
+By default, this method will wait for two minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
+
+=cut
+sub wait_for_network
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_network()" }});
+	
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 120;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		timeout => $timeout, 
+	}});
+	
+	if ((not $timeout) or ($timeout !~ /^\d+$/))
+	{
+		# Invalid timeout.
+		$timeout = 120;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{'nm-online'}." --wait-for-startup --timeout ".$timeout;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:output'      => $output,
+		's2:return_code' => $return_code, 
+	}});
+	
+	return($return_code);
+}
+
 
 #############################################################################################################
 # Private functions                                                                                         #

@@ -70,8 +70,9 @@ $anvil->System->_check_anvil_conf();
 # If dnf is running, hold.
 $anvil->System->wait_on_dnf();
 
-# If we've got bonds, wait for them to be up.
+# If we've got bonds, wait for them to be up. Then wait for NetworkManager to be up.
 $anvil->Network->wait_for_bonds({debug => 2});
+$anvil->Network->wait_for_network({debug => 2});
 
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.

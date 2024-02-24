@@ -1258,6 +1258,7 @@ sub _set_paths
 				modprobe			=>	"/usr/sbin/modprobe",
 				mv				=>	"/usr/bin/mv",
 				nc				=>	"/usr/bin/nc",
+				'nm-online'			=>	"/usr/bin/nm-online",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
 				nohup				=>	"/usr/bin/nohup",
