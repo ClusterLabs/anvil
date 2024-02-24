@@ -1,6 +1,7 @@
 [Unit]
 Description=Anvil! Intelligent Availability Platform - ScanCore Decision Engine
 Wants=network.target
+After=NetworkManager.service
 
 [Service]
 Type=simple

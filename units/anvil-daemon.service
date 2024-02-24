@@ -1,6 +1,7 @@
 [Unit]
 Description=Anvil! Intelligent Availability Platform - main service daemon
 Wants=network.target
+After=NetworkManager.service
 
 [Service]
 Type=simple

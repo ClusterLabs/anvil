@@ -78,7 +78,6 @@ $anvil->Network->wait_for_bonds({debug => 2});
 $anvil->Database->connect({
 	check_if_configured => 1, 
 	check_for_resync    => 2,
-	debug               => 2,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
