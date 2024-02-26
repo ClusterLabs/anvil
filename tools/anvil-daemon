@@ -1901,7 +1901,7 @@ sub run_jobs
 				
 				# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
 				$anvil->data->{jobs}{$job_uuid}{started} = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'jobs::$job_uuid::started' => $anvil->data->{jobs}{$job_uuid}{started} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
 				
 				# Record that a job with this command has started 
 				$anvil->data->{jobs_started}{$short_command} = $job_uuid;
