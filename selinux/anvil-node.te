@@ -1,0 +1,7 @@
+#============= drbd_t ==============
+allow drbd_t self:netlink_generic_socket { bind create getattr setopt };
+allow drbd_t var_lock_t:file { read lock open write };
+
+
+#============= virsh_t ==============
+allow virsh_t mnt_t:file { open read };
