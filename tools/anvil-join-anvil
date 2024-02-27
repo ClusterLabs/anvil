@@ -55,9 +55,6 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
-# Make sure the hosts file has entries for all nets for both subnodes
-wait_for_etc_hosts($anvil);
-
 # Hold until both subnodes are marked as configured and not in maintenance mode.
 wait_for_subnodes($anvil);
 
@@ -66,6 +63,9 @@ update_passwords($anvil);
 
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
+
+# Make sure the hosts file has entries for all nets for both subnodes
+wait_for_etc_hosts($anvil);
 
 # Wait until we can ping our peer on all networks.
 wait_for_access($anvil);
