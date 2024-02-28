@@ -4775,7 +4775,7 @@ sub wait_for_network
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
 	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{'nm-online'}." --wait-for-startup --timeout ".$timeout;
+	my $shell_call = $anvil->data->{path}{exe}{'nm-online'}." --wait-for-startup --quiet --timeout ".$timeout;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 	
 	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
