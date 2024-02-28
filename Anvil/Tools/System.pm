@@ -5484,7 +5484,7 @@ sub update_hosts
 			# Push the IP into the array so that we print them in the order be first saw them.
 			push @{$ip_order}, $ip_address;
 		}
-		$lines->{$ip_address} .= $host_name;
+		$lines->{$ip_address} .= $host_name." ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"lines->${ip_address}" => $lines->{$ip_address},
 		}});
@@ -5533,6 +5533,10 @@ sub update_hosts
 		
 		foreach my $ip_address (@{$ip_order})
 		{
+			# Clean off trailing white spaces.
+			$lines->{$ip_address} =~ s/\s+$//;
+			
+			# Add it.
 			$new_body .= $lines->{$ip_address}."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
 		}
