@@ -35,8 +35,8 @@ my $THIS_FILE = "Network.pm";
 # ping
 # read_nmcli
 # reset_connection
-# wait_for_bonds
 # wait_for_network
+# wait_on_nm_online
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -4510,9 +4510,11 @@ sub reset_connection
 }
 
 
-=head2 wait_for_bonds
+=head2 wait_for_network
 
-This method checks for Network Manager bond configurations. If they're found, this method will hold. When at least one interface in each bond is up, this method returns with C<< 0 >>. If no bonds are found, this also returns with C<< 0 >>.
+This method checks for Network Manager configurations. Any that are found that belong to the Anvil![1] will be watched until their state is C<< activated >>. 
+
+B<<Note>>: 1. Interfaces with device name starting with C<< bcnX_ >>, C<< ifnX_ >>, C<< snX_ >>, or C<< mnX_ >>, where C<< X >> is an integer
 
 B<< Note >>: This method only works on Network Manager based systems.
 
@@ -4523,13 +4525,13 @@ Parameters;
 By default, this method will wait for five minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
 
 =cut
-sub wait_for_bonds
+sub wait_for_network
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_bonds()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_network()" }});
 	
 	### TODO: all configured bonds and slaved interfaces should be 'activated' before this returns, even if their cable is out. Wait for this, with a default 300s timeout.
 	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 300;
@@ -4537,15 +4539,19 @@ sub wait_for_bonds
 		timeout => $timeout, 
 	}});
 	
-	# If timeout wasn't set, but network::wait_for_bonds::timeout is set, use it.
-	if ((exists $anvil->data->{network}{wait_for_bonds}{timeout}) && ($anvil->data->{network}{wait_for_bonds}{timeout} =~ /^\d+$/))
+	# If timeout wasn't set, but network::wait_for_network::timeout is set, use it.
+	if ((exists $anvil->data->{network}{wait_for_network}{timeout}) && ($anvil->data->{network}{wait_for_network}{timeout} =~ /^\d+$/))
 	{
-		$timeout = $anvil->data->{network}{wait_for_bonds}{timeout};
+		$timeout = $anvil->data->{network}{wait_for_network}{timeout};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
 	}
 	
-	my $directory = $anvil->data->{path}{directories}{NetworkManager};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	my $short_host_name = $anvil->Get->short_host_name();
+	my $directory       = $anvil->data->{path}{directories}{NetworkManager};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		short_host_name => $short_host_name, 
+		directory       => $directory,
+	}});
 	
 	if (not -d $directory)
 	{
@@ -4570,87 +4576,95 @@ sub wait_for_bonds
 		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 		
+		my $uuid           = "";
 		my $type           = "";
 		my $interface_name = "";
+		my $id             = "";
 		my $parent_bond    = "";
 		foreach my $line (split/\n/, $file_body)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 			
+			# Collect the UUID
+			if ($line =~ /^uuid=(.*)$/)
+			{
+				$uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			}
+			
+			# ethernet, bond, or bridge
 			if ($line =~ /^type=(.*)$/)
 			{
 				$type = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
 			}
-			if ($line =~ /^master=(.*)$/)
-			{
-				$parent_bond = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { parent_bond => $parent_bond }});
-			}
+			
+			# Get the device name
 			if ($line =~ /^interface-name=(.*)$/)
 			{
 				$interface_name = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
 			}
-			if ((not $interface_name) && ($line =~ /id=(.*)$/))
+			if ($line =~ /id=(.*)$/)
+			{
+				$id = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+			}
+			
+			# Find the parent bond, if this is a child interface
+			if ($line =~ /^master=(.*)$/)
+			{
+				$parent_bond = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { parent_bond => $parent_bond }});
+			}
+		}
+		
+		if ($uuid)
+		{
+			# If the interface_name is multiple names, pull our the name we use (if name)
+			if ((not $interface_name) && ($id))
 			{
 				$interface_name = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
 			}
-		}
-		
-		if (($type eq "bond") && ($interface_name))
-		{
-			$anvil->data->{network}{bond}{$interface_name}{ready} = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::bond::${interface_name}::ready" => $anvil->data->{network}{bond}{$interface_name}{ready},
-			}});
-		}
-		if (($type eq "ethernet") && ($parent_bond))
-		{
-			$anvil->data->{network}{ethernet}{$interface_name}{parent_bond} = $parent_bond;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"network::ethernet::${interface_name}::parent_bond" => $anvil->data->{network}{ethernet}{$interface_name}{parent_bond},
-			}});
+			
+			if ($interface_name =~ /;/)
+			{
+				$interface_name =~ s/;$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+				
+				foreach my $this_interface_name (split/;/, $interface_name)
+				{
+					if (($this_interface_name =~ /^bcn\d+_/) or 
+					    ($this_interface_name =~ /^ifn\d+_/) or 
+					    ($this_interface_name =~ /^sn\d+_/)  or 
+					    ($this_interface_name =~ /^mn\d+_/))
+					{
+						$interface_name = $this_interface_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+					}
+				}
+			}
+			next if not $interface_name;
+			
+			# Is this an interface we care about?
+			if (($interface_name =~ /^bcn\d+_/) or 
+			    ($interface_name =~ /^ifn\d+_/) or 
+			    ($interface_name =~ /^sn\d+_/)  or 
+			    ($interface_name =~ /^mn\d+_/))
+			{
+				# Watch for this interface
+				$anvil->data->{network}{watch}{$interface_name}{uuid}  = $uuid;
+				$anvil->data->{network}{watch}{$interface_name}{type}  = $type;
+				$anvil->data->{network}{watch}{$interface_name}{ready} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"network::watch::${interface_name}::uuid" => $anvil->data->{network}{watch}{$interface_name}{uuid},
+					"network::watch::${interface_name}::type" => $anvil->data->{network}{watch}{$interface_name}{type},
+				}});
+			}
 		}
 	}
 	closedir(DIRECTORY);
-	
-	# We only want to watch bonds with interfaces configured to use it.
-	foreach my $bond_name (sort {$a cmp $b} keys %{$anvil->data->{network}{bond}})
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_name => $bond_name }});
-		
-		# We've got a primary, is it (or any interface) configured for this bond yet?
-		my $interface_found = 0;
-		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{ethernet}})
-		{
-			my $parent_bond = $anvil->data->{network}{ethernet}{$interface_name}{parent_bond};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
-			
-			if ($parent_bond eq $bond_name)
-			{
-				# We've got an interface.
-				$interface_found = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_found => $interface_found }});
-			}
-		}
-		
-		if (not $interface_found)
-		{
-			# Ignore this bond.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0845", variables => { bond_name => $bond_name }});
-			delete $anvil->data->{network}{bond}{$bond_name};
-			next;
-		}
-	}
-	
-	my $bond_count = keys %{$anvil->data->{network}{bond}};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_count => $bond_count }});
-	if (not $bond_count)
-	{
-		return(0);
-	}
 	
 	my $waiting  = 1;
 	my $end_time = $timeout  ? time + $timeout : 0;
@@ -4661,52 +4675,30 @@ sub wait_for_bonds
 	}});
 	while($waiting)
 	{
+		$anvil->Network->read_nmcli({
+			debug => $debug, 
+			host  => $short_host_name, 
+		});
 		$waiting = 0;
-		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{bond}})
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{watch}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
-			next if $anvil->data->{network}{bond}{$interface_name}{ready};
+			next if $anvil->data->{network}{watch}{$interface_name}{ready};
+			my $uuid  = $anvil->data->{network}{watch}{$interface_name}{uuid};
+			my $type  = $anvil->data->{network}{watch}{$interface_name}{type};
+			my $state = $anvil->data->{nmcli}{$short_host_name}{uuid}{$uuid}{'state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:interface_name' => $interface_name,
+				's2:type'           => $type, 
+				's3:uuid'           => $uuid, 
+				's4:state'          => $state, 
+			}});
 			
-			my $proc_file = $anvil->data->{path}{directories}{bonds}."/".$interface_name;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { proc_file => $proc_file }});
-			
-			if (not -f $proc_file)
+			if (($state eq "activated") or ($state == 1))
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0844", variables => { bond_name => $interface_name }});
-				
-				$waiting = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
-				next;
-			}
-			
-			my $file_body = $anvil->Storage->read_file({debug => $debug, file => $proc_file});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
-			
-			foreach my $line (split/\n/, $file_body)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-				
-				if ($line =~ /MII Status: (.*)$/)
-				{
-					my $mii_status = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { mii_status => $mii_status }});
-					
-					if ($mii_status eq "up")
-					{
-						# This bond is ready.
-						$anvil->data->{network}{bond}{$interface_name}{ready} = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"network::bond::${interface_name}::ready" => $anvil->data->{network}{bond}{$interface_name}{ready},
-						}});
-					}
-					else
-					{
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0844", variables => { bond_name => $interface_name }});
-						$waiting = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
-					}
-					last;
-				}
+				$anvil->data->{network}{watch}{$interface_name}{ready} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"network::watch::${interface_name}::ready" => $anvil->data->{network}{watch}{$interface_name}{ready}, 
+				}});
 			}
 		}
 		
@@ -4726,8 +4718,8 @@ sub wait_for_bonds
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_left => $time_left }});
 			}
 			
-			# Sleep for a minute
-			sleep 2;
+			# Sleep for a few seconds.
+			sleep 5;
 		}
 	}
 
@@ -4735,7 +4727,7 @@ sub wait_for_bonds
 }
 
 
-=head2 wait_for_network
+=head2 wait_on_nm_online
 
 This method calls C<< nm-online --wait-for-startup --timeout X >>, which in turn waits for Network Manager to report C<< startup complete >> in the journald logs. The default timeout used here is C<< 120 >> seconds (as opposed to the default of C<< 30 >> used by C<< nm-online >> itself). 
 
@@ -4756,13 +4748,13 @@ Parameters;
 By default, this method will wait for two minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
 
 =cut
-sub wait_for_network
+sub wait_on_nm_online
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_network()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_on_nm_online()" }});
 	
 	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 120;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

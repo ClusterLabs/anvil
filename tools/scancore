@@ -71,7 +71,7 @@ $anvil->Storage->read_config();
 $anvil->System->wait_on_dnf();
 
 # If we've got bonds, wait for them to be up. Then wait for NetworkManager to be up.
-$anvil->Network->wait_for_bonds({debug => 2});
+$anvil->Network->wait_on_nm_online({debug => 2});
 $anvil->Network->wait_for_network({debug => 2});
 
 # Read switches

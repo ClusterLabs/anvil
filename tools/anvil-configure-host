@@ -68,10 +68,10 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# Make sure that we set the network->wait_for_bonds() timeout to 60 seconds.
+# Make sure that we set the network->wait_on_network() timeout to 60 seconds.
 $anvil->Storage->update_config({
 	append   => 1,
-	variable => "network::wait_for_bonds::timeout",
+	variable => "network::wait_on_network::timeout",
 	value    => 60,
 });
 
@@ -119,10 +119,10 @@ $anvil->Job->update_progress({
 	job_uuid  => $anvil->data->{job}{uuid},
 });
 
-# Make sure that we set the network->wait_for_bonds() timeout back to 180.
+# Make sure that we set the network->wait_on_network() timeout back to 180.
 $anvil->Storage->update_config({
 	append   => 1,
-	variable => "network::wait_for_bonds::timeout",
+	variable => "network::wait_on_network::timeout",
 	value    => 180,
 });
 
