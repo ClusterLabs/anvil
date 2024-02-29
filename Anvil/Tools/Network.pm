@@ -4518,9 +4518,9 @@ B<< Note >>: This method only works on Network Manager based systems.
 
 Parameters;
 
-=head3 timeout (optional, default '180')
+=head3 timeout (optional, default '300')
 
-By default, this method will wait for three minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
+By default, this method will wait for five minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
 
 =cut
 sub wait_for_bonds
@@ -4531,7 +4531,8 @@ sub wait_for_bonds
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_bonds()" }});
 	
-	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 180;
+	### TODO: all configured bonds and slaved interfaces should be 'activated' before this returns, even if their cable is out. Wait for this, with a default 300s timeout.
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 300;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		timeout => $timeout, 
 	}});

@@ -510,7 +510,7 @@ sub call
 				's3:remote_user' => $remote_user, 
 				's4:port'        => $port, 
 			}});
-			alarm(10);
+			alarm(120);
 			($connect_output) = capture_merged {
 				$ssh_fh = Net::OpenSSH->new($target, 
 					user       => $remote_user,
@@ -706,7 +706,7 @@ sub call
 		if ($timeout)
 		{
 			# Call with a timeout. Use alarm also, as capture2's timeout is questionaly reliable.
-			alarm($timeout + 2);
+			alarm($timeout + 60);
 			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call);
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
