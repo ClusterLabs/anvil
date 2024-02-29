@@ -144,6 +144,9 @@ while(1)
 	
 	# Do we have at least one database?
 	my $agent_runtime = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks

@@ -510,6 +510,7 @@ sub call
 				's3:remote_user' => $remote_user, 
 				's4:port'        => $port, 
 			}});
+			alarm(10);
 			($connect_output) = capture_merged {
 				$ssh_fh = Net::OpenSSH->new($target, 
 					user       => $remote_user,
@@ -525,6 +526,7 @@ sub call
 				's2:ssh_fh->error'  => $ssh_fh->error,
 				's3:connect_output' => $connect_output, 
 			}});
+			alarm(0);
 			
 			# Any fatal issues reaching the target?
 			if ($connect_output =~ /Could not resolve hostname/i)
@@ -703,10 +705,12 @@ sub call
 		$error  = "";
 		if ($timeout)
 		{
-			# Call with a timeout
+			# Call with a timeout. Use alarm also, as capture2's timeout is questionaly reliable.
+			alarm($timeout + 2);
 			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call);
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
+			alarm(0);
 		}
 		else
 		{
