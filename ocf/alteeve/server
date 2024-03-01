@@ -307,6 +307,22 @@ if ($anvil->data->{environment}{OCF_RESKEY_name})
 # help         - (usage maps here) Displays a usage message when the resource agent is invoked from the command line, rather than by the cluster manager.
 # notify       - Inform resource about changes in state of other clones.
 
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"s01:switches::migrate_to"   => $anvil->data->{switches}{migrate_to},
+	"s02:switches::migrate_from" => $anvil->data->{switches}{migrate_from},
+	"s03:switches::start"        => $anvil->data->{switches}{start},
+	"s04:switches::stop"         => $anvil->data->{switches}{stop},
+	"s05:switches::monitor"      => $anvil->data->{switches}{monitor},
+	"s06:switches::status"       => $anvil->data->{switches}{status},
+	"s07:switches::metadaata"    => $anvil->data->{switches}{metadaata},
+	"s08:switches::meta-data"    => $anvil->data->{switches}{'meta-data'},
+	"s09:switches::promote"      => $anvil->data->{switches}{promote},
+	"s10:switches::demote"       => $anvil->data->{switches}{demote},
+	"s11:switches::validate-all" => $anvil->data->{switches}{'validate-all'},
+	"s12:switches::help"         => $anvil->data->{switches}{help},
+	"s13:switches::usage"        => $anvil->data->{switches}{usage},
+	"s14:switches::notify"       => $anvil->data->{switches}{notify},
+}});
 if ($anvil->data->{switches}{migrate_to})
 {
 	# We don't support this, so we return OCF_ERR_UNIMPLEMENTED (3)
@@ -382,6 +398,7 @@ else
 }
 
 # If we hit here, something very wrong happened.
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0491"});
 $anvil->nice_exit({exit_code => 255});
 
 
@@ -2134,6 +2151,7 @@ sub show_metadata
 	my ($anvil) = @_;
 	
 	# This is a pretty simple agent, by design. We only take a server name for now.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0848"});
 	print '<?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
 <resource-agent name="ocs:alteeve:server" version="0.1">

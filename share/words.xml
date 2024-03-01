@@ -779,6 +779,7 @@ The XML that failed sanity check was:
 		<key name="error_0488">[ Error ] - Can't find a device to assign the: [#!variable!network!#] IP address: [#!variable!ip_address!#/#!variable!subnet_mask!#] to!</key>
 		<key name="error_0489">[ Error ] - Failed to map the IP address: [#!variable!ip_address!#] to a network manager connection UUID!</key>
 		<key name="error_0490">[ Error ] - Both the netbios name: [#!variable!wanted_link_name!#] and the old device name: [#!variable!old_device!#] are the same, 'match.interface-name' would break!</key>
+		<key name="error_0491">[ Error ] - ocf:alteeve:server was called without any switches or environment variables set to request an actual action, exiting!</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2731,6 +2732,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0845">No interfaces found configured for the bond: [#!variable!bond_name!#], ignoring it.</key>
 		<key name="log_0846">CPU Load Average: [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#], io wait: [#!variable!iowait!#%], running/blocked processes: [#!variable!running!# / #!variable!blocked!#]</key>
 		<key name="log_0847">Times out waiting for the bonds to come up. We waited: [#!variable!waited!#] seconds.</key>
+		<key name="log_0848">Printing out metadata.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
