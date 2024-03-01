@@ -70,6 +70,10 @@ $anvil->Storage->read_config();
 # If dnf is running, hold.
 $anvil->System->wait_on_dnf();
 
+# If we've got bonds, wait for them to be up. Then wait for NetworkManager to be up.
+$anvil->Network->wait_on_nm_online({debug => 2});
+$anvil->Network->wait_for_network({debug => 2});
+
 # Read switches
 $anvil->Get->switches({list => ["purge", "run-once"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
@@ -140,6 +144,9 @@ while(1)
 	
 	# Do we have at least one database?
 	my $agent_runtime = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
 	if ($anvil->data->{sys}{database}{connections})
 	{
 		# Run the normal tasks

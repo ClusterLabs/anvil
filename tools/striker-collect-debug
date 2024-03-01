@@ -40,10 +40,6 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-### TODO: Disable this before merging into PR
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
-
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
 $anvil->Database->connect();
@@ -361,7 +357,7 @@ sub collect_remote_data
 		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/tmp/journalctl-previous-boot.log",
 		destination => $target_directory."/",
 	});
-	my $test_file = $target_directory."/tmp/journalctl-previous-boot.log";
+	my $test_file = $target_directory."/journalctl-previous-boot.log";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
 	if (-e $test_file)
 	{
@@ -370,7 +366,7 @@ sub collect_remote_data
 	else
 	{
 		print "Failed!\n";
-		print "- For some reason, this file was not collected.\n";
+		print " - [ Warning ] - For some reason, this file was not collected.\n";
 		$anvil->Storage->write_file({
 			file      => $test_file, 
 			body      => $failed_body,
@@ -481,7 +477,7 @@ sub collect_remote_data
 				overwrite => 0,
 				backup    => 0,
 			});
-			my $shell_call = $anvil->data->{path}{exe}{pg_dump}." -h ".$anvil->data->{peer}{$short_host_name}{access}{ip}." -U admin anvil 2>/dev/null | ".$anvil->data->{path}{exe}{bzip2}." --stdout > ".$target_directory."/anvil.out.bz2";
+			my $shell_call = $anvil->data->{path}{exe}{pg_dump}." -h ".$anvil->data->{peer}{$short_host_name}{access}{ip}." -U admin anvil > ".$target_directory."/anvil.out.bz2";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});

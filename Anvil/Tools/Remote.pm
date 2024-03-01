@@ -338,6 +338,21 @@ sub call
 			password => $anvil->Log->is_secure($password), 
 		}});
 	}
+	
+	# Is the global "always reconnect" is set, set 'close' to 1 and clear any cached connections.
+	$anvil->data->{sys}{net}{always_reconnect} = 0 if not defined $anvil->data->{sys}{net}{always_reconnect};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::net::always_reconnect" => $anvil->data->{sys}{net}{always_reconnect}, 
+	}});
+	if ($anvil->data->{sys}{net}{always_reconnect})
+	{
+		$close    = 1;
+		$no_cache = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			'close'  => $close,
+			no_cache => $no_cache, 
+		}});
+	}
 
 	### NOTE: This caused problems that are currently unsolved.
 =cut
@@ -495,6 +510,7 @@ sub call
 				's3:remote_user' => $remote_user, 
 				's4:port'        => $port, 
 			}});
+			alarm(120);
 			($connect_output) = capture_merged {
 				$ssh_fh = Net::OpenSSH->new($target, 
 					user       => $remote_user,
@@ -510,6 +526,7 @@ sub call
 				's2:ssh_fh->error'  => $ssh_fh->error,
 				's3:connect_output' => $connect_output, 
 			}});
+			alarm(0);
 			
 			# Any fatal issues reaching the target?
 			if ($connect_output =~ /Could not resolve hostname/i)
@@ -688,10 +705,12 @@ sub call
 		$error  = "";
 		if ($timeout)
 		{
-			# Call with a timeout
+			# Call with a timeout. Use alarm also, as capture2's timeout is questionaly reliable.
+			alarm($timeout + 60);
 			($output, $error) = $ssh_fh->capture2({timeout => $timeout}, $shell_call);
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
+			alarm(0);
 		}
 		else
 		{

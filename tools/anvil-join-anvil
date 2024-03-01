@@ -55,9 +55,6 @@ if (not $anvil->data->{sys}{database}{connections})
 # Get the job details
 load_job($anvil);
 
-# Make sure the hosts file has entries for all nets for both subnodes
-wait_for_etc_hosts($anvil);
-
 # Hold until both subnodes are marked as configured and not in maintenance mode.
 wait_for_subnodes($anvil);
 
@@ -66,6 +63,9 @@ update_passwords($anvil);
 
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
+
+# Make sure the hosts file has entries for all nets for both subnodes
+wait_for_etc_hosts($anvil);
 
 # Wait until we can ping our peer on all networks.
 wait_for_access($anvil);
@@ -86,8 +86,8 @@ if (1)
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "anvil-safe-start.service" }});
 }
 
-update_progress($anvil, 100, "job_0128");
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0128"});
+update_progress($anvil, 100, "job_0129");
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0129"});
 
 # Record that we're done configuring pacemaker.
 $anvil->Database->insert_or_update_variables({
@@ -263,7 +263,7 @@ sub wait_for_etc_hosts
 				
 				# Add the IP to be added to /etc/hosts.
 				$anvil->data->{to_add}{$host_name} = $ip_address;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "to_add::${ip_address}" => $anvil->data->{to_add}{$host_name} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "to_add::${host_name}" => $anvil->data->{to_add}{$host_name} }});
 			}
 		}
 		
@@ -279,108 +279,10 @@ sub wait_for_etc_hosts
 		{
 			# Not ready, wait a bit.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0834"});
+			sleep 5;
 			
-			# Add the values to /etc/hosts.
-			my $new_hosts_body = "";
-			foreach my $line (split/\n/, $hosts_file)
-			{
-				# See if this line needs to be modified.
-				if ($line =~ /^(\d.*?)\s+(.*)$/)
-				{
-					my $this_ip = $1;
-					my $hosts   = $2;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						this_ip => $this_ip,
-						hosts   => $hosts, 
-					}});
-					if ($anvil->Validate->ip({ip => $this_ip}))
-					{
-						my $changes   = 0;
-						my $new_hosts =  "";
-						my $comment   =  ($hosts =~ /(#.*)$/)[0];
-						   $comment   =  "" if not defined $comment;
-						   $hosts     =~ s/#.*?//;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							comment => $comment,
-							hosts   => $hosts, 
-						}});
-						foreach my $host_name (split/\s+/, $hosts)
-						{
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
-							
-							if ((exists $anvil->data->{to_add}{$host_name}) && 
-							    ($anvil->data->{to_add}{$host_name})        && 
-							    ($this_ip ne $anvil->data->{to_add}{$host_name}))
-							{
-								# Remove this host.
-								$changes = 1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
-								
-								delete $anvil->data->{to_add}{$host_name};
-								next;
-							}
-							$new_hosts .= $host_name." ";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts => $new_hosts }});
-						}
-						
-						# Do we have any names to add to this IP?
-						foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{to_add}})
-						{
-							if ($this_ip eq $anvil->data->{to_add}{$host_name})
-							{
-								# Add it.
-								$new_hosts .= $host_name." ";
-								
-								$changes = 1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
-								
-								delete $anvil->data->{to_add}{$host_name};
-							}
-						}
-						
-						if ($changes)
-						{
-							$new_hosts_body .= $this_ip."\t".$new_hosts.$comment."\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
-							next;
-						}
-					}
-				}
-				
-				# If we're alive here, just add the old line.
-				$new_hosts_body .= $line."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts_body => $new_hosts_body }});
-			}
-			
-			# Add any hosts still not processed.
-			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{to_add}})
-			{
-				$new_hosts_body .= $anvil->data->{to_add}{$host_name}."\t".$host_name."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_hosts_body => $new_hosts_body }});
-				
-				delete $anvil->data->{to_add}{$host_name};
-			}
-			
-			# If there's a difference, write the new hosts file.
-			my $difference = diff \$new_hosts_body, \$hosts_file, { STYLE => 'Unified' };
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
-			
-			if ($difference)
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0112"});
-				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0112");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0835"});
-				my $failed = $anvil->Storage->write_file({
-					debug     => 2,
-					overwrite => 1, 
-					file      => $anvil->data->{path}{configs}{hosts}, 
-					body      => $new_hosts_body, 
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
-			}
+			# Try to update the /etc/hosts file
+			$anvil->System->update_hosts({debug => 2});
 			sleep 1;
 		}
 	}
@@ -1413,19 +1315,31 @@ sub configure_pacemaker
 					}});
 					if ($return_code)
 					{
-						# Something went wrong.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
-							shell_call  => $shell_call, 
-							output      => $output, 
-							return_code => $return_code, 
-						}});
-						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
-						sleep 2;
-						$anvil->nice_exit({exit_code => 6});
+						# See if this was because the fence method already existed.
+						if ($output =~ /already exists/)
+						{
+							# It already existed, we're fine.
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0481,!!device!".$stonith_name."!!");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $stonith_name }});
+						}
+						else
+						{
+							# Something went wrong.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+								shell_call  => $shell_call, 
+								output      => $output, 
+								return_code => $return_code, 
+							}});
+							update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+							sleep 2;
+							$anvil->nice_exit({exit_code => 6});
+						}
 					}
-					
-					$something_changed->{$node_name} = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+					else
+					{
+						$something_changed->{$node_name} = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+					}
 				}
 			}
 			

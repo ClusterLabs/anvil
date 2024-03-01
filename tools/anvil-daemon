@@ -70,12 +70,15 @@ $anvil->System->_check_anvil_conf();
 # If dnf is running, hold.
 $anvil->System->wait_on_dnf();
 
+# If we've got bonds, wait for them to be up. Then wait for NetworkManager to be up.
+$anvil->Network->wait_on_nm_online({debug => 2});
+$anvil->Network->wait_for_network({debug => 2});
+
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
 $anvil->Database->connect({
 	check_if_configured => 1, 
 	check_for_resync    => 2,
-	debug               => 2,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0132"});
 
@@ -1751,10 +1754,10 @@ sub run_jobs
 			}
 			
 			# Convert the double-banged strings into a proper message.
-			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_title})       : "";
-			my $say_description = $job_description ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_description}) : "";
-			my $say_status      = $job_status      ? $anvil->Words->parse_banged_string({debug => 2, key_string => $job_status})      : "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			my $say_title       = $job_title       ? $anvil->Words->parse_banged_string({key_string => $job_title})       : "";
+			my $say_description = $job_description ? $anvil->Words->parse_banged_string({key_string => $job_description}) : "";
+			my $say_status      = $job_status      ? $anvil->Words->parse_banged_string({key_string => $job_status})      : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				job_title       => $job_title, 
 				say_description => $say_description, 
 				say_status      => $say_status,
@@ -1898,7 +1901,7 @@ sub run_jobs
 				
 				# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
 				$anvil->data->{jobs}{$job_uuid}{started} = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'jobs::$job_uuid::started' => $anvil->data->{jobs}{$job_uuid}{started} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
 				
 				# Record that a job with this command has started 
 				$anvil->data->{jobs_started}{$short_command} = $job_uuid;

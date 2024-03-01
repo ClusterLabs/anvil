@@ -1761,6 +1761,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0478">Preparing the new definition file</key>
 		<key name="job_0479">The new definition is ready, saving it.</key>
 		<key name="job_0480">Running as a job, not prompting the user to confirm.</key>
+		<key name="job_0481">The fence device: [#!variable!device!#] already exists.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2714,7 +2715,19 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0832">The host: [#!variable!host_name!#] was found not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
 		<key name="log_0833">All host names were found in '/etc/hosts', ready to proceed!</key>
 		<key name="log_0834">One or more hosts are not yet in the '/etc/hosts' file with expected IPs. We'll wait a short bit and check again.</key>
-		<key name="log_0835">There are entries we need to add to the '/etc/hosts' file before we can form the cluster, updating it now.</key>
+		<key name="log_0835">The CPU load average is; (one / five / ten minutes): [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#].</key>
+		<key name="log_0836">Processes; (total, running, blocked): [#!variable!total!#, #!variable!running!#, #!variable!blocked!#]</key>
+		<key name="log_0837">Time spend (in secs) doing; IO wait: [#!variable!io_wait!#], user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
+		<key name="log_0838">CPU Core: [#!variable!core!#], time doind (seconds); user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
+		<key name="log_0839">Drive: [#!variable!device_name!#], IOs currently in progress: [#!variable!in_progress!#], weighted time spent: [#!variable!weighted_time_spent!# sec].</key>
+		<key name="log_0840">CPU percent time doing; (IO wait / user / system / nice'd / idle / involuntary wait): [#!variable!iowait!# / #!variable!user!# / #!variable!system!# / #!variable!nice!# / #!variable!idle!#/ #!variable!steal!#].</key>
+		<key name="log_0841">Processes; (total / running / blocked / IRQ interrupts): [#!variable!total!# / #!variable!running!# / #!variable!blocked!# / #!variable!interrupts!#].</key>
+		<key name="log_0842">Starting the network manager connection: [#!variable!id!#] (uuid: [#!variable!uuid!#]).</key>
+		<key name="log_0843">Creating the: [#!variable!file!#] debug file on: [#!variable!host!#].</key>
+		<key name="log_0844">The bond interface: [#!variable!bond_name!#] is not ready yet, we'll check again shortly.</key>
+		<key name="log_0845">No interfaces found configured for the bond: [#!variable!bond_name!#], ignoring it.</key>
+		<key name="log_0846">CPU Load Average: [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#], io wait: [#!variable!iowait!#%], running/blocked processes: [#!variable!running!# / #!variable!blocked!#]</key>
+		<key name="log_0847">Times out waiting for the bonds to come up. We waited: [#!variable!waited!#] seconds.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3354,6 +3367,9 @@ proceeding.
 		<key name="message_0416">[ Note ] - The network has reconnected to the database, configuring will complete shortly.</key>
 		<key name="message_0417">[ Note ] - The old 'ifcfg' style config file: [#!variable!file!#] will be backed up and then removed!</key>
 		<key name="message_0418">[ Note ] - Updated the ssh daemon config file: [#!variable!file!#] to enable ssh access for the root user.</key>
+		<key name="message_0419">Anvil! Intelligent Availability Daemon Status (Enabled, Started, Failed);</key>
+		<key name="message_0420">- #!variable!daemon!# #!variable!enabled!# (#!variable!enable_string!#), #!variable!started!# (#!variable!start_string!#), #!variable!failed!# (#!variable!fail_string!#).</key>
+		<key name="message_0421">Daemons [enabled/started/failed]; #!variable!string!#.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
@@ -4165,6 +4181,9 @@ We will try to proceed anyway.</key>
 </key>
 		<key name="warning_0168">Please specify a storage group to use to add the new drive to.</key>
 		<key name="warning_0169">[ Warning ] - After reconfiguring the network, we've failed to connect to any database for two minutes. Rebooting in case this fixes the connection.</key>
+		<key name="warning_0170">[ Warning ] - The attempt to boot: [#!variable!host_name!#] appears to have failed. The return code received was: [#!variable!return_code!#] (expected '0'). The output, if any, was: [#!variable!output!#].</key>
+		<key name="warning_0171">[ Warning ] - The daemon: [#!variable!daemon!#] appears to have failed! Attempting to restart it now.</key>
+		<key name="warning_0172">[ Warning ] - The line: [#!variable!line!#] that was going to be added to the hosts file is invalid, removing it.</key>
 		
 	</language>
 	<!-- 日本語 -->

@@ -21,8 +21,32 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 	$running_directory =~ s/^\./$ENV{PWD}/;
 }
 
-
 my $anvil = Anvil::Tools->new();
+
+# Before we read switches, set the debug file.
+if (not -e $anvil->data->{path}{configs}{'anvil.debug'})
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0843", variables => {
+		file => $anvil->data->{path}{configs}{'anvil.debug'},
+		host => $anvil->Get->short_host_name(), 
+	}});
+	my $problem = $anvil->Storage->write_file({
+		file      => $anvil->data->{path}{configs}{'anvil.debug'}, 
+		body      => "",
+		overwrite => 1,
+		user      => "root", 
+		group     => "root", 
+		mode      => "0666",
+	});
+}
+
+# Read switches
+$anvil->Get->switches({list => [
+	"config", 
+	"job-uuid", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect;
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
@@ -32,9 +56,6 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
 	$anvil->nice_exit({exit_code => 1});
 }
-$anvil->data->{switches}{config}     = "";
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->Get->switches;
 
 # Read in the config file
 if ((not $anvil->data->{switches}{config}) or (not -f $anvil->data->{switches}{config}))
@@ -324,7 +345,7 @@ sub configure_machine_networks
 				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 					debug           => 2,
 					job_host_uuid   => $machine_host_uuid, 
-					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
+					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}." --debug ".$anvil->Log->switches, 
 					job_data        => "form::config_step2", 
 					job_name        => "configure::network", 
 					job_title       => "job_0001", 
@@ -1683,7 +1704,7 @@ sub striker_stage1
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		debug           => 2,
 		job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
-		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}." --debug ".$anvil->Log->switches, 
 		job_data        => "form::config_step2", 
 		job_name        => "configure::network", 
 		job_title       => "job_0001", 
@@ -1698,7 +1719,7 @@ sub striker_stage1
 		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 			debug           => 2,
 			job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
-			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --config ".$anvil->data->{switches}{config}.$anvil->Log->switches, 
+			job_command     => $anvil->data->{path}{exe}{'striker-auto-initialize-all'}." --debug --config ".$anvil->data->{switches}{config}.$anvil->Log->switches, 
 			job_data        => "", 
 			job_name        => "configure::auto_initialize", 
 			job_title       => "job_0225", 

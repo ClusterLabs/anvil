@@ -908,6 +908,9 @@ sub _set_defaults
 		manage				=>	{
 			firewall			=>	1,
 		},
+		net				=>	{
+			always_reconnect		=>	0,
+		},
 		password			=>	{
 			algorithm			=>	"sha512",
 			hash_count			=>	500000,
@@ -1053,6 +1056,7 @@ sub _set_paths
 			configs			=>	{
 				'alteeve-release.repo'		=>	"/etc/yum.repos.d/alteeve-release.repo",
 				'anvil.conf'			=>	"/etc/anvil/anvil.conf",
+				'anvil.debug'			=>	"/etc/anvil/anvil.debug",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
 				'cib.xml'			=>	"/var/lib/pacemaker/cib/cib.xml",
@@ -1117,6 +1121,7 @@ sub _set_paths
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				journald			=>	"/var/log/journal", 
 				libvirtd_definitions		=>	"/etc/libvirt/qemu/",
+				NetworkManager			=>	"/etc/NetworkManager/",
 				opt_alteeve			=>	"/opt/alteeve",
 				pgsql				=>	"/var/lib/pgsql/",
 				resource_status			=>	"/sys/kernel/debug/drbd/resources",
@@ -1220,6 +1225,7 @@ sub _set_paths
 				httpd				=>	"/usr/sbin/httpd",
 				ifdown				=>	"/sbin/ifdown",
 				ifup				=>	"/sbin/ifup",
+				iostat				=>	"/usr/bin/iostat",
 				ip				=>	"/usr/sbin/ip",
 				iperf3				=>	"/usr/bin/iperf3", 
 				'ipmi-oem'			=>	"/usr/sbin/ipmi-oem",
@@ -1252,6 +1258,7 @@ sub _set_paths
 				modprobe			=>	"/usr/sbin/modprobe",
 				mv				=>	"/usr/bin/mv",
 				nc				=>	"/usr/bin/nc",
+				'nm-online'			=>	"/usr/bin/nm-online",
 				nmap				=>	"/usr/bin/nmap",
 				nmcli				=>	"/bin/nmcli",
 				nohup				=>	"/usr/bin/nohup",

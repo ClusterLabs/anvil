@@ -1,0 +1,51 @@
+.\" Manpage for the Anvil! daemon managers
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-daemons "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-daemons \- Tool used to monitor and manage Anvil! daemons.
+.SH SYNOPSIS
+.B anvil-manage-daemons 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+When run with '\fB\-\-monitor\fR', it will run as a daemon, checking all other Anvil! daemons. If any are found to be 'failed', they will be stopped and restarted.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-enable\fR
+All Anvil! daemons that are not enabled will be enabled.
+.TP
+\fB\-\-disable\fR
+All Anvil! daemons that are not disabled will be disabled.
+.TP
+\fB\-\-log\-only\fR 
+if this is passed, it monitors the status of the daemons, but does not try to recover failed ones.
+.TP
+\fB\-\-monitor\fR 
+This is set to the job UUID when the request to boot is coming from a database job. When set, the referenced job will be updated and marked as complete / failed when the run completes.
+.TP
+\fB\-\-now\fR
+This can be used with \fB\-\-enable\fR or \fB\-\-disable\fR to have the daemons started or stopped immediately.
+.TP
+\fB\-\-start\fR
+This will start all daemons that are not already running.
+.TP
+\fB\-\-status\fR
+Reports the state of all daemons.
+.TP
+\fB\-\-stop\fR
+This will stop all daemons that are not already stopped.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
