@@ -2,6 +2,8 @@
 # 
 # This reports the total memory used by all processes with to passed-in program name.
 # 
+# TODO: Switch to 'smes' and see: https://superuser.com/questions/150117/how-to-get-parent-pid-of-a-given-process-in-gnu-linux-from-command-line
+# 
 # The size in bytes is returned. If '0' is reported, check the exit code to see why.
 # 
 # This software was created by Alteeve's Niche! Inc. and has been released under the terms of the GNU GPL 

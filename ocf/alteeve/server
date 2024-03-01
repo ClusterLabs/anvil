@@ -248,6 +248,18 @@ elsif ((not $anvil->data->{switches}{server}) && ($anvil->data->{environment}{OC
 	}});
 }
 
+# In some cases, 'OCF_RESKEY_name' isn't set, but 'OCF_RESOURCE_INSTANCE' is. If this is the case, copy the 
+# data over.
+if ((not $anvil->data->{environment}{OCF_RESKEY_name}) && ($anvil->data->{environment}{OCF_RESOURCE_INSTANCE}))
+{
+	$anvil->data->{environment}{OCF_RESKEY_name} = $anvil->data->{environment}{OCF_RESOURCE_INSTANCE};
+	$anvil->data->{switches}{server}             = $anvil->data->{environment}{OCF_RESOURCE_INSTANCE};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"environment::OCF_RESKEY_name" => $anvil->data->{environment}{OCF_RESKEY_name}, 
+		"switches::server"             => $anvil->data->{switches}{server},
+	}});
+}
+
 if (($anvil->data->{switches}{migrate_to}) && (not $anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target}))
 {
 	$anvil->data->{environment}{OCF_RESKEY_CRM_meta_migrate_target} = $anvil->data->{switches}{migrate_to};

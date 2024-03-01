@@ -56,6 +56,7 @@ Requires:       glibc-all-langpacks
 Requires:       gpm 
 Requires:       hdparm
 Requires:       htop
+Requires:       iotop
 Requires:       iproute
 Requires:       kernel-core
 Requires:       kernel-devel
@@ -106,6 +107,7 @@ Requires:       screen
 Requires:       smartmontools
 Requires:       strace
 Requires:       syslinux
+Requires:       sysstat
 Requires:       tar
 Requires:       tcpdump
 Requires:       tmux
@@ -247,7 +249,9 @@ setenforce 0
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable --now chronyd.service
 systemctl enable --now anvil-daemon.service
+systemctl enable --now anvil-monitor-daemons.service
 systemctl enable --now anvil-monitor-network.service
+systemctl enable --now anvil-monitor-performance.service
 systemctl enable --now scancore.service
 
 %pre striker

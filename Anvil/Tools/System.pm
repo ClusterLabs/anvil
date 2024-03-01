@@ -2936,7 +2936,7 @@ sub generate_state_json
 		{
 			my $type        = $anvil->data->{network}{$host}{interface}{$interface}{type};
 			my $uuid        = $anvil->data->{network}{$host}{interface}{$interface}{uuid};
-			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu};
+			my $mtu         = $anvil->data->{network}{$host}{interface}{$interface}{mtu} ? $anvil->data->{network}{$host}{interface}{$interface}{mtu} : 1500;
 			my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address}; 
 			my $iface_hash  = {};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2996,6 +2996,22 @@ sub generate_state_json
 			}
 			elsif ($type eq "bond")
 			{
+				if ((not exists $anvil->data->{network}{$host})                        or 
+				    (not exists $anvil->data->{network}{$host}{interface}{$interface}) or 
+				    (not defined $anvil->data->{network}{$host}{interface}{$interface}{mode}))
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+						"s1:host"        => $host,
+						"s2:interface"   => $interface,
+						"s3:mac_address" => $mac_address, 
+						"s4:type"        => $type,
+						"s5:mtu"         => $mtu,
+						"s6:configured"  => $configured, 
+						"s7:host_uuid"   => $host_uuid, 
+						"s8:host_key"    => $host_key, 
+					}});
+					next;
+				}
 				my $mode                 = $anvil->data->{network}{$host}{interface}{$interface}{mode};
 				my $primary_interface    = $anvil->data->{network}{$host}{interface}{$interface}{primary_interface}; 
 				my $primary_reselect     = $anvil->data->{network}{$host}{interface}{$interface}{primary_reselect}; 
@@ -5249,13 +5265,13 @@ sub update_hosts
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		if ($line)
 		{
-			$last_line_blank = 0;
+			$last_line_blank =  0;
 			$cleaned_body    .= $line."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
 		}
 		elsif (not $last_line_blank)
 		{
-			$last_line_blank = 1;
+			$last_line_blank =  1;
 			$cleaned_body    .= $line."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { last_line_blank => $last_line_blank }});
 		}
@@ -5474,6 +5490,41 @@ sub update_hosts
 		}});
 	}
 	
+	# Clean spaces off the end of lines, and look for invalid entries.
+	$cleaned_body = "";
+	foreach my $line (split/\n/, $new_body)
+	{
+		$line =~ s/\s+$//;
+		$line =~ s/^\s+(\d.*)$/$1/;
+		if ($line =~ /^#/)
+		{
+			$cleaned_body .= $line."\n";
+		}
+		elsif ($line =~ /^(.*?)\s+(.*?)/)
+		{
+			my $ip   = $1;
+			my $name = $2; 
+			if ($anvil->Validate->ip({ip => $ip}))
+			{
+				# Valid
+				$cleaned_body .= $line."\n";
+			}
+			else
+			{
+				# The is not a valid hosts entry.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0172", variables => { line => $line }});
+			}
+		}
+	}
+	$difference = "";
+	$difference = diff \$new_body, \$cleaned_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	if ($difference)
+	{
+		$new_body = $cleaned_body;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+	}
+	
 	my $new_line_count = @{$ip_order};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line_count => $new_line_count }});
 	if ($new_line_count)
@@ -5482,6 +5533,10 @@ sub update_hosts
 		
 		foreach my $ip_address (@{$ip_order})
 		{
+			# Clean off trailing white spaces.
+			$lines->{$ip_address} =~ s/\s+$//;
+			
+			# Add it.
 			$new_body .= $lines->{$ip_address}."\n";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
 		}

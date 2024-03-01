@@ -15,6 +15,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-join-anvil \
 			  anvil-maintenance-mode \
 			  anvil-manage-alerts \
+			  anvil-manage-daemons \
 			  anvil-manage-dr \
 			  anvil-manage-files \
 			  anvil-manage-firewall \
@@ -27,6 +28,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
 			  anvil-monitor-network \
+			  anvil-monitor-performance \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
 			  anvil-pcs-wrapper \

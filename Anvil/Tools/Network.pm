@@ -35,6 +35,8 @@ my $THIS_FILE = "Network.pm";
 # ping
 # read_nmcli
 # reset_connection
+# wait_for_network
+# wait_on_nm_online
 # _check_firewalld_conf
 # _get_existing_zone_interfaces
 # _get_server_ports
@@ -4508,6 +4510,277 @@ sub reset_connection
 }
 
 
+=head2 wait_for_network
+
+This method checks for Network Manager configurations. Any that are found that belong to the Anvil![1] will be watched until their state is C<< activated >>. 
+
+B<<Note>>: 1. Interfaces with device name starting with C<< bcnX_ >>, C<< ifnX_ >>, C<< snX_ >>, or C<< mnX_ >>, where C<< X >> is an integer
+
+B<< Note >>: This method only works on Network Manager based systems.
+
+Parameters;
+
+=head3 timeout (optional, default '300')
+
+By default, this method will wait for five minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
+
+=cut
+sub wait_for_network
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_for_network()" }});
+	
+	### TODO: all configured bonds and slaved interfaces should be 'activated' before this returns, even if their cable is out. Wait for this, with a default 300s timeout.
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 300;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		timeout => $timeout, 
+	}});
+	
+	# If timeout wasn't set, but network::wait_for_network::timeout is set, use it.
+	if ((exists $anvil->data->{network}{wait_for_network}{timeout}) && ($anvil->data->{network}{wait_for_network}{timeout} =~ /^\d+$/))
+	{
+		$timeout = $anvil->data->{network}{wait_for_network}{timeout};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+	}
+	
+	my $short_host_name = $anvil->Get->short_host_name();
+	my $directory       = $anvil->data->{path}{directories}{NetworkManager};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		short_host_name => $short_host_name, 
+		directory       => $directory,
+	}});
+	
+	if (not -d $directory)
+	{
+		return(0);
+	}
+	
+	$directory .= "/system-connections";
+	$directory =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { directory => $directory }});
+	
+	# Find any bonds.
+	local(*DIRECTORY);
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
+	opendir(DIRECTORY, $directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file !~ /\.nmconnection$/;
+		my $full_path =  $directory."/".$file;
+		   $full_path =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
+		
+		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
+		
+		my $uuid           = "";
+		my $type           = "";
+		my $interface_name = "";
+		my $id             = "";
+		my $parent_bond    = "";
+		foreach my $line (split/\n/, $file_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			
+			# Collect the UUID
+			if ($line =~ /^uuid=(.*)$/)
+			{
+				$uuid = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			}
+			
+			# ethernet, bond, or bridge
+			if ($line =~ /^type=(.*)$/)
+			{
+				$type = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { type => $type }});
+			}
+			
+			# Get the device name
+			if ($line =~ /^interface-name=(.*)$/)
+			{
+				$interface_name = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+			if ($line =~ /id=(.*)$/)
+			{
+				$id = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+			}
+			
+			# Find the parent bond, if this is a child interface
+			if ($line =~ /^master=(.*)$/)
+			{
+				$parent_bond = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { parent_bond => $parent_bond }});
+			}
+		}
+		
+		if ($uuid)
+		{
+			# If the interface_name is multiple names, pull our the name we use (if name)
+			if ((not $interface_name) && ($id))
+			{
+				$interface_name = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+			
+			if ($interface_name =~ /;/)
+			{
+				$interface_name =~ s/;$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+				
+				foreach my $this_interface_name (split/;/, $interface_name)
+				{
+					if (($this_interface_name =~ /^bcn\d+_/) or 
+					    ($this_interface_name =~ /^ifn\d+_/) or 
+					    ($this_interface_name =~ /^sn\d+_/)  or 
+					    ($this_interface_name =~ /^mn\d+_/))
+					{
+						$interface_name = $this_interface_name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+					}
+				}
+			}
+			next if not $interface_name;
+			
+			# Is this an interface we care about?
+			if (($interface_name =~ /^bcn\d+_/) or 
+			    ($interface_name =~ /^ifn\d+_/) or 
+			    ($interface_name =~ /^sn\d+_/)  or 
+			    ($interface_name =~ /^mn\d+_/))
+			{
+				# Watch for this interface
+				$anvil->data->{network}{watch}{$interface_name}{uuid}  = $uuid;
+				$anvil->data->{network}{watch}{$interface_name}{type}  = $type;
+				$anvil->data->{network}{watch}{$interface_name}{ready} = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"network::watch::${interface_name}::uuid" => $anvil->data->{network}{watch}{$interface_name}{uuid},
+					"network::watch::${interface_name}::type" => $anvil->data->{network}{watch}{$interface_name}{type},
+				}});
+			}
+		}
+	}
+	closedir(DIRECTORY);
+	
+	my $waiting  = 1;
+	my $end_time = $timeout  ? time + $timeout : 0;
+	my $duration = $end_time ? $timeout - time : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		end_time => $end_time,
+		duration => $duration, 
+	}});
+	while($waiting)
+	{
+		$anvil->Network->read_nmcli({
+			debug => $debug, 
+			host  => $short_host_name, 
+		});
+		$waiting = 0;
+		foreach my $interface_name (sort {$a cmp $b} keys %{$anvil->data->{network}{watch}})
+		{
+			next if $anvil->data->{network}{watch}{$interface_name}{ready};
+			my $uuid  = $anvil->data->{network}{watch}{$interface_name}{uuid};
+			my $type  = $anvil->data->{network}{watch}{$interface_name}{type};
+			my $state = $anvil->data->{nmcli}{$short_host_name}{uuid}{$uuid}{'state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:interface_name' => $interface_name,
+				's2:type'           => $type, 
+				's3:uuid'           => $uuid, 
+				's4:state'          => $state, 
+			}});
+			
+			if (($state eq "activated") or ($state == 1))
+			{
+				$anvil->data->{network}{watch}{$interface_name}{ready} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"network::watch::${interface_name}::ready" => $anvil->data->{network}{watch}{$interface_name}{ready}, 
+				}});
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+		if ($waiting)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { end_time => $end_time }});
+			if ($end_time)
+			{
+				if (time > $end_time)
+				{
+					# We're done.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0847", variables => { timeout => $timeout }});
+					return(1);
+				}
+				my $time_left = $end_time - time;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_left => $time_left }});
+			}
+			
+			# Sleep for a few seconds.
+			sleep 5;
+		}
+	}
+
+	return(0);
+}
+
+
+=head2 wait_on_nm_online
+
+This method calls C<< nm-online --wait-for-startup --timeout X >>, which in turn waits for Network Manager to report C<< startup complete >> in the journald logs. The default timeout used here is C<< 120 >> seconds (as opposed to the default of C<< 30 >> used by C<< nm-online >> itself). 
+
+From our testing, given the complexity of the network in Anvil! clusters, this much time isn't out of the ordinaryl
+
+ Feb 24 19:13:17 an-a01n01.ci.alteeve.com NetworkManager[1003]: <info>  [1708801997.5155] NetworkManager (version 1.44.0-4.el9_3) is starting... (boot:833ea5be-eb44-4214-9e2d-8c6281dec9b6)
+ ...
+ Feb 24 19:14:53 an-a01n01.ci.alteeve.com NetworkManager[1003]: <info>  [1708802093.9684] manager: startup complete
+
+B<< Note >>: This method only works on Network Manager based systems.
+
+The return code from C<< nm-online >> is returned. See C<< man nm-online >> for details, but the main return codes are C<< 0 >> meaning the connection came up within the timeout, C<< 1 >> if the connection failed to come up within the timeout, and C<< 2 >> if there was any error.
+
+Parameters;
+
+=head3 timeout (optional, default '120')
+
+By default, this method will wait for two minutes. If you want to set a timeout, set this as a number of seconds. If the timeout expires and any bonds are still not up, the method will return C<< 1 >>. If this is set to C<< 0 >>, it will wait forever.
+
+=cut
+sub wait_on_nm_online
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->wait_on_nm_online()" }});
+	
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 120;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		timeout => $timeout, 
+	}});
+	
+	if ((not $timeout) or ($timeout !~ /^\d+$/))
+	{
+		# Invalid timeout.
+		$timeout = 120;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{'nm-online'}." --wait-for-startup --quiet --timeout ".$timeout;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:output'      => $output,
+		's2:return_code' => $return_code, 
+	}});
+	
+	return($return_code);
+}
+
+
 #############################################################################################################
 # Private functions                                                                                         #
 #############################################################################################################
@@ -4706,7 +4979,7 @@ sub _get_drbd_ports
 		# DRBD isn't installed.
 		return(0);
 	}
-		
+	
 	local(*DIRECTORY);
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0018", variables => { directory => $directory }});
 	opendir(DIRECTORY, $directory);

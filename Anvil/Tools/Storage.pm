@@ -4202,7 +4202,7 @@ sub push_file
 
 =head2 read_config
 
-This method is used to read 'Anvil::Tools' style configuration files. These configuration files are in the format:
+This method is used to read C<< Anvil::Tools >> style configuration files. These configuration files are in the format:
 
  # This is a comment for the 'a::b::c' variable
  a::b::c = x
@@ -5228,6 +5228,10 @@ B<< Note >>: If the variable is not found, it is treated like an error and C<< 1
 
 Parameters;
 
+=head3 append (optional, default 0)
+
+If set to C<< 1 >>, and if the variable is not found, it will be appended to the end of the config file.
+
 =head3 port (optional, default 22)
 
 If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
@@ -5267,6 +5271,7 @@ sub update_config
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->update_config()" }});
 	
+	my $append      = defined $parameter->{append}      ? $parameter->{append}      : 0;
 	my $password    = defined $parameter->{password}    ? $parameter->{password}    : "";
 	my $port        = defined $parameter->{port}        ? $parameter->{port}        : 22;
 	my $secure      = defined $parameter->{secure}      ? $parameter->{secure}      : "";
@@ -5278,6 +5283,7 @@ sub update_config
 	my $update      = 0;
 	my $new_file    = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+		append      => $append, 
 		password    => $anvil->Log->is_secure($password), 
 		port        => $port, 
 		secure      => $secure,
@@ -5343,22 +5349,35 @@ sub update_config
 	# Did we see the variable?
 	if (not $seen)
 	{
-		if ($anvil->Network->is_local({host => $target}))
+		if ($append)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0174", variables => { 
-				variable => $variable, 
-				file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
+			# Add the variable to the config file.
+			$new_file .= $variable."\t=\t".$value."\n";
+			$update   =  1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
+				new_file => $new_file,
+				update   => $update, 
 			}});
-			return(1);
 		}
 		else
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0175", variables => { 
-				variable => $variable, 
-				file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
-				target   => $target,
-			}});
-			return(1);
+			if ($anvil->Network->is_local({host => $target}))
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0174", variables => { 
+					variable => $variable, 
+					file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
+				}});
+				return(1);
+			}
+			else
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0175", variables => { 
+					variable => $variable, 
+					file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
+					target   => $target,
+				}});
+				return(1);
+			}
 		}
 	}
 	

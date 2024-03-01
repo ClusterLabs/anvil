@@ -33,6 +33,7 @@ my $THIS_FILE = "Get.pm";
 # host_type
 # host_uuid
 # kernel_release
+# load_average
 # md5sum
 # os_type
 # server_from_switch
@@ -2032,6 +2033,300 @@ sub kernel_release
 }
 
 
+=head2 load_average
+
+This reads in the current load average and stores the data in the following hashes;
+
+* loads::load_average::one_minute
+* loads::load_average::five_minute
+* loads::load_average::ten_minute
+* loads::load_average::running_processes
+* loads::load_average::total_processes
+
+This tracks the total number of interrupts since boot.
+
+* loads::interrupts::total
+
+This tracks the total PIDs, running PIDs and most importantly, blocked processes.
+
+* loads::processes::total
+* loads::processes::running
+* loads::processes::blocked
+
+This tracks the percentage time processes spent in certain states (see iostat);
+
+* loads::load_percent::user
+* loads::load_percent::steal
+* loads::load_percent::idle
+* loads::load_percent::nice
+* loads::load_percent::system
+* loads::load_percent::iowait
+
+This tracks the total time spent on CPU loads, IO wait and IRQ data. Per-CPU core is tracked in matching hashes, with C<< average >> being replaced by C<< loads::cpu::core::<core_number>::X >>.
+
+* loads::cpu::average::user_mode
+* loads::cpu::average::user_mode_nice
+* loads::cpu::average::system_mode
+* loads::cpu::average::idle_tasks
+* loads::cpu::average::io_wait
+* loads::cpu::average::hard_irq
+* loads::cpu::average::soft_irq
+
+This is the number of IO operations in progress. When IOs in progress is non-zero, the weighted time (in 1/100ths of a second), doing those IOs.
+
+* loads::storage::<device_name>::ios_currently_in_progress
+* loads::storage::<device_name>::weighted_time_spent_doing_ios
+
+This data comes from C<< /proc/loadavg >>, C<< /proc/stat >>, and C<< /proc/diskstats >>. For more information on these values, please see the relevant kernel documentation.
+
+If there is a problem, C<< 1 >> is returned and the data in the hash will be blank, or stale. If the load averge data is collected successfully, C<< 0 >> is returned.
+
+This method takes no parameters.
+
+=cut
+sub load_average
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->load_average()" }});
+	
+	my $load_average =  $anvil->Storage->read_file({debug => $debug, file => '/proc/loadavg' });
+	   $load_average =~ s/\n//;
+	   $load_average =~ s/\r//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { load_average => $load_average }});
+	
+	my $stat = $anvil->Storage->read_file({debug => $debug, file => '/proc/stat' });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'stat' => $stat }});
+	
+	my $diskstats = $anvil->Storage->read_file({debug => $debug, file => '/proc/diskstats' });
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { diskstats => $diskstats }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{iostat}." -c -o JSON ";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my ($iostat_json, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { iostat_json => $iostat_json, return_code => $return_code }});
+	
+	local $@;
+	my $iostat_data = "";
+	my $json        = JSON->new->allow_nonref;
+	my $test        = eval { $iostat_data = $json->decode($iostat_json); };
+	if (not $test)
+	{
+		# JSON parse failed.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "error_0140", variables => { 
+			json  => $iostat_json,
+			error => $@,
+		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0519"});
+		return(1);
+	}
+	
+	if (exists $anvil->data->{load_average})
+	{
+		delete $anvil->data->{load_average};
+	}
+	
+	if (($load_average eq "!!error!!") or ($stat eq "!!error!!"))
+	{
+		return(0);
+	}
+	
+	# Process Load Average
+	my ($one_minute, $five_minute, $ten_minute, $processes, $last_pid) = (split/\s+/, $load_average);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:one_minute'  => $one_minute,
+		's2:five_minute' => $five_minute, 
+		's3:ten_minute'  => $ten_minute, 
+		's4:processes'   => $processes, 
+		's5:last_pid'    => $last_pid, 
+	}});
+	
+	my ($running_processes, $total_processes) = (split/\//, $processes);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:running_processes' => $running_processes, 
+		's2:total_processes'   => $total_processes, 
+	}});
+	
+	$anvil->data->{loads}{load_percent}{user}     = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{user};
+	$anvil->data->{loads}{load_percent}{steal}    = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{steal};
+	$anvil->data->{loads}{load_percent}{idle}     = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{idle};
+	$anvil->data->{loads}{load_percent}{nice}     = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{nice};
+	$anvil->data->{loads}{load_percent}{'system'} = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{'system'};
+	$anvil->data->{loads}{load_percent}{iowait}   = $iostat_data->{sysstat}{hosts}->[0]->{statistics}->[0]->{'avg-cpu'}{iowait};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:loads::load_percent::user'   => $anvil->data->{loads}{load_percent}{user}."%", 
+		's2:loads::load_percent::steal'  => $anvil->data->{loads}{load_percent}{steal}."%", 
+		's3:loads::load_percent::idle'   => $anvil->data->{loads}{load_percent}{idle}."%", 
+		's4:loads::load_percent::nice'   => $anvil->data->{loads}{load_percent}{nice}."%", 
+		's5:loads::load_percent::system' => $anvil->data->{loads}{load_percent}{'system'}."%", 
+		's6:loads::load_percent::iowait' => $anvil->data->{loads}{load_percent}{iowait}."%", 
+	}});
+	
+	$anvil->data->{loads}{load_average}{one_minute}        = $one_minute;
+	$anvil->data->{loads}{load_average}{five_minute}       = $five_minute;
+	$anvil->data->{loads}{load_average}{ten_minute}        = $ten_minute;
+	$anvil->data->{loads}{load_average}{running_processes} = $running_processes;
+	$anvil->data->{loads}{load_average}{total_processes}   = $total_processes;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:loads::load_average::one_minute'        => $anvil->data->{loads}{load_average}{one_minute}, 
+		's2:loads::load_average::five_minute'       => $anvil->data->{loads}{load_average}{five_minute}, 
+		's3:loads::load_average::ten_minute'        => $anvil->data->{loads}{load_average}{ten_minute}, 
+		's4:loads::load_average::running_processes' => $anvil->data->{loads}{load_average}{running_processes}, 
+		's5:loads::load_average::total_processes'   => $anvil->data->{loads}{load_average}{total_processes}, 
+	}});
+	
+	### NOTE: "jiffy" = 1/100 second on x86
+	# Process diskstats
+	foreach my $line (split/\n/, $diskstats)
+	{
+		$line =~ s/^\s+//;
+		$line =~ s/\s+$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		
+		### NOTE: Much of these values are not useful for us yet, as they need to be tracked over 
+		###       time to see any useful patterns. It's all parsed though, for ease of future use.
+		# See https://www.kernel.org/doc/Documentation/admin-guide/iostats.rst
+		my ($major_number, 
+		    $minor_number, 
+		    $device_name, 
+		    $reads_completed_successfully,	# Since boot
+		    $reads_merged, 			# How often adjacent reads are merged before being passed to the IO driver
+		    $sectors_read, 			# This is the total number of sectors read successfully.
+		    $time_spent_reading, 		# This is the total number of milliseconds spent by all reads
+		    $writes_completed, 			# Since boot
+		    $writes_merged, 			# How often adjacent writes are merged before being passed to the IO driver
+		    $sectors_written, 			# This is the total number of sectors written successfully
+		    $time_spent_writing, 		# This is the total number of milliseconds spent by all writes
+		    $ios_currently_in_progress, 	# Number of I/Os currently in progress. - This is what we care about the most
+		    $time_spent_doing_ios, 		# This field increases so long as above is non-zero. counts jiffies when at least one request was started or completed. If request runs more than 2 jiffies then some I/O time might be not accounted in case of concurrent requests
+		    $weighted_time_spent_doing_ios, 	# Weighted number of milliseconds spent doing I/Os. This field is incremented at each I/O start, I/O completion, I/O merge, or read of these stats by the number of I/Os in progress times the number of milliseconds spent doing I/O since the last update of this field. This can provide an easy measure of both I/O completion time and the backlog that may be accumulating.
+		    $discards_completed_successfully, 	# This is the total number of discards completed successfully.
+		    $discards_merged, 			# How often adjacent discards are merged before being passed to the IO driver
+		    $sectors_discarded, 		# This is the total number of sectors discarded successfully
+		    $time_spent_discarding, 		# This is the total number of milliseconds spent by all discards
+		    $flush_requests_completed_successfully, # This is the total number of flush requests completed successfully.
+		    $time_spent_flushing		# This is the total number of milliseconds spent by all flush requests.
+		) = (split/\s+/, $line);
+		# These require kernel 5.5+
+		$flush_requests_completed_successfully = "na" if not defined $flush_requests_completed_successfully;
+		$time_spent_flushing                   = "na" if not defined $time_spent_flushing;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's01:major_number'                          => $major_number,
+			's02:minor_number'                          => $minor_number, 
+			's03:device_name'                           => $device_name, 
+			's04:reads_completed_successfully'          => $reads_completed_successfully, 
+			's05:reads_merged'                          => $reads_merged, 
+			's06:sectors_read'                          => $sectors_read, 
+			's07:time_spent_reading'                    => $time_spent_reading,
+			's08:writes_completed'                      => $writes_completed, 
+			's09:writes_merged'                         => $writes_merged, 
+			's10:sectors_written'                       => $sectors_written, 
+			's11:time_spent_writing'                    => $time_spent_writing,
+			's12:ios_currently_in_progress'             => $ios_currently_in_progress, 
+			's13:time_spent_doing_ios'                  => $time_spent_doing_ios,
+			's14:weighted_time_spent_doing_ios'         => $weighted_time_spent_doing_ios,
+			's15:discards_completed_successfully'       => $discards_completed_successfully, 
+			's16:discards_merged'                       => $discards_merged, 
+			's17:sectors_discarded'                     => $sectors_discarded, 
+			's18:time_spent_discarding'                 => $time_spent_discarding, 
+			's19:flush_requests_completed_successfully' => $flush_requests_completed_successfully, 
+			's20:time_spent_flushing'                   => $time_spent_flushing,
+		}});
+		
+		$anvil->data->{loads}{storage}{$device_name}{ios_currently_in_progress}     = $ios_currently_in_progress;
+		$anvil->data->{loads}{storage}{$device_name}{weighted_time_spent_doing_ios} = $weighted_time_spent_doing_ios;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"loads::storage::${device_name}::ios_currently_in_progress"     => $anvil->data->{loads}{storage}{$device_name}{ios_currently_in_progress},
+			"loads::storage::${device_name}::weighted_time_spent_doing_ios" => $anvil->data->{loads}{storage}{$device_name}{weighted_time_spent_doing_ios},
+		}});
+	}
+	
+	# Process stat
+	foreach my $line (split/\n/, $stat)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^cpu\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			# Time in jiffied handling tasks
+			$anvil->data->{loads}{cpu}{average}{user_mode}      = $1;
+			$anvil->data->{loads}{cpu}{average}{user_mode_nice} = $2;
+			$anvil->data->{loads}{cpu}{average}{system_mode}    = $3;
+			$anvil->data->{loads}{cpu}{average}{idle_tasks}     = $4;
+			$anvil->data->{loads}{cpu}{average}{io_wait}        = $5;
+			$anvil->data->{loads}{cpu}{average}{hard_irq}       = $6;
+			$anvil->data->{loads}{cpu}{average}{soft_irq}       = $7;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:loads::cpu::average::user_mode'      => $anvil->data->{loads}{cpu}{average}{user_mode},
+				's2:loads::cpu::average::user_mode_nice' => $anvil->data->{loads}{cpu}{average}{user_mode_nice},
+				's3:loads::cpu::average::system_mode'    => $anvil->data->{loads}{cpu}{average}{system_mode},
+				's4:loads::cpu::average::idle_tasks'     => $anvil->data->{loads}{cpu}{average}{idle_tasks},
+				's5:loads::cpu::average::io_wait'        => $anvil->data->{loads}{cpu}{average}{io_wait},
+				's6:loads::cpu::average::hard_irq'       => $anvil->data->{loads}{cpu}{average}{hard_irq},
+				's7:loads::cpu::average::soft_irq'       => $anvil->data->{loads}{cpu}{average}{soft_irq},
+			}});
+		}
+		elsif ($line =~ /^cpu(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/)
+		{
+			# Time in jiffied handling tasks
+			my $cpu = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { cpu => $cpu }});
+			
+			$anvil->data->{loads}{cpu}{core}{$cpu}{user_mode}      = $2;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{user_mode_nice} = $3;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{system_mode}    = $4;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{idle_tasks}     = $5;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{io_wait}        = $6;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{hard_irq}       = $7;
+			$anvil->data->{loads}{cpu}{core}{$cpu}{soft_irq}       = $8;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:loads::cpu::core::${cpu}::user_mode"      => $anvil->data->{loads}{cpu}{core}{$cpu}{user_mode},
+				"s2:loads::cpu::core::${cpu}::user_mode_nice" => $anvil->data->{loads}{cpu}{core}{$cpu}{user_mode_nice},
+				"s3:loads::cpu::core::${cpu}::system_mode"    => $anvil->data->{loads}{cpu}{core}{$cpu}{system_mode},
+				"s4:loads::cpu::core::${cpu}::idle_tasks"     => $anvil->data->{loads}{cpu}{core}{$cpu}{idle_tasks},
+				"s5:loads::cpu::core::${cpu}::io_wait"        => $anvil->data->{loads}{cpu}{core}{$cpu}{io_wait},
+				"s6:loads::cpu::core::${cpu}::hard_irq"       => $anvil->data->{loads}{cpu}{core}{$cpu}{hard_irq},
+				"s7:loads::cpu::core::${cpu}::soft_irq"       => $anvil->data->{loads}{cpu}{core}{$cpu}{soft_irq},
+			}});
+		}
+		elsif ($line =~ /^intr (\d+) (.*?)$/)
+		{
+			my $total_interrupts = $1;
+			my $other_interrupts = $2;	# We might want to pull this apart later.
+			$anvil->data->{loads}{interrupts}{total} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:loads::interrupts::total" => $anvil->data->{loads}{interrupts}{total},
+			}});
+		}
+		elsif ($line =~ /^processes (\d+)$/)
+		{
+			$anvil->data->{loads}{processes}{total} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"loads::processes::total" => $anvil->data->{loads}{processes}{total},
+			}});
+		}
+		elsif ($line =~ /^procs_running (\d+)$/)
+		{
+			$anvil->data->{loads}{processes}{running} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"loads::processes::running" => $anvil->data->{loads}{processes}{running},
+			}});
+		}
+		elsif ($line =~ /^procs_blocked (\d+)$/)
+		{
+			$anvil->data->{loads}{processes}{blocked} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"loads::processes::blocked" => $anvil->data->{loads}{processes}{blocked},
+			}});
+		}
+	}
+	
+	return(0);
+}
+
+
 =head2 md5sum
 
 This returns the C<< md5sum >> of a given file.
@@ -2598,6 +2893,30 @@ sub switches
 		# Show the man page and then exit.
 		system($anvil->data->{path}{exe}{man}." ".$man);
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# Lastly, if there's a anvil.debug file, set logging to '-vv --log-secure'
+	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
+	{
+		# Set defaults, then see if we should override from the body.
+		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{vv}           = "#!SET!#";
+		$anvil->data->{switches}{'log-secure'} = "#!SET!#";
+		$anvil->data->{defaults}{'log'}{pids}  = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::V"          => $anvil->data->{switches}{V},
+			"switches::v"          => $anvil->data->{switches}{v},
+			"switches::vv"         => $anvil->data->{switches}{vv},
+			"switches::log-secure" => $anvil->data->{switches}{'log-secure'}, 
+			"defaults::log::pids"  => $anvil->data->{defaults}{'log'}{pids}, 
+		}});
+		
+		### TODO: We might want to set this?
+		#$anvil->data->{sys}{database}{log_transactions} = 1;
+	
+		# Adjust the log level if requested.
+		$anvil->Log->_adjust_log_level();
 	}
 	
 	return(0);

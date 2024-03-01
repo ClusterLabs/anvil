@@ -1,0 +1,41 @@
+.\" Manpage for the Anvil! server boot program
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-monitor-performance "8" "February 12 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-monitor-performance \- Tool used to log system performance to anvil.conf to assist with performance issue debugging.
+.SH SYNOPSIS
+.B anvil-monitor-performance 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool uses the Get->load_average() method to collect performance data and then records the parsed data to the Anvil! logs. 
+.TP
+This is meant to be a light-weight tool run by the same-named systemd daemon. It does not connect to the database.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-detailed\fR
+Log extended performance data. This shows extended and per-cpu-core and per block device metrics. 
+.TP
+\fB\-\-interval\fR <seconds>
+By default, the performance data is collected and logged every five seconds. If you want to change this frequency, you can use this switch to set the interval seconds you wish to use.
+.TP
+\fB\-\-print\fR
+By default, this programs logs to /var/log/anvil.log. This switch also sends the logged data to STDOUT.
+.TP
+\fB\-\-run\-once\fR <uuid>
+This tells the program to collect and report the performance data once, and then to exit.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

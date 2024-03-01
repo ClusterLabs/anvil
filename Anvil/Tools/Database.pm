@@ -20394,8 +20394,10 @@ sub _test_access
 	}
 	
 	# Check using ping. Returns '1' on success, '0' on fail.
+	alarm(120);
 	my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
+	alarm(0);
 	if (not $connected)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0192", variables => { server => $say_server }});
