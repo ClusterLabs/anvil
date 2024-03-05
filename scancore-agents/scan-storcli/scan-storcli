@@ -7720,9 +7720,9 @@ sub get_physical_disk_data
 				my $sas_port_0_port_status = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{0}{port_status};
 				my $sas_port_0_link_speed  = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{0}{link_speed};
 				my $sas_port_0_sas_address = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{0}{sas_address};
-				my $sas_port_1_port_status = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{port_status};
-				my $sas_port_1_link_speed  = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{link_speed};
-				my $sas_port_1_sas_address = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{sas_address};
+				my $sas_port_1_port_status = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{port_status} // "";
+				my $sas_port_1_link_speed  = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{link_speed}  // "";
+				my $sas_port_1_sas_address = $anvil->data->{virtual_drive}{$virtual_drive}{drive_group}{$drive_group}{enclosure_id}{$enclosure_id}{slot_number}{$slot_number}{sas_port}{1}{sas_address} // "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					sas_port_0_port_status => $sas_port_0_port_status, 
 					sas_port_0_link_speed  => $sas_port_0_link_speed, 

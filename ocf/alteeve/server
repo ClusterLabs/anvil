@@ -615,8 +615,24 @@ sub start_server
 {
 	my ($anvil) = @_;
 	
+	my $server          = $anvil->data->{environment}{OCF_RESKEY_name};
+	my $short_host_name = $anvil->Get->short_host_name();
+	my $problem         = $anvil->Server->connect_to_libvirt({
+		debug       => 2,
+		target      => $short_host_name,
+		server_name => $server,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		problem                                    => $problem, 
+		"libvirtd::${short_host_name}::connection" => $anvil->data->{libvirtd}{$short_host_name}{connection},
+	}});
+	if (ref($anvil->data->{libvirtd}{$short_host_name}{connection}) eq "Sys::Virt")
+	{
+	
+	
+	
 	# Before we do anything, make sure that 'libvirtd' and 'drbd' services are running.
-	check_daemons($anvil, "start");
+	#check_daemons($anvil, "start");
 	
 	# Start procedure;
 	# 1. Read the XML definition file and find the backing storage and bridges. Soft error if read fails.
