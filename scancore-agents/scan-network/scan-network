@@ -2398,12 +2398,24 @@ sub check_ip_addresses
 	}
 	
 	# Look for left over / deleted bonds.
+	$anvil->Database->get_mac_to_ip({debug => 2});
+	my $host = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
 	foreach my $ip_address_uuid (keys %{$anvil->data->{old}{ip_addresses}{ip_address_uuid}})
 	{
 		# Skip if already deleted.
 		next if $anvil->data->{old}{ip_addresses}{ip_address_uuid}{$ip_address_uuid}{ip_address_note} eq "DELETED";
 		
 		my $ip_address_address = $anvil->data->{old}{ip_addresses}{ip_address_uuid}{$ip_address_uuid}{ip_address_address};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_address_address => $ip_address_address }});
+		
+		# Is this an alternate IP?
+		if ((exists $anvil->data->{network}{$host}{ip_address}{$ip_address_address}) && 
+		    ($anvil->data->{network}{$host}{ip_address}{$ip_address_address}{interface}))
+		{
+			# This is an alternate IP, don't delete it.
+			next;
+		}
 		
 		my $variables = { ip => $ip_address_address };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0060", variables => $variables});
@@ -2420,6 +2432,77 @@ sub check_ip_addresses
 			'delete'        => 1, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_address_uuid => $ip_address_uuid }});
+	}
+	
+	# Look for alternate IPs
+	foreach my $ip_address (sort {$a cmp $b} keys %{$anvil->data->{network}{$host}{ip_address}})
+	{
+		my $interface   = $anvil->data->{network}{$host}{ip_address}{$ip_address}{interface};
+		my $subnet_mask = $anvil->data->{network}{$host}{ip_address}{$ip_address}{subnet_mask};
+		my $mac_address = $anvil->data->{network}{$host}{interface}{$interface}{mac_address};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:ip_address"  => $ip_address, 
+			"s2:interface"   => $interface,
+			"s3:subnet_mask" => $subnet_mask,
+			"s4:mac_address" => $mac_address, 
+		}});
+		
+		# Is this a new IP?
+		if (($interface) && ($mac_address))
+		{
+			if (not exists $anvil->data->{mac_to_ip}{mac_to_ip_ip_address}{$ip_address})
+			{
+				# Record it.
+				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
+					debug                 => 2, 
+					mac_to_ip_mac_address => $mac_address, 
+					mac_to_ip_ip_address  => $ip_address,
+					mac_to_ip_note        => "on ".$host.":".$interface,
+					update_note           => 0, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_to_ip_uuid => $mac_to_ip_uuid }});
+				
+				# reload the mac_to_ips.
+				$anvil->Database->get_mac_to_ip({debug => 2});
+				
+				my $variables = { 
+					ip_address => $ip_address,
+					interface  => $interface, 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0064", variables => $variables});
+				$anvil->Alert->register({
+					alert_level => "notice", 
+					message     => "scan_network_alert_0064", 
+					variables   => $variables,
+					set_by      => $THIS_FILE,
+				});
+			}
+		}
+		
+		if ($anvil->data->{mac_to_ip}{mac_to_ip_ip_address}{$ip_address}{mac_to_ip_uuid})
+		{
+			# Add a note that we've got the IP.
+			my $mac_to_ip_uuid = $anvil->data->{mac_to_ip}{mac_to_ip_ip_address}{$ip_address}{mac_to_ip_uuid};
+			my $mac_to_ip_note = $anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_note};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:ip_address'     => $ip_address, 
+				's2:mac_to_ip_uuid' => $mac_to_ip_uuid,
+				's3:mac_to_ip_note' => $mac_to_ip_note, 
+			}});
+			
+			if (($mac_to_ip_uuid) && (not $mac_to_ip_note))
+			{
+				my ($mac_to_ip_uuid) = $anvil->Database->insert_or_update_mac_to_ip({
+					debug                 => 2, 
+					mac_to_ip_uuid        => $mac_to_ip_uuid, 
+					mac_to_ip_mac_address => $mac_address, 
+					mac_to_ip_ip_address  => $ip_address,
+					mac_to_ip_note        => "on ".$host.":".$interface,
+					update_note           => 0, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_to_ip_uuid => $mac_to_ip_uuid }});
+			}
+		}
 	}
 	
 	return(0);

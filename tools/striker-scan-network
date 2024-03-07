@@ -267,7 +267,7 @@ sub scan
 	else
 	{
 		# Scan all the networks we have. 
-		$anvil->Network->get_ips();
+		$anvil->Network->get_ips({debug => 2});
 		my $target  = "local";
 		my $to_scan = [];
 		foreach my $target (sort {$a cmp $b} keys %{$anvil->data->{network}})
