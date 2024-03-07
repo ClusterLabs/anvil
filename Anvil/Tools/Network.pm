@@ -2253,12 +2253,31 @@ fi";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { subnet_mask => $subnet_mask }});
 			}
 			
-			$anvil->data->{network}{$host}{interface}{$in_iface}{ip}          = $ip;
-			$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask} = $subnet_mask;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"s1:network::${host}::interface::${in_iface}::ip"          => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
-				"s2:network::${host}::interface::${in_iface}::subnet_mask" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask},
-			}});
+			# For multiple IPs on an interface, we'll store the first we see as the "main" IP (used in 
+			# /etc/hosts, etc).
+			if ((not $anvil->data->{network}{$host}{interface}{$in_iface}{ip}) or
+			    (not $anvil->Validate->ip({ip => $anvil->data->{network}{$host}{interface}{$in_iface}{ip}})))
+			{
+				# First IP for this interface, save it in the traditional hash.
+				$anvil->data->{network}{$host}{interface}{$in_iface}{ip}          = $ip;
+				$anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask} = $subnet_mask;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:network::${host}::interface::${in_iface}::ip"          => $anvil->data->{network}{$host}{interface}{$in_iface}{ip},
+					"s2:network::${host}::interface::${in_iface}::subnet_mask" => $anvil->data->{network}{$host}{interface}{$in_iface}{subnet_mask},
+				}});
+			}
+			
+			# Now store the IPs in hash that handles multiple IPs per interface properly. This 
+			# should never be duplicate, buuuuut...
+			if (not exists $anvil->data->{network}{$host}{ip_address}{$ip})
+			{
+				$anvil->data->{network}{$host}{ip_address}{$ip}{interface}   = $in_iface;
+				$anvil->data->{network}{$host}{ip_address}{$ip}{subnet_mask} = $subnet_mask;					
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:network::${host}::ip_address::${ip}::interface"   => $anvil->data->{network}{$host}{ip_address}{$ip}{interface},
+					"s2:network::${host}::ip_address::${ip}::subnet_mask" => $anvil->data->{network}{$host}{ip_address}{$ip}{subnet_mask},
+				}});
+			}
 		}
 		if ($line =~ /ether (.*?) /i)
 		{

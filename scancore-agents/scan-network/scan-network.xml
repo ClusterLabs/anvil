@@ -135,6 +135,7 @@ Note: If this is a Storage Network directly connected to the peer, and the peer 
 		<key name="scan_network_alert_0061">The network interface: [#!variable!name!#] MAC address has changed from: [#!variable!old!#] to: [#!variable!new!#]. This is normal when a server boots or migrates.</key>
 		<key name="scan_network_alert_0062">The network interface: [#!variable!name!#] network manager's 'connection.id' name (biosdevname) has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
 		<key name="scan_network_alert_0063">The network interface: [#!variable!name!#] network manager's 'GENERAL.IP-IFACE' name (ip addr name) has changed from: [#!variable!old!#] to: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0064">The IP address: [#!variable!ip_address!#] was found on the interface: [#!variable!interface!#].</key>
 		
 		<!-- Error entries -->
 		<key name="scan_network_error_0001">Failed to read the network interface speed from the file: [#!variable!file!#]. Ignoring interface.</key>

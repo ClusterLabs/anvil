@@ -44,6 +44,7 @@ my $THIS_FILE = "Database.pm";
 # get_jobs
 # get_local_uuid
 # get_lvm_data
+# get_mac_to_ip
 # get_mail_servers
 # get_manifests
 # get_recipients
@@ -5318,6 +5319,83 @@ FROM
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_path"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}, 
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_on_pvs"        => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}, 
 			"lvm::host_name::${short_host_name}::lv_path::${scan_lvm_lv_path}::scan_lvm_lv_name"     => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$scan_lvm_lv_path}{scan_lvm_lv_name},
+		}});
+	}
+	
+	return(0);
+}
+
+
+=head2 get_mac_to_ip
+
+This loads the C<< mac_to_ip >> data. 
+
+This method takes no parameters.
+
+=cut
+sub get_mac_to_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_mac_to_ip()" }});
+	
+	if (exists $anvil->data->{mac_to_ip})
+	{
+		delete $anvil->data->{mac_to_ip};
+	}
+	
+	my $query = "
+SELECT 
+    mac_to_ip_uuid, 
+    mac_to_ip_mac_address, 
+    mac_to_ip_ip_address, 
+    mac_to_ip_note, 
+    modified_date 
+FROM 
+    mac_to_ip
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $mac_to_ip_uuid        = $row->[0]; 
+		my $mac_to_ip_mac_address = $row->[1]; 
+		my $mac_to_ip_ip_address  = $row->[2]; 
+		my $mac_to_ip_note        = $row->[3];
+		my $modified_date         = $row->[4]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			mac_to_ip_uuid        => $mac_to_ip_uuid, 
+			mac_to_ip_mac_address => $mac_to_ip_mac_address, 
+			mac_to_ip_ip_address  => $mac_to_ip_ip_address, 
+			mac_to_ip_note        => $mac_to_ip_note, 
+			modified_date         => $modified_date, 
+		}});
+		
+		$anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_mac_address} = $mac_to_ip_mac_address;
+		$anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_ip_address}  = $mac_to_ip_ip_address;
+		$anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_note}        = $mac_to_ip_note;
+		$anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{modified_date}         = $modified_date;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:mac_to_ip::mac_to_ip_uuid::${mac_to_ip_uuid}::mac_to_ip_mac_address" => $anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_mac_address}, 
+			"s2:mac_to_ip::mac_to_ip_uuid::${mac_to_ip_uuid}::mac_to_ip_ip_address"  => $anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_ip_address}, 
+			"s3:mac_to_ip::mac_to_ip_uuid::${mac_to_ip_uuid}::mac_to_ip_note"        => $anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{mac_to_ip_note}, 
+			"s4:mac_to_ip::mac_to_ip_uuid::${mac_to_ip_uuid}::modified_date"         => $anvil->data->{mac_to_ip}{mac_to_ip_uuid}{$mac_to_ip_uuid}{modified_date}, 
+		}});
+		
+		# Make it easier to look things up.
+		$anvil->data->{mac_to_ip}{mac_to_ip_mac_address}{$mac_to_ip_mac_address}{mac_to_ip_uuid} = $mac_to_ip_uuid;
+		$anvil->data->{mac_to_ip}{mac_to_ip_ip_address}{$mac_to_ip_ip_address}{mac_to_ip_uuid}   = $mac_to_ip_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:mac_to_ip::mac_to_ip_mac_address::${mac_to_ip_mac_address}::mac_to_ip_uuid" => $anvil->data->{mac_to_ip}{mac_to_ip_mac_address}{$mac_to_ip_mac_address}{mac_to_ip_uuid}, 
+			"s2:mac_to_ip::mac_to_ip_ip_address::${mac_to_ip_ip_address}::mac_to_ip_uuid"   => $anvil->data->{mac_to_ip}{mac_to_ip_ip_address}{$mac_to_ip_ip_address}{mac_to_ip_uuid}, 
 		}});
 	}
 	
@@ -12001,6 +12079,8 @@ FROM
     mac_to_ip 
 WHERE 
     mac_to_ip_mac_address = ".$anvil->Database->quote($mac_to_ip_mac_address)." 
+AND 
+    mac_to_ip_ip_address  = ".$anvil->Database->quote($mac_to_ip_ip_address)." 
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
