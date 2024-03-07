@@ -165,6 +165,7 @@ AC_CONFIG_FILES([Makefile
 		 pxe/Makefile
 		 scancore-agents/Makefile
 		 scripts/Makefile
+		 selinux/Makefile
 		 share/Makefile
 		 striker-ui/Makefile
 		 striker-ui-api/Makefile
