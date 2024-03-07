@@ -122,7 +122,11 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
       ) : (
         <>
           <Grid item width="100%">
-            <MessageGroup count={1} messages={formikErrors} />
+            <MessageGroup
+              count={1}
+              messages={formikErrors}
+              ref={messageGroupRef}
+            />
           </Grid>
           <Grid item width="100%">
             <ActionGroup
