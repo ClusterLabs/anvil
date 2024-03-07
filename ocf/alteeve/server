@@ -615,6 +615,7 @@ sub start_server
 {
 	my ($anvil) = @_;
 	
+=cut
 	my $server          = $anvil->data->{environment}{OCF_RESKEY_name};
 	my $short_host_name = $anvil->Get->short_host_name();
 	my $problem         = $anvil->Server->connect_to_libvirt({
@@ -628,8 +629,9 @@ sub start_server
 	}});
 	if (ref($anvil->data->{libvirtd}{$short_host_name}{connection}) eq "Sys::Virt")
 	{
-	
-	
+		
+	}
+=cut
 	
 	# Before we do anything, make sure that 'libvirtd' and 'drbd' services are running.
 	#check_daemons($anvil, "start");
