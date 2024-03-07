@@ -1,0 +1,30 @@
+policy_module(anvil-subnode, 1.0.0)
+
+########################################
+#
+# Declarations
+#
+
+
+########################################
+#
+# Local policy
+#
+
+# Use existing types; don't declare unless it's new.
+#
+require {
+#	type drbd_t;
+	type mnt_t;
+	type var_lock_t;
+	type virsh_t;
+}
+
+
+#============= drbd_t ==============
+# allow drbd_t self:netlink_generic_socket { bind create getattr setopt };
+# allow drbd_t var_lock_t:file { read lock open write };
+
+
+#============= virsh_t ==============
+allow virsh_t mnt_t:file { open read };
