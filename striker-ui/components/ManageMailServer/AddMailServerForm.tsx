@@ -26,78 +26,73 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
     [mailServerUuid],
   );
 
-  const {
-    disableAutocomplete,
-    disabledSubmit,
-    formik,
-    formikErrors,
-    handleChange,
-  } = useFormikUtils<MailServerFormikValues>({
-    initialValues: previousFormikValues ?? {
-      [msUuid]: {
-        address: '',
-        authentication: 'none',
-        heloDomain: localhostDomain,
-        port: 587,
-        security: 'none',
-        uuid: msUuid,
-      },
-    },
-    onSubmit: (values, { setSubmitting }) => {
-      const { [msUuid]: mailServer } = values;
-
-      let actionProceedText: string = 'Add';
-      let errorMessage: ReactNode = <>Failed to add mail server.</>;
-      let method: 'post' | 'put' = 'post';
-      let successMessage = <>Mail server added.</>;
-      let titleText: string = 'Add mail server with the following?';
-      let url = '/mail-server';
-
-      if (previousFormikValues) {
-        actionProceedText = 'Update';
-        errorMessage = <>Failed to update mail server.</>;
-        method = 'put';
-        successMessage = <>Mail server updated.</>;
-        titleText = `Update ${mailServer.address}:${mailServer.port} with the following?`;
-        url += `/${msUuid}`;
-      }
-
-      const { confirmPassword, uuid, ...rest } = mailServer;
-
-      tools.confirm.prepare({
-        actionProceedText,
-        content: <FormSummary entries={rest} />,
-        onCancelAppend: () => setSubmitting(false),
-        onProceedAppend: () => {
-          tools.confirm.loading(true);
-
-          api[method](url, mailServer)
-            .then(() => {
-              tools.confirm.finish('Success', { children: successMessage });
-
-              tools[method === 'post' ? 'add' : 'edit'].open(false);
-            })
-            .catch((error) => {
-              const emsg = handleAPIError(error);
-
-              emsg.children = (
-                <>
-                  {errorMessage} {emsg.children}
-                </>
-              );
-
-              tools.confirm.finish('Error', emsg);
-
-              setSubmitting(false);
-            });
+  const { disabledSubmit, formik, formikErrors, handleChange } =
+    useFormikUtils<MailServerFormikValues>({
+      initialValues: previousFormikValues ?? {
+        [msUuid]: {
+          address: '',
+          authentication: 'none',
+          heloDomain: localhostDomain,
+          port: 587,
+          security: 'none',
+          uuid: msUuid,
         },
-        titleText,
-      });
+      },
+      onSubmit: (values, { setSubmitting }) => {
+        const { [msUuid]: mailServer } = values;
 
-      tools.confirm.open(true);
-    },
-    validationSchema: mailServerListSchema,
-  });
+        let actionProceedText: string = 'Add';
+        let errorMessage: ReactNode = <>Failed to add mail server.</>;
+        let method: 'post' | 'put' = 'post';
+        let successMessage = <>Mail server added.</>;
+        let titleText: string = 'Add mail server with the following?';
+        let url = '/mail-server';
+
+        if (previousFormikValues) {
+          actionProceedText = 'Update';
+          errorMessage = <>Failed to update mail server.</>;
+          method = 'put';
+          successMessage = <>Mail server updated.</>;
+          titleText = `Update ${mailServer.address}:${mailServer.port} with the following?`;
+          url += `/${msUuid}`;
+        }
+
+        const { confirmPassword, uuid, ...rest } = mailServer;
+
+        tools.confirm.prepare({
+          actionProceedText,
+          content: <FormSummary entries={rest} />,
+          onCancelAppend: () => setSubmitting(false),
+          onProceedAppend: () => {
+            tools.confirm.loading(true);
+
+            api[method](url, mailServer)
+              .then(() => {
+                tools.confirm.finish('Success', { children: successMessage });
+
+                tools[method === 'post' ? 'add' : 'edit'].open(false);
+              })
+              .catch((error) => {
+                const emsg = handleAPIError(error);
+
+                emsg.children = (
+                  <>
+                    {errorMessage} {emsg.children}
+                  </>
+                );
+
+                tools.confirm.finish('Error', emsg);
+
+                setSubmitting(false);
+              });
+          },
+          titleText,
+        });
+
+        tools.confirm.open(true);
+      },
+      validationSchema: mailServerListSchema,
+    });
 
   const addressChain = useMemo<string>(() => `${msUuid}.address`, [msUuid]);
   const authenticationChain = useMemo<string>(
@@ -136,7 +131,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={addressChain}
               label="Server address"
               name={addressChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               value={formik.values[msUuid].address}
@@ -151,7 +145,6 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
               id={portChain}
               label="Server port"
               name={portChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               type="number"
@@ -160,14 +153,13 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <SelectWithLabel
               id={securityChain}
               label="Server security type"
               name={securityChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               selectItems={['none', 'starttls', 'tls-ssl']}
@@ -176,14 +168,13 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <SelectWithLabel
               id={authenticationChain}
               label="Server authentication method"
               name={authenticationChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               selectItems={['none', 'plain-text', 'encrypted']}
@@ -192,14 +183,13 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item sm={2} xs={1}>
+      <Grid item width="100%">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
               id={heloDomainChain}
               label="HELO domain"
               name={heloDomainChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               required
               value={formik.values[msUuid].heloDomain}
@@ -211,11 +201,10 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={usernameChain}
-              inputProps={disableAutocomplete()}
               label="Server username"
               name={usernameChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               value={formik.values[msUuid].username}
             />
@@ -226,11 +215,10 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={passwordChain}
-              inputProps={disableAutocomplete()}
               label="Server password"
               name={passwordChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               type="password"
               value={formik.values[msUuid].password}
@@ -238,16 +226,15 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
           }
         />
       </Grid>
-      <Grid item xs={1} />
+      <Grid display={{ xs: 'none', sm: 'initial' }} item sm={1} />
       <Grid item xs={1}>
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={confirmPasswordChain}
-              inputProps={disableAutocomplete()}
               label="Confirm password"
               name={confirmPasswordChain}
-              onBlur={formik.handleBlur}
               onChange={handleChange}
               type="password"
               value={formik.values[msUuid].confirmPassword}

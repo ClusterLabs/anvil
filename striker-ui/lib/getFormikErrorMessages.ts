@@ -1,4 +1,4 @@
-import { capitalize } from 'lodash';
+import disassembleCamel from './disassembleCamel';
 
 const getFormikErrorMessages = (
   errors: object,
@@ -7,7 +7,11 @@ const getFormikErrorMessages = (
       let children = error;
 
       if (typeof children === 'string') {
-        children = capitalize(children.replace(/^[^\s]+\.([^.]+)/, '$1'));
+        const [first, ...rest] = children.split(/\s+/);
+
+        const name = disassembleCamel(first.replace(/^[^\s]+\.([^.]+)/, '$1'));
+
+        children = [name, ...rest].join(' ');
       }
 
       return { children, type: 'warning' };

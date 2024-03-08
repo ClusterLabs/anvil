@@ -12,11 +12,6 @@ type FormikSubmitHandler<Values extends FormikValues> =
   import('formik').FormikConfig<Values>['onSubmit'];
 
 type FormikUtils<Values extends FormikValues> = {
-  disableAutocomplete: (
-    overwrite?: Partial<
-      import('../components/OutlinedInput').OutlinedInputProps
-    >,
-  ) => import('../components/OutlinedInput').OutlinedInputProps;
   disabledSubmit: boolean;
   formik: Formik<Values>;
   formikErrors: Messages;

@@ -8,15 +8,16 @@ import Grid from '../../components/Grid';
 import handleAPIError from '../../lib/handleAPIError';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
+import { ManageHost } from '../../components/ManageHost';
 import ManageManifestPanel from '../../components/ManageManifest';
 import ManageUpsPanel from '../../components/ManageUps';
-import { Panel } from '../../components/Panels';
-import PrepareHostForm from '../../components/PrepareHostForm';
+import { Panel, PanelHeader } from '../../components/Panels';
 import PrepareNetworkForm from '../../components/PrepareNetworkForm';
 import Spinner from '../../components/Spinner';
 import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
 import Tabs from '../../components/Tabs';
+import { HeaderText } from '../../components/Text';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const TAB_ID_PREPARE_HOST = 'prepare-host';
@@ -42,7 +43,14 @@ const PrepareHostTabContent: FC = () => (
     layout={{
       'preparehost-left-column': {},
       'preparehost-center-column': {
-        children: <PrepareHostForm />,
+        children: (
+          <Panel>
+            <PanelHeader>
+              <HeaderText>Hosts</HeaderText>
+            </PanelHeader>
+            <ManageHost />
+          </Panel>
+        ),
         ...STEP_CONTENT_GRID_CENTER_COLUMN,
       },
     }}

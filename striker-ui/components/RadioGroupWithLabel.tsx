@@ -18,10 +18,12 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
   formLabelProps,
   id,
   label,
+  name,
   onChange: onRadioGroupChange,
   radioItems,
   radioProps: { sx: radioSx, ...restRadioProps } = {},
   radioGroupProps,
+  value,
 }) => {
   const labelElement = useMemo(
     () => (typeof label === 'string' ? <BodyText>{label}</BodyText> : label),
@@ -30,7 +32,7 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
   const itemElements = useMemo(() => {
     const items = Object.entries(radioItems);
 
-    return items.map(([itemId, { label: itemLabel, value }]) => {
+    return items.map(([itemId, { label: itemLabel, value: itemValue }]) => {
       const itemLabelElement =
         typeof itemLabel === 'string' ? (
           <BodyText>{itemLabel}</BodyText>
@@ -53,7 +55,7 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
             />
           }
           key={`${id}-${itemId}`}
-          value={value}
+          value={itemValue}
           label={itemLabelElement}
           {...formControlLabelProps}
         />
@@ -64,7 +66,14 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
   return (
     <MUIFormControl {...formControlProps}>
       <MUIFormLabel {...formLabelProps}>{labelElement}</MUIFormLabel>
-      <MUIRadioGroup onChange={onRadioGroupChange} row {...radioGroupProps}>
+      <MUIRadioGroup
+        id={id}
+        name={name}
+        onChange={onRadioGroupChange}
+        row
+        value={value}
+        {...radioGroupProps}
+      >
         {itemElements}
       </MUIRadioGroup>
     </MUIFormControl>
