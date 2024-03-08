@@ -1,10 +1,64 @@
-#!/bin/sh -e
+#!/usr/bin/perl
+# 
+# This is a wrapper for pcs that allows status checks without delay, but otherwise uses flock to ensure only
+# one pcs calls at a time.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. 
+# 
 
-(
-	if [ "$1" == "status" ]; then
-		pcs "$@"
-		exit $?
-	fi
-	flock -e 200
-	pcs "$@"
-) 200>/tmp/pcs.lock
+use strict;
+use warnings;
+use Anvil::Tools;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({wrapper => 1, list => [], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	"switches::argv" => $anvil->data->{switches}{argv},
+}});
+if ($anvil->data->{switches}{argv} eq 'status')
+{
+	my $shell_call = "/usr/sbin/pcs status";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	print $output."\n";
+	exit $return_code;
+}
+
+my $lock_file = '/tmp/pcs.lock';
+open(my $lock_fh, '>', $lock_file) or die "Cannot open lock file, the error was: [".$!."]";
+flock($lock_fh, 2); # Exclusive lock
+
+# We're using flock, so don't use System->call, too many chances for things to go wrong.
+my $shell_call = "/usr/sbin/pcs ".$anvil->data->{switches}{argv};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+
+my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	output      => $output,
+	return_code => $return_code, 
+}});
+print $output."\n";
+
+close($lock_fh);
+exit $return_code;
