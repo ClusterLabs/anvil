@@ -5000,7 +5000,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 2,
+					timeout     => 20,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
