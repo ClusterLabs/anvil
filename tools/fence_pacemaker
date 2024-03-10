@@ -80,6 +80,7 @@ my $conf = {
 			drbdadm		=>	"/usr/sbin/drbdadm",
 			echo		=>	"/usr/bin/echo",
 			getent		=>	"/usr/bin/getent",
+			hostnamectl	=>	"/usr/bin/hostnamectl",
 			logger		=>	"/usr/bin/logger",
 			pcs		=>	"/usr/sbin/pcs",
 		},
@@ -329,7 +330,181 @@ sub perform_fence
 		kill_target($conf);
 	}
 	
+	# In either case, set the location constraint so that pacemaker doesn't migrate the server when it 
+	# comes back up.
+	set_location_constraint($conf);
+	
 	return(0);
+}
+
+# This sets a location contraint so the server prefers our node.
+sub set_location_constraint
+{
+	my ($conf) = @_;
+	
+	# Get the host names.
+	my ($local_host, $peer_host) = get_hostname($conf);
+	my $server                   = $conf->{environment}{DRBD_RESOURCE};
+	to_log($conf, {message => "server: [".$server."], local_host: [".$local_host."], peer_host: [".$peer_host."]", 'line' => __LINE__, level => 2});
+	
+	if ((not $local_host) or (not $peer_host))
+	{
+		# We can't update the constraints.
+		return(1);
+	}
+	
+	to_log($conf, {message => "Setting the pacemaker location constraint so that: [".$server."] prefers this host.", 'line' => __LINE__, level => 1});
+	my $shell_call = $conf->{path}{exe}{pcs}." constraint location ".$server." prefers ".$local_host."=200 ".$peer_host."=100";
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+	}
+	close($file_handle);
+
+	return(0);
+}
+
+# This gets the local short hostname
+sub get_hostname
+{
+	my ($conf) = @_;
+	
+	# This will store our name.
+	$conf->{cluster}{local_node} = "";
+	
+	my $shell_call = $conf->{path}{exe}{hostnamectl}." --static";
+	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+	while(<$file_handle>)
+	{
+		# This should not generate output.
+		chomp;
+		my $line = $_;
+		to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+		
+		if ((not $line) or ($line =~ /\s/))
+		{
+			# We can't trust this, it could be an error like "Could not get property: Refusing 
+			# activation, D-Bus is shutting down.". 
+			last;
+		}
+		else
+		{
+			$conf->{cluster}{local_node} = $line;
+			to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."]", 'line' => __LINE__, level => 2});
+			last;
+		}
+	}
+	
+	# If we didn't get the host name, try reading /etc/hostname
+	if (not $conf->{cluster}{local_node})
+	{
+		# Try reading the config file name.
+		my $shell_call = "/etc/hostname";
+		to_log($conf, {message => "Reading: [".$shell_call."]", 'line' => __LINE__, level => 2});
+		open (my $file_handle, "<", $shell_call) or warn "Failed to read: [".$shell_call.", error was: [".$!."]";
+		while(<$file_handle>)
+		{
+			### NOTE: Don't chop this, we want to record exactly what we read
+			my $line = $_;
+			to_log($conf, {message => "line: [".$line."]", 'line' => __LINE__, level => 2});
+		
+			if ((not $line) or ($line =~ /\s/))
+			{
+				# We can't trust this. 
+				last;
+			}
+			else
+			{
+				$conf->{cluster}{local_node} = $line;
+				to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."]", 'line' => __LINE__, level => 2});
+				last;
+			}
+		}
+		close $file_handle;
+	}
+	
+	# If we still didn't get the hostname, try calling 'hostnamectl --transient'
+	if (not $conf->{cluster}{local_node})
+	{
+		my $shell_call = $conf->{path}{exe}{hostnamectl}." --transient";
+		to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
+		open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
+		while(<$file_handle>)
+		{
+			# This should not generate output.
+			chomp;
+			my $line = $_;
+			to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+			
+			if ((not $line) or ($line =~ /\s/))
+			{
+				# We can't trust this, it could be an error like "Could not get property: Refusing 
+				# activation, D-Bus is shutting down.". 
+				last;
+			}
+			else
+			{
+				$conf->{cluster}{local_node} = $line;
+				to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."]", 'line' => __LINE__, level => 2});
+				last;
+			}
+		}
+	}
+	
+	# Make sure we've got a short hostname
+	$conf->{cluster}{local_node} =~ s/\..*$//;
+	to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."]", 'line' => __LINE__, level => 2});
+	
+	my $peer_host  = $conf->{cluster}{target_node};
+	my $local_host = $conf->{cluster}{local_node};
+	to_log($conf, {message => "peer_host: [".$peer_host."], local_host: [".$local_host."]", 'line' => __LINE__, level => 2});
+	
+	# Last, look through the pacemaker CIB to make sure we're going to use the names used in pacemaker.
+	if ((not exists $conf->{cluster}{cib}) or (not $conf->{cluster}{cib}))
+	{
+		read_cib($conf);
+	}
+	
+	if ($conf->{cluster}{cib})
+	{
+		foreach my $line (split/\n/, $conf->{cluster}{cib})
+		{
+			to_log($conf, {message => "Output: [".$line."]", 'line' => __LINE__, level => 2});
+			
+			if ($line =~ /<node .*>$/)
+			{
+				my $this_node_name = ($line =~ /uname="(.*?)"/)[0];
+				to_log($conf, {message => "this_node_name: [".$this_node_name."]", 'line' => __LINE__, level => 2});
+				
+				if (($this_node_name eq $local_host) or ($this_node_name eq $peer_host))
+				{
+					# Name is accurate, we're good
+					next;
+				}
+				elsif ($this_node_name =~ /^$local_host\./)
+				{
+					# Update the host name
+					$conf->{cluster}{local_node} = $this_node_name;
+					to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."]", 'line' => __LINE__, level => 2});
+				}
+				elsif ($this_node_name =~ /^$peer_host\./)
+				{
+					# Update the host name
+					$conf->{cluster}{target_node} = $this_node_name;
+					to_log($conf, {message => "cluster::target_node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 2});
+				}
+			}
+		}
+	}
+	
+	to_log($conf, {message => "cluster::local_node: [".$conf->{cluster}{local_node}."], cluster::target_node: [".$conf->{cluster}{target_node}."]", 'line' => __LINE__, level => 2});
+	return($conf->{cluster}{local_node}, $conf->{cluster}{target_node});
 }
 
 # This reads the status of all resources. If we're not all UpToDate, check if the peer is. If the peer is, 
@@ -624,6 +799,9 @@ sub read_cib
 		to_log($conf, {message => "This node does not appear to be in the cluster. Unable to read the CIB XML properly.", 'line' => __LINE__, level => 2, priority => "err"});
 		exit(1);
 	}
+	
+	# Cache the CIB.
+	$conf->{cluster}{cib} = $body;
 	
 	return($body);
 }
