@@ -814,7 +814,8 @@ sub to_log
 	# Build the message. We log the line
 	if (($conf->{'log'}{line_numbers}) && ($line))
 	{
-		$message = $line."; ".$message;
+		# Record the PID as well to make it easier to separate parallel runs.
+		$message = "[".$$."]:".$line."; ".$message;
 	}
 	
 	my $priority_string = $facility;
