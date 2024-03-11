@@ -2306,6 +2306,11 @@ LIMIT 1
 				$manufacturer = "HP";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
 			}
+			elsif ($manufacturer =~ /Unknown/i)
+			{
+				$manufacturer = "Unknown";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			}
 		}
 	}
 	$output      = "";
@@ -2570,7 +2575,9 @@ LIMIT 1
 	
 	# See if the current password works.
 	my $lanplus = "no-yes";
-	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
+	if (($manufacturer eq "HP")   or 
+	    ($manufacturer eq "Dell") or 
+	    ($manufacturer eq "Unknown"))
 	{
 		# These need LAN Plus
 		$lanplus = "yes-no"
