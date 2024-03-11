@@ -2574,13 +2574,11 @@ LIMIT 1
 	}});
 	
 	# See if the current password works.
-	my $lanplus = "no-yes";
-	if (($manufacturer eq "HP")   or 
-	    ($manufacturer eq "Dell") or 
-	    ($manufacturer eq "Unknown"))
+	my $lanplus = "yes-no";
+	if ($manufacturer eq "Fujitsu")
 	{
-		# These need LAN Plus
-		$lanplus = "yes-no"
+		# Fujitsu doesn't usually need lanplus 
+		$lanplus = "no-yes"
 	}
 	my $try_again = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
