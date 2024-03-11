@@ -2565,11 +2565,11 @@ LIMIT 1
 	}});
 	
 	# See if the current password works.
-	my $lanplus = "no-yes";
-	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
+	my $lanplus = "yes-no";
+	if ($manufacturer eq "Fujitsu")
 	{
-		# These need LAN Plus
-		$lanplus = "yes-no"
+		# Fujitsu doesn't usually need lanplus 
+		$lanplus = "no-yes"
 	}
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
