@@ -2212,6 +2212,7 @@ LIMIT 1
 					last;
 				}
 			}
+			last if $subnet_mask;
 		}
 		
 		# If we didn't find a network, we're done.
@@ -2234,8 +2235,6 @@ LIMIT 1
 		$ipmi_no_space_password =~ s/\s//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_no_space_password => $ipmi_no_space_password }});
 	}
-	
-	
 	
 	# Call dmidecode to see if there even is an IPMI BMC on this host.
 	my $host_ipmi              = "";
@@ -2362,6 +2361,7 @@ LIMIT 1
 			}
 			last;
 		}
+		last if $lan_channel;
 	}
 	
 	# If we didn't find a LAN channel, we can't proceed.
@@ -2576,6 +2576,11 @@ LIMIT 1
 		$lanplus = "yes-no"
 	}
 	my $try_again = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:manufacturer' => $manufacturer, 
+		's2:lanplus'      => $lanplus,
+		's3:try_again'    => $try_again, 
+	}});
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
 		ipmi_user     => $user_name,
@@ -5107,7 +5112,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 2,
+					timeout     => 20,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
