@@ -33,7 +33,7 @@ se-makefile:
 .PHONY: subnode-te
 subnode-te: anvil-subnode.te
 	-@echo "Making $@: $^"
-	cp -r -p --no-preserve=mode "$<" "./$(SE_SRC_SUBNODE_TE)"
+	cp -r -p --no-preserve=mode "$<" "$(SE_SRC_SUBNODE_TE)"
 
 anvil-subnode.pp: se-makefile subnode-te
 	-@echo "Making $@: $^"
@@ -50,6 +50,8 @@ install-data-hook:
 	-@echo "srcdir: $(srcdir)"
 	-@echo "destdir: $(destdir)"
 	-@echo "DESTDIR: $(DESTDIR)"
+	-@echo "datarootdir: $(datarootdir)"
+	install -D -m 0644 -t "$(DESTDIR)/$(prefix)/usr/share/selinux/packages/$(SE_TYPE)/" "anvil-subnode.pp"
 
 uninstall-hook:
 	-@echo "Making $@: $^"
@@ -57,6 +59,7 @@ uninstall-hook:
 	-@echo "srcdir: $(srcdir)"
 	-@echo "destdir: $(destdir)"
 	-@echo "DESTDIR: $(DESTDIR)"
+	rm -f "$(DESTDIR)/$(prefix)/usr/share/selinux/packages/$(SE_TYPE)/anvil-subnode.pp"
 
 clean-local:
 	-@echo "Making $@: $^"
