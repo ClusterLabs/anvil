@@ -8,6 +8,7 @@
 
 use strict;
 use warnings;
+use Fcntl qw(:flock);
 use Anvil::Tools;
 use Data::Dumper;
 
@@ -48,7 +49,7 @@ if ($anvil->data->{switches}{argv} =~ /^status/)
 
 my $lock_file = '/tmp/pcs.lock';
 open(my $lock_fh, '>', $lock_file) or die "Cannot open lock file, the error was: [".$!."]";
-flock($lock_fh, 2); # Exclusive lock
+flock($lock_fh, LOCK_EX); # Exclusive lock
 
 # We're using flock, so don't use System->call, too many chances for things to go wrong.
 my $shell_call = "/usr/sbin/pcs ".$anvil->data->{switches}{argv};
