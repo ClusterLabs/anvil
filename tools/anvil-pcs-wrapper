@@ -28,13 +28,14 @@ $anvil->Get->switches({wrapper => 1, list => [], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+### TODO: Set these back to 'level => 2'
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 	"switches::argv" => $anvil->data->{switches}{argv},
 }});
-if ($anvil->data->{switches}{argv} eq 'status')
+if ($anvil->data->{switches}{argv} =~ /^status/)
 {
-	my $shell_call = "/usr/sbin/pcs status";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my $shell_call = "/usr/sbin/pcs ".$anvil->data->{switches}{argv};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -60,5 +61,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 print $output."\n";
 
+flock($lock_fh, LOCK_UN);
 close($lock_fh);
+
 exit $return_code;
