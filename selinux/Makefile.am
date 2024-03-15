@@ -17,9 +17,6 @@ EXTRA_DIST		= \
 # - : ignore errors
 # @ : don't print command
 
-all: anvil-subnode.pp
-	-@echo "Making $@: $^"
-
 .PHONY: se-makefile
 se-makefile:
 	-@echo "Making $@: $^"
@@ -33,7 +30,12 @@ se-makefile:
 .PHONY: subnode-te
 subnode-te: anvil-subnode.te
 	-@echo "Making $@: $^"
-	cp -r -p --no-preserve=mode "$<" "$(SE_SRC_SUBNODE_TE)"
+	-pwd
+	-ls -Al "$(srcdir)"
+	-ls -Al
+	cp -r -p --no-preserve=mode "${srcdir}/${SE_SRC_SUBNODE_TE}" "$(SE_SRC_SUBNODE_TE)"
+	-ls -Al "$(srcdir)"
+	-ls -Al
 
 anvil-subnode.pp: se-makefile subnode-te
 	-@echo "Making $@: $^"
@@ -44,7 +46,7 @@ anvil-subnode.pp: se-makefile subnode-te
 	-ls -Al "$(srcdir)"
 	-ls -Al
 
-install-data-hook:
+install-data-hook: anvil-subnode.pp
 	-@echo "Making $@: $^"
 	-pwd
 	-@echo "srcdir: $(srcdir)"
