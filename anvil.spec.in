@@ -5,7 +5,10 @@
 %define debug_package %{nil}
 %define anviluser     admin
 %define anvilgroup    admin
+%define selinuxtype   targeted
 %define suiapi        striker-ui-api
+
+%define selinuxdir    %{_datadir}/selinux/packages/%{selinuxtype}
 
 Name:           anvil
 Version:        @version@
@@ -24,6 +27,8 @@ BuildRequires:  systemd autoconf automake make
 BuildRequires:  fence-agents-common
 # OCFROOT
 BuildRequires:  resource-agents
+# required to build SELinux policy
+BuildRequires:  selinux-policy-devel
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 
@@ -104,6 +109,7 @@ Requires:       postgresql-contrib
 Requires:       postgresql-plperl 
 Requires:       rsync 
 Requires:       screen
+Requires:       selinux-policy >= %{_selinux_policy_version}
 Requires:       smartmontools
 Requires:       strace
 Requires:       syslinux
@@ -242,9 +248,14 @@ getent passwd %{anviluser} >/dev/null || useradd --create-home \
 %post core
 # TODO: Remove this!! This is only for use during development, all SELinux 
 #       issues must be resolved before final release!
-echo "WARNING: Setting SELinux to 'permissive' during development."
-sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
-setenforce 0
+# echo "WARNING: Setting SELinux to 'permissive' during development."
+# sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+# setenforce 0
+#
+if [ $1 == 1 ]; then
+	%selinux_modules_install -s %{selinuxtype} -p 200 ${selinuxdir}/anvil-subnode.pp
+fi
+
 # Enable and start the anvil-daemon
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable --now chronyd.service
@@ -352,8 +363,11 @@ touch /etc/anvil/type.dr
 #getent passwd %%{anviluser} >/dev/null && userdel %%{anviluser}
 #getent group %%{anvilgroup} >/dev/null && groupdel %%{anvilgroup}
 # echo "NOTE: Re-enabling SELinux."
-# sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
+# sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
 # setenforce 1
+if [ $1 == 0 ]; then
+	%selinux_modules_uninstall -s %{selinuxtype} -p 200 ${selinuxdir}/anvil-subnode.pp
+fi
 
 %preun striker
 if [ $1 == 0 ]; then # 0=Uninstall, 1=First install, >1=Upgrade (version count)
@@ -410,6 +424,7 @@ fi
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
 %{_mandir}/*
+%{selinuxdir}/*.pp
 
 %files striker
 %{_localstatedir}/www/*/*
