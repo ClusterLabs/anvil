@@ -24,6 +24,8 @@ BuildRequires:  systemd autoconf automake make
 BuildRequires:  fence-agents-common
 # OCFROOT
 BuildRequires:  resource-agents
+# required to build SELinux policy
+BuildRequires:  selinux-policy-devel
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 
@@ -104,6 +106,7 @@ Requires:       postgresql-contrib
 Requires:       postgresql-plperl 
 Requires:       rsync 
 Requires:       screen
+Requires:       selinux-policy >= %{_selinux_policy_version}
 Requires:       smartmontools
 Requires:       strace
 Requires:       syslinux
