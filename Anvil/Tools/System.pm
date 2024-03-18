@@ -2578,7 +2578,12 @@ LIMIT 1
 	if ($manufacturer eq "Fujitsu")
 	{
 		# Fujitsu doesn't usually need lanplus 
-		$lanplus = "no-yes"
+		$lanplus = "no-yes";
+	}
+	elsif ($manufacturer eq "Unknown")
+	{
+		# This is simengine / ipmi_sim. We're testing forcing lanplus always
+		$lanplus = "yes-yes";
 	}
 	my $try_again = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -4955,7 +4960,7 @@ sub test_ipmi
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->test_ipmi()", parameter => "ipmi_password" }});
 		return("!!error!!");
 	}
-	if (($lanplus ne "yes") && ($lanplus ne "no") && ($lanplus ne "yes-no") && ($lanplus ne "no-yes"))
+	if (($lanplus ne "yes") && ($lanplus ne "no") && ($lanplus ne "yes-no") && ($lanplus ne "no-yes") && ($lanplus ne "yes-yes"))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0136", variables => { lanplus => $lanplus }});
 		return("!!error!!");
@@ -5079,6 +5084,10 @@ sub test_ipmi
 	elsif ($lanplus eq "yes-no")
 	{
 		@lanplus_array = ("--lanplus", "");
+	}
+	elsif ($lanplus eq "yes-yes")
+	{
+		@lanplus_array = ("--lanplus", "--lanplus");
 	}
 	elsif ($lanplus eq "yes")
 	{
