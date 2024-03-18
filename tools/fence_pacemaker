@@ -300,6 +300,10 @@ sub create_constraint
 			# We're good, fence is complete.
 			to_log($conf, {message => "Resource: [".$target_server."] has been fenced via location constraint successfully!", 'line' => __LINE__, level => 1});
 			
+			# In either case, set the location constraint so that pacemaker doesn't migrate the 
+			# server when it comes back up.
+			set_location_constraint($conf);
+
 			exit(7);
 		}
 		
@@ -329,10 +333,6 @@ sub perform_fence
 	{
 		kill_target($conf);
 	}
-	
-	# In either case, set the location constraint so that pacemaker doesn't migrate the server when it 
-	# comes back up.
-	set_location_constraint($conf);
 	
 	return(0);
 }
@@ -917,6 +917,10 @@ sub check_peer_is_fenced
 				}
 				close $file_handle;
 				to_log($conf, {message => "Fence completed successfully!", 'line' => __LINE__, level => 1});
+				
+				# In either case, set the location constraint so that pacemaker doesn't 
+				# migrate the server when it comes back up.
+				set_location_constraint($conf);
 				
 				exit(7);
 			}
