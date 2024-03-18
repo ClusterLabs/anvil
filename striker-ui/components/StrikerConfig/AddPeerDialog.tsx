@@ -142,7 +142,6 @@ const AddPeerDialog = forwardRef<
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
-                      fillRow
                       id="add-peer-password-input"
                       label={LABEL.password}
                       type={INPUT_TYPES.password}

@@ -20,7 +20,6 @@ import OutlinedInputLabel, {
 } from './OutlinedInputLabel';
 
 type OutlinedInputWithLabelOptionalPropsWithDefault = {
-  fillRow?: boolean;
   formControlProps?: Partial<MUIFormControlProps>;
   helpMessageBoxProps?: Partial<MessageBoxProps>;
   id?: string;
@@ -53,7 +52,6 @@ type OutlinedInputWithLabelProps = Pick<
 const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOptionalPropsWithDefault> &
   OutlinedInputWithLabelOptionalPropsWithoutDefault = {
   baseInputProps: undefined,
-  fillRow: false,
   formControlProps: {},
   helpMessageBoxProps: {},
   id: '',
@@ -70,7 +68,6 @@ const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOp
 const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   baseInputProps,
   disableAutofill,
-  fillRow: isFillRow = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.fillRow,
   formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
   helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
   id = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.id,
@@ -91,15 +88,10 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   type,
   value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
 }) => {
-  const { sx: formControlSx, ...restFormControlProps } = formControlProps;
   const { text: helpText = '' } = helpMessageBoxProps;
 
   const [isShowHelp, setIsShowHelp] = useState<boolean>(false);
 
-  const formControlWidth = useMemo(
-    () => (isFillRow ? '100%' : undefined),
-    [isFillRow],
-  );
   const helpElement = useMemo(
     () =>
       isShowHelp && (
@@ -136,11 +128,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
   const handleHelp = useMemo(createHelpHandler, [createHelpHandler]);
 
   return (
-    <MUIFormControl
-      fullWidth
-      {...restFormControlProps}
-      sx={{ width: formControlWidth, ...formControlSx }}
-    >
+    <MUIFormControl fullWidth {...formControlProps}>
       <OutlinedInputLabel
         htmlFor={id}
         isNotifyRequired={required}
