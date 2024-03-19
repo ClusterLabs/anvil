@@ -3303,16 +3303,11 @@ sub parse_cib
 						}});
 						
 						# Preload state values (in case they're not read in this CIB.
+						# Don't log these as it's confusing
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}             = "false";
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}               = "offline";
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}             = "down";
 						$anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'} = "off";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							"cib::parsed::cib::node_state::${node_id}::in_ccm"           => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{in_ccm}, 
-							"cib::parsed::cib::node_state::${node_id}::crmd"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{crmd}, 
-							"cib::parsed::cib::node_state::${node_id}::join"             => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'join'}, 
-							"cib::parsed::cib::node_state::${node_id}::maintenance-mode" => $anvil->data->{cib}{parsed}{cib}{node_state}{$node_id}{'maintenance-mode'}, 
-						}});
 					}
 				}
 				foreach my $instance_attributes ($node->findnodes('./instance_attributes'))
