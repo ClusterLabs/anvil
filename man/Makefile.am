@@ -7,7 +7,6 @@ dist_man5_MANS		= \
 			  anvil.conf.5
 
 dist_man8_MANS		= \
-			  alteeve-repo-setup.8 \
 			  anvil-boot-server.8 \
 			  anvil-change-password.8 \
 			  anvil-check-memory.8 \

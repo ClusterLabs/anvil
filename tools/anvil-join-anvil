@@ -297,18 +297,29 @@ sub wait_for_access
 	# NOTE: This logic is a copy of anvil-safe-start.
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
+	my $anvil_uuid           = $anvil->Cluster->get_anvil_uuid();
 	my $host_uuid            = $anvil->Get->host_uuid();
-	my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-	my $peer_host_uuid       = $anvil->data->{sys}{peer_host_uuid};
-	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
-	my $peer_password        = $anvil->data->{sys}{peer_password};
+	my $node1_host_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $peer_host_uuid       = $host_uuid eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name}      // "";
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name} // "";
+	my $peer_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}    // "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		host_uuid            => $host_uuid,
-		short_host_name      => $short_host_name, 
-		peer_host_uuid       => $peer_host_uuid, 
-		peer_short_host_name => $peer_short_host_name, 
-		peer_password        => $anvil->Log->is_secure($peer_password), 
+		's1:anvil_uuid'           => $anvil_uuid, 
+		's2:host_uuid'            => $host_uuid,
+		's3:node1_host_uuid'      => $node1_host_uuid,
+		's4:node2_host_uuid'      => $node2_host_uuid, 
+		's5:short_host_name'      => $short_host_name, 
+		's6:peer_host_uuid'       => $peer_host_uuid, 
+		's7:peer_short_host_name' => $peer_short_host_name, 
+		's8:peer_password'        => $anvil->Log->is_secure($peer_password), 
 	}});
+	
+	if (not $peer_short_host_name)
+	{
+		die "Peer not found!\n";
+	}
 	
 	my $waiting = 1;
 	while ($waiting)
@@ -653,14 +664,14 @@ sub configure_pacemaker
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { tried_starting => $tried_starting }});
 				}
 				
-				my $problem = $anvil->Cluster->parse_cib({debug => 3});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+				my $problem = $anvil->Cluster->parse_cib({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				if (not $problem)
 				{
 					# See if both nodes are online.
-					my $node1_ready = $anvil->Cluster->check_node_status({node_name => $node1_host_name});
-					my $node2_ready = $anvil->Cluster->check_node_status({node_name => $node2_host_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					my $node1_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node1_host_name});
+					my $node2_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node2_host_name});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						node1_ready => $node1_ready,
 						node2_ready => $node2_ready, 
 					}});
@@ -787,7 +798,7 @@ sub configure_pacemaker
 		until ($both_online)
 		{
 			### TODO: If we're waiting more that five minutes, call 'pcs cluster start --all' again.
-			my $problem = $anvil->Cluster->parse_cib({debug => 3});
+			my $problem = $anvil->Cluster->parse_cib({debug => 2});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 			if (not $problem)
 			{
@@ -1865,7 +1876,6 @@ sub check_local_network
 	my $local_host    = $anvil->Get->short_host_name();
 	my $machine       = $anvil->data->{sys}{machine};
 	my $manifest_uuid = $anvil->data->{sys}{manifest_uuid};
-	
 	my $domain        = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{domain};
 	my $old_host_name = $anvil->Get->host_name;
 	my $new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name};
@@ -1873,14 +1883,14 @@ sub check_local_network
 	{
 		$new_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{name}.".".$domain;
 	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's2:domain'        => $domain, 
 		's3:old_host_name' => $old_host_name, 
 		's4:new_host_name' => $new_host_name, 
 	}});
 	
 	$anvil->data->{sys}{host_name} = $new_host_name;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'sys::host_name' => $anvil->data->{sys}{host_name}, 
 	}});
 	
@@ -2634,14 +2644,56 @@ sub check_local_network
 	}
 	
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0113"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0113"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0113");
 	$anvil->System->check_ssh_keys({debug => 2});
 	
 	# Setup IPMI, if needed.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0114"});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0114"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0114");
 	$anvil->System->configure_ipmi({debug => 2, manifest_uuid => $manifest_uuid});
+	
+	# Wait now until our peer's host name matches what's in the manifest.
+	my $anvil_uuid     = $anvil->data->{sys}{anvil_uuid};
+	my $peer_machine   = $anvil->data->{sys}{peer_machine};
+	my $peer_host_name = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$peer_machine}{name};
+	my $peer_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{"anvil_".$peer_machine."_host_uuid"};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"s1:anvil_uuid"     => $anvil_uuid, 
+		"s2:peer_machine"   => $peer_machine,
+		"s3:peer_host_name" => $peer_host_name,
+		"s4:peer_host_uuid" => $peer_host_uuid,
+	}});
+	
+	my $waiting = 1;
+	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0482,!!peer_name!".$peer_host_name."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0482", variables => { peer_name => $peer_host_name }});
+	while ($waiting)
+	{
+		$anvil->Database->get_hosts();
+		my $current_host_name       = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{host_name};
+		my $current_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:current_host_name"       => $current_host_name,
+			"s2:current_short_host_name" => $current_short_host_name,
+		}});
+		if (($peer_host_name eq $current_host_name) or 
+		    ($peer_host_name eq $current_short_host_name))
+		{
+			# Done!
+			$waiting = 0;
+			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0483,!!peer_name!".$peer_host_name."!!");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0483", variables => { peer_name => $peer_host_name }});
+		}
+		else
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0484", variables => { 
+				old_peer_name => $current_short_host_name." / ".$current_host_name, 
+				peer_name     => $peer_host_name,
+			}});
+			sleep 5;
+		}
+	}
 	
 	return(0);
 }
@@ -2698,12 +2750,14 @@ sub load_job
 	}
 	
 	$anvil->data->{sys}{machine}       = $machine;
+	$anvil->data->{sys}{peer_machine}  = $machine eq "node1" ? "node2" : "node1";
 	$anvil->data->{sys}{manifest_uuid} = $manifest_uuid;
 	$anvil->data->{sys}{anvil_uuid}    = $anvil_uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"sys::machine"         => $anvil->data->{sys}{machine},
-		"sys::manifest_uuid"   => $anvil->data->{sys}{manifest_uuid},
-		"sys::anvil_uuid"      => $anvil->data->{sys}{anvil_uuid},
+		"s1:sys::machine"       => $anvil->data->{sys}{machine},
+		"s2:sys::peer_machine"  => $anvil->data->{sys}{peer_machine},
+		"s3:sys::manifest_uuid" => $anvil->data->{sys}{manifest_uuid},
+		"s4:sys::anvil_uuid"    => $anvil->data->{sys}{anvil_uuid},
 	}});
 	
 	# Load in the host, manifest and anvil data.
