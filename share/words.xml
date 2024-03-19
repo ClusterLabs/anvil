@@ -1762,6 +1762,9 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0479">The new definition is ready, saving it.</key>
 		<key name="job_0480">Running as a job, not prompting the user to confirm.</key>
 		<key name="job_0481">The fence device: [#!variable!device!#] already exists.</key>
+		<key name="job_0482">Waiting for the peer's hostname to be: [#!variable!peer_name!#] in the database.</key>
+		<key name="job_0483">The peer's hostname is: [#!variable!peer_name!#], proceeding.</key>
+		<key name="job_0484">The peer's hostname is currently: [#!variable!old_peer_name!#], waiting for it to be changed to: [#!variable!peer_name!#]... Will check again shortly.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
