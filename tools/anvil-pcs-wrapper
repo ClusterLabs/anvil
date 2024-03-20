@@ -1,10 +1,59 @@
-#!/bin/sh -e
+#!/usr/bin/perl
+# 
+# This is a wrapper for pcs that allows status checks without delay, but otherwise uses flock to ensure only
+# one pcs calls at a time.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. 
+# 
 
-(
-	if [ "$1" == "status" ]; then
-		pcs "$@"
-		exit $?
-	fi
-	flock -e 200
-	pcs "$@"
-) 200>/tmp/pcs.lock
+use strict;
+use warnings;
+use Fcntl qw(:flock);
+use Anvil::Tools;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({wrapper => 1, list => [], man => $THIS_FILE});
+
+if ($anvil->data->{switches}{argv} =~ /^status/)
+{
+	my ($output, $return_code) = call($anvil);
+	print $output."\n";
+	exit $return_code;
+}
+
+my $lock_file = '/tmp/pcs.lock';
+open(my $lock_fh, '>', $lock_file) or die "Cannot open lock file, the error was: [".$!."]";
+flock($lock_fh, LOCK_EX); # Exclusive lock
+
+# We're using flock, so don't use System->call, too many chances for things to go wrong.
+my ($output, $return_code) = call($anvil);
+print $output."\n";
+
+flock($lock_fh, LOCK_UN);
+close($lock_fh);
+
+exit $return_code;
+
+
+sub call
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = "/usr/sbin/pcs ".$anvil->data->{switches}{argv};
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	
+	return($output, $return_code);
+}
