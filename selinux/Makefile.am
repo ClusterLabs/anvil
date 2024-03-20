@@ -1,6 +1,7 @@
 MAINTAINERCLEANFILES    = Makefile.in
 
-SE_MAKEFILE_PATH	= /usr/share/selinux/devel/Makefile
+SE_DIR			= /usr/share/selinux
+SE_MAKEFILE_PATH	= $(SE_DIR)/devel/Makefile
 SE_TYPE			= targeted
 
 SE_SRC_SUBNODE_TE	= anvil-subnode.te
@@ -52,7 +53,7 @@ install-data-hook: anvil-subnode.pp
 	-@echo "destdir: $(destdir)"
 	-@echo "DESTDIR: $(DESTDIR)"
 	-@echo "datarootdir: $(datarootdir)"
-	install -D -m 0644 -t "$(DESTDIR)/$(prefix)/usr/share/selinux/packages/$(SE_TYPE)/" "anvil-subnode.pp"
+	install -D -m 0644 -t "$(DESTDIR)/$(SE_DIR)/packages/$(SE_TYPE)/" "anvil-subnode.pp"
 
 uninstall-hook:
 	-@echo "Making $@: $^"
@@ -60,7 +61,7 @@ uninstall-hook:
 	-@echo "srcdir: $(srcdir)"
 	-@echo "destdir: $(destdir)"
 	-@echo "DESTDIR: $(DESTDIR)"
-	rm -f "$(DESTDIR)/$(prefix)/usr/share/selinux/packages/$(SE_TYPE)/anvil-subnode.pp"
+	rm -f "$(DESTDIR)/$(SE_DIR)/packages/$(SE_TYPE)/anvil-subnode.pp"
 
 clean-local:
 	-@echo "Making $@: $^"
