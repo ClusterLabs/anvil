@@ -2763,11 +2763,6 @@ sub switches
 		$anvil->data->{switches}{argv} = "";
 		foreach my $argument (@ARGV)
 		{
-			if (($argument =~ /^-{1,2}v{1,4}$/) or ($argument =~ /-{1,2}log-secure$/))
-			{
-				next;
-			}
-			
 			if ($argument =~ /^(.*?)=(.*)$/)
 			{
 				my $variable = $1;
@@ -2784,7 +2779,6 @@ sub switches
 				}});
 				
 				$value =~ s/"/\\\"/g;
-				#$value =~ s/'/\'/g;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					value => $secure ? $anvil->Log->is_secure($value) : $value,
 				}});
