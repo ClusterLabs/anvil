@@ -6,7 +6,7 @@ SE_TYPE			= targeted
 SE_SRC_SUBNODE_TE	= anvil-subnode.te
 
 EXTRA_DIST		= \
-			$(SE_SRC_SUBNODE_TE)
+			$(SE_SRC_SUBNODE_TE).in
 
 # Variables:
 # $@ : target name
@@ -27,17 +27,16 @@ se-makefile:
 	  exit 1; \
 	fi
 
-.PHONY: subnode-te
-subnode-te: anvil-subnode.te
+$(SE_SRC_SUBNODE_TE): $(SE_SRC_SUBNODE_TE).in
 	-@echo "Making $@: $^"
 	-pwd
 	-ls -Al "$(srcdir)"
 	-ls -Al
-	cp -r -p --no-preserve=mode "${srcdir}/${SE_SRC_SUBNODE_TE}" "$(SE_SRC_SUBNODE_TE)"
+	cp -r -p --no-preserve=mode "$<" "$@"
 	-ls -Al "$(srcdir)"
 	-ls -Al
 
-anvil-subnode.pp: se-makefile subnode-te
+anvil-subnode.pp: se-makefile $(SE_SRC_SUBNODE_TE)
 	-@echo "Making $@: $^"
 	-pwd
 	-ls -Al "$(srcdir)"
