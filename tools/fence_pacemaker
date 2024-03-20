@@ -714,6 +714,11 @@ sub identify_peer
 				{
 					# The node is out.
 					to_log($conf, {message => "The node: [".$node."] is already down. No actual fence needed.", 'line' => __LINE__, level => 1});
+					
+					# In either case, set the location constraint so that pacemaker doesn't 
+					# migrate the server when it comes back up.
+					set_location_constraint($conf);
+					
 					exit(7);
 				}
 				else
