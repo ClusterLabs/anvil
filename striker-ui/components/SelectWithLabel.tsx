@@ -103,10 +103,19 @@ const SelectWithLabel = <
   const menuItemElements = useMemo(
     () =>
       selectItems.map((item) => {
-        const { value, displayValue }: SelectItem<Value, Display> =
-          typeof item === 'object'
-            ? item
-            : { displayValue: item as Display, value: item as Value };
+        /**
+         * Cases:
+         * 1. item is string
+         * 2. item is SelectItem with only value
+         * 3. item is SelectItem with both value, and displayValue
+         */
+
+        if (typeof item === 'string') return createMenuItem(item, item);
+
+        const {
+          value,
+          displayValue = String(value),
+        }: SelectItem<Value, Display> = item;
 
         return createMenuItem(value, displayValue);
       }),
