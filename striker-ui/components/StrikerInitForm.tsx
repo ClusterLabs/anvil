@@ -52,6 +52,7 @@ const StrikerInitForm: FC = () => {
 
   const [hostDetail, setHostDetail] = useState<APIHostDetail | undefined>();
 
+  // Make sure the fetch for host detail only happens once.
   const allowGetHostDetail = useRef<boolean>(true);
 
   const generalInitFormRef = useRef<GeneralInitFormForwardedRefContent>({});
@@ -59,6 +60,8 @@ const StrikerInitForm: FC = () => {
 
   const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
   const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
+
+  const [panelTitle, setPanelTitle] = useState<string>('Loading...');
 
   const reconfig = useMemo<boolean>(() => Boolean(re), [re]);
 
@@ -88,43 +91,36 @@ const StrikerInitForm: FC = () => {
     [isDisableSubmit, isSubmittingForm],
   );
 
-  const panelTitle = useMemo(() => {
-    let title = 'Loading...';
-
-    if (isReady) {
-      title = reconfig
-        ? `Reconfigure ${hostDetail?.shortHostName ?? 'striker'}`
-        : 'Initialize striker';
-    }
-
-    return title;
-  }, [hostDetail?.shortHostName, isReady, reconfig]);
-
   const toggleSubmitDisabled = useCallback((...testResults: boolean[]) => {
     setIsDisableSubmit(!testResults.every((testResult) => testResult));
   }, []);
 
   useEffect(() => {
-    if (isReady) {
-      if (reconfig && allowGetHostDetail.current) {
-        allowGetHostDetail.current = false;
+    if (!isReady) return;
 
-        api
-          .get<APIHostDetail>('/host/local')
-          .then(({ data }) => {
-            setHostDetail(data);
-          })
-          .catch((error) => {
-            const emsg = handleAPIError(error);
+    if (!reconfig) {
+      setPanelTitle('Initialize striker');
 
-            emsg.children = (
-              <>Failed to get host detail data. {emsg.children}</>
-            );
-
-            setSubmitMessage(emsg);
-          });
-      }
+      return;
     }
+
+    if (!allowGetHostDetail.current) return;
+
+    allowGetHostDetail.current = false;
+
+    api
+      .get<APIHostDetail>('/host/local')
+      .then(({ data }) => {
+        setHostDetail(data);
+        setPanelTitle(`Reconfigure ${data.shortHostName}`);
+      })
+      .catch((error) => {
+        const emsg = handleAPIError(error);
+
+        emsg.children = <>Failed to get host detail data. {emsg.children}</>;
+
+        setSubmitMessage(emsg);
+      });
   }, [isReady, reconfig, setHostDetail]);
 
   return (
