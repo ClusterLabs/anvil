@@ -184,7 +184,10 @@ export const buildServerPowerHandler: (
 
       try {
         const rows = await query<[[null | string]]>(
-          `SELECT server_host_uuid FROM servers WHERE server_uuid = '${uuid}' server_state != '${DELETED}';`,
+          `SELECT server_host_uuid
+            FROM servers
+            WHERE server_uuid = '${uuid}'
+              AND server_state != '${DELETED}';`,
         );
 
         assert.ok(rows.length, `No entry found`);
