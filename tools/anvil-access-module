@@ -192,6 +192,16 @@ sub access_chain
 
 			if ($is_last_key)
 			{
+				# Allow operators on hash children. Mainly used for cleaning up before refreshing children of $anvil->data.
+				my $op = $chain_args->[0] // "";
+
+				if ($op eq "=")
+				{
+					my $op_value = $chain_args->[1];
+
+					$intermediate->{$key} = $op_value if (defined $op_value);
+				}
+
 				@results = ($intermediate->{$key});
 
 				last;
