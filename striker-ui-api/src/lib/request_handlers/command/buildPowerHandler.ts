@@ -42,7 +42,7 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     job_name: 'set_power::server::on',
     job_title: 'job_0340',
   }),
-  stop: ({ isStopServers, runOn } = {}) => ({
+  stop: ({ isStopServers, uuid, runOn = uuid } = {}) => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-safe-stop'].self} --power-off${
       isStopServers ? ' --stop-servers' : ''
     }`,
@@ -158,11 +158,7 @@ export const buildAnPowerHandler: (
 
   for (const hostUuid of rows[0]) {
     try {
-      await queuePowerJob(task, {
-        isStopServers: true,
-        runOn: hostUuid,
-        uuid: hostUuid,
-      });
+      await queuePowerJob(task, { isStopServers: true, uuid: hostUuid });
     } catch (error) {
       stderr(`Failed to ${task} host ${hostUuid}; CAUSE: ${error}`);
 
