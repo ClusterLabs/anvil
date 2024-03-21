@@ -245,7 +245,7 @@ const StrikerInitForm: FC = () => {
                       }
 
                       return (
-                        <Grid container key={key} item>
+                        <Grid columns={{ xs: 2 }} container key={key} item>
                           <Grid item xs={1}>
                             <BodyText>{`Link ${ifaceIndex + 1}`}</BodyText>
                           </Grid>
