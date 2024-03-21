@@ -789,6 +789,7 @@ const GeneralInitForm = forwardRef<
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
+                      disableAutofill
                       id="striker-init-general-admin-password"
                       inputProps={{
                         inputProps: {
@@ -824,6 +825,7 @@ const GeneralInitForm = forwardRef<
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
+                      disableAutofill
                       id="striker-init-general-confirm-admin-password"
                       inputProps={{
                         inputProps: {
