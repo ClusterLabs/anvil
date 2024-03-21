@@ -116,8 +116,6 @@ const GeneralInitForm = forwardRef<
     ] = useState<boolean>(false);
     const [isShowHostNameSuggest, setIsShowHostNameSuggest] =
       useState<boolean>(false);
-    const [isConfirmAdminPassword, setIsConfirmAdminPassword] =
-      useState<boolean>(true);
     const [isValidateDomain, setIsValidateDomain] = useState<boolean>(true);
 
     const readHostDetailRef = useRef<boolean>(true);
@@ -378,17 +376,10 @@ const GeneralInitForm = forwardRef<
         excludeTestIds = [],
         inputs,
         isContinueOnFailure,
-        isExcludeConfirmAdminPassword = !isConfirmAdminPassword,
       }: Pick<
         TestInputFunctionOptions,
         'inputs' | 'excludeTestIds' | 'isContinueOnFailure'
-      > & {
-        isExcludeConfirmAdminPassword?: boolean;
-      } = {}) => {
-        if (isExcludeConfirmAdminPassword) {
-          excludeTestIds.push(IT_IDS.confirmAdminPassword);
-        }
-
+      > = {}) => {
         toggleSubmitDisabled?.call(
           null,
           testInput({
@@ -400,7 +391,7 @@ const GeneralInitForm = forwardRef<
           }),
         );
       },
-      [isConfirmAdminPassword, testInput, toggleSubmitDisabled],
+      [testInput, toggleSubmitDisabled],
     );
     const populateOrganizationPrefixInput = useCallback(
       ({
@@ -808,19 +799,6 @@ const GeneralInitForm = forwardRef<
                             inputs: { [IT_IDS.adminPassword]: { value } },
                           });
                         },
-                        onPasswordVisibilityAppend: (inputType) => {
-                          const localIsConfirmAdminPassword =
-                            inputType === INPUT_TYPES.password;
-
-                          testInputToToggleSubmitDisabled({
-                            isExcludeConfirmAdminPassword:
-                              !localIsConfirmAdminPassword,
-                          });
-                          setIsConfirmAdminPassword(
-                            localIsConfirmAdminPassword,
-                          );
-                          setConfirmAdminPasswordInputMessage();
-                        },
                       }}
                       inputLabelProps={{ isNotifyRequired: true }}
                       label="Admin password"
@@ -842,42 +820,40 @@ const GeneralInitForm = forwardRef<
                   ref={adminPasswordInputRef}
                 />
               </MUIGrid>
-              {isConfirmAdminPassword && (
-                <MUIGrid item xs={1}>
-                  <InputWithRef
-                    input={
-                      <OutlinedInputWithLabel
-                        id="striker-init-general-confirm-admin-password"
-                        inputProps={{
-                          inputProps: {
-                            type: INPUT_TYPES.password,
-                          },
-                          onBlur: ({ target: { value } }) => {
-                            testInput({
-                              inputs: {
-                                [IT_IDS.confirmAdminPassword]: { value },
-                              },
-                            });
-                          },
-                        }}
-                        inputLabelProps={{
-                          isNotifyRequired: isConfirmAdminPassword,
-                        }}
-                        label="Confirm password"
-                        onChange={({ target: { value } }) => {
-                          testInputToToggleSubmitDisabled({
+              <MUIGrid item xs={1}>
+                <InputWithRef
+                  input={
+                    <OutlinedInputWithLabel
+                      id="striker-init-general-confirm-admin-password"
+                      inputProps={{
+                        inputProps: {
+                          type: INPUT_TYPES.password,
+                        },
+                        onBlur: ({ target: { value } }) => {
+                          testInput({
                             inputs: {
                               [IT_IDS.confirmAdminPassword]: { value },
                             },
                           });
-                          setConfirmAdminPasswordInputMessage();
-                        }}
-                      />
-                    }
-                    ref={confirmAdminPasswordInputRef}
-                  />
-                </MUIGrid>
-              )}
+                        },
+                      }}
+                      inputLabelProps={{
+                        isNotifyRequired: true,
+                      }}
+                      label="Confirm password"
+                      onChange={({ target: { value } }) => {
+                        testInputToToggleSubmitDisabled({
+                          inputs: {
+                            [IT_IDS.confirmAdminPassword]: { value },
+                          },
+                        });
+                        setConfirmAdminPasswordInputMessage();
+                      }}
+                    />
+                  }
+                  ref={confirmAdminPasswordInputRef}
+                />
+              </MUIGrid>
             </MUIGrid>
           </MUIGrid>
         </MUIGrid>
