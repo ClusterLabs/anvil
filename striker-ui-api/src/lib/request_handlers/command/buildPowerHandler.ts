@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { LOCAL, REP_UUID, SERVER_PATHS } from '../../consts';
+import { DELETED, LOCAL, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -34,29 +34,39 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     job_name: `set_power::on`,
     job_title: 'job_0334',
   }),
-  startserver: ({ uuid } = {}) => ({
-    job_command: `${SERVER_PATHS.usr.sbin['anvil-boot-server'].self} --server-uuid '${uuid}'`,
+  startserver: ({ runOn, uuid } = {}) => ({
+    job_command: `${SERVER_PATHS.usr.sbin['anvil-boot-server'].self}`,
+    job_data: `server-uuid=${uuid}`,
     job_description: 'job_0341',
+    job_host_uuid: runOn,
     job_name: 'set_power::server::on',
     job_title: 'job_0340',
   }),
-  stop: ({ isStopServers, uuid } = {}) => ({
+  stop: ({ isStopServers, runOn } = {}) => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-safe-stop'].self} --power-off${
       isStopServers ? ' --stop-servers' : ''
     }`,
     job_description: 'job_0333',
-    job_host_uuid: uuid,
+    job_host_uuid: runOn,
     job_name: 'set_power::off',
     job_title: 'job_0332',
   }),
-  stopserver: ({ force, uuid } = {}) => ({
-    job_command: `${
-      SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self
-    } --server-uuid '${uuid}'${force ? ' --immediate' : ''}`,
-    job_description: 'job_0343',
-    job_name: 'set_power::server::off',
-    job_title: 'job_0342',
-  }),
+  stopserver: ({ force, runOn, uuid } = {}) => {
+    let command = SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self;
+
+    if (force) {
+      command += ' --immediate';
+    }
+
+    return {
+      job_command: command,
+      job_data: `server-uuid=${uuid}`,
+      job_description: 'job_0343',
+      job_host_uuid: runOn,
+      job_name: 'set_power::server::off',
+      job_title: 'job_0342',
+    };
+  },
 };
 
 const queuePowerJob = async (
@@ -74,8 +84,10 @@ const queuePowerJob = async (
 
 export const buildPowerHandler: (
   task: PowerTask,
+  options?: { getJobHostUuid?: (uuid?: string) => Promise<string | undefined> },
 ) => RequestHandler<{ uuid?: string }> =
-  (task) => async (request, response) => {
+  (task, { getJobHostUuid } = {}) =>
+  async (request, response) => {
     const {
       params: { uuid },
       query: { force: rForce },
@@ -97,7 +109,9 @@ export const buildPowerHandler: (
     }
 
     try {
-      await queuePowerJob(task, { force, uuid });
+      const runOn = await getJobHostUuid?.call(null, uuid);
+
+      await queuePowerJob(task, { force, runOn, uuid });
     } catch (error) {
       stderr(`Failed to ${task} ${uuid ?? LOCAL}; CAUSE: ${error}`);
 
@@ -144,7 +158,11 @@ export const buildAnPowerHandler: (
 
   for (const hostUuid of rows[0]) {
     try {
-      await queuePowerJob(task, { isStopServers: true, uuid: hostUuid });
+      await queuePowerJob(task, {
+        isStopServers: true,
+        runOn: hostUuid,
+        uuid: hostUuid,
+      });
     } catch (error) {
       stderr(`Failed to ${task} host ${hostUuid}; CAUSE: ${error}`);
 
@@ -154,3 +172,32 @@ export const buildAnPowerHandler: (
 
   return response.status(204).send();
 };
+
+export const buildServerPowerHandler: (
+  task: Extract<PowerTask, 'startserver' | 'stopserver'>,
+) => RequestHandler<{ uuid: string }> = (task) =>
+  buildPowerHandler(task, {
+    getJobHostUuid: async (uuid) => {
+      if (!uuid) return;
+
+      let serverHostUuid: string | undefined;
+
+      try {
+        const rows = await query<[[null | string]]>(
+          `SELECT server_host_uuid FROM servers WHERE server_uuid = '${uuid}' server_state != '${DELETED}';`,
+        );
+
+        assert.ok(rows.length, `No entry found`);
+
+        const [[hostUuid]] = rows;
+
+        if (hostUuid) {
+          serverHostUuid = hostUuid;
+        }
+      } catch (error) {
+        throw new Error(`Failed to get server host; CAUSE: ${error}`);
+      }
+
+      return serverHostUuid;
+    },
+  });
