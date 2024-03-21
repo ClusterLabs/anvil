@@ -203,6 +203,7 @@ const GeneralInitForm = forwardRef<
               setAdminPasswordInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -234,6 +235,7 @@ const GeneralInitForm = forwardRef<
               setConfirmAdminPasswordInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -255,6 +257,7 @@ const GeneralInitForm = forwardRef<
               setDomainNameInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -282,6 +285,7 @@ const GeneralInitForm = forwardRef<
               setHostNameInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -309,6 +313,7 @@ const GeneralInitForm = forwardRef<
               setHostNumberInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -326,6 +331,7 @@ const GeneralInitForm = forwardRef<
             getValue: () =>
               organizationNameInputRef.current.getValue?.call(null),
           },
+          isRequired: true,
           tests: [{ test: testNotBlank }],
         },
         [IT_IDS.organizationPrefix]: {
@@ -338,6 +344,7 @@ const GeneralInitForm = forwardRef<
               setOrganizationPrefixInputMessage(undefined);
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: ({ max, min }) => {
