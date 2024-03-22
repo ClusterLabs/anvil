@@ -18,6 +18,7 @@ import api from '../lib/api';
 import Autocomplete from './Autocomplete';
 import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
+import FlexBox from './FlexBox';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
 import IconButton, { IconButtonProps } from './IconButton';
 import MessageBox, { MessageBoxProps } from './MessageBox';
@@ -901,6 +902,8 @@ const ProvisionServerDialog = ({
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
+  // Provision is impossible when one of anvil node list, file list, or storage
+  // group list is empty.
   const [anvilUUIDMapToData, setAnvilUUIDMapToData] =
     useState<AnvilUUIDMapToData>({});
   const [fileUUIDMapToData, setFileUUIDMapToData] = useState<FileUUIDMapToData>(
@@ -1480,6 +1483,15 @@ const ProvisionServerDialog = ({
     );
   };
 
+  const hasResource = useMemo<Record<string, boolean>>(
+    () => ({
+      'anvil node': Boolean(Object.keys(anvilUUIDMapToData).length),
+      file: Boolean(Object.keys(fileUUIDMapToData).length),
+      'storage group': Boolean(Object.keys(storageGroupUUIDMapToData).length),
+    }),
+    [anvilUUIDMapToData, fileUUIDMapToData, storageGroupUUIDMapToData],
+  );
+
   useEffect(() => {
     api
       .get('/anvil', {
@@ -1594,6 +1606,17 @@ const ProvisionServerDialog = ({
             <CloseIcon />
           </IconButton>
         </PanelHeader>
+        <FlexBox spacing=".6em">
+          {Object.entries(hasResource).map(
+            ([resource, has]) =>
+              !has && (
+                <MessageBox type="warning">
+                  No {resource} available yet. Try refreshing after the resource
+                  gets created.
+                </MessageBox>
+              ),
+          )}
+        </FlexBox>
         {isProvisionServerDataReady ? (
           <Box
             sx={{

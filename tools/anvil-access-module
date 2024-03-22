@@ -192,6 +192,16 @@ sub access_chain
 
 			if ($is_last_key)
 			{
+				# Allow operators on hash children. Mainly used for cleaning up before refreshing children of $anvil->data.
+				my $op = $chain_args->[0] // "";
+
+				if ($op eq "=")
+				{
+					my $op_value = $chain_args->[1];
+
+					$intermediate->{$key} = $op_value if (defined $op_value);
+				}
+
 				@results = ($intermediate->{$key});
 
 				last;
@@ -208,6 +218,20 @@ sub access_chain
 			# On the last key of the chain; try to execute the subroutine if it exists
 			if ($is_last_key)
 			{
+				# Go through each argument and replace any 'anvil->' strings with their real value.
+				# At the time of writing, the only expected use case is calling $anvil->_make_hash_reference
+				for my $arg_i (0 .. $#{$chain_args})
+				{
+					my $arg = $chain_args->[$arg_i];
+
+					if ($arg =~ s/^anvil(->|\.)//)
+					{
+						my ($replacement) = access_chain({ chain => $arg, debug => $debug });
+
+						$chain_args->[$arg_i] = $replacement;
+					}
+				}
+
 				# Trailing 1 means the eval block will return success if the subroutine and assign succeeded
 				eval { (@results) = $intermediate->${key}(@$chain_args); 1; };
 

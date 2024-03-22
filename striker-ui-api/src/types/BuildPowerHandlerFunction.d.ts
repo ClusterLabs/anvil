@@ -11,6 +11,7 @@ type PowerJobParams = Omit<JobParams, 'file' | 'line'>;
 type BuildPowerJobParamsOptions = {
   force?: boolean;
   isStopServers?: boolean;
+  runOn?: string;
   uuid?: string;
 };
 
