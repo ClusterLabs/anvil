@@ -492,7 +492,15 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   const port = Number(rPort);
   const protocol = 'ws';
 
-  return { domain, port, protocol };
+  const result: ServerDetailVncInfo = {
+    domain,
+    port,
+    protocol,
+  };
+
+  shvar(result, `VNC info for server [${serverUuid}]: `);
+
+  return result;
 };
 
 export {
