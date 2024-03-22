@@ -1,4 +1,3 @@
-import { ServerResponse } from 'http';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 import { P_UUID } from '../lib/consts';
@@ -37,9 +36,19 @@ export const proxyServerVnc = createProxyMiddleware({
   },
   on: {
     error: (error, request, response) => {
-      stderr(String(error));
+      stderr(`VNC proxy error: ${error}`);
 
-      (response as ServerResponse).writeHead(404).end();
+      let resType: string;
+
+      if ('writeHead' in response) {
+        resType = 'ServerResponse';
+
+        response.writeHead(500).end();
+      } else {
+        resType = 'Socket';
+      }
+
+      stdout(`Response type = ${resType}`);
     },
   },
   ws: true,
