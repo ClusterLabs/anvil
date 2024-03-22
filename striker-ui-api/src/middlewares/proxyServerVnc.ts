@@ -27,9 +27,9 @@ export const proxyServerVnc = createProxyMiddleware({
     try {
       ({ domain, port, protocol } = await getVncinfo(serverUuid));
     } catch (error) {
-      throw new Error(
-        `Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`,
-      );
+      stderr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
+
+      return;
     }
 
     return { host: domain, protocol, port };
