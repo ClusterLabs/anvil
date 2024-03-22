@@ -14,8 +14,19 @@ const buildHostConnections = (
   }: { defaultPort?: number; defaultUser?: string } = {},
 ) =>
   Object.entries(databaseHash).reduce<HostConnectionOverview>(
-    (previous, [hostUUID, { host: ipAddress, ping, port: rawPort, user }]) => {
-      const port = Number(rawPort);
+    (
+      previous,
+      [
+        hostUUID,
+        {
+          host: ipAddress,
+          ping,
+          port: rPort = defaultPort,
+          user = defaultUser,
+        },
+      ],
+    ) => {
+      const port = Number(rPort);
 
       if (hostUUID === fromHostUUID) {
         previous.inbound.port = port;

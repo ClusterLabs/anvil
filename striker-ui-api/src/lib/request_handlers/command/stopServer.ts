@@ -1,3 +1,3 @@
-import { buildPowerHandler } from './buildPowerHandler';
+import { buildServerPowerHandler } from './buildPowerHandler';
 
-export const stopServer = buildPowerHandler('stopserver');
+export const stopServer = buildServerPowerHandler('stopserver');

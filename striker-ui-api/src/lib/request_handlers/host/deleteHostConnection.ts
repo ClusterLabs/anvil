@@ -18,6 +18,15 @@ export const deleteHostConnection: RequestHandler<
     const hostUuid = toHostUUID(key);
     const peerHostUuids = body[key];
 
+    /**
+     * Removing one or more peer of a striker doesn't update the globals in
+     * access module's memory, meaning there will be broken references to the
+     * removed peer for, i.e., database connections.
+     *
+     * TODO: find a solution to update the necessary pieces after removing
+     *       peer(s).
+     */
+
     for (const peerHostUuid of peerHostUuids) {
       try {
         await job({

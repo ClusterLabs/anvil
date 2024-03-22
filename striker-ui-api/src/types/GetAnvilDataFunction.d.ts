@@ -25,11 +25,11 @@ type AnvilDataAnvilListHash = {
 type AnvilDataDatabaseHash = {
   [hostUUID: string]: {
     host: string;
-    name: string;
+    name?: string;
     password: string;
     ping: string;
     port: string;
-    user: string;
+    user?: string;
   };
 };
 

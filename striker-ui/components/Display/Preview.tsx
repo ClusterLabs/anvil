@@ -123,11 +123,12 @@ const Preview: FC<PreviewProps> = ({
       serverState === 'running' ? (
         <>
           <Box
-            alt=""
+            alt={`Preview is temporarily unavailable, but the server is ${serverState}.`}
             component="img"
             src={`data:image;base64,${preview}`}
             sx={{
               height: '100%',
+              minHeight: '10em',
               opacity: isPreviewStale ? '0.4' : '1',
               padding: isUseInnerPanel ? '.2em' : 0,
               width: '100%',

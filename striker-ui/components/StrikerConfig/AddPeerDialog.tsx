@@ -58,7 +58,7 @@ const AddPeerDialog = forwardRef<
   const [formValidity, setFormValidity] = useState<{
     [inputTestID: string]: boolean;
   }>({});
-  const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(false);
+  const [isEnablePingTest, setIsEnablePingTest] = useState<boolean>(true);
   const [isSubmittingAddPeer, setIsSubmittingAddPeer] =
     useState<boolean>(false);
 
@@ -142,7 +142,6 @@ const AddPeerDialog = forwardRef<
                 <InputWithRef
                   input={
                     <OutlinedInputWithLabel
-                      fillRow
                       id="add-peer-password-input"
                       label={LABEL.password}
                       type={INPUT_TYPES.password}
