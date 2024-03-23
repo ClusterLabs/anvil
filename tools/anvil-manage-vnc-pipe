@@ -227,7 +227,7 @@ sub find_ws_processes
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "find_ws_processes" });
 
-	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*${ps_name}([[:space:]]+(--?[^[:space:]]+))*[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\4,\\5/p'";
+	my $ps_call = "$pgrep -a '$ps_name' | $sed -En 's/^([[:digit:]]+).*${ps_name}.*[[:space:]:]+([[:digit:]]+)[[:space:]:]+([[:digit:]]+).*\$/\\1,\\2,\\3/p'";
 
 	my ($rcode, $output) = call({ call => $ps_call, debug => $debug });
 
@@ -431,9 +431,11 @@ sub start_ws
 
 	return ($rcode) if ($rcode);
 
+	my $ws_log = $anvil->data->{path}{directories}{log}."/anvil-ws-".$ws_sport."-".$svr_vnc_port.".log";
+
 	# The daemon wrapper can tell us whether the daemon started correctly;
 	# we won't know this if the process is started in the background.
-	my $ws_call = "$websockify -D $ws_sport :$svr_vnc_port &>/dev/null";
+	my $ws_call = $websockify." -D --log-file '".$ws_log."' ".$ws_sport." :".$svr_vnc_port;
 
 	($rcode) = call({ call => $ws_call, debug => $debug });
 

@@ -1121,6 +1121,7 @@ sub _set_paths
 				ifcfg				=>	"/etc/sysconfig/network-scripts",
 				journald			=>	"/var/log/journal", 
 				libvirtd_definitions		=>	"/etc/libvirt/qemu/",
+				'log'				=>	"/var/log",
 				NetworkManager			=>	"/etc/NetworkManager/",
 				opt_alteeve			=>	"/opt/alteeve",
 				pgsql				=>	"/var/lib/pgsql/",
