@@ -18,17 +18,24 @@
 # and
 # * removes leading "./" and append "\"
 
+PPATH="${BASH_SOURCE[0]}"
+PNAME="$(basename "$PPATH")"
+
 found=$(find . \
-    -mindepth 1 -maxdepth 1 \
-    -not \( -name node_modules -prune \) \
-    -not \( -name *git* -prune \) \
-    -not \( -name *husky* -prune \) \
-    -not \( -name public -prune \) \
-    -not \( -name *[Mm]ake* -prune \) \
-    -not \( -name [.]env[.]* -prune \) \
-    -not \( -name "*$(basename ${BASH_SOURCE[0]})*" -prune \) \
+    -mindepth 1 \
+    -maxdepth 1 \
+    -not \( -name "node_modules" -prune \) \
+    -not \( -name "*git*" -prune \) \
+    -not \( -name "*husky*" -prune \) \
+    -not \( -name "public" -prune \) \
+    -not \( -name "*[Mm]ake*" -prune \) \
+    -not \( -name "[.]env[.]*" -prune \) \
+    -not \( -name "*$PNAME*" -prune \) \
     -not \( -name ".next" -prune \) \
-    | sed -E 's@^./(.+)$@\1 \\@')
+    -not \( -name "out" -prune \) \
+)
+
+found=$(sed -E 's@^./(.+)$@\1 \\@' <<< "$found")
 
 sorted=$(sort <<< "$found")
 

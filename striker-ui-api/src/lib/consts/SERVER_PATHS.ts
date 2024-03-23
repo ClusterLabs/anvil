@@ -32,7 +32,6 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-boot-server': {},
       'anvil-configure-host': {},
       'anvil-delete-server': {},
-      'anvil-get-server-screenshot': {},
       'anvil-join-anvil': {},
       'anvil-manage-alerts': {},
       'anvil-manage-keys': {},

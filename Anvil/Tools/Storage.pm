@@ -3282,7 +3282,7 @@ sub manage_lvm_conf
 		os_type => $os_type, 
 		os_arch => $os_arch,
 	}});
-	if ($os_type !~ /\D8/)
+	if (($os_type ne "rhel8") && ($os_type ne "centos-stream8"))
 	{
 		# Not EL8, return
 		return(0);
