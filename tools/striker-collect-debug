@@ -556,7 +556,10 @@ sub collect_remote_data
 		$shell_call = "/usr/sbin/pcs cluster cib > /tmp/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		($output, $error, $return_code) = $anvil->Remote->call({
+			shell_call => $shell_call,
+			target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output, 
 			return_code => $return_code, 
