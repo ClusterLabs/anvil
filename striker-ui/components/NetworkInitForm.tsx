@@ -888,6 +888,7 @@ const NetworkInitForm = forwardRef<
               setDnsInputMessage();
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -908,6 +909,7 @@ const NetworkInitForm = forwardRef<
               setGatewayInputMessage();
             },
           },
+          isRequired: true,
           tests: [
             {
               onFailure: () => {
@@ -1020,6 +1022,7 @@ const NetworkInitForm = forwardRef<
                 setNetworkIfacesInputMessage();
               },
             },
+            isRequired: true,
             tests: [
               {
                 onFailure: () => {
@@ -1048,6 +1051,7 @@ const NetworkInitForm = forwardRef<
                 setNetworkIPAddressInputMessage();
               },
             },
+            isRequired: true,
             tests: [
               {
                 onFailure: () => {
@@ -1068,6 +1072,7 @@ const NetworkInitForm = forwardRef<
           };
           tests[IT_IDS.networkName(inputTestPrefix)] = {
             defaults: { value: name },
+            isRequired: true,
             tests: [{ test: testNotBlank }],
           };
           tests[inputTestIDSubnetMask] = {
@@ -1077,6 +1082,7 @@ const NetworkInitForm = forwardRef<
                 setNetworkSubnetMaskInputMessage();
               },
             },
+            isRequired: true,
             tests: [
               {
                 onFailure: () => {

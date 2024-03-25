@@ -285,6 +285,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
           data-network-type={networkType}
         />
         <Grid
+          columns={{ xs: 1, sm: 2, md: 3 }}
           layout={{
             [inputCellIdIp]: {
               children: (

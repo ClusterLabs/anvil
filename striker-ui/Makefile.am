@@ -14,6 +14,7 @@ outpages		= \
 			index.html \
 			init.html \
 			login.html \
+			mail-config.html \
 			manage-element.html \
 			server.html
 outjsmodulesdir		= _next

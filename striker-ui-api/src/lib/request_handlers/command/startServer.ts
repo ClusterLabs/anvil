@@ -1,3 +1,3 @@
-import { buildPowerHandler } from './buildPowerHandler';
+import { buildServerPowerHandler } from './buildPowerHandler';
 
-export const startServer = buildPowerHandler('startserver');
+export const startServer = buildServerPowerHandler('startserver');

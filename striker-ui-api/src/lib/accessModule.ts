@@ -331,6 +331,24 @@ const getData = async <T>(...keys: string[]) => {
   return data;
 };
 
+const mutateData = async <T>(args: {
+  keys: string[];
+  operator: string;
+  value: string;
+}): Promise<T> => {
+  const { keys, operator, value } = args;
+
+  const chain = `data->${keys.join('->')}`;
+
+  const {
+    sub_results: [data],
+  } = await access.interact<{ sub_results: [T] }>('x', chain, operator, value);
+
+  shvar(data, `${chain} data: `);
+
+  return data;
+};
+
 const getAnvilData = async () => {
   await subroutine('get_anvils');
 
@@ -338,6 +356,9 @@ const getAnvilData = async () => {
 };
 
 const getDatabaseConfigData = async () => {
+  // Empty the existing data->database hash before re-reading updated values.
+  await mutateData<string>({ keys: ['database'], operator: '=', value: '{}' });
+
   const [ecode] = await subroutine<[ecode: string]>('read_config', {
     pre: ['Storage'],
   });
@@ -494,6 +515,7 @@ export {
   getPeerData,
   getUpsSpec,
   getVncinfo,
+  mutateData,
   query,
   subroutine as sub,
   write,
