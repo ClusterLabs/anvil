@@ -3162,6 +3162,10 @@ sub check_interfaces
 				network_interface_name => $network_interface_name,
 				new_nm_device          => $new_nm_device, 
 			}});
+			
+			# If there's no device and no interface name, ignore it.
+			next if ((not $new_nm_name) && (not $new_nm_device));
+			
 			my $network_interface_uuid = $anvil->Database->insert_or_update_network_interfaces({
 				debug                         => 2,
 				network_interface_nm_uuid     => $new_nm_uuid, 
