@@ -2212,6 +2212,7 @@ LIMIT 1
 					last;
 				}
 			}
+			last if $subnet_mask;
 		}
 		
 		# If we didn't find a network, we're done.
@@ -2234,8 +2235,6 @@ LIMIT 1
 		$ipmi_no_space_password =~ s/\s//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_no_space_password => $ipmi_no_space_password }});
 	}
-	
-	
 	
 	# Call dmidecode to see if there even is an IPMI BMC on this host.
 	my $host_ipmi              = "";
@@ -2307,6 +2306,11 @@ LIMIT 1
 				$manufacturer = "HP";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
 			}
+			elsif ($manufacturer =~ /Unknown/i)
+			{
+				$manufacturer = "Unknown";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manufacturer => $manufacturer }});
+			}
 		}
 	}
 	$output      = "";
@@ -2362,6 +2366,7 @@ LIMIT 1
 			}
 			last;
 		}
+		last if $lan_channel;
 	}
 	
 	# If we didn't find a LAN channel, we can't proceed.
@@ -2569,13 +2574,23 @@ LIMIT 1
 	}});
 	
 	# See if the current password works.
-	my $lanplus = "no-yes";
-	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
+	my $lanplus = "yes-no";
+	if ($manufacturer eq "Fujitsu")
 	{
-		# These need LAN Plus
-		$lanplus = "yes-no"
+		# Fujitsu doesn't usually need lanplus 
+		$lanplus = "no-yes";
+	}
+	elsif ($manufacturer eq "Unknown")
+	{
+		# This is simengine / ipmi_sim. We're testing forcing lanplus always
+		$lanplus = "yes-yes";
 	}
 	my $try_again = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		's1:manufacturer' => $manufacturer, 
+		's2:lanplus'      => $lanplus,
+		's3:try_again'    => $try_again, 
+	}});
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
 		ipmi_user     => $user_name,
@@ -4945,7 +4960,7 @@ sub test_ipmi
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Systeme->test_ipmi()", parameter => "ipmi_password" }});
 		return("!!error!!");
 	}
-	if (($lanplus ne "yes") && ($lanplus ne "no") && ($lanplus ne "yes-no") && ($lanplus ne "no-yes"))
+	if (($lanplus ne "yes") && ($lanplus ne "no") && ($lanplus ne "yes-no") && ($lanplus ne "no-yes") && ($lanplus ne "yes-yes"))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0136", variables => { lanplus => $lanplus }});
 		return("!!error!!");
@@ -5070,6 +5085,10 @@ sub test_ipmi
 	{
 		@lanplus_array = ("--lanplus", "");
 	}
+	elsif ($lanplus eq "yes-yes")
+	{
+		@lanplus_array = ("--lanplus", "--lanplus");
+	}
 	elsif ($lanplus eq "yes")
 	{
 		@lanplus_array = ("--lanplus");
@@ -5107,7 +5126,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 2,
+					timeout     => 20,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
