@@ -2681,7 +2681,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0804">Connecting: [#!variable!host_name!#] via: [#!variable!target_ip!#]</key>
 		<key name="log_0805">Getting a screenshot from: [#!variable!server_name!#] (uuid: [#!variable!server_uuid!#]) from the host: [#!variable!host_name!#].</key>
 		<key name="log_0806">- Saving the screenshot: [#!variable!ppm_file!#].</key>
-		<key name="log_0807">- Converting: [#!variable!ppm_file!#] to: 
+		<key name="log_0807">- Converting: [#!variable!source_file!#] to: 
 [#!variable!new_file!#]</key>
 		<key name="log_0808">Deleting screenshots older than: [#!variable!maximum_age!#].</key>
 		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
@@ -4187,6 +4187,7 @@ We will try to proceed anyway.</key>
 		<key name="warning_0170">[ Warning ] - The attempt to boot: [#!variable!host_name!#] appears to have failed. The return code received was: [#!variable!return_code!#] (expected '0'). The output, if any, was: [#!variable!output!#].</key>
 		<key name="warning_0171">[ Warning ] - The daemon: [#!variable!daemon!#] appears to have failed! Attempting to restart it now.</key>
 		<key name="warning_0172">[ Warning ] - The line: [#!variable!line!#] that was going to be added to the hosts file is invalid, removing it.</key>
+		<key name="warning_0173">[ Warning ] - Failed to convert: [#!variable!source_file!#] to: [#!variable!new_file!#] (format: [#!variable!format!#]! Return code was: [#!variable!return_code!#], expected '0'.</key>
 		
 	</language>
 	<!-- 日本語 -->

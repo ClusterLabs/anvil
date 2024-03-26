@@ -381,6 +381,8 @@ sub get_screenshots
 		my $unix_time       = time;
 		my $file_name       = "server-uuid_".$server_uuid."_timestamp-".$unix_time;
 		my $ppm_file        = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".ppm";
+		my $jpg_file        = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".jpg";
+		my $png_file        = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".png";
 		my $mimetype        = $domain->screenshot($stream, 0);
 		my $screenshot      = "";
 		my $screenshot_size = 0;
@@ -393,26 +395,112 @@ sub get_screenshots
 			unix_time       => $unix_time,
 			file_name       => $file_name, 
 			ppm_file        => $ppm_file, 
+			jpg_file        => $jpg_file,
+			png_file        => $png_file, 
 			mimetype        => $mimetype, 
 			screenshot_size => $screenshot_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $screenshot_size}).")",
 		}});
 		
 		$stream->recv_all($handle_ss_chunk);
 		
-		# Write out the screenshot.
-		$anvil->Storage->write_file({
-			debug  => 2,
-			file   => $ppm_file,
-			body   => $screenshot, 
-			mode   => "0666",
-			binary => 1,
-		});
-		$anvil->Job->update_progress({
-			progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
-			message   => "log_0806", 
-			log_level => 2,
-			variables => { ppm_file => $ppm_file },
-		});
+		### TODO: Delete this when EL8 support is dropped.
+		### TODO: When generating PNG, convert directly to JPEG
+		# On EL8, the mimetype is 'image/x-portable-pixmap'. On EL9, this is 'image/png'. 
+		if ($mimetype eq "image/png")
+		{
+			# Write this out to png, and convert it to pmm.
+			$anvil->Storage->write_file({
+				debug  => 2,
+				file   => $png_file,
+				body   => $screenshot, 
+				mode   => "0666",
+				binary => 1,
+			});
+			
+			# Change the ownership
+			$anvil->Storage->change_owner({
+				debug => 2, 
+				path  => $png_file,
+				user  => "striker-ui-api",
+				group => "striker-ui-api",
+			});
+			
+			# Convert to PPM
+			my $shell_call = $anvil->data->{path}{exe}{pngtopam}." ".$png_file." > ".$ppm_file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
+			
+			if ($return_code)
+			{
+				# Failed 
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "warning_0173", 
+					log_level => 1,
+					variables => { 
+						source_file => $png_file, 
+						new_file    => $ppm_file, 
+						'format'    => "ppm",
+						return_code => $return_code, 
+					},
+				});
+				unlink $ppm_file;
+			}
+			else
+			{
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "log_0807", 
+					log_level => 2,
+					variables => { 
+						source_file => $png_file, 
+						new_file    => $ppm_file, 
+						'format'    => "ppm",
+					},
+				});
+				
+				# Change the ownership
+				$anvil->Storage->change_owner({
+					debug => 2, 
+					path  => $png_file,
+					user  => "striker-ui-api",
+					group => "striker-ui-api",
+				});
+			}
+			
+		}
+		else
+		{
+			# Write out ppm the screenshot.
+			$anvil->Storage->write_file({
+				debug  => 2,
+				file   => $ppm_file,
+				body   => $screenshot, 
+				mode   => "0666",
+				binary => 1,
+			});
+			print "Wrote ppm: [".$ppm_file."]\n";
+			
+			# Change the ownership
+			$anvil->Storage->change_owner({
+				debug => 2, 
+				path  => $ppm_file,
+				user  => "striker-ui-api",
+				group => "striker-ui-api",
+			});
+			
+			$anvil->Job->update_progress({
+				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+				message   => "log_0806", 
+				log_level => 2,
+				variables => { ppm_file => $ppm_file },
+			});
+		}
 		
 		### TODO: Make these user-configurable later.
 		my $make_jpeg  = 1;
@@ -425,73 +513,110 @@ sub get_screenshots
 		}});
 		
 		# Convert to jpg
-		if ($make_jpeg)
+		if ((-e $ppm_file) && ($make_jpeg))
 		{
-			my $jpg_file   = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".jpg";
 			my $shell_call = $anvil->data->{path}{exe}{pnmtojpeg}." ".$ppm_file." > ".$jpg_file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				shell_call => $shell_call,
-				jpg_file   => $jpg_file,
-			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
 				return_code => $return_code, 
 			}});
-			$anvil->Job->update_progress({
-				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
-				message   => "log_0807", 
-				log_level => 2,
-				variables => { 
-					ppm_file => $ppm_file, 
-				 	new_file => $jpg_file, 
-				 	'format' => "jpeg",
-				},
-			});
 			
-			# Change the ownership
-			$anvil->Storage->change_owner({
-				debug => 2, 
-				path  => $jpg_file,
-				user  => "striker-ui-api",
-				group => "striker-ui-api",
-			});
+			if ($return_code)
+			{
+				# Failed 
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "warning_0173", 
+					log_level => 1,
+					variables => { 
+						source_file => $ppm_file, 
+						new_file    => $jpg_file, 
+						'format'    => "jpeg",
+						return_code => $return_code, 
+					},
+				});
+				unlink $jpg_file;
+			}
+			else
+			{
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "log_0807", 
+					log_level => 2,
+					variables => { 
+						source_file => $ppm_file, 
+						new_file    => $jpg_file, 
+						'format'    => "jpeg",
+					},
+				});
+				
+				# Change the ownership
+				$anvil->Storage->change_owner({
+					debug => 2, 
+					path  => $jpg_file,
+					user  => "striker-ui-api",
+					group => "striker-ui-api",
+				});
+			}
 		}
 		
 		# Convert to png
-		if ($make_png)
+		if ((-e $ppm_file) && ($make_png) && (not -e $png_file))
 		{
-			my $png_file   = $anvil->data->{path}{directories}{screenshots}."/".$file_name.".png";
 			my $shell_call = $anvil->data->{path}{exe}{pamtopng}." ".$ppm_file." > ".$png_file;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				shell_call => $shell_call,
-				png_file   => $png_file, 
-			}});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				output      => $output, 
 				return_code => $return_code, 
 			}});
-			$anvil->Job->update_progress({
-				progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
-				message   => "log_0807", 
-				log_level => 2,
-				variables => { 
-					ppm_file => $ppm_file, 
-				 	new_file => $png_file, 
-				 	'format' => "png",
-				},
-			});
 			
-			# Change the ownership
-			$anvil->Storage->change_owner({
-				debug => 2, 
-				path  => $png_file,
-				user  => "striker-ui-api",
-				group => "striker-ui-api",
-			});
+			if ($return_code)
+			{
+				# Failed 
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "warning_0173", 
+					log_level => 1,
+					variables => { 
+						source_file => $ppm_file, 
+						new_file    => $png_file, 
+						'format'    => "png",
+						return_code => $return_code, 
+					},
+				});
+				unlink $png_file;
+			}
+			else
+			{
+				$anvil->Job->update_progress({
+					progress  => $anvil->data->{job}{progress} < 99 ? ++$anvil->data->{job}{progress} : $anvil->data->{job}{progress},
+					message   => "log_0807", 
+					log_level => 2,
+					variables => { 
+						source_file => $ppm_file, 
+						new_file    => $png_file, 
+						'format'    => "png",
+					},
+				});
+				
+				# Change the ownership
+				$anvil->Storage->change_owner({
+					debug => 2, 
+					path  => $png_file,
+					user  => "striker-ui-api",
+					group => "striker-ui-api",
+				});
+			}
+		}
+		elsif ((not $make_png) && (-e $png_file))
+		{
+			# Remove the source png file
+			unlink $png_file;
 		}
 		
 		# Delete the original PPM file?
