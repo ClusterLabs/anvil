@@ -2377,10 +2377,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0520">The server: [#!variable!server!#] is indeed running. It will be shut down now.</key>
 		<key name="log_0521">Checking the status of the server: [#!variable!server!#].</key>
 		<key name="log_0522">The 'libvirtd' daemon is not running. It may be starting up, will wait: [#!variable!wait_time!#] seconds...</key>
-		<key name="log_0523">Found the server to be running using it's PID. The state of the server can't be determined, however. Please start the 'libvirtd' daemon!</key>
+		<key name="log_0523">Found the server to be running using it's PID. The state of the server can't be determined, however. There appears to be a problem with 'virsh'!</key>
 		<key name="log_0524">No PID for the server was found. It is not running on this host.</key>
 		<key name="log_0525">The server: [#!variable!server_name!#] is shutting down. Will wait for it to finish...</key>
-		<key name="log_0526">The server: [#!variable!server_name!#] is off.</key>
+		<key name="log_0526">The server: [#!variable!server_name!#] is off (not found in virsh or by PID).</key>
 		<key name="log_0527">The server: [#!variable!server_name!#] is running (state is: [#!variable!state!#]).</key>
 		<key name="log_0528">We've been asked to migrating the server: [#!variable!server!#] to: [#!variable!target_host!#].</key>
 		<key name="log_0529">Checking server state after: [#!variable!server!#] was migrated to this host.</key>
