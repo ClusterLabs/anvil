@@ -1,6 +1,8 @@
 import { Box, List as MUIList, ListItem as MUIListItem } from '@mui/material';
 import { FC, ReactElement } from 'react';
 
+import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
+
 import disassembleCamel from '../lib/disassembleCamel';
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
@@ -12,7 +14,7 @@ const renderEntryValueWithMono: RenderFormValueFunction = ({ entry }) => (
 const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
   const { entry, key } = args;
 
-  return /passw/i.test(key) ? (
+  return REP_LABEL_PASSW.test(key) ? (
     <SensitiveText monospaced>{String(entry)}</SensitiveText>
   ) : (
     renderEntryValueWithMono(args)

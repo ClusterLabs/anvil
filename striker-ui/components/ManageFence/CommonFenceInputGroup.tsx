@@ -2,6 +2,7 @@ import { Box, styled, Tooltip } from '@mui/material';
 import { ReactElement, ReactNode, useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
+import { REP_LABEL_PASSW } from '../../lib/consts/REG_EXP_PATTERNS';
 
 import FlexBox from '../FlexBox';
 import InputWithRef from '../InputWithRef';
@@ -272,7 +273,7 @@ const CommonFenceInputGroup = <M extends Record<string, string>>({
                 mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
                 parameterDefault;
               const isParameterRequired = String(rawParameterRequired) === '1';
-              const isParameterSensitive = /passw/i.test(parameterId);
+              const isParameterSensitive = REP_LABEL_PASSW.test(parameterId);
 
               const parameterInput = buildInput({
                 formUtils,
