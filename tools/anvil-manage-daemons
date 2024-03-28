@@ -26,8 +26,9 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches({list => [
-	"enable",
+	"all",
 	"disable",
+	"enable",
 	"log-only",
 	"monitor", 
 	"now", 
@@ -40,10 +41,10 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure =
 
 # Common daemons
 $anvil->data->{daemons}{core}{'anvil-daemon'}              = "anvil-daemon.service";
-$anvil->data->{daemons}{core}{'anvil-monitor-daemons'}     = "anvil-monitor-daemons.service";
-$anvil->data->{daemons}{core}{'anvil-monitor-network'}     = "anvil-monitor-network.service";
-$anvil->data->{daemons}{core}{'anvil-monitor-performance'} = "anvil-monitor-performance.service";
 $anvil->data->{daemons}{core}{'scancore'}                  = "scancore.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-network'}     = "anvil-monitor-network.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-daemons'}     = "anvil-monitor-daemons.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-performance'} = "anvil-monitor-performance.service";
 
 # Striker dashboards.
 $anvil->data->{daemons}{striker}{'striker-ui-api'} = "striker-ui-api.service";
@@ -266,6 +267,17 @@ sub process_daemons
 		# Enable or disable?
 		if (($anvil->data->{switches}{enable}) && ($anvil->data->{daemon}{$daemon}{enabled}{return_code} == 1))
 		{
+			# Is this optional, and if so, did they use '--all'?
+			if (($daemon eq 'anvil-monitor-daemons') or ($daemon eq 'anvil-monitor-performance'))
+			{
+				if (not $anvil->data->{switches}{all})
+				{
+					# Skip this
+					print "The daemon: [".$daemon."] is not critical, and '--all' not used, not enabling it.\n";
+					next;
+				}
+			}
+			
 			my $shell_call = $anvil->data->{path}{exe}{systemctl}." enable ".$daemon;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
@@ -292,6 +304,16 @@ sub process_daemons
 		# Start or stop?
 		if (($anvil->data->{switches}{start}) && ($anvil->data->{daemon}{$daemon}{active}{return_code} == 3))
 		{
+			if (($daemon eq 'anvil-monitor-daemons') or ($daemon eq 'anvil-monitor-performance'))
+			{
+				if (not $anvil->data->{switches}{all})
+				{
+					# Skip this
+					print "The daemon: [".$daemon."] is not critical, and '--all' not used, not starting it.\n";
+					next;
+				}
+			}
+			
 			my $shell_call = $anvil->data->{path}{exe}{systemctl}." start ".$daemon;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
