@@ -4445,6 +4445,9 @@ sub read_nmcli
 				}
 			}
 			
+			# If I still don't have a device, ignore this.
+			next if not $device;
+			
 			# Make it easy to look up a device's UUID by device or name.
 			$anvil->data->{nmcli}{$host}{name_to_uuid}{$name}     = $uuid;
 			$anvil->data->{nmcli}{$host}{device_to_uuid}{$device} = $uuid;
@@ -4686,8 +4689,8 @@ sub wait_for_network
 	closedir(DIRECTORY);
 	
 	my $waiting  = 1;
-	my $end_time = $timeout  ? time + $timeout : 0;
-	my $duration = $end_time ? $timeout - time : 0;
+	my $end_time = $timeout  ? time     + $timeout : 0;
+	my $duration = $end_time ? $timeout - time     : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		end_time => $end_time,
 		duration => $duration, 
@@ -4704,7 +4707,7 @@ sub wait_for_network
 			next if $anvil->data->{network}{watch}{$interface_name}{ready};
 			my $uuid  = $anvil->data->{network}{watch}{$interface_name}{uuid};
 			my $type  = $anvil->data->{network}{watch}{$interface_name}{type};
-			my $state = $anvil->data->{nmcli}{$short_host_name}{uuid}{$uuid}{'state'};
+			my $state = defined $anvil->data->{nmcli}{$short_host_name}{uuid}{$uuid}{'state'} ? $anvil->data->{nmcli}{$short_host_name}{uuid}{$uuid}{'state'} : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				's1:interface_name' => $interface_name,
 				's2:type'           => $type, 

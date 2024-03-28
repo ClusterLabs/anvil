@@ -100,6 +100,8 @@ find_changes($anvil);
 
 check_config($anvil);
 
+find_missing_resources($anvil);
+
 fix_things($anvil);
 
 # Shut down.
@@ -109,6 +111,17 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# If this node has been rebuilt, we'll need to add missing DRBD resources. This isn't done in 
+# anvil-join-anvil as the backing VG may not show free space if the user simply deleted the '/home' 
+# partition.
+sub find_missing_resources
+{
+	my ($anvil) = @_;
+	
+	
+	return(0);
+}
 
 # This looks for issues that we can fix, and if any are found, we try to fix them.
 sub fix_things
