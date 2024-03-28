@@ -2718,6 +2718,10 @@ This is the name of the man page for the calling program. If C<< --help >> and C
 
 B<< NOTE >>: The always-supported switches described above are allowed regardless of the contents of the C<< list >> parameter.
 
+=head3 wrapper (optional, default '0')
+
+If set to C<< 1 >>, the arguments passed in will be treated as all being valid. The values from C<< @ARGV >> will be saved in C<< switches::argv >>, but with our switches, like C<< -vv --log-secure >> will be stripped off.
+
 =cut
 ### TODO: This doesn't handle quoted values, System->parse_arguments() does. Switch to using it. Note that 
 ###       we'll still need to process '--raw' here (or make it work there)
@@ -2728,11 +2732,13 @@ sub switches
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $list = defined $parameter->{list} ? $parameter->{list} : "";
-	my $man  = defined $parameter->{man}  ? $parameter->{man}  : "";
+	my $list    = defined $parameter->{list}    ? $parameter->{list}    : "";
+	my $man     = defined $parameter->{man}     ? $parameter->{man}     : "";
+	my $wrapper = defined $parameter->{wrapper} ? $parameter->{wrapper} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		list => $list,
-		man  => $man,
+		list    => $list,
+		man     => $man,
+		wrapper => $wrapper, 
 	}});
 	
 	if ($list)
@@ -2748,6 +2754,64 @@ sub switches
 		{
 			$anvil->data->{switches}{$switch} = "";
 		}
+	}
+	
+	# TODO: We need to properly escape arguments in the normal parsing, but for now we'll to that just in
+	#       the wrapper.
+	if ($wrapper)
+	{
+		$anvil->data->{switches}{argv} = "";
+		foreach my $argument (@ARGV)
+		{
+			if ($argument =~ /^(.*?)=(.*)$/)
+			{
+				my $variable = $1;
+				my $value    = $2;
+				my $secure   = 0;
+				if (($variable =~ /pass/) && ($variable !~ /script/))
+				{
+					$secure = 1;
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:secure'   => $secure, 
+					's2:variable' => $variable,
+					's3:value'    => $secure ? $anvil->Log->is_secure($value) : $value,
+				}});
+				
+				$value =~ s/"/\\\"/g;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					value => $secure ? $anvil->Log->is_secure($value) : $value,
+				}});
+				
+				if ($value =~ /\s/)
+				{
+					$anvil->data->{switches}{argv} .= $variable."=\"".$value."\" ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"switches::argv" => $anvil->data->{switches}{argv},
+					}});
+				}
+				else
+				{
+					$anvil->data->{switches}{argv} .= $variable."=".$value." ";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"switches::argv" => $anvil->data->{switches}{argv},
+					}});
+				}
+			}
+			else
+			{
+				$anvil->data->{switches}{argv} .= $argument." ";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"switches::argv" => $anvil->data->{switches}{argv},
+				}});
+			}
+		}
+		$anvil->data->{switches}{argv} =~ s/ $//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"switches::argv" => $anvil->data->{switches}{argv},
+		}});
+		
+		return($anvil->data->{switches}{argv})
 	}
 	
 	my $last_argument = "";
