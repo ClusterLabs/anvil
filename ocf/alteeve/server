@@ -1239,50 +1239,14 @@ sub server_status
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0331", variables => { timeout => $anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} }});
 	}
 	
-	# Is 'libvirtd' running? We'll wait up to half the timeout for it to start (in case it _just_ started)
-	# before timing out.
-	my $wait_until    = time + ($anvil->data->{environment}{OCF_RESKEY_CRM_meta_timeout} / 2000); # Devide by 2000 to convert to seconds and total second halved.
-	my $look_for_pid  = 0;
-	my $libvirtd_wait = 1;
-	my $warning_shown = 0;
-	while($libvirtd_wait)
+	# libvirtd lists as disabled / stopped, but "starts" when called. So checking the daemon doesn't make 
+	# sense. Given virsh might fail, if we don't find the server, we'll also look for it in 'ps'.
+	my $loop = 1;
+	while($loop)
 	{
-		my $running = $anvil->System->check_daemon({daemon => "libvirtd.service"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { running => $running }});
-		if ($running)
-		{
-			$libvirtd_wait = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { libvirtd_wait => $libvirtd_wait }});
-		}
-		else
-		{
-			# On EL8 and above, libvirtd starts on demand, so this error isn't 
-			if (not $warning_shown)
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0522", variables => { wait_time => ($wait_until - time) }});
-				$warning_shown = 1;
-			}
-			sleep 1;
-			if (time > $wait_until)
-			{
-				# Libvirtd isn't running, try to find the PID of the server (in case it's 
-				# running and libvirtd isn't)
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, priority => "alert", key => "warning_0057"});
-				$look_for_pid  = 1;
-				$libvirtd_wait = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					look_for_pid  => $look_for_pid,
-					libvirtd_wait => $libvirtd_wait, 
-				}});
-			}
-		}
-	}
-	
-	# If libvirtd wasn't running, we'll manually look for a PID.
-	if ($look_for_pid)
-	{
-		my $server_up  = 0;
-		my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
+		   $loop       = 0;
+		my $found      = 0;
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -1290,59 +1254,8 @@ sub server_status
 			output      => $output,
 			return_code => $return_code, 
 		}});
-		foreach my $line (split/\n/, $output)
+		if (not $return_code)
 		{
-			next if $line !~ /qemu-kvm/;
-			
-			$line = $anvil->Words->clean_spaces({ string => $line });
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			
-			if ($line =~ /guest=(.*?),/)
-			{
-				my $this_server = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_server => $this_server }});
-				
-				if ($this_server eq $server)
-				{
-					# Found it.
-					$server_up = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_up => $server_up }});
-					last;
-				}
-			}
-		}
-		
-		if ($server_up)
-		{
-			# The server is running. Exit with OCF_SUCCESS (rc 0);
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0523"});
-			$anvil->nice_exit({exit_code => 0});
-		}
-		else
-		{
-			# The server is not running. Exit with OCF_NOT_RUNNING (rc: 7)
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0524"});
-			$anvil->nice_exit({exit_code => 7});
-		}
-	}
-	else
-	{
-		# Parse the virsh state. If it's listed as 'crashed', return OCF_ERR_GENERIC (rc: 1). If it's
-		# 'in shutdown', 'loop' gets set to 1 and this will loop indefinitely. We don't put a timer 
-		# on it, we let pacemaker handle that.
-		my $loop = 1;
-		while($loop)
-		{
-			   $loop       = 0;
-			my $found      = 0;
-			my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
 			foreach my $line (split/\n/, $output)
 			{
 				$line = $anvil->Words->clean_spaces({ string => $line });
@@ -1351,7 +1264,7 @@ sub server_status
 				if ($line =~ /\s\Q$server\E\s+(.*)/)
 				{
 					my $state = $1;
-					   $found = 1;
+					$found = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						found   => $found, 
 						'state' => $state,
@@ -1382,7 +1295,6 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { loop => $loop }});
 						
 						sleep 1;
-						last;
 					}
 					elsif ($state eq "shut off")
 					{
@@ -1401,11 +1313,53 @@ pmsuspended - The domain has been suspended by guest power management, e.g. ente
 					}
 				}
 			}
+		}
+		
+		# If it wasn't found at all, exit.
+		if ((not $found) or ($return_code))
+		{
+			# If we've timed out, we'll look for it using it's PID.
+			my $server_up  = 0;
+			my $shell_call = $anvil->data->{path}{exe}{ps}." aux";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
-			# If it wasn't found at all, exit.
-			if (not $found)
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			foreach my $line (split/\n/, $output)
 			{
-				# Exit with OCF_NOT_RUNNING (rc: 7);
+				next if $line !~ /qemu-kvm/;
+				
+				$line = $anvil->Words->clean_spaces({ string => $line });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				if ($line =~ /guest=(.*?),/)
+				{
+					my $this_server = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_server => $this_server }});
+					
+					if ($this_server eq $server)
+					{
+						# Found it.
+						$server_up = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_up => $server_up }});
+						last;
+					}
+				}
+			}
+			
+			# Did we find it by PID?
+			if ($server_up)
+			{
+				# The server is running. Exit with OCF_SUCCESS (rc 0);
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0523"});
+				$anvil->nice_exit({exit_code => 0});
+			}
+			else
+			{
+				# The server is not running. Exit with OCF_NOT_RUNNING (rc: 7)
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0526", variables => { server_name => $server }});
 				$anvil->nice_exit({exit_code => 7});
 			}

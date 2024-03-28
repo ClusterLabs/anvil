@@ -1278,6 +1278,7 @@ sub _set_paths
 				ps				=>	"/usr/bin/ps",
 				psql				=>	"/usr/bin/psql",
 				pamtopng			=>	"/usr/bin/pamtopng",
+				pngtopam			=>	"/usr/bin/pngtopam",
 				pnmtojpeg			=>	"/usr/bin/pnmtojpeg",
 				'postgresql-setup'		=>	"/usr/bin/postgresql-setup",
 				postmap				=>	"/usr/sbin/postmap",
