@@ -103,6 +103,20 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 print "Done!\n";
 
+print "- Removing temporary data dir [".$anvil->data->{sys}{compile_directory}."]... ";
+$shell_call = "rm -rf ".$anvil->data->{sys}{compile_directory};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	's1:tempdir'    => $anvil->data->{sys}{compile_directory},
+	's2:shell_call' => $shell_call,
+}});
+
+($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	output      => $output, 
+	return_code => $return_code, 
+}});
+print "Done!\n";
+
 print "\n[ Complete ] - The debug data collected here: [".$tarball."]\n";
 print "[ Warning  ] - The collected data and logs likely include sensitive information! Share it carefully!\n";
 
