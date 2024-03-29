@@ -553,7 +553,7 @@ sub collect_remote_data
 	{
 		### NOTE: The pcs wrapper was timing out when dumping the CIB, hence statically calling pcs below.
 		print "- Collecting the cluster information base (CIB)... ";
-		$shell_call = "/usr/sbin/pcs cluster cib > /tmp/cib.xml";
+		$shell_call = $anvil->data->{path}{exe}{pcs_direct}." cluster cib > /tmp/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		($output, $error, $return_code) = $anvil->Remote->call({
@@ -745,7 +745,7 @@ sub collect_local_data
 	if ($this_host_type eq "node")
 	{
 		print "- Collecting the cluster information base (CIB)... ";
-		$shell_call = $anvil->data->{path}{exe}{pcs}." cluster cib > ".$target_directory."/cib.xml";
+		$shell_call = $anvil->data->{path}{exe}{pcs_direct}." cluster cib > ".$target_directory."/cib.xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});

@@ -49,7 +49,8 @@ my $conf = {
 			echo		=>	"/usr/bin/echo",
 			getent		=>	"/usr/bin/getent",
 			logger		=>	"/usr/bin/logger",
-			pcs		=>	"/usr/sbin/pcs",
+			pcs		=>	"/usr/sbin/anvil-pcs-wrapper",
+			pcs_direct	=>	"/usr/sbin/pcs",
 		},
 	},
 	# The script will set this.

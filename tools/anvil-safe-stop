@@ -239,7 +239,7 @@ sub stop_cluster
 				
 				### NOTE: '--force' is needed or else sole-running nodes can't exit 
 				###       (complains about the loss of quorum)
-				my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster stop --force";
+				my $shell_call = $anvil->data->{path}{exe}{pcs_direct}." cluster stop --force";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 

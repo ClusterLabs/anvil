@@ -82,7 +82,8 @@ my $conf = {
 			getent		=>	"/usr/bin/getent",
 			hostnamectl	=>	"/usr/bin/hostnamectl",
 			logger		=>	"/usr/bin/logger",
-			pcs		=>	"/usr/sbin/pcs",
+			pcs		=>	"/usr/sbin/anvil-pcs-wrapper",
+			pcs_direct	=>	"/usr/sbin/pcs",
 		},
 	},
 	# The script will set this.
@@ -192,7 +193,7 @@ sub create_constraint
 	# Make sure there's a rule to apply the node attribute against.
 	my $rule_found = 0;
 	my $rule_name  = "drbd-fenced_".$target_server;
-	my $shell_call = $conf->{path}{exe}{pcs}." constraint location config show ".$target_server;
+	my $shell_call = $conf->{path}{exe}{pcs_direct}." constraint location config show ".$target_server;
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 1});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
@@ -353,7 +354,7 @@ sub set_location_constraint
 	}
 
 	to_log($conf, {message => "Setting the pacemaker location constraint so that: [".$server."] prefers this host.", 'line' => __LINE__, level => 1});
-	my $shell_call = $conf->{path}{exe}{pcs}." constraint location ".$server." prefers ".$local_host."=200 ".$peer_host."=100";
+	my $shell_call = $conf->{path}{exe}{pcs_direct}." constraint location ".$server." prefers ".$local_host."=200 ".$peer_host."=100";
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
@@ -943,7 +944,7 @@ sub kill_target
 	my ($conf) = @_;
 
 	# Variables
-	my $shell_call = $conf->{path}{exe}{pcs}." stonith fence ".$conf->{cluster}{target_node}."; ".$conf->{path}{exe}{echo}." rc:\$?";
+	my $shell_call = $conf->{path}{exe}{pcs_direct}." stonith fence ".$conf->{cluster}{target_node}."; ".$conf->{path}{exe}{echo}." rc:\$?";
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 2});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)
