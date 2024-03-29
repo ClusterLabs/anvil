@@ -155,14 +155,22 @@ sub process_output
 	
 	if ($output_directory ne "/")
 	{
-		print "- Creating the output directory: [".$output_directory."]... ";
-		my $failed = $anvil->Storage->make_directory({directory => $output_directory});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
-		if ($failed)
+		print "Preparing local machine\n";
+		if (! -d $output_directory) {
+			print "- Creating the output directory: [".$output_directory."]... ";
+			my $failed = $anvil->Storage->make_directory({directory => $output_directory});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			if ($failed)
+			{
+				print "Failed!\nUnable to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			print "Done!\n";
+		}
+		else
 		{
-			print "Failed!\nUnable to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
-			$anvil->nice_exit({exit_code => 1});
-		}	
+			print "- Output directory [".$output_directory."] already exists.\n";
+		}
 	}
 	
 	$tarball = $output_directory."/".$output_file;
