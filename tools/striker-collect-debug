@@ -88,7 +88,8 @@ process_switches($anvil);
 collect_data($anvil);
 
 # Create the tarball now.
-print "Data collection complete, creating the tarball now... ";
+print "\nData collection complete\n";
+print "- Creating the tarball now. PLEASE BE PATIENT!... ";
 my $shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$tarball." ".$anvil->data->{sys}{compile_directory};
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	's1:tarball'    => $tarball,
@@ -183,6 +184,7 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
+	print "- Creating temporary data dir [".$anvil->data->{sys}{compile_directory}."]... ";
 	my $failed = $anvil->Storage->make_directory({directory => $anvil->data->{sys}{compile_directory}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 	if ($failed)
@@ -190,6 +192,7 @@ sub collect_data
 		print "Failed to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
+	print "Done!\n";
 	
 	my $hosts = @{$anvil->data->{collect_from}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hosts => $hosts }});
