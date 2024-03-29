@@ -77,8 +77,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	"sys::compile_directory" => $anvil->data->{sys}{compile_directory},
 }});
 
-print "Data collection has begun.\n";
-print "Depending on how many systems we're collecting from, this could take a while.\n";
+print "Data collection has begun. This will take a while!\n\n";
 
 # Get the directory portion of the output path and make sure it exists.
 my $tarball = process_output($anvil);
@@ -103,10 +102,8 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 print "Done!\n";
 
-print "\n[ Complete ] - The debug data is here: [".$tarball."]\n";
-print "[ Warning  ] - The collected logs likely include sensitive information! Share it carefully!\n";
-
-
+print "\n[ Complete ] - The debug data collected here: [".$tarball."]\n";
+print "[ Warning  ] - The collected data and logs likely include sensitive information! Share it carefully!\n";
 
 $anvil->nice_exit({exit_code => 0});
 
