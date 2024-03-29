@@ -36,6 +36,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"anvil", 
 	"hosts",
+	"with-screenshots",
 	"output-file"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -697,33 +698,40 @@ sub collect_local_data
 		}
 		print "Done!\n";
 		
-		# Grab screenshots.
-		print "- Collecting server screenshots... ";
-		if (-d $anvil->data->{path}{directories}{screenshots})
+		if ($anvil->data->{switches}{'with-screenshots'})
 		{
-			$shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$target_directory."/server-screenshots.bz2 ".$anvil->data->{path}{directories}{screenshots};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output, 
-				return_code => $return_code, 
-			}});
-			if ($return_code)
+			# Grab screenshots.
+			print "- Collecting server screenshots... ";
+			if (-d $anvil->data->{path}{directories}{screenshots})
 			{
-				# Failed
-				print "Failed!\n";
-				print "Expected the return code '0', but got: [".$return_code."]. The error, if any, was:\n";
-				print "========\n";
-				print $output."\n";
-				print "========\n";
-				$anvil->nice_exit({exit_code => 1});
+				$shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$target_directory."/server-screenshots.bz2 ".$anvil->data->{path}{directories}{screenshots};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Failed
+					print "Failed!\n";
+					print "Expected the return code '0', but got: [".$return_code."]. The error, if any, was:\n";
+					print "========\n";
+					print $output."\n";
+					print "========\n";
+					$anvil->nice_exit({exit_code => 1});
+				}
+				print "Done!\n";
 			}
-			print "Done!\n";
+			else
+			{
+				print "Failed!\nScreenshot directory: [".$anvil->data->{path}{directories}{screenshots}."] doesn't exist, skipping.\n";
+			}
 		}
 		else
 		{
-			print "Failed!\nScreenshot directory: [".$anvil->data->{path}{directories}{screenshots}."] doesn't exist, skipping.\n";
+			print "- Screehshots collection disabled.\n";
 		}
 	}
 	
