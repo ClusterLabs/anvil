@@ -1270,6 +1270,7 @@ sub _set_paths
 				parted				=>	"/usr/sbin/parted",
 				passwd				=>	"/usr/bin/passwd",
 				pcs				=>	"/usr/sbin/anvil-pcs-wrapper",
+				pcs_direct			=>	"/usr/sbin/pcs",
 				perccli64			=>	"/opt/MegaRAID/perccli/perccli64",
 				pidof				=>	"/usr/sbin/pidof",
 				ping				=>	"/usr/bin/ping",
