@@ -36,6 +36,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"anvil", 
 	"hosts",
+	"with-screenshots",
 	"output-file"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -77,8 +78,7 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 	"sys::compile_directory" => $anvil->data->{sys}{compile_directory},
 }});
 
-print "Data collection has begun.\n";
-print "Depending on how many systems we're collecting from, this could take a while.\n";
+print "Data collection has begun. This will take a while!\n\n";
 
 # Get the directory portion of the output path and make sure it exists.
 my $tarball = process_output($anvil);
@@ -89,7 +89,8 @@ process_switches($anvil);
 collect_data($anvil);
 
 # Create the tarball now.
-print "Data collection complete, creating the tarball now... ";
+print "\nData collection complete\n";
+print "- Creating the tarball now. PLEASE BE PATIENT!... ";
 my $shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$tarball." ".$anvil->data->{sys}{compile_directory};
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 	's1:tarball'    => $tarball,
@@ -103,10 +104,22 @@ $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list
 }});
 print "Done!\n";
 
-print "\n[ Complete ] - The debug data is here: [".$tarball."]\n";
-print "[ Warning  ] - The collected logs likely include sensitive information! Share it carefully!\n";
+print "- Removing temporary data dir [".$anvil->data->{sys}{compile_directory}."]... ";
+$shell_call = "rm -rf ".$anvil->data->{sys}{compile_directory};
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	's1:tempdir'    => $anvil->data->{sys}{compile_directory},
+	's2:shell_call' => $shell_call,
+}});
 
+($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	output      => $output, 
+	return_code => $return_code, 
+}});
+print "Done!\n";
 
+print "\n[ Complete ] - The debug data collected here: [".$tarball."]\n";
+print "[ Warning  ] - The collected data and logs likely include sensitive information! Share it carefully!\n";
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -158,14 +171,22 @@ sub process_output
 	
 	if ($output_directory ne "/")
 	{
-		print "- Creating the output directory: [".$output_directory."]... ";
-		my $failed = $anvil->Storage->make_directory({directory => $output_directory});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
-		if ($failed)
+		print "Preparing local machine\n";
+		if (! -d $output_directory) {
+			print "- Creating the output directory: [".$output_directory."]... ";
+			my $failed = $anvil->Storage->make_directory({directory => $output_directory});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
+			if ($failed)
+			{
+				print "Failed!\nUnable to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+			print "Done!\n";
+		}
+		else
 		{
-			print "Failed!\nUnable to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
-			$anvil->nice_exit({exit_code => 1});
-		}	
+			print "- Output directory [".$output_directory."] already exists.\n";
+		}
 	}
 	
 	$tarball = $output_directory."/".$output_file;
@@ -178,6 +199,7 @@ sub collect_data
 {
 	my ($anvil) = @_;
 	
+	print "- Creating temporary data dir [".$anvil->data->{sys}{compile_directory}."]... ";
 	my $failed = $anvil->Storage->make_directory({directory => $anvil->data->{sys}{compile_directory}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { failed => $failed }});
 	if ($failed)
@@ -185,6 +207,7 @@ sub collect_data
 		print "Failed to create the directory: [".$anvil->data->{sys}{compile_directory}."]. The error should be logged.\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
+	print "Done!\n";
 	
 	my $hosts = @{$anvil->data->{collect_from}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { hosts => $hosts }});
@@ -675,33 +698,40 @@ sub collect_local_data
 		}
 		print "Done!\n";
 		
-		# Grab screenshots.
-		print "- Collecting server screenshots... ";
-		if (-d $anvil->data->{path}{directories}{screenshots})
+		if ($anvil->data->{switches}{'with-screenshots'})
 		{
-			$shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$target_directory."/server-screenshots.bz2 ".$anvil->data->{path}{directories}{screenshots};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			
-			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output, 
-				return_code => $return_code, 
-			}});
-			if ($return_code)
+			# Grab screenshots.
+			print "- Collecting server screenshots... ";
+			if (-d $anvil->data->{path}{directories}{screenshots})
 			{
-				# Failed
-				print "Failed!\n";
-				print "Expected the return code '0', but got: [".$return_code."]. The error, if any, was:\n";
-				print "========\n";
-				print $output."\n";
-				print "========\n";
-				$anvil->nice_exit({exit_code => 1});
+				$shell_call = $anvil->data->{path}{exe}{tar}." -cvjf ".$target_directory."/server-screenshots.bz2 ".$anvil->data->{path}{directories}{screenshots};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+				if ($return_code)
+				{
+					# Failed
+					print "Failed!\n";
+					print "Expected the return code '0', but got: [".$return_code."]. The error, if any, was:\n";
+					print "========\n";
+					print $output."\n";
+					print "========\n";
+					$anvil->nice_exit({exit_code => 1});
+				}
+				print "Done!\n";
 			}
-			print "Done!\n";
+			else
+			{
+				print "Failed!\nScreenshot directory: [".$anvil->data->{path}{directories}{screenshots}."] doesn't exist, skipping.\n";
+			}
 		}
 		else
 		{
-			print "Failed!\nScreenshot directory: [".$anvil->data->{path}{directories}{screenshots}."] doesn't exist, skipping.\n";
+			print "- Screehshots collection disabled.\n";
 		}
 	}
 	
