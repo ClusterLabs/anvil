@@ -7,7 +7,7 @@
 %define anvilgroup    admin
 %define suiapi        striker-ui-api
 
-# selinux
+# selinux variables
 %define selinuxtype             targeted
 %define selinuxsubnodemodule    anvil-subnode
 %define selinuxdir              %{_datadir}/selinux/packages/%{selinuxtype}
@@ -250,12 +250,6 @@ getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
 
 %post core
-# TODO: Remove this!! This is only for use during development, all SELinux 
-#       issues must be resolved before final release!
-# echo "WARNING: Setting SELinux to 'permissive' during development."
-# sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
-# setenforce 0
-#
 # Always try to install in-case of update
 %selinux_modules_install -s %{selinuxtype} -p 200 %{selinuxdir}/%{selinuxsubnodemodule}.pp
 
@@ -365,9 +359,7 @@ touch /etc/anvil/type.dr
 ##                                       when re-enabling)
 #getent passwd %%{anviluser} >/dev/null && userdel %%{anviluser}
 #getent group %%{anvilgroup} >/dev/null && groupdel %%{anvilgroup}
-# echo "NOTE: Re-enabling SELinux."
-# sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config
-# setenforce 1
+
 # Only uninstall the policy when the package is actually being removed
 if [ $1 == 0 ]; then
 	%selinux_modules_uninstall -s %{selinuxtype} -p 200 %{selinuxsubnodemodule}
