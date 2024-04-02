@@ -571,10 +571,10 @@ sub collect_remote_data
 		});
 	}
 
-	print "- Grabbing audit log... ";
+	print "- Grabbing audit logs... ";
 	$anvil->Storage->rsync({
 		debug       => 2,
-		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/var/log/audit/audit.log",
+		source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/var/log/audit/audit*",
 		destination => $target_directory."/",
 	});
 	$test_file = $target_directory."/audit.log";
