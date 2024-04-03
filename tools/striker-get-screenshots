@@ -484,7 +484,7 @@ sub get_screenshots
 				mode   => "0666",
 				binary => 1,
 			});
-			print "Wrote ppm: [".$ppm_file."]\n";
+# 			print "Wrote ppm: [".$ppm_file."]\n";
 			
 			# Change the ownership
 			$anvil->Storage->change_owner({
