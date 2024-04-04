@@ -1195,6 +1195,8 @@ sub human_readable_to_bytes
 
 This takes a password (a string) and returns it in a format suitable for use by most any IPMI BMC. More specifically, spaces are removed, special characters are removed, and it is shortened to 16 characters.
 
+If no password is given, a password will be generated.
+
 parameters;
 
 =head3 password (required)
@@ -1215,16 +1217,54 @@ sub to_ipmi_password
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		password => $anvil->Log->is_secure($password),,
 	}});
+
+	if (not $password)
+	{
+		$password = $anvil->Get->uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			password => $anvil->Log->is_secure($password),,
+		}});
+	}
 	
 	my $ipmi_password =  $password;
 	   $ipmi_password =~ s/ //g;
 	   $ipmi_password =~ s/'//g;
+	   $ipmi_password =~ s/"//g;
 	   $ipmi_password =~ s/!//g;
+	   $ipmi_password =~ s/#//g;
+	   $ipmi_password =~ s/\$//g;
+	   $ipmi_password =~ s/&//g;
+	   $ipmi_password =~ s/\*//g;
 	   $ipmi_password =~ s/://g;
 	   $ipmi_password =~ s/;//g;
+	   $ipmi_password =~ s/,//g;
+	   $ipmi_password =~ s/`//g;
+	   $ipmi_password =~ s/\|//g;
+	   $ipmi_password =~ s/\^//g;
+	   $ipmi_password =~ s/\?//g;
+	   $ipmi_password =~ s/\\//g;
+	   $ipmi_password =~ s/\(//g;
+	   $ipmi_password =~ s/\)//g;
+	   $ipmi_password =~ s/{//g;
+	   $ipmi_password =~ s/}//g;
 	   $ipmi_password =~ s/<//g;
 	   $ipmi_password =~ s/>//g;
-	   $ipmi_password =  substr($ipmi_password, 0, 16);
+	   $ipmi_password =~ s/\[//g;
+	   $ipmi_password =~ s/\]//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password),
+	}});
+	
+	# If the length of the password is too short, pad / create it.
+	if (length($ipmi_password) < 7)
+	{
+		$ipmi_password .= "-".$anvil->Get->uuid({debug => $debug, short => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ipmi_password => $anvil->Log->is_secure($ipmi_password),
+		}});
+	}
+	
+	$ipmi_password = substr($ipmi_password, 0, 16);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		ipmi_password => $anvil->Log->is_secure($ipmi_password),
 	}});
