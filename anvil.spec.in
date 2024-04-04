@@ -253,6 +253,12 @@ getent passwd %{anviluser} >/dev/null || useradd --create-home \
 # Always try to install in-case of update
 %selinux_modules_install -s %{selinuxtype} -p 200 %{selinuxdir}/%{selinuxsubnodemodule}.pp
 
+%if 0%{?rhel} < 9
+echo "WARNING: setting SELinux to 'permissive' on rhel < 9."
+sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+setenforce 0
+%endif
+
 # Enable and start the anvil-daemon
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable --now chronyd.service
