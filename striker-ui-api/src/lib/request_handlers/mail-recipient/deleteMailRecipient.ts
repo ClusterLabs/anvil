@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import { query } from '../../accessModule';
 import { execManageAlerts } from '../../execManageAlerts';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const deleteMailRecipient: RequestHandler<
   MailRecipientParamsDictionary
@@ -26,7 +26,7 @@ export const deleteMailRecipient: RequestHandler<
       execManageAlerts('alert-overrides', 'delete', { uuid: u }),
     );
   } catch (error) {
-    stderr(`Failed to delete related alert override records; CAUSE ${error}`);
+    perr(`Failed to delete related alert override records; CAUSE ${error}`);
 
     return response.status(500).send();
   }
@@ -34,7 +34,7 @@ export const deleteMailRecipient: RequestHandler<
   try {
     execManageAlerts('recipients', 'delete', { uuid });
   } catch (error) {
-    stderr(`Failed to delete alert recipient; CAUSE: ${error}`);
+    perr(`Failed to delete alert recipient; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

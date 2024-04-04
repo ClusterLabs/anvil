@@ -13,13 +13,7 @@ import {
 
 import { formatSql } from './formatSql';
 import { repeat } from './repeat';
-import {
-  date,
-  stderr as sherr,
-  stdout as shout,
-  stdoutVar as shvar,
-  uuid,
-} from './shell';
+import { date, perr, pout, poutvar, uuid } from './shell';
 
 /**
  * Notes:
@@ -37,7 +31,7 @@ class Access extends EventEmitter {
     (args: { options: AccessStartOptions; ps: ChildProcess }) => void
   > = {
     connected: ({ options, ps }) => {
-      shvar(
+      poutvar(
         options,
         `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
       );
@@ -81,7 +75,7 @@ class Access extends EventEmitter {
       ...restSpawnOptions,
     };
 
-    shvar(options, `Starting anvil-access-module daemon with: `);
+    poutvar(options, `Starting anvil-access-module daemon with: `);
 
     const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
       gid,
@@ -91,21 +85,21 @@ class Access extends EventEmitter {
     });
 
     ps.once('error', (error) => {
-      sherr(
+      perr(
         `anvil-access-module daemon (pid=${ps.pid}) error: ${error.message}`,
         error,
       );
     });
 
     ps.once('close', (code, signal) => {
-      shvar(
+      poutvar(
         { code, options, signal },
         `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
 
       this.emit('inactive', ps.pid);
 
-      shout(`Waiting ${restartInterval} before restarting.`);
+      pout(`Waiting ${restartInterval} before restarting.`);
 
       setTimeout(() => {
         this.ps = this.start(options);
@@ -113,14 +107,14 @@ class Access extends EventEmitter {
     });
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
-      sherr(`anvil-access-module daemon stderr: ${chunk}`);
+      perr(`anvil-access-module daemon stderr: ${chunk}`);
     });
 
     let stdout = '';
 
     ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
       const eventless = chunk.replace(/(\n)?event=([^\n]*)\n/g, (...parts) => {
-        shvar(parts, 'In replacer, args: ');
+        poutvar(parts, 'In replacer, args: ');
 
         const { 1: n = '', 2: event } = parts;
 
@@ -142,7 +136,7 @@ class Access extends EventEmitter {
         if (REP_UUID.test(scriptId)) {
           this.emit(scriptId, output);
         } else {
-          shout(`Access stdout: ${stdout}`);
+          pout(`Access stdout: ${stdout}`);
         }
 
         stdout = stdout.substring(nindex + 1);
@@ -184,13 +178,13 @@ class Access extends EventEmitter {
           return reject(`Failed to parse line ${scriptId}; got [${data}]`);
         }
 
-        shvar({ result }, `Access interact ${scriptId} returns: `);
+        poutvar({ result }, `Access interact ${scriptId} returns: `);
 
         return resolve(result);
       });
     });
 
-    shvar({ script }, 'Access interact: ');
+    poutvar({ script }, 'Access interact: ');
 
     stdin?.write(script);
 
@@ -301,9 +295,9 @@ const refreshTimestamp = () => {
 
   try {
     result = date('--rfc-3339', 'ns').trim();
-  } catch (shError) {
+  } catch (error) {
     throw new Error(
-      `Failed to get timestamp for database use; CAUSE: ${shError}`,
+      `Failed to get timestamp for database use; CAUSE: ${error}`,
     );
   }
 
@@ -326,7 +320,7 @@ const getData = async <T>(...keys: string[]) => {
     sub_results: [data],
   } = await access.interact<{ sub_results: [T] }>('x', chain);
 
-  shvar(data, `${chain} data: `);
+  poutvar(data, `${chain} data: `);
 
   return data;
 };
@@ -344,7 +338,7 @@ const mutateData = async <T>(args: {
     sub_results: [data],
   } = await access.interact<{ sub_results: [T] }>('x', chain, operator, value);
 
-  shvar(data, `${chain} data: `);
+  poutvar(data, `${chain} data: `);
 
   return data;
 };
@@ -391,7 +385,7 @@ const getLocalHostName = () => {
     throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
   }
 
-  shout(`localHostName=${result}`);
+  pout(`localHostName=${result}`);
 
   return result;
 };
@@ -407,7 +401,7 @@ const getLocalHostUuid = () => {
     throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
   }
 
-  shout(`localHostUUID=[${result}]`);
+  pout(`localHostUUID=[${result}]`);
 
   return result;
 };
@@ -498,7 +492,7 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
     protocol,
   };
 
-  shvar(result, `VNC info for server [${serverUuid}]: `);
+  poutvar(result, `VNC info for server [${serverUuid}]: `);
 
   return result;
 };

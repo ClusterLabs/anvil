@@ -54,7 +54,7 @@ export const resolveGid = (id: number | string) => resolveId(id, 'group');
 
 export const resolveUid = (id: number | string) => resolveId(id, 'passwd');
 
-export const stderr = (message: string, error?: unknown) => {
+export const perr = (message: string, error?: unknown) => {
   let msg = message;
 
   if (error instanceof Error) {
@@ -64,9 +64,9 @@ export const stderr = (message: string, error?: unknown) => {
   print(msg, { stream: 'stderr' });
 };
 
-export const stdout = (message: string) => print(message);
+export const pout = (message: string) => print(message);
 
-export const stdoutVar = (variable: unknown, label = 'Variables: ') =>
+export const poutvar = (variable: unknown, label = 'Variables: ') =>
   print(`${label}${JSON.stringify(variable, null, 2)}`);
 
 export const uuid = () => uuidgen('--random').trim();

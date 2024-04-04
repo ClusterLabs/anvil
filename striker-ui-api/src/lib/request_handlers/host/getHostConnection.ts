@@ -3,7 +3,7 @@ import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 const buildHostConnections = (
   fromHostUUID: string,
@@ -67,7 +67,7 @@ export const getHostConnection = buildGetRequestHandler(
     const getConnectionKey = (hostUUID: string) =>
       toLocal(hostUUID, localHostUUID);
 
-    stdout(`condHostUUIDs=[${condHostUUIDs}]`);
+    pout(`condHostUUIDs=[${condHostUUIDs}]`);
 
     try {
       rawDatabaseData = await getDatabaseConfigData();
@@ -85,7 +85,7 @@ export const getHostConnection = buildGetRequestHandler(
       return previous;
     }, {});
 
-    stdout(`connections=[${JSON.stringify(connections, null, 2)}]`);
+    pout(`connections=[${JSON.stringify(connections, null, 2)}]`);
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {

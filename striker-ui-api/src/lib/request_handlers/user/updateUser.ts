@@ -5,7 +5,7 @@ import { REP_PEACEFUL_STRING, REP_UUID } from '../../consts';
 
 import { encrypt, query, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const updateUser: RequestHandler<
   UserParamsDictionary,
@@ -24,7 +24,7 @@ export const updateUser: RequestHandler<
   const password = sanitize(rPassword, 'string');
   const userName = sanitize(rUserName, 'string', { modifierType: 'sql' });
 
-  stdoutVar({ password, userName }, `Update user ${userUuid} with params: `);
+  poutvar({ password, userName }, `Update user ${userUuid} with params: `);
 
   try {
     if (password.length) {
@@ -52,7 +52,7 @@ export const updateUser: RequestHandler<
 
     assert(existingUserName !== 'admin' || userName, 'Cannot ');
   } catch (error) {
-    stderr(`Assert failed when update user; CAUSE: ${error}`);
+    perr(`Assert failed when update user; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -81,7 +81,7 @@ export const updateUser: RequestHandler<
         LIMIT 1;`,
     );
   } catch (error) {
-    stderr(`Failed to find existing user ${userUuid}; CAUSE: ${error}`);
+    perr(`Failed to find existing user ${userUuid}; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -106,7 +106,7 @@ export const updateUser: RequestHandler<
         salt: xSalt,
       }));
     } catch (error) {
-      stderr(`Encrypt failed when update user; CAUSE ${error}`);
+      perr(`Encrypt failed when update user; CAUSE ${error}`);
 
       return response.status(500).send();
     }
@@ -130,7 +130,7 @@ export const updateUser: RequestHandler<
 
       assert(wcode === 0, `Update users failed with code: ${wcode}`);
     } catch (error) {
-      stderr(`Failed to record user changes to database; CAUSE: ${error}`);
+      perr(`Failed to record user changes to database; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { getManifestData } from '../../accessModule';
 import { getEntityParts } from '../../disassembleEntityId';
-import { stderr, stdout } from '../../shell';
+import { perr, pout } from '../../shell';
 
 const handleSortEntries = <T extends [string, unknown]>(
   [aId]: T,
@@ -77,16 +77,14 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
   try {
     rawManifestListData = await getManifestData(manifestUuid);
   } catch (subError) {
-    stderr(
-      `Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`,
-    );
+    perr(`Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`);
 
     response.status(500).send();
 
     return;
   }
 
-  stdout(
+  pout(
     `Raw install manifest list:\n${JSON.stringify(
       rawManifestListData,
       null,
@@ -139,7 +137,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
             const { name: hostType, number: hostNumber } =
               getEntityParts(hostId);
 
-            stdout(`host=${hostType},n=${hostNumber}`);
+            pout(`host=${hostType},n=${hostNumber}`);
 
             // Only include node-type host(s).
             if (hostType !== 'node') {
@@ -178,7 +176,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
                     const { name: networkType, number: networkNumber } =
                       getEntityParts(networkId);
 
-                    stdout(`hostnetwork=${networkType},n=${networkNumber}`);
+                    pout(`hostnetwork=${networkType},n=${networkNumber}`);
 
                     hostNetworks[networkId] = {
                       networkIp,
@@ -235,7 +233,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
             const { name: networkType, number: networkNumber } =
               getEntityParts(networkId);
 
-            stdout(`network=${networkType},n=${networkNumber}`);
+            pout(`network=${networkType},n=${networkNumber}`);
 
             networks[networkId] = {
               networkGateway,

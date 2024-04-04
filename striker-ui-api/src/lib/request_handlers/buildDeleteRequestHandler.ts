@@ -2,7 +2,7 @@ import { AssertionError } from 'assert';
 import { RequestHandler } from 'express';
 
 import { sanitize } from '../sanitize';
-import { stderr, stdoutVar } from '../shell';
+import { perr, poutvar } from '../shell';
 
 export const buildDeleteRequestHandler =
   <
@@ -41,7 +41,7 @@ export const buildDeleteRequestHandler =
       list.push(rId);
     }
 
-    stdoutVar(list, `Process delete request with list: `);
+    poutvar(list, `Process delete request with list: `);
 
     try {
       await handleDelete(list, ...handlerArgs);
@@ -51,11 +51,11 @@ export const buildDeleteRequestHandler =
       if (error instanceof AssertionError) {
         scode = 400;
 
-        stderr(`Failed to assert value during delete request; CAUSE: ${error}`);
+        perr(`Failed to assert value during delete request; CAUSE: ${error}`);
       } else {
         scode = 500;
 
-        stderr(`Failed to complete delete request; CAUSE: ${error}`);
+        perr(`Failed to complete delete request; CAUSE: ${error}`);
       }
 
       return response.status(scode).send();

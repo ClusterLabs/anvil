@@ -5,7 +5,7 @@ import { REP_UUID } from '../../consts';
 
 import { query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getAnvilStore: RequestHandler<
   AnvilDetailParamsDictionary
@@ -22,7 +22,7 @@ export const getAnvilStore: RequestHandler<
       `Param UUID must be a valid UUIDv4; got [${anUuid}]`,
     );
   } catch (error) {
-    stderr(`Failed to assert value during get anvil storage; CAUSE: ${error}`);
+    perr(`Failed to assert value during get anvil storage; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -61,7 +61,7 @@ export const getAnvilStore: RequestHandler<
         ORDER BY b.storage_group_uuid, d.scan_lvm_vg_free;`,
     );
   } catch (error) {
-    stderr(`Failed to get anvil storage summary; CAUSE: ${error}`);
+    perr(`Failed to get anvil storage summary; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

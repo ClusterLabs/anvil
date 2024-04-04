@@ -1,7 +1,7 @@
 import { DELETED } from '../../consts';
 
 import join from '../../join';
-import { stdoutVar } from '../../shell';
+import { poutvar } from '../../shell';
 
 export const buildQueryFileDetail = ({
   fileUUIDs = ['*'],
@@ -17,7 +17,7 @@ export const buildQueryFileDetail = ({
         separator: ', ',
       });
 
-  stdoutVar({ condFileUUIDs });
+  poutvar({ condFileUUIDs });
 
   return `
     SELECT

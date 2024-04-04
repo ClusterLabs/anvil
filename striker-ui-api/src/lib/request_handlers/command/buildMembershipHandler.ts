@@ -5,7 +5,7 @@ import { REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 const MAP_TO_MEMBERSHIP_JOB_PARAMS_BUILDER: Record<
   MembershipTask,
@@ -66,7 +66,7 @@ export const buildMembershipHandler: (
       `Param UUID must be a valid UUIDv4; got: [${hostUuid}]`,
     );
   } catch (error) {
-    stderr(
+    perr(
       `Failed to assert value when changing host membership; CAUSE: ${error}`,
     );
 
@@ -93,7 +93,7 @@ export const buildMembershipHandler: (
 
     assert.ok(rows.length, `No entry found`);
   } catch (error) {
-    stderr(`Failed to get cluster status of host ${hostUuid}; CAUSE: ${error}`);
+    perr(`Failed to get cluster status of host ${hostUuid}; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -112,7 +112,7 @@ export const buildMembershipHandler: (
       await job({ file: __filename, ...restParams });
     }
   } catch (error) {
-    stderr(
+    perr(
       `Failed to initiate ${task} cluster for host ${hostUuid}; CAUSE: ${error}`,
     );
 

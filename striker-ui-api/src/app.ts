@@ -4,7 +4,7 @@ import express, { json } from 'express';
 import { guardApi, passport, session } from './middlewares';
 import routes from './routes';
 import { rrouters } from './lib/rrouters';
-import { stdout } from './lib/shell';
+import { pout } from './lib/shell';
 
 export default (async () => {
   const app = express();
@@ -26,7 +26,7 @@ export default (async () => {
   app.use(passport.authenticate('session'));
 
   app.use(({ originalUrl, method }, response, next) => {
-    stdout(`Received ${method} ${originalUrl}`);
+    pout(`Received ${method} ${originalUrl}`);
 
     next();
   });

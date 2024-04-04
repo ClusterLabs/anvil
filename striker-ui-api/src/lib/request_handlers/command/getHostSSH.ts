@@ -6,7 +6,7 @@ import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
 
 import { getLocalHostUUID, getPeerData, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getHostSSH: RequestHandler<
   unknown,
@@ -37,7 +37,7 @@ export const getHostSSH: RequestHandler<
       `IP address must be a valid IPv4 address; got [${target}]`,
     );
   } catch (assertError) {
-    stderr(`Assert failed when getting host SSH data; CAUSE: ${assertError}`);
+    perr(`Assert failed when getting host SSH data; CAUSE: ${assertError}`);
 
     return response.status(400).send();
   }
@@ -49,7 +49,7 @@ export const getHostSSH: RequestHandler<
   try {
     rsbody = await getPeerData(target, { password, port });
   } catch (subError) {
-    stderr(`Failed to get peer data; CAUSE: ${subError}`);
+    perr(`Failed to get peer data; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

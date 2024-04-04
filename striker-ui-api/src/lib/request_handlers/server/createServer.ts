@@ -7,12 +7,12 @@ import { OS_LIST_MAP } from '../../consts/OS_LIST';
 import { job, query } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
-import { stderr, stdout, stdoutVar } from '../../shell';
+import { perr, pout, poutvar } from '../../shell';
 
 export const createServer: RequestHandler = async (request, response) => {
   const { body = {} } = request;
 
-  stdoutVar(body, 'Creating server; body=');
+  poutvar(body, 'Creating server; body=');
 
   const {
     serverName: rServerName,
@@ -101,7 +101,7 @@ export const createServer: RequestHandler = async (request, response) => {
       `Data anvil UUID must be a valid UUID; got [${anvilUuid}]`,
     );
   } catch (assertError) {
-    stdout(
+    pout(
       `Failed to assert value when trying to provision a server; CAUSE: ${assertError}`,
     );
 
@@ -141,7 +141,7 @@ export const createServer: RequestHandler = async (request, response) => {
           ON pri_hos.phl = nod_1.phr;`,
   );
 
-  stdout(`provisionServerJobHostUuid=[${provisionServerJobHostUuid}]`);
+  pout(`provisionServerJobHostUuid=[${provisionServerJobHostUuid}]`);
 
   try {
     await job({
@@ -165,7 +165,7 @@ export const createServer: RequestHandler = async (request, response) => {
       job_host_uuid: provisionServerJobHostUuid,
     });
   } catch (subError) {
-    stderr(`Failed to provision server; CAUSE: ${subError}`);
+    perr(`Failed to provision server; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

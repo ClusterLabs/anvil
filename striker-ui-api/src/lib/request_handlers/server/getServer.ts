@@ -4,7 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
-import { stdoutVar } from '../../shell';
+import { poutvar } from '../../shell';
 
 export const getServer = buildGetRequestHandler(
   (request, buildQueryOptions) => {
@@ -17,7 +17,7 @@ export const getServer = buildGetRequestHandler(
       separator: ', ',
     });
 
-    stdoutVar({ condAnvilUUIDs });
+    poutvar({ condAnvilUUIDs });
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = buildQueryResultReducer<

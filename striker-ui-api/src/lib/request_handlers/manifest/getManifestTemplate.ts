@@ -8,7 +8,7 @@ import {
   getHostNamePrefix,
   getShortHostName,
 } from '../../disassembleHostName';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getManifestTemplate: RequestHandler = async (
   request,
@@ -19,7 +19,7 @@ export const getManifestTemplate: RequestHandler = async (
   try {
     localHostName = getLocalHostName();
   } catch (subError) {
-    stderr(String(subError));
+    perr(String(subError));
 
     return response.status(500).send();
   }
@@ -79,7 +79,7 @@ export const getManifestTemplate: RequestHandler = async (
         ) AS c ON a.row_number = c.row_number;`,
     );
   } catch (queryError) {
-    stderr(`Failed to execute query; CAUSE: ${queryError}`);
+    perr(`Failed to execute query; CAUSE: ${queryError}`);
 
     return response.status(500).send();
   }

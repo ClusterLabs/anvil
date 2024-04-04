@@ -1,7 +1,7 @@
 import { Application, Handler, Router } from 'express';
 import path from 'path';
 
-import { stdout } from './shell';
+import { pout } from './shell';
 
 export const rrouters = <
   A extends Application,
@@ -25,7 +25,7 @@ export const rrouters = <
     const handlers = assign(union as R);
     const { length: hcount } = handlers;
 
-    stdout(`Set up route ${route} with ${hcount} handler(s)`);
+    pout(`Set up route ${route} with ${hcount} handler(s)`);
 
     app.use(route, ...handlers);
   } else if (key) {

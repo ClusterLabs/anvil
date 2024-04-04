@@ -4,7 +4,7 @@ import { DELETED } from '../../consts';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 export const getFence: RequestHandler = buildGetRequestHandler(
   (request, buildQueryOptions) => {
@@ -48,7 +48,7 @@ export const getFence: RequestHandler = buildGetRequestHandler(
             {},
           );
 
-          stdout(
+          pout(
             `${fenceAgent}: ${fenceName} (${fenceUUID})\n${JSON.stringify(
               fenceParameters,
               null,

@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
 import { getMailRecipientRequestBody } from './getMailRecipientRequestBody';
-import { stderr, stdout } from '../../shell';
+import { perr, pout } from '../../shell';
 
 export const createMailRecipient: RequestHandler<
   undefined,
@@ -11,14 +11,14 @@ export const createMailRecipient: RequestHandler<
 > = (request, response) => {
   const { body: rBody = {} } = request;
 
-  stdout('Begin creating mail recipient.');
+  pout('Begin creating mail recipient.');
 
   let reqBody: MailRecipientRequestBody;
 
   try {
     reqBody = getMailRecipientRequestBody(rBody);
   } catch (error) {
-    stderr(`Failed to process mail recipient input; CAUSE: ${error}`);
+    perr(`Failed to process mail recipient input; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -32,7 +32,7 @@ export const createMailRecipient: RequestHandler<
 
     resBody = { uuid };
   } catch (error) {
-    stderr(`Failed to create mail recipient; CAUSE: ${error}`);
+    perr(`Failed to create mail recipient; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

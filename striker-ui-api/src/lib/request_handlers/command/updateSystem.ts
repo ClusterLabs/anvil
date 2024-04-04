@@ -3,7 +3,7 @@ import { RequestHandler } from 'express';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const updateSystem: RequestHandler = async (request, response) => {
   try {
@@ -15,7 +15,7 @@ export const updateSystem: RequestHandler = async (request, response) => {
       job_title: 'job_0003',
     });
   } catch (subError) {
-    stderr(`Failed to initiate system update; CAUSE: ${subError}`);
+    perr(`Failed to initiate system update; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

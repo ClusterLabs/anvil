@@ -2,7 +2,7 @@ import { REP_PEACEFUL_STRING } from '../../consts';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { sanitize } from '../../sanitize';
-import { date, stdout } from '../../shell';
+import { date, pout } from '../../shell';
 
 export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   const { start: rStart, command: rCommand } = request.query;
@@ -28,7 +28,7 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
     condJobCommand = `AND job.job_command LIKE '%${jcmd}%'`;
   }
 
-  stdout(`condModifiedDate=[${condModifiedDate}]`);
+  pout(`condModifiedDate=[${condModifiedDate}]`);
 
   if (buildQueryOptions) {
     buildQueryOptions.afterQueryReturn = (queryStdout) => {

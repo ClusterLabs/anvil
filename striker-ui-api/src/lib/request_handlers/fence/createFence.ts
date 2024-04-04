@@ -5,7 +5,7 @@ import { REP_PEACEFUL_STRING } from '../../consts';
 
 import { getFenceSpec, timestamp, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar, uuid } from '../../shell';
+import { perr, poutvar, uuid } from '../../shell';
 
 const handleNumberType = (v: unknown) =>
   String(sanitize(v, 'number', { modifierType: 'sql' }));
@@ -43,7 +43,7 @@ export const createFence: RequestHandler<
   try {
     fenceSpec = await getFenceSpec();
   } catch (error) {
-    stderr(`Failed to get fence devices specification; CAUSE: ${error}`);
+    perr(`Failed to get fence devices specification; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -100,7 +100,7 @@ export const createFence: RequestHandler<
     }, [])
     .join(' ');
 
-  stdoutVar(
+  poutvar(
     { agent, args, name },
     `Proceed to record fence device (${fenceUuid}): `,
   );
@@ -132,7 +132,7 @@ export const createFence: RequestHandler<
 
     assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (error) {
-    stderr(`Failed to write fence record; CAUSE: ${error}`);
+    perr(`Failed to write fence record; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

@@ -1,6 +1,6 @@
 import { Handler } from 'express';
 
-import { stdout } from '../lib/shell';
+import { pout } from '../lib/shell';
 
 type HandlerParameters = Parameters<Handler>;
 
@@ -54,10 +54,10 @@ export const assertAuthentication: AssertAuthenticationFunction = ({
 
     const rt = getReturnTo?.call(null, ...args);
 
-    stdout(`Unauthenticated access to ${originalUrl}`);
+    pout(`Unauthenticated access to ${originalUrl}`);
 
     if (rt) {
-      stdout(`Set session.returnTo=${rt}`);
+      pout(`Set session.returnTo=${rt}`);
 
       session.returnTo = rt;
     }

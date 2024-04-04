@@ -6,7 +6,7 @@ import { DELETED, REP_UUID } from '../../consts';
 import { write } from '../../accessModule';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const deleteUser: RequestHandler<
   UserParamsDictionary,
@@ -25,7 +25,7 @@ export const deleteUser: RequestHandler<
 
   const ulist = userUuidList.length > 0 ? userUuidList : [userUuid];
 
-  stdoutVar({ ulist });
+  poutvar({ ulist });
 
   try {
     let failedIndex = 0;
@@ -39,7 +39,7 @@ export const deleteUser: RequestHandler<
       `All UUIDs must be valid UUIDv4; failed at ${failedIndex}, got [${ulist[failedIndex]}]`,
     );
   } catch (assertError) {
-    stderr(`Failed to assert value during delete user; CAUSE: ${assertError}`);
+    perr(`Failed to assert value during delete user; CAUSE: ${assertError}`);
 
     return response.status(400).send();
   }
@@ -56,7 +56,7 @@ export const deleteUser: RequestHandler<
 
     assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (error) {
-    stderr(`Failed to delete user(s); CAUSE: ${error}`);
+    perr(`Failed to delete user(s); CAUSE: ${error}`);
 
     return response.status(500).send();
   }

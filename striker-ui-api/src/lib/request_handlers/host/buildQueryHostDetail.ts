@@ -2,7 +2,7 @@ import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
 const CVAR_PREFIX_PATTERN = `^${CVAR_PREFIX}\\d+::`;
@@ -44,7 +44,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 } = {}) => {
   const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'WHERE a.host_uuid');
 
-  stdout(`condHostUUIDs=[${condHostUUIDs}]`);
+  pout(`condHostUUIDs=[${condHostUUIDs}]`);
 
   const query = `
     SELECT

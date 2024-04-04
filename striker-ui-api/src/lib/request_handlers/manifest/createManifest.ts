@@ -2,7 +2,7 @@ import { AssertionError } from 'assert';
 import { RequestHandler } from 'express';
 
 import { buildManifest } from './buildManifest';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const createManifest: RequestHandler = async (...handlerArgs) => {
   const [, response] = handlerArgs;
@@ -12,7 +12,7 @@ export const createManifest: RequestHandler = async (...handlerArgs) => {
   try {
     result = await buildManifest(...handlerArgs);
   } catch (error) {
-    stderr(`Failed to create new install manifest; CAUSE ${error}`);
+    perr(`Failed to create new install manifest; CAUSE ${error}`);
 
     let code = 500;
 

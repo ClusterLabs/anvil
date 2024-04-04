@@ -4,7 +4,7 @@ import { LOCAL } from '../lib/consts';
 
 import { query } from '../lib/accessModule';
 import { toHostUUID } from '../lib/convertHostUUID';
-import { stderr, stdoutVar } from '../lib/shell';
+import { perr, poutvar } from '../lib/shell';
 
 export const assertInit =
   ({
@@ -34,19 +34,19 @@ export const assertInit =
           LIMIT 1;`,
       );
     } catch (error) {
-      stderr(`Failed to get system configured flag; CAUSE: ${error}`);
+      perr(`Failed to get system configured flag; CAUSE: ${error}`);
 
       return response.status(500).send();
     }
 
-    stdoutVar(rows, `Configured variable of host ${hostUuid}: `);
+    poutvar(rows, `Configured variable of host ${hostUuid}: `);
 
     let condition = rows.length === 1 && rows[0][0] === '1';
 
     if (invert) condition = !condition;
 
     if (condition) {
-      stderr(`Assert init failed; invert=${invert}`);
+      perr(`Assert init failed; invert=${invert}`);
 
       return fail(...args);
     }

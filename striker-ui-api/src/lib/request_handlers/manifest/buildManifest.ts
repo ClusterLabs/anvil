@@ -10,7 +10,7 @@ import {
 
 import { sub } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 export const buildManifest = async (
   ...[request]: Parameters<
@@ -37,7 +37,7 @@ export const buildManifest = async (
     params: { manifestUuid: rawManifestUuid = 'new' },
   } = request;
 
-  stdout('Begin building install manifest.');
+  pout('Begin building install manifest.');
 
   const dns = sanitize(rawDns, 'string');
   const domain = sanitize(rawDomain, 'string');

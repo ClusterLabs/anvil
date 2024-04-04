@@ -2,7 +2,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 
 import { P_UUID } from '../lib/consts';
 
-import { stderr, stdout } from '../lib/shell';
+import { perr, pout } from '../lib/shell';
 import { getVncinfo } from '../lib/accessModule';
 
 const WS_SVR_VNC_URL_PREFIX = '/ws/server/vnc';
@@ -18,7 +18,7 @@ export const proxyServerVnc = createProxyMiddleware({
       '$1',
     );
 
-    stdout(`Got param [${serverUuid}] from [${url}]`);
+    pout(`Got param [${serverUuid}] from [${url}]`);
 
     let domain: string;
     let port: number;
@@ -27,7 +27,7 @@ export const proxyServerVnc = createProxyMiddleware({
     try {
       ({ domain, port, protocol } = await getVncinfo(serverUuid));
     } catch (error) {
-      stderr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
+      perr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
 
       return;
     }
@@ -36,7 +36,7 @@ export const proxyServerVnc = createProxyMiddleware({
   },
   on: {
     error: (error, request, response) => {
-      stderr(`VNC proxy error: ${error}`);
+      perr(`VNC proxy error: ${error}`);
 
       let resType: string;
 
@@ -48,7 +48,7 @@ export const proxyServerVnc = createProxyMiddleware({
         resType = 'Socket';
       }
 
-      stdout(`Response type = ${resType}`);
+      pout(`Response type = ${resType}`);
     },
   },
   ws: true,
@@ -57,5 +57,5 @@ export const proxyServerVnc = createProxyMiddleware({
 export const proxyServerVncUpgrade =
   proxyServerVnc.upgrade ??
   (() => {
-    stdout('No upgrade handler for server VNC connection(s).');
+    pout('No upgrade handler for server VNC connection(s).');
   });

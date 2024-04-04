@@ -5,7 +5,7 @@ import { REP_UUID } from '../../consts';
 
 import { getAnvilData, getHostData, getNetworkData } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 const degrade = (current: string) =>
   current === 'optimal' ? 'degraded' : current;
@@ -100,7 +100,7 @@ export const getAnvilNetwork: RequestHandler<
       `Param UUID must be a valid UUIDv4; got [${anUuid}]`,
     );
   } catch (error) {
-    stderr(`Failed to assert value during get anvil network; CAUSE: ${error}`);
+    perr(`Failed to assert value during get anvil network; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -112,7 +112,7 @@ export const getAnvilNetwork: RequestHandler<
     ans = await getAnvilData();
     hosts = await getHostData();
   } catch (error) {
-    stderr(`Failed to get anvil and host data; CAUSE: ${error}`);
+    perr(`Failed to get anvil and host data; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -149,7 +149,7 @@ export const getAnvilNetwork: RequestHandler<
         host_uuid: hostUuid,
       });
     } catch (error) {
-      stderr(`Failed to get host ${hostUuid} network data; CAUSE: ${error}`);
+      perr(`Failed to get host ${hostUuid} network data; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

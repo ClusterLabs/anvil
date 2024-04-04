@@ -12,7 +12,7 @@ import {
 import { job, variable } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const prepareHost: RequestHandler<
   unknown,
@@ -103,7 +103,7 @@ export const prepareHost: RequestHandler<
       );
     }
   } catch (assertError) {
-    stderr(
+    perr(
       `Failed to assert value when trying to prepare host; CAUSE: ${assertError}`,
     );
 
@@ -142,7 +142,7 @@ export const prepareHost: RequestHandler<
       job_title: `job_002${dataHostType === 'dr' ? '1' : '0'}`,
     });
   } catch (subError) {
-    stderr(`Failed to init host; CAUSE: ${subError}`);
+    perr(`Failed to init host; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

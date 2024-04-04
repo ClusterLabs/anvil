@@ -6,7 +6,7 @@ import { LOCAL, REP_UUID } from '../../consts';
 import { variable } from '../../accessModule';
 import { toHostUUID } from '../../convertHostUUID';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const setMapNetwork: RequestHandler<
   { uuid: string },
@@ -24,7 +24,7 @@ export const setMapNetwork: RequestHandler<
 
   hostUuid = toHostUUID(hostUuid);
 
-  stdoutVar({ hostUuid, value }, `Set map network variable with: `);
+  poutvar({ hostUuid, value }, `Set map network variable with: `);
 
   try {
     assert(
@@ -37,7 +37,7 @@ export const setMapNetwork: RequestHandler<
       `Host UUID must be a valid UUIDv4; got [${hostUuid}]`,
     );
   } catch (error) {
-    stderr(`Assert failed when set map network variable; CAUSE: ${error}`);
+    perr(`Assert failed when set map network variable; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -59,7 +59,7 @@ export const setMapNetwork: RequestHandler<
       `Result must be UUID of modified record; got: [${result}]`,
     );
   } catch (error) {
-    stderr(
+    perr(
       `Failed to set map network variable for host ${hostUuid}; CAUSE: ${error}`,
     );
 

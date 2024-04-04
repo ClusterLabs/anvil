@@ -12,7 +12,7 @@ import {
 } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
 import { sanitize } from '../../sanitize';
-import { rm, stderr, stdoutVar, systemCall, uuid } from '../../shell';
+import { rm, perr, poutvar, systemCall, uuid } from '../../shell';
 
 export const createHostConnection: RequestHandler<
   unknown,
@@ -46,15 +46,15 @@ export const createHostConnection: RequestHandler<
         port: peerSSHPort,
       }));
   } catch (subError) {
-    stderr(`Failed to get peer data; CAUSE: ${subError}`);
+    perr(`Failed to get peer data; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }
 
-  stdoutVar({ peerHostUUID, isPeerReachable });
+  poutvar({ peerHostUUID, isPeerReachable });
 
   if (!isPeerReachable) {
-    stderr(
+    perr(
       `Cannot connect to peer; please verify credentials and SSH keys validity.`,
     );
 
@@ -67,12 +67,12 @@ export const createHostConnection: RequestHandler<
       pre: ['System'],
     });
   } catch (subError) {
-    stderr(`Failed to get matching IP address; CAUSE: ${subError}`);
+    perr(`Failed to get matching IP address; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }
 
-  stdoutVar({ localIPAddress });
+  poutvar({ localIPAddress });
 
   const pgpassFilePath = `/tmp/.pgpass-${uuid()}`;
   const pgpassFileBody = `${peerIPAddress}:${commonDBPort}:${commonDBName}:${commonDBUser}:${commonPassword.replace(
@@ -80,7 +80,7 @@ export const createHostConnection: RequestHandler<
     '\\:',
   )}`;
 
-  stdoutVar({ pgpassFilePath, pgpassFileBody });
+  poutvar({ pgpassFilePath, pgpassFileBody });
 
   try {
     writeFileSync(pgpassFilePath, pgpassFileBody, {
@@ -88,7 +88,7 @@ export const createHostConnection: RequestHandler<
       mode: 0o600,
     });
   } catch (subError) {
-    stderr(`Failed to write ${pgpassFilePath}; CAUSE: ${subError}`);
+    perr(`Failed to write ${pgpassFilePath}; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }
@@ -116,28 +116,28 @@ export const createHostConnection: RequestHandler<
       { env: { PGPASSFILE: pgpassFilePath } },
     ).trim();
 
-    stdoutVar(
+    poutvar(
       { timestamp, echo },
       'Ask the peer database to echo the current timestamp: ',
     );
 
     isPeerDBReachable = echo === timestamp;
   } catch (subError) {
-    stderr(`Failed to test connection to peer database; CAUSE: ${subError}`);
+    perr(`Failed to test connection to peer database; CAUSE: ${subError}`);
   }
 
   try {
     rm(pgpassFilePath);
   } catch (fsError) {
-    stderr(`Failed to remove ${pgpassFilePath}; CAUSE: ${fsError}`);
+    perr(`Failed to remove ${pgpassFilePath}; CAUSE: ${fsError}`);
 
     return response.status(500).send();
   }
 
-  stdoutVar({ isPeerDBReachable });
+  poutvar({ isPeerDBReachable });
 
   if (!isPeerDBReachable) {
-    stderr(
+    perr(
       `Cannot connect to peer database; please verify database credentials.`,
     );
 
@@ -153,7 +153,7 @@ export const createHostConnection: RequestHandler<
 
     localDBPort = sanitize(rawLocalDBPort, 'number');
   } catch (subError) {
-    stderr(`Failed to get local database data from hash; CAUSE: ${subError}`);
+    perr(`Failed to get local database data from hash; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }
@@ -176,7 +176,7 @@ export const createHostConnection: RequestHandler<
       job_title: 'job_0011',
     });
   } catch (subError) {
-    stderr(`Failed to add peer ${peerHostUUID}; CAUSE: ${subError}`);
+    perr(`Failed to add peer ${peerHostUUID}; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

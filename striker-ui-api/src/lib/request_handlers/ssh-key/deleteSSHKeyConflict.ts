@@ -4,7 +4,7 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
 import { toHostUUID } from '../../convertHostUUID';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const deleteSSHKeyConflict: RequestHandler<
   unknown,
@@ -29,7 +29,7 @@ export const deleteSSHKeyConflict: RequestHandler<
         job_title: 'job_0056',
       });
     } catch (subError) {
-      stderr(`Failed to delete bad SSH keys; CAUSE: ${subError}`);
+      perr(`Failed to delete bad SSH keys; CAUSE: ${subError}`);
 
       return response.status(500).send();
     }
