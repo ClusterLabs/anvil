@@ -15,9 +15,11 @@ import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
-const AnvilSummaryList: FC = () => {
+const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
+  const { refreshInterval = 5000 } = props;
+
   const { data: rawAnvils, loading: loadingAnvils } =
-    useFetch<APIAnvilOverviewArray>('/anvil', { refreshInterval: 5000 });
+    useFetch<APIAnvilOverviewArray>('/anvil', { refreshInterval });
 
   const anvils = useMemo<APIAnvilOverviewList | undefined>(
     () => rawAnvils && toAnvilOverviewList(rawAnvils),
@@ -48,7 +50,10 @@ const AnvilSummaryList: FC = () => {
                       </BodyText>
                     </InnerPanelHeader>
                     <InnerPanelBody>
-                      <AnvilSummary anvilUuid={uuid} />
+                      <AnvilSummary
+                        anvilUuid={uuid}
+                        refreshInterval={refreshInterval}
+                      />
                     </InnerPanelBody>
                   </InnerPanel>
                 ),
@@ -68,7 +73,7 @@ const AnvilSummaryList: FC = () => {
           }}
         />
       ),
-    [anvils],
+    [anvils, refreshInterval],
   );
 
   return (
