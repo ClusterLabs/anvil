@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { getManifestData } from '../../accessModule';
 import { getEntityParts } from '../../disassembleEntityId';
-import { perr, pout } from '../../shell';
+import { perr, pout, poutvar } from '../../shell';
 
 const handleSortEntries = <T extends [string, unknown]>(
   [aId]: T,
@@ -84,13 +84,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
     return;
   }
 
-  pout(
-    `Raw install manifest list:\n${JSON.stringify(
-      rawManifestListData,
-      null,
-      2,
-    )}`,
-  );
+  poutvar(rawManifestListData, 'Raw install manifest list: ');
 
   if (!rawManifestListData) {
     response.status(404).send();

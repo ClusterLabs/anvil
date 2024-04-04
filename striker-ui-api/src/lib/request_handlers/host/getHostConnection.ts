@@ -3,7 +3,7 @@ import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
-import { pout } from '../../shell';
+import { pout, poutvar } from '../../shell';
 
 const buildHostConnections = (
   fromHostUUID: string,
@@ -85,7 +85,7 @@ export const getHostConnection = buildGetRequestHandler(
       return previous;
     }, {});
 
-    pout(`connections=[${JSON.stringify(connections, null, 2)}]`);
+    poutvar(connections, 'connections=');
 
     if (buildQueryOptions) {
       buildQueryOptions.afterQueryReturn = (queryStdout) => {
