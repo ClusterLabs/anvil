@@ -12,6 +12,7 @@ use JSON;
 use Net::Netmask;
 use Text::Diff;
 use UUID::Tiny qw(:std);
+use String::ShellQuote;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";

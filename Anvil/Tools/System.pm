@@ -1989,7 +1989,6 @@ sub configure_ipmi
 	my $host_uuid       = $anvil->Get->host_uuid;
 	my $ipmi_ip_address = "";
 	my $ipmi_password   = "";
-	my $password_length = 0;
 	my $subnet_mask     = "";
 	my $gateway         = "";
 	my $in_network      = "";
@@ -2039,13 +2038,11 @@ sub configure_ipmi
 			}
 			
 			# Get the password using the Striker password.
-			my $db_uuid         = $anvil->data->{sys}{database}{read_uuid};
-			   $ipmi_password   = $anvil->data->{database}{$db_uuid}{password};
-			   $password_length = length(Encode::encode('UTF-8', $ipmi_password));
+			my $db_uuid       = $anvil->data->{sys}{database}{read_uuid};
+			   $ipmi_password = $anvil->Convert->to_ipmi_password({password => $anvil->data->{database}{$db_uuid}{password}});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				db_uuid         => $db_uuid, 
-				ipmi_password   => $anvil->Log->is_secure($ipmi_password), 
-				password_length => $password_length, 
+				db_uuid       => $db_uuid, 
+				ipmi_password => $anvil->Log->is_secure($ipmi_password), 
 			}});
 			
 			if ((not $anvil->Validate->ipv4({debug => $debug, ip => $ipmi_ip_address})) or (not $ipmi_password))
@@ -2164,12 +2161,10 @@ LIMIT 1
 		
 		# Make sure the IPMI IP, subnet mask and password are available.
 		$ipmi_ip_address = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{ipmi_ip};
-		$ipmi_password   = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-		$password_length = length(Encode::encode('UTF-8', $ipmi_password));
+		$ipmi_password   = $anvil->Convert->to_ipmi_password({password => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			ipmi_ip_address => $ipmi_ip_address,
 			ipmi_password   => $anvil->Log->is_secure($ipmi_password), 
-			password_length => $password_length,
 		}});
 		
 		# Find the subnet the IPMI IP is in.
@@ -2224,18 +2219,6 @@ LIMIT 1
 			return(0);
 		}
 	}
-	
-	# If the password has spaces, some IPMI BMCs won't allow them. If we need to use it, we'll take out 
-	# the spaces and shrink the length.
-	my $ipmi_no_space_password = "";
-	if ($ipmi_password =~ /\s/)
-	{
-		$ipmi_no_space_password =  $ipmi_password; 
-		$ipmi_no_space_password =~ s/\s//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_no_space_password => $ipmi_no_space_password }});
-	}
-	
-	
 	
 	# Call dmidecode to see if there even is an IPMI BMC on this host.
 	my $host_ipmi              = "";
@@ -2575,7 +2558,6 @@ LIMIT 1
 		# These need LAN Plus
 		$lanplus = "yes-no"
 	}
-	my $try_again = 1;
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
 		ipmi_user     => $user_name,
@@ -2600,9 +2582,6 @@ LIMIT 1
 			host_uuid   => $host_uuid, 
 			host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
 		});
-		
-		$try_again = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
 	}
 	else
 	{
@@ -2634,166 +2613,17 @@ LIMIT 1
 				host_uuid   => $host_uuid, 
 				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
 			});
-			
-			$try_again = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { try_again => $try_again }});
 		}
 		else
 		{
-			# If we used the no-space password, set it as the ipmi_password now.
-			if ($ipmi_no_space_password)
-			{
-				$ipmi_password = $ipmi_no_space_password;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { ipmi_password => $ipmi_password }});
-			}
-			
-			# Change the password and then try again.
-			my $escaped_ipmi_password = shell_quote($ipmi_password);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { escaped_ipmi_password => $escaped_ipmi_password }});
-			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$escaped_ipmi_password});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				output      => $output, 
+			# Nothing more to do.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0137", variables => {
+				user_name   => $user_name, 
+				user_number => $user_number, 
+				output      => $output,
 				return_code => $return_code,
 			}});
-			if (($return_code) or ($output =~ /Password is too long/))
-			{
-				# Try again with the 20-byte password.
-				my $twenty_byte_ipmi_password = $anvil->Words->shorten_string({
-					debug    => $debug,
-					secure   => 1,
-					string   => $ipmi_password, 
-					'length' => 20,
-				});
-				my $twenty_byte_escaped_ipmi_password = shell_quote($twenty_byte_ipmi_password);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
-					twenty_byte_ipmi_password         => $twenty_byte_ipmi_password, 
-					twenty_byte_escaped_ipmi_password => $twenty_byte_escaped_ipmi_password,
-				}});
-				
-				my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$twenty_byte_escaped_ipmi_password});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					output      => $output, 
-					return_code => $return_code,
-				}});
-				if ($return_code)
-				{
-					# Try once more with the 16-byte password.
-					my $sixteen_byte_ipmi_password = $anvil->Words->shorten_string({
-						debug    => $debug,
-						secure   => 1,
-						string   => $ipmi_password, 
-						'length' => 16,
-					});
-					my $sixteen_byte_escaped_ipmi_password = shell_quote($sixteen_byte_ipmi_password);
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { 
-						sixteen_byte_ipmi_password         => $sixteen_byte_ipmi_password, 
-						sixteen_byte_escaped_ipmi_password => $sixteen_byte_escaped_ipmi_password,
-					}});
-					
-					my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$sixteen_byte_escaped_ipmi_password});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						output      => $output, 
-						return_code => $return_code,
-					}});
-					if ($return_code)
-					{
-						# Nothing more to do.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0137", variables => {
-							user_name   => $user_name, 
-							user_number => $user_number, 
-							output      => $output,
-							return_code => $return_code,
-						}});
-						return('!!error!!');
-					}
-					else
-					{
-						# Looks like the 16-byte version worked.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0515"});
-					}
-				}
-				else
-				{
-					# Looks like the 20-byte version worked.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0514"});
-				}
-			}
-			else
-			{
-				# Looks like the password took.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0513"});
-			}
-		}
-	}
-	
-	if ($try_again)
-	{
-		$host_ipmi = $anvil->System->test_ipmi({
-			debug         => $debug,
-			ipmi_user     => $user_name,
-			ipmi_password => $ipmi_password,
-			ipmi_target   => $ipmi_ip_address, 
-			lanplus       => $lanplus,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
-		if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
-		{
-			# We're good, password was changed! 
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
-		
-			# Update the database, in case needed.
-			my $host_uuid = $anvil->Get->host_uuid();
-			$anvil->Database->insert_or_update_hosts({
-				debug       => $debug, 
-				host_ipmi   => $host_ipmi, 
-				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-				host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
-				host_uuid   => $host_uuid, 
-				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
-			});
-		}
-		else
-		{
-			# Try it again from the dashboard, we may just not be able to talk to our own BMC (
-			# can happen on shared interfaces)
-			my $host_ipmi = $anvil->System->test_ipmi({
-				debug         => $debug,
-				ipmi_user     => $user_name,
-				ipmi_password => $ipmi_password,
-				ipmi_target   => $ipmi_ip_address, 
-				lanplus       => $lanplus,
-				target        => $striker_host, 
-				password      => $striker_password, 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
-			if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
-			{
-				# We're good! 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
-		
-				# Update the database, in case needed.
-				my $host_uuid = $anvil->Get->host_uuid();
-				$anvil->Database->insert_or_update_hosts({
-					debug       => $debug, 
-					host_ipmi   => $host_ipmi, 
-					host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-					host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-					host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
-					host_uuid   => $host_uuid, 
-					host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
-				});
-			}
-			else
-			{
-				# Nothing worked. :(
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0138", variables => {
-					user_name   => $user_name, 
-					user_number => $user_number, 
-				}});
-				return('!!error!!');
-			}
+			return('!!error!!');
 		}
 	}
 	
