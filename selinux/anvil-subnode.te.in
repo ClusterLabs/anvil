@@ -14,15 +14,38 @@ policy_module(anvil-subnode, 1.0.0)
 # Use existing types; don't declare unless it's new.
 #
 require {
+	type cluster_t;
+	type kernel_t;
+	type krb5_keytab_t;
 	type mnt_t;
+	type NetworkManager_t;
+	type systemd_hostnamed_t;
 	type var_lock_t;
 	type virsh_t;
+	type virsh_ssh_t;
+	type virtd_t;
+	class dbus { send_msg };
+	class dir { search };
+	class file { open read };
 }
 
 
 #============= drbd_t ==============
-# drbd policy will be provided by drbd-utils package
+# drbd rules will be provided by drbd-utils package
+
+
+#============= systemd_hostnamed_t ==============
+# Found on centos-8-stream
+allow systemd_hostnamed_t kernel_t:dbus send_msg;
+# Found on rhel-8
+allow systemd_hostnamed_t virtd_t:dbus send_msg;
 
 
 #============= virsh_t ==============
+# Needed for virsh to access the domain XMLs under /mnt.
 allow virsh_t mnt_t:file { open read };
+
+
+#============= virsh_ssh_t ==============
+# Found on centos-8-stream
+allow virsh_ssh_t krb5_keytab_t:dir search;
