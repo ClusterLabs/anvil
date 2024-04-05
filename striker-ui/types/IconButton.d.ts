@@ -3,6 +3,7 @@ type CreatableComponent = Parameters<typeof import('react').createElement>[0];
 type IconButtonPresetMapToStateIconBundle =
   | 'add'
   | 'close'
+  | 'copy'
   | 'delete'
   | 'edit'
   | 'play'
