@@ -28,8 +28,18 @@ type APIHostConnectionOverviewList = {
 
 type APIHostInstallTarget = 'enabled' | 'disabled';
 
+type APIHostStatus = 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
+
+type APIHostIPMI = {
+  command: string;
+  ip: string;
+  password: string;
+  username: string;
+};
+
 type APIHostOverview = {
   hostName: string;
+  hostStatus: APIHostStatus;
   hostType: string;
   hostUUID: string;
   shortHostName: string;
@@ -60,6 +70,7 @@ type APIHostDetail = APIHostOverview & {
   gateway?: string;
   gatewayInterface?: string;
   installTarget?: APIHostInstallTarget;
+  ipmi?: APIHostIPMI;
   networks?: APIHostNetworkList;
   organization?: string;
   prefix?: string;

@@ -87,7 +87,7 @@ type AnvilStatusHost = {
   host_uuid: string;
   maintenance_mode: boolean;
   server_count: number;
-  state: 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
+  state: APIHostStatus;
   state_message: string;
   state_percent: number;
 };
