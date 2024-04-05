@@ -348,7 +348,7 @@ const ManageFencePanel: FC = () => {
                   current = /passw/i.test(parameterId) ? (
                     <>
                       {current}
-                      <SensitiveText inline>{parameterValue}</SensitiveText>
+                      <SensitiveText>{parameterValue}</SensitiveText>
                     </>
                   ) : (
                     <>

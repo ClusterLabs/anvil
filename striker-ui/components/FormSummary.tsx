@@ -13,13 +13,7 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
   const { entry, key } = args;
 
   return /passw/i.test(key) ? (
-    <SensitiveText
-      revealButtonProps={{ sx: { marginRight: 0, padding: 0 } }}
-      monospaced
-      textLineHeight={null}
-    >
-      {String(entry)}
-    </SensitiveText>
+    <SensitiveText monospaced>{String(entry)}</SensitiveText>
   ) : (
     renderEntryValueWithMono(args)
   );
