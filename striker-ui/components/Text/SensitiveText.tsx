@@ -10,12 +10,14 @@ const BaseStyle = styled(Box)({
   backgroundColor: EERIE_BLACK,
   borderRadius: BORDER_RADIUS,
   color: EERIE_BLACK,
+  cursor: 'pointer',
   display: 'inline-flex',
   padding: '0 .6em',
   width: 'fit-content',
 
   ':focus': {
     color: 'unset',
+    cursor: 'text',
   },
 });
 
