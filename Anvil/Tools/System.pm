@@ -396,7 +396,7 @@ sub call
 					else
 					{
 						$output .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 					}
 				}
 				close $file_handle;
@@ -2168,15 +2168,18 @@ LIMIT 1
 		}});
 		
 		# Find the subnet the IPMI IP is in.
-		foreach my $network_type ("bcn", "ifn", "sn")
+		foreach my $network_type ("bcn", "ifn", "sn", "mn")
 		{
+			last if $in_network;
 			my $count = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{$network_type};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				network_type => $network_type,
 				count        => $count, 
+				in_network   => $in_network, 
 			}});
 			foreach my $i (1..$count)
 			{
+				last if $in_network;
 				my $network_name     = $network_type.$i;
 				my $network          = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{network};
 				my $this_subnet_mask = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network_name}{subnet};
