@@ -179,11 +179,16 @@ export const buildServerPowerHandler: (
       let serverHostUuid: string | undefined;
 
       try {
+        // When the server host uuid is null, fall back to the first subnode of
+        // the node that owns the server.
         const rows = await query<[[null | string]]>(
-          `SELECT server_host_uuid
-            FROM servers
-            WHERE server_uuid = '${uuid}'
-              AND server_state != '${DELETED}';`,
+          `SELECT
+              COALESCE(a.server_host_uuid, b.anvil_node1_host_uuid)
+            FROM servers AS a
+            LEFT JOIN anvils AS b
+              ON a.server_anvil_uuid = b.anvil_uuid
+            WHERE server_state != '${DELETED}'
+              AND server_uuid = '${uuid}';`,
         );
 
         assert.ok(rows.length, `No entry found`);
