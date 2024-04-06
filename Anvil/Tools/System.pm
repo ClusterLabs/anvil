@@ -2330,6 +2330,16 @@ LIMIT 1
 				{
 					$current_ip_address = $1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_ip_address => $current_ip_address }});
+					
+					### TODO: Delete this once simengine can set IP and report the
+					###       correct IP.
+					# If the config is "Unknown (0x1291)", this is simengine. Don't 
+					# configure, but act like we confirmed the IP.
+					if ($manufacturer =~ /Unknown \(0x1291\)/i)
+					{
+						$current_ip_address = $ipmi_ip_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { current_ip_address => $current_ip_address }});
+					}
 				}
 				# Subnet Mask             : 0.0.0.0
 				# Subnet Mask             : 255.255.0.0
