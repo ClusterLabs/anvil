@@ -31,6 +31,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
         password: '',
       },
       onSubmit: (values, { setSubmitting }) => {
+        setApiMessage();
         setLoadingInquiry(true);
         setResponse(undefined);
 
@@ -42,6 +43,22 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
             password,
           })
           .then(({ data }) => {
+            const { isConnected } = data;
+
+            if (!isConnected) {
+              setApiMessage({
+                children: (
+                  <>
+                    Failed to connect. Please make sure the credentials are
+                    correct, and the host is reachable from this striker.
+                  </>
+                ),
+                type: 'warning',
+              });
+
+              return;
+            }
+
             setResponse({
               ...data,
               hostIpAddress: ip,
@@ -115,33 +132,25 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
           }
         />
       </Grid>
-      {loadingInquiry ? (
-        <Grid item width="100%">
-          <Spinner />
-        </Grid>
-      ) : (
-        <>
-          <Grid item width="100%">
-            <MessageGroup
-              count={1}
-              messages={formikErrors}
-              ref={messageGroupRef}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <ActionGroup
-              actions={[
-                {
-                  background: 'blue',
-                  children: 'Test access',
-                  disabled: disabledSubmit,
-                  type: 'submit',
-                },
-              ]}
-            />
-          </Grid>
-        </>
-      )}
+      <Grid item width="100%">
+        <MessageGroup count={1} messages={formikErrors} ref={messageGroupRef} />
+      </Grid>
+      <Grid item width="100%">
+        {loadingInquiry ? (
+          <Spinner mt={0} />
+        ) : (
+          <ActionGroup
+            actions={[
+              {
+                background: 'blue',
+                children: 'Test access',
+                disabled: disabledSubmit,
+                type: 'submit',
+              },
+            ]}
+          />
+        )}
+      </Grid>
     </Grid>
   );
 };
