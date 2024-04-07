@@ -2574,7 +2574,7 @@ LIMIT 1
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
 		ipmi_user     => $user_name,
-		ipmi_password => $ipmi_password,
+		ipmi_password => $anvil->Log->is_secure($ipmi_password),
 		ipmi_target   => $ipmi_ip_address, 
 		lanplus       => $lanplus,
 	});
