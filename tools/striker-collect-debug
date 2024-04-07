@@ -612,6 +612,30 @@ sub collect_remote_data
 				backup    => 0,
 			});
 		}
+		
+		print "- Collecting the corosync config... ";
+		$anvil->Storage->rsync({
+			debug       => 2,
+			source      => "root\@".$anvil->data->{peer}{$short_host_name}{access}{ip}.":/etc/corosync/corosync.conf",
+			destination => $target_directory."/",
+		});
+		$test_file = $target_directory."/corosync.conf";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
+		if (-e $test_file)
+		{
+			print "Done.\n";
+		}
+		else
+		{
+			print "Failed!\n";
+			print "- For some reason, this file was not collected.\n";
+			$anvil->Storage->write_file({
+				file      => $test_file, 
+				body      => $failed_body,
+				overwrite => 1,
+				backup    => 0,
+			});
+		}
 	}
 	
 	# If this is not a striker, collect definition files.

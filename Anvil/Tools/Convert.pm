@@ -21,6 +21,7 @@ my $THIS_FILE = "Convert.pm";
 # format_mmddyy_to_yymmdd
 # host_name_to_ip
 # human_readable_to_bytes
+# to_ipmi_password
 # round
 # time
 
@@ -1189,6 +1190,87 @@ sub human_readable_to_bytes
 	return ($bytes);
 }
 
+
+=head2 to_ipmi_password
+
+This takes a password (a string) and returns it in a format suitable for use by most any IPMI BMC. More specifically, spaces are removed, special characters are removed, and it is shortened to 16 characters.
+
+If no password is given, a password will be generated.
+
+parameters;
+
+=head3 password (required)
+
+This is the string to convert into an IPMI compatible password.
+
+=cut
+sub to_ipmi_password
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->to_ipmi_password()" }});
+	
+	# Setup my numbers.
+	my $password = $parameter->{password} ? $parameter->{password} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		password => $anvil->Log->is_secure($password),,
+	}});
+
+	if (not $password)
+	{
+		$password = $anvil->Get->uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			password => $anvil->Log->is_secure($password),,
+		}});
+	}
+	
+	my $ipmi_password =  $password;
+	   $ipmi_password =~ s/ //g;
+	   $ipmi_password =~ s/'//g;
+	   $ipmi_password =~ s/"//g;
+	   $ipmi_password =~ s/!//g;
+	   $ipmi_password =~ s/#//g;
+	   $ipmi_password =~ s/\$//g;
+	   $ipmi_password =~ s/&//g;
+	   $ipmi_password =~ s/\*//g;
+	   $ipmi_password =~ s/://g;
+	   $ipmi_password =~ s/;//g;
+	   $ipmi_password =~ s/,//g;
+	   $ipmi_password =~ s/`//g;
+	   $ipmi_password =~ s/\|//g;
+	   $ipmi_password =~ s/\^//g;
+	   $ipmi_password =~ s/\?//g;
+	   $ipmi_password =~ s/\\//g;
+	   $ipmi_password =~ s/\(//g;
+	   $ipmi_password =~ s/\)//g;
+	   $ipmi_password =~ s/{//g;
+	   $ipmi_password =~ s/}//g;
+	   $ipmi_password =~ s/<//g;
+	   $ipmi_password =~ s/>//g;
+	   $ipmi_password =~ s/\[//g;
+	   $ipmi_password =~ s/\]//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password),
+	}});
+	
+	# If the length of the password is too short, pad / create it.
+	if (length($ipmi_password) < 7)
+	{
+		$ipmi_password .= "-".$anvil->Get->uuid({debug => $debug, short => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			ipmi_password => $anvil->Log->is_secure($ipmi_password),
+		}});
+	}
+	
+	$ipmi_password = substr($ipmi_password, 0, 16);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ipmi_password => $anvil->Log->is_secure($ipmi_password),
+	}});
+	
+	return($ipmi_password);
+}
 
 =head2 round
 

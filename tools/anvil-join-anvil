@@ -650,18 +650,18 @@ sub configure_pacemaker
 					# joining the cluster ourselves.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0108"});
 					$start_time = time + 120;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { start_time => $start_time }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 				}
 				elsif ((time > $start_time) && (not $tried_starting))
 				{
 					# We've waited a minute, time to try starting the cluster.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0106"});
 					my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { cluster_started => $cluster_started }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
 					
 					# Mark that weve tried to start.
 					$tried_starting = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { tried_starting => $tried_starting }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tried_starting => $tried_starting }});
 				}
 				
 				my $problem = $anvil->Cluster->parse_cib({debug => 2});
@@ -678,7 +678,7 @@ sub configure_pacemaker
 					if (($node1_ready) && ($node2_ready))
 					{
 						$both_online = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { both_online => $both_online }});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
 						
 						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
@@ -779,7 +779,7 @@ sub configure_pacemaker
 		}
 		
 		# If we can parse the CIB, then pcsd is running. 
-		my $problem = $anvil->Cluster->parse_cib({debug => 3});
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($problem)
 		{
@@ -787,7 +787,7 @@ sub configure_pacemaker
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0102");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0102"});
 			
-			my $cluster_started = $anvil->Cluster->start_cluster({debug => 3, all => 1});
+			my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
 		}
 		
@@ -929,7 +929,7 @@ sub configure_pacemaker
 				# The --action switch needs to be 'pcmk_off_action' in pcs, so we convert it here.
 				$host_ipmi =~ s/--action status//;
 				$host_ipmi =~ s/--action/--pcmk_off_action/;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					host_ipmi => $host_ipmi =~ /passw/ ? $anvil->Log->is_secure($host_ipmi) : $host_ipmi,
 				}});
 				
@@ -937,12 +937,12 @@ sub configure_pacemaker
 				if ($node eq "node1")
 				{
 					$node1_use_delay = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { node1_use_delay => $node1_use_delay }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node1_use_delay => $node1_use_delay }});
 				}
 				else
 				{
 					$node2_use_delay = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { node2_use_delay => $node2_use_delay }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { node2_use_delay => $node2_use_delay }});
 				}
 				
 				# If we're here, break up the command and turn it into the pcs call.
@@ -980,12 +980,12 @@ sub configure_pacemaker
 					
 					# Store this to see if it's different from what's already in the CIB.
 					$old_switches->{$argument} = $value;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"old_switches->{$argument}" => $old_switches->{$argument},
 					}});
 				}
 				$pcs_add_command .= "op monitor interval=\"60\"";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
 				}});
 				
@@ -998,7 +998,7 @@ sub configure_pacemaker
 						next if $argument eq "action";
 						my $old_entry = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}{$argument}{value};
 						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							's1:argument'  => $argument, 
 							's2:old_entry' => $old_entry,
 							's3:new_entry' => $new_entry,
@@ -1009,7 +1009,7 @@ sub configure_pacemaker
 							# Changed, delete and recreate.
 							$delete_old   = 1;
 							$create_entry = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 								delete_old   => $delete_old,
 								create_entry => $create_entry,
 							}});
@@ -1025,7 +1025,7 @@ sub configure_pacemaker
 					
 					# Are there any old switches left?
 					my $old_switch_count = keys %{$old_switches};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						delete_old       => $delete_old, 
 						old_switch_count => $old_switch_count,
 					}});
@@ -1034,7 +1034,7 @@ sub configure_pacemaker
 						# Delete and recreate. 
 						$delete_old   = 1;
 						$create_entry = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							delete_old   => $delete_old,
 							create_entry => $create_entry,
 						}});
@@ -1050,7 +1050,7 @@ sub configure_pacemaker
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0116"});
 			
 					$create_entry = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { create_entry => $create_entry }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_entry => $create_entry }});
 				}
 			}
 			elsif (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
@@ -1058,14 +1058,14 @@ sub configure_pacemaker
 				# There was an existing fence config, but there's no entry in 'host_ipmi'. 
 				# Remove the stonith entry.
 				$delete_old = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { delete_old => $delete_old }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { delete_old => $delete_old }});
 				
 				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0118");
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0118"});
 			}
 			
 			# Process the IPMI entry.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				delete_old   => $delete_old,
 				create_entry => $create_entry, 
 			}});
@@ -1076,10 +1076,10 @@ sub configure_pacemaker
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0119", variables => { device => $ipmi_stonith_name }});
 				
 				my $shell_call = $anvil->data->{path}{exe}{pcs}." stonith delete ".$ipmi_stonith_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
 				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
 					return_code => $return_code, 
 				}});
@@ -1097,7 +1097,7 @@ sub configure_pacemaker
 				}
 				
 				$something_changed->{$node_name} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			}
 			if ($create_entry)
 			{
@@ -1106,10 +1106,10 @@ sub configure_pacemaker
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $ipmi_stonith_name }});
 				
 				my $shell_call = $pcs_add_command;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
 				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
 					return_code => $return_code, 
 				}});
@@ -1127,7 +1127,7 @@ sub configure_pacemaker
 				}
 				
 				$something_changed->{$node_name} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "something_changed->{$node_name}" => $something_changed->{$node_name} }});
 			}
 			
 			
@@ -1403,7 +1403,7 @@ sub configure_pacemaker
 			{
 				# Update our view of the cluster.
 				my $problem = $anvil->Cluster->parse_cib({debug => 2});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				
 				# Delete any existing fence levels
 				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name})
