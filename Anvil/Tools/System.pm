@@ -2598,38 +2598,88 @@ LIMIT 1
 	}
 	else
 	{
-		# Try it again from the dashboard, we may just not be able to talk to our own BMC (can happen
-		# on shared interfaces)
-		$host_ipmi = $anvil->System->test_ipmi({
-			debug         => $debug,
-			ipmi_user     => $user_name,
-			ipmi_password => $ipmi_password,
-			ipmi_target   => $ipmi_ip_address, 
-			lanplus       => $lanplus,
-			target        => $striker_host, 
-			password      => $striker_password, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
-		if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+		# Set the password and try again.
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, secure => 1, shell_call => $anvil->data->{path}{exe}{ipmitool}." user set password ".$user_number." ".$ipmi_password});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if (not $return_code)
 		{
-			# We're good! 
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0512"});
-		
-			# Update the database, in case needed.
-			my $host_uuid = $anvil->Get->host_uuid();
-			$anvil->Database->insert_or_update_hosts({
-				debug       => $debug, 
-				host_ipmi   => $host_ipmi, 
-				host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
-				host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
-				host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
-				host_uuid   => $host_uuid, 
-				host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+			# Looks like the password took.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0513"});
+			
+			# Test again
+			$host_ipmi = $anvil->System->test_ipmi({
+				debug         => $debug,
+				ipmi_user     => $user_name,
+				ipmi_password => $ipmi_password,
+				ipmi_target   => $ipmi_ip_address, 
+				lanplus       => $lanplus,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+			if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+			{
+				# We're good! 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0511"});
+				
+				# Update the database, in case needed.
+				my $host_uuid = $anvil->Get->host_uuid();
+				$anvil->Database->insert_or_update_hosts({
+					debug       => $debug, 
+					host_ipmi   => $host_ipmi, 
+					host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+					host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+					host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+					host_uuid   => $host_uuid, 
+					host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+				});
+			}
+			
+			# Try it again from the dashboard, we may just not be able to talk to our own BMC (can happen
+			# on shared interfaces)
+			$host_ipmi = $anvil->System->test_ipmi({
+				debug         => $debug,
+				ipmi_user     => $user_name,
+				ipmi_password => $ipmi_password,
+				ipmi_target   => $ipmi_ip_address, 
+				lanplus       => $lanplus,
+				target        => $striker_host, 
+				password      => $striker_password, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { host_ipmi => $host_ipmi}});
+			if (($host_ipmi) && ($host_ipmi ne "!!error!!"))
+			{
+				# We're good! 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0512"});
+			
+				# Update the database, in case needed.
+				my $host_uuid = $anvil->Get->host_uuid();
+				$anvil->Database->insert_or_update_hosts({
+					debug       => $debug, 
+					host_ipmi   => $host_ipmi, 
+					host_key    => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key}, 
+					host_name   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name}, 
+					host_type   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}, 
+					host_uuid   => $host_uuid, 
+					host_status => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status}, 
+				});
+			}
+			else
+			{
+				# Nothing more to do.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0137", variables => {
+					user_name   => $user_name, 
+					user_number => $user_number, 
+					output      => $output,
+					return_code => $return_code,
+				}});
+				return('!!error!!');
+			}
 		}
 		else
 		{
-			# Nothing more to do.
+			# Failed to set thec password
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0137", variables => {
 				user_name   => $user_name, 
 				user_number => $user_number, 
