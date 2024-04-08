@@ -989,7 +989,7 @@ sub configure_pacemaker
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
 				}});
 				
-				# If there's an entry in the CIB, so if it's different somehow
+				# If there's an entry in the CIB, see if it's different somehow
 				if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
 				{
 					foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}})
@@ -1115,15 +1115,25 @@ sub configure_pacemaker
 				}});
 				if ($return_code)
 				{
-					# Something went wrong.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
-						shell_call  => $shell_call, 
-						output      => $output, 
-						return_code => $return_code, 
-					}});
-					update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
-					sleep 2;
-					$anvil->nice_exit({exit_code => 6});
+					# If this is because the method already exists, ignore the error.
+					if ($output =~ /already exists/i)
+					{
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0174", variables => {
+							method => $ipmi_stonith_name, 
+						}});
+					}
+					else
+					{
+						# Something went wrong.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0138", variables => {
+							shell_call  => $shell_call, 
+							output      => $output, 
+							return_code => $return_code, 
+						}});
+						update_progress($anvil, 0, "error_0138,!!shell_call!".$shell_call."!!,!!output!".$output."!!,!!return_code!".$return_code."!!");
+						sleep 2;
+						$anvil->nice_exit({exit_code => 6});
+					}
 				}
 				
 				$something_changed->{$node_name} = 1;

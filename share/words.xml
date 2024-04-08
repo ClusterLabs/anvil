@@ -203,8 +203,8 @@ The error was:
 		<key name="error_0134">Failed to start the daemon: [#!variable!daemon!#] on the local system, unable to boot the server.</key>
 		<key name="error_0135">Failed to start the daemon: [#!variable!daemon!#] on [#!variable!host!#], unable to boot the server.</key>
 		<key name="error_0136">System->test_ipmi() was called with an invalid 'lanplus' parameter. It must be 'yes', 'no', 'yes-no' or 'no-yes'. Received: [#!variable!lanplus!#].</key>
-		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return code!#]).</key>
-		<key name="error_0138">The system call: [#!variable!shell_call!#] failed with the return code: [#!variable!return code!#]. The output (if any) was;
+		<key name="error_0137">All attempts to change the IPMI user: [#!variable!user_name!#] (number: [#!variable!user_number!#] failed. The last try's output (if any) was: [#!variable!output!#] (return code: [#!variable!return_code!#]).</key>
+		<key name="error_0138">The system call: [#!variable!shell_call!#] failed with the return code: [#!variable!return_code!#]. The output (if any) was;
 ====
 #!variable!output!#
 ====</key>
@@ -4191,6 +4191,7 @@ We will try to proceed anyway.</key>
 		<key name="warning_0171">[ Warning ] - The daemon: [#!variable!daemon!#] appears to have failed! Attempting to restart it now.</key>
 		<key name="warning_0172">[ Warning ] - The line: [#!variable!line!#] that was going to be added to the hosts file is invalid, removing it.</key>
 		<key name="warning_0173">[ Warning ] - Failed to convert: [#!variable!source_file!#] to: [#!variable!new_file!#] (format: [#!variable!format!#]! Return code was: [#!variable!return_code!#], expected '0'.</key>
+		<key name="warning_0174">[ Warning ] - The fence method: [#!variable!method!#] already existed, proceeding.</key>
 		
 	</language>
 	<!-- 日本語 -->
