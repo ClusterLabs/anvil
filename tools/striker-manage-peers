@@ -544,7 +544,7 @@ sub process_entry
 			# Flag a resync, connect, and configure, if needed.
 			$anvil->data->{sys}{database}{resync_needed} = 1;
 			$anvil->Database->connect({
-				debug               => 3,
+				debug               => 2,
 				check_for_resync    => 1,
 				check_if_configured => $host_uuid eq $anvil->Get->host_uuid ? 1 : 0,
 			});
