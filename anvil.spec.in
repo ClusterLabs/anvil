@@ -7,6 +7,11 @@
 %define anvilgroup    admin
 %define suiapi        striker-ui-api
 
+# selinux variables
+%define selinuxtype             targeted
+%define selinuxsubnodemodule    anvil-subnode
+%define selinuxdir              %{_datadir}/selinux/packages/%{selinuxtype}
+
 Name:           anvil
 Version:        @version@
 Release:        1%{?numcomm:.%{numcomm}}%{?alphatag:.%{alphatag}}%{?dirty:.%{dirty}}%{?dist}
@@ -24,6 +29,8 @@ BuildRequires:  systemd autoconf automake make
 BuildRequires:  fence-agents-common
 # OCFROOT
 BuildRequires:  resource-agents
+# required to build SELinux policy
+BuildRequires:  selinux-policy-devel
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 
@@ -104,6 +111,7 @@ Requires:       postgresql-contrib
 Requires:       postgresql-plperl 
 Requires:       rsync 
 Requires:       screen
+Requires:       selinux-policy >= %{_selinux_policy_version}
 Requires:       smartmontools
 Requires:       strace
 Requires:       syslinux
@@ -231,6 +239,8 @@ rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
 
 %pre core
+%selinux_relabel_pre -s %{selinuxtype}
+
 if [ ! -d /usr/share/anvil ];
 then
     mkdir /usr/share/anvil
@@ -240,11 +250,15 @@ getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
 
 %post core
-# TODO: Remove this!! This is only for use during development, all SELinux 
-#       issues must be resolved before final release!
-echo "WARNING: Setting SELinux to 'permissive' during development."
-sed -i.anvil 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config 
+# Always try to install in-case of update
+%selinux_modules_install -s %{selinuxtype} -p 200 %{selinuxdir}/%{selinuxsubnodemodule}.pp
+
+%if 0%{?rhel} < 9
+echo "WARNING: setting SELinux to 'permissive' on rhel < 9."
+sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 setenforce 0
+%endif
+
 # Enable and start the anvil-daemon
 ### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
 systemctl enable --now chronyd.service
@@ -351,9 +365,11 @@ touch /etc/anvil/type.dr
 ##                                       when re-enabling)
 #getent passwd %%{anviluser} >/dev/null && userdel %%{anviluser}
 #getent group %%{anvilgroup} >/dev/null && groupdel %%{anvilgroup}
-# echo "NOTE: Re-enabling SELinux."
-# sed -i.anvil 's/SELINUX=permissive/SELINUX=enforcing/' /etc/selinux/config 
-# setenforce 1
+
+# Only uninstall the policy when the package is actually being removed
+if [ $1 == 0 ]; then
+	%selinux_modules_uninstall -s %{selinuxtype} -p 200 %{selinuxsubnodemodule}
+fi
 
 %preun striker
 if [ $1 == 0 ]; then # 0=Uninstall, 1=First install, >1=Upgrade (version count)
@@ -399,6 +415,11 @@ then
 fi
 
 
+%posttrans core
+# Relabel in posttrans makes sure files are in-place
+%selinux_relabel_post -s %{selinuxtype}
+
+
 %files core
 %doc README.md
 %config(noreplace) %{_sysconfdir}/anvil/anvil.conf
@@ -410,6 +431,10 @@ fi
 %{_sysconfdir}/anvil/anvil.version
 %{_datadir}/perl5/*
 %{_mandir}/*
+
+# selinux
+%attr(0644, root, root) %{selinuxdir}/%{selinuxsubnodemodule}.pp
+%ghost %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{selinuxsubnodemodule}
 
 %files striker
 %{_localstatedir}/www/*/*
