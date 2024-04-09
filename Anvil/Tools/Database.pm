@@ -14043,7 +14043,7 @@ sub insert_or_update_states
 	}
 	foreach my $db_uuid (@{$db_uuids})
 	{
-		my $count = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		my $count = $anvil->Database->query({debug => $debug, uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			's2:db_uuid' => $db_uuid, 
 			's2:count'   => $count,
