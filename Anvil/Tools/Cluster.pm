@@ -353,6 +353,10 @@ sub add_server
 		return_code => $return_code, 
 	}});
 	
+	# Log the contents of the PCS file
+	my $pcs_body = $anvil->Storage->read_file({debug => $debug, file => $pcs_file});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pcs_body => $pcs_body }});
+	
 	# Commit 
 	my $commit_command = $anvil->data->{path}{exe}{pcs}." cluster cib-push ".$pcs_file;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { commit_command => $commit_command }});
@@ -1090,7 +1094,6 @@ sub check_stonith_config
 			$check_ipmi_config = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_ipmi_config => $check_ipmi_config }});
 		}
-		
 	}
 	if ($check_ipmi_config)
 	{
@@ -4225,6 +4228,10 @@ sub parse_crm_mon
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 									stonith_name => $stonith_name,
 									resource_key => $resource_key,
+								}});
+								$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{variables}{resource_agent} = $stonith_name;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									"crm_mon::parsed::pacemaker-result::resources::${resource_key}::${id}::variables::resource_agent" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{variables}{resource_agent}, 
 								}});
 							}
 						}
