@@ -4192,7 +4192,80 @@ sub parse_crm_mon
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 			foreach my $resource ($dom->findnodes('/pacemaker-result/resources/resource'))
 			{
-				if ($resource->{resource_agent} eq "ocf::alteeve:server")
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource => $resource }});
+				if ($resource =~ /<resource /)
+				{
+					# If this is pure XML, parse it manually. This shouldn't happen, but it seems to.
+					my $id             = "";
+					my $resource_agent = "";
+					my $resource_key   = "";
+					my $stonith_name   = "";
+					foreach my $line (split/\n/, $resource)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+						if (($line !~ /<node /) && ($line =~ /id="(.*?)"/))
+						{
+							$id = $1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
+						}
+						if ($line =~ /resource_agent="(.*?)"/)
+						{
+							$resource_agent = $1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_agent => $resource_agent }});
+							
+							if ($resource_agent eq "ocf:alteeve:server")
+							{
+								$resource_key = "resource";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_key => $resource_key }});
+							}
+							elsif ($resource_agent =~ /stonith:(.*)$/)
+							{
+								$stonith_name = $1;
+								$resource_key = "stonith";
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									stonith_name => $stonith_name,
+									resource_key => $resource_key,
+								}});
+							}
+						}
+						if (($id) && ($resource_agent))
+						{
+							if ($line =~ /<node /)
+							{
+								$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{host}{node_name} = ($line =~ /name="(.*?)"/)[0];
+								$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{host}{node_id}   = ($line =~ /id="(.*?)"/)[0];
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									"crm_mon::parsed::pacemaker-result::resources::${resource_key}::${id}::host::node_name" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{host}{node_name}, 
+									"crm_mon::parsed::pacemaker-result::resources::${resource_key}::${id}::host::node_id"   => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{host}{node_id}, 
+								}});
+							}
+							else
+							{
+								foreach my $pair (split/ /, $line)
+								{
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pair => $pair }});
+									if ($pair =~ /^(.*?)="(.*)"$/)
+									{
+										my $variable = $1;
+										my $value    = $2;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+											's1:variable' => $variable,
+											's2:value'    => $value,
+										}});
+										next if $variable eq "id";
+										next if $variable eq "resource_agent";
+										
+										$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{variables}{$variable} = $value;
+										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+											"crm_mon::parsed::pacemaker-result::resources::${resource_key}::${id}::variables::${variable}" => $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{$resource_key}{$id}{variables}{$variable}, 
+										}});
+									}
+								}
+							}
+						}
+					}
+				}
+				elsif ($resource->{resource_agent} eq "ocf::alteeve:server")
 				{
 					my $id = $resource->{id};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { id => $id }});
@@ -4208,7 +4281,6 @@ sub parse_crm_mon
 					{
 						my $node_id   = $node->{id};
 						my $node_name = $node->{name};
-						my $cached    = $node->{cached};
 						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_name} = $node->{name};
 						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{resource}{$id}{host}{node_id}   = $node->{id};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -4217,7 +4289,7 @@ sub parse_crm_mon
 						}});
 					}
 				}
-				if ($resource->{resource_agent} =~ /stonith:(.*)$/)
+				elsif ($resource->{resource_agent} =~ /stonith:(.*)$/)
 				{
 					my $fence_agent = $1;
 					my $id          = $resource->{id};
@@ -4237,7 +4309,6 @@ sub parse_crm_mon
 					{
 						my $node_id   = $node->{id};
 						my $node_name = $node->{name};
-						my $cached    = $node->{cached};
 						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_name} = $node->{name};
 						$anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$id}{host}{node_id}   = $node->{id};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
