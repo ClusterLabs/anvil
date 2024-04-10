@@ -14,7 +14,7 @@ import { getLocalHostUUID, job, variable } from '../../accessModule';
 import { buildJobData } from '../../buildJobData';
 import { buildNetworkConfig } from '../../fconfig';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 import { cvar } from '../../varn';
 
 export const configStriker: RequestHandler<
@@ -24,7 +24,7 @@ export const configStriker: RequestHandler<
 > = async (request, response) => {
   const { body = {} } = request;
 
-  stdoutVar(body, 'Begin initialize Striker; body=');
+  poutvar(body, 'Begin initialize Striker; body=');
 
   const {
     adminPassword: rAdminPassword,
@@ -95,7 +95,7 @@ export const configStriker: RequestHandler<
       `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${organizationPrefix}]`,
     );
   } catch (assertError) {
-    stderr(
+    perr(
       `Failed to assert value when trying to initialize striker; CAUSE: ${assertError}.`,
     );
 
@@ -116,7 +116,7 @@ export const configStriker: RequestHandler<
     ...buildNetworkConfig(networks),
   };
 
-  stdoutVar(configData, `Config data before initiating striker config: `);
+  poutvar(configData, `Config data before initiating striker config: `);
 
   const configEntries = Object.entries(configData);
 
@@ -155,7 +155,7 @@ export const configStriker: RequestHandler<
       job_description: 'job_0071',
     });
   } catch (subError) {
-    stderr(`Failed to queue striker initialization; CAUSE: ${subError}`);
+    perr(`Failed to queue striker initialization; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

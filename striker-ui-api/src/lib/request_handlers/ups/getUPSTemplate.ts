@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { getUpsSpec } from '../../accessModule';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getUPSTemplate: RequestHandler = async (request, response) => {
   let rawUPSData: AnvilDataUPSHash;
@@ -9,7 +9,7 @@ export const getUPSTemplate: RequestHandler = async (request, response) => {
   try {
     rawUPSData = await getUpsSpec();
   } catch (subError) {
-    stderr(`Failed to get ups template; CAUSE: ${subError}`);
+    perr(`Failed to get ups template; CAUSE: ${subError}`);
 
     response.status(500).send();
 

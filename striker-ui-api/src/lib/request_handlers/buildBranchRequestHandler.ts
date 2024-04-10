@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { sanitize } from '../sanitize';
-import { stderr, stdout } from '../shell';
+import { perr, pout } from '../shell';
 
 export const buildBranchRequestHandler: (map: {
   [handler: string]: RequestHandler | undefined;
@@ -17,7 +17,7 @@ export const buildBranchRequestHandler: (map: {
 
     const handlerKey = sanitize(rawHandler, 'string');
 
-    stdout(`Create host handler: ${handlerKey}`);
+    pout(`Create host handler: ${handlerKey}`);
 
     // Ensure each handler sends a response at the end of any branch.
     const handler = map[handlerKey];
@@ -25,7 +25,7 @@ export const buildBranchRequestHandler: (map: {
     if (handler) {
       handler(...args);
     } else {
-      stderr(`Handler is not registered; got [${handlerKey}]`);
+      perr(`Handler is not registered; got [${handlerKey}]`);
 
       response.status(400).send();
 

@@ -18,3 +18,6 @@ export const REP_IPV4_CSV = new RegExp(`^(?:${P_IPV4}\\s*,\\s*)*${P_IPV4}$`);
 export const REP_PEACEFUL_STRING = /^[^'"/\\><}{]*$/;
 
 export const REP_UUID = new RegExp(`^${P_UUID}$`, 'i');
+
+// Try to only match password, not password script
+export const REP_LABEL_PASSW = /(?=.*passw)(?!.*script).*/i;

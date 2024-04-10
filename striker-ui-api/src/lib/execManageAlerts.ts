@@ -3,7 +3,7 @@ import { SpawnSyncReturns, spawnSync } from 'child_process';
 
 import { P_UUID, SERVER_PATHS } from './consts';
 
-import { stdoutVar } from './shell';
+import { poutvar } from './shell';
 
 const MAP_TO_FLAG_BUNDLE: {
   'alert-overrides': Record<keyof AlertOverrideRequestBody | 'uuid', string>;
@@ -67,7 +67,7 @@ export const execManageAlerts = (
     [`--${entities}`, `--${operation}`, '--yes'],
   );
 
-  stdoutVar({ commandArgs }, 'Manage alerts with args: ');
+  poutvar({ commandArgs }, 'Manage alerts with args: ');
 
   let result: SpawnSyncReturns<string>;
 
@@ -80,7 +80,7 @@ export const execManageAlerts = (
 
     const { error, signal, status, stderr, stdout } = result;
 
-    stdoutVar(
+    poutvar(
       { error, signal, status, stderr, stdout },
       'Manage alerts returned: ',
     );

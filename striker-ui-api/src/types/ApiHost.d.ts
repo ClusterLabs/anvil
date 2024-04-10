@@ -40,12 +40,24 @@ type HostConnectionOverview = {
   };
 };
 
+type HostIpmi = {
+  command: string;
+  ip: string;
+  password: string;
+  username: string;
+};
+
 type HostOverview = {
   hostName: string;
+  hostStatus: string;
   hostType: string;
   hostUUID: string;
   shortHostName: string;
 };
+
+type HostDetail = HostOverview & {
+  ipmi: HostIpmi;
+} & Tree<string>;
 
 type InitializeStrikerNetworkForm = {
   createBridge?: StringBoolean;

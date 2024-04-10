@@ -12,7 +12,7 @@ import {
   sub,
 } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const runManifest: RequestHandler<
   { manifestUuid: string },
@@ -35,7 +35,7 @@ export const runManifest: RequestHandler<
   const hostList: ManifestExecutionHostList = {};
 
   const handleAssertError = (assertError: unknown) => {
-    stderr(
+    perr(
       `Failed to assert value when trying to run manifest ${manifestUuid}; CAUSE: ${assertError}`,
     );
 
@@ -93,9 +93,7 @@ export const runManifest: RequestHandler<
     rawManifestListData = await getManifestData(manifestUuid);
     rawSysData = await getData('sys');
   } catch (subError) {
-    stderr(
-      `Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`,
-    );
+    perr(`Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }
@@ -169,7 +167,7 @@ export const runManifest: RequestHandler<
       await job(jobParams);
     }
   } catch (subError) {
-    stderr(`Failed to record new anvil node entry; CAUSE: ${subError}`);
+    perr(`Failed to record new anvil node entry; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

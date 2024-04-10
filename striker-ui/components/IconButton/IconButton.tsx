@@ -2,6 +2,7 @@ import {
   Delete as MUIDeleteIcon,
   Add as MUIAddIcon,
   Close as MUICloseIcon,
+  ContentCopy as MUIContentCopy,
   Done as MUIDoneIcon,
   Edit as MUIEditIcon,
   PlayCircle as MUIPlayCircleIcon,
@@ -62,6 +63,10 @@ const MAP_TO_CLOSE_ICON: IconButtonMapToStateIconBundle = {
   none: { iconType: MUICloseIcon },
 };
 
+const MAP_TO_COPY_ICON: IconButtonMapToStateIconBundle = {
+  none: { iconType: MUIContentCopy },
+};
+
 const MAP_TO_DELETE_ICON: IconButtonMapToStateIconBundle = {
   none: { iconType: MUIDeleteIcon },
 };
@@ -86,6 +91,7 @@ const MAP_TO_MAP_PRESET: Record<
 > = {
   add: MAP_TO_ADD_ICON,
   close: MAP_TO_CLOSE_ICON,
+  copy: MAP_TO_COPY_ICON,
   delete: MAP_TO_DELETE_ICON,
   edit: MAP_TO_EDIT_ICON,
   play: MAP_TO_PLAY_ICON,
@@ -132,7 +138,7 @@ const IconButton: FC<IconButtonProps> = ({
     }
 
     return result;
-  }, [mapToIcon, state, defaultIcon, iconProps, children]);
+  }, [children, defaultIcon, iconProps, mapToIcon, state]);
   const iconButtonElementType = useMemo(
     () => MAP_TO_VARIANT[variant],
     [variant],

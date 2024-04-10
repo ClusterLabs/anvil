@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { stdoutVar } from '../lib/shell';
+import { poutvar } from '../lib/shell';
 
 const router = express.Router();
 
@@ -11,7 +11,7 @@ router
   .post('/', (request, response) => {
     const { body = {} } = request;
 
-    stdoutVar(body, 'echo:post\n');
+    poutvar(body, 'echo:post\n');
 
     const { message = 'No message.' } = body;
 

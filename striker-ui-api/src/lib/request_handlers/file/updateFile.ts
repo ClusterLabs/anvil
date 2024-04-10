@@ -2,12 +2,12 @@ import assert from 'assert';
 import { RequestHandler } from 'express';
 
 import { anvilSyncShared, query, timestamp, write } from '../../accessModule';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const updateFile: RequestHandler = async (request, response) => {
   const { body = {}, params } = request;
 
-  stdoutVar(body, 'Begin edit single file. body=');
+  poutvar(body, 'Begin edit single file. body=');
 
   const { fileUUID } = params;
   const { fileName, fileLocations, fileType } = body;
@@ -20,7 +20,7 @@ export const updateFile: RequestHandler = async (request, response) => {
       `SELECT file_name FROM files WHERE file_uuid = '${fileUUID}';`,
     );
 
-    stdoutVar({ oldFileName, fileName });
+    poutvar({ oldFileName, fileName });
 
     if (fileName !== oldFileName) {
       sqlscript += `
@@ -116,13 +116,13 @@ export const updateFile: RequestHandler = async (request, response) => {
 
     assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (queryError) {
-    stderr(`Failed to execute query; CAUSE: ${queryError}`);
+    perr(`Failed to execute query; CAUSE: ${queryError}`);
 
     return response.status(500).send();
   }
 
   anvilSyncSharedFunctions.forEach(async (fn, index) =>
-    stdoutVar(await fn(), `Anvil sync shared [${index}] output: `),
+    poutvar(await fn(), `Anvil sync shared [${index}] output: `),
   );
 
   response.status(200).send();

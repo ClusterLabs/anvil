@@ -4,7 +4,7 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
 import { toHostUUID } from '../../convertHostUUID';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const deleteHostConnection: RequestHandler<
   unknown,
@@ -38,7 +38,7 @@ export const deleteHostConnection: RequestHandler<
           job_title: 'job_0013',
         });
       } catch (subError) {
-        stderr(`Failed to delete peer ${peerHostUuid}; CAUSE: ${subError}`);
+        perr(`Failed to delete peer ${peerHostUuid}; CAUSE: ${subError}`);
 
         return response.status(500).send();
       }

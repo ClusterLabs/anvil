@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { sub } from '../../accessModule';
-import { stderr, stdout } from '../../shell';
+import { perr, pout } from '../../shell';
 
 export const deleteManifest: RequestHandler<
   { manifestUuid: string },
@@ -18,14 +18,14 @@ export const deleteManifest: RequestHandler<
     : [rawManifestUuid];
 
   for (const uuid of manifestUuidList) {
-    stdout(`Begin delete manifest ${uuid}.`);
+    pout(`Begin delete manifest ${uuid}.`);
 
     try {
       await sub('insert_or_update_manifests', {
         params: [{ delete: 1, manifest_uuid: uuid }],
       });
     } catch (subError) {
-      stderr(`Failed to delete manifest ${uuid}; CAUSE: ${subError}`);
+      perr(`Failed to delete manifest ${uuid}; CAUSE: ${subError}`);
 
       return response.status(500).send();
     }

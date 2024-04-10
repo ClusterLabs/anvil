@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
 import { getMailServerRequestBody } from './getMailServerRequestBody';
-import { stderr, stdout } from '../../shell';
+import { perr, pout } from '../../shell';
 
 export const updateMailServer: RequestHandler<
   MailServerParamsDictionary,
@@ -14,14 +14,14 @@ export const updateMailServer: RequestHandler<
     params: { uuid },
   } = request;
 
-  stdout('Begin updating mail server.');
+  pout('Begin updating mail server.');
 
   let body: MailServerRequestBody;
 
   try {
     body = getMailServerRequestBody(rBody, uuid);
   } catch (error) {
-    stderr(`Failed to process mail server input; CAUSE: ${error}`);
+    perr(`Failed to process mail server input; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -29,7 +29,7 @@ export const updateMailServer: RequestHandler<
   try {
     execManageAlerts('mail-servers', 'edit', { body, uuid });
   } catch (error) {
-    stderr(`Failed to update mail server; CAUSE: ${error}`);
+    perr(`Failed to update mail server; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

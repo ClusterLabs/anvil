@@ -36,3 +36,9 @@ type PreapreHostFormProps = {
   host: InquireHostResponse;
   tools: CrudListFormTools;
 };
+
+/** HostListItem */
+
+type HostListItemProps = {
+  data: APIHostOverview;
+};

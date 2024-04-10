@@ -1,6 +1,10 @@
 import { FC, useState } from 'react';
 
 import CrudList from '../CrudList';
+import { DialogScrollBox } from '../Dialog';
+import FormSummary from '../FormSummary';
+import HostListItem from './HostListItem';
+import IconButton from '../IconButton';
 import PrepareHostForm from './PrepareHostForm';
 import TestAccessForm from './TestAccessForm';
 import { BodyText } from '../Text';
@@ -25,7 +29,13 @@ const ManageHost: FC = () => {
         children: <>Successfully deleted host(s)</>,
       })}
       listEmpty="No host(s) found"
-      listProps={{ allowAddItem: true, allowEdit: false }}
+      listProps={{
+        allowAddItem: true,
+        allowEdit: false,
+        // There's no edit mode for host list right now, use the edit dialog to
+        // display the details of a host.
+        allowItemButton: true,
+      }}
       renderAddForm={(tools) => (
         <>
           <TestAccessForm setResponse={setInquireHostResponse} />
@@ -39,8 +49,36 @@ const ManageHost: FC = () => {
 
         return <BodyText>{host?.shortHostName}</BodyText>;
       }}
-      renderEditForm={() => <></>}
-      renderListItem={(uuid, { hostName }) => <BodyText>{hostName}</BodyText>}
+      renderEditForm={(tools, detail) =>
+        detail && (
+          <DialogScrollBox>
+            <FormSummary
+              entries={detail}
+              renderEntryValue={(base, ...args) => {
+                const {
+                  0: { entry, key },
+                } = args;
+
+                if (key === 'command')
+                  return (
+                    <IconButton
+                      iconProps={{ fontSize: 'small' }}
+                      mapPreset="copy"
+                      onClick={() =>
+                        navigator.clipboard.writeText(String(entry))
+                      }
+                      size="small"
+                    />
+                  );
+
+                return base(...args);
+              }}
+              hasPassword
+            />
+          </DialogScrollBox>
+        )
+      }
+      renderListItem={(uuid, host) => <HostListItem data={host} />}
     />
   );
 };

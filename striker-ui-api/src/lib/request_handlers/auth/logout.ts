@@ -1,12 +1,12 @@
 import { RequestHandler } from 'express';
 
 import { cname } from '../../cname';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 export const logout: RequestHandler = (request, response) => {
   request.session.destroy((error) => {
     if (error) {
-      stdout(`Failed to destroy session upon logout; CAUSE: ${error}`);
+      pout(`Failed to destroy session upon logout; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

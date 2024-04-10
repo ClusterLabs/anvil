@@ -7,6 +7,7 @@ type FormEntries = {
 type CommonFormEntryHandlerArgs = {
   depth: number;
   entry: FormEntry;
+  hasPassword: boolean;
   key: string;
 };
 
@@ -36,7 +37,10 @@ type RenderFormEntryFunction = (
   args: CommonFormEntryHandlerArgs & {
     getLabel: GetFormEntryLabelFunction;
     nest: boolean;
-    renderValue: RenderFormValueFunction;
+    renderValue: (
+      base: RenderFormValueFunction,
+      ...rfvargs: Parameters<RenderFormValueFunction>
+    ) => ReturnType<RenderFormValueFunction>;
   },
 ) => import('react').ReactElement;
 
@@ -49,7 +53,10 @@ type FormSummaryOptionalProps = {
   hasPassword?: boolean;
   maxDepth?: number;
   renderEntry?: RenderFormEntryFunction;
-  renderEntryValue?: RenderFormValueFunction;
+  renderEntryValue?: (
+    base: RenderFormValueFunction,
+    ...args: Parameters<RenderFormValueFunction>
+  ) => ReturnType<RenderFormValueFunction>;
   skip?: (
     base: SkipFormEntryFunction,
     ...args: Parameters<SkipFormEntryFunction>

@@ -7,7 +7,7 @@ import {
 } from '../../consts';
 
 import join from '../../join';
-import { stdoutVar } from '../../shell';
+import { poutvar } from '../../shell';
 
 const buildQueryAnvilDetail = ({
   anvilUUIDs = ['*'],
@@ -25,7 +25,7 @@ const buildQueryAnvilDetail = ({
         separator: ', ',
       });
 
-  stdoutVar({ condAnvilsUUID });
+  poutvar({ condAnvilsUUID });
 
   const buildHostQuery = ({
     isSummary = false,

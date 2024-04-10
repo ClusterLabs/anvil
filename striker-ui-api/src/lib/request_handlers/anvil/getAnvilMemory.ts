@@ -4,7 +4,7 @@ import { DataSizeUnit, dSize } from 'format-data-size';
 import { DELETED, NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
 
 import { query } from '../../accessModule';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getAnvilMemory: RequestHandler<
   AnvilDetailParamsDictionary
@@ -50,7 +50,7 @@ export const getAnvilMemory: RequestHandler<
         ORDER BY b.host_name;`,
     );
   } catch (error) {
-    stderr(`Failed to get anvil ${anvilUuid} memory info; CAUSE: ${error}`);
+    perr(`Failed to get anvil ${anvilUuid} memory info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -92,7 +92,7 @@ export const getAnvilMemory: RequestHandler<
           AND b.server_anvil_uuid = '${anvilUuid}';`,
     );
   } catch (error) {
-    stderr(`Failed to get anvil ${anvilUuid} server info; CAUSE: ${error}`);
+    perr(`Failed to get anvil ${anvilUuid} server info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

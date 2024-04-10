@@ -2,7 +2,7 @@ import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
-import { stdout } from '../../shell';
+import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
 const CVAR_PREFIX_PATTERN = `^${CVAR_PREFIX}\\d+::`;
@@ -44,11 +44,13 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 } = {}) => {
   const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'WHERE a.host_uuid');
 
-  stdout(`condHostUUIDs=[${condHostUUIDs}]`);
+  pout(`condHostUUIDs=[${condHostUUIDs}]`);
 
   const query = `
     SELECT
+      a.host_ipmi,
       a.host_name,
+      a.host_status,
       a.host_type,
       a.host_uuid,
       b.variable_name,
@@ -84,32 +86,35 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       if (output.length === 0) return {};
 
       const {
-        0: [hostName, hostType, hostUUID],
+        0: [hostIpmi, hostName, hostStatus, hostType, hostUUID],
       } = output;
       const shortHostName = getShortHostName(hostName);
 
-      return output.reduce<
-        {
-          hostName: string;
-          hostType: string;
-          hostUUID: string;
-          shortHostName: string;
-        } & Tree
-      >(
-        (
-          previous,
-          [
-            ,
-            ,
-            ,
-            variableName,
-            variableValue,
-            ,
-            networkType,
-            networkLink,
-            networkInterfaceUuid,
-          ],
-        ) => {
+      /**
+       * Assumes:
+       * - ip is not quoted
+       * - password is quoted, and it's the last switch in the string
+       * - username has no space, and it's not quoted
+       *
+       * TODO: replace with a package to handle parsing such command strings
+       */
+      const ipmi: HostIpmi = {
+        command: hostIpmi,
+        ip: hostIpmi.replace(/^.*--ip\s+([^\s'"]+).*$/, '$1'),
+        password: hostIpmi.replace(/^.*--password\s+"(.*)"$/, '$1'),
+        username: hostIpmi.replace(/^.*--username\s+(\w+).*$/, '$1'),
+      };
+
+      return output.reduce<HostDetail>(
+        (previous, row) => {
+          const {
+            5: variableName,
+            6: variableValue,
+            8: networkType,
+            9: networkLink,
+            10: networkInterfaceUuid,
+          } = row;
+
           if (!variableName) return previous;
 
           const [variablePrefix, ...restVariableParts] =
@@ -130,7 +135,14 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
 
           return previous;
         },
-        { hostName, hostType, hostUUID, shortHostName },
+        {
+          hostName,
+          hostStatus,
+          hostType,
+          hostUUID,
+          ipmi,
+          shortHostName,
+        },
       );
     });
 

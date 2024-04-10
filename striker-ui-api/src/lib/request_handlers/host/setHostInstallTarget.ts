@@ -4,7 +4,7 @@ import { LOCAL } from '../../consts/LOCAL';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { job } from '../../accessModule';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const setHostInstallTarget: RequestHandler<
   UpdateHostParams,
@@ -13,7 +13,7 @@ export const setHostInstallTarget: RequestHandler<
 > = async (request, response) => {
   const { body, params } = request;
 
-  stdoutVar(body, `Begin set host install target; body=`);
+  poutvar(body, `Begin set host install target; body=`);
 
   const { isEnableInstallTarget } = body;
   const { hostUUID: rHostUuid } = params;
@@ -32,7 +32,7 @@ export const setHostInstallTarget: RequestHandler<
       job_title: 'job_0015',
     });
   } catch (subError) {
-    stderr(`Failed to ${task} install target; CAUSE: ${subError}`);
+    perr(`Failed to ${task} install target; CAUSE: ${subError}`);
 
     return response.status(500).send();
   }

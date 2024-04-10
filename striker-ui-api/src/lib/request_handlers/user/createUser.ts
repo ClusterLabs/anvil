@@ -5,7 +5,7 @@ import { DELETED, REP_PEACEFUL_STRING, REP_UUID } from '../../consts';
 
 import { insertOrUpdateUser, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { openssl, stderr, stdoutVar } from '../../shell';
+import { openssl, perr, poutvar } from '../../shell';
 
 export const createUser: RequestHandler<
   unknown,
@@ -24,7 +24,7 @@ export const createUser: RequestHandler<
   });
   const userName = sanitize(rUserName, 'string', { modifierType: 'sql' });
 
-  stdoutVar({ password, userName }, 'Create user with params: ');
+  poutvar({ password, userName }, 'Create user with params: ');
 
   try {
     assert(
@@ -45,7 +45,7 @@ export const createUser: RequestHandler<
 
     assert(userCount === 0, `User name [${userName}] already used`);
   } catch (error) {
-    stderr(`Failed to assert value when creating user; CAUSE: ${error}`);
+    perr(`Failed to assert value when creating user; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -62,7 +62,7 @@ export const createUser: RequestHandler<
       `Insert or update failed with result [${result}]`,
     );
   } catch (error) {
-    stderr(`Failed to record user to database; CAUSE: ${error}`);
+    perr(`Failed to record user to database; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

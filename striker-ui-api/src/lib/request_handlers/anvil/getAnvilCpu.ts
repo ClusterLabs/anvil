@@ -4,7 +4,7 @@ import { DELETED } from '../../consts';
 
 import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
   request,
@@ -52,7 +52,7 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
         ORDER BY b.host_name;`,
     );
   } catch (error) {
-    stderr(`Failed to get anvil ${anvilUuid} cpu info; CAUSE: ${error}`);
+    perr(`Failed to get anvil ${anvilUuid} cpu info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -78,7 +78,7 @@ export const getAnvilCpu: RequestHandler<AnvilDetailParamsDictionary> = async (
           AND a.server_anvil_uuid = '${anvilUuid}';`,
     );
   } catch (error) {
-    stderr(`Failed to get anvil ${anvilUuid} server cpu info; CAUSE: ${error}`);
+    perr(`Failed to get anvil ${anvilUuid} server cpu info; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

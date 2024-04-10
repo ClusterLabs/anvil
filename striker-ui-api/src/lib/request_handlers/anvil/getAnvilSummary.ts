@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { getAnvilData, getHostData } from '../../accessModule';
 import { buildAnvilSummary } from './buildAnvilSummary';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const getAnvilSummary: RequestHandler<unknown, AnvilSummary> = async (
   request,
@@ -15,7 +15,7 @@ export const getAnvilSummary: RequestHandler<unknown, AnvilSummary> = async (
     anvils = await getAnvilData();
     hosts = await getHostData();
   } catch (error) {
-    stderr(`Failed to get anvil and/or host data; CAUSE: ${error}`);
+    perr(`Failed to get anvil and/or host data; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -30,7 +30,7 @@ export const getAnvilSummary: RequestHandler<unknown, AnvilSummary> = async (
       );
     }
   } catch (error) {
-    stderr(`Failed to get summary of anvil nodes; CAUSE: ${error}`);
+    perr(`Failed to get summary of anvil nodes; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

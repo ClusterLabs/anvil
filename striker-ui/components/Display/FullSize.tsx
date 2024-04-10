@@ -1,6 +1,7 @@
 import {
   Close as CloseIcon,
   Dashboard as DashboardIcon,
+  Fullscreen as FullscreenIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
 import { Box, Menu, styled, Typography } from '@mui/material';
@@ -153,6 +154,21 @@ const FullSize: FC<FullSizeProps> = ({
     [vncConnecting, vncError],
   );
 
+  const fullscreenElement = useMemo(
+    () => (
+      <Box>
+        <IconButton
+          onClick={() => {
+            rfbScreen.current?.requestFullscreen();
+          }}
+        >
+          <FullscreenIcon />
+        </IconButton>
+      </Box>
+    ),
+    [],
+  );
+
   const keyboardMenuElement = useMemo(
     () => (
       <Box>
@@ -215,6 +231,7 @@ const FullSize: FC<FullSizeProps> = ({
     () =>
       showScreen && (
         <>
+          {fullscreenElement}
           {keyboardMenuElement}
           <ServerMenu
             serverName={serverName}
@@ -226,6 +243,7 @@ const FullSize: FC<FullSizeProps> = ({
         </>
       ),
     [
+      fullscreenElement,
       keyboardMenuElement,
       returnHomeElement,
       serverName,

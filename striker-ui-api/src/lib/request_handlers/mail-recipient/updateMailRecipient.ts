@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
 import { getMailRecipientRequestBody } from './getMailRecipientRequestBody';
-import { stderr, stdout } from '../../shell';
+import { perr, pout } from '../../shell';
 
 export const updateMailRecipient: RequestHandler<
   MailRecipientParamsDictionary,
@@ -14,14 +14,14 @@ export const updateMailRecipient: RequestHandler<
     params: { uuid },
   } = request;
 
-  stdout('Begin updating mail recipient.');
+  pout('Begin updating mail recipient.');
 
   let body: MailRecipientRequestBody;
 
   try {
     body = getMailRecipientRequestBody(rBody, uuid);
   } catch (error) {
-    stderr(`Failed to process mail recipient input; CAUSE: ${error}`);
+    perr(`Failed to process mail recipient input; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -29,7 +29,7 @@ export const updateMailRecipient: RequestHandler<
   try {
     execManageAlerts('recipients', 'edit', { body, uuid });
   } catch (error) {
-    stderr(`Failed to update mail recipient; CAUSE: ${error}`);
+    perr(`Failed to update mail recipient; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

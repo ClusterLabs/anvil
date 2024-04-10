@@ -5,12 +5,12 @@ import { DELETED } from '../lib/consts';
 
 import { encrypt, query } from '../lib/accessModule';
 import { sanitize } from '../lib/sanitize';
-import { stdout } from '../lib/shell';
+import { pout } from '../lib/shell';
 
 passport.use(
   'login',
   new LocalStrategy(async (username, password, done) => {
-    stdout(`Attempting passport local strategy "login" for user [${username}]`);
+    pout(`Attempting passport local strategy "login" for user [${username}]`);
 
     let rows: [
       userUuid: string,
@@ -79,7 +79,7 @@ passport.use(
 passport.serializeUser((user, done) => {
   const { name, uuid } = user;
 
-  stdout(`Serialize user [${name}]`);
+  pout(`Serialize user [${name}]`);
 
   return done(null, uuid);
 });
@@ -87,7 +87,7 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (id, done) => {
   const uuid = sanitize(id, 'string', { modifierType: 'sql' });
 
-  stdout(`Deserialize user identified by ${uuid}`);
+  pout(`Deserialize user identified by ${uuid}`);
 
   let rows: [userName: string][];
 

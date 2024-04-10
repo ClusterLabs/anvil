@@ -5,7 +5,7 @@ import { DELETED, LOCAL, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 /**
  * Notes on power functions:
@@ -103,7 +103,7 @@ export const buildPowerHandler: (
         );
       }
     } catch (error) {
-      stderr(`Failed to ${task}; CAUSE: ${error}`);
+      perr(`Failed to ${task}; CAUSE: ${error}`);
 
       return response.status(400).send();
     }
@@ -113,7 +113,7 @@ export const buildPowerHandler: (
 
       await queuePowerJob(task, { force, runOn, uuid });
     } catch (error) {
-      stderr(`Failed to ${task} ${uuid ?? LOCAL}; CAUSE: ${error}`);
+      perr(`Failed to ${task} ${uuid ?? LOCAL}; CAUSE: ${error}`);
 
       return response.status(500).send();
     }
@@ -136,7 +136,7 @@ export const buildAnPowerHandler: (
       `Param UUID must be a valid UUIDv4; got: [${anUuid}]`,
     );
   } catch (error) {
-    stderr(`Failed to assert value during power operation on anvil subnode`);
+    perr(`Failed to assert value during power operation on anvil subnode`);
 
     return response.status(400).send();
   }
@@ -151,7 +151,7 @@ export const buildAnPowerHandler: (
 
     assert.ok(rows.length, 'No entry found');
   } catch (error) {
-    stderr(`Failed to get anvil subnodes' UUID; CAUSE: ${error}`);
+    perr(`Failed to get anvil subnodes' UUID; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -160,7 +160,7 @@ export const buildAnPowerHandler: (
     try {
       await queuePowerJob(task, { isStopServers: true, uuid: hostUuid });
     } catch (error) {
-      stderr(`Failed to ${task} host ${hostUuid}; CAUSE: ${error}`);
+      perr(`Failed to ${task} host ${hostUuid}; CAUSE: ${error}`);
 
       return response.status(500).send();
     }
@@ -179,11 +179,16 @@ export const buildServerPowerHandler: (
       let serverHostUuid: string | undefined;
 
       try {
+        // When the server host uuid is null, fall back to the first subnode of
+        // the node that owns the server.
         const rows = await query<[[null | string]]>(
-          `SELECT server_host_uuid
-            FROM servers
-            WHERE server_uuid = '${uuid}'
-              AND server_state != '${DELETED}';`,
+          `SELECT
+              COALESCE(a.server_host_uuid, b.anvil_node1_host_uuid)
+            FROM servers AS a
+            LEFT JOIN anvils AS b
+              ON a.server_anvil_uuid = b.anvil_uuid
+            WHERE server_state != '${DELETED}'
+              AND server_uuid = '${uuid}';`,
         );
 
         assert.ok(rows.length, `No entry found`);

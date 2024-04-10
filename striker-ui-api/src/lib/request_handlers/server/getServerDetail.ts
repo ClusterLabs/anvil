@@ -7,7 +7,7 @@ import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { getVncinfo } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdout, stdoutVar } from '../../shell';
+import { perr, pout, poutvar } from '../../shell';
 
 type ServerSsMeta = {
   name: string;
@@ -41,7 +41,7 @@ export const getServerDetail: RequestHandler<
   const ss = sanitize(rSs, 'boolean');
   const vnc = sanitize(rVnc, 'boolean');
 
-  stdout(`serverUUID=[${serverUuid}],isScreenshot=[${ss}]`);
+  pout(`serverUUID=[${serverUuid}],isScreenshot=[${ss}]`);
 
   try {
     assert(
@@ -49,7 +49,7 @@ export const getServerDetail: RequestHandler<
       `Server UUID must be a valid UUID; got [${serverUuid}]`,
     );
   } catch (assertError) {
-    stderr(
+    perr(
       `Failed to assert value when trying to get server detail; CAUSE: ${assertError}.`,
     );
 
@@ -67,9 +67,7 @@ export const getServerDetail: RequestHandler<
         encoding: 'utf-8',
       });
     } catch (error) {
-      stderr(
-        `Failed to list server ${serverUuid} screenshots; CAUSE: ${error}`,
-      );
+      perr(`Failed to list server ${serverUuid} screenshots; CAUSE: ${error}`);
 
       return response.status(500).send();
     }
@@ -92,7 +90,7 @@ export const getServerDetail: RequestHandler<
 
     const ssMetaLatest = ssMetas.pop();
 
-    stdoutVar(ssMetaLatest, `Latest server screenshot: `);
+    poutvar(ssMetaLatest, `Latest server screenshot: `);
 
     if (ssMetaLatest) {
       const { name, timestamp } = ssMetaLatest;
@@ -112,7 +110,7 @@ export const getServerDetail: RequestHandler<
     try {
       rsbody = await getVncinfo(serverUuid);
     } catch (error) {
-      stderr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
+      perr(`Failed to get server ${serverUuid} VNC info; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

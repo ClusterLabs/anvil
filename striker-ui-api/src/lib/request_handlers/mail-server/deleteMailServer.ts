@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const deleteMailServer: RequestHandler<MailServerParamsDictionary> = (
   request,
@@ -14,7 +14,7 @@ export const deleteMailServer: RequestHandler<MailServerParamsDictionary> = (
   try {
     execManageAlerts('mail-servers', 'delete', { uuid });
   } catch (error) {
-    stderr(`Failed to delete mail server; CAUSE: ${error}`);
+    perr(`Failed to delete mail server; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

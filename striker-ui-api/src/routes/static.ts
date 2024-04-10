@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { SERVER_PATHS } from '../lib/consts';
 
 import { assertAuthentication, assertInit } from '../middlewares';
-import { stdout } from '../lib/shell';
+import { pout } from '../lib/shell';
 
 const router = express.Router();
 
@@ -36,7 +36,7 @@ router.use((...args) => {
   const fpath = `${htmlDir}${exted}`;
   const htmlExists = existsSync(fpath);
 
-  stdout(`static:[${path}] requested; html=${htmlExists}`);
+  pout(`static:[${path}] requested; html=${htmlExists}`);
 
   // Request for asset, i.e., image, script.
   if (!htmlExists) return next();

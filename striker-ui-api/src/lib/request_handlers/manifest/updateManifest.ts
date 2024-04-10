@@ -2,7 +2,7 @@ import { AssertionError } from 'assert';
 import { RequestHandler } from 'express';
 
 import { buildManifest } from './buildManifest';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const updateManifest: RequestHandler = async (...args) => {
   const [request, response] = args;
@@ -15,9 +15,7 @@ export const updateManifest: RequestHandler = async (...args) => {
   try {
     result = await buildManifest(...args);
   } catch (error) {
-    stderr(
-      `Failed to update install manifest ${manifestUuid}; CAUSE: ${error}`,
-    );
+    perr(`Failed to update install manifest ${manifestUuid}; CAUSE: ${error}`);
 
     let code = 500;
 

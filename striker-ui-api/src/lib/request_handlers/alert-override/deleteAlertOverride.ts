@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 export const deleteAlertOverride: RequestHandler<AlertOverrideReqParams> = (
   request,
@@ -14,7 +14,7 @@ export const deleteAlertOverride: RequestHandler<AlertOverrideReqParams> = (
   try {
     execManageAlerts('alert-overrides', 'delete', { uuid });
   } catch (error) {
-    stderr(`Failed to delete alert override: CAUSE: ${error}`);
+    perr(`Failed to delete alert override: CAUSE: ${error}`);
 
     return response.status(500).send();
   }

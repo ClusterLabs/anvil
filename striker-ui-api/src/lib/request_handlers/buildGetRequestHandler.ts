@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 
 import { query } from '../accessModule';
 import call from '../call';
-import { stderr, stdout, stdoutVar } from '../shell';
+import { perr, pout, poutvar } from '../shell';
 
 const buildGetRequestHandler =
   (
@@ -10,7 +10,7 @@ const buildGetRequestHandler =
     { beforeRespond }: BuildGetRequestHandlerOptions = {},
   ) =>
   async (request: Request, response: Response) => {
-    stdout('Calling CLI script to get data.');
+    pout('Calling CLI script to get data.');
 
     const buildQueryOptions: BuildQueryOptions = {};
 
@@ -24,12 +24,12 @@ const buildGetRequestHandler =
 
       result = await query(sqlscript);
     } catch (queryError) {
-      stderr(`Failed to execute query; CAUSE: ${queryError}`);
+      perr(`Failed to execute query; CAUSE: ${queryError}`);
 
       return response.status(500).send();
     }
 
-    stdoutVar(result, `Query stdout pre-hooks (type=[${typeof result}]): `);
+    poutvar(result, `Query stdout pre-hooks (type=[${typeof result}]): `);
 
     const { afterQueryReturn } = buildQueryOptions;
 
@@ -43,7 +43,7 @@ const buildGetRequestHandler =
       notCallableReturn: result,
     });
 
-    stdoutVar(result, `Query stdout post-hooks (type=[${typeof result}]): `);
+    poutvar(result, `Query stdout post-hooks (type=[${typeof result}]): `);
 
     response.json(result);
   };

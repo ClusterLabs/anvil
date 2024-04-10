@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+import { REP_LABEL_PASSW } from '../../lib/consts/REG_EXP_PATTERNS';
 
 import AddFenceInputGroup, { INPUT_ID_FENCE_AGENT } from './AddFenceInputGroup';
 import api from '../../lib/api';
@@ -345,10 +346,10 @@ const ManageFencePanel: FC = () => {
                 (previous, [parameterId, parameterValue]) => {
                   let current: ReactNode = <>{parameterId}=&quot;</>;
 
-                  current = /passw/i.test(parameterId) ? (
+                  current = REP_LABEL_PASSW.test(parameterId) ? (
                     <>
                       {current}
-                      <SensitiveText inline>{parameterValue}</SensitiveText>
+                      <SensitiveText>{parameterValue}</SensitiveText>
                     </>
                   ) : (
                     <>

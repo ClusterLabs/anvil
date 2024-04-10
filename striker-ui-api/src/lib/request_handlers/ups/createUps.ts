@@ -5,7 +5,7 @@ import { REP_IPV4, REP_PEACEFUL_STRING, REP_UUID } from '../../consts';
 
 import { timestamp, write } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, uuid } from '../../shell';
+import { perr, uuid } from '../../shell';
 
 export const createUps: RequestHandler<
   { uuid?: string },
@@ -43,7 +43,7 @@ export const createUps: RequestHandler<
       `UPS UUID must be a valid UUIDv4; got [${upsUuid}]`,
     );
   } catch (error) {
-    stderr(`Assert value failed when working with UPS; CAUSE: ${error}`);
+    perr(`Assert value failed when working with UPS; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -75,7 +75,7 @@ export const createUps: RequestHandler<
 
     assert(wcode === 0, `Write exited with code ${wcode}`);
   } catch (error) {
-    stderr(`Failed to write UPS record; CAUSE: ${error}`);
+    perr(`Failed to write UPS record; CAUSE: ${error}`);
 
     return response.status(500).send();
   }

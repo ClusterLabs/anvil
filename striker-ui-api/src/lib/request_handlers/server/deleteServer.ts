@@ -5,7 +5,7 @@ import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 export const deleteServer: RequestHandler<
   { serverUuid?: string },
@@ -29,7 +29,7 @@ export const deleteServer: RequestHandler<
     );
   }
 
-  stdoutVar(serverUuids, `Delete servers with: `);
+  poutvar(serverUuids, `Delete servers with: `);
 
   for (const serverUuid of serverUuids) {
     try {
@@ -60,7 +60,7 @@ export const deleteServer: RequestHandler<
         job_title: 'job_0208',
       });
     } catch (error) {
-      stderr(`Failed to initiate delete server ${serverUuid}; CAUSE: ${error}`);
+      perr(`Failed to initiate delete server ${serverUuid}; CAUSE: ${error}`);
 
       return response.status(500).send();
     }

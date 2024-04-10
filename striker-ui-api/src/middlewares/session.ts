@@ -9,7 +9,7 @@ import { COOKIE_ORIGINAL_MAX_AGE, DELETED } from '../lib/consts';
 import { getLocalHostUUID, query, timestamp, write } from '../lib/accessModule';
 import { cname } from '../lib/cname';
 import { getSessionSecret } from '../lib/getSessionSecret';
-import { stderr, stdout, stdoutVar, uuid } from '../lib/shell';
+import { perr, pout, poutvar, uuid } from '../lib/shell';
 
 export class SessionStore extends BaseSessionStore {
   constructor(options = {}) {
@@ -20,7 +20,7 @@ export class SessionStore extends BaseSessionStore {
     sid: string,
     done?: ((err?: unknown) => void) | undefined,
   ): Promise<void> {
-    stdout(`Destroy session ${sid}`);
+    pout(`Destroy session ${sid}`);
 
     try {
       const wcode = await write(
@@ -31,7 +31,7 @@ export class SessionStore extends BaseSessionStore {
 
       assert(wcode === 0, `Write exited with code ${wcode}`);
     } catch (error) {
-      stderr(
+      perr(
         `Failed to complete DB write in destroy session ${sid}; CAUSE: ${error}`,
       );
 
@@ -45,7 +45,7 @@ export class SessionStore extends BaseSessionStore {
     sid: string,
     done: (err: unknown, session?: SessionData | null | undefined) => void,
   ): Promise<void> {
-    stdout(`Get session ${sid}`);
+    pout(`Get session ${sid}`);
 
     let rows: [
       sessionUuid: string,
@@ -96,7 +96,7 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): Promise<void> {
-    stdoutVar({ session }, `Set session ${sid}: `);
+    poutvar({ session }, `Set session ${sid}: `);
 
     const { passport: { user: userUuid } = {} } = session;
 
@@ -129,7 +129,7 @@ export class SessionStore extends BaseSessionStore {
 
       assert(wcode === 0, `Write exited with code ${wcode}`);
     } catch (error) {
-      stderr(
+      perr(
         `Failed to complete DB write in set session ${sid}; CAUSE: ${error}`,
       );
 
@@ -144,7 +144,7 @@ export class SessionStore extends BaseSessionStore {
     session: SessionData,
     done?: ((err?: unknown) => void) | undefined,
   ): Promise<void> {
-    stdoutVar({ session }, `Touch session ${sid}: `);
+    poutvar({ session }, `Touch session ${sid}: `);
 
     // The intent of updating the session modified date is to avoid expiring the
     // session when it's actively used by the user. But since the updates are
@@ -159,7 +159,7 @@ export class SessionStore extends BaseSessionStore {
 
     //   assert(wcode === 0, `Write exited with code ${wcode}`);
     // } catch (error) {
-    //   stderr(
+    //   perr(
     //     `Failed to complete DB write in touch session ${sid}; CAUSE: ${error}`,
     //   );
 
@@ -177,7 +177,7 @@ export class SessionStore extends BaseSessionStore {
     const sessionDeadlineEpoch = sessionModifiedEpoch + cookieOriginalMaxAge;
     const cookieMaxAge = sessionDeadlineEpoch - Date.now();
 
-    stdoutVar({ sessionModifiedDate, sessionDeadlineEpoch, cookieMaxAge });
+    poutvar({ sessionModifiedDate, sessionDeadlineEpoch, cookieMaxAge });
 
     return cookieMaxAge;
   }
@@ -193,7 +193,7 @@ export default (async () =>
     genid: ({ originalUrl }) => {
       const sid = uuid();
 
-      stdout(`Generated session identifier ${sid}; access to ${originalUrl}`);
+      pout(`Generated session identifier ${sid}; access to ${originalUrl}`);
 
       return sid;
     },

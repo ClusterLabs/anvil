@@ -14,7 +14,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
   const { after: typeCondition } = buildUnknownIDCondition(
     hostTypes,
-    'hos.host_type',
+    'a.host_type',
   );
 
   let condition = '';
@@ -25,19 +25,22 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
   let query = `
     SELECT
-      hos.host_name,
-      hos.host_type,
-      hos.host_uuid
-    FROM hosts AS hos
+      a.host_name,
+      a.host_status,
+      a.host_type,
+      a.host_uuid
+    FROM hosts AS a
     ${condition}
-    ORDER BY hos.host_name ASC;`;
+    ORDER BY a.host_name ASC;`;
+
   let afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
-      (previous, [hostName, hostType, hostUUID]) => {
+      (previous, [hostName, hostStatus, hostType, hostUUID]) => {
         const key = toLocal(hostUUID, localHostUUID);
 
         previous[key] = {
           hostName,
+          hostStatus,
           hostType,
           hostUUID,
           shortHostName: getShortHostName(hostName),

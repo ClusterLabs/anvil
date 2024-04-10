@@ -1,7 +1,7 @@
 import assert from 'assert';
 
 import { query } from '../../accessModule';
-import { stderr } from '../../shell';
+import { perr } from '../../shell';
 
 const buildHostStateMessage = (postfix = 2) => `message_022${postfix}`;
 
@@ -55,7 +55,7 @@ export const buildAnvilSummary = async ({
         ORDER BY b.host_name;`,
     );
   } catch (error) {
-    stderr(`Failed to get subnodes' server count; CAUSE: ${error}`);
+    perr(`Failed to get subnodes' server count; CAUSE: ${error}`);
 
     throw error;
   }
@@ -113,7 +113,7 @@ export const buildAnvilSummary = async ({
 
       assert.ok(rows.length, 'No node cluster info');
     } catch (error) {
-      stderr(`Failed to get node ${huuid} cluster status; CAUSE: ${error}`);
+      perr(`Failed to get node ${huuid} cluster status; CAUSE: ${error}`);
 
       continue;
     }

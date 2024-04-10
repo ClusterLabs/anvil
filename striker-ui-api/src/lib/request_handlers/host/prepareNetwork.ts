@@ -13,7 +13,7 @@ import { job, query, variable } from '../../accessModule';
 import { buildJobData } from '../../buildJobData';
 import { buildNetworkConfig } from '../../fconfig';
 import { sanitize } from '../../sanitize';
-import { stderr, stdoutVar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 import { cvar } from '../../varn';
 
 export const prepareNetwork: RequestHandler<
@@ -63,7 +63,7 @@ export const prepareNetwork: RequestHandler<
       `Gateway interface must be a peaceful string; got [${gatewayInterface}]`,
     );
   } catch (error) {
-    stderr(`Failed to assert value when prepare network; CAUSE: ${error}`);
+    perr(`Failed to assert value when prepare network; CAUSE: ${error}`);
 
     return response.status(400).send();
   }
@@ -79,7 +79,7 @@ export const prepareNetwork: RequestHandler<
 
     [[hostType]] = rows;
   } catch (error) {
-    stderr(`Failed to get host type with ${hostUUID}; CAUSE: ${error}`);
+    perr(`Failed to get host type with ${hostUUID}; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
@@ -105,7 +105,7 @@ export const prepareNetwork: RequestHandler<
     ...buildNetworkConfig(networks),
   };
 
-  stdoutVar(
+  poutvar(
     configData,
     `Config data before prepare network on host ${hostUUID}: `,
   );
@@ -146,7 +146,7 @@ export const prepareNetwork: RequestHandler<
       job_description: 'job_0071',
     });
   } catch (error) {
-    stderr(`Failed to queue prepare network; CAUSE: ${error}`);
+    perr(`Failed to queue prepare network; CAUSE: ${error}`);
 
     return response.status(500).send();
   }
