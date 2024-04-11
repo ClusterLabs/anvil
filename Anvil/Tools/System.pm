@@ -2565,16 +2565,16 @@ LIMIT 1
 	}});
 	
 	# See if the current password works.
-	my $lanplus = "no-yes";
-	if (($manufacturer eq "HP") or ($manufacturer eq "Dell"))
+	my $lanplus = "yes-no";
+	if ($manufacturer eq "Fujitsu")
 	{
-		# These need LAN Plus
-		$lanplus = "yes-no"
+		# Fujitsu doesn't usually need lanplus 
+		$lanplus = "no-yes"
 	}
 	$host_ipmi = $anvil->System->test_ipmi({
 		debug         => $debug,
 		ipmi_user     => $user_name,
-		ipmi_password => $ipmi_password,
+		ipmi_password => $anvil->Log->is_secure($ipmi_password),
 		ipmi_target   => $ipmi_ip_address, 
 		lanplus       => $lanplus,
 	});
@@ -5000,7 +5000,7 @@ sub test_ipmi
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 2,
+					timeout     => 20,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
