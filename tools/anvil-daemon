@@ -1617,7 +1617,7 @@ sub run_jobs
 			my $job_status          =  $anvil->data->{jobs}{modified_date}{$modified_date}{job_uuid}{$job_uuid}{job_status};
 			my $started_seconds_ago =  $job_picked_up_at ? (time - $job_picked_up_at) : 0;
 			my $updated_seconds_ago =  $job_updated      ? (time - $job_updated)      : 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				's01:job_uuid'             => $job_uuid,
 				's02:job_command'          => $job_command, 
 				's03:short_command'        => $short_command, 
@@ -1821,21 +1821,22 @@ sub run_jobs
 				{
 					# Is the job_uuid associated with this command done?
 					my $started_job_uuid = $anvil->data->{jobs_started}{$short_command};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { started_job_uuid => $started_job_uuid }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { started_job_uuid => $started_job_uuid }});
 					
 					if (exists $anvil->data->{jobs}{running}{$started_job_uuid})
 					{
 						# If the previously running job and this job have the same
 						# UUID, it failed and needs to restart.
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 							job_uuid                                           => $job_uuid, 
 							started_job_uuid                                   => $started_job_uuid,
 							"jobs::running::${started_job_uuid}::job_progress" => $anvil->data->{jobs}{running}{$started_job_uuid}{job_progress}, 
 						}});
+						die if not $job_uuid;
 						if ($started_job_uuid eq $job_uuid)
 						{
 							# We're restarting.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0742", variables => { 
 								command  => $job_command,
 								job_uuid => $job_uuid, 
 							}});

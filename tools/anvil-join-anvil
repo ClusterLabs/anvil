@@ -59,7 +59,7 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # If there isn't a job UUID, see if the user is asking to rejoin this subnode to a cluster.
-if (not $anvil->data->{switches}{rejoin})
+if ($anvil->data->{switches}{rejoin})
 {
 	process_rejoin($anvil);
 	$anvil->nice_exit({exit_code => 0});
@@ -841,6 +841,30 @@ sub configure_pacemaker
 		return(0);
 	}
 	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 'path::configs::corosync-authkey' => $anvil->data->{path}{configs}{'corosync-authkey'} }});
+	if (not -f $anvil->data->{path}{configs}{'corosync-authkey'})
+	{
+		# In case we're rebuilding, see if the peer already has the '/etc/corosync/authkey' file.
+		my $corosync_authkey = $anvil->Storage->read_file({
+			file   => $anvil->data->{path}{configs}{'corosync-authkey'},
+			target => $peer_host_name,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { corosync_authkey => $corosync_authkey }});
+		if ($corosync_authkey ne "!!error!!")
+		{
+			# Write the file out.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0485"});
+			$anvil->Storage->write_file({
+				debug => 2,
+				body  => $corosync_authkey,
+				file  => $anvil->data->{path}{configs}{'corosync-authkey'}, 
+				user  => "root",
+				group => "root",
+				mode  => "0400",
+			});
+		}
+	}
+	
 	### Run on both nodes.
 	# Enable pcsd and start the pcsd daemon.
 	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd.service"});
@@ -887,6 +911,7 @@ sub configure_pacemaker
 	
 	# If there is no corosync.conf, see if the peer has it. If so, copy it. If not, we'll initialize the
 	# cluster shortly.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { 'path::configs::corosync.conf' => $anvil->data->{path}{configs}{'corosync.conf'} }});
 	if (not -e $anvil->data->{path}{configs}{'corosync.conf'})
 	{
 		my $corosync_conf = $anvil->Storage->read_file({
@@ -907,6 +932,13 @@ sub configure_pacemaker
 				mode  => "0644",
 			});
 		}
+		
+		# Restart corosync
+		my ($return_code) = $anvil->System->restart_daemon({daemon => "corosync.service"});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+		$return_code = undef;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "corosync.service" }});
+		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!corosync.service!!");
 	}
 	
 	# Node 1 initializes, node 2 waits.
@@ -990,6 +1022,7 @@ sub configure_pacemaker
 			}
 			if (not $both_online)
 			{
+				### TODO: Left off here... In case of rebuilding, we'll never get past this, so we need to try 'pcs cluster start' once.
 				my $delay = 5;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0816", variables => { delay => $delay }});
 				sleep $delay;
