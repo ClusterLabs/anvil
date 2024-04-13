@@ -1249,18 +1249,19 @@ sub _check_known_hosts_for_target
 			
 			my $target_host_uuid = "";
 			my $target_host_name = "";
-			if ($anvil->Validate->ip({debug => $debug, ip => $target}))
+			
+			if ($anvil->Validate->host_name({debug => $debug, name => $target}))
 			{
-				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => $debug, ip_address => $target});
+				$target_host_name = $target;
+				$target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,
 				}});
 			}
-			else
+			elsif ($anvil->Validate->ip({debug => $debug, ip => $target}))
 			{
-				$target_host_name = $target;
-				$target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => $debug, ip_address => $target});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,
