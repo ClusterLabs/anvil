@@ -38,7 +38,13 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->Get->switches;
+$anvil->Get->switches({list => [
+	"as-machine", 
+	"join", 
+	"manifest", 
+	"rejoin", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect();
@@ -50,6 +56,13 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0129"});
 	sleep 2;
 	$anvil->nice_exit({exit_code => 1});
+}
+
+# If there isn't a job UUID, see if the user is asking to rejoin this subnode to a cluster.
+if (not $anvil->data->{switches}{rejoin})
+{
+	process_rejoin($anvil);
+	$anvil->nice_exit({exit_code => 0});
 }
 
 # Get the job details
@@ -102,9 +115,278 @@ $anvil->Database->insert_or_update_variables({
 
 $anvil->nice_exit({exit_code => 0});
 
+
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Rejoin this host to an existing subnode.
+sub process_rejoin
+{
+	my ($anvil) = @_;
+	
+	print "-=] Rejoin this host: [".$anvil->Get->short_host_name."] as a subnode in an existing Anvil! node.\n";
+	my $host_uuid     = $anvil->Get->host_uuid();
+	my $as_machine    = $anvil->data->{switches}{'as-machines'};
+	my $manifest      = $anvil->data->{switches}{manifest};
+	my $manifest_name = "";
+	my $manifest_uuid = "";
+	my $anvil_uuid    = "";
+	my $rebuild       = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:host_uuid'  => $host_uuid, 
+		's2:as_machine' => $as_machine,
+		's3:manifest'   => $manifest, 
+	}});
+	
+	# Load data
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_anvils();
+	$anvil->Database->get_manifests();
+	
+	# In case we're being re-installed, see if we can find our own data.
+	my $old_manifest_uuid = "";
+	if (exists $anvil->data->{anvils}{host_uuid}{$host_uuid})
+	{
+		# Found it.
+		my $anvil_name = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_name};
+		   $anvil_uuid = $anvil->data->{anvils}{host_uuid}{$host_uuid}{anvil_uuid};
+		my $old_role   = $anvil->data->{anvils}{host_uuid}{$host_uuid}{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_name' => $anvil_name,
+			's2:anvil_uuid' => $anvil_uuid, 
+		}});
+		print "This host used to be in the Anvil! [".$anvil_name."] as: [".$old_role."]\n";
+		if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
+		{
+			# Found the manifest.
+			$old_manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_manifest_uuid => $old_manifest_uuid }});
+			print "The manifest was found with the UUID: [".$old_manifest_uuid."]\n";
+		}
+		else
+		{
+			# Didn't find the manifest, something is wrong.
+			print "The manifest was NOT found (was it deleted?).\n";
+			print "- The manifes must be created for this host to rejoin the Anvil! node.\n";
+			print "- Alternatively, this host must be removed for the Anvil!\n";
+			print "[ Error ] - Unable to proceed at this time.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Does it match? 
+		if (($manifest) && (($manifest ne $anvil_name) && ($manifest ne $old_manifest_uuid)))
+		{
+			# They asked for this machine to be joined to a different Anvil!.
+			print "[ Error ] - You asked to join the Anvil! node: [".$manifest."].\n";
+			print "[ Error ] - This host must be removed from: [".$anvil_name."] first.\n";
+			print "[ Error ] - Unable to proceed at this time.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		if (($as_machine) && ($as_machine ne $old_role))
+		{
+			print "[ Error ] - You asked to join the Anvil! node: [".$manifest."] as: [".$as_machine."]\n";
+			print "[ Error ] - This host was previously: [".$old_role."], so it needs to be that role again.\n";
+			print "[ Error ] - Alternatively, remove this host from that Anvil! and try again.\n";
+			print "[ Error ] - Unable to proceed at this time.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		$manifest   = $anvil_name;
+		$as_machine = $old_role;
+		$rebuild    = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:manifest'   => $manifest,
+			's2:as_machine' => $as_machine, 
+			's3:rebuild'    => $rebuild, 
+		}});
+	}
+	
+	if ($manifest)
+	{
+		# Did we get a valid manifest?
+		if (exists $anvil->data->{manifests}{manifest_name}{$manifest})
+		{
+			$manifest_name = $manifest;
+			$manifest_uuid = $anvil->data->{manifests}{manifest_name}{$manifest}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:manifest_name' => $manifest_name,
+				's2:manifest_uuid' => $manifest_uuid, 
+			}});
+		}
+		elsif (exists $anvil->data->{manifests}{manifest_uuid}{$manifest})
+		{
+			$manifest_name = $anvil->data->{manifests}{manifest_uuid}{$manifest}{manifest_name};
+			$manifest_uuid = $manifest;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:manifest_name' => $manifest_name,
+				's2:manifest_uuid' => $manifest_uuid, 
+			}});
+		}
+		else
+		{
+			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n"; 
+			print "[ Error ] - Try again without this switch to see the available manifests.\n"; 
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		# Show the existing manifests.
+		my $count = keys %{$anvil->data->{manifests}{manifest_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		foreach my $this_manifest_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_name}})
+		{
+			my $this_manifest_uuid = $anvil->data->{manifests}{manifest_name}{$this_manifest_name}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_manifest_name' => $this_manifest_name,
+				's2:this_manifest_uuid' => $this_manifest_uuid, 
+			}});
+			if ($count == 1)
+			{
+				$manifest_name = $this_manifest_name;
+				$manifest_uuid = $this_manifest_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:manifest_name' => $manifest_name,
+					's2:manifest_uuid' => $manifest_uuid, 
+				}});
+			}
+			else
+			{
+				print "- Manifest: [".$manifest_name."] (uuid: [".$manifest_uuid."])\n";
+			}
+		}
+		print "- Which manifest do you want to join this host to?\n";
+		my $answer = <STDIN>;
+		chomp($answer);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		# Did we get a valid manifest?
+		if (exists $anvil->data->{manifests}{manifest_name}{$answer})
+		{
+			$manifest_name = $answer;
+			$manifest_uuid = $anvil->data->{manifests}{manifest_name}{$answer}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:manifest_name' => $manifest_name,
+				's2:manifest_uuid' => $manifest_uuid, 
+			}});
+		}
+		elsif (exists $anvil->data->{manifests}{manifest_uuid}{$answer})
+		{
+			$manifest_name = $anvil->data->{manifests}{manifest_uuid}{$answer}{manifest_name};
+			$manifest_uuid = $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:manifest_name' => $manifest_name,
+				's2:manifest_uuid' => $manifest_uuid, 
+			}});
+		}
+		else
+		{
+			if ($answer)
+			{
+				print "[ Error ] - Your answer: [".$answer."] doesn't match a valid manifest.\n"; 
+			}
+			print "[ Error ] - Please try again (you can use --manifest <name or UUID> to avoind this prompt).\n"; 
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	if (not $as_machine)
+	{
+		print "- Will this node be 'node1' or 'node2'?\n";
+		my $answer = <STDIN>;
+		chomp($answer);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		if ($answer eq "node1")
+		{
+			$as_machine = "node1";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { as_machine => $as_machine }});
+		}
+		elsif ($answer eq "node2")
+		{
+			$as_machine = "node2";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { as_machine => $as_machine }});
+		}
+		else
+		{
+			print "[ Error ] - Please enter 'node1' or 'node2'.\n";
+			print "[ Error ] - Please try again (you can use '--as-manchine node{1,2}' to avoind this prompt).\n"; 
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{anvils}{anvil_name}{$manifest_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+		
+		if (not $anvil_uuid)
+		{
+			print "[ Error ] - Failed to find an Anvil! UUID for the node: [".$manifest_name."].\n";
+			print "[ Error ] - Has the Anvil! been deleted from the database?\n"; 
+			print "[ Error ] - Unable to proceed.\n"; 
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	print "\n";
+	print "-=] Joining: [".$manifest_name."] as: [".$as_machine."] (Anvil! UUID: [".$anvil_uuid."]\n";
+	if ($rebuild)
+	{
+		print "[ Note ] - This is a rebuild, the previous data recorded by this host will be\n";
+		print "           preserved.\n";
+	}
+	else
+	{
+		print "[ Warning ] - This will replace the old subnode, and all the previous data\n";
+		print "              associated with it!\n";
+		print "[ Warning ] - Be certain the old host will NOT come back! If it does, it can\n";
+		print "              cause confusion with the Anvil! node!\n";
+	}
+	print $anvil->Words->string({key => "message_0021"})." ";
+	my $answer = <STDIN>;
+	chomp($answer);
+	if ($answer !~ /^y/i)
+	{
+		print $anvil->Words->string({key => "message_0022"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# If this isn't a rebuild, purge the old host.
+	if (not $rebuild)
+	{
+		my $node_key      = $as_machine eq "node1" ? "anvil_node1_host_uuid" : "anvil_node2_host_uuid";
+		my $old_host_uuid = $anvil->data->{anvils}{anvil_name}{$manifest_name}{$node_key} ? $anvil->data->{anvils}{anvil_name}{$manifest_name}{$node_key} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:node_key'      => $node_key,
+			's2:old_host_uuid' => $old_host_uuid,
+		}});
+		
+		if ($old_host_uuid)
+		{
+			print "[ Note ] - Purging the old host: [".$old_host_uuid."] from the database.\n";
+			print "[ Note ] - Please be patient!\n";
+			my $shell_call = $anvil->data->{path}{exe}{'striker-purge-target'}."  ".$anvil->Log->switches,
+		}
+	}
+	
+	# Register a job.
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		job_host_uuid   => $host_uuid, 
+		job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
+		job_data        => "as_machine=".$as_machine.",manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+		job_name        => "join_anvil::".$as_machine, 
+		job_title       => "job_0072", 
+		job_description => "job_0073", 
+		job_progress    => 0,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+
+	print "Registering a job. This host should (re)join the Anvil! node shortly.\n";
+	
+	return(0);
+}
 
 # Make sure the hosts file has entries for all nets for both subnodes
 sub wait_for_etc_hosts
