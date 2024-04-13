@@ -2734,6 +2734,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0848">The fence level exists and it's the same fence agent, nothing to do.</key>
 		<key name="log_0849">The fence level exists, but it's for the fence name: [#!variable!old_fence_name!#], agent: [#!variable!old_fence_agent!#], deleting it.</key>
 		<key name="log_0850">Creating the fence level: [#!variable!key_name!#] for the agent: [#!variable!fence_agent!#] using the device(s): [#!variable!devices!#]</key>
+		<key name="log_0851">The key in: [#!variable!known_hosts!#] for: [#!variable!target!#] of the type: [#!variable!key_type!#] has changed. 
+The key in the database has been updated, so we're going to swap the key. The change is;
+old key: [#!variable!old_key!#]
+new key: [#!variable!new_key!#]</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

@@ -130,7 +130,7 @@ sub add_target_to_known_hosts
 	}});
 	
 	# Get the local user's home
-	my $users_home = $anvil->Get->users_home({debug => ($debug + 1), user => $user});
+	my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { users_home => $users_home }});
 	if (not $users_home)
 	{
@@ -148,7 +148,7 @@ sub add_target_to_known_hosts
 	{
 		# Yup, see if the target is there already,
 		$known_machine = $anvil->Remote->_check_known_hosts_for_target({
-			debug           => ($debug + 1), 
+			debug           => $debug, 
 			target          => $target, 
 			port            => $port, 
 			known_hosts     => $known_hosts, 
@@ -163,7 +163,7 @@ sub add_target_to_known_hosts
 	{
 		# We don't know about this machine yet, so scan it.
 		my $added = $anvil->Remote->_call_ssh_keyscan({
-			debug       => ($debug + 1), 
+			debug       => $debug, 
 			target      => $target, 
 			port        => $port, 
 			user        => $user, 
@@ -1219,6 +1219,12 @@ sub _check_known_hosts_for_target
 		return($known_machine)
 	}
 	
+	# Make sure we've loaded hosts.
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
 	# read it in and search.
 	my $body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { body => $body }});
@@ -1227,12 +1233,73 @@ sub _check_known_hosts_for_target
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
 		
 		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'
-		if (($line =~ /$target /) or ($line =~ /\[$target\]:$port /))
+		if (($line =~ /$target (.*)$/) or ($line =~ /\[$target\]:$port (.*)$/))
 		{
 			# We already know this machine (or rather, we already have a fingerprint for
 			# this machine).
-			$known_machine = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { known_machine => $known_machine }});
+			my $current_key   = $anvil->Words->clean_spaces({string => $1});
+			   $known_machine = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+				current_key   => $current_key, 
+				known_machine => $known_machine,
+			}});
+			
+			# If we're already planning to delete 
+			next if $delete_if_found;
+			
+			my $target_host_uuid = "";
+			my $target_host_name = "";
+			if ($anvil->Validate->ip({debug => $debug, ip => $target}))
+			{
+				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => $debug, ip_address => $target});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+					target_host_uuid => $target_host_uuid, 
+					target_host_name => $target_host_name,
+				}});
+			}
+			else
+			{
+				$target_host_name = $target;
+				$target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+					target_host_uuid => $target_host_uuid, 
+					target_host_name => $target_host_name,
+				}});
+			}
+			
+			if ($target_host_uuid)
+			{
+				# If we have a host_key and it doesn't match the one we just read, delete it.
+				my $host_key = $anvil->Words->clean_spaces({string => $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{host_key}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+					's1:host_key'    => $host_key,
+					's2:current_key' => $current_key, 
+				}});
+				
+				my ($current_key_type, $current_key_string) = ($current_key =~ /(.*?)\s+(.*)$/);
+				my ($host_key_type, $host_key_string)       = ($host_key =~ /(.*?)\s+(.*)$/);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+					's1:current_key_type'   => $current_key_type,
+					's2:host_key_type'      => $host_key_type, 
+					's3:current_key_string' => $current_key_string, 
+					's4:host_key_string'    => $host_key_string, 
+				}});
+				
+				# If the key type is the same, but the string is not, delete the old key.
+				if (($current_key_type eq $host_key_type) && ($current_key_string ne $host_key_string))
+				{
+					# It's changed, clear the old one.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0851", variables => { 
+						known_hosts => $known_hosts, 
+						target      => $target, 
+						key_type    => $current_key_type, 
+						old_key     => $current_key_string,
+						new_key     => $host_key_string,
+					}});
+					$delete_if_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { delete_if_found => $delete_if_found }});
+				}
+			}
 		}
 	}
 	
