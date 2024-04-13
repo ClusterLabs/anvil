@@ -3381,11 +3381,24 @@ AND
 			
 			if ($active_interface)
 			{
-				my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." AND network_interface_name = ".$anvil->Database->quote($active_interface).";";
+				my $query = "
+SELECT 
+    network_interface_uuid
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid  = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    (
+        network_interface_name   = ".$anvil->Database->quote($active_interface)."
+    OR 
+        network_interface_device = ".$anvil->Database->quote($active_interface)."
+    )
+;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				$network_interface_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
 			}
 		}
 		
