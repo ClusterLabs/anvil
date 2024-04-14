@@ -1387,7 +1387,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0161">* Please enter a number between 1 and #!variable!max_cores!#.</key>
 		<key name="job_0162">-=] Available cores / threads: [#!variable!cores!# / #!variable!threads!#]</key>
 		<key name="job_0163"> - Node #!variable!core!# CPU Model: [#!variable!model!#]</key>
-		<key name="job_0164">#!free!#</key>
+		<key name="job_0164">Node 1 hasn't started the cluster yet. We might be rejoining a cluster, so we'll try joining now.</key>
 		<key name="job_0165">RAM: ........... [#!variable!ram!#]</key>
 		<key name="job_0166">* Please enter a valid amount up to: [#!variable!ram_total!# / #!variable!ram_available!#].</key>
 		<key name="job_0167">-=] Available RAM: [#!variable!ram_available!#]

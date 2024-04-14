@@ -951,6 +951,12 @@ sub configure_pacemaker
 		# We loop until the peer finishes or the peer's job hit's 100.
 		my $tried_starting = 0;
 		my $both_online    = 0;
+		my $try_starting   = time + 30;
+		my $delay          = 5;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			delay        => $delay, 
+			try_starting => $try_starting,
+		}});
 		until($both_online)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1022,10 +1028,29 @@ sub configure_pacemaker
 			}
 			if (not $both_online)
 			{
-				### TODO: Left off here... In case of rebuilding, we'll never get past this, so we need to try 'pcs cluster start' once.
-				my $delay = 5;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0816", variables => { delay => $delay }});
-				sleep $delay;
+				if (time > $try_starting)
+				{
+					# Try starting pacemaker, in case we're rebuilding.
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0164");
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0164"});
+					
+					$try_starting += 60;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { try_starting => $try_starting }});
+					
+					my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster start";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+				else
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0816", variables => { delay => $delay }});
+					sleep $delay;
+				}
 			}
 		}
 	}

@@ -1832,11 +1832,10 @@ sub run_jobs
 							started_job_uuid                                   => $started_job_uuid,
 							"jobs::running::${started_job_uuid}::job_progress" => $anvil->data->{jobs}{running}{$started_job_uuid}{job_progress}, 
 						}});
-						die if not $job_uuid;
 						if ($started_job_uuid eq $job_uuid)
 						{
 							# We're restarting.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0742", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
 								command  => $job_command,
 								job_uuid => $job_uuid, 
 							}});
