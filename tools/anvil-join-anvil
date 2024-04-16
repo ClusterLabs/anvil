@@ -344,13 +344,20 @@ sub process_rejoin
 		print "[ Warning ] - Be certain the old host will NOT come back! If it does, it can\n";
 		print "              cause confusion with the Anvil! node!\n";
 	}
-	print $anvil->Words->string({key => "message_0021"})." ";
-	my $answer = <STDIN>;
-	chomp($answer);
-	if ($answer !~ /^y/i)
+	if (($anvil->data->{switches}{y}) or ($anvil->data->{switches}{yes}))
 	{
-		print $anvil->Words->string({key => "message_0022"})."\n";
-		$anvil->nice_exit({exit_code => 0});
+		print "[ Note ] - Confirmed by switch, proceeding.\b";
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0021"})." ";
+		my $answer = <STDIN>;
+		chomp($answer);
+		if ($answer !~ /^y/i)
+		{
+			print $anvil->Words->string({key => "message_0022"})."\n";
+			$anvil->nice_exit({exit_code => 0});
+		}
 	}
 	
 	# If this isn't a rebuild, purge the old host.
@@ -367,7 +374,14 @@ sub process_rejoin
 		{
 			print "[ Note ] - Purging the old host: [".$old_host_uuid."] from the database.\n";
 			print "[ Note ] - Please be patient!\n";
-			my $shell_call = $anvil->data->{path}{exe}{'striker-purge-target'}."  ".$anvil->Log->switches,
+			my $shell_call = $anvil->data->{path}{exe}{'striker-purge-target'}."  ".$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 		}
 	}
 	
@@ -1052,6 +1066,49 @@ sub configure_pacemaker
 					sleep $delay;
 				}
 			}
+		}
+		
+		### TODO: Left off here; parse 'pcs cluster status' and if there's 'Unable to authenticate', re-auth.
+		my $auth       = 0;
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster status";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		my $in_pcsd = 0;
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($in_pcsd)
+			{
+				if ($line =~ /Unable to authenticate/i)
+				{
+					$auth = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
+				}
+			}
+			if ($line =~ /PCSD Status/i)
+			{
+				$in_pcsd = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_pcsd => $in_pcsd }});
+			}
+			last if $auth;
+		}
+		if ($auth)
+		{
+			# Also, re-auth. We need to run this on both hosts.
+			my $shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 		}
 	}
 	else
