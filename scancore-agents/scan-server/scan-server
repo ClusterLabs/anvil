@@ -115,6 +115,24 @@ sub connect_to_virsh
 		target => $target,
 	});
 	
+	# Also convert the target to an IP, if needed, and make sure that's added also.
+	my $is_ip    = $anvil->Validate->ipv4({debug => 2, ip => $target});
+	my $check_ip = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_ip => $is_ip }});
+	if (not $is_ip)
+	{
+		$check_ip = $anvil->Convert->host_name_to_ip({debug => 2, host_name => $target});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_ip => $check_ip }});
+		
+		if ($check_ip)
+		{
+			$anvil->Remote->test_access({
+				debug  => 2,
+				target => $check_ip,
+			});
+		}
+	}
+	
 	my $record_locator                           = "scan_server::qemu::".$target."::no_access";
 	my $is_local                                 = $anvil->Network->is_local({host => $target });
 	   $anvil->data->{qemu}{$target}{connection} = "";

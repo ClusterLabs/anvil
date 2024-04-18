@@ -172,7 +172,6 @@ sub add_target_to_known_hosts
 		if (not $added)
 		{
 			# Failed to add. :(
-			
 			my $say_user = $user;
 			if (($say_user =~ /^\d+$/) && (getpwuid($user)))
 			{
@@ -1238,9 +1237,13 @@ sub _check_known_hosts_for_target
 			# We already know this machine (or rather, we already have a fingerprint for
 			# this machine).
 			my $current_key   = $anvil->Words->clean_spaces({string => $1});
+			my $is_host_name  = $anvil->Validate->host_name({debug => 3, name => $target});
+			my $is_ip         = $anvil->Validate->ipv4({debug => 3, ip => $target});
 			   $known_machine = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 				current_key   => $current_key, 
+				is_host_name  => $is_host_name, 
+				is_ip         => $is_ip, 
 				known_machine => $known_machine,
 			}});
 			
@@ -1249,19 +1252,18 @@ sub _check_known_hosts_for_target
 			
 			my $target_host_uuid = "";
 			my $target_host_name = "";
-			
-			if ($anvil->Validate->host_name({debug => $debug, name => $target}))
+			if ($is_ip)
 			{
-				$target_host_name = $target;
-				$target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => 2, ip_address => $target});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,
 				}});
 			}
-			elsif ($anvil->Validate->ip({debug => $debug, ip => $target}))
+			elsif ($is_host_name)
 			{
-				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => $debug, ip_address => $target});
+				$target_host_name = $target;
+				$target_host_uuid = $anvil->Get->host_uuid_from_name({debug => 3, host_name => $target});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,
@@ -1277,8 +1279,9 @@ sub _check_known_hosts_for_target
 					's2:current_key' => $current_key, 
 				}});
 				
-				my ($current_key_type, $current_key_string) = ($current_key =~ /(.*?)\s+(.*)$/);
-				my ($host_key_type, $host_key_string)       = ($host_key =~ /(.*?)\s+(.*)$/);
+				my ($current_key_type, $current_key_string) =  ($current_key =~ /(.*?)\s+(.*)$/);
+				my ($host_key_type, $host_key_string)       =  ($host_key =~ /(.*?)\s+(.*)$/);
+				   $host_key_string                         =~ s/\s.*$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					's1:current_key_type'   => $current_key_type,
 					's2:host_key_type'      => $host_key_type, 
