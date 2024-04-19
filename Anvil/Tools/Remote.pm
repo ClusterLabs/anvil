@@ -1218,8 +1218,9 @@ sub _check_known_hosts_for_target
 		return($known_machine)
 	}
 	
+	### NOTE: This is called by ocf:alteeve:server, so there might not be a database available.
 	# Make sure we've loaded hosts.
-	if (not exists $anvil->data->{hosts}{host_uuid})
+	if (($anvil->data->{sys}{database}{read_uuid}) && (not exists $anvil->data->{hosts}{host_uuid}))
 	{
 		$anvil->Database->get_hosts({debug => $debug});
 	}
@@ -1249,6 +1250,12 @@ sub _check_known_hosts_for_target
 			
 			# If we're already planning to delete 
 			next if $delete_if_found;
+			
+			# If we don't have any DBs to read from, we're also done.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+				'sys::database::read_uuid' => $anvil->data->{sys}{database}{read_uuid},
+			}});
+			next if not $anvil->data->{sys}{database}{read_uuid};
 			
 			my $target_host_uuid = "";
 			my $target_host_name = "";
