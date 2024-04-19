@@ -3237,6 +3237,8 @@ This method loads and stores the same data as the C<< get_ips >> method, but doe
 
 C<< Note >>: IP addresses that have been deleted will be marked so by C<< ip >> being set to C<< DELETED >>.
 
+C<< Note >>: If there network has a device name, from network manager, that is the name used for C<< <iface_name> >>. 
+
 The loaded data will be stored as:
 
 * C<< network::<host>::interface::<iface_name>::ip >>              - If an IP address is set
@@ -3343,6 +3345,7 @@ AND
 		my $bridge_name            = "";
 		my $bond_name              = "";
 		my $interface_name         = "";
+		my $interface_device       = "";
 		my $interface_mac          = "";
 		my $network_interface_uuid = "";
 		if ($ip_address_on_type eq "interface")
@@ -3381,11 +3384,24 @@ AND
 			
 			if ($active_interface)
 			{
-				my $query = "SELECT network_interface_uuid FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)." AND network_interface_name = ".$anvil->Database->quote($active_interface).";";
+				my $query = "
+SELECT 
+    network_interface_uuid
+FROM 
+    network_interfaces 
+WHERE 
+    network_interface_host_uuid  = ".$anvil->Database->quote($host_uuid)." 
+AND 
+    (
+        network_interface_name   = ".$anvil->Database->quote($active_interface)."
+    OR 
+        network_interface_device = ".$anvil->Database->quote($active_interface)."
+    )
+;";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				$network_interface_uuid = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { active_interface => $active_interface }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
 			}
 		}
 		
@@ -3407,6 +3423,7 @@ AND
 SELECT 
     network_interface_uuid, 
     network_interface_name, 
+    network_interface_device, 
     network_interface_mac_address, 
     network_interface_speed, 
     network_interface_mtu, 
@@ -3432,14 +3449,25 @@ AND
 			}});
 			next if not $count;
 			
-			$interface_name = $results->[0]->[1];
-			$interface_mac  = $results->[0]->[2];
+			$interface_name   = $results->[0]->[1];
+			$interface_device = $results->[0]->[2];
+			$interface_mac    = $results->[0]->[3];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				interface_name => $interface_name, 
-				interface_mac  => $interface_mac, 
+				interface_name   => $interface_name, 
+				interface_device => $interface_device, 
+				interface_mac    => $interface_mac, 
 			}});
 			
+			# If we've got an interface device, use that for the hash.
+			if ($interface_device)
+			{
+				$interface_name = $interface_device;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface_name => $interface_name }});
+			}
+			
 			$anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid} =         $results->[0]->[0];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{interface_name}         =         $results->[0]->[1];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{interface_device}       =         $results->[0]->[2];
 			$anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}            =         $interface_mac;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{ip}                     =         $ip_address_address;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}            =         $ip_address_subnet_mask;
@@ -3447,16 +3475,18 @@ AND
 			$anvil->data->{network}{$host}{interface}{$interface_name}{gateway}                =         $ip_address_gateway;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{dns}                    =         $ip_address_dns;
 			$anvil->data->{network}{$host}{interface}{$interface_name}{type}                   =         "interface";
-			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  =         $results->[0]->[3];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    =         $results->[0]->[4];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             =         $results->[0]->[5];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            =         $results->[0]->[6];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 =         $results->[0]->[7];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 =         $results->[0]->[8];
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = defined $results->[0]->[9]  ? $results->[0]->[9]  : "";
-			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = defined $results->[0]->[10] ? $results->[0]->[10] : "";
+			$anvil->data->{network}{$host}{interface}{$interface_name}{speed}                  =         $results->[0]->[4];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{mtu}                    =         $results->[0]->[5];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{link_state}             =         $results->[0]->[6];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{operational}            =         $results->[0]->[7];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{duplex}                 =         $results->[0]->[8];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{medium}                 =         $results->[0]->[9];
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bond_uuid}              = defined $results->[0]->[10] ? $results->[0]->[10] : "";
+			$anvil->data->{network}{$host}{interface}{$interface_name}{bridge_uuid}            = defined $results->[0]->[11] ? $results->[0]->[11] : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"network::${host}::interface::${interface_name}::network_interface_uuid" => $anvil->data->{network}{$host}{interface}{$interface_name}{network_interface_uuid}, 
+				"network::${host}::interface::${interface_name}::interface_name"         => $anvil->data->{network}{$host}{interface}{$interface_name}{interface_name}, 
+				"network::${host}::interface::${interface_name}::interface_device"       => $anvil->data->{network}{$host}{interface}{$interface_name}{interface_device}, 
 				"network::${host}::interface::${interface_name}::mac_address"            => $anvil->data->{network}{$host}{interface}{$interface_name}{mac_address}, 
 				"network::${host}::interface::${interface_name}::ip"                     => $anvil->data->{network}{$host}{interface}{$interface_name}{ip}, 
 				"network::${host}::interface::${interface_name}::subnet_mask"            => $anvil->data->{network}{$host}{interface}{$interface_name}{subnet_mask}, 
@@ -3576,7 +3606,6 @@ AND
 	
 	return(0);
 }
-
 
 
 =head2 manage_firewall

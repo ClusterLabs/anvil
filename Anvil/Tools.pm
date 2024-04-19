@@ -1061,6 +1061,7 @@ sub _set_paths
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
 				'cib.xml'			=>	"/var/lib/pacemaker/cib/cib.xml",
 				'corosync.conf'			=>	"/etc/corosync/corosync.conf",
+				'corosync-authkey'		=>	"/etc/corosync/authkey",
 				'dhcpd.conf'			=>	"/etc/dhcp/dhcpd.conf",
 				'dnf.conf'			=>	"/etc/dnf/dnf.conf",
 				'drbd-proxy.license'		=>	"/etc/drbd-proxy.license",

@@ -526,7 +526,6 @@ sub ip
 	
 	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
-	
 
 	my $ipv4 =             $anvil->Validate->ipv4({ip => $ip, debug => $debug});
 	my $ipv6 = not $ipv4 ? $anvil->Validate->ipv6({ip => $ip, debug => $debug}) : 0;

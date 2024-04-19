@@ -1387,7 +1387,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0161">* Please enter a number between 1 and #!variable!max_cores!#.</key>
 		<key name="job_0162">-=] Available cores / threads: [#!variable!cores!# / #!variable!threads!#]</key>
 		<key name="job_0163"> - Node #!variable!core!# CPU Model: [#!variable!model!#]</key>
-		<key name="job_0164">#!free!#</key>
+		<key name="job_0164">Node 1 hasn't started the cluster yet. We might be rejoining a cluster, so we'll try joining now.</key>
 		<key name="job_0165">RAM: ........... [#!variable!ram!#]</key>
 		<key name="job_0166">* Please enter a valid amount up to: [#!variable!ram_total!# / #!variable!ram_available!#].</key>
 		<key name="job_0167">-=] Available RAM: [#!variable!ram_available!#]
@@ -1765,6 +1765,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0482">Waiting for the peer's hostname to be: [#!variable!peer_name!#] in the database.</key>
 		<key name="job_0483">The peer's hostname is: [#!variable!peer_name!#], proceeding.</key>
 		<key name="job_0484">The peer's hostname is currently: [#!variable!old_peer_name!#], waiting for it to be changed to: [#!variable!peer_name!#]... Will check again shortly.</key>
+		<key name="job_0485">The corosync authkey file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2734,6 +2735,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0848">The fence level exists and it's the same fence agent, nothing to do.</key>
 		<key name="log_0849">The fence level exists, but it's for the fence name: [#!variable!old_fence_name!#], agent: [#!variable!old_fence_agent!#], deleting it.</key>
 		<key name="log_0850">Creating the fence level: [#!variable!key_name!#] for the agent: [#!variable!fence_agent!#] using the device(s): [#!variable!devices!#]</key>
+		<key name="log_0851">The key in: [#!variable!known_hosts!#] for: [#!variable!target!#] of the type: [#!variable!key_type!#] has changed. 
+The key in the database has been updated, so we're going to swap the key. The change is;
+old key: [#!variable!old_key!#]
+new key: [#!variable!new_key!#]</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
