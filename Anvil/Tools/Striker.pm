@@ -653,7 +653,7 @@ sub get_fence_data
 			}});
 			
 			# Make it easier to tranlate a switch to a parameter name.
-			if ($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches})
+			if (($anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{switches}) and (not $deprecated))
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					fence_agent => $fence_agent,
