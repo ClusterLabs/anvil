@@ -202,7 +202,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
-                required
               />
             ),
           };
