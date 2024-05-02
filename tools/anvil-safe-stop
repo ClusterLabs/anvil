@@ -237,11 +237,20 @@ sub stop_cluster
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0323"});
 				$anvil->Job->update_progress({progress => 70, message => "job_0323"}) if $anvil->data->{switches}{'job-uuid'};
 				
-				### NOTE: '--force' is needed or else sole-running nodes can't exit 
-				###       (complains about the loss of quorum)
-				my $shell_call = $anvil->data->{path}{exe}{pcs_direct}." cluster stop --force";
+				# Call a cleanup first because if anything is FAILED, it will hang the withdrawl.
+				my $shell_call = $anvil->data->{path}{exe}{pcs_direct}." resource cleanup";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+				
+				### NOTE: '--force' is needed or else sole-running nodes can't exit 
+				###       (complains about the loss of quorum). 
+				$shell_call = $anvil->data->{path}{exe}{pcs_direct}." cluster stop --force";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					output      => $output,
 					return_code => $return_code,
