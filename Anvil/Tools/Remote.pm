@@ -1226,11 +1226,34 @@ sub _check_known_hosts_for_target
 	}
 	
 	# read it in and search.
-	my $body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { body => $body }});
-	foreach my $line (split/\n/, $body)
+	my $lines    = {};
+	my $bad_line = 0;
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { old_body => $old_body }});
+	foreach my $line (split/\n/, $old_body)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
+		
+		### NOTE: There was/is a bug where bad lines or duplicate lines got into the known_hosts
+		###       file. This cleans that up, if found
+		# If the line is not supposed to be here, remove it.
+		if (($line =~ /Name or service not known/) or 
+		    ($line =~ /No route to host/)          or 
+		    (exists $lines->{$line}))
+		{
+			$bad_line = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { bad_line => $bad_line }});
+			next;
+		}
+		else
+		{
+			$lines->{$line} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { "lines->{$line}" => $lines->{$line} }});
+			
+			$new_body .= $line."\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, list => { new_body => $new_body }});
+		}
 		
 		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'
 		if (($line =~ /$target (.*)$/) or ($line =~ /\[$target\]:$port (.*)$/))
@@ -1312,6 +1335,25 @@ sub _check_known_hosts_for_target
 				}
 			}
 		}
+	}
+	
+	# Rewrite the file if we found bad lines.
+	if ($bad_line)
+	{
+		# Update the file right away.
+		$anvil->Storage->get_file_stats({
+			debug     => $debug, 
+			file_path => $known_hosts, 
+		});
+		$anvil->Storage->write_file({
+			file      => $known_hosts, 
+			body      => $new_body,
+			owner     => $anvil->data->{file_stat}{$known_hosts}{user_name}, 
+			group     => $anvil->data->{file_stat}{$known_hosts}{group_name}, 
+			mode      => $anvil->data->{file_stat}{$known_hosts}{unix_mode}, 
+			overwrite => 1, 
+			backup    => 1,
+		});
 	}
 	
 	# If we know of this machine and we've been asked to remove it, do so.

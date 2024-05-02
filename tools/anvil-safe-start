@@ -525,6 +525,7 @@ sub wait_for_access
 					# Match, test access.
 					   $peer_match_found = 1;
 					my $access           = $anvil->Remote->test_access({
+						debug    => 2,
 						target   => $peer_ip_address,
 						password => $peer_password,
 					});
