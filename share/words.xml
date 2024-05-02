@@ -1395,7 +1395,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
  - Allocated to servers: [#!variable!ram_allocated!#]
  - Node 1 RAM (total): . [#!variable!ram_node1!#]
  - Node 2 RAM (total): . [#!variable!ram_node2!#]</key>
-		<key name="job_0168">#!free!#</key>
+		<key name="job_0168">The server: [#!variable!server!#] was not found using libvirtd, skipping it.</key>
 		<key name="job_0169">      Available on Anvil!: [#!variable!vg_free!#], Total: [#!variable!vg_size!#]</key>
 		<key name="job_0170">Storage Group: . [#!variable!storage_group!#]</key>
 		<key name="job_0171">* Please enter a number beside the storage group you want to use.</key>

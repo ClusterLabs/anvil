@@ -447,6 +447,27 @@ sub process_servers
 				}});
 				next if lc($role) eq "stopped";
 				
+				# If the server isn't actually running here, ignore it.
+				$anvil->Server->find({
+					debug   => 2,
+					refresh => 1,
+				});
+				if (exists $anvil->data->{server}{location}{$server})
+				{
+					my $virsh_status    = $anvil->data->{server}{location}{$server}{status};
+					my $virsh_host_name = $anvil->data->{server}{location}{$server}{host_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:virsh_status'    => $virsh_status,
+						's2:virsh_host_name' => $virsh_host_name, 
+					}});
+				}
+				else
+				{
+					# The server isn't running here, skip it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0168", variables => { server => $server }});
+					next;
+				}
+				
 				if (lc($role) eq "migrating")
 				{
 					# No matter what, if a server is migrating, we wait.
