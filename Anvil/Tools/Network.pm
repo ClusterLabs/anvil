@@ -1461,6 +1461,7 @@ sub download
 }
 
 
+### TODO: Retire this in favour of Network->find_target_ip()
 =head2 find_access
 
 This takes a host's UUID or name, and finds networks that this host can reach it on. If the target is not found in the database, C<< !!error!! >> is returned. Otherwise, the number of matches found is returned.
@@ -1628,7 +1629,7 @@ sub find_access
 }
 
 
-
+### TODO: Retire this in favour of Network->find_target_ip()
 =head2 find_matches
 
 This takes two hash keys from prior C<< Network->get_ips() >> or C<< ->load_ips() >> runs and finds which are on the same network. 

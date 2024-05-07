@@ -365,6 +365,15 @@ sub auto_grow_pv
 							}});
 						}
 						
+						# Rescan LVM
+						$shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-lvm/scan-lvm".$anvil->Log->switches();
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+						($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							output      => $output,
+							return_code => $return_code,
+						}});
+						
 						# Done. 
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0827", variables => { pv_name => $pv_name }});
 					}
