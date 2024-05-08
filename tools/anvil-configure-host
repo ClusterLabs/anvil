@@ -507,7 +507,7 @@ ORDER BY
 	$anvil->data->{sys}{reboot} = 0;
 	
 	# Read the existing network data 
-	$anvil->Network->collect_data({start => 1});
+	$anvil->Network->collect_data({debug => 2, start => 1});
 	
 	# This will be set to '1' if we make a change.
 	my $changes        = 0;
@@ -1779,7 +1779,7 @@ sub reconfigure_ip_addresses
 				line      => __LINE__,
 				variables => { },
 			});
-			$anvil->Network->collect_data();
+			$anvil->Network->collect_data({debug => 2});
 		}
 	}
 	
@@ -1843,7 +1843,7 @@ sub reconfigure_interfaces
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data();
+				$anvil->Network->collect_data({debug => 2});
 			}
 		}
 	}
@@ -1925,11 +1925,20 @@ sub reconfigure_interfaces
 				foreach my $interface (split/,/, $match_interface_name)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+					
+					# In case the GENERAL.IP-IFACE or GENERAL.NAME name didn't update, 
+					# map this interface name to 'nmcli::interface::<name>::uuid'.
+					if (not exists $anvil->data->{nmcli}{interface}{$interface})
+					{
+						$anvil->data->{nmcli}{interface}{$interface}{uuid} = $link1_nm_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"nmcli::interface::${interface}::uuid" => $anvil->data->{nmcli}{interface}{$interface}{uuid},
+						}});
+					}
 					if ($interface eq $wanted_link1_name)
 					{
 						$found = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
-						last;
 					}
 				}
 				if (not $found)
@@ -2352,7 +2361,7 @@ sub rename_interface
 		line      => __LINE__,
 		variables => { },
 	});
-	$anvil->Network->collect_data();
+	$anvil->Network->collect_data({debug => 2});
 	
 	# Set the reboot flag.
 	$anvil->data->{sys}{reboot_needed} = 1;

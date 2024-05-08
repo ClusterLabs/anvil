@@ -665,6 +665,18 @@ sub collect_data
 					"nmcli::uuid::${uuid}::${variable}" => $anvil->data->{nmcli}{uuid}{$uuid}{$variable},
 				}});
 				
+				if ($variable eq "match.interface-name")
+				{
+					# Make sure we can look up the nmcli UUID by any of the names.
+					foreach my $interface (split/,/, $value)
+					{
+						$anvil->data->{nmcli}{interface}{$interface}{uuid} = $uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"nmcli::interface::${interface}::uuid" => $anvil->data->{nmcli}{interface}{$interface}{uuid},
+						}});
+					}
+				}
+				
 				if ($variable =~ /IP(\d).ADDRESS\[(\d+)\]/)
 				{
 					my $ip_type  = $1;

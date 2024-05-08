@@ -341,13 +341,13 @@ sub generate_manifest
 	my $debug     = $parameter->{debug} // 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
 
-	my $network_dns     = $parameter->{dns}           // $anvil->data->{cgi}{dns}{value};
-	my $domain          = $parameter->{domain}        // $anvil->data->{cgi}{domain}{value};
-	my $manifest_uuid   = $parameter->{manifest_uuid} // $anvil->data->{cgi}{manifest_uuid}{value};
-	my $network_mtu     = $parameter->{mtu}           // $anvil->data->{cgi}{mtu}{value};
-	my $network_ntp     = $parameter->{ntp}           // $anvil->data->{cgi}{ntp}{value};
-	my $name_prefix     = $parameter->{prefix}        // $anvil->data->{cgi}{prefix}{value};
-	my $padded_sequence = $parameter->{sequence}      // $anvil->data->{cgi}{sequence}{value};
+	my $network_dns     = $parameter->{dns}           // "";
+	my $domain          = $parameter->{domain}        // "";
+	my $manifest_uuid   = $parameter->{manifest_uuid} // "";
+	my $network_mtu     = $parameter->{mtu}           // "";
+	my $network_ntp     = $parameter->{ntp}           // "";
+	my $name_prefix     = $parameter->{prefix}        // "";
+	my $padded_sequence = $parameter->{sequence}      // "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		network_dns     => $network_dns,
 		domain          => $domain, 
@@ -378,6 +378,13 @@ sub generate_manifest
 	
 	$anvil->Database->get_upses({debug => $debug});
 	$anvil->Database->get_fences({debug => $debug});
+	
+	if (not $manifest_uuid)
+	{
+		# Don't proceed, we'd get an invalid manifest.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0159"});
+		return('!!error!!');
+	}
 	
 	if ($manifest_uuid eq "new")
 	{
