@@ -536,7 +536,18 @@ sub collect_data
 	my ($anvil) = @_;
 	
 	# Read in data from Network Manager
-	$anvil->Network->collect_data({debug => 2});
+	my $uptime = $anvil->Get->uptime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
+	if ($uptime < 600)
+	{
+		# Check for / start down but configured interfaces.
+		$anvil->Network->collect_data({up => 1, debug => 2});
+	}
+	else
+	{
+		# Just collect data.
+		$anvil->Network->collect_data({debug => 2});
+	}
 	
 	### TODO: We can get the IPs from collect_data, we should phase this out.
 	# The 'local_host' is needed to pull data recorded by Network->get_ips();
