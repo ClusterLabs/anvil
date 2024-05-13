@@ -46,7 +46,7 @@ my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
 
 if (defined $server)
 {
-	$server_uuid //= is_uuid_v4($server) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
+	$server_uuid //= $anvil->Validate->uuid({ uuid => $server }) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
 }
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
@@ -258,11 +258,6 @@ sub is_int
 	return defined $_[0] && $_[0] =~ /^\d+$/;
 }
 
-sub is_uuid_v4
-{
-	return defined $_[0] && $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
-}
-
 sub prettify
 {
 	my $var_value = shift;
@@ -325,7 +320,7 @@ sub set_vncinfo_variable
 		variable_value => "${local_host_name}:${end_port}",
 	});
 
-	return (1) if (not is_uuid_v4($variable_uuid));
+	return (1) if (not $anvil->Validate->uuid({ uuid => $variable_uuid }));
 
 	return (0);
 }
@@ -377,7 +372,7 @@ sub start_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not $anvil->Validate->uuid({ uuid => $svr_uuid }));
 
 	my $common_params = { debug => $debug };
 
@@ -462,7 +457,7 @@ sub stop_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not $anvil->Validate->uuid({ uuid => $svr_uuid }));
 
 	my $common_params = { debug => $debug };
 
