@@ -38,17 +38,21 @@ export const proxyServerVnc = createProxyMiddleware({
     error: (error, request, response) => {
       perr(`VNC proxy error: ${error}`);
 
-      let resType: string;
+      if (!response) {
+        perr(`Missing response; got [${response}]`);
 
-      if ('writeHead' in response) {
-        resType = 'ServerResponse';
-
-        response.writeHead(500).end();
-      } else {
-        resType = 'Socket';
+        return;
       }
 
-      pout(`Response type = ${resType}`);
+      if ('writeHead' in response) {
+        pout('Got ServerResponse object');
+
+        return response.writeHead(500).end();
+      }
+
+      pout(`Got Socket object`);
+
+      response.end();
     },
   },
   ws: true,
