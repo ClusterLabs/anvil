@@ -432,6 +432,8 @@ sub clear_old_variables
 		old_timestamp => $old_timestamp, 
 	}});
 	
+	### TODO: On systems with a LOT of vnetX devices, this can take a while to run. If both/all DBs are 
+	###       online, see which vnetX devices no longer exist on the nodes and delete them entirely.
 	# Read in all interface RX and TX variables.
 	foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 	{
