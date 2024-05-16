@@ -49,7 +49,6 @@ import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
-import setMapNetwork from '../lib/setMapNetwork';
 import Spinner from './Spinner';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
 import { BodyText, MonoText, SmallText } from './Text';
@@ -106,7 +105,6 @@ const CLASSES = {
   ifaceNotApplied: `${CLASS_PREFIX}-network-interface-not-applied`,
 };
 const INITIAL_IFACES = [undefined, undefined];
-const MSG_ID_API = 'api';
 
 const MAX_INTERFACES_PER_NETWORK = 2;
 const IT_IDS = {
@@ -872,13 +870,6 @@ const NetworkInitForm = forwardRef<
       [networkInputs],
     );
 
-    const handleSetMapNetworkError = useCallback(
-      (msg: Message): void => {
-        setMessage(MSG_ID_API, msg);
-      },
-      [setMessage],
-    );
-
     const inputTests: InputTestBatches = useMemo(() => {
       const tests: InputTestBatches = {
         [IT_IDS.dnsCSV]: {
@@ -1374,30 +1365,6 @@ const NetworkInitForm = forwardRef<
       requiredNetworks,
       testInputToToggleSubmitDisabled,
     ]);
-
-    useEffect(() => {
-      // Enable network mapping on component mount.
-      setMapNetwork(1, handleSetMapNetworkError);
-
-      if (window) {
-        window.addEventListener(
-          'beforeunload',
-          () => {
-            // Cannot use async request (i.e., axios) because they won't be guaranteed to complete.
-            const request = new XMLHttpRequest();
-
-            request.open('PUT', `${API_BASE_URL}/init/set-map-network`, false);
-            request.send(null);
-          },
-          { once: true },
-        );
-      }
-
-      return () => {
-        // Disable network mapping on component unmount.
-        setMapNetwork(0, handleSetMapNetworkError);
-      };
-    }, [handleSetMapNetworkError]);
 
     useImperativeHandle(
       ref,
