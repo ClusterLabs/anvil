@@ -558,8 +558,8 @@ const ManageManifestPanel: FC = () => {
       .then(({ data }) => {
         setHostOverviews(data);
       })
-      .catch((apiError) => {
-        handleAPIError(apiError);
+      .catch((error) => {
+        handleAPIError(error);
       })
       .finally(() => {
         setIsLoadingHostOverviews(false);

@@ -113,8 +113,8 @@ const useFormUtils = <
 
           onSuccess?.call(null);
         })
-        .catch((apiError) => {
-          const emsg = handleAPIError(apiError);
+        .catch((error) => {
+          const emsg = handleAPIError(error);
 
           emsg.children = getErrorMsg(emsg.children);
 
