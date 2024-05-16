@@ -4785,7 +4785,7 @@ sub wait_for_network
 				's4:state'          => $state, 
 			}});
 			
-			if (($state eq "activated") or ($state == 1))
+			if (($state eq "activated") or ($state eq "1"))
 			{
 				$anvil->data->{network}{watch}{$interface_name}{ready} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

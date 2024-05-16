@@ -1361,8 +1361,8 @@ sub connect
 	}
 	
 	# If we're a Striker, see if we're configured.
-	my $local_host_type = $anvil->Get->host_type();
-	my $local_host_uuid = $anvil->Get->host_uuid();
+	my $local_host_type = $anvil->Get->host_type({debug => $debug});
+	my $local_host_uuid = $anvil->Get->host_uuid({debug => $debug});
 	my $db_count        = keys %{$anvil->data->{database}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		local_host_type     => $local_host_type, 

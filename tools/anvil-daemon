@@ -1567,10 +1567,10 @@ sub run_jobs
 			time_since_start => $time_since_start,
 			start_time       => $start_time,
 		}});
-		if ($time_since_start < 60)
+		if ($time_since_start < 30)
 		{
 			# Log that we'll start jobs in X seconds.
-			my $will_start_in = 60 - $time_since_start;
+			my $will_start_in = 30 - $time_since_start;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0326", variables => { will_start_in => $will_start_in }});
 			return(0);
 		}
