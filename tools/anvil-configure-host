@@ -546,7 +546,7 @@ ORDER BY
 	if ($host_type ne "striker")
 	{
 		my $time_now   = time;
-		my $wait_until = $time_now + 120;
+		my $wait_until = $time_now + 60;
 		my $waiting    = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			time_now   => $time_now, 
@@ -582,7 +582,14 @@ ORDER BY
 				{
 					# Give up and reboot.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0169"});
-					do_reboot($anvil);
+					
+					# Don't use 'do_reboot()' as we've got no DB connection.
+					my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+					
+					# We should be dead by now...
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 				}
 			}
 		}
