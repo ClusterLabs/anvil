@@ -30,6 +30,7 @@ import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
 import IconButton from '../IconButton';
 import List from '../List';
+import MessageBox from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import periodicFetch from '../../lib/fetchers/periodicFetch';
@@ -243,6 +244,62 @@ const ManageManifestPanel: FC = () => {
     [manifestTemplate],
   );
 
+  const countHostFences = useCallback(
+    (
+      body: APIBuildManifestRequestBody,
+    ): { counts: Record<string, number>; messages: React.ReactNode[] } => {
+      const {
+        hostConfig: { hosts },
+      } = body;
+
+      const counts = Object.values(hosts).reduce<Record<string, number>>(
+        (previous, host) => {
+          const { fences, hostType, hostNumber } = host;
+
+          const hostName = `${hostType.replace(
+            /node/,
+            'subnode',
+          )}${hostNumber}`;
+
+          if (!fences) {
+            previous[hostName] = 0;
+
+            return previous;
+          }
+
+          previous[hostName] = Object.values(fences).reduce<number>(
+            (count, fence) => {
+              const { fencePort } = fence;
+
+              const diff = fencePort.length ? 1 : 0;
+
+              return count + diff;
+            },
+            0,
+          );
+
+          return previous;
+        },
+        {},
+      );
+
+      const messages = Object.entries(counts).map((entry) => {
+        const [hostName, fenceCount] = entry;
+
+        return fenceCount ? (
+          <></>
+        ) : (
+          <MessageBox>
+            No fence device port specified for {hostName}.
+          </MessageBox>
+        );
+      });
+
+      return { counts, messages };
+    },
+    [],
+  );
+
   const addManifestFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
       actionProceedText: 'Add',
@@ -260,6 +317,7 @@ const ManageManifestPanel: FC = () => {
       ),
       onSubmitAppend: (...args) => {
         const body = getFormData(...args);
+        const { messages } = countHostFences(body);
 
         setConfirmDialogProps({
           actionProceedText: 'Add',
@@ -276,6 +334,7 @@ const ManageManifestPanel: FC = () => {
               url: '/manifest',
             });
           },
+          preActionArea: <FlexBox spacing=".3em">{messages}</FlexBox>,
           titleText: `Add install manifest?`,
         });
 
@@ -284,6 +343,7 @@ const ManageManifestPanel: FC = () => {
       titleText: 'Add an install manifest',
     }),
     [
+      countHostFences,
       formUtils,
       getManifestOverviews,
       knownFences,
@@ -309,6 +369,7 @@ const ManageManifestPanel: FC = () => {
       ),
       onSubmitAppend: (...args) => {
         const body = getFormData(...args);
+        const { messages } = countHostFences(body);
 
         setConfirmDialogProps({
           actionProceedText: 'Edit',
@@ -325,6 +386,7 @@ const ManageManifestPanel: FC = () => {
               url: `/manifest/${mdetailUuid}`,
             });
           },
+          preActionArea: <FlexBox spacing=".3em">{messages}</FlexBox>,
           titleText: `Update install manifest ${mdetailName}?`,
         });
 
@@ -334,16 +396,17 @@ const ManageManifestPanel: FC = () => {
       titleText: `Update install manifest ${mdetailName}`,
     }),
     [
+      countHostFences,
       formUtils,
+      getManifestOverviews,
+      isLoadingManifestDetail,
       knownFences,
       knownUpses,
       manifestDetail,
-      isLoadingManifestDetail,
       mdetailName,
+      mdetailUuid,
       setConfirmDialogProps,
       submitForm,
-      mdetailUuid,
-      getManifestOverviews,
     ],
   );
 
