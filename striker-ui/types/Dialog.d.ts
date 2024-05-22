@@ -39,6 +39,7 @@ type DialogActionGroupProps = DialogActionGroupOptionalProps;
 /** DialogHeader */
 
 type DialogHeaderOptionalProps = {
+  onClose?: ExtendableEventHandler<ButtonClickEventHandler>;
   showClose?: boolean;
 };
 
