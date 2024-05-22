@@ -289,7 +289,7 @@ const ManageManifestPanel: FC = () => {
         return fenceCount ? (
           <></>
         ) : (
-          <MessageBox>
+          <MessageBox key={`${hostName}-no-fence-port-message`}>
             No fence device port specified for {hostName}.
           </MessageBox>
         );
