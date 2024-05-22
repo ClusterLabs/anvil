@@ -15,7 +15,8 @@ import MenuItem from '../MenuItem';
 import { Panel, PanelHeader } from '../Panels';
 import ServerMenu from '../ServerMenu';
 import Spinner from '../Spinner';
-import { HeaderText } from '../Text';
+import { BodyText, HeaderText } from '../Text';
+import useCookieJar from '../../hooks/useCookieJar';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const PREFIX = 'FullSize';
@@ -43,7 +44,7 @@ const StyledDiv = styled('div')(() => ({
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
 // Unit: seconds
-const DEFAULT_VNC_RECONNECT_TIMER_START = 5;
+const DEFAULT_VNC_RECONNECT_TIMER_START = 10;
 
 const buildServerVncUrl = (host: string, serverUuid: string) =>
   `ws://${host}/ws/server/vnc/${serverUuid}`;
@@ -54,6 +55,7 @@ const FullSize: FC<FullSizeProps> = ({
   serverName,
   vncReconnectTimerStart = DEFAULT_VNC_RECONNECT_TIMER_START,
 }): JSX.Element => {
+  const { buildCookieJar } = useCookieJar();
   const isFirstRender = useIsFirstRender();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -62,6 +64,12 @@ const FullSize: FC<FullSizeProps> = ({
   >(undefined);
   const [vncConnecting, setVncConnecting] = useState<boolean>(false);
   const [vncError, setVncError] = useState<boolean>(false);
+  const [vncClientErrorMessage, setVncClientErrorMessage] = useState<
+    string | undefined
+  >();
+  const [vncApiErrorMessage, setVncApiErrorMessage] = useState<
+    string | undefined
+  >();
   const [vncReconnectTimer, setVncReconnectTimer] = useState<number>(
     vncReconnectTimerStart,
   );
@@ -138,15 +146,45 @@ const FullSize: FC<FullSizeProps> = ({
   // 'disconnect' event emits when a connection fails,
   // OR when a user closes the existing connection.
   const rfbDisconnectEventHandler = useCallback(
-    ({ detail: { clean } }) => {
-      if (!clean) {
-        setVncConnecting(false);
-        setVncError(true);
+    (event) => {
+      const { detail } = event;
+      const { clean } = detail;
 
-        updateVncReconnectTimer();
-      }
+      if (clean) return;
+
+      setVncConnecting(false);
+      setVncError(true);
+
+      updateVncReconnectTimer();
     },
     [updateVncReconnectTimer],
+  );
+
+  const wsCloseEventHandler = useCallback(
+    (event?: WebsockCloseEvent): void => {
+      if (!event) return;
+
+      const { code: wscode, reason } = event;
+
+      let clientmsg = `ws: ${wscode}`;
+
+      if (reason) {
+        clientmsg += `, ${reason}`;
+      }
+
+      setVncClientErrorMessage(clientmsg);
+
+      const vncerror = buildCookieJar()[
+        `suiapi.vncerror.${serverUUID}`
+      ] as APIError;
+
+      if (!vncerror) return;
+
+      const { code: apicode, message } = vncerror;
+
+      setVncApiErrorMessage(`api: ${apicode}, ${message}`);
+    },
+    [buildCookieJar, serverUUID],
   );
 
   const showScreen = useMemo(
@@ -281,27 +319,26 @@ const FullSize: FC<FullSizeProps> = ({
           <VncDisplay
             onConnect={rfbConnectEventHandler}
             onDisconnect={rfbDisconnectEventHandler}
+            onWsClose={wsCloseEventHandler}
             rfb={rfb}
             rfbConnectArgs={rfbConnectArgs}
             rfbScreen={rfbScreen}
           />
         </Box>
         {!showScreen && (
-          <Box display="flex" className={classes.spinnerBox}>
+          <Box display="flex" className={classes.spinnerBox} textAlign="center">
             {vncConnecting && (
               <>
-                <HeaderText textAlign="center">
-                  Connecting to {serverName}.
-                </HeaderText>
+                <HeaderText>Connecting to {serverName}.</HeaderText>
                 <Spinner />
               </>
             )}
             {vncError && (
               <>
-                <HeaderText textAlign="center">
-                  There was a problem connecting to the server.
-                </HeaderText>
-                <HeaderText textAlign="center" mt="1em">
+                <HeaderText>Can&apos;t connect to the server.</HeaderText>
+                <BodyText>{vncApiErrorMessage}</BodyText>
+                <BodyText>{vncClientErrorMessage}</BodyText>
+                <HeaderText mt=".5em">
                   Retrying in {vncReconnectTimer}.
                 </HeaderText>
               </>
