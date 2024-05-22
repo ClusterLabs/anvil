@@ -46,6 +46,11 @@ const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 // Unit: seconds
 const DEFAULT_VNC_RECONNECT_TIMER_START = 10;
 
+const MAP_TO_WSCODE_MSG: Record<number, string> = {
+  1000: 'in-use by another process?',
+  1006: 'destination is down?',
+};
+
 const buildServerVncUrl = (host: string, serverUuid: string) =>
   `ws://${host}/ws/server/vnc/${serverUuid}`;
 
@@ -172,13 +177,19 @@ const FullSize: FC<FullSizeProps> = ({
 
       const { code: wscode, reason } = event;
 
-      let clientmsg = `ws: ${wscode}`;
+      let wsmsg = `ws: ${wscode}`;
 
-      if (reason) {
-        clientmsg += `, ${reason}`;
+      const guess = MAP_TO_WSCODE_MSG[wscode];
+
+      if (guess) {
+        wsmsg += ` (${guess})`;
       }
 
-      setVncWsErrorMessage(clientmsg);
+      if (reason) {
+        wsmsg += `, ${reason}`;
+      }
+
+      setVncWsErrorMessage(wsmsg);
 
       const vncerror = buildCookieJar()[
         `suiapi.vncerror.${serverUUID}`
