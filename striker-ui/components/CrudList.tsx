@@ -25,6 +25,7 @@ const CrudList = <
     addHeader: rAddHeader,
     editHeader: rEditHeader,
     entriesUrl,
+    formDialogProps,
     getAddLoading,
     getDeleteErrorMessage,
     getDeleteHeader,
@@ -184,6 +185,8 @@ const CrudList = <
         loading={getAddLoading?.call(null)}
         ref={addDialogRef}
         showClose
+        {...formDialogProps?.common}
+        {...formDialogProps?.add}
       >
         {renderAddForm(formTools)}
       </DialogWithHeader>
@@ -192,6 +195,8 @@ const CrudList = <
         loading={getEditLoading(loadingEntry)}
         ref={editDialogRef}
         showClose
+        {...formDialogProps?.common}
+        {...formDialogProps?.edit}
       >
         {renderEditForm(formTools, entry)}
       </DialogWithHeader>
