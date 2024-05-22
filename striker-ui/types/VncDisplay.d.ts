@@ -4,6 +4,8 @@ type RfbRef = import('react').MutableRefObject<
 
 type RfbScreenRef = import('react').MutableRefObject<HTMLDivElement | null>;
 
+type WebsockCloseEvent = Event & { code: number; reason: string };
+
 type RfbConnectArgs = {
   background?: string;
   clipViewport?: boolean;
@@ -12,6 +14,8 @@ type RfbConnectArgs = {
   focusOnClick?: boolean;
   onConnect?: () => void;
   onDisconnect?: (event: { detail: { clean: boolean } }) => void;
+  onWsClose?: (event?: WebsockCloseEvent) => void;
+  onWsError?: (event: Event) => void;
   qualityLevel?: number;
   resizeSession?: boolean;
   rfb: RfbRef;
