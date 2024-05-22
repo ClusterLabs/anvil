@@ -16,6 +16,14 @@ const ManageHost: FC = () => {
 
   return (
     <CrudList<APIHostOverview, APIHostDetail>
+      formDialogProps={{
+        common: {
+          onClose: ({ handlers: { base } }, ...args) => {
+            base?.call(null, ...args);
+            setInquireHostResponse(undefined);
+          },
+        },
+      }}
       addHeader="Initialize host"
       editHeader=""
       entriesUrl="/host?types=dr,node"
