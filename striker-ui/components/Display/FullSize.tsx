@@ -63,13 +63,15 @@ const FullSize: FC<FullSizeProps> = ({
     Partial<RfbConnectArgs> | undefined
   >(undefined);
   const [vncConnecting, setVncConnecting] = useState<boolean>(false);
+
   const [vncError, setVncError] = useState<boolean>(false);
-  const [vncClientErrorMessage, setVncClientErrorMessage] = useState<
+  const [vncWsErrorMessage, setVncWsErrorMessage] = useState<
     string | undefined
   >();
   const [vncApiErrorMessage, setVncApiErrorMessage] = useState<
     string | undefined
   >();
+
   const [vncReconnectTimer, setVncReconnectTimer] = useState<number>(
     vncReconnectTimerStart,
   );
@@ -162,7 +164,11 @@ const FullSize: FC<FullSizeProps> = ({
 
   const wsCloseEventHandler = useCallback(
     (event?: WebsockCloseEvent): void => {
-      if (!event) return;
+      if (!event) {
+        setVncWsErrorMessage(undefined);
+
+        return;
+      }
 
       const { code: wscode, reason } = event;
 
@@ -172,13 +178,17 @@ const FullSize: FC<FullSizeProps> = ({
         clientmsg += `, ${reason}`;
       }
 
-      setVncClientErrorMessage(clientmsg);
+      setVncWsErrorMessage(clientmsg);
 
       const vncerror = buildCookieJar()[
         `suiapi.vncerror.${serverUUID}`
       ] as APIError;
 
-      if (!vncerror) return;
+      if (!vncerror) {
+        setVncApiErrorMessage(undefined);
+
+        return;
+      }
 
       const { code: apicode, message } = vncerror;
 
@@ -337,7 +347,7 @@ const FullSize: FC<FullSizeProps> = ({
               <>
                 <HeaderText>Can&apos;t connect to the server.</HeaderText>
                 <BodyText>{vncApiErrorMessage}</BodyText>
-                <BodyText>{vncClientErrorMessage}</BodyText>
+                <BodyText>{vncWsErrorMessage}</BodyText>
                 <HeaderText mt=".5em">
                   Retrying in {vncReconnectTimer}.
                 </HeaderText>
