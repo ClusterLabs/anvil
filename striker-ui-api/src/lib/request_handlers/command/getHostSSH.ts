@@ -1,8 +1,11 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_IPV4, REP_PEACEFUL_STRING } from '../../consts';
-import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
+import {
+  HOST_KEY_CHANGED_PREFIX,
+  REP_IPV4,
+  REP_PEACEFUL_STRING,
+} from '../../consts';
 
 import { getLocalHostUUID, getPeerData, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
