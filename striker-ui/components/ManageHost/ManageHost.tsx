@@ -20,7 +20,8 @@ const ManageHost: FC = () => {
         common: {
           onClose: ({ handlers: { base } }, ...args) => {
             base?.call(null, ...args);
-            setInquireHostResponse(undefined);
+            // Delay to avoid visual changes until dialog is fully closed.
+            setTimeout(setInquireHostResponse, 500);
           },
         },
       }}
