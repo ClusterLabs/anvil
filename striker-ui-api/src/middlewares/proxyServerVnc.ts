@@ -49,7 +49,7 @@ export const proxyServerVnc = createProxyMiddleware({
       const serverUuid = getServerUuid(request.url);
 
       const errapiName = cname(`vncerror.${serverUuid}`);
-      const errapiObj = {
+      const errapiObj: ErrorResponseBody = {
         code: '72c969b',
         message: error.message,
         name: error.name,
