@@ -46,7 +46,7 @@ const ManageHost: FC = () => {
       }}
       renderAddForm={(tools) => (
         <>
-          <TestAccessForm setResponse={setInquireHostResponse} />
+          <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />
           {inquireHostResponse && (
             <PrepareHostForm host={inquireHostResponse} tools={tools} />
           )}
