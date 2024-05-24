@@ -1146,6 +1146,8 @@ sub collect_data
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 			}
 		}
 	}
@@ -1197,6 +1199,8 @@ sub collect_data
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				$rescan = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rescan => $rescan }});
@@ -4107,6 +4111,8 @@ sub modify_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	return($output, $return_code);
 }
@@ -4589,6 +4595,8 @@ sub reset_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -4597,6 +4605,8 @@ sub reset_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	return($output, $return_code);
 }

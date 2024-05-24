@@ -799,6 +799,8 @@ sub reconfigure_bridges
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				if ($return_code)
 				{
@@ -848,6 +850,8 @@ sub reconfigure_bridges
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					# NM seems to have a race issue, so we sleep a second after nmcli calls.
+					sleep 1;
 				}
 				
 				# Rescan.
@@ -968,6 +972,8 @@ sub reconfigure_bridges
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			sleep 1;
 			
 			if ($return_code)
 			{
@@ -1173,6 +1179,8 @@ sub reconfigure_bonds
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				if ($return_code)
 				{
@@ -1222,6 +1230,8 @@ sub reconfigure_bonds
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					# NM seems to have a race issue, so we sleep a second after nmcli calls.
+					sleep 1;
 				}
 				
 				# Done! Rescanning the network config
@@ -1355,6 +1365,8 @@ sub reconfigure_bonds
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				if ($return_code)
 				{
@@ -1758,6 +1770,8 @@ sub reconfigure_ip_addresses
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			sleep 1;
 			
 			# Restart the interface
 			$anvil->Job->update_progress({
@@ -1838,6 +1852,8 @@ sub reconfigure_interfaces
 					output      => $output, 
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				# Rescan.
 				$anvil->Job->update_progress({
@@ -2227,6 +2243,8 @@ sub rename_interface
 			output      => $output, 
 			return_code => $return_code, 
 		}});
+		# NM seems to have a race issue, so we sleep a second after nmcli calls.
+		sleep 1;
 		
 		$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.interface-name connection show ".$nm_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -2298,6 +2316,8 @@ sub rename_interface
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	# Read it back
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values match.interface-name connection show ".$nm_uuid;
@@ -2347,6 +2367,8 @@ sub rename_interface
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	# Read it back
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.id connection show ".$nm_uuid;

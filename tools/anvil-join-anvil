@@ -2841,14 +2841,20 @@ sub check_local_network
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		# NM seems to have a race issue, so we sleep a second after nmcli calls.
+		sleep 1;
 		
 		foreach my $interface_name (sort {$a cmp $b} @{$restart_interfaces})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $interface_name }});
 			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down \"".$interface_name."\""});
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			sleep 1;
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0464", variables => { interface => $interface_name }});
 			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			sleep 1;
 		}
 		
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).

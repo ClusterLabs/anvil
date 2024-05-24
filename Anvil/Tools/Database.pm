@@ -6473,12 +6473,14 @@ INSERT INTO
     storage_group_member_storage_group_uuid, 
     storage_group_member_host_uuid, 
     storage_group_member_vg_uuid, 
+    storage_group_member_note, 
     modified_date 
 ) VALUES (
     ".$anvil->Database->quote($storage_group_member_uuid).", 
     ".$anvil->Database->quote($storage_group_uuid).", 
     ".$anvil->Database->quote($this_host_uuid).", 
     ".$anvil->Database->quote($closest_scan_lvm_vg_uuid).", 
+    'auto-created',
     ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
