@@ -542,15 +542,27 @@ ORDER BY
 	reconfigure_bridges($anvil);
 	reconfigure_ip_addresses($anvil);
 	
+	# Sleep a few seconds, and then restart NetworkManager.service.
+	sleep 5;
+	my $nm_running = $anvil->System->check_daemon({debug => 2, daemon => "NetworkManager.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_running => $nm_running }});
+	if (not $nm_running)
+	{
+		$anvil->System->start_daemon({debug => 2, daemon => "NetworkManager.service"});
+	}
+	
 	# Reconnect!
 	if ($host_type ne "striker")
 	{
-		my $time_now   = time;
-		my $wait_until = $time_now + 60;
-		my $waiting    = 1;
+		my $time_now        = time;
+		my $restart_nm_time = $time_now + 30;
+		my $wait_until      = $time_now + 60;
+		my $nm_restarted    = 0;
+		my $waiting         = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			time_now   => $time_now, 
-			wait_until => $wait_until,
+			's1:time_now'        => $time_now, 
+			's2:restart_nm_time' => $restart_nm_time, 
+			's3:wait_until'      => $wait_until,
 		}});
 		while ($waiting)
 		{
@@ -575,6 +587,17 @@ ORDER BY
 				}});
 				if ($time_left > 0)
 				{
+					if (($now_time > $restart_nm_time) && (not $nm_restarted))
+					{
+						# Kick the network
+						$nm_restarted = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_restarted => $nm_restarted }});
+						
+						# Restart the daemon
+						$anvil->System->stop_daemon({debug => 2, daemon => "NetworkManager.service"});
+						$anvil->System->start_daemon({debug => 2, daemon => "NetworkManager.service"});
+					}
+					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0829", variables => { time_left => $time_left }});
 					sleep 5;
 				}
