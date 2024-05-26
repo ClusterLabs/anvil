@@ -2007,7 +2007,7 @@ sub validate_ram
 			name                => $server, 
 			ram                 => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
 			ram_bytes           => $anvil->Convert->add_commas({number => $server_ram_bytes}), 
-			available_ram       => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_ram_bytes}), 
+			available_ram       => $anvil->Convert->bytes_to_human_readable({'bytes' => $available}), 
 			available_ram_bytes => $anvil->Convert->add_commas({number => $available}), 
 		}});
 		$anvil->nice_exit({exit_code => 1});

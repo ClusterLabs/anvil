@@ -19,6 +19,7 @@ my $THIS_FILE = "Database.pm";
 # archive_database
 # backup_database
 # check_file_locations
+# check_hosts
 # check_lock_age
 # check_for_schema
 # configure_pgsql
@@ -432,6 +433,115 @@ sub check_file_locations
 					file_location_ready     => "same",
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_location_uuid => $file_location_uuid }});
+			}
+		}
+	}
+	
+	return(0);
+}
+
+=head2 check_hosts
+
+This checks to see if there's an entry in the C<< hosts >> table on each database. This is meant to avoid an INSERT on a table with a record already, wich can happen when programs start before initial sync.
+
+This method takes no parameters.
+
+=cut
+sub check_hosts
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->check_hosts()" }});
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
+	if ($anvil->data->{sys}{database}{connections} < 1)
+	{
+		# Nothing to do.
+		return(0);
+	}
+	
+	# If we're starting with a new database, which is not yet in the hosts table, we can hit a case where
+	# this tries to insert into both DBs when it's only missing from one. So to habdle that, we'll 
+	# manually check each DB to see if all hosts are there and, if not, INSERT only into the needed DB.
+	foreach my $db_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+	{
+		# Are we connected?
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"db_status::${db_uuid}::access" => $anvil->data->{db_status}{$db_uuid}{access},
+		}});
+		next if not $anvil->data->{db_status}{$db_uuid}{access};
+		
+		# Get the host information from the host.
+		my $query = "
+SELECT 
+    host_ipmi, 
+    host_name, 
+    host_type, 
+    host_key, 
+    host_status 
+FROM 
+    hosts 
+WHERE 
+    host_uuid = ".$anvil->Database->quote($db_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		next if not $count;
+		my $db_host_ipmi   = $results->[0]->[0];
+		my $db_host_name   = $results->[0]->[1];
+		my $db_host_type   = $results->[0]->[2];
+		my $db_host_key    = $results->[0]->[3];
+		my $db_host_status = $results->[0]->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			db_host_ipmi   => $db_host_ipmi =~ /passw/ ? $anvil->Log->is_secure($db_host_ipmi) : $db_host_ipmi,
+			db_host_name   => $db_host_name, 
+			db_host_type   => $db_host_type, 
+			db_host_key    => $db_host_key, 
+			db_host_status => $db_host_status, 
+		}});
+		
+		# Is this host in all DBs?
+		foreach my $check_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+		{
+			# Are we connected?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"db_status::${check_uuid}::access" => $anvil->data->{db_status}{$check_uuid}{access},
+			}});
+			next if not $anvil->data->{db_status}{$check_uuid}{access};
+			
+			my $query = "SELECT COUNT(*) FROM hosts WHERE host_uuid = ".$anvil->Database->quote($check_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({uuid => $check_uuid, query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			
+			if (not $count)
+			{
+				# INSERT it!
+				$anvil->Database->insert_or_update_hosts({
+					debug       => 2,
+					uuid        => $check_uuid, 
+					host_ipmi   => $db_host_ipmi, 
+					host_key    => $db_host_key, 
+					host_name   => $db_host_name, 
+					host_type   => $db_host_type, 
+					host_uuid   => $db_uuid, 
+					host_status => $db_host_status, 
+				});
 			}
 		}
 	}
@@ -2141,6 +2251,12 @@ sub connect
 		
 		# Disconnect and set the connection count to '0'.
 		$anvil->Database->disconnect({debug => $debug});
+	}
+	
+	if ($local_host_type eq "striker")
+	{
+		# More sure any configured databases are in the hosts file.
+		$anvil->Database->check_hosts({debug => $debug});
 	}
 	
 	# If this is a time sensitive call, end here.
@@ -9855,9 +9971,9 @@ INSERT INTO
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
-	elsif (($old_host_name   ne $host_name)   or 
-	       ($old_host_type   ne $host_type)   or 
-	       ($old_host_key    ne $host_key)    or 
+	elsif (($old_host_name   ne $host_name) or 
+	       ($old_host_type   ne $host_type) or 
+	       ($old_host_key    ne $host_key)  or 
 	       ($old_host_status ne $host_status))
 	{
 		# Clear the stop data.
@@ -19148,8 +19264,9 @@ sub write
 			my $test = eval { $anvil->data->{cache}{database_handle}{$uuid}->do($query); };
 			   $test = "" if not defined $test;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				's1:test' => $test,
-				's2:$@'   => $@,
+				's1:test'  => $test,
+				's2:$@'    => $@,
+				's3:query' => $query, 
 			}});
 			
 			if (not $test)
