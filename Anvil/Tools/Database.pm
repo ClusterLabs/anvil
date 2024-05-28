@@ -2269,17 +2269,19 @@ sub connect
 		return($anvil->data->{sys}{database}{connections});
 	}
 	
-	# If 'check_for_resync' is set to '2', then only check if we're primary.
+	# If 'check_for_resync' is set to '2', and the uptime is over two hours, only check if we're primary.
+	my $uptime = $anvil->Get->uptime();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		"sys::database::primary_db" => $anvil->data->{sys}{database}{primary_db},
 		"sys::host_uuid"            => $anvil->data->{sys}{host_uuid},
 		check_for_resync            => $check_for_resync, 
+		uptime                      => $uptime,
 	}});
 	if ($check_for_resync == 2)
 	{
-		if ($anvil->data->{sys}{database}{primary_db} eq $anvil->data->{sys}{host_uuid})
+		if (($uptime < 7200) or ($anvil->data->{sys}{database}{primary_db} eq $anvil->data->{sys}{host_uuid}))
 		{
-			# We're primary.
+			# We're primary or the uptime is low.
 			$check_for_resync = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { check_for_resync => $check_for_resync }});
 		}
