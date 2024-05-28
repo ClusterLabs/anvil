@@ -17425,6 +17425,12 @@ If set, the query will be treated as containing sensitive data and will only be 
 
 To help with logging the source of a query, C<< source >> can be set to the name of the script that requested the query. It is generally used along side C<< line >>.
 
+=head3 timeout (optional, default 30)
+
+This sets a timeout on the execution of the query. If the query doesn't return in the set time, the query will be aborted and C<< !!error!! >> will be returned. 
+
+Set to C<< 0 >> to set no / infinite timeout.
+
 =cut
 sub query
 {
@@ -17434,11 +17440,12 @@ sub query
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->query()" }});
 	
-	my $uuid   = $parameter->{uuid}   ? $parameter->{uuid}   : $anvil->data->{sys}{database}{read_uuid};
-	my $line   = $parameter->{line}   ? $parameter->{line}   : __LINE__;
-	my $query  = $parameter->{query}  ? $parameter->{query}  : "";
-	my $secure = $parameter->{secure} ? $parameter->{secure} : 0;
-	my $source = $parameter->{source} ? $parameter->{source} : $THIS_FILE;
+	my $uuid    =         $parameter->{uuid}    ? $parameter->{uuid}    : $anvil->data->{sys}{database}{read_uuid};
+	my $line    =         $parameter->{line}    ? $parameter->{line}    : __LINE__;
+	my $query   =         $parameter->{query}   ? $parameter->{query}   : "";
+	my $secure  =         $parameter->{secure}  ? $parameter->{secure}  : 0;
+	my $source  =         $parameter->{source}  ? $parameter->{source}  : $THIS_FILE;
+	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 30;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                              => $uuid, 
 		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
@@ -17446,6 +17453,7 @@ sub query
 		query                             => (not $secure) ? $query : $anvil->Log->is_secure($query), 
 		secure                            => $secure, 
 		source                            => $source, 
+		timeout                           => $timeout, 
 	}});
 	
 	# Make logging code a little cleaner
@@ -17549,11 +17557,38 @@ sub query
 	}});
 	
 	# Execute on the query
-	$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { timeout => $timeout }});
+	alarm($timeout);
+	eval {
+		$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
 			query    => (not $secure) ? $query : $anvil->Log->is_secure($query), 
 			server   => $say_server,
 			db_error => $DBI::errstr, 
-		}});
+		}}); 
+	};
+	alarm(0);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
+	if ($@)
+	{
+		if ($timeout)
+		{
+			# Timed out 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0175", variables => { 
+				query   => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				timeout => $timeout, 
+				error   => $@,
+			}});
+		}
+		else
+		{
+			# Other error
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0175", variables => { 
+				query => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				error => $@,
+			}});
+		}
+		return('!!error!!');
+	}
 	
 	# Return the array
 	return($DBreq->fetchall_arrayref());

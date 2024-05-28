@@ -4197,6 +4197,8 @@ We will try to proceed anyway.</key>
 		<key name="warning_0172">[ Warning ] - The line: [#!variable!line!#] that was going to be added to the hosts file is invalid, removing it.</key>
 		<key name="warning_0173">[ Warning ] - Failed to convert: [#!variable!source_file!#] to: [#!variable!new_file!#] (format: [#!variable!format!#]! Return code was: [#!variable!return_code!#], expected '0'.</key>
 		<key name="warning_0174">[ Warning ] - The fence method: [#!variable!method!#] already existed, proceeding.</key>
+		<key name="warning_0175">[ Warning ] - The DB query: [#!variable!query!#] timed out! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
+		<key name="warning_0176">[ Warning ] - The DB query: [#!variable!query!#] failed with the error: [#!variable!error!#].</key>
 		
 	</language>
 	<!-- 日本語 -->
