@@ -861,6 +861,7 @@ sub create_manifest
 	$anvil->Database->get_fences({debug => 2});
 	
 	# This is common for all Anvil! systems we might be building
+	### CGI is legacy
 	$anvil->data->{cgi}{prefix}{value} = $anvil->data->{base}{prefix};
 	$anvil->data->{cgi}{domain}{value} = $anvil->data->{base}{domain};
 	$anvil->data->{cgi}{mtu}{value}    = $anvil->data->{base}{mtu};
@@ -872,6 +873,19 @@ sub create_manifest
 		"cgi::mtu::value"    => $anvil->data->{cgi}{mtu}{value}, 
 		"cgi::dns::value"    => $anvil->data->{cgi}{dns}{value}, 
 		"cgi::ntp::value"    => $anvil->data->{cgi}{ntp}{value}, 
+	}});
+	
+	my $network_dns = $anvil->data->{base}{dns};
+	my $domain      = $anvil->data->{base}{domain};
+	my $network_mtu = $anvil->data->{base}{mtu};
+	my $network_ntp = $anvil->data->{base}{ntp};
+	my $name_prefix = $anvil->data->{base}{prefix};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		network_dns => $network_dns, 
+		domain      => $domain, 
+		network_mtu => $network_mtu, 
+		network_ntp => $network_ntp, 
+		name_prefix => $name_prefix, 
 	}});
 	
 	foreach my $anvil_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}})
@@ -1055,8 +1069,17 @@ sub create_manifest
 				}
 			}
 		}
+		
 		# Now generate the manifest.
-		my ($manifest_uuid, $manifest_name) = $anvil->Striker->generate_manifest({debug => 2});
+		my ($manifest_uuid, $manifest_name) = $anvil->Striker->generate_manifest({
+			debug           => 2,
+			network_dns     => $network_dns,
+			domain          => $domain, 
+			network_mtu     => $network_mtu, 
+			network_ntp     => $network_ntp, 
+			name_prefix     => $name_prefix, 
+			padded_sequence => $padded_sequence, 
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			manifest_uuid => $manifest_uuid, 
 			manifest_name => $manifest_name, 

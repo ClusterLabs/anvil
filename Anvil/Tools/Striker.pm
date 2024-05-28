@@ -397,7 +397,7 @@ sub generate_manifest
 		$padded_sequence = sprintf("%02d", $padded_sequence);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { padded_sequence => $padded_sequence }});
 	}
-
+	
 	my $anvil_name = $name_prefix."-anvil-".$padded_sequence;
 	my $node1_name = $name_prefix."-a".$padded_sequence."n01";
 	my $node2_name = $name_prefix."-a".$padded_sequence."n02";
@@ -426,6 +426,14 @@ sub generate_manifest
 			my $subnet_value  = $parameter->{$subnet_key} // $anvil->data->{cgi}{$subnet_key}{value};
 			my $gateway_key   = $network_name."_gateway";
 			my $gateway_value = $parameter->{$gateway_key} // $anvil->data->{cgi}{$gateway_key}{value};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:network_key'   => $network_key,
+				's2:network_value' => $network_value, 
+				's3:subnet_key'    => $subnet_key, 
+				's4:subnet_value'  => $subnet_value, 
+				's5:gateway_key'   => $gateway_key, 
+				's6:gateway_value' => $gateway_value, 
+			}});
 
 			$manifest_xml .= '		<network name="'.$network_name.'" network="'.$network_value.'" subnet="'.$subnet_value.'" gateway="'.$gateway_value.'" />'."\n";
 			
@@ -435,6 +443,10 @@ sub generate_manifest
 				# Record the network
 				my $ip_key   = $machine."_".$network_name."_ip";
 				my $ip_value = ($parameter->{$ip_key} // $anvil->data->{cgi}{$ip_key}{value}) // "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:ip_key'   => $ip_key,
+					's2:ip_value' => $ip_value, 
+				}});
 
 				$machines->{$machine}{network}{$network_name} = $ip_value;
 				
@@ -444,6 +456,10 @@ sub generate_manifest
 					# Get the IP.
 					my $ipmi_ip_key   = $machine."_ipmi_ip";
 					my $ipmi_ip_value = ($parameter->{$ipmi_ip_key} // $anvil->data->{cgi}{$ipmi_ip_key}{value}) // "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:ipmi_ip_key'   => $ipmi_ip_key,
+						's2:ipmi_ip_value' => $ipmi_ip_value, 
+					}});
 
 					$machines->{$machine}{ipmi_ip} = $ipmi_ip_value;
 					
@@ -452,6 +468,10 @@ sub generate_manifest
 					{
 						my $ups_key                              = $machine."_ups_".$ups_name;
 						my $ups_value = ($parameter->{$ups_key} // $anvil->data->{cgi}{$ups_key}{value}) // "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:ups_key'   => $ups_key,
+							's2:ups_value' => $ups_value, 
+						}});
 
 						$machines->{$machine}{ups}{$ups_name} = $ups_value ? "1" : "0";
 					}
@@ -461,6 +481,10 @@ sub generate_manifest
 					{
 						my $fence_key   = $machine."_fence_".$fence_name;
 						my $fence_value = ($parameter->{$fence_key} // $anvil->data->{cgi}{$fence_key}{value}) // "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:fence_key'   => $fence_key,
+							's2:fence_value' => $fence_value, 
+						}});
 
 						$machines->{$machine}{fence}{$fence_name} = $fence_value;
 					}
@@ -538,6 +562,7 @@ sub generate_manifest
 		manifest_name => $anvil_name, 
 		manifest_xml  => $manifest_xml, 
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
 	
 	return($manifest_uuid, $anvil_name);
 }
