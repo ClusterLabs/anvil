@@ -341,13 +341,13 @@ sub generate_manifest
 	my $debug     = $parameter->{debug} // 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
 
-	my $network_dns     = $parameter->{dns}           // "";
-	my $domain          = $parameter->{domain}        // "";
-	my $manifest_uuid   = $parameter->{manifest_uuid} // "";
-	my $network_mtu     = $parameter->{mtu}           // "";
-	my $network_ntp     = $parameter->{ntp}           // "";
-	my $name_prefix     = $parameter->{prefix}        // "";
-	my $padded_sequence = $parameter->{sequence}      // "";
+	my $network_dns     = defined $parameter->{dns}           ? $parameter->{dns}           : "";
+	my $domain          = defined $parameter->{domain}        ? $parameter->{domain}        : "";
+	my $manifest_uuid   = defined $parameter->{manifest_uuid} ? $parameter->{manifest_uuid} : "";
+	my $network_mtu     = defined $parameter->{mtu}           ? $parameter->{mtu}           : "";
+	my $network_ntp     = defined $parameter->{ntp}           ? $parameter->{ntp}           : "";
+	my $name_prefix     = defined $parameter->{prefix}        ? $parameter->{prefix}        : "";
+	my $padded_sequence = defined $parameter->{sequence}      ? $parameter->{sequence}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		network_dns     => $network_dns,
 		domain          => $domain, 
