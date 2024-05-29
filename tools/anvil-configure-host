@@ -245,8 +245,14 @@ sub update_passwords
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
-				my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+				my ($output, $return_code) = $anvil->System->call({
+					debug      => 2, 
+					timeout    => 30, 
+					shell_call => $shell_call });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
 				
 				if ($return_code)
 				{
@@ -271,7 +277,9 @@ sub update_passwords
 			}
 			
 			# Unlink the temp file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0263", variables => { file => $temp_file }});
 			unlink $temp_file;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0283"});
 		}
 	}
 	

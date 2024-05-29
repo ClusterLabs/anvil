@@ -1752,6 +1752,18 @@ sub run_jobs
 					# The job is running.
 					$anvil->data->{jobs_started}{$short_command} = $job_uuid;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+					
+					if ($short_command =~ /anvil-configure-host/)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"pids::${job_picked_up_by}::cpu"         => $anvil->data->{pids}{$job_picked_up_by}{cpu}, 
+							"pids::${job_picked_up_by}::memory"      => $anvil->data->{pids}{$job_picked_up_by}{memory}, 
+							"pids::${job_picked_up_by}::state_codes" => $anvil->data->{pids}{$job_picked_up_by}{state_codes}, 
+							"pids::${job_picked_up_by}::start_time"  => $anvil->data->{pids}{$job_picked_up_by}{start_time}, 
+							"pids::${job_picked_up_by}::time"        => $anvil->data->{pids}{$job_picked_up_by}{'time'}, 
+							"pids::${job_picked_up_by}::command"     => $anvil->data->{pids}{$job_picked_up_by}{command}, 
+						}});
+					}
 				}
 			}
 			

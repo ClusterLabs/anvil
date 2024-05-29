@@ -544,6 +544,7 @@ sub entry
 			
 			# The handle has to be wrapped in a block to make 'print' happy as it doesn't like non-scalars for file handles
 			print { $anvil->data->{HANDLE}{'log'}{alert} } $log_to_alert;
+			system('/usr/bin/sync');
 		}
 		$anvil->data->{loop}{count} = 0;
 	}
