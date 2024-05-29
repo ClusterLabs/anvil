@@ -338,7 +338,7 @@ sub generate_manifest
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
-	my $debug     = $parameter->{debug} // 3;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Striker->generate_manifest()" }});
 
 	my $network_dns     = defined $parameter->{dns}           ? $parameter->{dns}           : "";

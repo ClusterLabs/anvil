@@ -1072,13 +1072,13 @@ sub create_manifest
 		
 		# Now generate the manifest.
 		my ($manifest_uuid, $manifest_name) = $anvil->Striker->generate_manifest({
-			debug           => 2,
-			network_dns     => $network_dns,
-			domain          => $domain, 
-			network_mtu     => $network_mtu, 
-			network_ntp     => $network_ntp, 
-			name_prefix     => $name_prefix, 
-			padded_sequence => $padded_sequence, 
+			debug    => 2,
+			dns      => $network_dns,
+			domain   => $domain, 
+			mtu      => $network_mtu, 
+			ntp      => $network_ntp, 
+			prefix   => $name_prefix, 
+			sequence => $padded_sequence, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			manifest_uuid => $manifest_uuid, 
