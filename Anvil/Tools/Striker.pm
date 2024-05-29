@@ -312,9 +312,9 @@ This is a comma-separated list of DNS servers to use.
 
 This is the domain name to use for this Anvil! node.
 
-=head3 manifest_uuid (optional)
+=head3 manifest_uuid (required)
 
-This allows updating an existing mannifest, or specifying the manifest UUID to use for the new manifest.
+This allows updating an existing manifest, or specifying the manifest UUID to use for the new manifest. When creating a new manifest, set this to C<< new >>.
 
 =head3 mtu (optional)
 
@@ -382,7 +382,7 @@ sub generate_manifest
 	if (not $manifest_uuid)
 	{
 		# Don't proceed, we'd get an invalid manifest.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0159"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0041"});
 		return('!!error!!');
 	}
 	
