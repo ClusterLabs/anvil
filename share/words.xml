@@ -2739,6 +2739,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 The key in the database has been updated, so we're going to swap the key. The change is;
 old key: [#!variable!old_key!#]
 new key: [#!variable!new_key!#]</key>
+		<key name="log_0852">Finished configuring bonds.</key>
+		<key name="log_0853">Now configuring bridges.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

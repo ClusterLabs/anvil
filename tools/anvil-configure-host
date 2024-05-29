@@ -534,7 +534,7 @@ ORDER BY
 			file      => $THIS_FILE, 
 			line      => __LINE__,
 		});
-		$anvil->Database->disconnect();
+		$anvil->Database->disconnect({debug => 2});
 	}
 	
 	# These can brake the connection.
@@ -726,6 +726,7 @@ sub reconfigure_bridges
 {
 	my ($anvil) = @_;
 	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0853"});
 	my $local_host = $anvil->Get->short_host_name();
 	my $bcn_count  = $anvil->data->{config}{bcn_count};
 	my $ifn_count  = $anvil->data->{config}{ifn_count};
@@ -1458,10 +1459,14 @@ sub reconfigure_bonds
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data();
+				$anvil->Network->collect_data({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_uuid => $nm_uuid }});
 			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
 		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
 	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0852"});
 	
 	return(0);
 }
