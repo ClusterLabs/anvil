@@ -2528,12 +2528,28 @@ LIMIT 1;";
 					foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}})
 					{
 						my $method = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{order}{$order}{devices};
-						my $agent  = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$method}{agent};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:order'  => $order,
 							's2:method' => $method, 
-							's3:agent'  => $agent 
 						}});
+						my $agent = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$method}{agent};
+						if ((not defined $agent) && ($method =~ /,/))
+						{
+							# Break up the method name to find the agent.
+							$agent = "";
+							foreach my $sub_method (split/,/, $method)
+							{
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { sub_method => $sub_method }});
+								if ((exists $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$sub_method}) && 
+								    (defined $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$sub_method}{agent}))
+								{
+									$agent = $anvil->data->{cib}{parsed}{data}{stonith}{primitive_id}{$sub_method}{agent};
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { agent => $agent }});
+									last;
+								}
+							}
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { agent => $agent }});
 						
 						# We can't trust a PDU's output, so skip them. We also can't use the fake 'fence_delay' agent.
 						next if $agent =~ /pdu/;

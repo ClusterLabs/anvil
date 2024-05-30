@@ -2302,7 +2302,9 @@ LIMIT 1
 	# use, but we'll scan 1..9 + 0.
 	foreach my $i (1..9, 0)
 	{
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." lan print ".$i});
+		my $shell_call = $anvil->data->{path}{exe}{ipmitool}." lan print ".$i;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
 			return_code => $return_code,
@@ -2483,7 +2485,10 @@ LIMIT 1
 	while ($waiting)
 	{
 		my $debug = 2;
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel});
+		my $shell_call = $anvil->data->{path}{exe}{ipmitool}." user list ".$lan_channel;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			output      => $output, 
 			return_code => $return_code,
@@ -4990,17 +4995,18 @@ sub test_ipmi
 			# Build the shell call.
 			$shell_call = $anvil->data->{path}{directories}{fence_agents}."/fence_ipmilan ".$lanplus_switch." --ip ".$ipmi_target." --username ".$ipmi_user." --password \"".$test_password."\" --action status";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { shell_call => $shell_call }});
-	
+			
+			# HPs can take over 10 seconds to respond.
+			my $timeout     = 30;
 			my $output      = "";
 			my $return_code = "";
 			if ($target)
 			{
 				### Remote call
-				# HPs can take over 10 seconds to respond, so we set the timeout higher to account for this.
 				($output, my $error, $return_code) = $anvil->Remote->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 20,
+					timeout     => $timeout,
 					shell_call  => $shell_call, 
 					target      => $target,
 					password    => $password,
@@ -5017,7 +5023,7 @@ sub test_ipmi
 				($output, $return_code) = $anvil->System->call({
 					debug       => $debug, 
 					secure      => 1,
-					timeout     => 2,
+					timeout     => $timeout,
 					shell_call  => $shell_call, 
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
