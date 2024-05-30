@@ -4202,6 +4202,7 @@ We will try to proceed anyway.</key>
 		<key name="warning_0175">[ Warning ] - The DB query: [#!variable!query!#] timed out! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
 		<key name="warning_0176">[ Warning ] - The DB query: [#!variable!query!#] failed with the error: [#!variable!error!#].</key>
 		<key name="warning_0177">[ Warning ] - SQL quoting string: [#!variable!string!#] failed with the error: [#!variable!error!#].</key>
+		<key name="warning_0178">[ Warning ] - About to run 'anvil-configure-host'. This is likely going to take the network down, so we will hold here until this job is complete.</key>
 		
 	</language>
 	<!-- 日本語 -->

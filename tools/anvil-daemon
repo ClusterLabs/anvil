@@ -1911,31 +1911,55 @@ sub run_jobs
 					}
 				}
 				
-				# Start the job, appending '--job-uuid' to the command.
-				($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
-					background  => 1, 
-					stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
-					stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
-					shell_call  => $command, 
-					source      => $THIS_FILE, 
-					line        => __LINE__,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, 
-					return_code                  => $return_code,
-				}});
-				
-				# Log the PID (the job should update the database).
-				my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
-				
-				# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
-				$anvil->data->{jobs}{$job_uuid}{started} = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
-				
-				# Record that a job with this command has started 
-				$anvil->data->{jobs_started}{$short_command} = $job_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+				### Start the job, appending '--job-uuid' to the command.
+				# If the job is 'anvil-configure-host', DO NOT background it! We need to call it and wait for it to return.
+				if ($job_command =~ /anvil-configure-host/)
+				{
+					# Log that we're going to run this and wait. Our DB connection is 
+					# likely going to break, so disconnect now.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0178"});
+					$anvil->Database->disconnect();
+					my ($output, $return_code) = $anvil->System->call({
+						debug      => 2,
+						shell_call => $command, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+					
+					# Refresh and reconnect
+					$anvil->refresh({debug => 2});
+					$anvil->Database->connect({debug => 2, check_for_resync => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+				}
+				else
+				{
+					($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
+						background  => 1, 
+						stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
+						stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
+						shell_call  => $command, 
+						source      => $THIS_FILE, 
+						line        => __LINE__,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, 
+						return_code                  => $return_code,
+					}});
+					
+					# Log the PID (the job should update the database).
+					my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
+					
+					# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
+					$anvil->data->{jobs}{$job_uuid}{started} = time;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
+					
+					# Record that a job with this command has started 
+					$anvil->data->{jobs_started}{$short_command} = $job_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+				}
 			}
 		}
 	}
