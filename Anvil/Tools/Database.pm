@@ -17601,6 +17601,8 @@ sub query
 
 This quotes a string for safe use in database queries/writes. It operates exactly as C<< DBI >>'s C<< quote >> method. This method is simply a wrapper that uses the C<< DBI >> handle set as the currently active read database.
 
+If there is a problem, an empty string will be returned and an error will be logged and printed to STDOUT.
+
 Example;
 
  $anvil->Database->quote("foo");
@@ -17616,8 +17618,22 @@ sub quote
 	my $string = shift;
 	my $anvil  = $self->parent;
 	
-	   $string = "" if not defined $string;
-	my $quoted = $anvil->Database->read->quote($string);
+	$string = "" if not defined $string;
+	   
+	# Make sure we're using an active handle.
+	my $quoted = eval {$anvil->Database->read->quote($string); };
+	if ($@)
+	{
+		$quoted = "" if not defined $quoted;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "warning_0177", variables => { 
+			string => $string,
+			error  => $@,
+		}});
+		
+		# Given this might be about to get used in a DB query, return nothing. That should cause 
+		# whatever query this was called for to error safely.
+		return("");
+	}
 	
 	return($quoted);
 }

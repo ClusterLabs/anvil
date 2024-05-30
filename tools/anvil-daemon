@@ -173,21 +173,25 @@ my $delay = set_delay($anvil);
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
 $anvil->data->{timing}{minute_checks}         = 60;
 $anvil->data->{timing}{ten_minute_checks}     = 600;
+$anvil->data->{timing}{hourly_checks}         = 3600;
 $anvil->data->{timing}{daily_checks}          = 86400;
 $anvil->data->{timing}{repo_update_interval}  = 86400;
 $anvil->data->{timing}{next_minute_check}     = $now_time - 1;
+$anvil->data->{timing}{next_hourly_check}     = $now_time - 1;
 $anvil->data->{timing}{next_ten_minute_check} = $now_time - 1;
 $anvil->data->{timing}{next_daily_check}      = ($now_time + $delay) - 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"s1:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
-	"s2:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks}, 
-	"s3:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
-	"s4:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
-	"s5:now_time"                      => $now_time, 
-	"s6:delay"                         => $delay, 
-	"s7:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
-	"s8:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
-	"s9:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
+	"s01:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
+	"s02:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks}, 
+	"s03:timing::hourly_checks"         => $anvil->data->{timing}{hourly_checks}, 
+	"s04:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
+	"s05:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
+	"s06:now_time"                      => $now_time, 
+	"s07:delay"                         => $delay, 
+	"s08:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
+	"s09:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+	"s10:timing::next_hourly_check"     => $anvil->data->{timing}{next_hourly_check}, 
+	"s11:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
 }});
 
 # Disconnect. We'll reconnect inside the loop
@@ -230,9 +234,6 @@ while(1)
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0055"});
 		$anvil->nice_exit({exit_code => 0});
 	}
-	
-	# Check how much RAM we're using.
-	check_ram($anvil);
 	
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
@@ -443,8 +444,9 @@ sub handle_periodic_tasks
 		"s1:now_time"                      => $now_time, 
 		"s2:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
 		"s3:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
-		"s4:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
-		"s5:host_type"                     => $host_type,
+		"s4:timing::next_hourly_check"     => $anvil->data->{timing}{next_hourly_check}, 
+		"s5:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
+		"s6:host_type"                     => $host_type,
 	}});
 	
 	# Time to run once per minute tasks.
@@ -615,6 +617,20 @@ sub handle_periodic_tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks},
 			"s2:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+		}});
+	}
+	
+	# Now check to see if it's time to run hourly tasks.
+	if ($now_time >= $anvil->data->{timing}{next_hourly_check})
+	{
+		# Check how much RAM we're using.
+		check_ram($anvil);
+		
+		# Update the next check time.
+		$anvil->data->{timing}{next_hourly_check} = $now_time + $anvil->data->{timing}{hourly_checks};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:timing::hourly_checks"     => $anvil->data->{timing}{hourly_checks},
+			"s2:timing::next_hourly_check" => $anvil->data->{timing}{next_hourly_check}, 
 		}});
 	}
 	

@@ -4201,6 +4201,7 @@ We will try to proceed anyway.</key>
 		<key name="warning_0174">[ Warning ] - The fence method: [#!variable!method!#] already existed, proceeding.</key>
 		<key name="warning_0175">[ Warning ] - The DB query: [#!variable!query!#] timed out! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
 		<key name="warning_0176">[ Warning ] - The DB query: [#!variable!query!#] failed with the error: [#!variable!error!#].</key>
+		<key name="warning_0177">[ Warning ] - SQL quoting string: [#!variable!string!#] failed with the error: [#!variable!error!#].</key>
 		
 	</language>
 	<!-- 日本語 -->
