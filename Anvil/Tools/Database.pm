@@ -17532,6 +17532,15 @@ sub query
 			query => $query, 
 		}});
 	}
+
+	### TODO: Remove this before pr/660 is released.
+	# Trying to see how the handle changes if/when the handle is lost.
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+		}});
+	}
 	
 	# Do the query.
 	local $@;
@@ -17540,16 +17549,42 @@ sub query
 			server   => $say_server,
 			db_error => $DBI::errstr, 
 		}}); };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'eval_error' => $@ }});
 	if ($@)
 	{
 		### TODO: Report back somehow that the handle is dead.
-		$anvil->Database->disconnect({debug => $debug});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0675", variables => { 
-			query      => (not $secure) ? $query : $anvil->Log->is_secure($query), 
-			server     => $say_server,
-			eval_error => $@, 
-		}});
-		return("!!error!!");
+		my $connections = $anvil->Database->reconnect({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connections => $connections }});
+		if ($connections)
+		{
+			# Try the prepare again
+			$DBreq = eval { $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => {
+				query    => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				server   => $say_server,
+				db_error => $DBI::errstr,
+			}}); };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'eval_error' => $@ }});
+			if ($@)
+			{
+				# No luck, we're dead
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0675", variables => {
+					query      => (not $secure) ? $query : $anvil->Log->is_secure($query),
+					server     => $say_server,
+					eval_error => $@,
+				}});
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			# No luck, we're dead
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0675", variables => {
+				query      => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				server     => $say_server,
+				eval_error => $@,
+			}});
+			return("!!error!!");
+		}
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid       => $uuid, 
@@ -17932,6 +17967,41 @@ AND
 		modified_date  => $modified_date, 
 	}});
 	return($variable_value, $variable_uuid, $mtime, $modified_date);
+}
+
+
+=head2 reconnect
+
+This method disconnects from any connected databases, re-reads the config, and then tries to reconnect to any databases again. The number of connected datbaases is returned.
+
+This method takes no parameters.
+
+=cut
+sub reconnect
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
+
+	# Close our own connection.
+	$anvil->Database->locking({debug => $debug, release => 1});
+
+	# Disconnect from all databases and then stop the daemon, then reconnect.
+	$anvil->Database->disconnect({debug => $debug});
+
+	# Refresh configs.
+	$anvil->refresh();
+
+	# Reconnect.
+	$anvil->Database->connect({debug => $debug});
+
+	# Log our connection count.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+	}});
+	return($anvil->data->{sys}{database}{connections});
 }
 
 
@@ -19311,7 +19381,7 @@ sub write
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0089", variables => { uuid => $uuid }});
 				next;
 			}
-			
+
 			# Do the do. Do it in an eval block though so that if it fails, we can do something 
 			# useful.
 			my $test = eval { $anvil->data->{cache}{database_handle}{$uuid}->do($query); };
