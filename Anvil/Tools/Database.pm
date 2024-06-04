@@ -20659,11 +20659,11 @@ sub _mark_database_as_behind
 
 =head2 _test_access
 
-This method takes a database UUID and tests the connection to it using the DBD 'ping' method. If it fails, open references to the database are removed or replaced, then an attempt to reconnect is made.
+This method takes a database UUID and tests the connection to it using the DBD 'ping' method. If it fails, the database connections will be refreshed. If after this there is still no connection, C<< 1 >> is returned. If the connection is up (immediately or after reconnect), C<< 0 >> is returned.
 
 This exists to handle the loss of a database mid-run where a normal query, which isn't wrapped in a query, could hang indefinately.
 
-B<< Note >>: If there is no active handle, this returns 0 immediately.
+B<< Note >>: If there is no active handle, this returns C<< 1 >> immediately without trying to reconnect.
 
 =cut
 sub _test_access
@@ -20681,9 +20681,11 @@ sub _test_access
 	}});
 	
 	# If the handle is down, return 0.
+	my $problem = 1;
 	if ((not exists $anvil->data->{cache}{database_handle}{$uuid}) or (not $anvil->data->{cache}{database_handle}{$uuid}))
 	{
-		return(0);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+		return($problem);
 	}
 	
 	# Make logging code a little cleaner
@@ -20693,28 +20695,6 @@ sub _test_access
 	# Log our test
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0087", variables => { server => $say_server }});
 	
-	# TODO: Is there a use for this anymore?
-	if (0)
-	{
-		# Ping works. Try a quick test query.
-		my $query = "SELECT 1";
-		my $DBreq = $anvil->data->{cache}{database_handle}{$uuid}->prepare($query) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0075", variables => { 
-				query    => $query, 
-				server   => $say_server,
-				db_error => $DBI::errstr, 
-			}});
-		
-		# Give the test query a few seconds to respond, just in case we have some latency to a remote DB.
-		alarm(10);
-		$DBreq->execute() or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0076", variables => { 
-				query    => $query, 
-				server   => $say_server,
-				db_error => $DBI::errstr, 
-			}});
-		# If we're here, we made contact.
-		alarm(0);
-	}
-	
 	# Check using ping. Returns '1' on success, '0' on fail.
 	alarm(120);
 	my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
@@ -20722,107 +20702,50 @@ sub _test_access
 	alarm(0);
 	if (not $connected)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0192", variables => { server => $say_server }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0192", variables => { server => $say_server }});
 		
 		# Try to reconnect.
-		$anvil->data->{sys}{database}{connections}--;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
+		$anvil->Database->reconnect({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::database::connections"      => $anvil->data->{sys}{database}{connections},
+			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+		}});
 		
-		# If this was the DB we were reading from or that the use_db_handle matches, and another DB 
-		# appears to still be up, switch to one of the others.
-		if ($anvil->data->{sys}{database}{connections})
+		if ($anvil->data->{cache}{database_handle}{$uuid})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::use_handle"       => $anvil->Database->read,
-				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
-			}});
-			if ($anvil->Database->read eq $anvil->data->{cache}{database_handle}{$uuid})
-			{
-				foreach my $this_uuid (keys %{$anvil->data->{cache}{database_handle}})
-				{
-					# We don't test this connection because, if it's down, we'll know 
-					# when it is tested.
-					my $database_name = defined $anvil->data->{database}{$this_uuid}{name} ? $anvil->data->{database}{$this_uuid}{name} : "anvil";
-					my $say_server    = $anvil->data->{database}{$this_uuid}{host}.":".$anvil->data->{database}{$this_uuid}{port}." -> ".$database_name;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0193", variables => { server => $say_server }});
-
-					$anvil->Database->read({set => $anvil->data->{cache}{database_handle}{$this_uuid}});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'anvil->Database->read' => $anvil->Database->read }});
-					last;
-				}
-			}
-
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				uuid                       => $uuid,
-				"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
-			}});
-			if ($uuid eq $anvil->data->{sys}{database}{read_uuid})
-			{
-				# We were reading from this DB, switch.
-				foreach my $this_uuid (keys %{$anvil->data->{cache}{database_handle}})
-				{
-					# We don't test this connection because, if it's down, we'll know 
-					# when it is tested.
-					my $database_name = defined $anvil->data->{database}{$this_uuid}{name} ? $anvil->data->{database}{$this_uuid}{name} : "anvil";
-					my $say_server    = $anvil->data->{database}{$this_uuid}{host}.":".$anvil->data->{database}{$this_uuid}{port}." -> ".$database_name;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0194", variables => { server => $say_server }});
-
-					$anvil->data->{sys}{database}{read_uuid} = $this_uuid;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid} }});
-					last;
-				}
-			}
+			alarm(120);
+			my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
+			alarm(0);
 			
+			if ($connected)
+			{
+				# We reconnected.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0854", variables => { server => $say_server }});
+				$problem = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+				return($problem);
+			}
+			else
+			{
+				# The tartget DB is gone.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0179", variables => { server => $say_server }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+				return($problem);
+			}
 		}
 		else
 		{
-			# We're in trouble if we don't reconnect...
-			$anvil->Database->read({set => "delete"});
-			$anvil->data->{sys}{database}{read_uuid} = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				'anvil->Database->read'    => $anvil->Database->read, 
-				"sys::database::read_uuid" => $anvil->data->{sys}{database}{read_uuid},
-			}});
-			
-		}
-		
-		# Delete the old handle and then try to reconnect. If the reconnect succeeds, and this is the
-		# local database, this database will be re-selected as default for reads.
-		delete $anvil->data->{cache}{database_handle}{$uuid};
-		
-		my $delay = 5;
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0195", variables => { 
-			delay  => $delay,
-			server => $say_server,
-		}});
-		sleep $delay;
-		$anvil->Database->connect({debug => $debug, db_uuid => $uuid});
-		
-		# If we're down to '0' databases, error out.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
-		if (not $anvil->data->{sys}{database}{connections})
-		{
-			# No connections are left.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0366"});
-			
-			# It's possible the network was just reconfigured, and they were trying to updated a 
-			# job in the database. If so, this failure can be hit. To handle this, we'll check 
-			# if 'sys::reboot' is set. If so, we'll reboot now.
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::reboot" => $anvil->data->{sys}{reboot} }});
-			if ($anvil->data->{sys}{reboot})
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0196"});
-				my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
-			}
-			return(1);
+			# The tartget DB is gone.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0179", variables => { server => $say_server }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			return($problem);
 		}
 	}
 	
 	# Success!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0088"});
-	
-	return(0);
+	$problem = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	return($problem);
 }
