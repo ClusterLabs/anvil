@@ -17442,7 +17442,7 @@ sub query
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->query()" }});
 	
-	my $uuid    =         $parameter->{uuid}    ? $parameter->{uuid}    : $anvil->data->{sys}{database}{read_uuid};
+	my $uuid    =         $parameter->{uuid}    ? $parameter->{uuid}    : "";
 	my $line    =         $parameter->{line}    ? $parameter->{line}    : __LINE__;
 	my $query   =         $parameter->{query}   ? $parameter->{query}   : "";
 	my $secure  =         $parameter->{secure}  ? $parameter->{secure}  : 0;
@@ -17457,6 +17457,18 @@ sub query
 		source                            => $source, 
 		timeout                           => $timeout, 
 	}});
+	
+	# Use the default read_uuid if a specific UUID wasn't specified.
+	my $used_read_uuid = 0;
+	if (not $uuid)
+	{
+		$uuid           = $anvil->data->{sys}{database}{read_uuid};
+		$used_read_uuid = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:uuid"           => $uuid, 
+			"s2:used_read_uuid" => $used_read_uuid, 
+		}});
+	}
 	
 	# Make logging code a little cleaner
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -17509,14 +17521,37 @@ sub query
 	if (not $query)
 	{
 		# No query
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0084", variables => { 
-			server => $say_server,
-		}});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0084", variables => { server => $say_server }});
 		return("!!error!!");
 	}
 	
 	# Test access to the DB before we do the actual query
-	$anvil->Database->_test_access({debug => $debug, uuid => $uuid});
+	my $problem = $anvil->Database->_test_access({debug => $debug, uuid => $uuid});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	if ($problem)
+	{
+		if ($used_read_uuid)
+		{
+			# Switch to the new read_uuid, if possible,
+			if ($anvil->data->{sys}{database}{read_uuid})
+			{
+				$uuid = $anvil->data->{sys}{database}{read_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			}
+			else
+			{
+				# No usable databases are available.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0181", variables => { server => $say_server }});
+				return("!!error!!");
+			}
+		}
+		else
+		{
+			# We were given a specific UUID, and we can't read from it. Return an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0180", variables => { server => $say_server }});
+			return("!!error!!");
+		}
+	}
 	
 	# If I am still alive check if any locks need to be renewed.
 	$anvil->Database->check_lock_age({debug => $debug});
@@ -19352,7 +19387,16 @@ sub write
 		if (not $initializing)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
-			$anvil->Database->_test_access({debug => $debug, uuid => $uuid});
+			
+			my $problem = $anvil->Database->_test_access({debug => $debug, uuid => $uuid});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			
+			if ($problem)
+			{
+				# We can't use this DB. 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0182", variables => { uuid => $uuid }});
+				next;
+			}
 		}
 		
 		# Do the actual query(ies)

@@ -4205,6 +4205,9 @@ We will try to proceed anyway.</key>
 		<key name="warning_0177">[ Warning ] - SQL quoting string: [#!variable!string!#] failed with the error: [#!variable!error!#].</key>
 		<key name="warning_0178">[ Warning ] - About to run 'anvil-configure-host'. This is likely going to take the network down, so we will hold here until this job is complete.</key>
 		<key name="warning_0179">[ Warning ] - The connection to the database: [#!variable!server!#] was not restored, unable to this database.</key>
+		<key name="warning_0180">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is not or is no longer available.</key>
+		<key name="warning_0181">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is no longer available, and no alternative databases are available.</key>
+		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during a write. Skipping this database.</key>
 		
 	</language>
 	<!-- 日本語 -->
