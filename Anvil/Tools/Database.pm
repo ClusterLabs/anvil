@@ -17451,7 +17451,7 @@ sub query
 	my $timeout = defined $parameter->{timeout} ? $parameter->{timeout} : 30;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		uuid                              => $uuid, 
-		"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
+		"cache::database_handle::${uuid}" => $uuid ? $anvil->data->{cache}{database_handle}{$uuid} : "", 
 		line                              => $line, 
 		query                             => (not $secure) ? $query : $anvil->Log->is_secure($query), 
 		secure                            => $secure, 
@@ -17466,8 +17466,9 @@ sub query
 		$uuid           = $anvil->data->{sys}{database}{read_uuid};
 		$used_read_uuid = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"s1:uuid"           => $uuid, 
-			"s2:used_read_uuid" => $used_read_uuid, 
+			"s1:uuid"                            => $uuid, 
+			"s2:used_read_uuid"                  => $used_read_uuid, 
+			"s3:cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 		}});
 	}
 	
@@ -20748,7 +20749,9 @@ sub _test_access
 	alarm(0);
 	if (not $connected)
 	{
-		if ((not exists $anvil->data->{sys}{in_test_access}) or (not $anvil->data->{sys}{in_test_access}))
+		$anvil->data->{sys}{in_test_access} = 0 if not defined $anvil->data->{sys}{in_test_access};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::in_test_access" => $anvil->data->{sys}{in_test_access} }});
+		if (not $anvil->data->{sys}{in_test_access})
 		{
 			# This prevents deep recursion
 			$anvil->data->{sys}{in_test_access} = 1;
@@ -20768,7 +20771,8 @@ sub _test_access
 			
 			$anvil->data->{sys}{in_test_access} = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::in_test_access" => $anvil->data->{sys}{in_test_access},
+				"s1:sys::in_test_access"             => $anvil->data->{sys}{in_test_access}, 
+				"s2:cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid}, 
 			}});
 			
 			if ($anvil->data->{cache}{database_handle}{$uuid})
@@ -20805,6 +20809,9 @@ sub _test_access
 		else
 		{
 			# No luck.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0179", variables => { server => $say_server }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			return($problem);
 		}
 	}
 	
