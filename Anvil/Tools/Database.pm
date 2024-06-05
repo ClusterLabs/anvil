@@ -10732,6 +10732,7 @@ AND
 			{
 				$found = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { found => $found }});
+				last;
 			}
 		}
 		if (not $found)
@@ -10776,7 +10777,7 @@ INSERT INTO
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	else
 	{
@@ -18018,13 +18019,14 @@ sub reconnect
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->resync_databases()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->reconnect()" }});
 
 	# Close our own connection.
 	$anvil->Database->locking({debug => $debug, release => 1});
 
 	# Disconnect from all databases and then stop the daemon, then reconnect.
 	$anvil->Database->disconnect({debug => $debug});
+	sleep 2;
 
 	# Refresh configs.
 	$anvil->refresh();
@@ -20746,29 +20748,51 @@ sub _test_access
 	alarm(0);
 	if (not $connected)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0192", variables => { server => $say_server }});
-		
-		# Try to reconnect.
-		$anvil->Database->reconnect({debug => $debug});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"sys::database::connections"      => $anvil->data->{sys}{database}{connections},
-			"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
-		}});
-		
-		if ($anvil->data->{cache}{database_handle}{$uuid})
+		if ((not exists $anvil->data->{sys}{in_test_access}) or (not $anvil->data->{sys}{in_test_access}))
 		{
-			alarm(120);
-			my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
-			alarm(0);
+			# This prevents deep recursion
+			$anvil->data->{sys}{in_test_access} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::in_test_access" => $anvil->data->{sys}{in_test_access},
+			}});
 			
-			if ($connected)
+			# Tell the user we're going to try to reconnect
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0192", variables => { server => $say_server }});
+			
+			# Try to reconnect.
+			$anvil->Database->reconnect({debug => $debug});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::connections"      => $anvil->data->{sys}{database}{connections},
+				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
+			}});
+			
+			$anvil->data->{sys}{in_test_access} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::in_test_access" => $anvil->data->{sys}{in_test_access},
+			}});
+			
+			if ($anvil->data->{cache}{database_handle}{$uuid})
 			{
-				# We reconnected.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0854", variables => { server => $say_server }});
-				$problem = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-				return($problem);
+				alarm(120);
+				my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
+				alarm(0);
+				
+				if ($connected)
+				{
+					# We reconnected.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0854", variables => { server => $say_server }});
+					$problem = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+					return($problem);
+				}
+				else
+				{
+					# The tartget DB is gone.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0179", variables => { server => $say_server }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+					return($problem);
+				}
 			}
 			else
 			{
@@ -20780,10 +20804,7 @@ sub _test_access
 		}
 		else
 		{
-			# The tartget DB is gone.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0179", variables => { server => $say_server }});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
-			return($problem);
+			# No luck.
 		}
 	}
 	
