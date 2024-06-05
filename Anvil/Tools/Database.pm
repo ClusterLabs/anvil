@@ -17644,7 +17644,7 @@ sub query
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
 	if ($@)
 	{
-		if ($timeout)
+		if (($@ =~ /time/i) && ($@ =~ /out/i))
 		{
 			# Timed out 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0175", variables => { 
@@ -18021,9 +18021,6 @@ sub reconnect
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->reconnect()" }});
-
-	# Close our own connection.
-	$anvil->Database->locking({debug => $debug, release => 1});
 
 	# Disconnect from all databases and then stop the daemon, then reconnect.
 	$anvil->Database->disconnect({debug => $debug});
