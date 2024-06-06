@@ -17369,7 +17369,7 @@ sub purge_data
 
 This performs a query and returns an array reference of array references (from C<< DBO->fetchall_arrayref >>). The first array contains all the returned rows and each row is an array reference of columns in that row.
 
-If an error occurs, C<< !!error!! >> will be returned.
+If an error occurs, an empty array reference is returned.
 
 For example, given the query;
 
@@ -17408,7 +17408,7 @@ Parameters;
 
 By default, the local database will be queried (if run on a machine with a database). Otherwise, the first database successfully connected to will be used for queries (as stored in C<< $anvil->data->{sys}{database}{read_uuid} >>).
 
-If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, C<< !!error!! >> will be returned.
+If you want to read from a specific database, though, you can set this parameter to the ID of the database (C<< database::<id>::host). If you specify a read from a database that isn't available, An empty array reference will be returned.
 
 =head3 line (optional)
 
@@ -17430,7 +17430,7 @@ To help with logging the source of a query, C<< source >> can be set to the name
 
 =head3 timeout (optional, default 30)
 
-This sets a timeout on the execution of the query. If the query doesn't return in the set time, the query will be aborted and C<< !!error!! >> will be returned. 
+This sets a timeout on the execution of the query. If the query doesn't return in the set time, the query will be aborted and An empty array reference will be returned. 
 
 Set to C<< 0 >> to set no / infinite timeout.
 
@@ -17487,6 +17487,9 @@ sub query
 		"s2:say_server"    => $say_server, 
 	}});
 	
+	my $failed_array_ref = [];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+	
 	if (not $uuid)
 	{
 		# No database to talk to...
@@ -17495,7 +17498,9 @@ sub query
 			source => $source, 
 			line   => $line, 
 		}});
-		return("!!error!!");
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+		return($failed_array_ref);
 	}
 	elsif (not defined $anvil->data->{cache}{database_handle}{$uuid})
 	{
@@ -17509,7 +17514,8 @@ sub query
 		if (not defined $anvil->data->{cache}{database_handle}{$uuid})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0073", variables => { uuid => $uuid }});
-			return("!!error!!");
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+			return($failed_array_ref);
 		}
 		else
 		{
@@ -17524,7 +17530,8 @@ sub query
 	{
 		# No query
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "warn", key => "log_0084", variables => { server => $say_server }});
-		return("!!error!!");
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+		return($failed_array_ref);
 	}
 	
 	# Test access to the DB before we do the actual query
@@ -17544,14 +17551,16 @@ sub query
 			{
 				# No usable databases are available.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0181", variables => { server => $say_server }});
-				return("!!error!!");
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+				return($failed_array_ref);
 			}
 		}
 		else
 		{
 			# We were given a specific UUID, and we can't read from it. Return an error.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0180", variables => { server => $say_server }});
-			return("!!error!!");
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+			return($failed_array_ref);
 		}
 	}
 	
@@ -17590,7 +17599,10 @@ sub query
 	if ($@)
 	{
 		### TODO: Report back somehow that the handle is dead.
-		my $connections = $anvil->Database->reconnect({debug => $debug});
+		my $connections = $anvil->Database->reconnect({
+			debug     => $debug,
+			lost_uuid => $uuid, 
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connections => $connections }});
 		if ($connections)
 		{
@@ -17609,7 +17621,8 @@ sub query
 					server     => $say_server,
 					eval_error => $@,
 				}});
-				return("!!error!!");
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+				return($failed_array_ref);
 			}
 		}
 		else
@@ -17620,7 +17633,8 @@ sub query
 				server     => $say_server,
 				eval_error => $@,
 			}});
-			return("!!error!!");
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+			return($failed_array_ref);
 		}
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -17661,7 +17675,8 @@ sub query
 				error => $@,
 			}});
 		}
-		return('!!error!!');
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed_array_ref => $failed_array_ref }});
+		return($failed_array_ref);
 	}
 	
 	# Return the array
@@ -18011,7 +18026,11 @@ AND
 
 This method disconnects from any connected databases, re-reads the config, and then tries to reconnect to any databases again. The number of connected datbaases is returned.
 
-This method takes no parameters.
+Parameters;
+
+=head3 lost_uuid (optional)
+
+If set to a database UUID, then the database handle is deleted before the disconnect method is called, preventing an attempt to update locks and state information on a dead DB connection.
 
 =cut
 sub reconnect
@@ -18021,6 +18040,21 @@ sub reconnect
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->reconnect()" }});
+	
+	my $lost_uuid = defined $parameter->{lost_uuid} ? $parameter->{lost_uuid} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		lost_uuid => $lost_uuid, 
+	}});
+	
+	if (($lost_uuid) && ($anvil->data->{cache}{database_handle}{$lost_uuid}))
+	{
+		$anvil->data->{cache}{database_handle}{$lost_uuid} = "";
+		$anvil->data->{sys}{database}{connections}-- if $anvil->data->{sys}{database}{connections} > 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:cache::database_handle::${lost_uuid}" => $anvil->data->{cache}{database_handle}{$lost_uuid}, 
+			"s2:sys::database::connections"           => $anvil->data->{sys}{database}{connections}, 
+		}});
+	}
 
 	# Disconnect from all databases and then stop the daemon, then reconnect.
 	$anvil->Database->disconnect({debug => $debug});
@@ -20760,7 +20794,10 @@ sub _test_access
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0192", variables => { server => $say_server }});
 			
 			# Try to reconnect.
-			$anvil->Database->reconnect({debug => $debug});
+			$anvil->Database->reconnect({
+				debug     => $debug,
+				lost_uuid => $uuid, 
+			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::database::connections"      => $anvil->data->{sys}{database}{connections},
 				"cache::database_handle::${uuid}" => $anvil->data->{cache}{database_handle}{$uuid},
