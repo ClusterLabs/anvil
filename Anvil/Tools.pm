@@ -236,10 +236,10 @@ sub new
 
 		$anvil->catch_sig({signal => "TERM"});
 	};
-	$SIG{ALARM} = sub {
-		$on_sig_term->({ debug => $debug }) if (ref($on_sig_alarm) eq "CODE");
+	$SIG{ALRM} = sub {
+		$on_sig_alarm->({ debug => $debug }) if (ref($on_sig_alarm) eq "CODE");
 
-		$anvil->catch_sig({signal => "ALARM"});
+		$anvil->catch_sig({signal => "ALRM"});
 	};
 	
 	# This sets the environment this program is running in.
