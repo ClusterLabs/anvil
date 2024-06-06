@@ -309,6 +309,10 @@ sub call
 			if ($timeout)
 			{
 				# Prepend a timeout.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, key => "log_0855", variables => { 
+					shell_call => $shell_call, 
+					timeout    => $timeout, 
+				}});
 				$shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$shell_call;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
 			}
