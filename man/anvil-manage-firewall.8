@@ -1,0 +1,36 @@
+.\" Manpage for the Anvil! firewall management tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-firewall "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-firewall \- This program manages the firewall rules on the host.
+.TP
+.B Note: 
+This tool is not yet complete.
+.SH SYNOPSIS
+.B anvil-manage-firewall 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This handles dynamically opening and closing ports on the firewall of the various machines in an Anvil! cluster.
+.TP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+.TP
+\fB\-\-job\-uuid\fR 
+This is the UUID for a job being run.
+.TP
+\fB\-\-server\fR <name or uuid>
+This opens or closes the VNC and DRBD ports related to a server
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

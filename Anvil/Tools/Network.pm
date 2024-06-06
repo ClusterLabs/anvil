@@ -564,6 +564,10 @@ Parameters;
 
 If this is set to C<< 1 >>, any connetions found to be down and not referencing any devices will be assigned the unroutable IP C<< 169.0.0.x >>, where C<< x >> is a sequential number. This should bring up unconfigured devices. 
 
+=head3 up (optional, default '0')
+
+If this is set to C<< 1 >>, any configured interfaces (determined by checking for C<< match.interface-name >>) that are down will be started, if possible.
+
 =cut
 sub collect_data
 {
@@ -574,8 +578,10 @@ sub collect_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_internet()" }});
 	
 	my $start = defined $parameter->{start} ? $parameter->{start} : "";
+	my $up    = defined $parameter->{up}    ? $parameter->{up}    : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		start => $start, 
+		up    => $up, 
 	}});
 	
 	if (exists $anvil->data->{nmcli})
@@ -664,6 +670,18 @@ sub collect_data
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"nmcli::uuid::${uuid}::${variable}" => $anvil->data->{nmcli}{uuid}{$uuid}{$variable},
 				}});
+				
+				if ($variable eq "match.interface-name")
+				{
+					# Make sure we can look up the nmcli UUID by any of the names.
+					foreach my $interface (split/,/, $value)
+					{
+						$anvil->data->{nmcli}{interface}{$interface}{uuid} = $uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"nmcli::interface::${interface}::uuid" => $anvil->data->{nmcli}{interface}{$interface}{uuid},
+						}});
+					}
+				}
 				
 				if ($variable =~ /IP(\d).ADDRESS\[(\d+)\]/)
 				{
@@ -1109,6 +1127,31 @@ sub collect_data
 		}
 	}
 	
+	# Should we bring up interfaces?
+	if ($up)
+	{
+		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
+		{
+			$anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'} = "" if not defined $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"nmcli::uuid::${uuid}::active"               => $anvil->data->{nmcli}{uuid}{$uuid}{active},
+				"nmcli::uuid::${uuid}::match.interface-name" => $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'},
+			}});
+			if ((not $anvil->data->{nmcli}{uuid}{$uuid}{active}) && ($anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'}))
+			{
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
+			}
+		}
+	}
+	
 	# Should we start interfaces?
 	if ($start)
 	{
@@ -1120,8 +1163,8 @@ sub collect_data
 		foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"nmcli::uuid::${uuid}::active" => $anvil->data->{nmcli}{uuid}{$uuid}{active},
-				"nmcli::uuid::${uuid}::active" => $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'},
+				"nmcli::uuid::${uuid}::active"                    => $anvil->data->{nmcli}{uuid}{$uuid}{active},
+				"nmcli::uuid::${uuid}::connection.interface-name" => $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'},
 			}});
 			if ((not $anvil->data->{nmcli}{uuid}{$uuid}{active}) && (not $anvil->data->{nmcli}{uuid}{$uuid}{'connection.interface-name'}))
 			{
@@ -1156,6 +1199,8 @@ sub collect_data
 					output      => $output,
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				$rescan = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { rescan => $rescan }});
@@ -4066,6 +4111,8 @@ sub modify_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	return($output, $return_code);
 }
@@ -4548,6 +4595,8 @@ sub reset_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -4556,6 +4605,8 @@ sub reset_connection
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	return($output, $return_code);
 }
@@ -4744,7 +4795,7 @@ sub wait_for_network
 				's4:state'          => $state, 
 			}});
 			
-			if (($state eq "activated") or ($state == 1))
+			if (($state eq "activated") or ($state eq "1"))
 			{
 				$anvil->data->{network}{watch}{$interface_name}{ready} = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

@@ -245,8 +245,14 @@ sub update_passwords
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
-				my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call });
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+				my ($output, $return_code) = $anvil->System->call({
+					debug      => 2, 
+					timeout    => 30, 
+					shell_call => $shell_call });
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
 				
 				if ($return_code)
 				{
@@ -271,7 +277,9 @@ sub update_passwords
 			}
 			
 			# Unlink the temp file.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0263", variables => { file => $temp_file }});
 			unlink $temp_file;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0283"});
 		}
 	}
 	
@@ -507,7 +515,7 @@ ORDER BY
 	$anvil->data->{sys}{reboot} = 0;
 	
 	# Read the existing network data 
-	$anvil->Network->collect_data({start => 1});
+	$anvil->Network->collect_data({debug => 2, start => 1});
 	
 	# This will be set to '1' if we make a change.
 	my $changes        = 0;
@@ -534,23 +542,40 @@ ORDER BY
 			file      => $THIS_FILE, 
 			line      => __LINE__,
 		});
-		$anvil->Database->disconnect();
+		$anvil->Database->disconnect({debug => 2});
 	}
 	
 	# These can brake the connection.
+	$anvil->data->{sys}{restart_nm} = 0;
 	reconfigure_bonds($anvil);
 	reconfigure_bridges($anvil);
 	reconfigure_ip_addresses($anvil);
 	
+	# Sleep a few seconds, and then restart NetworkManager.service.
+	my $nm_running = $anvil->System->check_daemon({debug => 2, daemon => "NetworkManager.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		nm_running        => $nm_running,
+		'sys::restart_nm' => $anvil->data->{sys}{restart_nm},
+	}});
+	if (($anvil->data->{sys}{restart_nm}) or (not $nm_running))
+	{
+		$anvil->System->stop_daemon({debug => 2, daemon => "NetworkManager.service"});
+		$anvil->System->start_daemon({debug => 2, daemon => "NetworkManager.service"});
+		sleep 5;
+	}
+	
 	# Reconnect!
 	if ($host_type ne "striker")
 	{
-		my $time_now   = time;
-		my $wait_until = $time_now + 120;
-		my $waiting    = 1;
+		my $time_now        = time;
+		my $restart_nm_time = $time_now + 30;
+		my $wait_until      = $time_now + 60;
+		my $nm_restarted    = 0;
+		my $waiting         = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			time_now   => $time_now, 
-			wait_until => $wait_until,
+			's1:time_now'        => $time_now, 
+			's2:restart_nm_time' => $restart_nm_time, 
+			's3:wait_until'      => $wait_until,
 		}});
 		while ($waiting)
 		{
@@ -575,6 +600,17 @@ ORDER BY
 				}});
 				if ($time_left > 0)
 				{
+					if (($now_time > $restart_nm_time) && (not $nm_restarted))
+					{
+						# Kick the network
+						$nm_restarted = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_restarted => $nm_restarted }});
+						
+						# Restart the daemon
+						$anvil->System->stop_daemon({debug => 2, daemon => "NetworkManager.service"});
+						$anvil->System->start_daemon({debug => 2, daemon => "NetworkManager.service"});
+					}
+					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0829", variables => { time_left => $time_left }});
 					sleep 5;
 				}
@@ -582,7 +618,14 @@ ORDER BY
 				{
 					# Give up and reboot.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "warning_0169"});
-					do_reboot($anvil);
+					
+					# Don't use 'do_reboot()' as we've got no DB connection.
+					my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
+					
+					# We should be dead by now...
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 				}
 			}
 		}
@@ -691,6 +734,7 @@ sub reconfigure_bridges
 {
 	my ($anvil) = @_;
 	
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0853"});
 	my $local_host = $anvil->Get->short_host_name();
 	my $bcn_count  = $anvil->data->{config}{bcn_count};
 	my $ifn_count  = $anvil->data->{config}{ifn_count};
@@ -793,6 +837,10 @@ sub reconfigure_bridges
 					return_code => $return_code, 
 				}});
 				
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				$anvil->data->{sys}{restart_nm} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+				
 				if ($return_code)
 				{
 					# Failed to add the bridge
@@ -841,6 +889,10 @@ sub reconfigure_bridges
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					
+					# NM seems to have a race issue, so we sleep a second after nmcli calls.
+					$anvil->data->{sys}{restart_nm} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
 				}
 				
 				# Rescan.
@@ -961,6 +1013,10 @@ sub reconfigure_bridges
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			$anvil->data->{sys}{restart_nm} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
 			
 			if ($return_code)
 			{
@@ -1189,6 +1245,11 @@ sub reconfigure_bonds
 				my $bond_uuid = ($output =~ /\((.*?)\) successfully added/)[0];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bond_uuid => $bond_uuid }});
 				
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				$anvil->data->{sys}{restart_nm} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+				sleep 5;
+				
 				if ($bond_uuid)
 				{
 					# Disabling DHCP on the new bond device
@@ -1215,6 +1276,11 @@ sub reconfigure_bonds
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					
+					# NM seems to have a race issue, so we sleep a second after nmcli calls.
+					$anvil->data->{sys}{restart_nm} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+					sleep 5;
 				}
 				
 				# Done! Rescanning the network config
@@ -1349,6 +1415,11 @@ sub reconfigure_bonds
 					return_code => $return_code, 
 				}});
 				
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				$anvil->data->{sys}{restart_nm} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+				sleep 5;
+				
 				if ($return_code)
 				{
 					# Adding the link failed.
@@ -1396,12 +1467,59 @@ sub reconfigure_bonds
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data();
+				$anvil->Network->collect_data({debug => 2});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nm_uuid => $nm_uuid }});
 			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { i => $i }});
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_type => $network_type }});
+	}
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0852"});
+	
+	return(0);
+}
+
+sub wait_for_nm
+{
+	my ($anvil, $bond_name) = @_;
+	
+	my $found      = 0;
+	my $waiting    = 1;
+	my $wait_until = time + 30;
+	while ($waiting)
+	{
+		my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection show | ".$anvil->data->{path}{exe}{'grep'}." -c ".$bond_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		if ($output eq "0")
+		{
+			if (time > $wait_until)
+			{
+				# Give up.
+				$waiting = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			}
+			# Not found yet.
+			sleep 1;
+		}
+		else
+		{
+			# Found it.
+			$found   = 0;
+			$waiting = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				found   => $found, 
+				waiting => $waiting,
+			}});
 		}
 	}
 	
-	return(0);
+	return($found);
 }
 
 sub reconfigure_ip_addresses
@@ -1729,6 +1847,11 @@ sub reconfigure_ip_addresses
 					},
 				});
 				($output, $return_code) = $anvil->Network->reset_connection({uuid => $old_uuid});
+				
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				$anvil->data->{sys}{restart_nm} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+				sleep 5;
 			}
 			
 			# Now assign the IP.
@@ -1751,6 +1874,11 @@ sub reconfigure_ip_addresses
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			
+			# NM seems to have a race issue, so we sleep a second after nmcli calls.
+			$anvil->data->{sys}{restart_nm} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'sys::restart_nm' => $anvil->data->{sys}{restart_nm} }});
+			sleep 5;
 			
 			# Restart the interface
 			$anvil->Job->update_progress({
@@ -1779,7 +1907,7 @@ sub reconfigure_ip_addresses
 				line      => __LINE__,
 				variables => { },
 			});
-			$anvil->Network->collect_data();
+			$anvil->Network->collect_data({debug => 2});
 		}
 	}
 	
@@ -1831,6 +1959,8 @@ sub reconfigure_interfaces
 					output      => $output, 
 					return_code => $return_code, 
 				}});
+				# NM seems to have a race issue, so we sleep a second after nmcli calls.
+				sleep 1;
 				
 				# Rescan.
 				$anvil->Job->update_progress({
@@ -1843,7 +1973,7 @@ sub reconfigure_interfaces
 					line      => __LINE__,
 					variables => { },
 				});
-				$anvil->Network->collect_data();
+				$anvil->Network->collect_data({debug => 2});
 			}
 		}
 	}
@@ -1925,11 +2055,20 @@ sub reconfigure_interfaces
 				foreach my $interface (split/,/, $match_interface_name)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+					
+					# In case the GENERAL.IP-IFACE or GENERAL.NAME name didn't update, 
+					# map this interface name to 'nmcli::interface::<name>::uuid'.
+					if (not exists $anvil->data->{nmcli}{interface}{$interface})
+					{
+						$anvil->data->{nmcli}{interface}{$interface}{uuid} = $link1_nm_uuid;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"nmcli::interface::${interface}::uuid" => $anvil->data->{nmcli}{interface}{$interface}{uuid},
+						}});
+					}
 					if ($interface eq $wanted_link1_name)
 					{
 						$found = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
-						last;
 					}
 				}
 				if (not $found)
@@ -2211,6 +2350,8 @@ sub rename_interface
 			output      => $output, 
 			return_code => $return_code, 
 		}});
+		# NM seems to have a race issue, so we sleep a second after nmcli calls.
+		sleep 1;
 		
 		$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.interface-name connection show ".$nm_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -2282,6 +2423,8 @@ sub rename_interface
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	# Read it back
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values match.interface-name connection show ".$nm_uuid;
@@ -2331,6 +2474,8 @@ sub rename_interface
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	# NM seems to have a race issue, so we sleep a second after nmcli calls.
+	sleep 1;
 	
 	# Read it back
 	$shell_call = $anvil->data->{path}{exe}{nmcli}." --get-values connection.id connection show ".$nm_uuid;
@@ -2352,7 +2497,7 @@ sub rename_interface
 		line      => __LINE__,
 		variables => { },
 	});
-	$anvil->Network->collect_data();
+	$anvil->Network->collect_data({debug => 2});
 	
 	# Set the reboot flag.
 	$anvil->data->{sys}{reboot_needed} = 1;

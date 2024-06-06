@@ -1251,7 +1251,7 @@ sub check_stonith_config
 				pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command,
 			}});
 			
-			# If there's an entry in the CIB, so if it's different somehow
+			# If there's an entry in the CIB, see if it's different somehow
 			if (exists $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name})
 			{
 				foreach my $argument (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$ipmi_stonith_name}{argument}})

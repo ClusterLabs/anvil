@@ -428,6 +428,9 @@ sub nice_exit
 		$anvil->data->{HANDLE}{'log'}{main} = "";
 	}
 	
+	# Call a disk sync.
+	system($anvil->data->{path}{exe}{sync});
+	
 	#print "Exiting with RC: [".$exit_code."]\n";
 	exit($exit_code);
 }
@@ -1320,6 +1323,7 @@ sub _set_paths
 				su				=>	"/usr/bin/su",
 				'subscription-manager'		=>	"/usr/sbin/subscription-manager",
 				swapon				=>	"/usr/sbin/swapon",
+				sync				=>	"/usr/bin/sync",
 				sysctl				=>	"/usr/sbin/sysctl",
 				systemctl			=>	"/usr/bin/systemctl",
 				tail				=>	"/usr/bin/tail",

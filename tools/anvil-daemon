@@ -173,21 +173,25 @@ my $delay = set_delay($anvil);
 # Once a day, we'll refresh an Install Target's RPM repository (has no effect on non-Striker dashboards).
 $anvil->data->{timing}{minute_checks}         = 60;
 $anvil->data->{timing}{ten_minute_checks}     = 600;
+$anvil->data->{timing}{hourly_checks}         = 3600;
 $anvil->data->{timing}{daily_checks}          = 86400;
 $anvil->data->{timing}{repo_update_interval}  = 86400;
 $anvil->data->{timing}{next_minute_check}     = $now_time - 1;
+$anvil->data->{timing}{next_hourly_check}     = $now_time - 1;
 $anvil->data->{timing}{next_ten_minute_check} = $now_time - 1;
 $anvil->data->{timing}{next_daily_check}      = ($now_time + $delay) - 1;
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"s1:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
-	"s2:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks}, 
-	"s3:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
-	"s4:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
-	"s5:now_time"                      => $now_time, 
-	"s6:delay"                         => $delay, 
-	"s7:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
-	"s8:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
-	"s9:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
+	"s01:timing::minute_checks"         => $anvil->data->{timing}{minute_checks}, 
+	"s02:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks}, 
+	"s03:timing::hourly_checks"         => $anvil->data->{timing}{hourly_checks}, 
+	"s04:timing::daily_checks"          => $anvil->data->{timing}{daily_checks}, 
+	"s05:timing::repo_update_interval"  => $anvil->data->{timing}{repo_update_interval}, 
+	"s06:now_time"                      => $now_time, 
+	"s07:delay"                         => $delay, 
+	"s08:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
+	"s09:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+	"s10:timing::next_hourly_check"     => $anvil->data->{timing}{next_hourly_check}, 
+	"s11:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check}, 
 }});
 
 # Disconnect. We'll reconnect inside the loop
@@ -230,9 +234,6 @@ while(1)
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0055"});
 		$anvil->nice_exit({exit_code => 0});
 	}
-	
-	# Check how much RAM we're using.
-	check_ram($anvil);
 	
 	# Disconnect from the database(s) and sleep now.
 	$anvil->Database->disconnect();
@@ -443,8 +444,9 @@ sub handle_periodic_tasks
 		"s1:now_time"                      => $now_time, 
 		"s2:timing::next_minute_check"     => $anvil->data->{timing}{next_minute_check}, 
 		"s3:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
-		"s4:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
-		"s5:host_type"                     => $host_type,
+		"s4:timing::next_hourly_check"     => $anvil->data->{timing}{next_hourly_check}, 
+		"s5:timing::next_daily_check"      => $anvil->data->{timing}{next_daily_check},
+		"s6:host_type"                     => $host_type,
 	}});
 	
 	# Time to run once per minute tasks.
@@ -615,6 +617,20 @@ sub handle_periodic_tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:timing::ten_minute_checks"     => $anvil->data->{timing}{ten_minute_checks},
 			"s2:timing::next_ten_minute_check" => $anvil->data->{timing}{next_ten_minute_check}, 
+		}});
+	}
+	
+	# Now check to see if it's time to run hourly tasks.
+	if ($now_time >= $anvil->data->{timing}{next_hourly_check})
+	{
+		# Check how much RAM we're using.
+		check_ram($anvil);
+		
+		# Update the next check time.
+		$anvil->data->{timing}{next_hourly_check} = $now_time + $anvil->data->{timing}{hourly_checks};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:timing::hourly_checks"     => $anvil->data->{timing}{hourly_checks},
+			"s2:timing::next_hourly_check" => $anvil->data->{timing}{next_hourly_check}, 
 		}});
 	}
 	
@@ -1381,6 +1397,8 @@ AND
 		$anvil->Database->get_hosts({debug => 2});
 		my $host_uuid = $anvil->Get->host_uuid({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_uuid => $host_uuid }});
+		
+		# Now update that we're online.
 		$anvil->Database->insert_or_update_hosts({
 			debug       => 2,
 			host_ipmi   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_ipmi}, 
@@ -1567,10 +1585,10 @@ sub run_jobs
 			time_since_start => $time_since_start,
 			start_time       => $start_time,
 		}});
-		if ($time_since_start < 60)
+		if ($time_since_start < 30)
 		{
 			# Log that we'll start jobs in X seconds.
-			my $will_start_in = 60 - $time_since_start;
+			my $will_start_in = 30 - $time_since_start;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "message_0326", variables => { will_start_in => $will_start_in }});
 			return(0);
 		}
@@ -1750,6 +1768,18 @@ sub run_jobs
 					# The job is running.
 					$anvil->data->{jobs_started}{$short_command} = $job_uuid;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+					
+					if ($short_command =~ /anvil-configure-host/)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"pids::${job_picked_up_by}::cpu"         => $anvil->data->{pids}{$job_picked_up_by}{cpu}, 
+							"pids::${job_picked_up_by}::memory"      => $anvil->data->{pids}{$job_picked_up_by}{memory}, 
+							"pids::${job_picked_up_by}::state_codes" => $anvil->data->{pids}{$job_picked_up_by}{state_codes}, 
+							"pids::${job_picked_up_by}::start_time"  => $anvil->data->{pids}{$job_picked_up_by}{start_time}, 
+							"pids::${job_picked_up_by}::time"        => $anvil->data->{pids}{$job_picked_up_by}{'time'}, 
+							"pids::${job_picked_up_by}::command"     => $anvil->data->{pids}{$job_picked_up_by}{command}, 
+						}});
+					}
 				}
 			}
 			
@@ -1881,31 +1911,55 @@ sub run_jobs
 					}
 				}
 				
-				# Start the job, appending '--job-uuid' to the command.
-				($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
-					background  => 1, 
-					stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
-					stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
-					shell_call  => $command, 
-					source      => $THIS_FILE, 
-					line        => __LINE__,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, 
-					return_code                  => $return_code,
-				}});
-				
-				# Log the PID (the job should update the database).
-				my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
-				
-				# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
-				$anvil->data->{jobs}{$job_uuid}{started} = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
-				
-				# Record that a job with this command has started 
-				$anvil->data->{jobs_started}{$short_command} = $job_uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+				### Start the job, appending '--job-uuid' to the command.
+				# If the job is 'anvil-configure-host', DO NOT background it! We need to call it and wait for it to return.
+				if ($job_command =~ /anvil-configure-host/)
+				{
+					# Log that we're going to run this and wait. Our DB connection is 
+					# likely going to break, so disconnect now.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0178"});
+					$anvil->Database->disconnect();
+					my ($output, $return_code) = $anvil->System->call({
+						debug      => 2,
+						shell_call => $command, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+					
+					# Refresh and reconnect
+					$anvil->refresh({debug => 2});
+					$anvil->Database->connect({debug => 2, check_for_resync => 2});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0132"});
+				}
+				else
+				{
+					($anvil->data->{jobs}{handles}{$job_uuid}, my $return_code) = $anvil->System->call({
+						background  => 1, 
+						stdout_file => "/tmp/anvil.job.".$job_uuid.".stdout",
+						stderr_file => "/tmp/anvil.job.".$job_uuid.".stderr", 
+						shell_call  => $command, 
+						source      => $THIS_FILE, 
+						line        => __LINE__,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"jobs::handles::${job_uuid}" => $anvil->data->{jobs}{handles}{$job_uuid}, 
+						return_code                  => $return_code,
+					}});
+					
+					# Log the PID (the job should update the database).
+					my $pid = $anvil->data->{jobs}{handles}{$job_uuid}->pid();
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid }});
+					
+					# Record that we've tried to start this job, so that we don't try to restart it for any reason for at least a minute.
+					$anvil->data->{jobs}{$job_uuid}{started} = time;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started} }});
+					
+					# Record that a job with this command has started 
+					$anvil->data->{jobs_started}{$short_command} = $job_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "jobs_started::${short_command}" => $anvil->data->{jobs_started}{$short_command} }});
+				}
 			}
 		}
 	}

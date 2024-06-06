@@ -1991,7 +1991,7 @@ The database connection error was:
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
 		<key name="log_0191">Connection only to: [#!variable!db_uuid!#], skipping: [#!variable!uuid!#].</key>
-		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect.</key>
+		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect to databases-.</key>
 		<key name="log_0193">Switching the default database handle to use the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0194">Switching the default database to read from to the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
@@ -2739,6 +2739,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 The key in the database has been updated, so we're going to swap the key. The change is;
 old key: [#!variable!old_key!#]
 new key: [#!variable!new_key!#]</key>
+		<key name="log_0852">Finished configuring bonds.</key>
+		<key name="log_0853">Now configuring bridges.</key>
+		<key name="log_0854">The connection to the database: [#!variable!server!#] has been restored!</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -4197,6 +4200,14 @@ We will try to proceed anyway.</key>
 		<key name="warning_0172">[ Warning ] - The line: [#!variable!line!#] that was going to be added to the hosts file is invalid, removing it.</key>
 		<key name="warning_0173">[ Warning ] - Failed to convert: [#!variable!source_file!#] to: [#!variable!new_file!#] (format: [#!variable!format!#]! Return code was: [#!variable!return_code!#], expected '0'.</key>
 		<key name="warning_0174">[ Warning ] - The fence method: [#!variable!method!#] already existed, proceeding.</key>
+		<key name="warning_0175">[ Warning ] - The DB query: [#!variable!query!#] timed out! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
+		<key name="warning_0176">[ Warning ] - The DB query: [#!variable!query!#] failed with the error: [#!variable!error!#].</key>
+		<key name="warning_0177">[ Warning ] - SQL quoting string: [#!variable!string!#] failed with the error: [#!variable!error!#].</key>
+		<key name="warning_0178">[ Warning ] - About to run 'anvil-configure-host'. This is likely going to take the network down, so we will hold here until this job is complete.</key>
+		<key name="warning_0179">[ Warning ] - The connection to the database: [#!variable!server!#] was not restored, unable to this database.</key>
+		<key name="warning_0180">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is not or is no longer available.</key>
+		<key name="warning_0181">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is no longer available, and no alternative databases are available.</key>
+		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during a write. Skipping this database.</key>
 		
 	</language>
 	<!-- 日本語 -->
