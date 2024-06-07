@@ -122,7 +122,13 @@ export const getHostConnection = buildGetRequestHandler(
               ip_add.ip_address_address,
               CASE
                 WHEN ip_add.ip_address_on_type = 'interface'
-                  THEN net_int.network_interface_name
+                  THEN (
+                    CASE
+                      WHEN net_int.network_interface_name ~* '.*n\\d+_link\\d+'
+                        THEN net_int.network_interface_name
+                      ELSE net_int.network_interface_device
+                    END
+                  )
                 ELSE bon.bond_active_interface
               END AS network_name
             FROM ip_addresses AS ip_add
