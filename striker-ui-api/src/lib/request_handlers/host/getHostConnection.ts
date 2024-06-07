@@ -1,6 +1,7 @@
 import { getDatabaseConfigData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
 import { pout, poutvar } from '../../shell';
@@ -88,32 +89,29 @@ export const getHostConnection = buildGetRequestHandler(
     poutvar(connections, 'connections=');
 
     if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = (queryStdout) => {
-        let result = queryStdout;
+      buildQueryOptions.afterQueryReturn = buildQueryResultReducer(
+        (previous, row) => {
+          const [ipUuid, hostUuid, ip, ifaceId] = row;
 
-        if (queryStdout instanceof Array) {
-          queryStdout.forEach(
-            ([ipAddressUUID, hostUUID, ipAddress, network]) => {
-              const [, networkType, rawNetworkNumber, rawNetworkLinkNumber] =
-                match(network, /^([^\s]+)(\d+)_[^\s]+(\d+)$/);
-              const connectionKey = getConnectionKey(hostUUID);
-
-              connections[connectionKey].inbound.ipAddress[ipAddress] = {
-                hostUUID,
-                ipAddress,
-                ipAddressUUID,
-                networkLinkNumber: Number(rawNetworkLinkNumber),
-                networkNumber: Number(rawNetworkNumber),
-                networkType,
-              };
-            },
+          const [, networkType, rNetworkNumber, rNetworkLinkNumber] = match(
+            ifaceId,
+            /^(.*n)(\d+)_link(\d+)$/,
           );
+          const connectionKey = getConnectionKey(hostUuid);
 
-          result = connections;
-        }
+          connections[connectionKey].inbound.ipAddress[ip] = {
+            hostUUID: hostUuid,
+            ipAddress: ip,
+            ipAddressUUID: ipUuid,
+            networkLinkNumber: Number(rNetworkLinkNumber),
+            networkNumber: Number(rNetworkNumber),
+            networkType,
+          };
 
-        return result;
-      };
+          return previous;
+        },
+        connections,
+      );
     }
 
     return `SELECT
