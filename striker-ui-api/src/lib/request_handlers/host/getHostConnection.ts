@@ -101,6 +101,7 @@ export const getHostConnection = buildGetRequestHandler(
 
           connections[connectionKey].inbound.ipAddress[ip] = {
             hostUUID: hostUuid,
+            ifaceId,
             ipAddress: ip,
             ipAddressUUID: ipUuid,
             networkLinkNumber: Number(rNetworkLinkNumber),
