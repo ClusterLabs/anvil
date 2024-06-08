@@ -1,13 +1,11 @@
 import * as yup from 'yup';
 
-import { REP_IPV4 } from '../../lib/consts/REG_EXP_PATTERNS';
+import { yupIpv4, yupLaxUuid } from '../../lib/yupMatches';
 
 const schema = yup.object().shape(
   {
-    enterpriseKey: yup.string().uuid().optional(),
-    ip: yup.string().matches(REP_IPV4, {
-      message: 'Expected IP address to be a valid IPv4 address.',
-    }),
+    enterpriseKey: yupLaxUuid().optional(),
+    ip: yupIpv4().required(),
     name: yup.string().required(),
     redhatConfirmPassword: yup
       .string()
@@ -27,7 +25,7 @@ const schema = yup.object().shape(
         String(redhatPassword).length > 0 ? field.required() : field.optional(),
       ),
     type: yup.string().oneOf(['dr', 'subnode']).required(),
-    uuid: yup.string().uuid().required(),
+    uuid: yupLaxUuid().required(),
   },
   [['redhatUsername', 'redhatPassword']],
 );

@@ -1,6 +1,7 @@
 import * as yup from 'yup';
 
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
+import { yupLaxUuid } from '../../lib/yupMatches';
 
 const alertLevelSchema = yup.number().oneOf([0, 1, 2, 3, 4]);
 
@@ -9,9 +10,9 @@ const alertOverrideSchema = yup.object({
   level: alertLevelSchema.required(),
   target: yup.object({
     type: yup.string().oneOf(['node', 'subnode']).required(),
-    uuid: yup.string().uuid().required(),
+    uuid: yupLaxUuid().required(),
   }),
-  uuid: yup.string().uuid().optional(),
+  uuid: yupLaxUuid().optional(),
 });
 
 const alertOverrideListSchema = yup.lazy((entries) =>
@@ -24,7 +25,7 @@ const mailRecipientSchema = yup.object({
   language: yup.string().oneOf(['en_CA']).optional(),
   level: alertLevelSchema.required(),
   name: yup.string().required(),
-  uuid: yup.string().uuid().optional(),
+  uuid: yupLaxUuid().optional(),
 });
 
 const mailRecipientListSchema = yup.lazy((entries) =>

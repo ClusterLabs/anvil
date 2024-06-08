@@ -1,6 +1,7 @@
 import * as yup from 'yup';
 
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
+import { yupLaxUuid } from '../../lib/yupMatches';
 
 const fileLocationSchema = yup.object({ active: yup.boolean().required() });
 
@@ -19,7 +20,7 @@ const fileSchema = yup.object({
   }),
   name: yup.string().required(),
   type: yup.string().oneOf(['iso', 'other', 'script']),
-  uuid: yup.string().uuid().required(),
+  uuid: yupLaxUuid().required(),
 });
 
 const fileListSchema = yup.lazy((files) =>
