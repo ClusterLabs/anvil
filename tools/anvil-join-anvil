@@ -203,6 +203,47 @@ sub process_rejoin
 		}});
 	}
 	
+	# Does this host need to be reconfigured? If so, register a job, if one doesn't exist yet, and exit.
+	my $configured = check_if_configured({debug => 2, thorough => 1});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
+	if ($configured)
+	{
+		print "The host appears to already be configured, good.\n";
+	}
+	else
+	{
+		print "[ Note ] - The host appears to NOT be configured yet!\n";
+		if (exists $anvil->data->{anvils}{host_uuid}{$host_uuid})
+		{
+			# Can we find the data needed to reconfigure this subnode?
+			my $job_uuid = create_anvil_configure_host_job($anvil, $host_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			if ($job_uuid)
+			{
+				print "[ Success ] - Found the data needed to configure the network on this subnode! The anvil-join-anvil job has\n";
+				print "[ Success ]   been created with the job UUID: [".$job_uuid."]\n";
+				print "[ Note ] - This subnode will reboot one minute after the network configuration completes. Once rebooted,\n";
+				print "[ Note ]   please run this again.\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+			else
+			{
+				print "[ Warning ] - Failed to automatically create the anvil-join-anvil job.\n";
+				print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+				print "[ Warning ]   this subnode again.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		else
+		{
+			# We can't configure it automatically.
+			print "[ Warning ] - This is a new host, so the information needed to configure the network does not exist.\n";
+			print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+			print "[ Warning ]   this subnode again.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
 	if ($manifest)
 	{
 		# Did we get a valid manifest?
@@ -226,7 +267,7 @@ sub process_rejoin
 		}
 		else
 		{
-			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n"; 
+			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n"; < 
 			print "[ Error ] - Try again without this switch to see the available manifests.\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -400,6 +441,16 @@ sub process_rejoin
 	print "Registering a job. This host should (re)join the Anvil! node shortly.\n";
 	
 	return(0);
+}
+
+sub create_anvil_configure_host_job
+{
+	my ($anvil, $host_uuid) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	
+	my $job_uuid = "";
+	
+	return($job_uuid)
 }
 
 # Make sure the hosts file has entries for all nets for both subnodes

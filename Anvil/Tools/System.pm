@@ -599,7 +599,13 @@ sub check_daemon
 
 This returns C<< 1 >> is the system has finished initial configuration, and C<< 0 >> if not.
 
-This method takes no parameters.
+Parameters;
+
+=head3 thorough (optional, default 0)
+
+If this is set to C<< 1 >>, then a check is made of the host's network. If the network is found to be unconfigured, then C<< 0 >> is returned, Even if the variable C<< system::configured >> is set to C<< 1 >>. 
+
+If this test fails, the C<< system::configured >> variable will be reset to C<< 0 >>. Likewise, the C<< path::data::host_configured >> file (usually C<< /etc/anvil/host.configured >>) wil be updated also.
 
 =cut
 sub check_if_configured
@@ -609,6 +615,11 @@ sub check_if_configured
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_if_configured()" }});
+	
+	my $thorough = defined $parameter->{thorough} ? $parameter->{thorough} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		thorough => $thorough, 
+	}});
 	
 	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 		debug                 => $debug,
@@ -644,7 +655,7 @@ sub check_if_configured
 				if (($variable eq "system::configured") && ($value eq "1"))
 				{
 					# Write the database entry.
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
 						debug                 => 2,
 						variable_name         => "system::configured", 
 						variable_value        => 1, 
@@ -664,14 +675,24 @@ sub check_if_configured
 		}
 	}
 	
-	if (($configured) && (not -f $anvil->data->{path}{data}{host_configured}))
+	# Are we configured?
+	if ($configured)
 	{
-		my $failed = $anvil->Storage->write_file({
-			debug => $debug,
-			file  => $anvil->data->{path}{data}{host_configured}, 
-			body  => "system::configured = 1\n", 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		if ($thorough)
+		{
+			# OK, but are we really though?
+			
+		}
+		
+		if (not -f $anvil->data->{path}{data}{host_configured})
+		{
+			my $failed = $anvil->Storage->write_file({
+				debug => $debug,
+				file  => $anvil->data->{path}{data}{host_configured}, 
+				body  => "system::configured = ".$configured."\n", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});

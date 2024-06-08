@@ -4287,7 +4287,7 @@ sub ping
 		{
 			if ($is_local)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, key => "log_0855", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0855", variables => { 
 					shell_call => $shell_call, 
 					timeout    => $timeout, 
 				}});
