@@ -7082,21 +7082,21 @@ This method loads the C<< variables >> table data into memory.
 
 If the record does NOT have a C<< variable_source_table >>, the data will be stored in the hash;
 
-* variables::variable_uuid::<variable_uuid::global::variable_name        = <variable_name>
-* variables::variable_uuid::<variable_uuid::global::variable_value       = <variable_value>
-* variables::variable_uuid::<variable_uuid::global::variable_default     = <variable_default>
-* variables::variable_uuid::<variable_uuid::global::variable_description = <variable_description> (this is a string key)
-* variables::variable_uuid::<variable_uuid::global::modified_date        = <modified_date>        (this is a plain text english date and time)
-* variables::variable_uuid::<variable_uuid::global::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
+* variables::variable_uuid::<variable_uuid>::global::variable_name        = <variable_name>
+* variables::variable_uuid::<variable_uuid>::global::variable_value       = <variable_value>
+* variables::variable_uuid::<variable_uuid>::global::variable_default     = <variable_default>
+* variables::variable_uuid::<variable_uuid>::global::variable_description = <variable_description> (this is a string key)
+* variables::variable_uuid::<variable_uuid>::global::modified_date        = <modified_date>        (this is a plain text english date and time)
+* variables::variable_uuid::<variable_uuid>::global::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
 
 If there is a source table, then the data is stored in the hash;
 
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::variable_name        = <variable_name>
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::variable_value       = <variable_value>
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::variable_default     = <variable_default>
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::variable_description = <variable_description> (this is a string key)
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::modified_date        = <modified_date>        (this is a plain text english date and time)
-* variables::variable_uuid::<variable_uuid::source_table::<source_table>::source_uuid::<source_uuid>::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_name        = <variable_name>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_value       = <variable_value>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_default     = <variable_default>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_description = <variable_description> (this is a string key)
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::modified_date        = <modified_date>        (this is a plain text english date and time)
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
 
 This method takes no parameters.
 
@@ -7169,19 +7169,19 @@ FROM
 		{
 			# Store it under the associated table
 			$variable_source_uuid = "--" if not $variable_source_uuid;	# This should never be needed, but just in case...
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_name}        = $variable_name;
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_value}       = $variable_value;
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_default}     = $variable_default;
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_description} = $variable_description;
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{modified_date}        = $modified_date;
-			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{modified_date_unix}   = $modified_date_unix;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_name}        = $variable_name;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_value}       = $variable_value;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_default}     = $variable_default;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_description} = $variable_description;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date}        = $modified_date;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date_unix}   = $modified_date_unix;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_name"        => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_name}, 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_value"       => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_value}, 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_default"     => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_default}, 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_description" => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_description}, 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::modified_date"        => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{modified_date}, 
-				"variables::variable_uuid::${variable_uuid}::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::modified_date_unix"   => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{modified_date_unix}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_name"        => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_name}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_value"       => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_value}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_default"     => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_default}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_description" => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_description}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::modified_date"        => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::modified_date_unix"   => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date_unix}, 
 			}});
 		}
 		else
