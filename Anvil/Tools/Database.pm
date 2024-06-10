@@ -2339,7 +2339,11 @@ sub connect
 
 This cleanly closes any open file handles to all connected databases and clears some internal database related variables.
 
-This method takes no parameters.
+Parameters;
+
+=head3 cleanup (optional, default '1')
+
+If set to C<< 1 >> (default), the disconnect will be cleaned up (marked inactive, clear locking, etc). If the DB handle was lost unexpectedly, this is not possible. Set this to C<< 0 >> to prevent this.
 
 =cut
 sub disconnect
@@ -2350,6 +2354,11 @@ sub disconnect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->disconnect()" }});
 	
+	my $cleanup = defined $parameter->{cleanup} ? $parameter->{cleanup} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		cleanup => $cleanup,
+	}});
+	
 	my $marked_inactive = 0;
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
@@ -2357,14 +2366,19 @@ sub disconnect
 		next if ((not $anvil->data->{cache}{database_handle}{$uuid}) or ($anvil->data->{cache}{database_handle}{$uuid} !~ /^DBI::db=HASH/));
 		
 		# Clear locks and mark that we're done running.
-		if (not $marked_inactive)
+		if ((not $marked_inactive) && ($cleanup))
 		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0857", variables => { uuid => $uuid }});
 			$anvil->Database->mark_active({debug => $debug, set => 0});
 			$anvil->Database->locking({debug => $debug, release => 1});
 			$marked_inactive = 1;
 		}
 		
-		$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+		if ($cleanup)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0858", variables => { uuid => $uuid }});
+			$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+		}
 		delete $anvil->data->{cache}{database_handle}{$uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	}
@@ -18159,6 +18173,8 @@ AND
 
 This method disconnects from any connected databases, re-reads the config, and then tries to reconnect to any databases again. The number of connected datbaases is returned.
 
+B<< Note >>: This calls C<< Database->disconnect({cleanup => 0}); >> to prevent attempts to talk to the potentially lost database handle.
+
 Parameters;
 
 =head3 lost_uuid (optional)
@@ -18190,7 +18206,10 @@ sub reconnect
 	}
 
 	# Disconnect from all databases and then stop the daemon, then reconnect.
-	$anvil->Database->disconnect({debug => $debug});
+	$anvil->Database->disconnect({
+		debug   => $debug, 
+		cleanup => 0,
+	});
 	sleep 2;
 
 	# Refresh configs.
@@ -20931,7 +20950,7 @@ sub _test_access
 			
 			# Try to reconnect.
 			$anvil->Database->reconnect({
-				debug     => $debug,
+				debug     => 2,
 				lost_uuid => $uuid, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
