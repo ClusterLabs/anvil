@@ -1991,7 +1991,7 @@ The database connection error was:
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
 		<key name="log_0191">Connection only to: [#!variable!db_uuid!#], skipping: [#!variable!uuid!#].</key>
-		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect to databases-.</key>
+		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect to the database(s).</key>
 		<key name="log_0193">Switching the default database handle to use the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0194">Switching the default database to read from to the database: [#!variable!server!#] prior to reconnect attempt.</key>
 		<key name="log_0195">Ready to try to reconnect to: [#!variable!server!#], but delaying for: [#!variable!delay!#] seconds to give the database a chance to come back online in case this is a transient issue.</key>
@@ -4209,7 +4209,7 @@ We will try to proceed anyway.</key>
 		<key name="warning_0179">[ Warning ] - The connection to the database: [#!variable!server!#] was not restored, unable to this database.</key>
 		<key name="warning_0180">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is not or is no longer available.</key>
 		<key name="warning_0181">[ Warning ] - We were asked to read from the database: [#!variable!server!#], but it is no longer available, and no alternative databases are available.</key>
-		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during a write. Skipping this database.</key>
+		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during the write: [#!variable!query!#]. Skipping this database.</key>
 		<key name="warning_0183">[ Warning ] - We were asked to thoroughly check if this host is configured or not, but there are no records in the 'variables' table for this host. Unable to check the network config! Relying on the 'system::configured' value.</key>
 		<key name="warning_0184">[ Warning ] - We were asked to thoroughly check if this host is configured or not, and the interface: [#!variable!interface!#] doesn't exist! Marking this host as unconfigured!</key>
 		

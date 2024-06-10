@@ -19561,7 +19561,10 @@ sub write
 			if ($problem)
 			{
 				# We can't use this DB. 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0182", variables => { uuid => $uuid }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0182", variables => { 
+					uuid  => $uuid,
+					query => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				}});
 				next;
 			}
 		}
