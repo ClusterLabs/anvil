@@ -18,8 +18,6 @@ type ManifestNetworkList = {
 
 type ManifestNetworkConfig = {
   dnsCsv: string;
-  /** Max Transmission Unit (MTU); unit: bytes */
-  mtu: number;
   networks: ManifestNetworkList;
   ntpCsv: string;
 };

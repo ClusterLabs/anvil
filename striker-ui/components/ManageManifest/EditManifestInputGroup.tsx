@@ -7,7 +7,6 @@ import {
 } from './AnIdInputGroup';
 import {
   INPUT_ID_ANC_DNS,
-  INPUT_ID_ANC_MTU,
   INPUT_ID_ANC_NTP,
 } from './AnNetworkConfigInputGroup';
 import AddManifestInputGroup from './AddManifestInputGroup';
@@ -19,7 +18,6 @@ const EditManifestInputGroup = <
       | typeof INPUT_ID_AI_PREFIX
       | typeof INPUT_ID_AI_SEQUENCE
       | typeof INPUT_ID_ANC_DNS
-      | typeof INPUT_ID_ANC_MTU
       | typeof INPUT_ID_ANC_NTP]: string;
   },
 >({

@@ -10,21 +10,16 @@ import Grid from '../Grid';
 import IconButton from '../IconButton';
 import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
-import {
-  buildIpCsvTestBatch,
-  buildNumberTestBatch,
-} from '../../lib/test_input';
+import { buildIpCsvTestBatch } from '../../lib/test_input';
 
 const INPUT_ID_PREFIX_AN_NETWORK_CONFIG = 'an-network-config-input';
 
 const INPUT_CELL_ID_PREFIX_ANC = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-cell`;
 
 const INPUT_ID_ANC_DNS = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-dns`;
-const INPUT_ID_ANC_MTU = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-mtu`;
 const INPUT_ID_ANC_NTP = `${INPUT_ID_PREFIX_AN_NETWORK_CONFIG}-ntp`;
 
 const INPUT_LABEL_ANC_DNS = 'DNS';
-const INPUT_LABEL_ANC_MTU = 'MTU';
 const INPUT_LABEL_ANC_NTP = 'NTP';
 
 const DEFAULT_DNS_CSV = '8.8.8.8,8.8.4.4';
@@ -73,17 +68,13 @@ const guessNetworkMinIp = ({
 
 const AnNetworkConfigInputGroup = <
   M extends MapToInputTestID & {
-    [K in
-      | typeof INPUT_ID_ANC_DNS
-      | typeof INPUT_ID_ANC_MTU
-      | typeof INPUT_ID_ANC_NTP]: string;
+    [K in typeof INPUT_ID_ANC_DNS | typeof INPUT_ID_ANC_NTP]: string;
   },
 >({
   formUtils,
   networkListEntries,
   previous: {
     dnsCsv: previousDnsCsv = DEFAULT_DNS_CSV,
-    mtu: previousMtu,
     ntpCsv: previousNtpCsv,
   } = {},
   setNetworkList,
@@ -448,41 +439,12 @@ const AnNetworkConfigInputGroup = <
             />
           ),
         },
-        'an-network-config-input-cell-mtu': {
-          children: (
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_ANC_MTU}
-                  inputProps={{ placeholder: '1500' }}
-                  label={INPUT_LABEL_ANC_MTU}
-                  value={previousMtu}
-                />
-              }
-              inputTestBatch={buildNumberTestBatch(
-                INPUT_LABEL_ANC_MTU,
-                () => {
-                  setMessage(INPUT_ID_ANC_MTU);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_ANC_MTU),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_ANC_MTU, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_MTU)}
-              valueType="number"
-            />
-          ),
-        },
       }}
       spacing="1em"
     />
   );
 };
 
-export { INPUT_ID_ANC_DNS, INPUT_ID_ANC_MTU, INPUT_ID_ANC_NTP };
+export { INPUT_ID_ANC_DNS, INPUT_ID_ANC_NTP };
 
 export default AnNetworkConfigInputGroup;

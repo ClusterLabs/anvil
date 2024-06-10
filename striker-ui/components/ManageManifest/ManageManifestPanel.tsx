@@ -18,7 +18,6 @@ import {
 } from './AnNetworkInputGroup';
 import {
   INPUT_ID_ANC_DNS,
-  INPUT_ID_ANC_MTU,
   INPUT_ID_ANC_NTP,
 } from './AnNetworkConfigInputGroup';
 import api from '../../lib/api';
@@ -66,14 +65,10 @@ const getFormData = (
   const { value: dnsCsv } = elements.namedItem(
     INPUT_ID_ANC_DNS,
   ) as HTMLInputElement;
-  const { value: rawMtu } = elements.namedItem(
-    INPUT_ID_ANC_MTU,
-  ) as HTMLInputElement;
   const { value: ntpCsv } = elements.namedItem(
     INPUT_ID_ANC_NTP,
   ) as HTMLInputElement;
 
-  const mtu = Number.parseInt(rawMtu, 10);
   const sequence = Number.parseInt(rawSequence, 10);
 
   return Object.values(elements).reduce<APIBuildManifestRequestBody>(
@@ -105,7 +100,6 @@ const getFormData = (
       hostConfig: { hosts: {} },
       networkConfig: {
         dnsCsv,
-        mtu,
         networks: {},
         ntpCsv,
       },
@@ -193,7 +187,6 @@ const ManageManifestPanel: FC = () => {
       INPUT_ID_AI_PREFIX,
       INPUT_ID_AI_SEQUENCE,
       INPUT_ID_ANC_DNS,
-      INPUT_ID_ANC_MTU,
       INPUT_ID_ANC_NTP,
     ],
     messageGroupRef,

@@ -45,7 +45,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
   const passwordRef = useRef<InputForwardedRefContent<'string'>>({});
 
   const { hosts: initHostList = {} } = hostConfig;
-  const { dnsCsv, mtu, networks: initNetworkList = {}, ntpCsv } = networkConfig;
+  const { dnsCsv, networks: initNetworkList = {}, ntpCsv } = networkConfig;
 
   const hostListEntries = useMemo(
     () => Object.entries(initHostList),
@@ -425,12 +425,6 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
           },
           'run-manifest-ntp-csv-cell': {
             children: <EndMono>{ntpCsv || MANIFEST_PARAM_NONE}</EndMono>,
-          },
-          'run-manifest-mtu-cell-header': {
-            children: <BodyText>MTU</BodyText>,
-          },
-          'run-manifest-mtu-cell': {
-            children: <EndMono>{mtu}</EndMono>,
           },
         }}
         spacing="0.4em"
