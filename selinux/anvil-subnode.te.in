@@ -1,4 +1,4 @@
-policy_module(anvil-subnode, 1.0.0)
+policy_module(anvil-subnode, 1.1.0)
 
 ########################################
 #
@@ -15,8 +15,10 @@ policy_module(anvil-subnode, 1.0.0)
 #
 require {
 	type mnt_t;
+	type sysctl_vm_t;
+	type svirt_t;
 	type virsh_t;
-	class file { open read };
+	class file { getattr open read };
 }
 
 
@@ -27,3 +29,8 @@ require {
 #============= virsh_t ==============
 # Needed for virsh to access the domain XMLs under /mnt.
 allow virsh_t mnt_t:file { open read };
+
+
+#============= svirt_t ==============
+# Workaround until QEMU fixes its policy for RHEL/Almalinux >= 9.4
+allow svirt_t sysctl_vm_t:file { getattr open read };
