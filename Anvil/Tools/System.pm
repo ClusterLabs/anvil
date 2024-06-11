@@ -309,6 +309,10 @@ sub call
 			if ($timeout)
 			{
 				# Prepend a timeout.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, key => "log_0855", variables => { 
+					shell_call => $shell_call, 
+					timeout    => $timeout, 
+				}});
 				$shell_call = $anvil->data->{path}{exe}{timeout}." ".$timeout." ".$shell_call;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { shell_call => $shell_call }});
 			}
@@ -595,7 +599,13 @@ sub check_daemon
 
 This returns C<< 1 >> is the system has finished initial configuration, and C<< 0 >> if not.
 
-This method takes no parameters.
+Parameters;
+
+=head3 thorough (optional, default 0)
+
+If this is set to C<< 1 >>, then a check is made of the host's network. If the network is found to be unconfigured, then C<< 0 >> is returned, Even if the variable C<< system::configured >> is set to C<< 1 >>. 
+
+If this test fails, the C<< system::configured >> variable will be reset to C<< 0 >>. Likewise, the C<< path::data::host_configured >> file (usually C<< /etc/anvil/host.configured >>) wil be updated also.
 
 =cut
 sub check_if_configured
@@ -605,6 +615,11 @@ sub check_if_configured
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_if_configured()" }});
+	
+	my $thorough = defined $parameter->{thorough} ? $parameter->{thorough} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		thorough => $thorough, 
+	}});
 	
 	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
 		debug                 => $debug,
@@ -640,7 +655,7 @@ sub check_if_configured
 				if (($variable eq "system::configured") && ($value eq "1"))
 				{
 					# Write the database entry.
-					my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					$variable_uuid = $anvil->Database->insert_or_update_variables({
 						debug                 => 2,
 						variable_name         => "system::configured", 
 						variable_value        => 1, 
@@ -660,12 +675,134 @@ sub check_if_configured
 		}
 	}
 	
-	if (($configured) && (not -f $anvil->data->{path}{data}{host_configured}))
+	# Are we configured?
+	if ($configured)
+	{
+		if ($thorough)
+		{
+			# OK, but are we really though?
+			my $host_uuid       = $anvil->Get->host_uuid({debug => $debug});
+			my $short_host_name = $anvil->Get->short_host_name({debug => $debug});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				host_uuid       => $host_uuid,
+				short_host_name => $short_host_name, 
+			}});
+			$anvil->Network->get_ips({debug => $debug, target => $short_host_name});
+			$anvil->Network->collect_data({debug => $debug});
+			$anvil->Database->get_variables({debug => $debug});
+			my $reconfigure = 0;
+			if (not exists $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid})
+			{
+				# Report that we can't validate this host's configuration. We'll have
+				# to rely on the variable value, if any.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0183"});
+				$reconfigure = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reconfigure => $reconfigure }});
+			}
+			else
+			{
+				foreach my $variable_uuid (sort {$a cmp $b} keys %{$anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}})
+				{
+					my $variable_name  = $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}{$variable_uuid}{variable_name};
+					my $variable_value = $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}{$variable_uuid}{variable_value};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						variable_uuid  => $variable_uuid,
+						variable_name  => $variable_name, 
+						variable_value => $variable_value, 
+					}});
+					
+					if ($variable_name =~ /form::config_step2::(\w+)n(\d+)_create_bridge::value/)
+					{
+						my $network     = $1."n".$2;
+						my $bridge_name = $network."_bridge1";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							network     => $network,
+							bridge_name => $bridge_name, 
+						}});
+						
+						# Does this bridge exist?
+						if (not exists $anvil->data->{nmcli}{bridge}{$bridge_name})
+						{
+							# Missing bridge!
+							$reconfigure = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reconfigure => $reconfigure }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0184", variables => { interface => $bridge_name }});
+						}
+					}
+					
+					if ($variable_name =~ /form::config_step2::(\d+)n(\d+)_link(\d)_mac_to_set::value/)
+					{
+						my $interface = $1."n".$2."_link".$3;
+						my $bond_name = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { interface => $interface }});
+						
+						# If this is link2, look for a bond.
+						if ($3 eq "2")
+						{
+							# We'll check for a bond after we check for this interface.
+							$bond_name = $1."n".$2."_bond1";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bond_name => $bond_name }});
+						}
+						
+						# Does this interface exist? See if we can find it via the 
+						# MAC address record or the interface name. Note that if the
+						# 'match.interface-name' is set, both interface names are 
+						# stored, even if NM decided not to use one of them.
+						if ((not exists $anvil->data->{nmcli}{perm_mac_address}{$interface}) && (not exists $anvil->data->{nmcli}{interface}{$interface}))
+						{
+							# Missing interface!
+							$reconfigure = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reconfigure => $reconfigure }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0184", variables => { interface => $interface }});
+						}
+						
+						if (($bond_name) && (not exists $anvil->data->{nmcli}{bond}{$bond_name}))
+						{
+							# Missing bond!
+							$reconfigure = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reconfigure => $reconfigure }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0184", variables => { interface => $bond_name }});
+						}
+					}
+				}
+			}
+			
+			if ($reconfigure)
+			{
+				$configured = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+				
+				# Mark this host as not configured.
+				$variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug                 => $debug,
+					variable_name         => "system::configured", 
+					variable_value        => $configured, 
+					variable_default      => "", 
+					variable_description  => "striker_0048", 
+					variable_section      => "system", 
+					variable_source_uuid  => $host_uuid, 
+					variable_source_table => "hosts", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
+				
+				my $failed = $anvil->Storage->write_file({
+					debug     => $debug,
+					file      => $anvil->data->{path}{data}{host_configured}, 
+					backup    => 0,
+					overwrite => 1,
+					body      => "system::configured = ".$configured."\n", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+			}
+		}
+	}
+	
+	if (not -f $anvil->data->{path}{data}{host_configured})
 	{
 		my $failed = $anvil->Storage->write_file({
 			debug => $debug,
 			file  => $anvil->data->{path}{data}{host_configured}, 
-			body  => "system::configured = 1\n", 
+			body  => "system::configured = ".$configured."\n", 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
 	}

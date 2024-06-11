@@ -56,6 +56,7 @@ my $THIS_FILE = "Database.pm";
 # get_tables_from_schema
 # get_power
 # get_upses
+# get_variables
 # initialize
 # insert_or_update_alert_overrides
 # insert_or_update_anvils
@@ -2338,7 +2339,11 @@ sub connect
 
 This cleanly closes any open file handles to all connected databases and clears some internal database related variables.
 
-This method takes no parameters.
+Parameters;
+
+=head3 cleanup (optional, default '1')
+
+If set to C<< 1 >> (default), the disconnect will be cleaned up (marked inactive, clear locking, etc). If the DB handle was lost unexpectedly, this is not possible. Set this to C<< 0 >> to prevent this.
 
 =cut
 sub disconnect
@@ -2349,6 +2354,11 @@ sub disconnect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->disconnect()" }});
 	
+	my $cleanup = defined $parameter->{cleanup} ? $parameter->{cleanup} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		cleanup => $cleanup,
+	}});
+	
 	my $marked_inactive = 0;
 	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
 	{
@@ -2356,14 +2366,19 @@ sub disconnect
 		next if ((not $anvil->data->{cache}{database_handle}{$uuid}) or ($anvil->data->{cache}{database_handle}{$uuid} !~ /^DBI::db=HASH/));
 		
 		# Clear locks and mark that we're done running.
-		if (not $marked_inactive)
+		if ((not $marked_inactive) && ($cleanup))
 		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0857", variables => { uuid => $uuid }});
 			$anvil->Database->mark_active({debug => $debug, set => 0});
 			$anvil->Database->locking({debug => $debug, release => 1});
 			$marked_inactive = 1;
 		}
 		
-		$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+		if ($cleanup)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0858", variables => { uuid => $uuid }});
+			$anvil->data->{cache}{database_handle}{$uuid}->disconnect;
+		}
 		delete $anvil->data->{cache}{database_handle}{$uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 	}
@@ -7071,6 +7086,138 @@ WHERE
 		}
 	}
 
+	return(0);
+}
+
+
+=head2 get_variables
+
+This method loads the C<< variables >> table data into memory.
+
+If the record does NOT have a C<< variable_source_table >>, the data will be stored in the hash;
+
+* variables::variable_uuid::<variable_uuid>::global::variable_name        = <variable_name>
+* variables::variable_uuid::<variable_uuid>::global::variable_value       = <variable_value>
+* variables::variable_uuid::<variable_uuid>::global::variable_default     = <variable_default>
+* variables::variable_uuid::<variable_uuid>::global::variable_description = <variable_description> (this is a string key)
+* variables::variable_uuid::<variable_uuid>::global::modified_date        = <modified_date>        (this is a plain text english date and time)
+* variables::variable_uuid::<variable_uuid>::global::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
+
+If there is a source table, then the data is stored in the hash;
+
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_name        = <variable_name>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_value       = <variable_value>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_default     = <variable_default>
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::variable_description = <variable_description> (this is a string key)
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::modified_date        = <modified_date>        (this is a plain text english date and time)
+* variables::source_table::<source_table>::source_uuid::<source_uuid>::variable_uuid::<variable_uuid>::modified_date_unix   = <modified_date_unix>   (this is the unix time stamp)
+
+This method takes no parameters.
+
+=cut
+sub get_variables
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_variables()" }});
+	
+	
+	if (exists $anvil->data->{variables})
+	{
+		delete $anvil->data->{variables};
+	}
+	
+	# Load the power data.
+	$anvil->Database->get_hosts({debug => $debug});
+	
+	my $query = "
+SELECT 
+    variable_uuid, 
+    variable_name, 
+    variable_value, 
+    variable_default, 
+    variable_description, 
+    variable_section, 
+    variable_source_uuid, 
+    variable_source_table, 
+    modified_date, 
+    round(extract(epoch from modified_date)) 
+FROM 
+    variables 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $variable_uuid         =         $row->[0];
+		my $variable_name         =         $row->[1];
+		my $variable_value        =         $row->[2];
+		my $variable_default      =         $row->[3];
+		my $variable_description  =         $row->[4];
+		my $variable_section      =         $row->[5];
+		my $variable_source_uuid  = defined $row->[6] ? $row->[6] : "";
+		my $variable_source_table =         $row->[7]; 
+		my $modified_date         =         $row->[8];
+		my $modified_date_unix    =         $row->[9];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			variable_uuid         => $variable_uuid, 
+			variable_name         => $variable_name, 
+			variable_value        => $variable_value, 
+			variable_default      => $variable_default, 
+			variable_description  => $variable_description, 
+			variable_section      => $variable_section, 
+			variable_source_uuid  => $variable_source_uuid, 
+			variable_source_table => $variable_source_table, 
+			modified_date         => $modified_date, 
+			modified_date_unix    => $modified_date_unix, 
+		}});
+		
+		if ($variable_source_table)
+		{
+			# Store it under the associated table
+			$variable_source_uuid = "--" if not $variable_source_uuid;	# This should never be needed, but just in case...
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_name}        = $variable_name;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_value}       = $variable_value;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_default}     = $variable_default;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_description} = $variable_description;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date}        = $modified_date;
+			$anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date_unix}   = $modified_date_unix;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_name"        => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_name}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_value"       => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_value}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_default"     => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_default}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::variable_description" => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{variable_description}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::modified_date"        => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date}, 
+				"variables::source_table::${variable_source_table}::source_uuid::${variable_source_uuid}::variable_uuid::${variable_uuid}::modified_date_unix"   => $anvil->data->{variables}{source_table}{$variable_source_table}{source_uuid}{$variable_source_uuid}{variable_uuid}{$variable_uuid}{modified_date_unix}, 
+			}});
+		}
+		else
+		{
+			# Global variable
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_name}        = $variable_name;
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_value}       = $variable_value;
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_default}     = $variable_default;
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_description} = $variable_description;
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{modified_date}        = $modified_date;
+			$anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{modified_date_unix}   = $modified_date_unix;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"variables::variable_uuid::${variable_uuid}::global::variable_name"        => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_name}, 
+				"variables::variable_uuid::${variable_uuid}::global::variable_value"       => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_value}, 
+				"variables::variable_uuid::${variable_uuid}::global::variable_default"     => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_default}, 
+				"variables::variable_uuid::${variable_uuid}::global::variable_description" => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{variable_description}, 
+				"variables::variable_uuid::${variable_uuid}::global::modified_date"        => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{modified_date}, 
+				"variables::variable_uuid::${variable_uuid}::global::modified_date_unix"   => $anvil->data->{variables}{variable_uuid}{$variable_uuid}{global}{modified_date_unix}, 
+			}});
+		}
+	}
+	
 	return(0);
 }
 
@@ -18026,6 +18173,8 @@ AND
 
 This method disconnects from any connected databases, re-reads the config, and then tries to reconnect to any databases again. The number of connected datbaases is returned.
 
+B<< Note >>: This calls C<< Database->disconnect({cleanup => 0}); >> to prevent attempts to talk to the potentially lost database handle.
+
 Parameters;
 
 =head3 lost_uuid (optional)
@@ -18057,7 +18206,10 @@ sub reconnect
 	}
 
 	# Disconnect from all databases and then stop the daemon, then reconnect.
-	$anvil->Database->disconnect({debug => $debug});
+	$anvil->Database->disconnect({
+		debug   => $debug, 
+		cleanup => 0,
+	});
 	sleep 2;
 
 	# Refresh configs.
@@ -19428,7 +19580,10 @@ sub write
 			if ($problem)
 			{
 				# We can't use this DB. 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0182", variables => { uuid => $uuid }});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "warn", key => "warning_0182", variables => { 
+					uuid  => $uuid,
+					query => (not $secure) ? $query : $anvil->Log->is_secure($query),
+				}});
 				next;
 			}
 		}
@@ -20795,7 +20950,7 @@ sub _test_access
 			
 			# Try to reconnect.
 			$anvil->Database->reconnect({
-				debug     => $debug,
+				debug     => 2,
 				lost_uuid => $uuid, 
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
