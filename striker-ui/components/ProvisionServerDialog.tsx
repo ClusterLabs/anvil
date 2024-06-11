@@ -1578,6 +1578,9 @@ const ProvisionServerDialog = ({
         );
 
         setIsProvisionServerDataReady(true);
+      })
+      .catch(() => {
+        // Ignore for now; the 'no resources' message would trigger.
       });
   }, [initLimits]);
 
