@@ -2861,6 +2861,8 @@ sub switches
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
 			next if $set_switch eq "vvvv";
+			next if $set_switch =~ /y/i;
+			next if $set_switch =~ /yes/i;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { set_switch => $set_switch }});
 			
 			my $found = 0;

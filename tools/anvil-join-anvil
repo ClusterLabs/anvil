@@ -245,7 +245,6 @@ sub process_rejoin
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
-	die;
 	
 	if ($manifest)
 	{
