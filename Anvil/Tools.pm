@@ -194,9 +194,10 @@ sub new
 	$anvil->data->{ENV_VALUES}{START_TIME} = Time::HiRes::time;
 	
 	# Set passed parameters if needed.
-	my $debug = 3;
+	my $debug = 2;
 	my $on_sig_int;
 	my $on_sig_term;
+	my $on_sig_alarm;
 	if (ref($parameter) eq "HASH")
 	{
 		# Local parameters...
@@ -213,8 +214,9 @@ sub new
 			$debug = $parameter->{debug};
 		}
 
-		$on_sig_int  = $parameter->{on_sig_int};
-		$on_sig_term = $parameter->{on_sig_term};
+		$on_sig_int   = $parameter->{on_sig_int};
+		$on_sig_term  = $parameter->{on_sig_term};
+		$on_sig_alarm = $parameter->{on_sig_alarm};
 	}
 	elsif ($parameter)
 	{
@@ -233,6 +235,11 @@ sub new
 		$on_sig_term->({ debug => $debug }) if (ref($on_sig_term) eq "CODE");
 
 		$anvil->catch_sig({signal => "TERM"});
+	};
+	$SIG{ALRM} = sub {
+		$on_sig_alarm->({ debug => $debug }) if (ref($on_sig_alarm) eq "CODE");
+
+		$anvil->catch_sig({signal => "ALRM"});
 	};
 	
 	# This sets the environment this program is running in.

@@ -203,6 +203,50 @@ sub process_rejoin
 		}});
 	}
 	
+	# Does this host need to be reconfigured? If so, register a job, if one doesn't exist yet, and exit.
+	my $configured = $anvil->System->check_if_configured({
+		debug    => 2,
+		thorough => 1,
+	});
+	if ($configured)
+	{
+		print "The host appears to already be configured, good.\n";
+	}
+	else
+	{
+		print "[ Note ] - The host appears to NOT be configured yet!\n";
+		if (exists $anvil->data->{anvils}{host_uuid}{$host_uuid})
+		{
+			# Can we find the data needed to reconfigure this subnode?
+			my $job_uuid = create_anvil_configure_host_job($anvil, $host_uuid);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			if ($job_uuid)
+			{
+				print "[ Success ] - Found the data needed to configure the network on this subnode! The anvil-join-anvil job has\n";
+				print "[ Success ]   been created with the job UUID: [".$job_uuid."]\n";
+				print "[ Note ] - This subnode will reboot one minute after the network configuration completes. Once rebooted,\n";
+				print "[ Note ]   please run this again.\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+			else
+			{
+				print "[ Warning ] - Failed to automatically create the anvil-join-anvil job.\n";
+				print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+				print "[ Warning ]   this subnode again.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		else
+		{
+			# We can't configure it automatically.
+			print "[ Warning ] - This is a new host, so the information needed to configure the network does not exist.\n";
+			print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+			print "[ Warning ]   this subnode again.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	die;
+	
 	if ($manifest)
 	{
 		# Did we get a valid manifest?
@@ -226,7 +270,7 @@ sub process_rejoin
 		}
 		else
 		{
-			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n"; 
+			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n";
 			print "[ Error ] - Try again without this switch to see the available manifests.\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -400,6 +444,204 @@ sub process_rejoin
 	print "Registering a job. This host should (re)join the Anvil! node shortly.\n";
 	
 	return(0);
+}
+
+sub create_anvil_configure_host_job
+{
+	my ($anvil, $host_uuid) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	
+	# This is just to make the job_data cleaner.
+	if (exists $anvil->data->{job_vars})
+	{
+		delete $anvil->data->{job_vars};
+	}
+	if (exists $anvil->data->{iface_map})
+	{
+		delete $anvil->data->{iface_map};
+	}
+	
+	# Load the network interface data to validate/update the MACs to interface names. If the subnode was
+	# rebuilt, the device name could have reverted. So we walk through the history to see if the same MAC
+	# used to have a name we recognize.
+	my $query = "
+SELECT
+    network_interface_uuid, 
+    network_interface_mac_address, 
+    network_interface_name, 
+    network_interface_device, 
+    round(extract(epoch from modified_date))  
+FROM 
+    history.network_interfaces 
+WHERE 
+    network_interface_operational != 'DELETED' 
+AND 
+    network_interface_host_uuid = ".$anvil->Database->quote($host_uuid)."
+ORDER BY 
+    modified_date DESC
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	foreach my $row (@{$results})
+	{
+		my $network_interface_uuid = $row->[0];
+		my $mac_address            = $row->[1];
+		my $name                   = $row->[2];
+		my $device                 = $row->[3];
+		my $modified_date_unix     = $row->[4];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"s1:network_interface_uuid" => $network_interface_uuid, 
+			"s2:mac_address"            => $mac_address, 
+			"s3:name"                   => $name, 
+			"s4:device"                 => $device, 
+			"s5:modified_date_unix"     => $modified_date_unix, 
+		}});
+		
+		$anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{mac_address} = $mac_address;
+		$anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{name}	= $name;
+		$anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{device}      = $device;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:iface_map::${network_interface_uuid}::timestamp::${modified_date_unix}::mac_address" => $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{mac_address},
+			"s2:iface_map::${network_interface_uuid}::timestamp::${modified_date_unix}::name"        => $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{name},
+			"s3:iface_map::${network_interface_uuid}::timestamp::${modified_date_unix}::device"      => $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{device},
+		}});
+	}
+	
+	# Load the variables, if not already done so.
+	if (not exists $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid})
+	{
+		my $short_host_name = $anvil->Get->short_host_name();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+		
+		$anvil->Network->get_ips({debug => 3, target => $short_host_name});
+		$anvil->Network->collect_data({debug => 3});
+		$anvil->Database->get_variables({debug => 2});
+	}
+	
+	# The variables were already read in, so it's easy to recreate the job.
+	my $form_data_found = 0;
+	foreach my $variable_uuid (sort {$a cmp $b} keys %{$anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}})
+	{
+		my $variable_name  = $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}{$variable_uuid}{variable_name};
+		my $variable_value = $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid}{variable_uuid}{$variable_uuid}{variable_value};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:variable_uuid"  => $variable_uuid,
+			"s2:variable_name"  => $variable_name, 
+			"s3:variable_value" => $variable_value, 
+		}});
+		next if $variable_name !~ /^form::config_step\d::/;
+		
+		if (not $form_data_found)
+		{
+			$form_data_found = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { form_data_found => $form_data_found }});
+		}
+		
+		# If the config value is the MAC address, check to see if there was a change since the
+		# original variables were recorded.
+		if ($variable_name =~ /form::config_step2::(.*?)_mac_to_set::value/)
+		{
+			my $interface = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+			
+			my $iface_found = "";
+			my $mac_found   = "";
+			foreach my $network_interface_uuid (sort {$a cmp $b} keys %{$anvil->data->{iface_map}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_interface_uuid => $network_interface_uuid }});
+				foreach my $modified_date_unix (sort {$b <=> $a} keys %{$anvil->data->{iface_map}{$network_interface_uuid}{timestamp}})
+				{
+					my $mac_address = $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{mac_address};
+					my $name        = $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{name};
+					my $device      = $anvil->data->{iface_map}{$network_interface_uuid}{timestamp}{$modified_date_unix}{device};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						#"s1:modified_date_unix" => $modified_date_unix, 
+						"s2:mac_address"        => $mac_address, 
+						"s3:name"               => $name, 
+						"s4:device"             => $device, 
+					}});
+					
+					if ((not $iface_found) && ($device eq $interface))
+					{
+						$iface_found = $mac_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iface_found => $iface_found }});
+					}
+					if ((not $iface_found) && ($name eq $interface))
+					{
+						$iface_found = $mac_address;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { iface_found => $iface_found }});
+					}
+					if ((not $mac_found) && ($mac_found eq $variable_value))
+					{
+						$mac_found = $interface;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mac_found => $mac_found }});
+					}
+				}
+			}
+			
+			if ((not $iface_found) && (not $mac_found))
+			{
+				# Abort, we can't find this interface by name or MAC address.
+				print "[ Error ] - The interface: [".$interface."] which was originally assigned to the device with the MAC\n";
+				print "[ Error ]   address: [".$variable_value."] could not be found. We checked for the interface name in the\n";
+				print "[ Error ]   'network_interfaces' historical schema, in case the interface was moved to a new NIC in the\n";
+				print "[ Error ]   past. You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to \n";
+				print "[ Error ]   initialize the network for this node before it can rejoin the cluster.\n";
+				return("");
+			}
+			# If I found the mac address, we're done. If not, but we found the interface, update
+			# the variable_value to the new MAC address.
+			if (not $iface_found)
+			{
+				$variable_value = $mac_found;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_value => $variable_value }});
+			}
+		}
+		
+		$anvil->data->{job_vars}{$variable_name} = $variable_value;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"job_vars::${variable_name}" => $anvil->data->{job_vars}{$variable_name}, 
+		}});
+	}
+	
+	if (not $form_data_found)
+	{
+		print "[ Error ] - It appears that the data used to configure this node is no longer stored in the database.\n";
+		print "[ Error ]   You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to initialize\n";
+		print "[ Error ]   the network for this node before it can rejoin the cluster.\n";
+		return("");
+	}
+	
+	my $job_lines = 0;
+	my $job_data  = "";
+	foreach my $variable_name (sort {$a cmp $b} keys %{$anvil->data->{job_vars}})
+	{
+		$job_data .= $variable_name."=".$anvil->data->{job_vars}{$variable_name}."\n";
+		$job_lines++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			"s1:job_lines" => $job_lines, 
+			"s2:job_data"  => $job_data,
+		}});
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}.$anvil->Log->switches, 
+		job_data        => $job_data, 
+		job_name        => "configure::network", 
+		job_title       => "job_0001", 
+		job_description => "job_0071", 
+		job_progress    => 0,
+		job_host_uuid   => $host_uuid,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});	
+	
+	return($job_uuid)
 }
 
 # Make sure the hosts file has entries for all nets for both subnodes
