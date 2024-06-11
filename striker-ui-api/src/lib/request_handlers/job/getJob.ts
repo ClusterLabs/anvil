@@ -15,7 +15,7 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   try {
     const minDate = date('--date', `@${start}`, '--rfc-3339', 'ns');
 
-    condModifiedDate = `OR (job.job_progress = 100 AND job.modified_date >= '${minDate}')`;
+    condModifiedDate = `OR (a.job_progress = 100 AND a.modified_date >= '${minDate}')`;
   } catch (shellError) {
     throw new Error(
       `Failed to build date condition for job query; CAUSE: ${shellError}`,
@@ -25,7 +25,7 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
   let condJobCommand = '';
 
   if (REP_PEACEFUL_STRING.test(jcmd)) {
-    condJobCommand = `AND job.job_command LIKE '%${jcmd}%'`;
+    condJobCommand = `AND a.job_command LIKE '%${jcmd}%'`;
   }
 
   pout(`condModifiedDate=[${condModifiedDate}]`);
@@ -77,16 +77,16 @@ export const getJob = buildGetRequestHandler((request, buildQueryOptions) => {
 
   return `
     SELECT
-      job.job_uuid,
-      job.job_name,
-      job.job_host_uuid,
-      hos.host_name,
-      job.job_command,
-      job.job_progress
-    FROM jobs AS job
-    JOIN hosts AS hos
-      ON job.job_host_uuid = hos.host_uuid
-    WHERE (job.job_progress < 100 ${condModifiedDate})
+      a.job_uuid,
+      a.job_name,
+      a.job_host_uuid,
+      b.host_name,
+      a.job_command,
+      a.job_progress
+    FROM jobs AS a
+    JOIN hosts AS b
+      ON a.job_host_uuid = b.host_uuid
+    WHERE (a.job_progress < 100 ${condModifiedDate})
       ${condJobCommand}
       AND job_name NOT LIKE 'get_server_screenshot%';`;
 });
