@@ -1495,6 +1495,7 @@ sub host_name
 	
 	my $refresh   = defined $parameter->{refresh} ? $parameter->{refresh} : 0;
 	my $host_name = "";
+	
 	# NOTE: Don't use 'ENV{HOSTNAME}'! It lags behind changes made by 'hostnamectl'.
 	if ((not $refresh) && ($anvil->data->{sys}{host_name}))
 	{
