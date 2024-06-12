@@ -3,6 +3,7 @@ import { ReactElement, useMemo } from 'react';
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
 import InputWithRef from '../InputWithRef';
+import MessageBox from '../MessageBox';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SwitchWithLabel from '../SwitchWithLabel';
@@ -202,7 +203,6 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
                   },
                 )}
                 onFirstRender={buildInputFirstRenderFunction(inputId)}
-                required
               />
             ),
           };
@@ -345,6 +345,15 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
           <Grid
             columns={GRID_COLUMNS}
             layout={{
+              'fence-message': {
+                children: (
+                  <MessageBox>
+                    It is recommended to provide 2 fence device ports.
+                  </MessageBox>
+                ),
+                width: '100%',
+                xs: 0,
+              },
               ...networkListGridLayout,
               [inputCellIdAHIpmiIp]: {
                 children: (

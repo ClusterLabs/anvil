@@ -45,12 +45,7 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
   const passwordRef = useRef<InputForwardedRefContent<'string'>>({});
 
   const { hosts: initHostList = {} } = hostConfig;
-  const {
-    dnsCsv,
-    mtu,
-    networks: initNetworkList = {},
-    ntpCsv = MANIFEST_PARAM_NONE,
-  } = networkConfig;
+  const { dnsCsv, networks: initNetworkList = {}, ntpCsv } = networkConfig;
 
   const hostListEntries = useMemo(
     () => Object.entries(initHostList),
@@ -195,12 +190,10 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
           };
 
           hostListEntries.forEach(([hostId, { networks = {} }]) => {
-            const {
-              [networkId]: { networkIp: ip = MANIFEST_PARAM_NONE } = {},
-            } = networks;
+            const { [networkId]: { networkIp: ip = '' } = {} } = networks;
 
             hostNetworks[`${idPrefix}-${hostId}-ip`] = {
-              children: <MonoText>{ip}</MonoText>,
+              children: <MonoText>{ip || MANIFEST_PARAM_NONE}</MonoText>,
             };
           });
 
@@ -237,11 +230,10 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
           };
 
           hostListEntries.forEach(([hostId, { fences = {} }]) => {
-            const { [fenceName]: { fencePort = MANIFEST_PARAM_NONE } = {} } =
-              fences;
+            const { [fenceName]: { fencePort = '' } = {} } = fences;
 
             previous[`${idPrefix}-${hostId}-port`] = {
-              children: <MonoText>{fencePort}</MonoText>,
+              children: <MonoText>{fencePort || MANIFEST_PARAM_NONE}</MonoText>,
             };
           });
 
@@ -426,19 +418,13 @@ const RunManifestInputGroup = <M extends MapToInputTestID>({
             children: <BodyText>DNS</BodyText>,
           },
           'run-manifest-dns-csv-cell': {
-            children: <EndMono>{dnsCsv}</EndMono>,
+            children: <EndMono>{dnsCsv || MANIFEST_PARAM_NONE}</EndMono>,
           },
           'run-manifest-ntp-csv-cell-header': {
             children: <BodyText>NTP</BodyText>,
           },
           'run-manifest-ntp-csv-cell': {
-            children: <EndMono>{ntpCsv}</EndMono>,
-          },
-          'run-manifest-mtu-cell-header': {
-            children: <BodyText>MTU</BodyText>,
-          },
-          'run-manifest-mtu-cell': {
-            children: <EndMono>{mtu}</EndMono>,
+            children: <EndMono>{ntpCsv || MANIFEST_PARAM_NONE}</EndMono>,
           },
         }}
         spacing="0.4em"

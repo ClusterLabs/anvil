@@ -235,6 +235,8 @@ export const buildManifest = async (
                 `Fence name must be a peaceful string; got [${fenceName}]`,
               );
 
+              if (!port) return;
+
               assert(
                 REP_PEACEFUL_STRING.test(port),
                 `Port of ${fenceName} must be a peaceful string; got [${port}]`,

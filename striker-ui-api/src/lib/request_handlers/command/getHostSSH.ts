@@ -1,16 +1,19 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_IPV4, REP_PEACEFUL_STRING } from '../../consts';
-import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
+import {
+  HOST_KEY_CHANGED_PREFIX,
+  REP_IPV4,
+  REP_PEACEFUL_STRING,
+} from '../../consts';
 
-import { getLocalHostUUID, getPeerData, query } from '../../accessModule';
+import { getPeerData, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
 export const getHostSSH: RequestHandler<
   unknown,
-  GetHostSshResponseBody,
+  GetHostSshResponseBody | ErrorResponseBody,
   GetHostSshRequestBody
 > = async (request, response) => {
   const {
@@ -42,35 +45,60 @@ export const getHostSSH: RequestHandler<
     return response.status(400).send();
   }
 
-  const localHostUUID = getLocalHostUUID();
-
   let rsbody: GetHostSshResponseBody;
 
   try {
     rsbody = await getPeerData(target, { password, port });
-  } catch (subError) {
-    perr(`Failed to get peer data; CAUSE: ${subError}`);
+  } catch (error) {
+    const emsg = `Failed to get peer data; CAUSE: ${error}`;
 
-    return response.status(500).send();
+    perr(emsg);
+
+    const rserror: ErrorResponseBody = {
+      code: 'fe14fb1',
+      message: emsg,
+      name: 'AccessError',
+    };
+
+    return response.status(500).send(rserror);
   }
 
-  if (!rsbody.isConnected) {
-    const rows: [stateNote: string, stateUUID: string][] = await query(`
-      SELECT sta.state_note, sta.state_uuid
-      FROM states AS sta
-      WHERE sta.state_host_uuid = '${localHostUUID}'
-        AND sta.state_name = '${HOST_KEY_CHANGED_PREFIX}${target}';`);
+  let states: [string, string][];
 
-    if (rows.length > 0) {
-      rsbody.badSSHKeys = rows.reduce<DeleteSshKeyConflictRequestBody>(
-        (previous, [, stateUUID]) => {
-          previous[localHostUUID].push(stateUUID);
+  try {
+    states = await query<[stateUuid: string, hostUuid: string][]>(`
+      SELECT a.state_uuid, a.state_host_uuid
+      FROM states AS a
+      WHERE a.state_name = '${HOST_KEY_CHANGED_PREFIX}${target}';`);
+  } catch (error) {
+    const emsg = `Failed to list SSH key conflicts; CAUSE: ${error}`;
 
-          return previous;
-        },
-        { [localHostUUID]: [] },
-      );
-    }
+    perr(emsg);
+
+    const rserror: ErrorResponseBody = {
+      code: 'd5a2acf',
+      message: emsg,
+      name: 'AccessError',
+    };
+
+    return response.status(500).send(rserror);
+  }
+
+  if (states.length > 0) {
+    rsbody.badSshKeys = states.reduce<DeleteSshKeyConflictRequestBody>(
+      (previous, state) => {
+        const [stateUuid, hostUuid] = state;
+
+        const { [hostUuid]: list = [] } = previous;
+
+        list.push(stateUuid);
+
+        previous[hostUuid] = list;
+
+        return previous;
+      },
+      {},
+    );
   }
 
   response.status(200).send(rsbody);

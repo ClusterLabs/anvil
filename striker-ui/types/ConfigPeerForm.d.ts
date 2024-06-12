@@ -2,6 +2,7 @@ type InboundConnectionList = {
   [ipAddress: string]: {
     dbPort: number;
     dbUser: string;
+    ifaceId: string;
     ipAddress: string;
     networkLinkNumber: number;
     networkNumber: number;

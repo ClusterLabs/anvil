@@ -1,4 +1,5 @@
 import RFB from '@novnc/novnc/core/rfb';
+import Websock from '@novnc/novnc/core/websock';
 import { useEffect } from 'react';
 
 const rfbConnect: RfbConnectFunction = ({
@@ -9,6 +10,8 @@ const rfbConnect: RfbConnectFunction = ({
   focusOnClick = false,
   onConnect,
   onDisconnect,
+  onWsClose,
+  onWsError,
   qualityLevel = 6,
   resizeSession = true,
   rfb,
@@ -45,6 +48,23 @@ const rfbConnect: RfbConnectFunction = ({
   if (onDisconnect) {
     rfb.current.addEventListener('disconnect', onDisconnect);
   }
+
+  /* eslint-disable no-underscore-dangle */
+  const ws: typeof Websock = rfb.current._sock;
+
+  const socketClose = ws._eventHandlers.close;
+  const socketError = ws._eventHandlers.error;
+
+  ws.on('close', (e?: WebsockCloseEvent) => {
+    socketClose(e);
+    onWsClose?.call(null, e);
+  });
+
+  ws.on('error', (e: Event) => {
+    socketError(e);
+    onWsError?.call(null, e);
+  });
+  /* eslint-enable no-underscore-dangle */
 };
 
 const rfbDisconnect: RfbDisconnectFunction = (rfb) => {
@@ -58,6 +78,8 @@ const VncDisplay = (props: VncDisplayProps): JSX.Element => {
   const {
     onConnect,
     onDisconnect,
+    onWsClose,
+    onWsError,
     rfb,
     rfbConnectArgs,
     rfbScreen,
@@ -73,6 +95,8 @@ const VncDisplay = (props: VncDisplayProps): JSX.Element => {
       const args: RfbConnectArgs = {
         onConnect,
         onDisconnect,
+        onWsClose,
+        onWsError,
         rfb,
         rfbScreen,
         url,
@@ -83,7 +107,16 @@ const VncDisplay = (props: VncDisplayProps): JSX.Element => {
     } else {
       rfbDisconnect(rfb);
     }
-  }, [initUrl, onConnect, onDisconnect, rfb, rfbConnectArgs, rfbScreen]);
+  }, [
+    initUrl,
+    onConnect,
+    onDisconnect,
+    onWsClose,
+    onWsError,
+    rfb,
+    rfbConnectArgs,
+    rfbScreen,
+  ]);
 
   useEffect(
     () => () => {

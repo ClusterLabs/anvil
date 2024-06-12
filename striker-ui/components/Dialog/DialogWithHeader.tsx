@@ -18,6 +18,7 @@ const DialogWithHeader: ForwardRefExoticComponent<
       dialogProps,
       header,
       loading,
+      onClose,
       openInitially,
       showClose,
       wide,
@@ -31,7 +32,9 @@ const DialogWithHeader: ForwardRefExoticComponent<
         ref={ref}
         wide={wide}
       >
-        <DialogHeader showClose={showClose}>{header}</DialogHeader>
+        <DialogHeader onClose={onClose} showClose={showClose}>
+          {header}
+        </DialogHeader>
         {children}
       </Dialog>
     );

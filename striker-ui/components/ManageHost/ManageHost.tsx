@@ -16,6 +16,15 @@ const ManageHost: FC = () => {
 
   return (
     <CrudList<APIHostOverview, APIHostDetail>
+      formDialogProps={{
+        common: {
+          onClose: ({ handlers: { base } }, ...args) => {
+            base?.call(null, ...args);
+            // Delay to avoid visual changes until dialog is fully closed.
+            setTimeout(setInquireHostResponse, 500);
+          },
+        },
+      }}
       addHeader="Initialize host"
       editHeader=""
       entriesUrl="/host?types=dr,node"
@@ -38,7 +47,7 @@ const ManageHost: FC = () => {
       }}
       renderAddForm={(tools) => (
         <>
-          <TestAccessForm setResponse={setInquireHostResponse} />
+          <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />
           {inquireHostResponse && (
             <PrepareHostForm host={inquireHostResponse} tools={tools} />
           )}

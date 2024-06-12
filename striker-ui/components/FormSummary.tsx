@@ -24,7 +24,10 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
 const renderEntryValueBase: RenderFormValueFunction = (args) => {
   const { entry, hasPassword } = args;
 
-  if (['', null, undefined].some((bad) => entry === bad)) {
+  if (
+    ['', null, undefined].some((bad) => entry === bad) ||
+    Number.isNaN(entry)
+  ) {
     return <BodyText>none</BodyText>;
   }
 

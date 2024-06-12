@@ -1,6 +1,7 @@
 import * as yup from 'yup';
 
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
+import { yupLaxUuid } from '../../lib/yupMatches';
 
 const mailServerSchema = yup.object({
   address: yup.string().required(),
@@ -17,7 +18,7 @@ const mailServerSchema = yup.object({
   port: yup.number().required(),
   security: yup.string().oneOf(['none', 'starttls', 'tls-ssl']),
   username: yup.string().optional(),
-  uuid: yup.string().uuid().required(),
+  uuid: yupLaxUuid().required(),
 });
 
 const mailServerListSchema = yup.lazy((mailServers) =>

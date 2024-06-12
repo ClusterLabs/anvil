@@ -25,6 +25,9 @@ type DeletePromiseChainGetter<T> = (
 
 type CrudListOptionalProps<Overview> = {
   entryUrlPrefix?: string;
+  formDialogProps?: Partial<
+    Record<'add' | 'common' | 'edit', Partial<DialogWithHeaderProps>>
+  >;
   getAddLoading?: (previous?: boolean) => boolean;
   getDeletePromiseChain?: <T>(
     base: DeletePromiseChainGetter<T>,

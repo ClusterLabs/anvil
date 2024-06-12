@@ -46,7 +46,7 @@ my $server_vnc_port = $anvil->data->{switches}{'server-vnc-port'};
 
 if (defined $server)
 {
-	$server_uuid //= is_uuid_v4($server) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
+	$server_uuid //= $anvil->Validate->uuid({ uuid => $server }) ? $server : $anvil->Get->server_uuid_from_name({ server_name => $server });
 }
 
 $anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
@@ -99,8 +99,7 @@ sub build_find_available_port_call
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "build_find_available_port_call" });
 
-	return (1) if ( (not $step_operator =~ /^[+-]$/)
-		|| (not is_int($step_size)) || ($step_size < 1) );
+	return (1) if ( (not $step_operator =~ /^[+-]$/) || (not $anvil->Validate->positive_integer({ number => $step_size })) );
 
 	my $call = "ss_output=\$($ss -ant) && port=${start} && while $grep -Eq \":\${port}[[:space:]]+[^[:space:]]+\" <<<\$ss_output; do (( port ${step_operator}= $step_size )); done && $echo \$port";
 
@@ -203,7 +202,7 @@ sub find_server_vnc_port
 
 	return (1) if (not defined $svr_uuid);
 
-	return (0, $svr_vnc_port) if (is_int($svr_vnc_port));
+	return (0, $svr_vnc_port) if ($anvil->Validate->positive_integer({ number => $svr_vnc_port }));
 
 	# If we don't have the server's VNC port, find it in its qemu-kvm process.
 
@@ -251,16 +250,6 @@ sub find_ws_processes
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, raw => prettify($result, "ws_processes") });
 
 	return (0, $result);
-}
-
-sub is_int
-{
-	return defined $_[0] && $_[0] =~ /^\d+$/;
-}
-
-sub is_uuid_v4
-{
-	return defined $_[0] && $_[0] =~ /[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/;
 }
 
 sub prettify
@@ -325,7 +314,7 @@ sub set_vncinfo_variable
 		variable_value => "${local_host_name}:${end_port}",
 	});
 
-	return (1) if (not is_uuid_v4($variable_uuid));
+	return (1) if (not $anvil->Validate->uuid({ uuid => $variable_uuid }));
 
 	return (0);
 }
@@ -377,7 +366,7 @@ sub start_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not $anvil->Validate->uuid({ uuid => $svr_uuid }));
 
 	my $common_params = { debug => $debug };
 
@@ -416,8 +405,8 @@ sub start_ws
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "start_ws" });
 
 	return (1) if ( (not defined $ws_processes)
-		|| (not is_int($svr_vnc_port))
-		|| (not is_int($ws_sport_offset)) );
+		|| (not $anvil->Validate->positive_integer({ number => $svr_vnc_port }))
+		|| (not $anvil->Validate->positive_integer({ number => $ws_sport_offset })) );
 
 	my $existing_ws_pids = $ws_processes->{targets}{$svr_vnc_port};
 
@@ -462,7 +451,7 @@ sub stop_pipe
 	my $svr_uuid     = $parameters->{svr_uuid};
 	my $svr_vnc_port = $parameters->{svr_vnc_port};
 
-	return (1, __LINE__.": [$svr_uuid]") if (not is_uuid_v4($svr_uuid));
+	return (1, __LINE__.": [$svr_uuid]") if (not $anvil->Validate->uuid({ uuid => $svr_uuid }));
 
 	my $common_params = { debug => $debug };
 
@@ -511,7 +500,7 @@ sub stop_ws
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => $parameters, prefix => "stop_ws" });
 
-	return (1) if ( (not is_int($ws_pid)) || (not defined $ws_processes) );
+	return (1) if ( (not $anvil->Validate->positive_integer({ number => $ws_pid })) || (not defined $ws_processes) );
 
 	call({ debug => $debug, call => "$kill $ws_pid || $kill -9 $ws_pid" });
 

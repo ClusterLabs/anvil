@@ -19,6 +19,7 @@ type HostConnectionOverview = {
     ipAddress: {
       [ipAddress: string]: {
         hostUUID: string;
+        ifaceId: string;
         ipAddress: string;
         ipAddressUUID: string;
         networkLinkNumber: number;

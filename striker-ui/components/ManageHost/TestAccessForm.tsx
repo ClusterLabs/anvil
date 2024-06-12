@@ -10,17 +10,19 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 import Spinner from '../Spinner';
 import schema from './testAccessSchema';
+import { BodyText } from '../Text';
 
 const TestAccessForm: FC<TestAccessFormProps> = (props) => {
-  const { setResponse } = props;
+  const { setResponse, tools } = props;
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
 
   const [loadingInquiry, setLoadingInquiry] = useState<boolean>(false);
+  const [moreActions, setMoreActions] = useState<ContainedButtonProps[]>([]);
 
   const setApiMessage = useCallback(
     (message?: Message) =>
-      messageGroupRef?.current?.setMessage?.call(null, 'api', message),
+      messageGroupRef.current?.setMessage?.call(null, 'api', message),
     [],
   );
 
@@ -33,6 +35,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
       onSubmit: (values, { setSubmitting }) => {
         setApiMessage();
         setLoadingInquiry(true);
+        setMoreActions([]);
         setResponse(undefined);
 
         const { ip, password } = values;
@@ -43,7 +46,72 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
             password,
           })
           .then(({ data }) => {
-            const { isConnected } = data;
+            const { badSshKeys, isConnected } = data;
+
+            if (badSshKeys) {
+              setApiMessage({
+                children: (
+                  <>
+                    Host identification at {ip} changed. If this is valid,
+                    please delete the conflicting SSH host key.
+                  </>
+                ),
+                type: 'warning',
+              });
+
+              setMoreActions([
+                {
+                  background: 'red',
+                  children: 'Delete keys',
+                  onClick: () => {
+                    tools.confirm.prepare({
+                      actionProceedText: 'Delete',
+                      content: (
+                        <BodyText>
+                          There&apos;s a different host key on {ip}, which could
+                          mean a MITM attack. But if this change is expected,
+                          you can delete the known host key(s) to resolve the
+                          conflict.
+                        </BodyText>
+                      ),
+                      onProceedAppend: () => {
+                        tools.confirm.loading(true);
+
+                        api
+                          .delete('/ssh-key/conflict', {
+                            data: badSshKeys,
+                          })
+                          .then(() => {
+                            tools.confirm.finish('Success', {
+                              children: (
+                                <>Started job to delete host key(s) for {ip}.</>
+                              ),
+                            });
+
+                            setMoreActions([]);
+                          })
+                          .catch((error) => {
+                            const emsg = handleAPIError(error);
+
+                            emsg.children = (
+                              <>Failed to delete host key(s). {emsg.children}</>
+                            );
+
+                            tools.confirm.finish('Error', emsg);
+                          });
+                      },
+                      proceedColour: 'red',
+                      titleText: `Delete all known SSH host key(s) for ${ip}?`,
+                    });
+
+                    tools.confirm.open(true);
+                  },
+                  type: 'button',
+                },
+              ]);
+
+              return;
+            }
 
             if (!isConnected) {
               setApiMessage({
@@ -141,6 +209,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
         ) : (
           <ActionGroup
             actions={[
+              ...moreActions,
               {
                 background: 'blue',
                 children: 'Test access',

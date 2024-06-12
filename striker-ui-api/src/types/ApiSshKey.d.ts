@@ -9,4 +9,4 @@ type SshKeyConflict = {
   };
 };
 
-type DeleteSshKeyConflictRequestBody = { [hostUUID: string]: string[] };
+type DeleteSshKeyConflictRequestBody = Record<string, string[]>;

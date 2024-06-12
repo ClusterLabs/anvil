@@ -5,7 +5,7 @@ type GetHostSshRequestBody = {
 };
 
 type GetHostSshResponseBody = {
-  badSSHKeys?: DeleteSshKeyConflictRequestBody;
+  badSshKeys?: DeleteSshKeyConflictRequestBody;
   hostName: string;
   hostOS: string;
   hostUUID: string;

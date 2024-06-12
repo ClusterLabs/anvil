@@ -1,4 +1,4 @@
-import { HOST_KEY_CHANGED_PREFIX } from '../../consts/HOST_KEY_CHANGED_PREFIX';
+import { HOST_KEY_CHANGED_PREFIX } from '../../consts';
 
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';

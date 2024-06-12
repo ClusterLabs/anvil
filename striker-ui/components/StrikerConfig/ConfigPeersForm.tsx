@@ -67,12 +67,16 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
           Object.entries(ipAddressList).reduce<InboundConnectionList>(
             (
               nyu,
-              [ipAddress, { networkLinkNumber, networkNumber, networkType }],
+              [
+                ipAddress,
+                { ifaceId, networkLinkNumber, networkNumber, networkType },
+              ],
             ) => {
               nyu[ipAddress] = {
                 ...previous[ipAddress],
                 dbPort,
                 dbUser,
+                ifaceId,
                 ipAddress,
                 networkLinkNumber,
                 networkNumber,
@@ -135,13 +139,20 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
               listItems={inboundConnections}
               renderListItem={(
                 ipAddress,
-                { dbPort, dbUser, networkNumber, networkType },
-              ) => (
-                <FlexBox spacing={0} sx={{ width: '100%' }}>
-                  <MonoText>{`${dbUser}@${ipAddress}:${dbPort}`}</MonoText>
-                  <SmallText>{`${NETWORK_TYPES[networkType]} ${networkNumber}`}</SmallText>
-                </FlexBox>
-              )}
+                { dbPort, dbUser, ifaceId, networkNumber, networkType },
+              ) => {
+                const network: string =
+                  NETWORK_TYPES[networkType] && networkNumber
+                    ? `${NETWORK_TYPES[networkType]} ${networkNumber}`
+                    : `Unknown network; interface: ${ifaceId}`;
+
+                return (
+                  <FlexBox spacing={0} sx={{ width: '100%' }}>
+                    <MonoText>{`${dbUser}@${ipAddress}:${dbPort}`}</MonoText>
+                    <SmallText>{network}</SmallText>
+                  </FlexBox>
+                );
+              }}
             />
           </Grid>
           <Grid item xs={1}>

@@ -14,6 +14,7 @@ type TestAccessFormProps = {
   setResponse: React.Dispatch<
     React.SetStateAction<InquireHostResponse | undefined>
   >;
+  tools: CrudListFormTools;
 };
 
 /** PrepareHostForm */

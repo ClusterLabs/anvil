@@ -8,7 +8,6 @@ import AnIdInputGroup, {
 } from './AnIdInputGroup';
 import AnNetworkConfigInputGroup, {
   INPUT_ID_ANC_DNS,
-  INPUT_ID_ANC_MTU,
   INPUT_ID_ANC_NTP,
 } from './AnNetworkConfigInputGroup';
 import FlexBox from '../FlexBox';
@@ -41,7 +40,6 @@ const AddManifestInputGroup = <
       | typeof INPUT_ID_AI_PREFIX
       | typeof INPUT_ID_AI_SEQUENCE
       | typeof INPUT_ID_ANC_DNS
-      | typeof INPUT_ID_ANC_MTU
       | typeof INPUT_ID_ANC_NTP]: string;
   },
 >({

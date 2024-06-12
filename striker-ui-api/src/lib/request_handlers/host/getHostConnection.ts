@@ -1,6 +1,7 @@
 import { getDatabaseConfigData, getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
 import { pout, poutvar } from '../../shell';
@@ -55,7 +56,7 @@ export const getHostConnection = buildGetRequestHandler(
 
     let rawDatabaseData: AnvilDataDatabaseHash;
 
-    const hostUUIDField = 'ip_add.ip_address_host_uuid';
+    const hostUUIDField = 'a.ip_address_host_uuid';
     const localHostUUID: string = getLocalHostUUID();
     const { after: condHostUUIDs, before: beforeBuildIDCond } =
       buildUnknownIDCondition(rawHostUUIDs, hostUUIDField, {
@@ -88,52 +89,56 @@ export const getHostConnection = buildGetRequestHandler(
     poutvar(connections, 'connections=');
 
     if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = (queryStdout) => {
-        let result = queryStdout;
+      buildQueryOptions.afterQueryReturn = buildQueryResultReducer(
+        (previous, row) => {
+          const [ipUuid, hostUuid, ip, ifaceId] = row;
 
-        if (queryStdout instanceof Array) {
-          queryStdout.forEach(
-            ([ipAddressUUID, hostUUID, ipAddress, network]) => {
-              const [, networkType, rawNetworkNumber, rawNetworkLinkNumber] =
-                match(network, /^([^\s]+)(\d+)_[^\s]+(\d+)$/);
-              const connectionKey = getConnectionKey(hostUUID);
-
-              connections[connectionKey].inbound.ipAddress[ipAddress] = {
-                hostUUID,
-                ipAddress,
-                ipAddressUUID,
-                networkLinkNumber: Number(rawNetworkLinkNumber),
-                networkNumber: Number(rawNetworkNumber),
-                networkType,
-              };
-            },
+          const [, networkType, rNetworkNumber, rNetworkLinkNumber] = match(
+            ifaceId,
+            /^(.*n)(\d+)_link(\d+)$/,
           );
+          const connectionKey = getConnectionKey(hostUuid);
 
-          result = connections;
-        }
+          connections[connectionKey].inbound.ipAddress[ip] = {
+            hostUUID: hostUuid,
+            ifaceId,
+            ipAddress: ip,
+            ipAddressUUID: ipUuid,
+            networkLinkNumber: Number(rNetworkLinkNumber),
+            networkNumber: Number(rNetworkNumber),
+            networkType,
+          };
 
-        return result;
-      };
+          return previous;
+        },
+        connections,
+      );
     }
 
     return `SELECT
-              ip_add.ip_address_uuid,
-              ip_add.ip_address_host_uuid,
-              ip_add.ip_address_address,
+              a.ip_address_uuid,
+              a.ip_address_host_uuid,
+              a.ip_address_address,
               CASE
-                WHEN ip_add.ip_address_on_type = 'interface'
-                  THEN net_int.network_interface_name
-                ELSE bon.bond_active_interface
+                WHEN a.ip_address_on_type = 'interface'
+                  THEN (
+                    CASE
+                      WHEN b.network_interface_name ~* '.*n\\d+_link\\d+'
+                        THEN b.network_interface_name
+                      ELSE b.network_interface_device
+                    END
+                  )
+                ELSE d.bond_active_interface
               END AS network_name
-            FROM ip_addresses AS ip_add
-            LEFT JOIN network_interfaces AS net_int
-              ON ip_add.ip_address_on_uuid = net_int.network_interface_uuid
-            LEFT JOIN bridges AS bri
-              ON ip_add.ip_address_on_uuid = bri.bridge_uuid
-            LEFT JOIN bonds AS bon
-              ON bri.bridge_uuid = bon.bond_bridge_uuid
-                OR ip_add.ip_address_on_uuid = bon.bond_uuid
+            FROM ip_addresses AS a
+            LEFT JOIN network_interfaces AS b
+              ON a.ip_address_on_uuid = b.network_interface_uuid
+            LEFT JOIN bridges AS c
+              ON a.ip_address_on_uuid = c.bridge_uuid
+            LEFT JOIN bonds AS d
+              ON c.bridge_uuid = d.bond_bridge_uuid
+                OR a.ip_address_on_uuid = d.bond_uuid
             WHERE ${condHostUUIDs}
-              AND ip_add.ip_address_note != 'DELETED';`;
+              AND a.ip_address_note != 'DELETED';`;
   },
 );
