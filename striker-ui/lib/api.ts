@@ -1,8 +1,8 @@
-import axios, { Axios } from 'axios';
+import axios from 'axios';
 
 import API_BASE_URL from './consts/API_BASE_URL';
 
-const api = new Axios({
+const api = axios.create({
   baseURL: API_BASE_URL,
   transformRequest: axios.defaults.transformRequest,
   transformResponse: axios.defaults.transformResponse,

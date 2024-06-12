@@ -2,7 +2,6 @@ import express from 'express';
 
 import { assertInit } from '../middlewares';
 
-import { setMapNetwork } from '../lib/request_handlers/command';
 import { configStriker } from '../lib/request_handlers/host';
 import { getJob } from '../lib/request_handlers/job';
 import { getNetworkInterface } from '../lib/request_handlers/network-interface';
@@ -45,14 +44,6 @@ router
         response.redirect(307, `/api/host?handler=striker`),
     }),
     configStriker,
-  )
-  .put(
-    '/set-map-network',
-    assertInit({
-      fail: ({ path }, response) =>
-        response.redirect(307, `/api/command${path}`),
-    }),
-    setMapNetwork,
   );
 
 export default router;

@@ -16,7 +16,6 @@ import NetworkInitForm, {
 } from './NetworkInitForm';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
-import setMapNetwork from '../lib/setMapNetwork';
 import Spinner from './Spinner';
 import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import { HeaderText } from './Text';
@@ -210,9 +209,6 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
                       <>Failed to prepare network. {parentMsg}</>
                     ),
                     method: 'put',
-                    onSuccess: () => {
-                      setMapNetwork(0);
-                    },
                     setMsg: netconfFormRef?.current?.setMessage,
                     successMsg: `Initiated prepare network on ${hostDetail?.shortHostName}`,
                     url: `/host/${hostUUID}?handler=subnode-network`,

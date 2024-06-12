@@ -92,7 +92,12 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
                 (
                   fileUuid: string,
                 ): AxiosRequestConfig<FormData>['onUploadProgress'] =>
-                ({ loaded, total }) => {
+                (progressEvent) => {
+                  // Make the ratio 1 when total isn't available; the upload
+                  // limit will prevent progress from reaching 100 until the
+                  // request completes.
+                  const { loaded, total = loaded } = progressEvent;
+
                   setUploads((previous) =>
                     setUploadProgress(
                       previous,
