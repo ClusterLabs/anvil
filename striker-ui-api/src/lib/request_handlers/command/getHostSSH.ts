@@ -8,12 +8,13 @@ import {
 } from '../../consts';
 
 import { getPeerData, query } from '../../accessModule';
+import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
 export const getHostSSH: RequestHandler<
   unknown,
-  GetHostSshResponseBody | ErrorResponseBody,
+  GetHostSshResponseBody | ResponseErrorBody,
   GetHostSshRequestBody
 > = async (request, response) => {
   const {
@@ -50,17 +51,14 @@ export const getHostSSH: RequestHandler<
   try {
     rsbody = await getPeerData(target, { password, port });
   } catch (error) {
-    const emsg = `Failed to get peer data; CAUSE: ${error}`;
+    const rserror = new ResponseError(
+      'fe14fb1',
+      `Failed to get peer data; CAUSE: ${error}`,
+    );
 
-    perr(emsg);
+    perr(rserror.toString());
 
-    const rserror: ErrorResponseBody = {
-      code: 'fe14fb1',
-      message: emsg,
-      name: 'AccessError',
-    };
-
-    return response.status(500).send(rserror);
+    return response.status(500).send(rserror.body);
   }
 
   let states: [string, string][];
@@ -71,17 +69,14 @@ export const getHostSSH: RequestHandler<
       FROM states AS a
       WHERE a.state_name = '${HOST_KEY_CHANGED_PREFIX}${target}';`);
   } catch (error) {
-    const emsg = `Failed to list SSH key conflicts; CAUSE: ${error}`;
+    const rserror = new ResponseError(
+      'd5a2acf',
+      `Failed to list SSH key conflicts; CAUSE: ${error}`,
+    );
 
-    perr(emsg);
+    perr(rserror.toString());
 
-    const rserror: ErrorResponseBody = {
-      code: 'd5a2acf',
-      message: emsg,
-      name: 'AccessError',
-    };
-
-    return response.status(500).send(rserror);
+    return response.status(500).send(rserror.body);
   }
 
   if (states.length > 0) {

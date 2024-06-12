@@ -5,6 +5,7 @@ import { P_UUID, WS_GUID } from '../lib/consts';
 
 import { getVncinfo } from '../lib/accessModule';
 import { cname } from '../lib/cname';
+import { ResponseError } from '../lib/ResponseError';
 import { perr, pout, poutvar } from '../lib/shell';
 
 const WS_SVR_VNC_URL_PREFIX = '/ws/server/vnc';
@@ -49,12 +50,11 @@ export const proxyServerVnc = createProxyMiddleware({
       const serverUuid = getServerUuid(request.url);
 
       const errapiName = cname(`vncerror.${serverUuid}`);
-      const errapiObj: ErrorResponseBody = {
-        code: '72c969b',
-        message: error.message,
-        name: error.name,
-      };
-      const errapiStr = JSON.stringify(errapiObj);
+      const errapiObj = new ResponseError(
+        '72c969b',
+        `${error.name}: ${error.message}`,
+      );
+      const errapiStr = JSON.stringify(errapiObj.body);
       const errapiValue = encodeURIComponent(errapiStr);
       const errapiCookie = `${errapiName}=j:${errapiValue}; Path=/server; SameSite=Lax; Max-Age=3`;
 
