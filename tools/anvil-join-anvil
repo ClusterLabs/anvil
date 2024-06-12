@@ -139,6 +139,31 @@ sub process_rejoin
 		's3:manifest'   => $manifest, 
 	}});
 	
+	# If ScanCore isn't running, run it once.
+	print "Checking if ScanCore is running.\n";
+	my $scancore_running = $anvil->System->check_daemon({daemon => "scancore.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_running => $scancore_running }});
+	if ($scancore_running)
+	{
+		print "- ScanCore is running, proceeding.\n";
+	}
+	else
+	{
+		print "- [ Note ] - ScanCore is NOT running!\n";
+		print "  [ Note ] - Running once to make sure the data in the database is up to date.\n";
+		print "  [ Note ] - If the install has problems, verify that ScanCore is runnong on the peer, also.\n";
+		print "  [ Note ] - Please wait, this can take a minute...\n";
+		my $shell_call = $anvil->data->{path}{exe}{scancore}.$anvil->Log->switches()." --run-once";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		print "- ScanCore run complete!\n";
+	}
+	
 	# Load data
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
