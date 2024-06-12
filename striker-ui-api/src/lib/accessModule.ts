@@ -497,6 +497,22 @@ const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   return result;
 };
 
+const translate = async (value: string): Promise<string> => {
+  let result = '';
+
+  try {
+    [result] = await subroutine<[string]>('parse_banged_string', {
+      params: [{ key_string: value }],
+      pre: ['Words'],
+    });
+  } catch (error) {
+    // Log the error and fallback to empty string.
+    perr(`Failed to translate; CAUSE: ${error}`);
+  }
+
+  return result;
+};
+
 export {
   access,
   insertOrUpdateJob as job,
@@ -520,5 +536,6 @@ export {
   mutateData,
   query,
   subroutine as sub,
+  translate,
   write,
 };
