@@ -151,7 +151,7 @@ sub process_rejoin
 	{
 		print "- [ Note ] - ScanCore is NOT running!\n";
 		print "  [ Note ] - Running once to make sure the data in the database is up to date.\n";
-		print "  [ Note ] - If the install has problems, verify that ScanCore is runnong on the peer, also.\n";
+		print "  [ Note ] - If the install has problems, verify that ScanCore is running on the peer, also.\n";
 		print "  [ Note ] - Please wait, this can take a minute...\n";
 		my $shell_call = $anvil->data->{path}{exe}{scancore}.$anvil->Log->switches()." --run-once";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1074,6 +1074,60 @@ sub update_passwords
 	return(0);
 }
 
+sub check_for_reauth
+{
+	my ($anvil, $node1_host_name, $node2_host_name, $escaped_password) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_host_name  => $node1_host_name,
+		node2_host_name  => $node2_host_name,  
+		escaped_password => $anvil->Log->is_secure($escaped_password),
+	}});
+	
+	my $auth       = 0;
+	my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster status";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	my $in_pcsd = 0;
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($in_pcsd)
+		{
+			if ($line =~ /Unable to authenticate/i)
+			{
+				$auth = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
+			}
+		}
+		if ($line =~ /PCSD Status/i)
+		{
+			$in_pcsd = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_pcsd => $in_pcsd }});
+		}
+		last if $auth;
+	}
+	if ($auth)
+	{
+		# Also, re-auth. We need to run this on both hosts.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0487"});
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	return(0);
+}
 
 # (wait for our peer and) Configure pacemaker. If this is a DR host, this is skipped.
 sub configure_pacemaker
@@ -1244,17 +1298,22 @@ sub configure_pacemaker
 			}});
 			if (-e $anvil->data->{path}{configs}{'corosync.conf'})
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 				if (not $start_time)
 				{
 					# Corosync is configured, we'll wait up to two minutes and then try
 					# joining the cluster ourselves.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0108"});
-					$start_time = time + 120;
+					$start_time = time + 60;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 				}
 				elsif ((time > $start_time) && (not $tried_starting))
 				{
-					# We've waited a minute, time to try starting the cluster.
+					# We've waited a minute, try (re)authenticating, and then try starting the cluster.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0486"});
+					check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
+					
+					# Now try starting the cluster.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0106"});
 					my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
@@ -1264,40 +1323,51 @@ sub configure_pacemaker
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tried_starting => $tried_starting }});
 				}
 				
-				my $problem = $anvil->Cluster->parse_cib({debug => 2});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-				if (not $problem)
+				# Can I access my peer?
+				my $access = $anvil->Remote->test_access({
+					debug    => 2,
+					target   => $peer_host_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+				if ($access)
 				{
-					# See if both nodes are online.
-					my $node1_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node1_host_name});
-					my $node2_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node2_host_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						node1_ready => $node1_ready,
-						node2_ready => $node2_ready, 
-					}});
-					if (($node1_ready) && ($node2_ready))
+					# I can, can I parse the CIB?
+					my $problem = $anvil->Cluster->parse_cib({debug => 2});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+					if (not $problem)
 					{
-						$both_online = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
-						
-						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
-					}
-					else
-					{
-						# Not online yet, wait a bit.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0105", variables => {
-							node1_name   => $node1_host_name,
-							node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
-							node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
-							node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
-							node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
-							node2_name   => $node2_host_name,
-							node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
-							node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
-							node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
-							node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+						# See if both nodes are online.
+						my $node1_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node1_host_name});
+						my $node2_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node2_host_name});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							node1_ready => $node1_ready,
+							node2_ready => $node2_ready, 
 						}});
+						if (($node1_ready) && ($node2_ready))
+						{
+							$both_online = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
+							
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
+						}
+						else
+						{
+							# Not online yet, wait a bit.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0105", variables => {
+								node1_name   => $node1_host_name,
+								node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
+								node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
+								node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
+								node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
+								node2_name   => $node2_host_name,
+								node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
+								node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
+								node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
+								node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+							}});
+						}
 					}
 				}
 			}
@@ -1334,48 +1404,8 @@ sub configure_pacemaker
 			}
 		}
 		
-		### TODO: Left off here; parse 'pcs cluster status' and if there's 'Unable to authenticate', re-auth.
-		my $auth       = 0;
-		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster status";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output,
-			return_code => $return_code, 
-		}});
-		
-		my $in_pcsd = 0;
-		foreach my $line (split/\n/, $output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($in_pcsd)
-			{
-				if ($line =~ /Unable to authenticate/i)
-				{
-					$auth = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
-				}
-			}
-			if ($line =~ /PCSD Status/i)
-			{
-				$in_pcsd = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_pcsd => $in_pcsd }});
-			}
-			last if $auth;
-		}
-		if ($auth)
-		{
-			# Also, re-auth. We need to run this on both hosts.
-			my $shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
-		}
+		# Check if we need to re-auth with pcsd
+		check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
 	}
 	else
 	{
@@ -2570,6 +2600,9 @@ sub check_local_network
 	# If the hostname isn't the same, change it.
 	if ($old_host_name ne $new_host_name)
 	{
+		### TODO: Given how many things cache the hostname, including things that effect pacemaker / pcsd, we need to reboot if the hostname changes.
+		###       See how it's done in anvil-configure-host
+		
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0061,!!host_name!".$new_host_name."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0061", variables => { host_name => $new_host_name }});
 		my ($now_host_name) = $anvil->System->host_name({
