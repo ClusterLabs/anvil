@@ -1112,6 +1112,15 @@ sub check_for_reauth
 		}
 		last if $auth;
 	}
+	
+	# If we're rebuilding, the cluster could be trying to start, but auth is still needed. So check to 
+	# see if '/var/lib/pcsd/known-hosts' exists. If not, try to auth.
+	if ((not $auth) && (not -f '/var/lib/pcsd/known-hosts'))
+	{
+		$auth = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
+	}
+	
 	if ($auth)
 	{
 		# Also, re-auth. We need to run this on both hosts.
@@ -1281,6 +1290,12 @@ sub configure_pacemaker
 		my $start_time = 0;
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0103");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0103"});
+		
+		# If we're rebuilding, we may need to re-auth. So check right off the bat.
+		if (not -f '/var/lib/pcsd/known-hosts')
+		{
+			check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
+		}
 		
 		# We loop until the peer finishes or the peer's job hit's 100.
 		my $tried_starting = 0;
@@ -2570,6 +2585,51 @@ sub check_corosync
 	return(0);
 }
 
+sub do_reboot
+{
+	my ($anvil) = @_;
+	
+	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0488");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0488"});
+	
+	my $time_left = 60;
+	while ($time_left)
+	{
+		# Give them the countdown.
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} += 1, 
+			message   => "log_0626", 
+			job_uuid  => $anvil->data->{job}{uuid},
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+			variables => { seconds => $time_left },
+		});
+		sleep 10;
+		$time_left -= 10;
+	}
+	
+	# Last, log that we're going down now.
+	$anvil->Job->update_progress({
+		progress  => $anvil->data->{job}{progress} += 1, 
+		message   => "message_0389", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
+		file      => $THIS_FILE, 
+		line      => __LINE__,
+	});
+	
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	
+	return(0);
+}
+
 # Check if we need to change any IPs or our hostname.
 sub check_local_network
 {
@@ -2600,9 +2660,6 @@ sub check_local_network
 	# If the hostname isn't the same, change it.
 	if ($old_host_name ne $new_host_name)
 	{
-		### TODO: Given how many things cache the hostname, including things that effect pacemaker / pcsd, we need to reboot if the hostname changes.
-		###       See how it's done in anvil-configure-host
-		
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0061,!!host_name!".$new_host_name."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0061", variables => { host_name => $new_host_name }});
 		my ($now_host_name) = $anvil->System->host_name({
@@ -2614,6 +2671,9 @@ sub check_local_network
 			# Success!
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0045");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0045"});
+			
+			# Reboot.
+			do_reboot($anvil);
 		}
 		else
 		{
