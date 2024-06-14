@@ -85,12 +85,16 @@ AC_DEFUN([ANVIL_PKG_CHECK_VAR], [
 
 # check for systemd
 PKG_CHECK_MODULES([systemd], [systemd])
+ANVIL_PKG_CHECK_VAR([SYSTEMD_PRESET_DIR_TMP], [systemd], [systemdsystempresetdir], [${prefix}/lib/systemd/system-preset])
 ANVIL_PKG_CHECK_VAR([SYSTEMD_UNIT_DIR_TMP], [systemd], [systemdsystemunitdir], [${prefix}/lib/systemd/system])
 if test "${prefix}" != "/usr"; then
+	SYSTEMD_PRESET_DIR="${prefix}/$SYSTEMD_PRESET_DIR_TMP"
 	SYSTEMD_UNIT_DIR="${prefix}/$SYSTEMD_UNIT_DIR_TMP"
 else
+	SYSTEMD_PRESET_DIR="$SYSTEMD_PRESET_DIR_TMP"
 	SYSTEMD_UNIT_DIR="$SYSTEMD_UNIT_DIR_TMP"
 fi
+AC_SUBST([SYSTEMD_PRESET_DIR])
 AC_SUBST([SYSTEMD_UNIT_DIR])
 
 ANVIL_PKG_CHECK_VAR([OCFROOT_TMP], [resource-agents], [ocfrootdir], [${prefix}/lib/ocf])
