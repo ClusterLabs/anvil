@@ -5,6 +5,13 @@
 %define debug_package %{nil}
 %define anviluser     admin
 %define anvilgroup    admin
+
+%define coreservices  anvil-daemon.service \
+anvil-monitor-network.service \
+scancore.service \
+anvil-monitor-daemons.service \
+anvil-monitor-performance.service
+
 %define suiapi        striker-ui-api
 
 # selinux variables
@@ -31,6 +38,9 @@ BuildRequires:  fence-agents-common
 BuildRequires:  resource-agents
 # required to build SELinux policy
 BuildRequires:  selinux-policy-devel
+# use systemd macros instead of manually calling systemctl
+BuildRequires:  systemd-rpm-macros
+
 
 %description
 This package generates the anvil-core, anvil-striker, anvil-node and anvil-dr 
@@ -40,6 +50,7 @@ other three used for each machine, given its roll.
 WARNING: This is an alpha-stage project. Many features are missing and this 
          should not be used for anything other than development purposes! The
          first stable release will be 3.1. Anything 3.0 is UNSTABLE.
+
 
 %package core
 Summary:        Alteeve's Anvil! Core package
@@ -129,6 +140,7 @@ Conflicts:      iptables-services
 # We handle interface naming
 Conflicts:      biosdevname
 
+
 %description core
 Common base libraries required for the Anvil! system.
 
@@ -162,10 +174,13 @@ Requires:       virt-manager
 # So the node and dr packages can not be installed.
 Conflicts: 	anvil-node
 Conflicts:	anvil-dr
+
+
 %description striker
 Web interface of the Striker dashboard for Alteeve Anvil! systems
 
 NOTE: This installs and enables Gnome desktop.
+
 
 %package node 
 Summary:        Alteeve's Anvil! node package
@@ -191,6 +206,7 @@ Conflicts:      anvil-striker
 Conflicts:      anvil-dr
 Conflicts:      netcat
 
+
 %description node
 
 Provides support for active node in an Anvil! pair.
@@ -199,6 +215,7 @@ NOTE: On RHEL proper, this requires the node had the "High-Availability
 Add-on".
 
 NOTE: LINBIT customers must have access to the LINBIT repositories configured.
+
 
 %package dr
 Summary:        Alteeve's Anvil! DR host package
@@ -221,6 +238,7 @@ Conflicts:      anvil-striker
 Conflicts:      anvil-node
 Conflicts:      netcat
 
+
 %description dr
 
 Provides support for asynchronous disaster recovery hosts in an Anvil! cluster.
@@ -229,14 +247,17 @@ Provides support for asynchronous disaster recovery hosts in an Anvil! cluster.
 %prep
 %autosetup -n %{name}-%{version}%{?numcomm:.%{numcomm}}%{?alphatag:-%{alphatag}}%{?dirty:-%{dirty}}
 
+
 %build
 ./autogen.sh
 %{configure}
 make %{_smp_mflags}
 
+
 %install
 rm -rf %{buildroot}
 make install DESTDIR=%{buildroot}
+
 
 %pre core
 %selinux_relabel_pre -s %{selinuxtype}
@@ -249,6 +270,7 @@ getent group %{anvilgroup} >/dev/null || groupadd -r %{anvilgroup}
 getent passwd %{anviluser} >/dev/null || useradd --create-home \
     --gid %{anvilgroup}  --comment "Anvil! user account" %{anviluser}
 
+
 %post core
 # Always try to install in-case of update
 %selinux_modules_install -s %{selinuxtype} -p 200 %{selinuxdir}/%{selinuxsubnodemodule}.pp
@@ -259,49 +281,39 @@ sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 setenforce 0
 %endif
 
-# Enable and start the anvil-daemon
-### TODO: check it if was disabled (if it existed before) and, if so, leave it disabled.
-systemctl enable --now chronyd.service
-systemctl enable --now anvil-daemon.service
-systemctl enable --now anvil-monitor-network.service
-systemctl enable --now scancore.service
-systemctl disable --now anvil-monitor-daemons.service
-systemctl disable --now anvil-monitor-performance.service
+# Dis/enable core services based on systemd preset; see `rpm --showrc`
+%systemd_post chronyd.service
+%systemd_post %coreservices
+
 
 %pre striker
 getent passwd %{suiapi} >/dev/null \
-	|| useradd \
-		--comment "Striker UI API" \
-		--home-dir %{_datadir}/%{suiapi} \
-		--shell %{_sbindir}/nologin \
-		--user-group \
-		%{suiapi}
+    || useradd \
+        --comment "Striker UI API" \
+        --home-dir %{_datadir}/%{suiapi} \
+        --shell %{_sbindir}/nologin \
+        --user-group \
+        %{suiapi}
 
-# Check to see if we're updating.
-if grep -q apache /etc/passwd; then 
-	# Disable and stop apache to free the port.
-	systemctl disable --now httpd.service
-	# Transfer files owned by apache to Striker UI API user.
-	chown -R --from apache %{suiapi}: /mnt
-	chown -R --from apache %{suiapi}: %{_localstatedir}/www
-fi
 
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
 
-# Always reload to handle service file changes.
-systemctl daemon-reload
-
-systemctl enable %{suiapi}.service
-# Striker UI API needs explicit restart for changes to take effect.
-systemctl restart %{suiapi}.service
+%systemd_post %{suiapi}.service
 
 restorecon -rv /%{_localstatedir}/www
-if ! $(ls -l /etc/systemd/system/default.target | grep -q graphical); 
-then 
-    echo "Seting graphical interface as default on boot."
+
+if [ $1 -eq 1 ] && ! $(ls -l /etc/systemd/system/default.target | grep -q graphical)
+then
+    echo "Set graphical interface as default on boot."
     systemctl set-default graphical.target
     systemctl enable gdm.service
+
+    if ! systemctl --quiet is-active gdm.service
+    then
+        echo "gdm.service (graphical display) is inactive."
+        echo "Please start it with systemctl or reboot the system."
+    fi
 fi
 
 # Touch the system type file.
@@ -315,18 +327,21 @@ then
 fi
 touch /etc/anvil/type.striker
 
-
 ### TODO: I don't think we need this anymore
 # Open access for Striker. The database will be opened after initial setup.
 echo "Opening the web and postgresql ports."
-systemctl enable firewalld
-systemctl start firewalld
-firewall-cmd --add-service=http
-firewall-cmd --add-service=http --permanent
-firewall-cmd --add-service=https
-firewall-cmd --add-service=https --permanent
-firewall-cmd --add-service=postgresql
-firewall-cmd --add-service=postgresql --permanent
+%systemd_post firewalld.service
+# Open service ports on initial install
+if [ $1 -eq 1 ]
+then
+    firewall-cmd --add-service=http
+    firewall-cmd --add-service=http --permanent
+    firewall-cmd --add-service=https
+    firewall-cmd --add-service=https --permanent
+    firewall-cmd --add-service=postgresql
+    firewall-cmd --add-service=postgresql --permanent
+fi
+
 
 %pre node
 
@@ -359,6 +374,12 @@ then
 fi
 touch /etc/anvil/type.dr
 
+
+%preun core
+# Only uninstall our services
+%systemd_preun %coreservices
+
+
 ### Remove stuff - Disabled for now, messes things up during upgrades
 %postun core
 ## This is breaking on upgrades - (note: switch back to single percent sign 
@@ -366,33 +387,22 @@ touch /etc/anvil/type.dr
 #getent passwd %%{anviluser} >/dev/null && userdel %%{anviluser}
 #getent group %%{anvilgroup} >/dev/null && groupdel %%{anvilgroup}
 
+%systemd_postun_with_restart %coreservices
+
 # Only uninstall the policy when the package is actually being removed
-if [ $1 == 0 ]; then
+if [ $1 -eq 0 ]; then
 	%selinux_modules_uninstall -s %{selinuxtype} -p 200 %{selinuxsubnodemodule}
 fi
 
+
 %preun striker
-if [ $1 == 0 ]; then # 0=Uninstall, 1=First install, >1=Upgrade (version count)
-	systemctl disable --now %{suiapi}.service
-fi
+# Remove Striker UI API on uninstall
+%systemd_preun %{suiapi}.service
+
 
 %postun striker
-### TODO: Stopping postgres breaks the Anvil! during OS updates. Need to find a
-###       way to run this only during uninstalls, and not during updates.
-### TODO: This breaks the repos
-# rm -rf /usr/share/anvil
-# echo "Closing the postgresql ports."
-#firewall-cmd --zone=public --remove-service=http
-#firewall-cmd --zone=public --remove-service=http --permanent
-# firewall-cmd --zone=public --remove-service=postgresql
-# firewall-cmd --zone=public --remove-service=postgresql --permanent
-# echo "Disabling and stopping postgresql-9.6."
-# systemctl disable postgresql.service
-# systemctl stop postgresql.service
-
-if [ $1 == 0 ]; then # 0=Uninstall
-	systemctl daemon-reload
-fi
+# Restart Striker UI API to make changes effective
+%systemd_postun_with_restart %{suiapi}.service
 
 # Remove the system type file.
 if [ -e '/etc/anvil/type.striker' ]
@@ -400,12 +410,14 @@ then
     rm -f /etc/anvil/type.striker
 fi
 
+
 %postun node
 # Remove the system type file.
 if [ -e '/etc/anvil/type.node' ]
 then
     rm -f /etc/anvil/type.node
 fi
+
 
 %postun dr
 # Remove the system type file.
@@ -436,15 +448,18 @@ fi
 %attr(0644, root, root) %{selinuxdir}/%{selinuxsubnodemodule}.pp
 %ghost %{_sharedstatedir}/selinux/%{selinuxtype}/active/modules/200/%{selinuxsubnodemodule}
 
+
 %files striker
 %{_localstatedir}/www/*/*
 %{_datadir}/anvil/striker-auto-initialize-all.example
 %{_datadir}/%{suiapi}/*
 %ghost %{_sysconfdir}/anvil/snmp-vendors.txt
 
+
 %files node
 %{_sysconfdir}/libvirt/hooks/*
 %{_usr}/lib/ocf/resource.d/alteeve/server
+
 
 %files dr
 %{_sysconfdir}/libvirt/hooks/*
