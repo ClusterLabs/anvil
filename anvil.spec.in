@@ -6,10 +6,13 @@
 %define anviluser     admin
 %define anvilgroup    admin
 
-%define coreservices  anvil-daemon.service \
-anvil-monitor-network.service \
-scancore.service \
-anvil-monitor-daemons.service \
+# newlines are not removed from macros, meaning we need
+# 2 backslashes to make shell continue the line, and
+# 1 more backslash to make rpmbuild continue the line.
+%define coreservices  anvil-daemon.service \\\
+anvil-monitor-network.service \\\
+scancore.service \\\
+anvil-monitor-daemons.service \\\
 anvil-monitor-performance.service
 
 %define suiapi        striker-ui-api
@@ -86,7 +89,7 @@ Requires:       mlocate
 Requires:       net-snmp-utils
 Requires:       NetworkManager-initscripts-updown
 Requires:       nvme-cli
-Requires:	parted
+Requires:       parted
 Requires:       pciutils
 Requires:       perl-Capture-Tiny
 Requires:       perl-Data-Dumper 
@@ -132,7 +135,7 @@ Requires:       tcpdump
 Requires:       tmux
 Requires:       unzip
 Requires:       usbutils
-Requires:	util-linux
+Requires:       util-linux
 Requires:       vim 
 Requires:       wget
 # iptables-services conflicts with firewalld
@@ -290,7 +293,7 @@ setenforce 0
 getent passwd %{suiapi} >/dev/null \
     || useradd \
         --comment "Striker UI API" \
-        --home-dir %{_datadir}/%{suiapi} \
+        --no-create-home \
         --shell %{_sbindir}/nologin \
         --user-group \
         %{suiapi}
