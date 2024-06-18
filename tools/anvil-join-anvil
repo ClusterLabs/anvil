@@ -59,7 +59,7 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # If there isn't a job UUID, see if the user is asking to rejoin this subnode to a cluster.
-if ($anvil->data->{switches}{rejoin})
+if (($anvil->data->{switches}{rejoin}) && (not $anvil->data->{switches}{'job-uuid'}))
 {
 	process_rejoin($anvil);
 	$anvil->nice_exit({exit_code => 0});
@@ -90,6 +90,9 @@ configure_pacemaker($anvil);
 # Configure DRBD
 configure_drbd($anvil);
 
+# If we're rejoining, add missing servers.
+configure_servers($anvil);
+
 # Enable anvil-safe-start
 if (1)
 {
@@ -119,6 +122,546 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This looks for servers to add.
+sub configure_servers
+{
+	my ($anvil) = @_;
+	
+	# Are we in the cluster? Can't resync a server until we and our peer are.
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $host_uuid       = $anvil->Get->host_uuid;
+	my $problem         = $anvil->Cluster->parse_cib({debug => 3});
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name' => $short_host_name, 
+		's2:host_uuid'       => $host_uuid, 
+		's3:problem'         => $problem,
+		's4:anvil_uuid'      => $anvil_uuid,
+	}});
+	
+	# Is our peer offline? If it's online, do nothing
+	if (($problem) or (not $anvil->data->{cib}{parsed}{'local'}{ready}))
+	{
+		print __LINE__.": We can't sync missing servers until we're in the cluster.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not $anvil->data->{cib}{parsed}{peer}{ready})
+	{
+		print __LINE__.": The peer is not (fully) in the cluster yet. Please wait until it is.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# How shall I connect to my peer?
+	my $peer_name            = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $peer_name});
+	my $peer_target_ip       = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:peer_name'            => $peer_name, 
+		's2:peer_host_uuid'       => $peer_host_uuid, 
+		's3:peer_target_ip'       => $peer_target_ip, 
+		's4:peer_short_host_name' => $peer_short_host_name, 
+	}});
+	
+	# Make sure LVM data is up to date.
+	if (0)
+	{
+		print __LINE__.": Running scan-lvm prior to checking Storage Groups.\n";
+		$anvil->Scancore->call_scan_agents({debug => 2, agent => "scan-lvm"});
+		
+		# refresh
+		$anvil->Database->get_lvm_data({debug => 3});
+		$anvil->Database->get_storage_group_data({debug => 3});
+	}
+	
+	# Look to see if our VG(s) have changed from what's in the storage groups.
+	$anvil->Database->get_lvm_data({debug => 3});
+	$anvil->Database->get_storage_group_data({debug => 3});
+	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+	{
+		my $storage_group_uuid        = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+		my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_uuid};
+		my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
+		my $vg_size                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size};
+		my $peer_vg_size              = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$peer_host_uuid}{vg_size};
+		my $storage_group_member_note = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:storage_group_name'        => $storage_group_name, 
+			's2:storage_group_uuid'        => $storage_group_uuid, 
+			's3:storage_group_member_uuid' => $storage_group_member_uuid, 
+			's4:vg_internal_uuid'          => $vg_internal_uuid, 
+			's5:vg_size'                   => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")",
+			's6:peer_vg_size'              => $peer_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_vg_size}).")", 
+			's7:storage_group_member_note' => $storage_group_member_note, 
+		}});
+		
+		my $vg_found = 0;
+		foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{vg}})
+		{
+			next if $scan_lvm_vg_name eq "DELETED";
+			my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
+			my $scan_lvm_vg_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size};
+			my $this_storage_group_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:scan_lvm_vg_name'          => $scan_lvm_vg_name, 
+				's2:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+				's3:scan_lvm_vg_size'          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+				's4:this_storage_group_uuid'   => $this_storage_group_uuid, 
+			}});
+			
+			if ($vg_internal_uuid eq $scan_lvm_vg_internal_uuid)
+			{
+				# It's probably been marked as DELETED, so we need to find a replacement. 
+				if ($scan_lvm_vg_name =~ /DELETED:vg_uuid=(.*)$/)
+				{
+					my $vg_uuid = $1;
+					print __LINE__.": The VG with the ScanCore UUID: [".$vg_uuid."] was in the SG: [".$storage_group_name."], but is now deleted.\n";
+					print __LINE__.": Will now try to find a replacement...\n";
+				}
+				else
+				{
+					print __LINE__.": The VG: [".$scan_lvm_vg_name."] is in the SG: [".$storage_group_name."], good.\n";
+					$vg_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vg_found => $vg_found }});
+					last;
+				}
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vg_found => $vg_found }});
+		if (not $vg_found)
+		{
+			print __LINE__.": The volume group: [".$vg_internal_uuid."] that was in the storage group: [".$storage_group_name."] no longer exists.\n";
+			print __LINE__.": [ Note ] - Checking for a replacement VG now.\n";
+			print __LINE__.": [ Suggestion ] - You may need to run 'anvil-manage-host --auto-grow-pv' if this is a rebuilt sub node!\n";
+			my $closest_size             = 0;
+			my $closest_vg_uuid          = "";
+			my $closest_vg_name          = "";
+			my $closest_vg_internal_uuid = "";
+			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{vg}})
+			{
+				next if $scan_lvm_vg_name eq "DELETED";
+				my $scan_lvm_vg_uuid          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_uuid};
+				my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
+				my $scan_lvm_vg_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size};
+				my $this_storage_group_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid};
+				next if $this_storage_group_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:scan_lvm_vg_name'          => $scan_lvm_vg_name, 
+					's2:scan_lvm_vg_uuid'          => $scan_lvm_vg_uuid, 
+					's3:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+					's4:scan_lvm_vg_size'          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+					's5:this_storage_group_uuid'   => $this_storage_group_uuid, 
+				}});
+				
+				if (($scan_lvm_vg_size >= $peer_vg_size) && ((not $closest_size) or ($scan_lvm_vg_size < $closest_size)))
+				{
+					$closest_size             = $scan_lvm_vg_size;
+					$closest_vg_uuid          = $scan_lvm_vg_uuid;
+					$closest_vg_name          = $scan_lvm_vg_name;
+					$closest_vg_internal_uuid = $scan_lvm_vg_internal_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:closest_size'             => $closest_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size}).")", 
+						's2:closest_vg_uuid'          => $closest_vg_uuid, 
+						's3:closest_vg_name'          => $closest_vg_name, 
+						's4:closest_vg_internal_uuid' => $closest_vg_internal_uuid, 
+					}});
+				}
+			}
+			
+			if ($closest_vg_name)
+			{
+				# Found the closest match.
+				my $difference = $peer_vg_size - $closest_size;
+				if (not $difference)
+				{
+					print __LINE__.": The VG: [".$closest_vg_name."] is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size})."], exactly matching our peer's VG size.\n";
+				}
+				else
+				{
+					print __LINE__.": The VG: [".$closest_vg_name."] is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size})."], and the peer's VG size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_vg_size})."] (we're: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference})."] smaller)\n";
+				}
+				print __LINE__.": Updating the storage group: [".$storage_group_name."] to use this VG instead.\n";
+				$anvil->Database->insert_or_update_storage_group_members({
+					debug                                   => 2,
+					storage_group_member_uuid               => $storage_group_member_uuid,
+					storage_group_member_note               => "auto-replaced",
+					storage_group_member_storage_group_uuid => $storage_group_uuid,
+					storage_group_member_host_uuid          => $host_uuid, 
+					storage_group_member_vg_uuid            => $closest_vg_internal_uuid, 
+				});
+				
+				# Refesh
+				$anvil->Database->get_storage_group_data({debug => 3});
+			}
+			else
+			{
+				print __LINE__.": [ Warning ] - No local VG exists to use in this Storage Group!\n";
+				print __LINE__.": [ Warning ] - Any servers using this SG will not be sync'ed.\n";
+			}
+		}
+	}
+	
+	# Walk through the resources and any we find, see if they need to be sync'ed.
+	$anvil->Database->get_servers({debug => 3});
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		my $status  = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $active  = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
+		my $blocked = $anvil->data->{cib}{parsed}{data}{server}{$server}{blocked};
+		my $failed  = $anvil->data->{cib}{parsed}{data}{server}{$server}{failed};
+		my $role    = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server'  => $server, 
+			's2:status'  => $status, 
+			's3:active'  => $active, 
+			's4:blocked' => $blocked,
+			's5:failed'  => $failed, 
+			's6:role'    => $role, 
+		}});
+		
+		my $server_uuid = $anvil->Get->server_uuid_from_name({
+			anvil_uuid  => $anvil_uuid,
+			server_name => $server, 
+		});
+		my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_uuid'       => $server_uuid,
+			's2:server_definition' => $server_definition, 
+		}});
+		$anvil->Server->parse_definition({
+			debug      => 3,
+			host       => $short_host_name,
+			server     => $server, 
+			source     => "from_db",
+			definition => $server_definition, 
+		});
+		
+		# Do we have the DRBD resource file?
+		my $drbd_res_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server.".res";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+		
+		my $drbd_res_body = "";
+		if (not -f $drbd_res_file)
+		{
+			# Try copying it from the peer.
+			print __LINE__.": The DRBD resource file: [".$drbd_res_file."] was not found, copying it from the peer: [".$peer_name."]\n";
+			$drbd_res_body = $anvil->Storage->read_file({
+				file   => $drbd_res_file, 
+				target => $peer_target_ip, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+			
+			if (($drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+			{
+				# Write it out.
+				print __LINE__.": The DRBD resource file was found, saving it locally.\n";
+				$anvil->Storage->write_file({
+					file  => $drbd_res_file, 
+					body  => $drbd_res_body, 
+					user  => "root", 
+					group => "root",
+					mode  => "644",
+				});
+				
+				# Run scan-drbd.
+				print __LINE__.": Running scan-drbd to pick up the new resource config.\n";
+				my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+			}
+			else
+			{
+				# Can't proceed.
+				print __LINE__.": The DRBD resource file was NOT found on the peer, skipping this server for now.\n";
+				next;
+			}
+		}
+		
+		# Read in the DRBD resource file
+		$anvil->Database->get_drbd_data({debug => 2});
+		my $drbd_res_xml = $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$server}{xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_xml => $drbd_res_xml }});
+		
+		$anvil->DRBD->parse_resource({
+			debug => 2, 
+			xml   => $drbd_res_xml, 
+		});
+		
+		### TODO: Left off here, need to track if the backing LV path has changed and, if so, update and distribute the new drbd config to the peer / dr host
+		$anvil->Database->get_lvm_data({debug => 2});
+		foreach my $volume (sort {$a <=> $b} keys %{$anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}})
+		{
+			my $volume_path        = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path};
+			my $local_lv_path      = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk};
+			my $peer_lv_path       = $anvil->data->{new}{resource}{$server}{host_uuid}{$peer_host_uuid}{volume_number}{$volume}{backing_disk};
+			my $meta_disk          = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk};
+			my $volume_size        = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{size};	# Will be '0' if the resource is down.
+			my $storage_group_uuid = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid};
+			my $lv_name            = ($local_lv_path =~ /^.*\/(.*)$/)[0];
+			my $local_lv_size      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$lv_name}{scan_lvm_lv_size} // 0;
+			my $peer_lv_size       = $anvil->data->{lvm}{host_name}{$peer_short_host_name}{lv}{$lv_name}{scan_lvm_lv_size} // 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's01:volume'             => $volume, 
+				's02:volume_path'        => $volume_path, 
+				's03:local_lv_path'      => $local_lv_path, 
+				's04:peer_lv_path'       => $peer_lv_path, 
+				's05:meta_disk'          => $meta_disk, 
+				's06:volume_size'        => $volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}).")", 
+				's07:storage_group_uuid' => $storage_group_uuid, 
+				's08:lv_name'            => $lv_name, 
+				's09:local_lv_size'      => $local_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size}).")", 
+				's10:peer_lv_size'       => $peer_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_lv_size}).")", 
+			}});
+			
+			if ($peer_lv_size > $local_lv_size)
+			{
+				$local_lv_size = $peer_lv_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's01:local_lv_size' => $local_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size}).")", 
+				}});
+			}
+			
+			my $new_lv_path = "";
+			if (not -e $local_lv_path)
+			{
+				my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+				my $vg_internal_uuid   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
+				my $vg_name            = $anvil->data->{lvm}{vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
+				my $vg_free            = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_free};
+				my $vg_extent_size     = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_extent_size};
+				my $extent_count       = $local_lv_size / $vg_extent_size;
+				   $new_lv_path        = "/dev/".$vg_name."/".$lv_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's01:storage_group_name' => $storage_group_name, 
+					's02:vg_internal_uuid'   => $vg_internal_uuid, 
+					's03:vg_name'            => $vg_name, 
+					's04:vg_free'            => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")", 
+					's05:vg_extent_size'     => $vg_extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_extent_size}).")", 
+					's06:extent_count'       => $extent_count." (".$anvil->Convert->add_commas({number => $extent_count}).")", 
+					's07:new_lv_path'        => $new_lv_path, 
+				}});
+				
+				if (-e $new_lv_path)
+				{
+					# The new LV already exists, a previous rebuild might have been 
+					# interrupted.
+					print "The backing LV: [".$local_lv_path."] doesn't exist, and the new LV: [".$new_lv_path."] does exist.\n";
+					print "- Was a previous rebuild interrupted? Proceeding with the new LV path.\n";
+				}
+				else
+				{
+					# Round up if needed.
+					if ($extent_count =~ /^(\d+)\./)
+					{
+						$extent_count = $1 + 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							'extent_count' => $extent_count." (".$anvil->Convert->add_commas({number => $extent_count}).")", 
+						}});
+					}
+					
+					# Can we create the LV?
+					print "The local backing LV: [".$local_lv_path."] is missing, we'll recreate it.\n";
+					print "- The new LV: [".$new_lv_path."] will be: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size})."] from the storage group: [".$storage_group_name."].\n";
+					print "- We'll use the VG: [".$vg_name."] which has: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."] free.\n";
+					
+					### NOTE: We use '--yes' because on rebuilds, if the geometry lines up to 
+					###       previous LVs, we could get a prompt to remove the old drbd 
+					###       signature. There's no way to determine if it's good or useful, so 
+					###       we want a full resync.
+					my $shell_call = $anvil->data->{path}{exe}{lvcreate}." --yes -l ".$extent_count." -n ".$lv_name." ".$vg_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					
+					# Run scan-lvm
+					if ($return_code)
+					{
+						print "[ Warning ] - The call to create the LV returned the return code: [".$return_code."] (0 expected).\n";
+						print "[ Warning ]   The output, if any, was:\n";
+						print "=========================\n";
+						print $output;
+						print "=========================\n";
+					}
+					else
+					{
+						print "[ Success ] - The LV apprears to have been created!\n";
+					}
+					print "- Rescanning the LVM data to pickup the new status, please be patient.\n";
+					$anvil->ScanCore->call_scan_agents({debug => 2, agent => "scan-lvm"});
+					
+					# refresh
+					$anvil->Database->get_lvm_data({debug => 3});
+					$anvil->Database->get_storage_group_data({debug => 3});
+				}
+			}
+			
+			# If the LV name has changed, update DRBD's resource file.
+			if (($new_lv_path) && ($new_lv_path ne $local_lv_path))
+			{
+				print "[ Note ] - The LV path has changed! Updating the DRBD resource file.\n";
+				### TODO: This needs to be verified!
+				my $old_body = $anvil->Storage->read_file({
+					file   => $drbd_res_file, 
+					target => $peer_target_ip, 
+				});
+				
+				if (not $drbd_res_body)
+				{
+					$drbd_res_body = $anvil->Storage->read_file({
+						file   => $drbd_res_file, 
+						target => $peer_target_ip, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+					
+					if (($drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+					{
+						# loop through, replacing the old LV with the new one.
+						my $hosts    = [];
+						my $new_body = "";
+						foreach my $line (split/\n/, $drbd_res_body)
+						{
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+							
+							if ($line =~ /$local_lv_path/)
+							{
+								$line =~ s/$local_lv_path/$new_lv_path/g;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+							}
+							
+							if ($line =~ /\s.*?on (.*) \{/)
+							{
+								my $host = $1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+								
+								push @{$hosts}, $host;
+							}
+							
+							$new_body .= $line."\n";
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+						
+						my $difference = diff \$drbd_res_body, \$new_body, { STYLE => 'Unified' };
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+						
+						if ($difference)
+						{
+							### TODO: We need to have a job to update the peers 
+							###       if the peer isn't online when this runs.
+							# Write it out on the peer(s);
+							foreach my $host (@{$hosts})
+							{
+								my $problem = $anvil->Storage->write_file({
+									file      => $drbd_res_file, 
+									body      => $new_body, 
+									user      => "root", 
+									group     => "root",
+									mode      => "644",
+									target    => $host,
+									overwrite => 1, 
+									backup    => 1,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+								
+								if ($problem)
+								{
+									print "[ Warning ] - Failed to update the DRBD resource file: [".$drbd_res_file."] on the host: [".$host."]\n";
+									print "[ Warning ] - Please copy the version from this machine as soon as possible!\n";
+								}
+								else
+								{
+									print "[ Success ] - Successfully updated: [".$drbd_res_file."] to update the backing disk.\n";
+								}
+							}
+							
+							# Now adjust on all hosts.
+							foreach my $host (@{$hosts})
+							{
+								print "Asking the host: [".$host."] to update the configuration.\n";
+								my $return_code = $anvil->DRBD->manage_resource({
+									debug    => 2,
+									task     => "adjust",
+									resource => $server, 
+									target   => $host,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+							}
+						}
+					}
+				}
+				
+				# Now update the LV path.
+				$local_lv_path = $new_lv_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_lv_path => $local_lv_path }});
+			}
+			
+			# Check if there is metadata on the backing disk.
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." get-gi ".$server."/".$volume;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			
+			if (not $output)
+			{
+				print "It appears that there is no metadata on the backing disk, creating it now.\n";
+				my $shell_call = $anvil->data->{path}{exe}{drbdadm}." create-md --force ".$server."/".$volume;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+				
+				if ($return_code)
+				{
+					print "[ Error ] - There appears to have been a problem creating the metadata!\n";
+					print "[ Error ]   There was a non-zero return code: [".$return_code."]. The output, if any, was:\n";
+					print "=========================\n";
+					print $output;
+					print "=========================\n";
+				}
+				else
+				{
+					print "[ Success ] - The metadata was created!\n";
+				}
+			}
+			elsif ($output =~ /^(.*?):/)
+			{
+				print "Metadata appears to exist already.\n";
+			}
+			
+			# Call adjust to try to connect the disk.
+			print "Calling 'drbdadm adjust ".$server."' to make sure we connect to our peer, if possible.\b";
+			$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			
+			print "- Done!\n";
+		}
+	}
+	
+	return(0);
+}
 
 # Rejoin this host to an existing subnode.
 sub process_rejoin
@@ -457,7 +1000,7 @@ sub process_rejoin
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		job_host_uuid   => $host_uuid, 
 		job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
-		job_data        => "as_machine=".$as_machine.",manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+		job_data        => "as_machine=".$as_machine.",manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid.",rejoin=true", 
 		job_name        => "join_anvil::".$as_machine, 
 		job_title       => "job_0072", 
 		job_description => "job_0073", 
