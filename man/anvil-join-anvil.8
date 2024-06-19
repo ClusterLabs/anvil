@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! node assembly tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-join-anvil "8" "April 11 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-join-anvil "8" "June 18 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-join-anvil \- This tool assembles two subnodes into a node. 
 .SH SYNOPSIS
@@ -28,6 +28,14 @@ When using \fB\-\-rejoin\fR, this is the subnode role that this host will take.
 .B NOTE:
 .TP
 The previous subnode that held this position will be purged! All data associated with the previous subnode will be deleted from the Anvil! database.
+.TP
+\fB\-\-auto\-grow\-pv\fR
+.TP
+This checks the LVM physical volumes on the host and if any have usable free space after then, the PV is grown to use that free space.
+.TP
+.B NOTE:
+.TP
+This has the (low) potential to cause boot issues. If this is an in-production system, please consider manually growing any PVs.
 .TP
 \fB\-\-job\-uuid\fR
 .TP

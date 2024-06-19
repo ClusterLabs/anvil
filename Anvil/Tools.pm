@@ -1175,6 +1175,7 @@ sub _set_paths
 				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",
 				'anvil-manage-files'		=>	"/usr/sbin/anvil-manage-files",
 				'anvil-manage-firewall'		=>	"/usr/sbin/anvil-manage-firewall",
+				'anvil-manage-host'		=>	"/usr/sbin/anvil-manage-host",
 				'anvil-manage-keys'		=>	"/usr/sbin/anvil-manage-keys",
 				'anvil-manage-server-storage'	=>	"/usr/sbin/anvil-manage-server-storage",
 				'anvil-manage-power'		=>	"/usr/sbin/anvil-manage-power",

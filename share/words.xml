@@ -1768,7 +1768,10 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0485">The corosync authkey file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
 		<key name="job_0486">Cluster hasn't started, will check is re-auth is needed.</key>
 		<key name="job_0487">Authorization via 'pcsd' failed, attempting to re-auth.</key>
-		<key name="job_0488">[ Note ] - The host name was updated. Given how many places the hostname is cached, and how important it is to have the updated hostname during the cluster config, the system will now reboot. The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
+		<key name="job_0488">
+[ Note ] - The host name was updated. The hostname is cached in several place, and it is important all are updated during the cluster config.
+[ Note ]   *** the system will now reboot. ***
+[ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

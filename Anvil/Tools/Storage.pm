@@ -365,6 +365,9 @@ sub auto_grow_pv
 							}});
 						}
 						
+						# Update LVM data
+						$anvil->ScanCore->call_scan_agents({debug => $debug, agent => "scan-lvm"});
+						
 						# Done. 
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0827", variables => { pv_name => $pv_name }});
 					}
