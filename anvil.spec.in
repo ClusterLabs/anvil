@@ -41,7 +41,7 @@ BuildRequires:  fence-agents-common
 BuildRequires:  resource-agents
 # required to build SELinux policy
 BuildRequires:  selinux-policy-devel
-# use systemd macros instead of manually calling systemctl
+# specify that we're using systemd macros
 BuildRequires:  systemd-rpm-macros
 
 
@@ -284,9 +284,12 @@ sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
 setenforce 0
 %endif
 
-# Dis/enable core services based on systemd preset; see `rpm --showrc`
-%systemd_post chronyd.service
-%systemd_post %coreservices
+# enable and start required core services on fresh install
+if [ $1 -eq 1 ]
+then
+    systemctl enable --now chronyd.service
+    systemctl enable --now %coreservices
+fi
 
 
 %pre striker
@@ -302,7 +305,10 @@ getent passwd %{suiapi} >/dev/null \
 %post striker
 ### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
 
-%systemd_post %{suiapi}.service
+if [ $1 -eq 1 ]
+then
+    systemctl enable --now %{suiapi}.service
+fi
 
 restorecon -rv /%{_localstatedir}/www
 
@@ -332,11 +338,12 @@ touch /etc/anvil/type.striker
 
 ### TODO: I don't think we need this anymore
 # Open access for Striker. The database will be opened after initial setup.
-echo "Opening the web and postgresql ports."
-%systemd_post firewalld.service
-# Open service ports on initial install
 if [ $1 -eq 1 ]
 then
+    echo "Starting firewalld"
+    systemctl enable --now firewalld.service
+
+    echo "Opening the web and postgresql ports."
     firewall-cmd --add-service=http
     firewall-cmd --add-service=http --permanent
     firewall-cmd --add-service=https
