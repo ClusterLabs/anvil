@@ -4220,6 +4220,13 @@ We will try to proceed anyway.</key>
 		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during the write: [#!variable!query!#]. Skipping this database.</key>
 		<key name="warning_0183">[ Warning ] - We were asked to thoroughly check if this host is configured or not, but there are no records in the 'variables' table for this host. Unable to check the network config! Relying on the 'system::configured' value.</key>
 		<key name="warning_0184">[ Warning ] - We were asked to thoroughly check if this host is configured or not, and the interface: [#!variable!interface!#] doesn't exist! Marking this host as unconfigured!</key>
+		<key name="warning_0185">[ Warning ] - The known_hosts file: [#!variable!file!#] has the bad line: [#!variable!line!#]. Removing it!</key>
+		<key name="warning_0186">[ Warning ] - The known_hosts file: [#!variable!file!#] has a duplicate entry for the target host: [#!variable!target_host!#] using the algorithm: [#!variable!algorithm!#]!. Removing it!</key>
+		<key name="warning_0187">[ Warning ] - The known_hosts file: [#!variable!file!#] has a duplicate entry for the target host: [#!variable!target_host!#] using the algorithm: [#!variable!algorithm!#]!.
+The initial key is: ... [#!variable!old_key!#]
+The subsequence key is: [#!variable!key!#]
+The older key will be preserved and the subsequent keys will be removed.
+</key>
 		
 	</language>
 	<!-- 日本語 -->
