@@ -2941,6 +2941,12 @@ sub trusted_hosts
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->trusted_hosts()" }});
 	
+	# Make sure hosts are loaded.
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
 	my $local_host_uuid    = $anvil->Get->host_uuid;
 	my $in_anvil           = $anvil->data->{hosts}{host_uuid}{$local_host_uuid}{anvil_name};
 	my $trusted_host_uuids = [$local_host_uuid];
@@ -2953,12 +2959,14 @@ sub trusted_hosts
 		my $host_type  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
 		my $host_key   = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
 		my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+		my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:host_uuid'  => $host_uuid, 
 			's2:host_name'  => $host_name, 
 			's3:host_type'  => $host_type, 
 			's4:host_key'   => $host_key, 
 			's5:anvil_name' => $anvil_name, 
+			's6:anvil_uuid' => $anvil_uuid, 
 		}});
 		
 		# Skip if the host_key is 'DELETED'.
