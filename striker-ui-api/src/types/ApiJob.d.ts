@@ -2,8 +2,6 @@
  * @prop started - EPOCH seconds that specify when the job started.
  */
 type JobOverview = {
-  command: string;
-  description: string;
   host: {
     name: string;
     shortName: string;
@@ -17,6 +15,11 @@ type JobOverview = {
 };
 
 type JobOverviewList = Record<string, JobOverview>;
+
+type JobDetail = JobOverview & {
+  command: string;
+  description: string;
+};
 
 type JobRequestQuery = {
   command?: string;

@@ -43,10 +43,8 @@ export const getJob: RequestHandler<
       a.job_uuid,
       a.job_name,
       a.job_title,
-      a.job_description,
       a.job_host_uuid,
       b.host_name,
-      a.job_command,
       a.job_progress,
       a.job_picked_up_at
     FROM jobs AS a
@@ -73,26 +71,13 @@ export const getJob: RequestHandler<
   }
 
   const promises = rows.map<Promise<JobOverview>>(async (row) => {
-    const [
-      uuid,
-      name,
-      rTitle,
-      rDescription,
-      hostUuid,
-      hostName,
-      command,
-      rProgress,
-      pickedUpAt,
-    ] = row;
+    const [uuid, name, rTitle, hostUuid, hostName, rProgress, pickedUpAt] = row;
 
     const hostShortName = getShortHostName(hostName);
 
     const title = await translate(rTitle);
-    const description = await translate(rDescription);
 
     return {
-      command: command,
-      description,
       host: {
         name: hostName,
         shortName: hostShortName,
