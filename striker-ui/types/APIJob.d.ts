@@ -15,3 +15,21 @@ type APIJobOverview = {
 };
 
 type APIJobOverviewList = Record<string, APIJobOverview>;
+
+type APIJobData = {
+  name: string;
+  value: string;
+};
+
+type APIJobStatus = {
+  value: string;
+};
+
+type APIJobDetail = JobOverview & {
+  command: string;
+  data: Record<string, APIJobData>;
+  description: string;
+  pid: number;
+  status: Record<string, APIJobStatus>;
+  updated: number;
+};
