@@ -341,7 +341,8 @@ sub configure_servers
 		});
 		
 		# Do we have the DRBD resource file?
-		my $drbd_res_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server.".res";
+		my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$server.".res";
+		   $drbd_res_file =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
 		
 		my $drbd_res_body = "";
@@ -576,6 +577,7 @@ AND
 					file   => $drbd_res_file, 
 					target => $peer_target_ip, 
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
 				
 				if (not $drbd_res_body)
 				{
@@ -584,80 +586,84 @@ AND
 						target => $peer_target_ip, 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+				}
+				
+				if ((not $drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+				{
+					# Failed to read the res file
+					print __LINE__.": [ Error ] - Failed to read the DRBD resource file: [".$drbd_res_file."] locally or from the peer using: [".$peer_target_ip."].\n";
+					$anvil->nice_exit({exit_code => 1});
+				}
+				
+				# loop through, replacing the old LV with the new one.
+				my $hosts    = [];
+				my $new_body = "";
+				foreach my $line (split/\n/, $drbd_res_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 					
-					if (($drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+					if ($line =~ /$local_lv_path/)
 					{
-						# loop through, replacing the old LV with the new one.
-						my $hosts    = [];
-						my $new_body = "";
-						foreach my $line (split/\n/, $drbd_res_body)
-						{
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-							
-							if ($line =~ /$local_lv_path/)
-							{
-								$line =~ s/$local_lv_path/$new_lv_path/g;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-							}
-							
-							if ($line =~ /\s.*?on (.*) \{/)
-							{
-								my $host = $1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
-								
-								push @{$hosts}, $host;
-							}
-							
-							$new_body .= $line."\n";
-						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+						$line =~ s/$local_lv_path/$new_lv_path/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					}
+					
+					if ($line =~ /\s.*?on (.*) \{/)
+					{
+						my $host = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
 						
-						my $difference = diff \$drbd_res_body, \$new_body, { STYLE => 'Unified' };
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+						push @{$hosts}, $host;
+					}
+					
+					$new_body .= $line."\n";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+				
+				my $difference = diff \$drbd_res_body, \$new_body, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+				
+				if ($difference)
+				{
+					### TODO: We need to have a job to update the peers 
+					###       if the peer isn't online when this runs.
+					# Write it out on the peer(s);
+					foreach my $host (@{$hosts})
+					{
+						my $problem = $anvil->Storage->write_file({
+							file      => $drbd_res_file, 
+							body      => $new_body, 
+							user      => "root", 
+							group     => "root",
+							mode      => "644",
+							target    => $host,
+							overwrite => 1, 
+							backup    => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 						
-						if ($difference)
+						if ($problem)
 						{
-							### TODO: We need to have a job to update the peers 
-							###       if the peer isn't online when this runs.
-							# Write it out on the peer(s);
-							foreach my $host (@{$hosts})
-							{
-								my $problem = $anvil->Storage->write_file({
-									file      => $drbd_res_file, 
-									body      => $new_body, 
-									user      => "root", 
-									group     => "root",
-									mode      => "644",
-									target    => $host,
-									overwrite => 1, 
-									backup    => 1,
-								});
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-								
-								if ($problem)
-								{
-									print __LINE__.": [ Warning ] - Failed to update the DRBD resource file: [".$drbd_res_file."] on the host: [".$host."]\n";
-									print __LINE__.": [ Warning ] - Please copy the version from this machine as soon as possible!\n";
-								}
-								else
-								{
-									print __LINE__.": [ Success ] - Successfully updated: [".$drbd_res_file."] to update the backing disk.\n";
-								}
-							}
-							
-							# Now adjust on all hosts.
-							foreach my $host (@{$hosts})
-							{
-								print __LINE__.": Asking the host: [".$host."] to update the configuration.\n";
-								my $return_code = $anvil->DRBD->manage_resource({
-									debug    => 2,
-									task     => "adjust",
-									resource => $server, 
-									target   => $host,
-								});
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
-							}
+							print __LINE__.": [ Warning ] - Failed to update the DRBD resource file: [".$drbd_res_file."] on the host: [".$host."]\n";
+							print __LINE__.": [ Warning ] - Please copy the version from this machine as soon as possible!\n";
 						}
+						else
+						{
+							print __LINE__.": [ Success ] - Successfully updated: [".$drbd_res_file."] to update the backing disk.\n";
+						}
+					}
+					
+					# Now adjust on all hosts.
+					foreach my $host (@{$hosts})
+					{
+						print __LINE__.": Asking the host: [".$host."] to update the configuration.\n";
+						my $return_code = $anvil->DRBD->manage_resource({
+							debug    => 2,
+							task     => "adjust",
+							resource => $server, 
+							target   => $host,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 					}
 				}
 				
@@ -4090,8 +4096,8 @@ sub load_job
 	$anvil->data->{switches}{'job-uuid'} = "" if not exists $anvil->data->{switches}{'job-uuid'};
 	$anvil->data->{jobs}{job_uuid}       = "" if not exists $anvil->data->{jobs}{job_uuid};
 	
-	$anvil->Job->get_job_details({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Job->get_job_details({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid},
 	}});
 	

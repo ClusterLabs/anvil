@@ -1232,8 +1232,13 @@ sub _check_known_hosts_for_target
 	
 	# read it in and search.
 	my $bad_line = 0;
-	my $old_body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
 	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({
+		debug      => $debug, 
+		file       => $known_hosts,
+		cache      => 0, 
+		force_read => 1,
+	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { old_body => $old_body }});
 	foreach my $line (split/\n/, $old_body)
 	{
@@ -1300,7 +1305,6 @@ sub _check_known_hosts_for_target
 				next;
 			}
 		}
-		
 		$new_body .= $line."\n";
 		
 		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'

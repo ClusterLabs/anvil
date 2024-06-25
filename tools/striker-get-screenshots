@@ -130,7 +130,7 @@ foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_nam
 			}
 			
 			my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
-			my $test_access = $anvil->Remote->test_access({target => $target_ip});
+			my $test_access = $anvil->Remote->test_access({debug => 2, target => $target_ip});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:network_name' => $network_name, 
 				's2:target_ip'    => $target_ip, 
