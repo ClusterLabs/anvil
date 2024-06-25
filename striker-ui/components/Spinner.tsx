@@ -1,55 +1,40 @@
-import { FC } from 'react';
 import {
-  Box as MUIBox,
-  BoxProps as MUIBoxProps,
-  CircularProgress as MUICircularProgress,
-  circularProgressClasses as muiCircularProgressClasses,
-  CircularProgressProps as MUICircularProgressProps,
+  Box as MuiBox,
+  BoxProps as MuiBoxProps,
+  CircularProgressProps as MuiCircularProgressProps,
+  styled,
 } from '@mui/material';
+import { FC } from 'react';
 
-import { TEXT } from '../lib/consts/DEFAULT_THEME';
+import CircularProgress from './CircularProgress';
 
 type SpinnerOptionalProps = {
-  progressProps?: MUICircularProgressProps;
+  progressProps?: MuiCircularProgressProps;
 };
 
-type SpinnerProps = MUIBoxProps & SpinnerOptionalProps;
+type SpinnerProps = MuiBoxProps & SpinnerOptionalProps;
 
 const SPINNER_DEFAULT_PROPS: Required<SpinnerOptionalProps> = {
   progressProps: {},
 };
 
-const Spinner: FC<SpinnerProps> = (spinnerProps): JSX.Element => {
+const SpinnerWrapper = styled(MuiBox)({
+  alignItems: 'center',
+  display: 'flex',
+  justifyContent: 'center',
+});
+
+const Spinner: FC<SpinnerProps> = (props): JSX.Element => {
   const {
     mt = '3em',
     progressProps = SPINNER_DEFAULT_PROPS.progressProps,
-    sx,
-    ...spinnerRestProps
-  } = spinnerProps;
+    ...restProps
+  } = props;
 
   return (
-    <MUIBox
-      {...{
-        ...spinnerRestProps,
-
-        sx: {
-          alignItems: 'center',
-          display: 'flex',
-          justifyContent: 'center',
-          marginTop: mt,
-
-          [`& .${muiCircularProgressClasses.root}`]: {
-            color: TEXT,
-          },
-
-          ...sx,
-        },
-      }}
-    >
-      <MUICircularProgress
-        {...{ ...progressProps, variant: 'indeterminate' }}
-      />
-    </MUIBox>
+    <SpinnerWrapper mt={mt} {...restProps}>
+      <CircularProgress variant="indeterminate" {...progressProps} />
+    </SpinnerWrapper>
   );
 };
 
