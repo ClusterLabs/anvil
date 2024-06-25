@@ -43,10 +43,13 @@ export const getJob: RequestHandler<
       a.job_uuid,
       a.job_name,
       a.job_title,
-      a.job_host_uuid,
+      b.host_uuid,
       b.host_name,
       a.job_progress,
-      a.job_picked_up_at
+      a.job_picked_up_at,
+      ROUND(
+        EXTRACT(epoch from a.modified_date)
+      ) AS modified_epoch
     FROM jobs AS a
     JOIN hosts AS b
       ON a.job_host_uuid = b.host_uuid
@@ -71,7 +74,16 @@ export const getJob: RequestHandler<
   }
 
   const promises = rows.map<Promise<JobOverview>>(async (row) => {
-    const [uuid, name, rTitle, hostUuid, hostName, rProgress, pickedUpAt] = row;
+    const [
+      uuid,
+      name,
+      rTitle,
+      hostUuid,
+      hostName,
+      rProgress,
+      pickedUpAt,
+      modified,
+    ] = row;
 
     const hostShortName = getShortHostName(hostName);
 
@@ -83,6 +95,7 @@ export const getJob: RequestHandler<
         shortName: hostShortName,
         uuid: hostUuid,
       },
+      modified: Number(modified),
       name,
       progress: Number(rProgress),
       started: Number(pickedUpAt),
