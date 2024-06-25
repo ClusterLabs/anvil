@@ -4,7 +4,7 @@ import { query, translate } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
-import { perr } from '../../shell';
+import { date, perr } from '../../shell';
 
 export const getJob: RequestHandler<
   undefined,
@@ -20,16 +20,22 @@ export const getJob: RequestHandler<
   const start = sanitize(rStart, 'number');
   const jcmd = sanitize(rCommand, 'string', { modifierType: 'sql' });
 
-  let condModifiedDate = '';
+  let condModified = 'OR a.job_progress = 100';
 
-  if (start > 0) {
-    condModifiedDate = `OR (a.job_progress = 100 AND a.job_updated >= '${start}')`;
+  if (start >= 0) {
+    try {
+      const minDate = date('--date', `@${start}`, '--rfc-3339', 'ns');
+
+      condModified = `OR (a.job_progress = 100 AND a.modified_date >= '${minDate}')`;
+    } catch (error) {
+      // Ignore; just include all jobs
+    }
   }
 
-  let condJobCommand = '';
+  let condCommand = '';
 
   if (jcmd) {
-    condJobCommand = `AND a.job_command LIKE '%${jcmd}%'`;
+    condCommand = `AND a.job_command LIKE '%${jcmd}%'`;
   }
 
   const sql = `
@@ -46,9 +52,10 @@ export const getJob: RequestHandler<
     FROM jobs AS a
     JOIN hosts AS b
       ON a.job_host_uuid = b.host_uuid
-    WHERE (a.job_progress < 100 ${condModifiedDate})
-      ${condJobCommand}
-      AND job_name NOT LIKE 'get_server_screenshot%';`;
+    WHERE (a.job_progress < 100 ${condModified})
+      ${condCommand}
+      AND a.job_name NOT LIKE 'get_server_screenshot%'
+    ORDER BY a.modified_date DESC;`;
 
   let rows: string[][];
 
