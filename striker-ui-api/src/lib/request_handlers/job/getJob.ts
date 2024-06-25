@@ -7,9 +7,9 @@ import { sanitize } from '../../sanitize';
 import { date, perr } from '../../shell';
 
 export const getJob: RequestHandler<
-  undefined,
+  unknown,
   JobOverviewList | ResponseErrorBody,
-  undefined,
+  unknown,
   JobRequestQuery
 > = async (request, response) => {
   const {
