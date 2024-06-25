@@ -1,22 +1,14 @@
-import { Menu } from '@mui/material';
+import { Menu, MenuItem } from '@mui/material';
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
-import { ProgressBar } from './Bars';
 import FlexBox from './FlexBox';
 import List from './List';
 import periodicFetch from '../lib/fetchers/periodicFetch';
+import PieProgress from './PieProgress';
 import { BodyText } from './Text';
-
-type AnvilJobs = {
-  [jobUUID: string]: {
-    jobCommand: string;
-    jobName: string;
-    jobProgress: number;
-    jobUUID: string;
-  };
-};
+import { elapsed, now } from '../lib/time';
 
 type JobSummaryOptionalPropsWithDefault = {
   getJobUrl?: (epoch: number) => string;
@@ -25,7 +17,7 @@ type JobSummaryOptionalPropsWithDefault = {
 };
 
 type JobSummaryOptionalPropsWithoutDefault = {
-  onFetchSuccessAppend?: (data: AnvilJobs) => void;
+  onFetchSuccessAppend?: (data: APIJobOverviewList) => void;
 };
 
 type JobSummaryOptionalProps = JobSummaryOptionalPropsWithDefault &
@@ -41,7 +33,9 @@ type JobSummaryForwardedRefContent = {
 const JOB_LIST_LENGTH = '20em';
 const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
-  getJobUrl: (epoch) => `${API_BASE_URL}/job?start=${epoch}`,
+  // TODO: remove after debug
+  getJobUrl: () => `${API_BASE_URL}/job?start=0`,
+  // getJobUrl: (epoch) => `${API_BASE_URL}/job?start=${epoch}`,
   onFetchSuccessAppend: undefined,
   openInitially: false,
   refreshInterval: 10000,
@@ -57,21 +51,23 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     },
     ref,
   ) => {
-    const [anvilJobs, setAnvilJobs] = useState<AnvilJobs>({});
+    const [jobs, setJobs] = useState<APIJobOverviewList>({});
     const [isOpenJobSummary, setIsOpenJobSummary] =
       useState<boolean>(openInitially);
     const [menuAnchorElement, setMenuAnchorElement] = useState<
       HTMLElement | undefined
     >();
 
-    const loadTimestamp = useMemo(() => Math.floor(Date.now() / 1000), []);
+    // Epoch in seconds
+    const loaded = useMemo(() => now(), []);
+    const nao = now();
 
-    periodicFetch<AnvilJobs>(getJobUrl(loadTimestamp), {
+    periodicFetch<APIJobOverviewList>(getJobUrl(loaded), {
       onError: () => {
-        setAnvilJobs({});
+        setJobs({});
       },
       onSuccess: (rawAnvilJobs) => {
-        setAnvilJobs(rawAnvilJobs);
+        setJobs(rawAnvilJobs);
 
         onFetchSuccessAppend?.call(null, rawAnvilJobs);
       },
@@ -93,50 +89,64 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
           <List
             scroll
             listEmpty="No currently running and recently completed jobs."
-            listItems={anvilJobs}
+            listItems={jobs}
             listProps={{
               sx: { maxHeight: JOB_LIST_LENGTH, width: JOB_LIST_LENGTH },
             }}
-            renderListItem={(jobUUID, { jobName, jobProgress }) => (
-              <FlexBox sm="row" sx={{ width: '97%' }} xs="column">
-                <FlexBox spacing={0} sx={{ width: 'inherit' }}>
-                  <BodyText
-                    sx={{
-                      overflowX: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {jobName}
-                  </BodyText>
-                  <ProgressBar progressPercentage={jobProgress} />
-                </FlexBox>
-              </FlexBox>
-            )}
+            renderListItem={(jobUuid, job) => {
+              const { host, name, progress, started, title } = job;
+              const { shortName: shortHostName } = host;
+              const label = title || name;
+
+              let status: string;
+
+              if (started) {
+                const { unit, value } = elapsed(nao - started);
+
+                status = `Started ~${value}${unit} ago on ${shortHostName}.`;
+              } else {
+                status = `Queued on ${shortHostName}`;
+              }
+
+              return (
+                <MenuItem sx={{ width: '100%' }}>
+                  <FlexBox fullWidth spacing=".2em">
+                    <FlexBox row spacing=".5em">
+                      <PieProgress sx={{ flexShrink: 0 }} value={progress} />
+                      <BodyText
+                        sx={{
+                          overflowX: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {label}
+                      </BodyText>
+                    </FlexBox>
+                    <BodyText>{status}</BodyText>
+                  </FlexBox>
+                </MenuItem>
+              );
+            }}
           />
         </FlexBox>
       ),
-      [anvilJobs],
-    );
-    const jobSummary = useMemo(
-      () => (
-        <Menu
-          anchorEl={menuAnchorElement}
-          MenuListProps={{ sx: { padding: '.8em 1.6em' } }}
-          onClose={() => {
-            setIsOpenJobSummary(false);
-            setMenuAnchorElement(undefined);
-          }}
-          open={isOpenJobSummary}
-          variant="menu"
-        >
-          {jobList}
-        </Menu>
-      ),
-      [isOpenJobSummary, jobList, menuAnchorElement],
+      [jobs, nao],
     );
 
-    return jobSummary;
+    return (
+      <Menu
+        anchorEl={menuAnchorElement}
+        onClose={() => {
+          setIsOpenJobSummary(false);
+          setMenuAnchorElement(undefined);
+        }}
+        open={isOpenJobSummary}
+        variant="menu"
+      >
+        {jobList}
+      </Menu>
+    );
   },
 );
 
