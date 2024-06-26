@@ -340,6 +340,7 @@ sub update_nodes
 			
 			# Now wait for DRBD resources to stop (which requires VMs be off).
 			print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 			my $wait_until = time + $anvil->data->{switches}{timeout};
 			my $next_log   = time + 60;
 			my $waiting    = 1;
@@ -406,6 +407,7 @@ sub update_nodes
 						}
 						   $next_log      = time + 60;
 						my $time_left     = $wait_until - time;
+						   $time_left     = 0 if $time_left < 0;
 						my $say_time_left = $anvil->Convert->time({
 							'time'    => $time_left,
 							translate => 1,
@@ -813,42 +815,22 @@ sub update_strikers_and_dr
 	my ($anvil) = @_;
 	
 	# Before we start, set the timeouts.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 	if ($anvil->data->{switches}{timeout})
 	{
-		if ($anvil->data->{switches}{timeout} =~ /^(\d+)h/i)
+		if ($anvil->data->{switches}{timeout} =~ /\D/)
 		{
-			my $hours                            = $1;
-			   $anvil->data->{switches}{timeout} = $hours * 3600;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				hours               => $hours,
-				"switches::timeout" => $anvil->data->{switches}{timeout},
-			}});
-		}
-		elsif ($anvil->data->{switches}{timeout} =~ /^(\d+)m/i)
-		{
-			my $minutes                          = $1;
-			   $anvil->data->{switches}{timeout} = $minutes * 60;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				minutes             => $minutes,
-				"switches::timeout" => $anvil->data->{switches}{timeout},
-			}});
-		}
-		else
-		{
-			# Set the default.
-			print "[ Warning ] - The passed timeout: [".$anvil->data->{switches}{timeout}."] is invalid, setting it to 24 hours.\n";
-			$anvil->data->{switches}{timeout} = 86400;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"switches::timeout" => $anvil->data->{switches}{timeout},
-			}});
+			$anvil->data->{switches}{timeout} = $anvil->Convert->to_seconds({
+				debug  => 2,
+				string => $anvil->data->{switches}{timeout},
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 		}
 	}
 	else
 	{
 		$anvil->data->{switches}{timeout} = 86400;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"switches::timeout" => $anvil->data->{switches}{timeout},
-		}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 	}
 	
 	# Make sure the timeout, if set, is valid.
@@ -1028,6 +1010,7 @@ sub update_strikers_and_dr
 					
 					# Now wait for DRBD resources to stop (which requires VMs be off).
 					print "- Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 					my $wait_until = time + $anvil->data->{switches}{timeout};
 					my $next_log   = time + 60;
 					my $waiting    = 1;
@@ -1141,6 +1124,7 @@ sub update_strikers_and_dr
 				}});
 				
 				# Verify / wait until the update is done.
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 				my $wait_until = time + $anvil->data->{switches}{timeout};
 				my $waiting    = 1;
 				my $next_log   = time + 60;
@@ -1273,6 +1257,7 @@ sub wait_for_reboot
 	print "- The target has been rebooted. We'll wait for the target to come back online.\n";
 	
 	# This is an infinite loop, there is no timeout for this.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 	my $wait_until = time + $anvil->data->{switches}{timeout};
 	my $waiting    = 1;
 	my $next_log   = time + 60;
