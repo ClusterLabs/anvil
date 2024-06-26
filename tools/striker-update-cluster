@@ -1434,6 +1434,66 @@ sub manage_daemons
 		}
 	}
 	
+	# If we're in the stop stage, we need to ensure that anvil-safe-start is enabled on the nodes, or else we'll hang when the node reboots.
+	if ($task eq "stop")
+	{
+		print $anvil->Get->date_and_time({time_only => 1})."; Enabling 'anvil-safe-start' on nodes to prevent hangs on reboot.\n";
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+		{
+			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_name'       => $host_name, 
+				's2:host_uuid'       => $host_uuid,
+				's3:short_host_name' => $short_host_name, 
+				's4:host_type'       => $host_type, 
+			}});
+			next if $host_type ne "node";
+			
+			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
+			{
+				print $anvil->Get->date_and_time({time_only => 1})."; Offline! Skipping.\n";
+				next;
+			}
+			
+			# Local
+			my $shell_call = $anvil->data->{path}{exe}{systemctl}." enable anvil-safe-start.service";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my $output      = "";
+			my $error       = "";
+			my $return_code = 999;
+			if ($host_uuid eq $anvil->Get->host_uuid)
+			{
+				# Local
+				($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code, 
+				}});
+			}
+			else
+			{
+				# Remote, it'll be a while before we hit some clients, so close this 
+				# connection so later access to the machines don't fail with ssh 
+				# connection timeouts.
+				($output, $error, $return_code) = $anvil->Remote->call({
+					'close'    => 1,
+					no_cache   => 1,
+					shell_call => $shell_call, 
+					target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error,
+					return_code => $return_code,
+				}});
+			}
+		}
+		print $anvil->Get->date_and_time({time_only => 1})."; Done!\n";
+	}
+	
 	return(0);
 }
 
