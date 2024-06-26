@@ -1,13 +1,10 @@
 import { RequestHandler } from 'express';
 
 import { query, translate } from '../../accessModule';
-import { cname } from '../../cname';
 import { getShortHostName } from '../../disassembleHostName';
 import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
-import { date, perr, poutvar } from '../../shell';
-
-const JMINTS = 'jmints';
+import { date, perr } from '../../shell';
 
 export const getJob: RequestHandler<
   unknown,
@@ -40,66 +37,21 @@ export const getJob: RequestHandler<
       );
     }
   } else {
-    // Find the oldest incomplete job at the time of the request.
-    const sql = `
-      SELECT modified_date
-      FROM jobs
-      WHERE job_progress < 100
-      ORDER BY modified_date ASC
-      LIMIT 1;`;
-
-    let rows: string[][];
-
-    try {
-      rows = await query<[[string]]>(sql);
-    } catch (error) {
-      const rserror = new ResponseError(
-        '6232684',
-        `Failed to get oldest in-progress job; CAUSE: ${error}`,
-      );
-
-      return response.status(500).send(rserror.body);
-    }
-
-    const cn = cname('session');
-    /**
-     * Make a shallow copy of the session cookie.
-     *
-     * Note: request.cookies is populated by middleware 'cookie-parser'.
-     */
-    const session = { ...request.cookies[cn] };
-
-    poutvar(session, `Session cookie (before): `);
-
-    if (session && session[JMINTS]) {
-      // Use the mints from a previous fetch if there's one.
-
-      conditions = `a.modified_date >= '${session[JMINTS]}'`;
-    } else if (rows.length > 0) {
-      // Use fresh mints on the first fetch in current session.
-
-      conditions = `a.modified_date >= '${rows[0][0]}'`;
-    } else {
-      // 1. no incomplete job seen in current session,
-      // 2. no incomplete during this fetch
-      // So just get recent jobs.
-
-      conditions = `a.modified_date >= NOW() - INTERVAL '1 hour'`;
-    }
-
-    if (rows.length > 0) {
-      // If there's an incomplete job from this fetch, record the mints.
-
-      session[JMINTS] = rows[0][0];
-    } else {
-      // If there's no incomplete job from this fetch, remove the mints.
-
-      delete session[JMINTS];
-    }
-
-    poutvar(session, `Session cookie (after): `);
-
-    response.cookie(cn, session);
+    // Use modified_date of the oldest incomplete job as mints.
+    // Use a "recent" timestamp when there aren't incomplete jobs.
+    conditions = `
+      a.modified_date >= (
+        COALESCE(
+          (
+            SELECT modified_date
+            FROM jobs
+            WHERE job_progress < 100
+            ORDER BY modified_date ASC
+            LIMIT 1
+          ),
+          NOW() - INTERVAL '1 hour'
+        )
+      )`;
   }
 
   if (jcmd) {
