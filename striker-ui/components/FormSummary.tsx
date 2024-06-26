@@ -15,7 +15,7 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
   const { entry, key } = args;
 
   return REP_LABEL_PASSW.test(key) ? (
-    <SensitiveText monospaced>{String(entry)}</SensitiveText>
+    <SensitiveText wrapper="mono">{String(entry)}</SensitiveText>
   ) : (
     renderEntryValueWithMono(args)
   );

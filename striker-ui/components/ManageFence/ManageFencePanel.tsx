@@ -349,7 +349,9 @@ const ManageFencePanel: FC = () => {
                   current = REP_LABEL_PASSW.test(parameterId) ? (
                     <>
                       {current}
-                      <SensitiveText>{parameterValue}</SensitiveText>
+                      <SensitiveText wrapper="mono">
+                        {parameterValue}
+                      </SensitiveText>
                     </>
                   ) : (
                     <>

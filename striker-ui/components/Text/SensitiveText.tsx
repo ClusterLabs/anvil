@@ -1,10 +1,21 @@
 import { Box, styled } from '@mui/material';
-import { createElement, FC, useMemo, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import { BORDER_RADIUS, EERIE_BLACK } from '../../lib/consts/DEFAULT_THEME';
 
-import BodyText from './BodyText';
+import BodyText, { BodyTextProps } from './BodyText';
 import MonoText from './MonoText';
+import SmallText from './SmallText';
+
+const MAP_TO_WRAPPER_TYPE: Record<
+  string,
+  (<T extends BodyTextProps>(props: T) => React.ReactNode) | undefined
+> = {
+  body: (props) => <BodyText {...props} />,
+  mono: (props) => <MonoText {...props} />,
+  none: undefined,
+  small: (props) => <SmallText {...props} />,
+};
 
 const BaseStyle = styled(Box)({
   backgroundColor: EERIE_BLACK,
@@ -23,23 +34,21 @@ const BaseStyle = styled(Box)({
 
 const SensitiveText: FC<SensitiveTextProps> = ({
   children,
-  monospaced = false,
   revealInitially = false,
-  textProps,
+  wrapper = 'none',
+  wrapperProps,
 }) => {
   const [reveal, setReveal] = useState<boolean>(revealInitially);
 
-  const content = useMemo(() => {
-    if (typeof children !== 'string') return children;
+  const content = useMemo<React.ReactNode>(() => {
+    const cb = MAP_TO_WRAPPER_TYPE[wrapper];
 
-    const elementType = monospaced ? MonoText : BodyText;
-
-    return createElement(elementType, textProps, children);
-  }, [children, monospaced, textProps]);
+    return cb ? cb({ ...wrapperProps, children }) : children;
+  }, [children, wrapper, wrapperProps]);
 
   return (
     <BaseStyle
-      component="div"
+      component="span"
       onBlur={() => setReveal(false)}
       onFocus={() => setReveal(true)}
       tabIndex={0}

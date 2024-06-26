@@ -1,7 +1,9 @@
+type SensitiveTextWrapper = 'body' | 'mono' | 'none' | 'small';
+
 type SensitiveTextOptionalProps = {
-  monospaced?: boolean;
   revealInitially?: boolean;
-  textProps?: import('../components/Text').BodyTextProps;
+  wrapper?: SensitiveTextWrapper;
+  wrapperProps?: import('../components/Text').BodyTextProps;
 };
 
 type SensitiveTextProps = SensitiveTextOptionalProps;
