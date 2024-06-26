@@ -1,4 +1,4 @@
-import { Menu, MenuItem } from '@mui/material';
+import { Menu } from '@mui/material';
 import {
   forwardRef,
   useImperativeHandle,
@@ -98,11 +98,16 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       () => (
         <FlexBox>
           <List
-            scroll
+            allowItemButton
             listEmpty="No currently running and recently completed jobs."
             listItems={jobs}
             listProps={{
               sx: { maxHeight: JOB_LIST_LENGTH, width: JOB_LIST_LENGTH },
+            }}
+            onItemClick={({ uuid }) => {
+              setJobUuid(uuid);
+
+              detailDialogRef.current?.setOpen(true);
             }}
             renderListItem={(uuid, job) => {
               const { host, name, progress, started, title } = job;
@@ -120,32 +125,24 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
               }
 
               return (
-                <MenuItem
-                  onClick={() => {
-                    setJobUuid(uuid);
-
-                    detailDialogRef.current?.setOpen(true);
-                  }}
-                  sx={{ width: '100%' }}
-                >
-                  <FlexBox fullWidth spacing=".2em">
-                    <FlexBox row spacing=".5em">
-                      <PieProgress sx={{ flexShrink: 0 }} value={progress} />
-                      <BodyText
-                        sx={{
-                          overflowX: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {label}
-                      </BodyText>
-                    </FlexBox>
-                    <BodyText>{status}</BodyText>
+                <FlexBox fullWidth spacing=".2em">
+                  <FlexBox row spacing=".5em">
+                    <PieProgress sx={{ flexShrink: 0 }} value={progress} />
+                    <BodyText
+                      sx={{
+                        overflowX: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {label}
+                    </BodyText>
                   </FlexBox>
-                </MenuItem>
+                  <BodyText>{status}</BodyText>
+                </FlexBox>
               );
             }}
+            scroll
           />
         </FlexBox>
       ),
