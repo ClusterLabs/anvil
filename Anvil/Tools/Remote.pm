@@ -1245,7 +1245,8 @@ sub _check_known_hosts_for_target
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
 		
 		# Sometimes 'No route to host' is added to known_hosts. This fixes that.
-		if ($line =~ /No route to host/i)
+		if (($line =~ /No route to host/i) or 
+		    ($line =~ /getaddrinfo/))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0185", variables => { 
 				file => $known_hosts,
@@ -1383,7 +1384,7 @@ sub _check_known_hosts_for_target
 						new_key     => $host_key_string,
 					}});
 					$delete_if_found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { delete_if_found => $delete_if_found }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_if_found => $delete_if_found }});
 				}
 			}
 		}
