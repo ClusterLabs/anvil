@@ -52,4 +52,10 @@ const elapsed = (
   };
 };
 
-export { before, elapsed, last, now };
+const ago = (...args: Parameters<typeof elapsed>): string => {
+  const { value, unit } = elapsed(...args);
+
+  return `${value}${unit}`;
+};
+
+export { ago, before, elapsed, last, now };
