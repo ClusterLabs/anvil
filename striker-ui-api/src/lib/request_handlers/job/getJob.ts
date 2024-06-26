@@ -16,11 +16,8 @@ export const getJob: RequestHandler<
     query: { start: rStart, command: rCommand },
   } = request;
 
-  /**
-   * - Expects EPOCH in seconds
-   * - Fallback to `-1` because `0` is valid
-   */
-  const start = sanitize(rStart, 'number', { fallback: -1 });
+  // Expects EPOCH in secondsd
+  const start = sanitize(rStart, 'number');
   const jcmd = sanitize(rCommand, 'string', { modifierType: 'sql' });
 
   // Start with boundless value and replace when needed.
