@@ -60,11 +60,12 @@ const JobDetail: FC<JobDetailProps> = (props) => {
         const [id, data] = entry;
         const key = `data-${id}`;
 
-        const value = REP_LABEL_PASSW.test(data.name) ? (
-          <SensitiveText monospaced>{data.value}</SensitiveText>
-        ) : (
-          data.value
-        );
+        const value =
+          REP_LABEL_PASSW.test(data.name) && data.value.length > 0 ? (
+            <SensitiveText>{data.value}</SensitiveText>
+          ) : (
+            data.value
+          );
 
         return (
           <SmallText key={key} monospaced noWrap textOverflow="initial">
