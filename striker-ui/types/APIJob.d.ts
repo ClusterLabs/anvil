@@ -7,6 +7,7 @@ type APIJobOverview = {
     shortName: string;
     uuid: string;
   };
+  modified: number;
   name: string;
   progress: number;
   started: number;
@@ -25,7 +26,7 @@ type APIJobStatus = {
   value: string;
 };
 
-type APIJobDetail = JobOverview & {
+type APIJobDetail = APIJobOverview & {
   command: string;
   data: Record<string, APIJobData>;
   description: string;
