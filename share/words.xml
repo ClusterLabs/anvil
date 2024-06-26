@@ -2752,6 +2752,7 @@ new key: [#!variable!new_key!#]</key>
 		<key name="log_0856">Calling: [#!variable!shell_call!#] on: [#!variable!target!#] via a 'timeout' of: [#!variable!timeout!#] seconds.</key>
 		<key name="log_0857">Cleaning up the connection to the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0858">Disconnecting from the database on striker: [#!variable!uuid!#].</key>
+		<key name="log_0859"><![CDATA[Convert->to_seconds() was passed the invalid string: [#!variable!string!#]. The supported units are 'Xw', 'Xd', 'Xh', 'Xs' and bare numbers (interpreted as seconds). If the string has multiple units, the must be separated by spaces only.]]></key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

@@ -92,6 +92,12 @@ if ($anvil->data->{switches}{'job-uuid'})
 	});
 }
 
+# Make sure the update is sane.
+if ($anvil->data->{switches}{timeout})
+{
+	
+}
+
 # Update beginning. Verifying all known machines are accessible...
 $anvil->Job->update_progress({
 	'print'  => 1,

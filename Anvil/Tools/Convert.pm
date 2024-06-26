@@ -22,6 +22,7 @@ my $THIS_FILE = "Convert.pm";
 # host_name_to_ip
 # human_readable_to_bytes
 # to_ipmi_password
+# to_seconds
 # round
 # time
 
@@ -1271,6 +1272,104 @@ sub to_ipmi_password
 	
 	return($ipmi_password);
 }
+
+
+=head2 to_seconds
+
+This take a string that represents some measure of time, and convert it to a number of seconds. 
+
+If the passed in string is not recognized as a time to be parsed, the input is returned without change.
+
+Parameters;
+
+=head3 string (required)
+
+This is meant to be a string that represents a time. It supports C<< Xs >> for seconds, C<< Xm >> for minutes, C<< Xh >> for hours, C<< Xd >> for days and C<< Xw >> for weeks. The string can be a sequence of these, separated by spaces. If a raw number is given, it is assumed to be seconds.
+
+Valid examples; "C<< 3h 30m 10 >>" would return C<< 12610 >> (from C<< 10800 + 1800 + 10 >>
+
+=cut
+sub to_seconds
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Convert->to_seconds()" }});
+	
+	# Setup my numbers.
+	my $string = $parameter->{string} ? $parameter->{string} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		string => $string,
+	}});
+	
+	if (not $string)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0859", variables => { string => $string }});
+		return($string);
+	}
+	
+	my $time_in_seconds = 0;
+	foreach my $number (split/\s+/, $string)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { number => $number }});
+		
+		if ($number =~ /^(\d+)(\D+)/)
+		{
+			my $digit = $1;
+			my $unit  = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				digit => $digit,
+				unit  => $unit, 
+			}});
+			
+			if ($unit =~ /^w/)
+			{
+				$time_in_seconds += ($digit * 604800);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+			}
+			elsif ($unit =~ /^d/)
+			{
+				$time_in_seconds += ($digit * 86400);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+			}
+			elsif ($unit =~ /^h/)
+			{
+				$time_in_seconds += ($digit * 3600);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+			}
+			elsif ($unit =~ /^m/)
+			{
+				$time_in_seconds += ($digit * 60);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+			}
+			elsif ($unit =~ /^s/)
+			{
+				$time_in_seconds += $digit;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+			}
+		}
+		elsif ($number =~ /^(\d+)$/)
+		{
+			my $digit           =  $1;
+			   $time_in_seconds += $digit;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:digit'           => $digit,
+				's2:time_in_seconds' => $time_in_seconds, 
+			}});
+		}
+		else
+		{
+			# Invalid string.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0859", variables => { string => $string }});
+			return($string);
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { time_in_seconds => $time_in_seconds }});
+	return($time_in_seconds);
+}
+
 
 =head2 round
 
