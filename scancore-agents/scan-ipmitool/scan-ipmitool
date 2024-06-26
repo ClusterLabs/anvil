@@ -145,6 +145,25 @@ $anvil->data->{'scan-ipmitool'} = {
 		#	weight				=>	1,
 		#},
 		# ===========================================================================
+		# These are HP Proliant CPUs that constantly trigger live migrations unless overridden.
+		'49-CPU 1 PkgTmp'		=>	{
+			high_warning			=>	90,
+			high_critical			=>	95,
+			low_warning			=>	5,
+			low_critical			=>	0,
+			jump				=>	30,
+			buffer				=>	5,
+			weight				=>	1,
+		},
+		'50-CPU 2 PkgTmp'		=>	{
+			high_warning			=>	90,
+			high_critical			=>	95,
+			low_warning			=>	5,
+			low_critical			=>	0,
+			jump				=>	30,
+			buffer				=>	5,
+			weight				=>	1,
+		},
 		# CPUs tend to jump around wildly under sudden load, so we extend their jump
 		# range so we don't get spurious warnings all the time.
 		'CPU'				=>	{
