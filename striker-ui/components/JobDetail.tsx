@@ -43,7 +43,12 @@ const JobDetail: FC<JobDetailProps> = (props) => {
 
   const { data: job } = periodicFetch<APIJobDetail>(
     `${API_BASE_URL}/job/${uuid}`,
-    { refreshInterval },
+    {
+      onError: () => {
+        // Show error message
+      },
+      refreshInterval,
+    },
   );
 
   const nao = now();

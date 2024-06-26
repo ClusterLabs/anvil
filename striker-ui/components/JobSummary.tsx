@@ -1,9 +1,17 @@
 import { Menu, MenuItem } from '@mui/material';
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import {
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 
+import { DialogWithHeader } from './Dialog';
 import FlexBox from './FlexBox';
+import JobDetail from './JobDetail';
 import List from './List';
 import periodicFetch from '../lib/fetchers/periodicFetch';
 import PieProgress from './PieProgress';
@@ -51,7 +59,9 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     },
     ref,
   ) => {
-    const [jobs, setJobs] = useState<APIJobOverviewList>({});
+    const detailDialogRef = useRef<DialogForwardedRefContent>(null);
+
+    const [jobUuid, setJobUuid] = useState<string | undefined>();
     const [isOpenJobSummary, setIsOpenJobSummary] =
       useState<boolean>(openInitially);
     const [menuAnchorElement, setMenuAnchorElement] = useState<
@@ -62,17 +72,18 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     const loaded = useMemo(() => now(), []);
     const nao = now();
 
-    periodicFetch<APIJobOverviewList>(getJobUrl(loaded), {
-      onError: () => {
-        setJobs({});
+    const { data: jobs } = periodicFetch<APIJobOverviewList>(
+      getJobUrl(loaded),
+      {
+        onError: () => {
+          // Show error message
+        },
+        onSuccess: (rawAnvilJobs) => {
+          onFetchSuccessAppend?.call(null, rawAnvilJobs);
+        },
+        refreshInterval,
       },
-      onSuccess: (rawAnvilJobs) => {
-        setJobs(rawAnvilJobs);
-
-        onFetchSuccessAppend?.call(null, rawAnvilJobs);
-      },
-      refreshInterval,
-    });
+    );
 
     useImperativeHandle(
       ref,
@@ -93,7 +104,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
             listProps={{
               sx: { maxHeight: JOB_LIST_LENGTH, width: JOB_LIST_LENGTH },
             }}
-            renderListItem={(jobUuid, job) => {
+            renderListItem={(uuid, job) => {
               const { host, name, progress, started, title } = job;
               const { shortName: shortHostName } = host;
               const label = title || name;
@@ -109,7 +120,14 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
               }
 
               return (
-                <MenuItem sx={{ width: '100%' }}>
+                <MenuItem
+                  onClick={() => {
+                    setJobUuid(uuid);
+
+                    detailDialogRef.current?.setOpen(true);
+                  }}
+                  sx={{ width: '100%' }}
+                >
                   <FlexBox fullWidth spacing=".2em">
                     <FlexBox row spacing=".5em">
                       <PieProgress sx={{ flexShrink: 0 }} value={progress} />
@@ -135,17 +153,22 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     );
 
     return (
-      <Menu
-        anchorEl={menuAnchorElement}
-        onClose={() => {
-          setIsOpenJobSummary(false);
-          setMenuAnchorElement(undefined);
-        }}
-        open={isOpenJobSummary}
-        variant="menu"
-      >
-        {jobList}
-      </Menu>
+      <>
+        <Menu
+          anchorEl={menuAnchorElement}
+          onClose={() => {
+            setIsOpenJobSummary(false);
+            setMenuAnchorElement(undefined);
+          }}
+          open={isOpenJobSummary}
+          variant="menu"
+        >
+          {jobList}
+        </Menu>
+        <DialogWithHeader header="" ref={detailDialogRef} showClose wide>
+          {jobUuid && <JobDetail uuid={jobUuid} />}
+        </DialogWithHeader>
+      </>
     );
   },
 );
