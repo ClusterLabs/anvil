@@ -183,41 +183,39 @@ const JobDetail: FC<JobDetailProps> = (props) => {
             </FlexBox>
           </ExpandablePanel>
         </Grid>
-        {dataList?.length && (
-          <Grid item width="100%">
-            <ExpandablePanel
-              header={
-                <FlexBox fullWidth growFirst row>
-                  <BodyText>Data</BodyText>
-                  <IconButton
-                    iconProps={{ fontSize: 'small' }}
-                    mapPreset="copy"
-                    onClick={() => {
-                      const data = Object.values(job.data).reduce<string>(
-                        (previous, { name, value }) =>
-                          `${previous}${name}=${value}\n`,
-                        '',
-                      );
+        <Grid item width="100%">
+          <ExpandablePanel
+            header={
+              <FlexBox fullWidth growFirst row>
+                <BodyText>Data</BodyText>
+                <IconButton
+                  iconProps={{ fontSize: 'small' }}
+                  mapPreset="copy"
+                  onClick={() => {
+                    const data = Object.values(job.data).reduce<string>(
+                      (previous, { name, value }) =>
+                        `${previous}${name}=${value}\n`,
+                      '',
+                    );
 
-                      navigator.clipboard.writeText(data);
-                    }}
-                    size="small"
-                  />
-                </FlexBox>
-              }
-              panelProps={{ mb: 0, mt: 0 }}
-            >
-              <FlexBox
-                overflow="scroll"
-                paddingBottom=".8em"
-                spacing=".2em"
-                sx={{ '& > *': { width: 'max-content' } }}
-              >
-                {dataList}
+                    navigator.clipboard.writeText(data);
+                  }}
+                  size="small"
+                />
               </FlexBox>
-            </ExpandablePanel>
-          </Grid>
-        )}
+            }
+            panelProps={{ mb: 0, mt: 0 }}
+          >
+            <FlexBox
+              overflow="scroll"
+              paddingBottom=".8em"
+              spacing=".2em"
+              sx={{ '& > *': { width: 'max-content' } }}
+            >
+              {dataList}
+            </FlexBox>
+          </ExpandablePanel>
+        </Grid>
         <Grid item width="100%">
           <InnerPanel mb={0} mt={0}>
             <InnerPanelHeader>
