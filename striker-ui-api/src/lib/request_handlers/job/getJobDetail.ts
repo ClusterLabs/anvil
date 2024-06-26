@@ -5,6 +5,27 @@ import { getShortHostName } from '../../disassembleHostName';
 import { ResponseError } from '../../ResponseError';
 import { poutvar } from '../../shell';
 
+/**
+ * Removes empty elements from the start of the given string array.
+ * @param strings - string array
+ * @returns modifed string array
+ */
+const trimStart = (strings: string[]): string[] => {
+  let count = 0;
+
+  strings.some((string) => {
+    if (string.length > 0) return true;
+
+    count += 1;
+
+    return false;
+  });
+
+  strings.splice(0, count);
+
+  return strings;
+};
+
 export const getJobDetail: RequestHandler<
   JobParamsDictionary,
   JobDetail | ResponseErrorBody
@@ -82,7 +103,7 @@ export const getJobDetail: RequestHandler<
 
   const hostShortName = getShortHostName(hostName);
 
-  const dataLines = rData.split(/,|\n/);
+  const dataLines = trimStart(rData.split(/,|\n/));
   const data = dataLines.reduce<JobDetail['data']>((previous, entry, index) => {
     const [name, value] = entry.split(/=/);
 
@@ -96,8 +117,10 @@ export const getJobDetail: RequestHandler<
    *
    * grep -o '<key.*name="[^_]\+' words.xml | cut -c 12- | sort | uniq | paste -sd '|'
    */
-  const rStatusLines = rStatus.split(
-    /(?=(?:brand|email|error|file|header|job|log|message|name|ok|prefix|striker|suffix|t|title|type|unit|ups|warning)_\d{4,})/g,
+  const rStatusLines = trimStart(
+    rStatus.split(
+      /(?=(?:brand|email|error|file|header|job|log|message|name|ok|prefix|striker|suffix|t|title|type|unit|ups|warning)_\d{4,})/g,
+    ),
   );
   const promises = rStatusLines.map<Promise<JobStatus>>(async (line) => ({
     value: await translate(line.trim()),
