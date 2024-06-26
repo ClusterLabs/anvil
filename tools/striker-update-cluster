@@ -93,9 +93,14 @@ if ($anvil->data->{switches}{'job-uuid'})
 }
 
 # Make sure the update is sane.
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 if ($anvil->data->{switches}{timeout})
 {
-	
+	$anvil->data->{switches}{timeout} = $anvil->Convert->to_seconds({
+		debug  => 2,
+		string => $anvil->data->{switches}{timeout},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
 }
 
 # Update beginning. Verifying all known machines are accessible...
