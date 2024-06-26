@@ -462,6 +462,13 @@ sub call
 		{
 			$target = $new_target;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+			
+			# Verify that it's host key is OK.
+			my $known_machine = $anvil->Remote->_check_known_hosts_for_target({
+				debug  => $debug, 
+				target => $target, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { known_machine => $known_machine }});
 		}
 	}
 	
@@ -1202,7 +1209,7 @@ sub _check_known_hosts_for_target
 	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
 	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<);
 	my $known_machine   = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		delete_if_found => $delete_if_found,
 		known_hosts     => $known_hosts, 
 		port            => $port, 
@@ -1213,9 +1220,28 @@ sub _check_known_hosts_for_target
 	# Is there a known_hosts file at all?
 	if (not $known_hosts)
 	{
-		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0163", variables => { file => $known_hosts }});
-		return($known_machine)
+		# Can we divine it?
+		my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
+		if ($users_home)
+		{
+			$known_hosts = $users_home."/.ssh/known_hosts";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+		}
+		
+		if (not $known_hosts)
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+			return($known_machine);
+		}
+	}
+	
+	# Does the known_hosts file actually exist?
+	if (not -f $known_hosts)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+		return($known_machine);
 	}
 	
 	### NOTE: This is called by ocf:alteeve:server, so there might not be a database available.

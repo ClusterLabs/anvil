@@ -1078,6 +1078,7 @@ sub collect_data
 	# If we can access our peer or DR host, see what servers are running on them. We do no parsing or 
 	# processing of servers on other machines, we only care what servers are running.
 	my $peer_access = $anvil->Remote->test_access({
+		debug    => 2,
 		target   => $peer_name,
 		password => $password,
 	});
