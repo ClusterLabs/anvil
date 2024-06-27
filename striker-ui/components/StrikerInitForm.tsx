@@ -327,7 +327,7 @@ const StrikerInitForm: FC = () => {
         titleText="Confirm striker initialization"
       />
       <JobSummary
-        getJobUrl={(epoch) => `${API_BASE_URL}/init/job?start=${epoch}`}
+        getJobUrl={() => `${API_BASE_URL}/init/job`}
         onFetchSuccessAppend={(jobs) => {
           jobIconRef.current.indicate?.call(null, Object.keys(jobs).length > 0);
         }}

@@ -41,9 +41,7 @@ type JobSummaryForwardedRefContent = {
 const JOB_LIST_LENGTH = '20em';
 const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
-  // TODO: remove after debug
-  getJobUrl: () => `${API_BASE_URL}/job?start=0`,
-  // getJobUrl: (epoch) => `${API_BASE_URL}/job?start=${epoch}`,
+  getJobUrl: () => `${API_BASE_URL}/job`,
   onFetchSuccessAppend: undefined,
   openInitially: false,
   refreshInterval: 10000,
