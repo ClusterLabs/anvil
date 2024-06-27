@@ -381,6 +381,7 @@ sub update_nodes
 				my $drbd_up      = 0;
 				my $pacemaker_up = 0;
 				$anvil->DRBD->get_status({
+					debug  => 2,
 					host   => $short_host_name, 
 					target => $anvil->data->{peer}{$short_host_name}{access}{ip},
 				});
@@ -388,7 +389,6 @@ sub update_nodes
 				# How may resources are up?
 				my $resource_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_count => $resource_count }});
-				
 				if ($resource_count)
 				{
 					# DRBD is still up.
@@ -397,7 +397,7 @@ sub update_nodes
 				}
 				
 				# Is pacemaker down?
-				my $problem = $anvil->Cluster->parse_cib({target => $anvil->data->{peer}{$short_host_name}{access}{ip}});
+				my $problem = $anvil->Cluster->parse_cib({debug => 2, target => $anvil->data->{peer}{$short_host_name}{access}{ip}});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				
 				if (not $problem)
