@@ -1553,10 +1553,22 @@ sub time
 		translate => $translate, 
 	}});
 	
-	# If the 'time' is '--' or '-1', return silently.
-	if (($time eq "--") or ($time eq "-1"))
+	# If the 'time' is '--', return silently.
+	if ($time eq "--")
 	{
 		return($time);
+	}
+	
+	# Pull the sign off, if needed.
+	my $sign  = "";
+	if ($time =~ /^-(\d+)/)
+	{
+		$sign = "-";
+		$time = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			sign   => $sign,
+			'time' => $time,
+		}});
 	}
 	
 	# Remote commas and verify we're left with a number.
@@ -1569,6 +1581,7 @@ sub time
 	}
 	if ($time =~ /\D/)
 	{
+		$time = $sign.$time;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0294", variables => { 'time' => $time }});
 		return($time);
 	}
@@ -1667,6 +1680,8 @@ sub time
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	}
 	
+	# Restore the sign, if needed.
+	$say_time = $sign.$say_time;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_time => $say_time }});
 	return($say_time);
 }
