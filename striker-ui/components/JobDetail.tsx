@@ -16,6 +16,7 @@ import {
   InnerPanelHeader,
 } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
+import Pre from './Pre';
 import Spinner from './Spinner';
 import { BodyText, SensitiveText, SmallText } from './Text';
 import { ago, now } from '../lib/time';
@@ -76,26 +77,15 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     [job],
   );
 
-  const statusList = useMemo(
-    () =>
-      job &&
-      Object.entries(job.status).map((entry) => {
-        const [id, status] = entry;
-        const key = `status-${id}`;
+  const statusList = useMemo(() => {
+    if (!job) return undefined;
 
-        return (
-          <Grid columnGap=".2em" container item key={key}>
-            <Grid item>
-              <SmallText monospaced>&gt;</SmallText>
-            </Grid>
-            <Grid item xs>
-              <SmallText monospaced>{status.value}</SmallText>
-            </Grid>
-          </Grid>
-        );
-      }),
-    [job],
-  );
+    const content = Object.values(job.status)
+      .reduce<string>((previous, entry) => `${previous}${entry.value}\n\n`, '')
+      .trimEnd();
+
+    return <Pre>{content}</Pre>;
+  }, [job]);
 
   const startedReadable = useMemo(
     () => job && toReadableTimestamp(job.started),
@@ -222,9 +212,7 @@ const JobDetail: FC<JobDetailProps> = (props) => {
             <InnerPanelHeader>
               <BodyText>Status</BodyText>
             </InnerPanelHeader>
-            <InnerPanelBody>
-              <Grid container>{statusList}</Grid>
-            </InnerPanelBody>
+            <InnerPanelBody>{statusList}</InnerPanelBody>
           </InnerPanel>
         </Grid>
       </Grid>
