@@ -97,7 +97,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
         <FlexBox>
           <List
             allowItemButton
-            listEmpty="No currently running and recently completed jobs."
+            listEmpty="No running or recently completed jobs."
             listItems={jobs}
             listProps={{
               sx: { maxHeight: JOB_LIST_LENGTH, width: JOB_LIST_LENGTH },
