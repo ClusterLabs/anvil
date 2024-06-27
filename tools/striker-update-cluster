@@ -92,28 +92,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 	});
 }
 
-# Make sure the update is sane.
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
-if ($anvil->data->{switches}{timeout})
-{
-	$anvil->data->{sys}{timeout} = $anvil->Convert->to_seconds({
-		debug  => 2,
-		string => $anvil->data->{switches}{timeout},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
-	
-	if ((not $anvil->data->{sys}{timeout}) or ($anvil->data->{sys}{timeout} =~ /\D/))
-	{
-		print $anvil->Get->date_and_time({time_only => 1})."; The --timeout switch was used: [".$anvil->data->{switches}{timeout}."], but the value isn't valid. See Convert->to_seconds() for valid values.\n";
-		$anvil->nice_exit({exit_code => 1});
-	}
-}
-else
-{
-	$anvil->data->{sys}{timeout} = 86400;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
-}
-
 # Update beginning. Verifying all known machines are accessible...
 $anvil->Job->update_progress({
 	'print'  => 1,
@@ -210,6 +188,43 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# For some unknown reason, 'sys::timeout' gets periodically blanked and 'switches::timeout' resets. This
+# function ensures a sensible timeout is returned.
+sub return_timeout
+{
+	my ($anvil) = @_;
+	
+	if ($anvil->data->{sys}{timeout})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
+		return($anvil->data->{sys}{timeout})
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::timeout" => $anvil->data->{switches}{timeout} }});
+	if ($anvil->data->{switches}{timeout})
+	{
+		$anvil->data->{sys}{timeout} = $anvil->Convert->to_seconds({
+			debug  => 2,
+			string => $anvil->data->{switches}{timeout},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
+		
+		if ((not $anvil->data->{sys}{timeout}) or ($anvil->data->{sys}{timeout} =~ /\D/))
+		{
+			print $anvil->Get->date_and_time({time_only => 1})."; The --timeout switch was used: [".$anvil->data->{switches}{timeout}."], but the value isn't valid. See Convert->to_seconds() for valid values.\n";
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		$anvil->data->{sys}{timeout} = 86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "sys::timeout" => $anvil->data->{sys}{timeout} }});
+	return($anvil->data->{sys}{timeout});
+}
 
 sub update_nodes
 {
@@ -353,7 +368,7 @@ sub update_nodes
 			
 			# Now wait for DRBD resources to stop (which requires VMs be off).
 			print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
-			my $wait_until = time + $anvil->data->{sys}{timeout};
+			my $wait_until = time + return_timeout($anvil);
 			my $next_log   = time + 60;
 			my $waiting    = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -504,7 +519,7 @@ sub update_nodes
 			}});
 			
 			# Verify that the node is no longer in the cluster.
-			$wait_until = time + $anvil->data->{sys}{timeout};
+			$wait_until = time + return_timeout($anvil);
 			$waiting    = 1;
 			$next_log   = time + 60;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -589,7 +604,7 @@ sub update_nodes
 			# Wait for the node to rejoin the cluster. As before, this is a time 
 			# unrestricted wait loop.
 			print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for the subnode to rejoin the node.\n";
-			   $wait_until   = time + $anvil->data->{sys}{timeout};
+			   $wait_until   = time + return_timeout($anvil);
 			   $waiting      = 1;
 			my $start_called = 0; 
 			   $next_log     = time + 60;
@@ -987,7 +1002,7 @@ sub update_strikers_and_dr
 					
 					# Now wait for DRBD resources to stop (which requires VMs be off).
 					print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
-					my $wait_until = time + $anvil->data->{sys}{timeout};
+					my $wait_until = time + return_timeout($anvil);
 					my $next_log   = time + 60;
 					my $waiting    = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1100,7 +1115,7 @@ sub update_strikers_and_dr
 				}});
 				
 				# Verify / wait until the update is done.
-				my $wait_until = time + $anvil->data->{sys}{timeout};
+				my $wait_until = time + return_timeout($anvil);
 				my $waiting    = 1;
 				my $next_log   = time + 60;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
@@ -1231,7 +1246,7 @@ sub wait_for_reboot
 	print $anvil->Get->date_and_time({time_only => 1})."; - The target has been rebooted. We'll wait for the target to come back online.\n";
 	
 	# This is an infinite loop, there is no timeout for this.
-	my $wait_until = time + $anvil->data->{sys}{timeout};
+	my $wait_until = time + return_timeout($anvil);
 	my $waiting    = 1;
 	my $next_log   = time + 60;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
