@@ -123,7 +123,8 @@ export const getJobDetail: RequestHandler<
     ),
   );
   const promises = rStatusLines.map<Promise<JobStatus>>(async (line) => ({
-    value: await translate(line.trim()),
+    // Escape newlines before translating to avoid squashing a multi-line entry.
+    value: await translate(line.replace(/\n/g, '\\n')),
   }));
   const statusLines = await Promise.all(promises);
   const status = statusLines.reduce<JobDetail['status']>(
