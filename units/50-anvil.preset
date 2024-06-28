@@ -1,0 +1,17 @@
+#####
+# core package services
+#####
+enable anvil-daemon.service
+enable anvil-monitor-daemons.service
+enable anvil-monitor-network.service
+enable anvil-monitor-performance.service
+enable scancore.service
+# services not provided by core
+enable chronyd.service
+enable firewalld.service
+enable gdm.service
+
+#####
+# striker package services
+#####
+enable striker-ui-api.service
