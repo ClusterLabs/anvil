@@ -5299,6 +5299,13 @@ FROM
 		}});
 		next if $host_key eq "DELETED";
 		
+		# If the PV is deleted, appeand to pv_uuid to the key to make sure two or more DELETED 
+		# entries don't clobber each other.
+		if ($scan_lvm_pv_name eq "DELETED")
+		{
+			$scan_lvm_pv_name .= ":pv_uuid=".$scan_lvm_pv_uuid;
+		}
+		
 		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_uuid}          = $scan_lvm_pv_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_internal_uuid} = $scan_lvm_pv_internal_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{pv}{$scan_lvm_pv_name}{scan_lvm_pv_used_by_vg}    = $scan_lvm_pv_used_by_vg;
@@ -5369,6 +5376,13 @@ FROM
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { storage_group_uuid => $storage_group_uuid }});
 		
+		# If the VG is deleted, appeand to vg_uuid to the key to make sure two or more DELETED 
+		# entries don't clobber each other.
+		if ($scan_lvm_vg_name eq "DELETED")
+		{
+			$scan_lvm_vg_name .= ":vg_uuid=".$scan_lvm_vg_uuid;
+		}
+		
 		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_uuid}          = $scan_lvm_vg_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid} = $scan_lvm_vg_internal_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_attributes}    = $scan_lvm_vg_attributes;
@@ -5384,6 +5398,14 @@ FROM
 			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_size"          => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size}}).")", 
 			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::scan_lvm_vg_free"          => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_free}}).")", 
 			"lvm::host_name::${short_host_name}::vg::${scan_lvm_vg_name}::storage_group_uuid"        => $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid}, 
+		}});
+		
+		# Make it easier to look up by internal UUID
+		$anvil->data->{lvm}{vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name} = $scan_lvm_vg_name;
+		$anvil->data->{lvm}{vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid} = $scan_lvm_vg_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"lvm::vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_name" => $anvil->data->{lvm}{vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_name}, 
+			"lvm::vg_internal_uuid::${scan_lvm_vg_internal_uuid}::scan_lvm_vg_uuid" => $anvil->data->{lvm}{vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_uuid}, 
 		}});
 	}
 	
@@ -5435,6 +5457,13 @@ FROM
 			short_host_name           => $short_host_name,
 		}});
 		
+		# If the LV is deleted, appeand to lv_uuid to the key to make sure two or more DELETED 
+		# entries don't clobber each other.
+		if ($scan_lvm_lv_name eq "DELETED")
+		{
+			$scan_lvm_lv_name .= ":lv_uuid=".$scan_lvm_lv_uuid;
+		}
+		
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_uuid}          = $scan_lvm_lv_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_internal_uuid} = $scan_lvm_lv_internal_uuid;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_attributes}    = $scan_lvm_lv_attributes;
@@ -5443,6 +5472,7 @@ FROM
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}          = $scan_lvm_lv_path;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}        = $scan_lvm_lv_on_pvs;
 		$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$scan_lvm_lv_path}{scan_lvm_lv_name}     = $scan_lvm_lv_name;
+		$anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$scan_lvm_lv_path}{scan_lvm_lv_uuid}     = $scan_lvm_lv_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_uuid"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_uuid}, 
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_internal_uuid" => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_internal_uuid}, 
@@ -5452,6 +5482,7 @@ FROM
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_path"          => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_path}, 
 			"lvm::host_name::${short_host_name}::lv::${scan_lvm_lv_name}::scan_lvm_lv_on_pvs"        => $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_pvs}, 
 			"lvm::host_name::${short_host_name}::lv_path::${scan_lvm_lv_path}::scan_lvm_lv_name"     => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$scan_lvm_lv_path}{scan_lvm_lv_name},
+			"lvm::host_name::${short_host_name}::lv_path::${scan_lvm_lv_path}::scan_lvm_lv_uuid"     => $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$scan_lvm_lv_path}{scan_lvm_lv_uuid},
 		}});
 	}
 	
@@ -6464,6 +6495,13 @@ WHERE
 					vg_name                   => $vg_name, 
 					host_type                 => $host_type, 
 				}});
+				
+				if ($vg_name eq "DELETED")
+				{
+					# The volume group is gone. It could be a lost node being rebuilt. In
+					# any case, can can't use it.
+					next;
+				}
 				
 				if ($vg_size > $size_to_match)
 				{

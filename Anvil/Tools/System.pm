@@ -3984,11 +3984,29 @@ sub manage_authorized_keys
 	
 	if (not $users)
 	{
-		$users = $anvil->Striker->get_host_type eq "node" ? "root,admin,hacluster" : "root,admin";
+		$users = $anvil->Get->host_type eq "node" ? "root,admin,hacluster" : "root,admin";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => $users }});
 	}
 	
-	
+	foreach my $user (split/,/, $users)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
+		
+		# Read in the known_hosts files.
+		my $home_directory       = $anvil->Get->users_home({debug => 3, user => $user});
+		my $authorized_keys_file = $home_directory."/.ssh/authorized_keys";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			home_directory       => $home_directory, 
+			authorized_keys_file => $authorized_keys_file, 
+		}});
+		next if not -f $authorized_keys_file;
+		
+		my $old_authorized_keys_body = $anvil->Storage->read_file({
+			debug => 3, 
+			file  => $authorized_keys_file,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_authorized_keys_body => $old_authorized_keys_body }});
+	}
 	
 	return(0);
 }

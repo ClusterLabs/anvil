@@ -320,6 +320,9 @@ sub reconfigure_network
 		type          => $type, 
 	}});
 	
+	# We'll set this to '1' if we reconfigure the network
+	$anvil->data->{sys}{reboot} = 0;
+	
 	# If we're configuring a dashboard and no host name was given, generate it.
 	if (($type eq "striker") && (not $new_host_name))
 	{
@@ -352,44 +355,63 @@ sub reconfigure_network
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { pretty_host_name => $pretty_host_name }});
 		}
 		
-		# Set the host_name
-		my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			host_name             => $host_name,
-			descriptive_host_name => $descriptive_host_name, 
+		### NOTE: We check the current host 
+		# Update the hostname, if needed.
+		my $environment_hostname = $ENV{HOSTNAME}; 
+		my $system_hostname      = $anvil->Get->host_name({refresh => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:new_host_name"        => $new_host_name, 
+			"s2:environment_hostname" => $environment_hostname,
+			"s3:system_hostname"      => $system_hostname, 
 		}});
-		if ($host_name eq $new_host_name)
+		
+		if (($new_host_name ne $system_hostname) or ($new_host_name ne $environment_hostname))
 		{
-			# Success
-			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 5}), 
-				message   => "message_0016", 
-				job_uuid  => $anvil->data->{job}{uuid},
-				'print'   => 1,
-				log_level => 1,
-				file      => $THIS_FILE, 
-				line      => __LINE__,
-				variables => { host_name => $new_host_name },
-			});
-		}
-		else
-		{
-			# Failed
-			$anvil->Job->update_progress({
-				progress   => 100, 
-				message    => "message_0017", 
-				job_uuid   => $anvil->data->{job}{uuid},
-				'print'    => 1,
-				log_level  => 1,
-				file       => $THIS_FILE, 
-				line       => __LINE__,
-				job_status => "failed", 
-				variables  => {
-					host_name     => $new_host_name,
-					bad_host_name => $host_name,
-				},
-			});
-			$anvil->nice_exit({exit_code => 4});
+			# Update the hostname and mark a reboot required. We must have all cached hostnames 
+			# updated before joining pacemaker, and the safest option to ensure that is a reboot.
+			my ($host_name, $descriptive_host_name) = $anvil->System->host_name({set => $new_host_name, pretty => $pretty_host_name});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				host_name             => $host_name,
+				descriptive_host_name => $descriptive_host_name, 
+			}});
+			if ($host_name eq $new_host_name)
+			{
+				# Success
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 5}), 
+					message   => "message_0016", 
+					job_uuid  => $anvil->data->{job}{uuid},
+					'print'   => 1,
+					log_level => 1,
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					variables => { host_name => $new_host_name },
+				});
+			}
+			else
+			{
+				# Failed
+				$anvil->Job->update_progress({
+					progress   => 100, 
+					message    => "message_0017", 
+					job_uuid   => $anvil->data->{job}{uuid},
+					'print'    => 1,
+					log_level  => 1,
+					file       => $THIS_FILE, 
+					line       => __LINE__,
+					job_status => "failed", 
+					variables  => {
+						host_name     => $new_host_name,
+						bad_host_name => $host_name,
+					},
+				});
+				$anvil->nice_exit({exit_code => 4});
+			}
+			
+			$anvil->data->{sys}{reboot} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+				"sys::reboot" => $anvil->data->{sys}{reboot}, 
+			}});
 		}
 	}
 	
@@ -510,9 +532,6 @@ ORDER BY
 			}
 		}
 	}
-	
-	# We'll set this to '1' if we reconfigure the network
-	$anvil->data->{sys}{reboot} = 0;
 	
 	# Read the existing network data 
 	$anvil->Network->collect_data({debug => 2, start => 1});

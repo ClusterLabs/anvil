@@ -1766,6 +1766,12 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0483">The peer's hostname is: [#!variable!peer_name!#], proceeding.</key>
 		<key name="job_0484">The peer's hostname is currently: [#!variable!old_peer_name!#], waiting for it to be changed to: [#!variable!peer_name!#]... Will check again shortly.</key>
 		<key name="job_0485">The corosync authkey file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
+		<key name="job_0486">Cluster hasn't started, will check is re-auth is needed.</key>
+		<key name="job_0487">Authorization via 'pcsd' failed, attempting to re-auth.</key>
+		<key name="job_0488">
+[ Note ] - The host name was updated. The hostname is cached in several place, and it is important all are updated during the cluster config.
+[ Note ]   *** the system will now reboot. ***
+[ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2746,6 +2752,7 @@ new key: [#!variable!new_key!#]</key>
 		<key name="log_0856">Calling: [#!variable!shell_call!#] on: [#!variable!target!#] via a 'timeout' of: [#!variable!timeout!#] seconds.</key>
 		<key name="log_0857">Cleaning up the connection to the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0858">Disconnecting from the database on striker: [#!variable!uuid!#].</key>
+		<key name="log_0859"><![CDATA[Convert->to_seconds() was passed the invalid string: [#!variable!string!#]. The supported units are 'Xw', 'Xd', 'Xh', 'Xs' and bare numbers (interpreted as seconds). If the string has multiple units, the must be separated by spaces only.]]></key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -4214,6 +4221,13 @@ We will try to proceed anyway.</key>
 		<key name="warning_0182">[ Warning ] - We appear to have lost access to the database: [#!variable!uuid!#], during the write: [#!variable!query!#]. Skipping this database.</key>
 		<key name="warning_0183">[ Warning ] - We were asked to thoroughly check if this host is configured or not, but there are no records in the 'variables' table for this host. Unable to check the network config! Relying on the 'system::configured' value.</key>
 		<key name="warning_0184">[ Warning ] - We were asked to thoroughly check if this host is configured or not, and the interface: [#!variable!interface!#] doesn't exist! Marking this host as unconfigured!</key>
+		<key name="warning_0185">[ Warning ] - The known_hosts file: [#!variable!file!#] has the bad line: [#!variable!line!#]. Removing it!</key>
+		<key name="warning_0186">[ Warning ] - The known_hosts file: [#!variable!file!#] has a duplicate entry for the target host: [#!variable!target_host!#] using the algorithm: [#!variable!algorithm!#]!. Removing it!</key>
+		<key name="warning_0187">[ Warning ] - The known_hosts file: [#!variable!file!#] has a duplicate entry for the target host: [#!variable!target_host!#] using the algorithm: [#!variable!algorithm!#]!.
+The initial key is: ... [#!variable!old_key!#]
+The subsequence key is: [#!variable!key!#]
+The older key will be preserved and the subsequent keys will be removed.
+</key>
 		
 	</language>
 	<!-- 日本語 -->

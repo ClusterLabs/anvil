@@ -96,7 +96,7 @@ Note: If this is a Storage Network directly connected to the peer, and the peer 
 - Data Received: ... [#!variable!say_rx!#]
 </key>
 		<key name="scan_network_alert_0030">The network interface: [#!variable!name!#] is now a member of the bond: [#!variable!new!#].</key>
-		<key name="scan_network_alert_0031">The network interface: [#!variable!name!#] is no longer a member of the bond: [#!variable!new!#].</key>
+		<key name="scan_network_alert_0031">The network interface: [#!variable!name!#] is no longer a member of the bond: [#!variable!old!#].</key>
 		<key name="scan_network_alert_0032">The network interface: [#!variable!name!#] is has moved from the bond: [#!variable!old!#] to: [#!variable!new!#].</key>
 		<key name="scan_network_alert_0033">The network interface: [#!variable!name!#] is now connected to the bridge: [#!variable!new!#].</key>
 		<key name="scan_network_alert_0034">The network interface: [#!variable!name!#] is no longer connected to the bridge: [#!variable!new!#].</key>

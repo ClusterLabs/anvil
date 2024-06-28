@@ -462,6 +462,13 @@ sub call
 		{
 			$target = $new_target;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target => $target }});
+			
+			# Verify that it's host key is OK.
+			my $known_machine = $anvil->Remote->_check_known_hosts_for_target({
+				debug  => $debug, 
+				target => $target, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { known_machine => $known_machine }});
 		}
 	}
 	
@@ -1202,7 +1209,7 @@ sub _check_known_hosts_for_target
 	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
 	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<);
 	my $known_machine   = 0;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		delete_if_found => $delete_if_found,
 		known_hosts     => $known_hosts, 
 		port            => $port, 
@@ -1213,9 +1220,28 @@ sub _check_known_hosts_for_target
 	# Is there a known_hosts file at all?
 	if (not $known_hosts)
 	{
-		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0163", variables => { file => $known_hosts }});
-		return($known_machine)
+		# Can we divine it?
+		my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
+		if ($users_home)
+		{
+			$known_hosts = $users_home."/.ssh/known_hosts";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+		}
+		
+		if (not $known_hosts)
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+			return($known_machine);
+		}
+	}
+	
+	# Does the known_hosts file actually exist?
+	if (not -f $known_hosts)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+		return($known_machine);
 	}
 	
 	### NOTE: This is called by ocf:alteeve:server, so there might not be a database available.
@@ -1225,12 +1251,88 @@ sub _check_known_hosts_for_target
 		$anvil->Database->get_hosts({debug => $debug});
 	}
 	
+	if (exists $anvil->data->{duplicate_keys})
+	{
+		delete $anvil->data->{duplicate_keys};
+	}
+	
 	# read it in and search.
-	my $body = $anvil->Storage->read_file({debug => $debug, file => $known_hosts});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { body => $body }});
-	foreach my $line (split/\n/, $body)
+	my $bad_line = 0;
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({
+		debug      => $debug, 
+		file       => $known_hosts,
+		cache      => 0, 
+		force_read => 1,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { old_body => $old_body }});
+	foreach my $line (split/\n/, $old_body)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
+		
+		# Sometimes 'No route to host' is added to known_hosts. This fixes that.
+		if (($line =~ /No route to host/i) or 
+		    ($line =~ /getaddrinfo/))
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0185", variables => { 
+				file => $known_hosts,
+				line => $line,
+			}});
+			$bad_line = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { bad_line => $bad_line }});
+			next;
+		}
+		
+		# Watch for duplicate entries.
+		if ($line =~ /^(.*?) (.*?) (.*)$/)
+		{
+			my $target_host = $1;
+			my $algorithm   = $2;
+			my $key         = $3;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:target_host' => $target_host,
+				's2:algorithm'   => $algorithm, 
+				's3:key'         => $key,
+			}});
+			
+			if (not exists $anvil->data->{duplicate_keys}{$target_host}{$algorithm})
+			{
+				$anvil->data->{duplicate_keys}{$target_host}{$algorithm} = $key;
+			}
+			else
+			{
+				# Duplicate! Same key?
+				my $old_key  = $anvil->data->{duplicate_keys}{$target_host}{$algorithm};
+				   $bad_line = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					old_key  => $old_key,
+					bad_line => $bad_line, 
+				}});
+				
+				if ($old_key eq $key)
+				{
+					# Simple duplicate, delete it.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0186", variables => { 
+						file        => $known_hosts,
+						target_host => $target_host,
+						algorithm   => $algorithm,
+					}});
+				}
+				else
+				{
+					# Tke keys differ, Delete the subsequent keys and the earlier ones are more trust-worthy
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0187", variables => { 
+						file        => $known_hosts,
+						target_host => $target_host,
+						algorithm   => $algorithm,
+						old_key     => $old_key, 
+						key         => $key,
+					}});
+				}
+				next;
+			}
+		}
+		$new_body .= $line."\n";
 		
 		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'
 		if (($line =~ /$target (.*)$/) or ($line =~ /\[$target\]:$port (.*)$/))
@@ -1308,10 +1410,39 @@ sub _check_known_hosts_for_target
 						new_key     => $host_key_string,
 					}});
 					$delete_if_found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { delete_if_found => $delete_if_found }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_if_found => $delete_if_found }});
 				}
 			}
 		}
+	}
+	
+	# If there was a bad line, write out the fixed body first.
+	if ($bad_line)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+		
+		# Read the stat of the known_hosts file.
+		$anvil->Storage->get_file_stats({debug => $debug, file_path => $known_hosts});
+		my $unix_mode  = $anvil->data->{file_stat}{$known_hosts}{unix_mode};
+		my $user_name  = $anvil->data->{file_stat}{$known_hosts}{user_name};
+		my $group_name = $anvil->data->{file_stat}{$known_hosts}{group_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:known_hosts' => $known_hosts, 
+			's2:unix_mode'   => $unix_mode, 
+			's3:user_name'   => $user_name, 
+			's4:group_name'  => $group_name, 
+		}});
+		
+		$anvil->Storage->write_file({
+			debug     => $debug, 
+			file      => $known_hosts, 
+			body      => $new_body, 
+			backup    => 1, 
+			overwrite => 1, 
+			mode      => $unix_mode, 
+			user      => $user_name, 
+			group     => $group_name, 
+		})
 	}
 	
 	# If we know of this machine and we've been asked to remove it, do so.

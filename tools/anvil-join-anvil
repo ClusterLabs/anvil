@@ -40,6 +40,7 @@ my $anvil = Anvil::Tools->new();
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->Get->switches({list => [
 	"as-machine", 
+	"auto-grow-pv", 
 	"join", 
 	"manifest", 
 	"rejoin", 
@@ -59,7 +60,7 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # If there isn't a job UUID, see if the user is asking to rejoin this subnode to a cluster.
-if ($anvil->data->{switches}{rejoin})
+if (($anvil->data->{switches}{rejoin}) && (not $anvil->data->{switches}{'job-uuid'}))
 {
 	process_rejoin($anvil);
 	$anvil->nice_exit({exit_code => 0});
@@ -67,6 +68,13 @@ if ($anvil->data->{switches}{rejoin})
 
 # Get the job details
 load_job($anvil);
+
+# Did the user ask to check for free space?
+if ($anvil->data->{switches}{'auto-grow-pv'})
+{
+	print "[ Note ] - Checking for useful free space after any LVM physical volumes.\n";
+	$anvil->Storage->auto_grow_pv({debug => 2});
+}
 
 # Hold until both subnodes are marked as configured and not in maintenance mode.
 wait_for_subnodes($anvil);
@@ -89,6 +97,9 @@ configure_pacemaker($anvil);
 
 # Configure DRBD
 configure_drbd($anvil);
+
+# If we're rejoining, add missing servers.
+configure_servers($anvil);
 
 # Enable anvil-safe-start
 if (1)
@@ -120,12 +131,611 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+# This looks for servers to add.
+sub configure_servers
+{
+	my ($anvil) = @_;
+	
+	# Are we in the cluster? Can't resync a server until we and our peer are.
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $host_uuid       = $anvil->Get->host_uuid;
+	my $problem         = $anvil->Cluster->parse_cib({debug => 3});
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:short_host_name' => $short_host_name, 
+		's2:host_uuid'       => $host_uuid, 
+		's3:problem'         => $problem,
+		's4:anvil_uuid'      => $anvil_uuid,
+	}});
+	
+	# Is our peer offline? If it's online, do nothing
+	if (($problem) or (not $anvil->data->{cib}{parsed}{'local'}{ready}))
+	{
+		print __LINE__.": We can't sync missing servers until we're in the cluster.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not $anvil->data->{cib}{parsed}{peer}{ready})
+	{
+		print __LINE__.": The peer is not (fully) in the cluster yet. Please wait until it is.\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# How shall I connect to my peer?
+	my $peer_name            = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $peer_name});
+	my $peer_target_ip       = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
+	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:peer_name'            => $peer_name, 
+		's2:peer_host_uuid'       => $peer_host_uuid, 
+		's3:peer_target_ip'       => $peer_target_ip, 
+		's4:peer_short_host_name' => $peer_short_host_name, 
+	}});
+	
+	# Make sure LVM data is up to date.
+	print __LINE__.": Running scan-lvm prior to checking Storage Groups.\n";
+	$anvil->ScanCore->call_scan_agents({debug => 2, agent => "scan-lvm"});
+	
+	# Look to see if our VG(s) have changed from what's in the storage groups.
+	$anvil->Database->get_lvm_data({debug => 3});
+	$anvil->Database->get_storage_group_data({debug => 3});
+	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+	{
+		my $storage_group_uuid        = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+		my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_uuid};
+		my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
+		my $vg_size                   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size};
+		my $peer_vg_size              = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$peer_host_uuid}{vg_size};
+		my $storage_group_member_note = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:storage_group_name'        => $storage_group_name, 
+			's2:storage_group_uuid'        => $storage_group_uuid, 
+			's3:storage_group_member_uuid' => $storage_group_member_uuid, 
+			's4:vg_internal_uuid'          => $vg_internal_uuid, 
+			's5:vg_size'                   => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")",
+			's6:peer_vg_size'              => $peer_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_vg_size}).")", 
+			's7:storage_group_member_note' => $storage_group_member_note, 
+		}});
+		
+		my $vg_found = 0;
+		foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{vg}})
+		{
+			next if $scan_lvm_vg_name eq "DELETED";
+			my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
+			my $scan_lvm_vg_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size};
+			my $this_storage_group_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:scan_lvm_vg_name'          => $scan_lvm_vg_name, 
+				's2:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+				's3:scan_lvm_vg_size'          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+				's4:this_storage_group_uuid'   => $this_storage_group_uuid, 
+			}});
+			
+			if ($vg_internal_uuid eq $scan_lvm_vg_internal_uuid)
+			{
+				# It's probably been marked as DELETED, so we need to find a replacement. 
+				if ($scan_lvm_vg_name =~ /DELETED:vg_uuid=(.*)$/)
+				{
+					my $vg_uuid = $1;
+					print __LINE__.": The VG with the ScanCore UUID: [".$vg_uuid."] was in the SG: [".$storage_group_name."], but is now deleted.\n";
+					print __LINE__.": Will now try to find a replacement...\n";
+				}
+				else
+				{
+					print __LINE__.": The VG: [".$scan_lvm_vg_name."] is in the SG: [".$storage_group_name."], good.\n";
+					$vg_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vg_found => $vg_found }});
+					last;
+				}
+			}
+		}
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vg_found => $vg_found }});
+		if (not $vg_found)
+		{
+			print __LINE__.": The volume group: [".$vg_internal_uuid."] that was in the storage group: [".$storage_group_name."] no longer exists.\n";
+			print __LINE__.": [ Note ] - Checking for a replacement VG now.\n";
+			print __LINE__.": [ Suggestion ] - You may need to run 'anvil-manage-host --auto-grow-pv' if this is a rebuilt sub node!\n";
+			my $closest_size             = 0;
+			my $closest_vg_uuid          = "";
+			my $closest_vg_name          = "";
+			my $closest_vg_internal_uuid = "";
+			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{vg}})
+			{
+				next if $scan_lvm_vg_name eq "DELETED";
+				my $scan_lvm_vg_uuid          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_uuid};
+				my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
+				my $scan_lvm_vg_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size};
+				my $this_storage_group_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid};
+				next if $this_storage_group_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:scan_lvm_vg_name'          => $scan_lvm_vg_name, 
+					's2:scan_lvm_vg_uuid'          => $scan_lvm_vg_uuid, 
+					's3:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+					's4:scan_lvm_vg_size'          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+					's5:this_storage_group_uuid'   => $this_storage_group_uuid, 
+				}});
+				
+				if (($scan_lvm_vg_size >= $peer_vg_size) && ((not $closest_size) or ($scan_lvm_vg_size < $closest_size)))
+				{
+					$closest_size             = $scan_lvm_vg_size;
+					$closest_vg_uuid          = $scan_lvm_vg_uuid;
+					$closest_vg_name          = $scan_lvm_vg_name;
+					$closest_vg_internal_uuid = $scan_lvm_vg_internal_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:closest_size'             => $closest_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size}).")", 
+						's2:closest_vg_uuid'          => $closest_vg_uuid, 
+						's3:closest_vg_name'          => $closest_vg_name, 
+						's4:closest_vg_internal_uuid' => $closest_vg_internal_uuid, 
+					}});
+				}
+			}
+			
+			if ($closest_vg_name)
+			{
+				# Found the closest match.
+				my $difference = $peer_vg_size - $closest_size;
+				if (not $difference)
+				{
+					print __LINE__.": The VG: [".$closest_vg_name."] is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size})."], exactly matching our peer's VG size.\n";
+				}
+				else
+				{
+					print __LINE__.": The VG: [".$closest_vg_name."] is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $closest_size})."], and the peer's VG size is: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_vg_size})."] (we're: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference})."] smaller)\n";
+				}
+				print __LINE__.": Updating the storage group: [".$storage_group_name."] to use this VG instead.\n";
+				$anvil->Database->insert_or_update_storage_group_members({
+					debug                                   => 2,
+					storage_group_member_uuid               => $storage_group_member_uuid,
+					storage_group_member_note               => "auto-replaced",
+					storage_group_member_storage_group_uuid => $storage_group_uuid,
+					storage_group_member_host_uuid          => $host_uuid, 
+					storage_group_member_vg_uuid            => $closest_vg_internal_uuid, 
+				});
+				
+				# Refesh
+				$anvil->Database->get_storage_group_data({debug => 3});
+			}
+			else
+			{
+				print __LINE__.": [ Error ] - No local VGs exist to use in this Storage Group!\n";
+				print __LINE__.": [ Error ]   Unable to proceed.\n";
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+	}
+	
+	# Walk through the resources and any we find, see if they need to be sync'ed.
+	$anvil->Database->get_servers({debug => 3});
+	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		my $status  = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		my $active  = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
+		my $blocked = $anvil->data->{cib}{parsed}{data}{server}{$server}{blocked};
+		my $failed  = $anvil->data->{cib}{parsed}{data}{server}{$server}{failed};
+		my $role    = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server'  => $server, 
+			's2:status'  => $status, 
+			's3:active'  => $active, 
+			's4:blocked' => $blocked,
+			's5:failed'  => $failed, 
+			's6:role'    => $role, 
+		}});
+		
+		my $server_uuid = $anvil->Get->server_uuid_from_name({
+			anvil_uuid  => $anvil_uuid,
+			server_name => $server, 
+		});
+		my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_uuid'       => $server_uuid,
+			's2:server_definition' => $server_definition, 
+		}});
+		$anvil->Server->parse_definition({
+			debug      => 3,
+			host       => $short_host_name,
+			server     => $server, 
+			source     => "from_db",
+			definition => $server_definition, 
+		});
+		
+		# Do we have the DRBD resource file?
+		my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$server.".res";
+		   $drbd_res_file =~ s/\/\//\//g;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+		
+		my $drbd_res_body = "";
+		if (not -f $drbd_res_file)
+		{
+			# Try copying it from the peer.
+			print __LINE__.": The DRBD resource file: [".$drbd_res_file."] was not found, copying it from the peer: [".$peer_name."]\n";
+			$drbd_res_body = $anvil->Storage->read_file({
+				file   => $drbd_res_file, 
+				target => $peer_target_ip, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+			
+			if (($drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+			{
+				# Write it out.
+				print __LINE__.": The DRBD resource file was found, saving it locally.\n";
+				$anvil->Storage->write_file({
+					file  => $drbd_res_file, 
+					body  => $drbd_res_body, 
+					user  => "root", 
+					group => "root",
+					mode  => "644",
+				});
+				
+				# Run scan-drbd.
+				print __LINE__.": Running scan-drbd to pick up the new resource config.\n";
+				my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+			}
+			else
+			{
+				# Can't proceed.
+				print __LINE__.": The DRBD resource file was NOT found on the peer, skipping this server for now.\n";
+				next;
+			}
+		}
+		
+		# Read in the DRBD resource file
+		$anvil->Database->get_drbd_data({debug => 2});
+		
+		my $drbd_res_xml = $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$server}{xml};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_xml => $drbd_res_xml }});
+		print __LINE__.": Checking the resource file: [".$drbd_res_file."]\n";
+		
+		$anvil->DRBD->parse_resource({
+			debug => 2, 
+			xml   => $drbd_res_xml, 
+		});
+		
+		$anvil->Database->get_lvm_data({debug => 2});
+		foreach my $volume (sort {$a <=> $b} keys %{$anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}})
+		{
+			print __LINE__.": - Checking volume: [".$volume."]\n";
+			my $volume_path        = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{device_path};
+			my $local_lv_path      = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{backing_disk};
+			my $peer_lv_path       = $anvil->data->{new}{resource}{$server}{host_uuid}{$peer_host_uuid}{volume_number}{$volume}{backing_disk};
+			my $meta_disk          = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{meta_disk};
+			my $volume_size        = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{size};	# Will be '0' if the resource is down.
+			my $storage_group_uuid = $anvil->data->{new}{resource}{$server}{host_uuid}{$host_uuid}{volume_number}{$volume}{storage_group_uuid};
+			my $lv_name            = ($local_lv_path =~ /^.*\/(.*)$/)[0];
+			my $local_lv_size      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$lv_name}{scan_lvm_lv_size} // 0;
+			my $peer_lv_size       = $anvil->data->{lvm}{host_name}{$peer_short_host_name}{lv}{$lv_name}{scan_lvm_lv_size} // 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's01:volume'             => $volume, 
+				's02:volume_path'        => $volume_path, 
+				's03:local_lv_path'      => $local_lv_path, 
+				's04:peer_lv_path'       => $peer_lv_path, 
+				's05:meta_disk'          => $meta_disk, 
+				's06:volume_size'        => $volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}).")", 
+				's07:storage_group_uuid' => $storage_group_uuid, 
+				's08:lv_name'            => $lv_name, 
+				's09:local_lv_size'      => $local_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size}).")", 
+				's10:peer_lv_size'       => $peer_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $peer_lv_size}).")", 
+			}});
+			
+			if (not $storage_group_uuid)
+			{
+				# The storage group is found by the LV. That's not likely to work, so if it 
+				# didn't, look it up by the volume group.
+				my $query = "
+SELECT 
+    d.storage_group_uuid 
+FROM 
+    scan_lvm_lvs a, 
+    scan_lvm_vgs b, 
+    storage_group_members c, 
+    storage_groups d 
+WHERE 
+    a.scan_lvm_lv_path = ".$anvil->Database->quote($peer_lv_path)." 
+AND 
+    a.scan_lvm_lv_on_vg = b.scan_lvm_vg_name 
+AND 
+    b.scan_lvm_vg_internal_uuid = c.storage_group_member_vg_uuid 
+AND 
+    c.storage_group_member_storage_group_uuid = d.storage_group_uuid 
+AND 
+    d.storage_group_name != 'DELETED'
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				
+				if ($count == 1)
+				{
+					$storage_group_uuid = $results->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
+				}
+				else
+				{
+					print __LINE__.": [ Error ] - There is storage group found for this volume!\n";
+					print __LINE__.": [ Suggestion ] - You may need to run 'anvil-manage-host --auto-grow-pv' if this is a rebuilt sub node!\n";
+					$anvil->nice_exit({exit_code => 1});
+				}
+			}
+			
+			if ($peer_lv_size > $local_lv_size)
+			{
+				$local_lv_size = $peer_lv_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's01:local_lv_size' => $local_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size}).")", 
+				}});
+			}
+			
+			my $new_lv_path = "";
+			if (not -e $local_lv_path)
+			{
+				print __LINE__.": - The backing LV: [".$local_lv_path."] doesn't exist.\n";
+				my $storage_group_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{group_name};
+				my $vg_internal_uuid   = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid} // "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:storage_group_name' => $storage_group_name, 
+					's2:vg_internal_uuid'   => $vg_internal_uuid, 
+				}});
+				
+				if (not $vg_internal_uuid)
+				{
+					print __LINE__.": [ Error ] - There is no volume group for the storage group: [".$storage_group_name."]!\n";
+					print __LINE__.": [ Suggestion ] - You may need to run 'anvil-manage-host --auto-grow-pv' if this is a rebuilt sub node!\n";
+					$anvil->nice_exit({exit_code => 1});
+					next;
+				}
+				
+				my $vg_name        = $anvil->data->{lvm}{vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
+				my $vg_free        = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_free};
+				my $vg_extent_size = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_extent_size};
+				my $extent_count   = $local_lv_size / $vg_extent_size;
+				   $new_lv_path    = "/dev/".$vg_name."/".$lv_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:vg_name'        => $vg_name, 
+					's2:vg_free'        => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")", 
+					's3:vg_extent_size' => $vg_extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_extent_size}).")", 
+					's4:extent_count'   => $extent_count." (".$anvil->Convert->add_commas({number => $extent_count}).")", 
+					's5:new_lv_path'    => $new_lv_path, 
+				}});
+				
+				if (-e $new_lv_path)
+				{
+					# The new LV already exists, a previous rebuild might have been 
+					# interrupted.
+					print __LINE__.": The backing LV: [".$local_lv_path."] doesn't exist, and the new LV: [".$new_lv_path."] does exist.\n";
+					print __LINE__.": - Was a previous rebuild interrupted? Proceeding with the new LV path.\n";
+				}
+				else
+				{
+					# Round up if needed.
+					if ($extent_count =~ /^(\d+)\./)
+					{
+						$extent_count = $1 + 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							'extent_count' => $extent_count." (".$anvil->Convert->add_commas({number => $extent_count}).")", 
+						}});
+					}
+					
+					# Can we create the LV?
+					print __LINE__.": The local backing LV: [".$local_lv_path."] is missing, we'll recreate it.\n";
+					print __LINE__.": - The new LV: [".$new_lv_path."] will be: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $local_lv_size})."] from the storage group: [".$storage_group_name."].\n";
+					print __LINE__.": - We'll use the VG: [".$vg_name."] which has: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free})."] free.\n";
+					
+					### NOTE: We use '--yes' because on rebuilds, if the geometry lines up to 
+					###       previous LVs, we could get a prompt to remove the old drbd 
+					###       signature. There's no way to determine if it's good or useful, so 
+					###       we want a full resync.
+					my $shell_call = $anvil->data->{path}{exe}{lvcreate}." --yes -l ".$extent_count." -n ".$lv_name." ".$vg_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code,
+					}});
+					
+					# Run scan-lvm
+					if ($return_code)
+					{
+						print __LINE__.": [ Warning ] - The call to create the LV returned the return code: [".$return_code."] (0 expected).\n";
+						print __LINE__.": [ Warning ]   The output, if any, was:\n";
+						print __LINE__.": =========================\n";
+						print $output;
+						print __LINE__.": =========================\n";
+					}
+					else
+					{
+						print __LINE__.": [ Success ] - The LV apprears to have been created!\n";
+					}
+					print __LINE__.": - Rescanning the LVM data to pickup the new status, please be patient.\n";
+					$anvil->ScanCore->call_scan_agents({debug => 2, agent => "scan-lvm"});
+					
+					# refresh
+					$anvil->Database->get_lvm_data({debug => 3});
+					$anvil->Database->get_storage_group_data({debug => 3});
+				}
+			}
+			
+			# If the LV name has changed, update DRBD's resource file.
+			if (($new_lv_path) && ($new_lv_path ne $local_lv_path))
+			{
+				print __LINE__.": [ Note ] - The LV path has changed! Updating the DRBD resource file.\n";
+				### TODO: This needs to be verified!
+				my $old_body = $anvil->Storage->read_file({
+					file   => $drbd_res_file, 
+					target => $peer_target_ip, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+				
+				if (not $drbd_res_body)
+				{
+					$drbd_res_body = $anvil->Storage->read_file({
+						file   => $drbd_res_file, 
+						target => $peer_target_ip, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
+				}
+				
+				if ((not $drbd_res_body) && ($drbd_res_body ne "!!error!!"))
+				{
+					# Failed to read the res file
+					print __LINE__.": [ Error ] - Failed to read the DRBD resource file: [".$drbd_res_file."] locally or from the peer using: [".$peer_target_ip."].\n";
+					$anvil->nice_exit({exit_code => 1});
+				}
+				
+				# loop through, replacing the old LV with the new one.
+				my $hosts    = [];
+				my $new_body = "";
+				foreach my $line (split/\n/, $drbd_res_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					
+					if ($line =~ /$local_lv_path/)
+					{
+						$line =~ s/$local_lv_path/$new_lv_path/g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+					}
+					
+					if ($line =~ /\s.*?on (.*) \{/)
+					{
+						my $host = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+						
+						push @{$hosts}, $host;
+					}
+					
+					$new_body .= $line."\n";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+				
+				my $difference = diff \$drbd_res_body, \$new_body, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+				
+				if ($difference)
+				{
+					### TODO: We need to have a job to update the peers 
+					###       if the peer isn't online when this runs.
+					# Write it out on the peer(s);
+					foreach my $host (@{$hosts})
+					{
+						my $problem = $anvil->Storage->write_file({
+							file      => $drbd_res_file, 
+							body      => $new_body, 
+							user      => "root", 
+							group     => "root",
+							mode      => "644",
+							target    => $host,
+							overwrite => 1, 
+							backup    => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+						
+						if ($problem)
+						{
+							print __LINE__.": [ Warning ] - Failed to update the DRBD resource file: [".$drbd_res_file."] on the host: [".$host."]\n";
+							print __LINE__.": [ Warning ] - Please copy the version from this machine as soon as possible!\n";
+						}
+						else
+						{
+							print __LINE__.": [ Success ] - Successfully updated: [".$drbd_res_file."] to update the backing disk.\n";
+						}
+					}
+					
+					# Now adjust on all hosts.
+					foreach my $host (@{$hosts})
+					{
+						print __LINE__.": Asking the host: [".$host."] to update the configuration.\n";
+						my $return_code = $anvil->DRBD->manage_resource({
+							debug    => 2,
+							task     => "adjust",
+							resource => $server, 
+							target   => $host,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
+					}
+				}
+				
+				# Now update the LV path.
+				$local_lv_path = $new_lv_path;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_lv_path => $local_lv_path }});
+			}
+			
+			# Check if there is metadata on the backing disk.
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." get-gi ".$server."/".$volume;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			
+			if (not $output)
+			{
+				print __LINE__.": It appears that there is no metadata on the backing disk, creating it now.\n";
+				my $shell_call = $anvil->data->{path}{exe}{drbdadm}." create-md --force ".$server."/".$volume;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code,
+				}});
+				
+				if ($return_code)
+				{
+					print __LINE__.": [ Error ] - There appears to have been a problem creating the metadata!\n";
+					print __LINE__.": [ Error ]   There was a non-zero return code: [".$return_code."]. The output, if any, was:\n";
+					print __LINE__.": =========================\n";
+					print $output;
+					print __LINE__.": =========================\n";
+				}
+				else
+				{
+					print __LINE__.": [ Success ] - The metadata was created!\n";
+				}
+			}
+			elsif ($output =~ /^(.*?):/)
+			{
+				print __LINE__.": Metadata appears to exist already.\n";
+			}
+			
+			# Call adjust to try to connect the disk.
+			print __LINE__.": Calling 'drbdadm adjust ".$server."' to make sure we connect to our peer, if possible.\b";
+			$shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			
+			print __LINE__.": - Done!\n";
+		}
+	}
+	
+	return(0);
+}
+
 # Rejoin this host to an existing subnode.
 sub process_rejoin
 {
 	my ($anvil) = @_;
 	
-	print "-=] Rejoin this host: [".$anvil->Get->short_host_name."] as a subnode in an existing Anvil! node.\n";
+	print __LINE__.": -=] Rejoin this host: [".$anvil->Get->short_host_name."] as a subnode in an existing Anvil! node.\n";
 	my $host_uuid     = $anvil->Get->host_uuid();
 	my $as_machine    = $anvil->data->{switches}{'as-machines'};
 	my $manifest      = $anvil->data->{switches}{manifest};
@@ -138,6 +748,31 @@ sub process_rejoin
 		's2:as_machine' => $as_machine,
 		's3:manifest'   => $manifest, 
 	}});
+	
+	# If ScanCore isn't running, run it once.
+	print __LINE__.": Checking if ScanCore is running.\n";
+	my $scancore_running = $anvil->System->check_daemon({daemon => "scancore.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_running => $scancore_running }});
+	if ($scancore_running)
+	{
+		print __LINE__.": - ScanCore is running, proceeding.\n";
+	}
+	else
+	{
+		print __LINE__.": - [ Note ] - ScanCore is NOT running!\n";
+		print __LINE__.":   [ Note ] - Running once to make sure the data in the database is up to date.\n";
+		print __LINE__.":   [ Note ] - If the install has problems, verify that ScanCore is running on the peer, also.\n";
+		print __LINE__.":   [ Note ] - Please wait, this can take a minute...\n";
+		my $shell_call = $anvil->data->{path}{exe}{scancore}.$anvil->Log->switches()." --run-once";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		print __LINE__.": - ScanCore run complete!\n";
+	}
 	
 	# Load data
 	$anvil->Database->get_hosts();
@@ -156,21 +791,21 @@ sub process_rejoin
 			's1:anvil_name' => $anvil_name,
 			's2:anvil_uuid' => $anvil_uuid, 
 		}});
-		print "This host used to be in the Anvil! [".$anvil_name."] as: [".$old_role."]\n";
+		print __LINE__.": This host used to be in the Anvil! [".$anvil_name."] as: [".$old_role."]\n";
 		if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
 		{
 			# Found the manifest.
 			$old_manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_manifest_uuid => $old_manifest_uuid }});
-			print "The manifest was found with the UUID: [".$old_manifest_uuid."]\n";
+			print __LINE__.": The manifest was found with the UUID: [".$old_manifest_uuid."]\n";
 		}
 		else
 		{
 			# Didn't find the manifest, something is wrong.
-			print "The manifest was NOT found (was it deleted?).\n";
-			print "- The manifes must be created for this host to rejoin the Anvil! node.\n";
-			print "- Alternatively, this host must be removed for the Anvil!\n";
-			print "[ Error ] - Unable to proceed at this time.\n";
+			print __LINE__.": The manifest was NOT found (was it deleted?).\n";
+			print __LINE__.": - The manifes must be created for this host to rejoin the Anvil! node.\n";
+			print __LINE__.": - Alternatively, this host must be removed for the Anvil!\n";
+			print __LINE__.": [ Error ] - Unable to proceed at this time.\n";
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -178,18 +813,18 @@ sub process_rejoin
 		if (($manifest) && (($manifest ne $anvil_name) && ($manifest ne $old_manifest_uuid)))
 		{
 			# They asked for this machine to be joined to a different Anvil!.
-			print "[ Error ] - You asked to join the Anvil! node: [".$manifest."].\n";
-			print "[ Error ] - This host must be removed from: [".$anvil_name."] first.\n";
-			print "[ Error ] - Unable to proceed at this time.\n";
+			print __LINE__.": [ Error ] - You asked to join the Anvil! node: [".$manifest."].\n";
+			print __LINE__.": [ Error ] - This host must be removed from: [".$anvil_name."] first.\n";
+			print __LINE__.": [ Error ] - Unable to proceed at this time.\n";
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
 		if (($as_machine) && ($as_machine ne $old_role))
 		{
-			print "[ Error ] - You asked to join the Anvil! node: [".$manifest."] as: [".$as_machine."]\n";
-			print "[ Error ] - This host was previously: [".$old_role."], so it needs to be that role again.\n";
-			print "[ Error ] - Alternatively, remove this host from that Anvil! and try again.\n";
-			print "[ Error ] - Unable to proceed at this time.\n";
+			print __LINE__.": [ Error ] - You asked to join the Anvil! node: [".$manifest."] as: [".$as_machine."]\n";
+			print __LINE__.": [ Error ] - This host was previously: [".$old_role."], so it needs to be that role again.\n";
+			print __LINE__.": [ Error ] - Alternatively, remove this host from that Anvil! and try again.\n";
+			print __LINE__.": [ Error ] - Unable to proceed at this time.\n";
 			$anvil->nice_exit({exit_code => 1});
 		}
 		
@@ -210,11 +845,11 @@ sub process_rejoin
 	});
 	if ($configured)
 	{
-		print "The host appears to already be configured, good.\n";
+		print __LINE__.": The host appears to already be configured, good.\n";
 	}
 	else
 	{
-		print "[ Note ] - The host appears to NOT be configured yet!\n";
+		print __LINE__.": [ Note ] - The host appears to NOT be configured yet!\n";
 		if (exists $anvil->data->{anvils}{host_uuid}{$host_uuid})
 		{
 			# Can we find the data needed to reconfigure this subnode?
@@ -222,30 +857,29 @@ sub process_rejoin
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			if ($job_uuid)
 			{
-				print "[ Success ] - Found the data needed to configure the network on this subnode! The anvil-join-anvil job has\n";
-				print "[ Success ]   been created with the job UUID: [".$job_uuid."]\n";
-				print "[ Note ] - This subnode will reboot one minute after the network configuration completes. Once rebooted,\n";
-				print "[ Note ]   please run this again.\n";
+				print __LINE__.": [ Success ] - Found the data needed to configure the network on this subnode! The anvil-join-anvil job has\n";
+				print __LINE__.": [ Success ]   been created with the job UUID: [".$job_uuid."]\n";
+				print __LINE__.": [ Note ] - This subnode will reboot one minute after the network configuration completes. Once rebooted,\n";
+				print __LINE__.": [ Note ]   please run this again.\n";
 				$anvil->nice_exit({exit_code => 0});
 			}
 			else
 			{
-				print "[ Warning ] - Failed to automatically create the anvil-join-anvil job.\n";
-				print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
-				print "[ Warning ]   this subnode again.\n";
+				print __LINE__.": [ Warning ] - Failed to automatically create the anvil-join-anvil job.\n";
+				print __LINE__.": [ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+				print __LINE__.": [ Warning ]   this subnode again.\n";
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
 		else
 		{
 			# We can't configure it automatically.
-			print "[ Warning ] - This is a new host, so the information needed to configure the network does not exist.\n";
-			print "[ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
-			print "[ Warning ]   this subnode again.\n";
+			print __LINE__.": [ Warning ] - This is a new host, so the information needed to configure the network does not exist.\n";
+			print __LINE__.": [ Warning ] - Please use Striker to initialize this host. Once the network has been configured, try rejoining\n";
+			print __LINE__.": [ Warning ]   this subnode again.\n";
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
-	die;
 	
 	if ($manifest)
 	{
@@ -270,8 +904,8 @@ sub process_rejoin
 		}
 		else
 		{
-			print "[ Error ] - The manifest: [".$manifest."] was not found in the database.\n";
-			print "[ Error ] - Try again without this switch to see the available manifests.\n"; 
+			print __LINE__.": [ Error ] - The manifest: [".$manifest."] was not found in the database.\n";
+			print __LINE__.": [ Error ] - Try again without this switch to see the available manifests.\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -298,10 +932,10 @@ sub process_rejoin
 			}
 			else
 			{
-				print "- Manifest: [".$manifest_name."] (uuid: [".$manifest_uuid."])\n";
+				print __LINE__.": - Manifest: [".$manifest_name."] (uuid: [".$manifest_uuid."])\n";
 			}
 		}
-		print "- Which manifest do you want to join this host to?\n";
+		print __LINE__.": - Which manifest do you want to join this host to?\n";
 		my $answer = <STDIN>;
 		chomp($answer);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -329,16 +963,16 @@ sub process_rejoin
 		{
 			if ($answer)
 			{
-				print "[ Error ] - Your answer: [".$answer."] doesn't match a valid manifest.\n"; 
+				print __LINE__.": [ Error ] - Your answer: [".$answer."] doesn't match a valid manifest.\n"; 
 			}
-			print "[ Error ] - Please try again (you can use --manifest <name or UUID> to avoind this prompt).\n"; 
+			print __LINE__.": [ Error ] - Please try again (you can use --manifest <name or UUID> to avoind this prompt).\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
 	
 	if (not $as_machine)
 	{
-		print "- Will this node be 'node1' or 'node2'?\n";
+		print __LINE__.": - Will this node be 'node1' or 'node2'?\n";
 		my $answer = <STDIN>;
 		chomp($answer);
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -354,8 +988,8 @@ sub process_rejoin
 		}
 		else
 		{
-			print "[ Error ] - Please enter 'node1' or 'node2'.\n";
-			print "[ Error ] - Please try again (you can use '--as-manchine node{1,2}' to avoind this prompt).\n"; 
+			print __LINE__.": [ Error ] - Please enter 'node1' or 'node2'.\n";
+			print __LINE__.": [ Error ] - Please try again (you can use '--as-manchine node{1,2}' to avoind this prompt).\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -367,30 +1001,30 @@ sub process_rejoin
 		
 		if (not $anvil_uuid)
 		{
-			print "[ Error ] - Failed to find an Anvil! UUID for the node: [".$manifest_name."].\n";
-			print "[ Error ] - Has the Anvil! been deleted from the database?\n"; 
-			print "[ Error ] - Unable to proceed.\n"; 
+			print __LINE__.": [ Error ] - Failed to find an Anvil! UUID for the node: [".$manifest_name."].\n";
+			print __LINE__.": [ Error ] - Has the Anvil! been deleted from the database?\n"; 
+			print __LINE__.": [ Error ] - Unable to proceed.\n"; 
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
 	
-	print "\n";
-	print "-=] Joining: [".$manifest_name."] as: [".$as_machine."] (Anvil! UUID: [".$anvil_uuid."]\n";
+	print __LINE__.": \n";
+	print __LINE__.": -=] Joining: [".$manifest_name."] as: [".$as_machine."] (Anvil! UUID: [".$anvil_uuid."]\n";
 	if ($rebuild)
 	{
-		print "[ Note ] - This is a rebuild, the previous data recorded by this host will be\n";
-		print "           preserved.\n";
+		print __LINE__.": [ Note ] - This is a rebuild, the previous data recorded by this host will be\n";
+		print __LINE__.":            preserved.\n";
 	}
 	else
 	{
-		print "[ Warning ] - This will replace the old subnode, and all the previous data\n";
-		print "              associated with it!\n";
-		print "[ Warning ] - Be certain the old host will NOT come back! If it does, it can\n";
-		print "              cause confusion with the Anvil! node!\n";
+		print __LINE__.": [ Warning ] - This will replace the old subnode, and all the previous data\n";
+		print __LINE__.":               associated with it!\n";
+		print __LINE__.": [ Warning ] - Be certain the old host will NOT come back! If it does, it can\n";
+		print __LINE__.":               cause confusion with the Anvil! node!\n";
 	}
 	if (($anvil->data->{switches}{y}) or ($anvil->data->{switches}{yes}))
 	{
-		print "[ Note ] - Confirmed by switch, proceeding.\b";
+		print __LINE__.": [ Note ] - Confirmed by switch, proceeding.\b";
 	}
 	else
 	{
@@ -416,8 +1050,8 @@ sub process_rejoin
 		
 		if ($old_host_uuid)
 		{
-			print "[ Note ] - Purging the old host: [".$old_host_uuid."] from the database.\n";
-			print "[ Note ] - Please be patient!\n";
+			print __LINE__.": [ Note ] - Purging the old host: [".$old_host_uuid."] from the database.\n";
+			print __LINE__.": [ Note ] - Please be patient!\n";
 			my $shell_call = $anvil->data->{path}{exe}{'striker-purge-target'}."  ".$anvil->Log->switches;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
@@ -433,7 +1067,7 @@ sub process_rejoin
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		job_host_uuid   => $host_uuid, 
 		job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
-		job_data        => "as_machine=".$as_machine.",manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
+		job_data        => "as_machine=".$as_machine.",manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid.",rejoin=true", 
 		job_name        => "join_anvil::".$as_machine, 
 		job_title       => "job_0072", 
 		job_description => "job_0073", 
@@ -441,7 +1075,7 @@ sub process_rejoin
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 
-	print "Registering a job. This host should (re)join the Anvil! node shortly.\n";
+	print __LINE__.": Registering a job. This host should (re)join the Anvil! node shortly.\n";
 	
 	return(0);
 }
@@ -588,11 +1222,11 @@ ORDER BY
 			if ((not $iface_found) && (not $mac_found))
 			{
 				# Abort, we can't find this interface by name or MAC address.
-				print "[ Error ] - The interface: [".$interface."] which was originally assigned to the device with the MAC\n";
-				print "[ Error ]   address: [".$variable_value."] could not be found. We checked for the interface name in the\n";
-				print "[ Error ]   'network_interfaces' historical schema, in case the interface was moved to a new NIC in the\n";
-				print "[ Error ]   past. You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to \n";
-				print "[ Error ]   initialize the network for this node before it can rejoin the cluster.\n";
+				print __LINE__.": [ Error ] - The interface: [".$interface."] which was originally assigned to the device with the MAC\n";
+				print __LINE__.": [ Error ]   address: [".$variable_value."] could not be found. We checked for the interface name in the\n";
+				print __LINE__.": [ Error ]   'network_interfaces' historical schema, in case the interface was moved to a new NIC in the\n";
+				print __LINE__.": [ Error ]   past. You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to \n";
+				print __LINE__.": [ Error ]   initialize the network for this node before it can rejoin the cluster.\n";
 				return("");
 			}
 			# If I found the mac address, we're done. If not, but we found the interface, update
@@ -612,9 +1246,9 @@ ORDER BY
 	
 	if (not $form_data_found)
 	{
-		print "[ Error ] - It appears that the data used to configure this node is no longer stored in the database.\n";
-		print "[ Error ]   You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to initialize\n";
-		print "[ Error ]   the network for this node before it can rejoin the cluster.\n";
+		print __LINE__.": [ Error ] - It appears that the data used to configure this node is no longer stored in the database.\n";
+		print __LINE__.": [ Error ]   You will need to use the Striker UI (Striker logo -> Anvil -> Prepare Network) to initialize\n";
+		print __LINE__.": [ Error ]   the network for this node before it can rejoin the cluster.\n";
 		return("");
 	}
 	
@@ -1050,6 +1684,69 @@ sub update_passwords
 	return(0);
 }
 
+sub check_for_reauth
+{
+	my ($anvil, $node1_host_name, $node2_host_name, $escaped_password) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		node1_host_name  => $node1_host_name,
+		node2_host_name  => $node2_host_name,  
+		escaped_password => $anvil->Log->is_secure($escaped_password),
+	}});
+	
+	my $auth       = 0;
+	my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster status";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	my $in_pcsd = 0;
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($in_pcsd)
+		{
+			if ($line =~ /Unable to authenticate/i)
+			{
+				$auth = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
+			}
+		}
+		if ($line =~ /PCSD Status/i)
+		{
+			$in_pcsd = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_pcsd => $in_pcsd }});
+		}
+		last if $auth;
+	}
+	
+	# If we're rebuilding, the cluster could be trying to start, but auth is still needed. So check to 
+	# see if '/var/lib/pcsd/known-hosts' exists. If not, try to auth.
+	if ((not $auth) && (not -f '/var/lib/pcsd/known-hosts'))
+	{
+		$auth = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
+	}
+	
+	if ($auth)
+	{
+		# Also, re-auth. We need to run this on both hosts.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0487"});
+		my $shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	return(0);
+}
 
 # (wait for our peer and) Configure pacemaker. If this is a DR host, this is skipped.
 sub configure_pacemaker
@@ -1204,6 +1901,12 @@ sub configure_pacemaker
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0103");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0103"});
 		
+		# If we're rebuilding, we may need to re-auth. So check right off the bat.
+		if (not -f '/var/lib/pcsd/known-hosts')
+		{
+			check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
+		}
+		
 		# We loop until the peer finishes or the peer's job hit's 100.
 		my $tried_starting = 0;
 		my $both_online    = 0;
@@ -1220,17 +1923,22 @@ sub configure_pacemaker
 			}});
 			if (-e $anvil->data->{path}{configs}{'corosync.conf'})
 			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 				if (not $start_time)
 				{
 					# Corosync is configured, we'll wait up to two minutes and then try
 					# joining the cluster ourselves.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0108"});
-					$start_time = time + 120;
+					$start_time = time + 60;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { start_time => $start_time }});
 				}
 				elsif ((time > $start_time) && (not $tried_starting))
 				{
-					# We've waited a minute, time to try starting the cluster.
+					# We've waited a minute, try (re)authenticating, and then try starting the cluster.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0486"});
+					check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
+					
+					# Now try starting the cluster.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0106"});
 					my $cluster_started = $anvil->Cluster->start_cluster({debug => 2, all => 1});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cluster_started => $cluster_started }});
@@ -1240,40 +1948,51 @@ sub configure_pacemaker
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tried_starting => $tried_starting }});
 				}
 				
-				my $problem = $anvil->Cluster->parse_cib({debug => 2});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-				if (not $problem)
+				# Can I access my peer?
+				my $access = $anvil->Remote->test_access({
+					debug    => 2,
+					target   => $peer_host_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+				if ($access)
 				{
-					# See if both nodes are online.
-					my $node1_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node1_host_name});
-					my $node2_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node2_host_name});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						node1_ready => $node1_ready,
-						node2_ready => $node2_ready, 
-					}});
-					if (($node1_ready) && ($node2_ready))
+					# I can, can I parse the CIB?
+					my $problem = $anvil->Cluster->parse_cib({debug => 2});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+					if (not $problem)
 					{
-						$both_online = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
-						
-						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
-					}
-					else
-					{
-						# Not online yet, wait a bit.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0105", variables => {
-							node1_name   => $node1_host_name,
-							node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
-							node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
-							node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
-							node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
-							node2_name   => $node2_host_name,
-							node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
-							node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
-							node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
-							node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+						# See if both nodes are online.
+						my $node1_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node1_host_name});
+						my $node2_ready = $anvil->Cluster->check_node_status({debug => 2, node_name => $node2_host_name});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							node1_ready => $node1_ready,
+							node2_ready => $node2_ready, 
 						}});
+						if (($node1_ready) && ($node2_ready))
+						{
+							$both_online = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { both_online => $both_online }});
+							
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0104");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0104"});
+						}
+						else
+						{
+							# Not online yet, wait a bit.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0105", variables => {
+								node1_name   => $node1_host_name,
+								node1_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{in_ccm},
+								node1_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{crmd},
+								node1_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{'join'},
+								node1_join   => $anvil->data->{cib}{parsed}{data}{node}{$node1_host_name}{node_state}{ready},
+								node2_name   => $node2_host_name,
+								node2_ready  => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{in_ccm},
+								node2_in_ccm => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{crmd},
+								node2_crmd   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{'join'},
+								node2_join   => $anvil->data->{cib}{parsed}{data}{node}{$node2_host_name}{node_state}{ready},
+							}});
+						}
 					}
 				}
 			}
@@ -1310,48 +2029,8 @@ sub configure_pacemaker
 			}
 		}
 		
-		### TODO: Left off here; parse 'pcs cluster status' and if there's 'Unable to authenticate', re-auth.
-		my $auth       = 0;
-		my $shell_call = $anvil->data->{path}{exe}{pcs}." cluster status";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output,
-			return_code => $return_code, 
-		}});
-		
-		my $in_pcsd = 0;
-		foreach my $line (split/\n/, $output)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($in_pcsd)
-			{
-				if ($line =~ /Unable to authenticate/i)
-				{
-					$auth = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { auth => $auth }});
-				}
-			}
-			if ($line =~ /PCSD Status/i)
-			{
-				$in_pcsd = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_pcsd => $in_pcsd }});
-			}
-			last if $auth;
-		}
-		if ($auth)
-		{
-			# Also, re-auth. We need to run this on both hosts.
-			my $shell_call = $anvil->data->{path}{exe}{pcs}." host auth ".$node1_host_name." ".$node2_host_name." -u hacluster -p ".$escaped_password;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
-			
-			my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output,
-				return_code => $return_code, 
-			}});
-		}
+		# Check if we need to re-auth with pcsd
+		check_for_reauth($anvil, $node1_host_name, $node2_host_name, $escaped_password);
 	}
 	else
 	{
@@ -2209,6 +2888,13 @@ sub configure_pacemaker
 		variable_source_table => "hosts", 
 	});
 	
+	# Make sure ScanCore's DB is updated.
+	print __LINE__.": Running scan-cluster prior to checking Storage Groups.\n";
+	$anvil->ScanCore->call_scan_agents({debug => 2, agent => "scan-cluster"});
+	
+	# See if we can assemble any storage groups.
+	$anvil->Cluster->assemble_storage_groups({debug => 2});
+	
 	return(0);
 }
 	
@@ -2516,6 +3202,51 @@ sub check_corosync
 	return(0);
 }
 
+sub do_reboot
+{
+	my ($anvil) = @_;
+	
+	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0488");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0488"});
+	
+	my $time_left = 60;
+	while ($time_left)
+	{
+		# Give them the countdown.
+		$anvil->Job->update_progress({
+			progress  => $anvil->data->{job}{progress} += 1, 
+			message   => "log_0626", 
+			job_uuid  => $anvil->data->{job}{uuid},
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+			variables => { seconds => $time_left },
+		});
+		sleep 10;
+		$time_left -= 10;
+	}
+	
+	# Last, log that we're going down now.
+	$anvil->Job->update_progress({
+		progress  => $anvil->data->{job}{progress} += 1, 
+		message   => "message_0389", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
+		file      => $THIS_FILE, 
+		line      => __LINE__,
+	});
+	
+	my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+	
+	return(0);
+}
+
 # Check if we need to change any IPs or our hostname.
 sub check_local_network
 {
@@ -2557,6 +3288,9 @@ sub check_local_network
 			# Success!
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0045");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0045"});
+			
+			# Reboot.
+			do_reboot($anvil);
 		}
 		else
 		{
@@ -2716,8 +3450,8 @@ sub check_local_network
 			if (($current_ip ne $ip) or ($current_subnet ne $subnet))
 			{
 				# IP / subnet changed.
-				#print "IP: .... [".$current_ip."] -> [".$ip."]\n";
-				#print "Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
+				#print __LINE__.": IP: .... [".$current_ip."] -> [".$ip."]\n";
+				#print __LINE__.": Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
 				$change = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
@@ -2725,7 +3459,7 @@ sub check_local_network
 			# gateway?
 			if ($current_gateway ne $gateway)
 			{
-				#print "Gateway: [".$current_gateway."] -> [".$gateway."]\n";
+				#print __LINE__.": Gateway: [".$current_gateway."] -> [".$gateway."]\n";
 				$change = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
@@ -3362,8 +4096,8 @@ sub load_job
 	$anvil->data->{switches}{'job-uuid'} = "" if not exists $anvil->data->{switches}{'job-uuid'};
 	$anvil->data->{jobs}{job_uuid}       = "" if not exists $anvil->data->{jobs}{job_uuid};
 	
-	$anvil->Job->get_job_details({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Job->get_job_details({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"jobs::job_uuid" => $anvil->data->{jobs}{job_uuid},
 	}});
 	
@@ -3379,20 +4113,48 @@ sub load_job
 	update_progress($anvil, ($anvil->data->{job}{progress} += 1), "job_0074,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0074", variables => { 'job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
 	
-	my ($machine, $manifest_uuid, $anvil_uuid) = ($anvil->data->{jobs}{job_data} =~ /as_machine=(.*?),manifest_uuid=(.*?),anvil_uuid=(.*?)$/);
-	$machine       = "" if not defined $machine;
-	$manifest_uuid = "" if not defined $manifest_uuid;
-	$anvil_uuid    = "" if not defined $anvil_uuid;
+	# Pull out the job data.
+	$anvil->data->{job}{as_machine}    = "";
+	$anvil->data->{job}{manifest_uuid} = "";
+	$anvil->data->{job}{anvil_uuid}    = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-		's1:job_data'      => $anvil->data->{jobs}{job_data},
-		's2:machine'       => $machine,
-		's3:manifest_uuid' => $manifest_uuid, 
-		's4:anvil_uuid'    => $anvil_uuid, 
+		'job_data' => $anvil->data->{jobs}{job_data},
 	}});
+	if ($anvil->data->{jobs}{job_data})
+	{
+		foreach my $pair (split/,/, $anvil->data->{jobs}{job_data})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pair => $pair }});
+			if ($pair =~ /^(.*?)=(.*)$/)
+			{
+				my $variable = $1;
+				my $value    = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					variable => $variable,
+					value    => $value, 
+				}});
+				
+				$anvil->data->{job}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"job::${variable}" => $anvil->data->{job}{$variable}, 
+				}});
+			}
+		}
+	}
 	
-	if ((not $machine)       or 
-	    (not $manifest_uuid) or 
-	    (not $anvil_uuid))
+	# Set the rejoin switch if needed.
+	if ((not $anvil->data->{switches}{rejoin}) && ($anvil->data->{job}{rejoin}))
+	{
+		$anvil->data->{switches}{rejoin} = $anvil->data->{job}{rejoin};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::rejoin" => $anvil->data->{switches}{rejoin}, 
+		}});
+	}
+	
+	# Verify we got what we needed.
+	if ((not $anvil->data->{job}{as_machine})    or 
+	    (not $anvil->data->{job}{manifest_uuid}) or 
+	    (not $anvil->data->{job}{anvil_uuid}))
 	{
 		# This occassionally is hit, but then works when tried again. 
 		update_progress($anvil, 100, "error_0308,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!,!!raw!".$anvil->data->{jobs}{job_data}."!!");
@@ -3404,10 +4166,10 @@ sub load_job
 		$anvil->nice_exit({exit_code => 5});
 	}
 	
-	$anvil->data->{sys}{machine}       = $machine;
-	$anvil->data->{sys}{peer_machine}  = $machine eq "node1" ? "node2" : "node1";
-	$anvil->data->{sys}{manifest_uuid} = $manifest_uuid;
-	$anvil->data->{sys}{anvil_uuid}    = $anvil_uuid;
+	$anvil->data->{sys}{machine}       = $anvil->data->{job}{as_machine};
+	$anvil->data->{sys}{peer_machine}  = $anvil->data->{job}{as_machine} eq "node1" ? "node2" : "node1";
+	$anvil->data->{sys}{manifest_uuid} = $anvil->data->{job}{manifest_uuid};
+	$anvil->data->{sys}{anvil_uuid}    = $anvil->data->{job}{anvil_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"s1:sys::machine"       => $anvil->data->{sys}{machine},
 		"s2:sys::peer_machine"  => $anvil->data->{sys}{peer_machine},
@@ -3421,6 +4183,7 @@ sub load_job
 	$anvil->Database->get_anvils();
 	
 	# Parse the manifest
+	my $manifest_uuid = $anvil->data->{job}{manifest_uuid};
 	if (not exists $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid})
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "warning_0046", variables => { uuid => $anvil->data->{sys}{manifest_uuid} }});
@@ -3444,6 +4207,7 @@ sub load_job
 	}
 	
 	# Make sure we have a valid Anvil! 
+	my $anvil_uuid = $anvil->data->{job}{anvil_uuid};
 	if (not exists $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid})
 	{
 		# Odd. Error out, the Anvil! might not be loaded yet.

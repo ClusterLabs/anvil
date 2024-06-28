@@ -326,7 +326,11 @@ sub agent_startup
 
 This method calls all scan agents found on this system. It looks under the C<< path::directories::scan_agents >> directory (and subdirectories) for scan agents.
 
-This method takes no parameters.
+Parameters;
+
+=head3 agent (optional, default "")
+
+If set, only the specific agent will be run. 
 
 =cut
 sub call_scan_agents
@@ -336,6 +340,11 @@ sub call_scan_agents
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "ScanCore->call_scan_agents()" }});
+	
+	my $agent = defined $parameter->{agent} ? $parameter->{agent} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		agent => $agent, 
+	}});
 	
 	# Get the current list of scan agents on this system.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -351,6 +360,7 @@ sub call_scan_agents
 	}
 	foreach my $agent_name (sort {$a cmp $b} keys %{$anvil->data->{scancore}{agent}})
 	{
+		next if (($agent) && ($agent ne $agent_name));
 		my $agent_path  = $anvil->data->{scancore}{agent}{$agent_name};
 		my $agent_words = $agent_path.".xml";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
