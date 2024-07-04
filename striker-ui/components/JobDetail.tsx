@@ -1,5 +1,5 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useState } from 'react';
 
 import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
@@ -8,6 +8,7 @@ import { ProgressBar } from './Bars';
 import { DialogScrollBox } from './Dialog';
 import FlexBox from './FlexBox';
 import IconButton from './IconButton';
+import MessageBox, { Message } from './MessageBox';
 import pad from '../lib/pad';
 import {
   ExpandablePanel,
@@ -42,11 +43,19 @@ const JobDetail: FC<JobDetailProps> = (props) => {
   const theme = useTheme();
   const breakpointSmall = useMediaQuery(theme.breakpoints.up('sm'));
 
-  const { data: job } = periodicFetch<APIJobDetail>(
+  const [apiMessage, setApiMessage] = useState<Message>({
+    children: `Job ${uuid} details unavailable`,
+    type: 'warning',
+  });
+
+  const { data: job, isLoading: loadingJob } = periodicFetch<APIJobDetail>(
     `${API_BASE_URL}/job/${uuid}`,
     {
-      onError: () => {
-        // Show error message
+      onError: (error) => {
+        setApiMessage({
+          children: `Failed to get job ${uuid} details. Error: ${error}`,
+          type: 'error',
+        });
       },
       refreshInterval,
     },
@@ -101,7 +110,7 @@ const JobDetail: FC<JobDetailProps> = (props) => {
 
   const modifiedAgo = useMemo(() => job && ago(nao - job.modified), [job, nao]);
 
-  return job ? (
+  const content = job ? (
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
         <Grid item width="100%">
@@ -218,8 +227,10 @@ const JobDetail: FC<JobDetailProps> = (props) => {
       </Grid>
     </DialogScrollBox>
   ) : (
-    <Spinner />
+    <MessageBox {...apiMessage} />
   );
+
+  return loadingJob ? <Spinner /> : content;
 };
 
 export default JobDetail;
