@@ -74,7 +74,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       getJobUrl(loaded),
       {
         onError: () => {
-          // Show error message
+          // TODO: show no jobs until toasts are in place.
         },
         onSuccess: (rawAnvilJobs) => {
           onFetchSuccessAppend?.call(null, rawAnvilJobs);
