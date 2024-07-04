@@ -9,6 +9,3 @@ dist_service_DATA	= \
 			  anvil-safe-start.service \
 			  scancore.service \
 			  striker-ui-api.service
-
-presetdir		= $(SYSTEMD_PRESET_DIR)
-dist_preset_DATA	= 50-anvil.preset
