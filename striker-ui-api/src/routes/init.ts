@@ -14,19 +14,17 @@ router
     (request, response, next) => {
       const {
         path,
-        query: { command, start },
+        query: { command },
       } = request;
 
-      if (command) return next();
+      const script = 'anvil-configure-host';
 
-      return response.redirect(
-        `/api/init${path}?command=anvil-configure-host&start=${start}`,
-      );
+      if (command === script) return next();
+
+      return response.redirect(`/api/init${path}?command=${script}`);
     },
     assertInit({
-      fail: ({ url }, response) => {
-        response.redirect(307, `/api${url}`);
-      },
+      fail: (request, response, next) => next(),
     }),
     getJob,
   )
