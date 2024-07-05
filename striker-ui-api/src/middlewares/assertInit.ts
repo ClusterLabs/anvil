@@ -6,6 +6,17 @@ import { query } from '../lib/accessModule';
 import { toHostUUID } from '../lib/convertHostUUID';
 import { perr, poutvar } from '../lib/shell';
 
+/**
+ * expressjs middleware for checking whether the target host is configured. It
+ * calls `succeed()` when the target host is configured, and calls `fail()`
+ * otherwise.
+ *
+ * @param fail - callback when check fails
+ * @param hostUuid - UUID of the host to check
+ * @param invert - when `true`, succeeds when host is **not** configured
+ * @param succeed - callback when check passes
+ * @returns result of callback on success or failure
+ */
 export const assertInit =
   ({
     fail = (rq, rs) => rs.status(401).send(),
