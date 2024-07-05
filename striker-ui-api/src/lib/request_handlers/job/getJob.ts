@@ -39,7 +39,7 @@ export const getJob: RequestHandler<
     // Use a "recent" timestamp when there aren't incomplete jobs.
     conditions = `
       a.modified_date >= (
-        GREATEST(
+        LEAST(
           (
             SELECT modified_date
             FROM jobs
