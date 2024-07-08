@@ -3,6 +3,10 @@ type InquireHostResponse = APICommandInquireHostResponseBody & {
   hostPassword: string;
 };
 
+type InquireHostResponseStateSetter = React.Dispatch<
+  React.SetStateAction<InquireHostResponse | undefined>
+>;
+
 /** TestAccessForm */
 
 type TestAccessFormikValues = {
@@ -11,9 +15,7 @@ type TestAccessFormikValues = {
 };
 
 type TestAccessFormProps = {
-  setResponse: React.Dispatch<
-    React.SetStateAction<InquireHostResponse | undefined>
-  >;
+  setResponse: InquireHostResponseStateSetter;
   tools: CrudListFormTools;
 };
 
@@ -35,6 +37,7 @@ type PrepareHostFormikValues = TestAccessFormikValues & {
 
 type PreapreHostFormProps = {
   host: InquireHostResponse;
+  setResponse: InquireHostResponseStateSetter;
   tools: CrudListFormTools;
 };
 

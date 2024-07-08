@@ -18,7 +18,7 @@ const HOST_TYPE_OPTIONS: RadioItemList = {
 };
 
 const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
-  const { host, tools } = props;
+  const { host, setResponse, tools } = props;
 
   const { disabledSubmit, formik, formikErrors, handleChange } =
     useFormikUtils<PrepareHostFormikValues>({
@@ -65,6 +65,8 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
                 });
 
                 tools.add.open(false);
+
+                setTimeout(setResponse, 500);
               })
               .catch((error) => {
                 const emsg = handleAPIError(error);

@@ -49,7 +49,11 @@ const ManageHost: FC = () => {
         <>
           <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />
           {inquireHostResponse && (
-            <PrepareHostForm host={inquireHostResponse} tools={tools} />
+            <PrepareHostForm
+              host={inquireHostResponse}
+              setResponse={setInquireHostResponse}
+              tools={tools}
+            />
           )}
         </>
       )}
