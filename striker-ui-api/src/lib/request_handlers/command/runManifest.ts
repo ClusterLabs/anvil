@@ -26,11 +26,13 @@ export const runManifest: RequestHandler<
       description: rawDescription,
       hosts: rawHostList = {},
       password: rawPassword,
+      reuseHost: rawReuseHost,
     } = {},
   } = request;
 
   const description = sanitize(rawDescription, 'string');
   const password = sanitize(rawPassword, 'string');
+  const reuseHost = sanitize(rawReuseHost, 'boolean');
 
   const hostList: ManifestExecutionHostList = {};
 
@@ -122,10 +124,10 @@ export const runManifest: RequestHandler<
         const hostName = mapToHostNameData[hostUuid];
         const { anvil_name: anName } = hostUuidMapToData[hostUuid];
 
-        if (anName) {
+        if (anName && !reuseHost) {
           assert(
             anName !== manifestName,
-            `Host [${hostName}] cannot be used for [${manifestName}] because it belongs to [${anName}]`,
+            `Cannot use [${hostName}] for [${manifestName}] because it belongs to [${anName}]; set reuseHost:true to allow this`,
           );
         }
 
