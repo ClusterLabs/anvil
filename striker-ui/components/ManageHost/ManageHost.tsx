@@ -37,7 +37,7 @@ const ManageHost: FC = () => {
       getDeleteSuccessMessage={() => ({
         children: <>Successfully deleted host(s)</>,
       })}
-      listEmpty="No host(s) found"
+      listEmpty="No host(s) found."
       listProps={{
         allowAddItem: true,
         allowEdit: false,
