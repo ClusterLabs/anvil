@@ -1,7 +1,7 @@
 package Anvil::Tools::Email;
 # 
 # This module contains methods used to manage the local postfix server and handle and dispatch email via 
-# mailx.
+# s-nail.
 # 
 
 ### TODO: By default, a recipient receives all alerts at their default level. Later, we'll add an 
@@ -34,7 +34,7 @@ my $THIS_FILE = "Email.pm";
 
 Anvil::Tools::Email
 
-Provides all methods used to manage the local C<< postfix >> server and handle and dispatch email via C<< mailx >>
+Provides all methods used to manage the local C<< postfix >> server and handle and dispatch email via C<< s-nail >>
 
 =head1 SYNOPSIS
 
@@ -638,7 +638,7 @@ Reply-To: ".$reply_to."
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 		
-		# Call mailx to read it in
+		# Call s-nail (if available, otherwise try mailx) to read it in
 		if ($problem)
 		{
 			# Something went wrong
@@ -647,7 +647,11 @@ Reply-To: ".$reply_to."
 		else
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0542", variables => { to => $to }});
-			my $shell_call = $anvil->data->{path}{exe}{mailx}." -t < ".$file_name;
+			my $shell_call = $anvil->data->{path}{exe}{'s-nail'}." -t < ".$file_name;
+			if ((not -e $anvil->data->{path}{exe}{'s-nail'}) && (-e $anvil->data->{path}{exe}{mailx}))
+			{
+				$shell_call = $anvil->data->{path}{exe}{mailx}." -t < ".$file_name;
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 			
 			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call });
