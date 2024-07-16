@@ -84,7 +84,6 @@ Requires:       kernel-devel
 Requires:       kernel-headers
 Requires:       lsscsi
 Requires:       lsof
-Requires:       mailx
 Requires:       mlocate 
 Requires:       net-snmp-utils
 Requires:       NetworkManager-initscripts-updown
@@ -142,6 +141,14 @@ Requires:       wget
 Conflicts:      iptables-services
 # We handle interface naming
 Conflicts:      biosdevname
+# Migrate to s-nail because mailx is deprecated.
+%if 0%{?rhel} < 9
+Requires:       mailx
+Conflicts:      s-nail
+%else
+Requires:       s-nail
+Conflicts:      mailx
+%endif
 
 
 %description core
