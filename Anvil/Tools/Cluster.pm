@@ -4216,7 +4216,8 @@ sub parse_crm_mon
 							$resource_agent = $1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_agent => $resource_agent }});
 							
-							if ($resource_agent eq "ocf:alteeve:server")
+							if (($resource_agent eq "ocf:alteeve:server") or 
+							    ($resource_agent eq "ocf::alteeve:server"))
 							{
 								$resource_key = "resource";
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_key => $resource_key }});
