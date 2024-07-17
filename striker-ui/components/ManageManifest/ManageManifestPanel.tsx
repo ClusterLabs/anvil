@@ -32,7 +32,6 @@ import List from '../List';
 import MessageBox from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import RunManifestInputGroup, {
   buildInputIdRMHost,
   INPUT_ID_RM_AN_CONFIRM_PASSWORD,
@@ -43,6 +42,7 @@ import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
@@ -159,9 +159,6 @@ const ManageManifestPanel: FC = () => {
     useState<boolean>(true);
   const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useState<boolean>(true);
-  const [manifestOverviews, setManifestOverviews] = useState<
-    APIManifestOverviewList | undefined
-  >();
   const [manifestDetail, setManifestDetail] = useState<
     APIManifestDetail | undefined
   >();
@@ -169,17 +166,13 @@ const ManageManifestPanel: FC = () => {
     APIManifestTemplate | undefined
   >();
 
-  const { isLoading: isLoadingManifestOverviews } =
-    periodicFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {
-      onSuccess: (data) => setManifestOverviews(data),
-      refreshInterval: 60000,
-    });
-
-  const getManifestOverviews = useCallback(() => {
-    api.get('/manifest').then(({ data }) => {
-      setManifestOverviews(data);
-    });
-  }, [setManifestOverviews]);
+  const {
+    data: manifestOverviews,
+    loading: isLoadingManifestOverviews,
+    mutate: getManifestOverviews,
+  } = useFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {
+    refreshInterval: 10000,
+  });
 
   const formUtils = useFormUtils(
     [
