@@ -3463,7 +3463,7 @@ proceeding.
 #!variable!timestamp!#; - NOTE: This can seem like it's hung! You can watch the progress using 'journalctl -f' on another terminal to
 #!variable!timestamp!#; -       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.</key>
 		<key name="message_0478">#!variable!timestamp!#; - Cache cleared.</key>
-		<key name="<!--message_0479-->">#!variable!timestamp!#; [ Error ] - There was a problem updating the system! Expected a return code of '0', but got: [#!variable!return_code!#]
+		<key name="message_0479">#!variable!timestamp!#; [ Error ] - There was a problem updating the system! Expected a return code of '0', but got: [#!variable!return_code!#]
 #!variable!timestamp!#; [ Error ] - The output, if any, was:
 ==] Output [==
 #!variable!output!#
