@@ -1908,7 +1908,7 @@ The database connection error was:
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
 		<key name="log_0101">Failed to connect to: [#!variable!target!#:#!variable!port!#], sleeping for a second and then trying again.</key>
 		<key name="log_0102">I am not recording the alert with message_key: [#!variable!message_key!#] to the database because its log level was lower than any recipients.</key>
-		<key name="log_0103">The local machine's UUID was not read properly. It should be stored in: [#!data!sys::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
+		<key name="log_0103">The local machine's UUID: [#!variable!host_uuid!#] was not read properly. It should be stored in: [#!data!path::data::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">The database with UUID: [#!variable!uuid!#] for: [#!variable!file!#] is behind.</key>
 		<key name="log_0105">#!string!brand_0002!# database: [#!variable!database!#] already exists.</key>
 		<key name="log_0106">The table: [#!variable!table!#] (and possibly others) in the database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is behind by: [#!variable!seconds!#] seconds. A database resync will be requested.</key>
@@ -4339,6 +4339,10 @@ The initial key is: ... [#!variable!old_key!#]
 The subsequence key is: [#!variable!key!#]
 The older key will be preserved and the subsequent keys will be removed.
 </key>
+		<key name="warning_0188">[ Warning ] - Unable to SQL quote string: [#!variable!string!#] because there are no connected DBs.</key>
+		<key name="warning_0189">[ Warning ] - There are no connected DBs, unable to check the state uuid: [#!variable!state_uuid!#], state name: [#!variable!state_name!#] on the host: [#!variable!state_host_uuid!#]</key>
+		<key name="warning_0190">[ Warning ] - Tried to insert or update a host before any databases are connected, ignoring.</key>
+		<key name="warning_0191">[ Warning ] - I've been asked to configure the postgres server, but I am not running as root (real UID: [#!variable!real_uid!#], effective UID: [#!variable!effective_uid!#]). This is likely to fail.</key>
 		
 	</language>
 	<!-- 日本語 -->
