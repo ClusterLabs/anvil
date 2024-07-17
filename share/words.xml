@@ -3395,6 +3395,117 @@ proceeding.
 		<key name="message_0419">Anvil! Intelligent Availability Daemon Status (Enabled, Started, Failed);</key>
 		<key name="message_0420">- #!variable!daemon!# #!variable!enabled!# (#!variable!enable_string!#), #!variable!started!# (#!variable!start_string!#), #!variable!failed!# (#!variable!fail_string!#).</key>
 		<key name="message_0421">Daemons [enabled/started/failed]; #!variable!string!#.</key>
+		<key name="message_0422">#!variable!timestamp!#; - This has to be run on a Striker dashboard.</key>
+		<key name="message_0423">#!variable!timestamp!#; [ Error ] - Not all systems are accessible. Update aborted!</key>
+		<key name="message_0424">#!variable!timestamp!#; - Success!</key>
+		<key name="message_0425">#!variable!timestamp!#; [ Note ] - Proceeding without confirmation, '-y' or '--yes' used.</key>
+		<key name="message_0426">#!variable!timestamp!#; [  Note   ] - All nodes need to be up and running for the update to run on nodes. 
+#!variable!timestamp!#; [  Note   ] - Any out-of-sync storage needs to complete before a node can be updated. 
+#!variable!timestamp!#; [ Warning ] - Servers will be migrated between subnodes, which can cause reduced performance during
+#!variable!timestamp!#; [ Warning ] - the these migrations. If a sub-node is not active, it will be activated as part of the
+#!variable!timestamp!#; [ Warning ] - upgrade process.</key>
+		<key name="message_0427">#!variable!timestamp!#; Updates complete!</key>
+		<key name="message_0428">#!variable!timestamp!#; [ Note ] - The local system needs to be rebooted, and '--reboot-self' was used.
+#!variable!timestamp!#; Rebooting in 60 seconds! Use ctrl+c to abort!</key>
+		<key name="message_0429">#!variable!timestamp!#; Rebooting now!</key>
+		<key name="message_0430">#!variable!timestamp!#; Reboot requested, exiting.</key>
+		<key name="message_0431">#!variable!timestamp!#; [ Note ] - This host needs to be rebooted to activate the new kernel. Please update as soon as you can.</key>
+		<key name="message_0432">#!variable!timestamp!#; The --timeout switch was used: [#!variable!timeout!#], but the value isn't valid. See Convert->to_seconds() for valid values.</key>
+		<key name="message_0433">#!variable!timestamp!#; Preparing to update the Anvil! node: [#!variable!anvil_name!#]. Verifying subnode access:</key>
+		<key name="message_0434">#!variable!timestamp!#; - Verifying access to subnode: [#!variable!host_name!#].</key>
+		<key name="message_0435">#!variable!timestamp!#; - Access found over the: [#!variable!network_name!#] network using the IP: [#!variable!target_ip!#]</key>
+		<key name="message_0436">#!variable!timestamp!#; [ Warning ] - Access not found!</key>
+		<key name="message_0437">#!variable!timestamp!#; [ Warning ] - '--force' used, skipping this node.
+#!variable!timestamp!#; [  NOTE   ] - This node may not be able to communicate with the Striker dashboards until updated manually!</key>
+		<key name="message_0438">#!variable!timestamp!#; [ Error ] - Exiting update! Please bring the missing subnode back online and try again!</key>
+		<key name="message_0439">#!variable!timestamp!#; Preparing to update: [#!variable!host_name!#]. Withdrawing the subnode from the Anvil! node.\n";
+#!variable!timestamp!#; - [ Note ] - If the node has servers that need to be migrated off, or if the node is SyncSource for storage,\n";
+#!variable!timestamp!#; - [ Note ] - this could take some time to complete.</key>
+		<key name="message_0440">#!variable!timestamp!#; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.</key>
+		<key name="message_0441">#!variable!timestamp!#; [ Note ] - The subnode is still in the cluster.</key>
+		<key name="message_0442">#!variable!timestamp!#; [ Note ] - The subnode is no longer in the cluster, good.</key>
+		<key name="message_0443">#!variable!timestamp!#; [ Note ] - The resource: [#!variable!resource!#] is still up.</key>
+		<key name="message_0444">#!variable!timestamp!#; - Waiting for another: [#!variable!time_left!#], will check again shortly.</key>
+		<key name="message_0445">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the subnode: [#!variable!host_name!#] to stop all DRBD resources nad leave the cluster. Aborting the update.</key>
+		<key name="message_0446">#!variable!timestamp!#; - Registering a job to update the subnode, which we can track to confirm when the update is done.</key>
+		<key name="message_0447">#!variable!timestamp!#; [ Note ] - Job registered with UUID: [#!variable!job_uuid!#], waiting for it to complete.</key>
+		<key name="message_0448">#!variable!timestamp!#; - Calling the no-database update of: [#!variable!host_name!#].</key>
+		<key name="message_0449">#!variable!timestamp!#; - Done! The subnode: [#!variable!host_name!#] has been updated.</key>
+		<key name="message_0450">#!variable!timestamp!#; [ Error ] - There was a problem updating the subnode! Anvil! cluster update aborted.</key>
+		<key name="message_0451">#!variable!timestamp!#; [ Note ] - The job progress is: [#!variable!job_progress!#], continuing to wait.</key>
+		<key name="message_0452">#!variable!timestamp!#; [ Note ] - It is expected for the job to stay at '0' for a while.</key>
+		<key name="message_0453">#!variable!timestamp!#; - Waiting for another: [#!variable!time_left!#], will check again shortly.</key>
+		<key name="message_0454">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the subnode: [#!variable!host_name!#] to update. Aborting the update.</key>
+		<key name="message_0455">#!variable!timestamp!#; - Update completed successfully! Checking if a reboot is needed.</key>
+		<key name="message_0456">#!variable!timestamp!#; - Rebooted! Will wait for it to come back up.</key>
+		<key name="message_0457">#!variable!timestamp!#; - Reboot not needed, kernel appears to be up to date.</key>
+		<key name="message_0458">#!variable!timestamp!#; - Waiting for the subnode to rejoin the node.</key>
+		<key name="message_0459">#!variable!timestamp!#; - Calling 'anvil-safe-start' to rejoin the subnode to the node.</key>
+		<key name="message_0460">#!variable!timestamp!#; - Both subnodes are online, will now check replicated storage.</key>
+		<key name="message_0461">#!variable!timestamp!#; - This is the second node, no need to wait for replication to complete.</key>
+		<key name="message_0462">#!variable!timestamp!#; - Waiting for all volumes to be UpToDate before updating the other subnode.</key>
+		<key name="message_0463">#!variable!timestamp!#; - The resource: [#!variable!resource!#/#!variable!volume!#] is not synced yet, ETA is: [#!variable!eta_in_seconds!#] to complete resync.</key>
+		<key name="message_0464">#!variable!timestamp!#; - The resource: [#!variable!resource!#/#!variable!volume!#] is not yet UpToDate.</key>
+		<key name="message_0465">#!variable!timestamp!#; - All resources appear to be ready,</key>
+		<key name="message_0466">#!variable!timestamp!#; - Both subnodes are not online yet, still waiting.</key>
+		<key name="message_0467">#!variable!timestamp!#; - Unable to parse the node's cluster information base, will try again soon.</key>
+		<key name="message_0468">#!variable!timestamp!#; - We're still waiting for the subnode: [#!variable!host_name!#] to reboot.
+#!variable!timestamp!#; - Waiting for another: [#!variable!time_left!#], will check again shortly.</key>
+		<key name="message_0469">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the subnode: [#!variable!host_name!#] to join the subcluster. Aborting the update.</key>
+		<key name="message_0470">#!variable!timestamp!#; - Running 'anvil-version-changes'.</key>
+		<key name="message_0471">#!variable!timestamp!#; - Done!</key>
+		<key name="message_0472">#!variable!timestamp!#; Starting the update of the Striker dashboard: [#!variable!host_name!#].</key>
+		<key name="message_0473">#!variable!timestamp!#; Starting the update of the DR host: [#!variable!host_name!#].</key>
+		<key name="message_0474">#!variable!timestamp!#; - No access to the Striker dashboard: [#!variable!host_name!#], skipping.</key>
+		<key name="message_0475">#!variable!timestamp!#; - No access to the DR host: [#!variable!host_name!#], skipping.</key>
+		<key name="message_0476">#!variable!timestamp!#; - Beginning OS update of: [#!variable!host_name!#].</key>
+		<key name="message_0477">#!variable!timestamp!#; - Calling update now.
+#!variable!timestamp!#; - NOTE: This can seem like it's hung! You can watch the progress using 'journalctl -f' on another terminal to
+#!variable!timestamp!#; -       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.</key>
+		<key name="message_0478">#!variable!timestamp!#; - Cache cleared.</key>
+		<key name="<!--message_0479-->">#!variable!timestamp!#; [ Error ] - There was a problem updating the system! Expected a return code of '0', but got: [#!variable!return_code!#]
+#!variable!timestamp!#; [ Error ] - The output, if any, was:
+==] Output [==
+#!variable!output!#
+==============</key>
+		<key name="message_0480">#!variable!timestamp!#; - Updated: [#!variable!package!#] packages, and '--reboot --reboot-self' used, reboot needed!</key>
+		<key name="message_0481">#!variable!timestamp!#; - The kernel has not been updated.</key>
+		<key name="message_0482">#!variable!timestamp!#; - The kernel appears to have been upgraded, reboot needed!</key>
+		<key name="message_0483">#!variable!timestamp!#; - Beginning OS update of: [#!variable!host_name!#].</key>
+		<key name="message_0484">#!variable!timestamp!#; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.</key>
+		<key name="message_0485">#!variable!timestamp!#; [ Note ] - The resource: [#!variable!resource!#] is still up.</key>
+		<key name="message_0486">#!variable!timestamp!#; - Waiting for another: [#!variable!time_left!#], will check again shortly.</key>
+		<key name="message_0487">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the DR host: [#!variable!host_name!#] to stop all DRBD resources. Aborting the update.</key>
+		<key name="message_0488">#!variable!timestamp!#; - Registering a job to update the system, which we can track to confirm when the update is done.</key>
+		<key name="message_0489">#!variable!timestamp!#; - [ Note ] - Job registered with UUID: [#!variable!job_uuid!#], waiting for it to complete.</key>
+		<key name="message_0490">#!variable!timestamp!#; - Calling the no-database update of: [#!variable!host_name!#]</key>
+		<key name="message_0491">#!variable!timestamp!#; - Done! The host: [#!variable!host_name!#] has been updated.</key>
+		<key name="message_0492">#!variable!timestamp!#; [ Error ] - There was a problem updating the system! Anvil! cluster update aborted.</key>
+		<key name="message_0493">#!variable!timestamp!#; [ Note ] - The job progress is: [#!variable!progress!#], continuing to wait.</key>
+		<key name="message_0494">#!variable!timestamp!#; [ Note ] - It is normal for the job to show '0' progress until the database access is restored.</key>
+		<key name="message_0495">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the machine: [#!variable!host_name!#] to update the OS. Aborting the update.</key>
+		<key name="message_0496">#!variable!timestamp!#; - Rebooted! Will wait for it to come back up.</key>
+		<key name="message_0497">#!variable!timestamp!#; - Reboot not needed, kernel appears to be up to date.</key>
+		<key name="message_0498">#!variable!timestamp!#; - Running 'anvil-version-changes' now.</key>
+		<key name="message_0499">#!variable!timestamp!#; - The target has been rebooted. We'll wait for the target to come back online.</key>
+		<key name="message_0500">#!variable!timestamp!#; - Rebooted! Subnode is back up.</key>
+		<key name="message_0501">#!variable!timestamp!#; - We're still waiting for the subnode: [#!variable!host_name!#] to reboot.
+#!variable!timestamp!#; - Waiting for another: [#!variable!time_left!#], will check again shortly.</key>
+		<key name="message_0502">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the subnode: [#!variable!host_name!#] to reboot. Aborting the update.</key>
+		<key name="message_0503">#!variable!timestamp!#; Disabling Anvil! daemons on all hosts...</key>
+		<key name="message_0504">#!variable!timestamp!#; Enabling Anvil! daemons on all hosts...</key>
+		<key name="message_0505">#!variable!timestamp!#; - Disabling dameons on: [#!variable!host_name!#]... </key>
+		<key name="message_0506">#!variable!timestamp!#; - Enabling dameons on: [#!variable!host_name!#]... </key>
+		<key name="message_0507">#!variable!timestamp!#; Offline! Skipping.</key>
+		<key name="message_0508">#!variable!timestamp!#; #!variable!daemon!# stopped.</key>
+		<key name="message_0509">#!variable!timestamp!#; #!variable!daemon!# started.</key>
+		<key name="message_0510">#!variable!timestamp!#; #!variable!daemon!# didn't stop!</key>
+		<key name="message_0511">#!variable!timestamp!#; #!variable!daemon!# didn't start!</key>
+		<key name="message_0512">#!variable!timestamp!#; Enabling 'anvil-safe-start' on nodes to prevent hangs on reboot.</key>
+		<key name="message_0513">#!variable!timestamp!#; Offline! Skipping.</key>
+		<key name="message_0514">#!variable!timestamp!#; - Verifying access to: [#!variable!host_name!#]...</key>
+		<key name="message_0515">#!variable!timestamp!#; Connected on: [#!variable!target_ip!#] via: [#!variable!network_name!#]</key>
+		<key name="message_0516">#!variable!timestamp!#; No access! Skipping.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
