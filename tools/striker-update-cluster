@@ -80,14 +80,13 @@ if ($anvil->Get->host_type ne "striker")
 }
 
 # If we still don't have a job-uuit, go into interactive mode.
-$anvil->data->{sys}{progress} = 0;
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details({debug => 2});
 	$anvil->Job->update_progress({
-		progress         => $anvil->data->{sys}{progress}++,
+		progress         => get_progress($anvil),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		'print'          => 1,
@@ -98,22 +97,35 @@ if ($anvil->data->{switches}{'job-uuid'})
 # Update beginning. Verifying all known machines are accessible...
 $anvil->Job->update_progress({
 	'print'  => 1,
-	progress => $anvil->data->{sys}{progress}++,
+	progress => get_progress($anvil),
 	message  => "job_0469", 
 });
 my $all_access = verify_access($anvil);
 if ((not $all_access) && (not $anvil->data->{switches}{force}))
 {
 	# Not all systems are accessible. Update aborted!
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0423", variables => {
-		timestamp => $anvil->Get->date_and_time({time_only => 1}),
-	}});
+	$anvil->Job->update_progress({
+		'print'   => 1,
+		progress  => 100,
+		message   => "message_0423", 
+		log_level => 1,
+		variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}
+	});
 	$anvil->nice_exit({exit_code => 1});
 }
+
 # Success!
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0424", variables => {
-	timestamp => $anvil->Get->date_and_time({time_only => 1}),
-}});
+$anvil->Job->update_progress({
+	'print'   => 1,
+	progress  => get_progress($anvil),
+	message   => "message_0424", 
+	log_level => 1,
+	variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}
+});
 
 if (($anvil->data->{switches}{y}) or ($anvil->data->{switches}{yes}))
 {
@@ -213,6 +225,23 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This returns a number between 1 and 99, incrementing by '1'
+sub get_progress
+{
+	my ($anvil) = @_;
+	
+	if (not exists $anvil->data->{sys}{progress})
+	{
+		$anvil->data->{sys}{progress} = 0;
+	}
+	
+	if ($anvil->data->{sys}{progress} < 99)
+	{
+		$anvil->data->{sys}{progress}++
+	}
+	return($anvil->data->{sys}{progress});
+}
 
 # For some unknown reason, 'sys::timeout' gets periodically blanked and 'switches::timeout' resets. This
 # function ensures a sensible timeout is returned.
@@ -1471,6 +1500,7 @@ sub wait_for_reboot
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:host_uuid'       => $host_uuid,
 		's2:short_host_name' => $short_host_name, 
+		's3:reboot_time'     => $reboot_time, 
 	}});
 	
 	my $matches = $anvil->Network->find_access({

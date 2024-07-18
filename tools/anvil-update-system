@@ -433,7 +433,7 @@ WHERE
 	my $verifying         = 0;
 	my $output            = "";
 	   $shell_call        = $anvil->data->{path}{exe}{dnf}." -y update; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	open ($file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{
