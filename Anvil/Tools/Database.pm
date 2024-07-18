@@ -1435,7 +1435,7 @@ sub connect
 	# If I wasn't passed an array reference of tables, load them from file(s).
 	if (not $tables)
 	{
-		$tables = $anvil->Database->get_tables_from_schema({debug => $debug, schema_file => "all"});
+		$tables = $anvil->Database->get_tables_from_schema({debug => 3, schema_file => "all"});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tables => $tables }});
 	}
 	
@@ -1736,6 +1736,13 @@ sub connect
 				"db_status::${uuid}::access" => $anvil->data->{db_status}{$uuid}{access},
 			}});
 			
+			# Record this as successful
+			$anvil->data->{sys}{database}{connections}++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"sys::database::connections" => $anvil->data->{sys}{database}{connections},
+			}});
+			push @{$successful_connections}, $uuid;
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0071", variables => { 
 				host => $host,
 				port => $port,
@@ -1776,6 +1783,11 @@ sub connect
 					db1   => $anvil->data->{sys}{database}{identifier}{$identifier}, 
 					db2   => $db_connect_string, 
 					query => $query,
+				}});
+				
+				$anvil->data->{sys}{database}{connections}--;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"sys::database::connections" => $anvil->data->{sys}{database}{connections},
 				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
@@ -1889,13 +1901,6 @@ sub connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"sys::database::timestamp" => $anvil->data->{sys}{database}{timestamp},
 			}});
-			
-			# Record this as successful
-			$anvil->data->{sys}{database}{connections}++;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"sys::database::connections" => $anvil->data->{sys}{database}{connections},
-			}});
-			push @{$successful_connections}, $uuid;
 		}
 		
 		# Before we try to connect, see if this is a local database and, if so, make sure it's setup.
@@ -14354,6 +14359,9 @@ sub insert_or_update_states
 	{
 		foreach my $db_uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"cache::database_handle::${db_uuid}" => $anvil->data->{cache}{database_handle}{$db_uuid},
+			}});
 			next if $anvil->data->{cache}{database_handle}{$db_uuid} !~ /^DBI::db=HASH/;
 			push @{$db_uuids}, $db_uuid;
 		}
@@ -17854,6 +17862,7 @@ sub query
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
 	if ($@)
 	{
+		die;
 		if (($@ =~ /time/i) && ($@ =~ /out/i))
 		{
 			# Timed out 
