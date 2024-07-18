@@ -14354,6 +14354,7 @@ sub insert_or_update_states
 	{
 		foreach my $db_uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
 		{
+			next if $anvil->data->{cache}{database_handle}{$db_uuid} !~ /^DBI::db=HASH/;
 			push @{$db_uuids}, $db_uuid;
 		}
 	}
