@@ -338,7 +338,7 @@ sub update_nodes
 						# Access found 
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0435", variables => {
 							timestamp    => $anvil->Get->date_and_time({time_only => 1}),
-							network_name => $short_host_name,
+							network_name => $network_name,
 							target_ip    => $target_ip, 
 						}});
 						last;
