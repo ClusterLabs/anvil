@@ -3418,8 +3418,8 @@ proceeding.
 		<key name="message_0437">#!variable!timestamp!#; [ Warning ] - '--force' used, skipping this node.
 #!variable!timestamp!#; [  NOTE   ] - This node may not be able to communicate with the Striker dashboards until updated manually!</key>
 		<key name="message_0438">#!variable!timestamp!#; [ Error ] - Exiting update! Please bring the missing subnode back online and try again!</key>
-		<key name="message_0439">#!variable!timestamp!#; Preparing to update: [#!variable!host_name!#]. Withdrawing the subnode from the Anvil! node.\n";
-#!variable!timestamp!#; - [ Note ] - If the node has servers that need to be migrated off, or if the node is SyncSource for storage,\n";
+		<key name="message_0439">#!variable!timestamp!#; Preparing to update: [#!variable!host_name!#]. Withdrawing the subnode from the Anvil! node.
+#!variable!timestamp!#; - [ Note ] - If the node has servers that need to be migrated off, or if the node is SyncSource for storage,
 #!variable!timestamp!#; - [ Note ] - this could take some time to complete.</key>
 		<key name="message_0440">#!variable!timestamp!#; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.</key>
 		<key name="message_0441">#!variable!timestamp!#; [ Note ] - The subnode is still in the cluster.</key>
@@ -4287,7 +4287,7 @@ We will wait: [#!variable!waiting!#] seconds and then try again. We'll give up i
 #!variable!output!#
 ==========
 We will try to proceed anyway.</key>
-		<key name="warning_0161"> Warning!\n";
+		<key name="warning_0161"> Warning!
 [ Warning ] - When trying to create the peer: [#!variable!host_name!#]'s meta-data on: [#!variable!drbd_resource!#/#!variable!next_drbd_volume!#]
 [ Warning ] - using the command: [#!variable!shell_call!#]
 [ Warning ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
