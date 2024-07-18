@@ -404,6 +404,7 @@ WHERE
 					versions_to_remove => $versions_to_remove,
 					package_changes    => $package_changes, 
 				}});
+				last;
 			}
 		}
 		

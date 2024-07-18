@@ -408,6 +408,7 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $error, $return_code) = $anvil->Remote->call({
+				debug      => 2,
 				shell_call => $shell_call, 
 				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 			});
