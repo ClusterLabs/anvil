@@ -341,9 +341,10 @@ sub update_nodes
 							network_name => $network_name,
 							target_ip    => $target_ip, 
 						}});
-						last;
 					}
+					last if $anvil->data->{peer}{$short_host_name}{access}{ip};
 				}
+				last if $anvil->data->{peer}{$short_host_name}{access}{ip};
 			}
 			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
 			{
