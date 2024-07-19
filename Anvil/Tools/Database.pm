@@ -17862,7 +17862,6 @@ sub query
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
 	if ($@)
 	{
-		die;
 		if (($@ =~ /time/i) && ($@ =~ /out/i))
 		{
 			# Timed out 

@@ -16,7 +16,7 @@ Author:  Madison Kelly <mkelly@alteeve.ca>
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">Striker</key>
 		<key name="brand_0004">ScanCore</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2023 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2024 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, Toronto, Ontario, Canada]]></key>
 		<key name="brand_0006"><![CDATA[<i>Anvil!</i>]]></key>
 		<key name="brand_0007">Node</key>
 		<key name="brand_0008">DR Host</key>
@@ -4343,6 +4343,7 @@ The older key will be preserved and the subsequent keys will be removed.
 		<key name="warning_0189">[ Warning ] - There are no connected DBs, unable to check the state uuid: [#!variable!state_uuid!#], state name: [#!variable!state_name!#] on the host: [#!variable!state_host_uuid!#]</key>
 		<key name="warning_0190">[ Warning ] - Tried to insert or update a host before any databases are connected, ignoring.</key>
 		<key name="warning_0191">[ Warning ] - I've been asked to configure the postgres server, but I am not running as root (real UID: [#!variable!real_uid!#], effective UID: [#!variable!effective_uid!#]). This is likely to fail.</key>
+		<key name="warning_0192">[ Warning ] - Timed out trying to test access to the target: [#!variable!target!#]! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
 		
 	</language>
 	<!-- 日本語 -->
@@ -4370,7 +4371,7 @@ The older key will be preserved and the subsequent keys will be removed.
 		<key name="brand_0002">Anvil!</key>
 		<key name="brand_0003">ストライカ</key>
 		<key name="brand_0004">スカンコア</key>
-		<key name="brand_0005"><![CDATA[&copy; 1997 - 2023 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
+		<key name="brand_0005"><![CDATA[&copy; 1997 - 2024 <a href="https://alteeve.com/" target="_new">Alteeve's Niche! Inc.</a>, トロント、オンタリオ、カナダ]]></key>
 		
 	</language>
 </words>

@@ -1033,27 +1033,45 @@ sub test_access
 	}});
 	
 	# Make sure we've got the target in our known_hosts file.
-	$anvil->Remote->add_target_to_known_hosts({
-		debug  => $debug, 
-		target => $target, 
-		user   => getpwuid($<),
-	});
-	
-	# Call the target
-	my ($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => $debug, 
-		password    => $password, 
-		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
-		target      => $target,
-		remote_user => $user, 
-		'close'     => $close,
-		no_cache    => 1,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		output      => $output,
-		error       => $error,
-		return_code => $return_code, 
-	}});
+	my $output      = "";
+	my $error       = "";
+	my $return_code = 255;
+	my $timeout     = 30;
+	alarm($timeout);
+	eval {
+		$anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug, 
+			target => $target, 
+			user   => getpwuid($<),
+		});
+		
+		# Call the target
+		($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			password    => $password, 
+			shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
+			target      => $target,
+			remote_user => $user, 
+			'close'     => $close,
+			no_cache    => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			error       => $error,
+			return_code => $return_code, 
+		}});
+	};
+	alarm(0);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
+	if ($@)
+	{
+		# Timed out 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0192", variables => { 
+			target  => $target, 
+			timeout => $timeout, 
+			error   => $@, 
+		}});
+	}
 	
 	if ($output eq "1")
 	{

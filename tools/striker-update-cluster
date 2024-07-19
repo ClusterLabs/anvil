@@ -1518,16 +1518,24 @@ sub wait_for_reboot
 	my $wait_until = time + return_timeout($anvil);
 	my $waiting    = 1;
 	my $next_log   = time + 60;
+	my $delay      = 30;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 	while($waiting)
 	{
+		# We wait initially because we're going to be called right after the target is rebooted.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0816", variables => { delay => $delay }});
+		sleep $delay;
+		
 		# Test access
 		my $target = $anvil->data->{peer}{$short_host_name}{access}{ip};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			target          => $target,
 			short_host_name => $short_host_name, 
 		}});
-		my $test_access = $anvil->Remote->test_access({target => $target});
+		my $test_access = $anvil->Remote->test_access({
+			debug => 2, 
+			target => $target,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_access => $test_access }});
 		
 		if ($test_access)
@@ -1586,8 +1594,6 @@ sub wait_for_reboot
 				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
-			
-			sleep 5;
 		}
 	}
 	
