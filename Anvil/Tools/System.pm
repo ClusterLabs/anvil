@@ -5425,6 +5425,9 @@ sub update_hosts
 			's2:names'      => $names,
 		}});
 		
+		# If this is a bad line, there could be no IP address.
+		next if not $ip_address;
+		
 		# Make sure the IP is valid.
 		my $is_ip = $anvil->Validate->ip({ip => $ip_address, debug => 3});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_ip => $is_ip }});

@@ -624,7 +624,7 @@ When logging as well, this is the file causing the update. Use with C<< line >>.
 
 This is the UUID of the job to update. If it isn't set, but C<< jobs::job_uuid >> is set, it will be used. If that is also not set, 
 
-=head3 line (optional_
+=head3 line (optional)
 
 When logging as well, this is the line the update came from. Use with C<< file >>. Ignored if C<< log_level >> is not set, or such that it wouldn't be logged anyway.
 
