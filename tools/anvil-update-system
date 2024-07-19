@@ -197,12 +197,14 @@ WHERE
 		# Record that we're going to reboot now.
 		update_progress($anvil, 100, "message_0317");
 		
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		if ($anvil->data->{sys}{database}{connections})
 		{
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				file            => $THIS_FILE, 
 				line            => __LINE__, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-manage-power'}." --reboot -y".$anvil->Log->switches, 
+				job_command     => $shell_call, 
 				job_data        => "", 
 				job_name        => "reboot::system", 
 				job_title       => "job_0009", 
@@ -217,6 +219,15 @@ WHERE
 			{
 				unlink $anvil->data->{path}{data}{reboot_cache};
 			}
+		}
+		else
+		{
+			# Without the database, just reboot directly.
+			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code, 
+			}});
 		}
 	}
 	else
@@ -393,6 +404,7 @@ WHERE
 					versions_to_remove => $versions_to_remove,
 					package_changes    => $package_changes, 
 				}});
+				last;
 			}
 		}
 		
@@ -421,7 +433,7 @@ WHERE
 	my $verifying         = 0;
 	my $output            = "";
 	   $shell_call        = $anvil->data->{path}{exe}{dnf}." -y update; ".$anvil->data->{path}{exe}{echo}." return_code:\$?";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	open ($file_handle, $shell_call." 2>&1 |") or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "log_0014", variables => { shell_call => $shell_call, error => $! }});
 	while(<$file_handle>)
 	{

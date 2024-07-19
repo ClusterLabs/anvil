@@ -1033,27 +1033,45 @@ sub test_access
 	}});
 	
 	# Make sure we've got the target in our known_hosts file.
-	$anvil->Remote->add_target_to_known_hosts({
-		debug  => $debug, 
-		target => $target, 
-		user   => getpwuid($<),
-	});
-	
-	# Call the target
-	my ($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => $debug, 
-		password    => $password, 
-		shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
-		target      => $target,
-		remote_user => $user, 
-		'close'     => $close,
-		no_cache    => 1,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		output      => $output,
-		error       => $error,
-		return_code => $return_code, 
-	}});
+	my $output      = "";
+	my $error       = "";
+	my $return_code = 255;
+	my $timeout     = 30;
+	alarm($timeout);
+	eval {
+		$anvil->Remote->add_target_to_known_hosts({
+			debug  => $debug, 
+			target => $target, 
+			user   => getpwuid($<),
+		});
+		
+		# Call the target
+		($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => $debug, 
+			password    => $password, 
+			shell_call  => $anvil->data->{path}{exe}{echo}." 1", 
+			target      => $target,
+			remote_user => $user, 
+			'close'     => $close,
+			no_cache    => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			error       => $error,
+			return_code => $return_code, 
+		}});
+	};
+	alarm(0);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'alarm $@' => $@ }});
+	if ($@)
+	{
+		# Timed out 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0192", variables => { 
+			target  => $target, 
+			timeout => $timeout, 
+			error   => $@, 
+		}});
+	}
 	
 	if ($output eq "1")
 	{
@@ -1131,6 +1149,33 @@ sub _call_ssh_keyscan
 		user   => $say_user, 
 	}});
 	
+	# Is there a known_hosts file at all?
+	if (not $known_hosts)
+	{
+		# Can we divine it?
+		my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
+		if ($users_home)
+		{
+			$known_hosts = $users_home."/.ssh/known_hosts";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+		}
+		
+		if (not $known_hosts)
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+			return("");
+		}
+	}
+	
+	# Does the known_hosts file actually exist?
+	if (not -f $known_hosts)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+		return("");
+	}
+	
 	# Redirect STDERR to STDOUT and grep off the comments.
 	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
 	if (($port) && ($port ne "22"))
@@ -1165,6 +1210,7 @@ sub _call_ssh_keyscan
 	
 	return($known_machine);
 }
+
 
 =head3 _check_known_hosts_for_target
 
@@ -1270,10 +1316,15 @@ sub _check_known_hosts_for_target
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
 		
-		# Sometimes 'No route to host' is added to known_hosts. This fixes that.
-		if (($line =~ /No route to host/i) or 
-		    ($line =~ /getaddrinfo/))
+		# If the line isn't a comment or isn't in the format '<host> <algo> <key>', consider it bad.
+		my $test_line =  $anvil->Words->clean_spaces({string => $line});
+		   $test_line =~ s/#.*$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { test_line => $test_line }});
+		if (($test_line !~ /^\w.*?\s+\w.*?\s+\w.*/) or 
+		    ($test_line =~ /No route to host/i) or 
+		    ($test_line =~ /getaddrinfo/))
 		{
+			# Bad line.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0185", variables => { 
 				file => $known_hosts,
 				line => $line,

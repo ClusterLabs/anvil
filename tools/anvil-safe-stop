@@ -49,8 +49,6 @@ if (($anvil->data->{switches}{'poweroff'}) && (not $anvil->data->{switches}{'pow
 	}});
 }
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
-
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
 if (($< != 0) && ($> != 0))

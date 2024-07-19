@@ -2594,6 +2594,58 @@ sub configure_pacemaker
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
 					}
 				}
+				elsif (exists $anvil->data->{cib}{parsed}{cib}{resource}{primitive}{$stonith_name})
+				{
+					# If this isn't connected to a node, like PDUs, we need to look for it elsewhere.
+					foreach my $argument_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{cib}{resource}{primitive}{$stonith_name}{instance_attributes}})
+					{
+						my $argument  = $anvil->data->{cib}{parsed}{cib}{resource}{primitive}{$stonith_name}{instance_attributes}{$argument_name}{name};
+						my $old_entry = $anvil->data->{cib}{parsed}{cib}{resource}{primitive}{$stonith_name}{instance_attributes}{$argument_name}{value};
+						my $new_entry = exists $old_switches->{$argument} ? $old_switches->{$argument} : "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:argument_name' => $argument_name, 
+							's2:argument'      => $argument,
+							's3:old_entry'     => $old_entry, 
+							's4:new_entry'     => $new_entry,
+						}});
+						next if $argument eq "pcmk_host_list";
+						
+						if ($old_entry ne $new_entry)
+						{
+							# Changed, delete and recreate.
+							$delete_old   = 1;
+							$create_entry = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								delete_old   => $delete_old,
+								create_entry => $create_entry,
+							}});
+							
+							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0121,!!device!".$stonith_name."!!");
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+							last;
+						}
+						
+						# Delete the old switch.
+						delete $old_switches->{$argument};
+					}
+					
+					# Are there any old switches left?
+					my $old_switch_count = keys %{$old_switches};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_switch_count => $old_switch_count }});
+					if ((not $delete_old) && ($old_switch_count))
+					{
+						# Delete and recreate. 
+						$delete_old   = 1;
+						$create_entry = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							delete_old   => $delete_old,
+							create_entry => $create_entry,
+						}});
+						
+						update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0121,!!device!".$stonith_name."!!");
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0121", variables => { device => $stonith_name }});
+					}
+				}
 				else
 				{
 					# No existing entry, add a new one.
@@ -2659,7 +2711,7 @@ sub configure_pacemaker
 						{
 							# It already existed, we're fine.
 							update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0481,!!device!".$stonith_name."!!");
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0120", variables => { device => $stonith_name }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0481", variables => { device => $stonith_name }});
 						}
 						else
 						{

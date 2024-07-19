@@ -72,19 +72,21 @@ if (($< != 0) && ($> != 0))
 # Make sure we're a striker.
 if ($anvil->Get->host_type ne "striker")
 {
-	print $anvil->Get->date_and_time({time_only => 1})."; - This has to be run on a Striker dashboard.\n";
+	# This has to be run on a Striker dashboard.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0422", variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}});
 	$anvil->nice_exit({exit_code => 1});
 }
 
 # If we still don't have a job-uuit, go into interactive mode.
-$anvil->data->{sys}{progress} = 0;
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details({debug => 2});
 	$anvil->Job->update_progress({
-		progress         => $anvil->data->{sys}{progress}++,
+		progress         => get_progress($anvil),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		'print'          => 1,
@@ -95,30 +97,50 @@ if ($anvil->data->{switches}{'job-uuid'})
 # Update beginning. Verifying all known machines are accessible...
 $anvil->Job->update_progress({
 	'print'  => 1,
-	progress => $anvil->data->{sys}{progress}++,
+	progress => get_progress($anvil),
 	message  => "job_0469", 
 });
 my $all_access = verify_access($anvil);
 if ((not $all_access) && (not $anvil->data->{switches}{force}))
 {
-	print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Not all systems are accessible. Update aborted!\n";
+	# Not all systems are accessible. Update aborted!
+	$anvil->Job->update_progress({
+		'print'   => 1,
+		progress  => 100,
+		message   => "message_0423", 
+		log_level => 1,
+		variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}
+	});
 	$anvil->nice_exit({exit_code => 1});
 }
-print $anvil->Get->date_and_time({time_only => 1})."; Success!\n";
+
+# Success!
+$anvil->Job->update_progress({
+	'print'   => 1,
+	progress  => get_progress($anvil),
+	message   => "message_0424", 
+	log_level => 1,
+	variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}
+});
 
 if (($anvil->data->{switches}{y}) or ($anvil->data->{switches}{yes}))
 {
-	print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - Proceeding without confirmation, '-y' or '--yes' used.\n";
+	# Proceeding without confirmation, '-y' or '--yes' used.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0425", variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}});
 }
 else
 {
-	my $timestamp = $anvil->Get->date_and_time({time_only => 1});
-	print $timestamp."; [  Note   ] - All nodes need to be up and running for the update to run on nodes. 
-".$timestamp."; [  Note   ] - Any out-of-sync storage needs to complete before a node can be updated. 
-".$timestamp."; [ Warning ] - Servers will be migrated between subnodes, which can cause reduced performance during
-".$timestamp."; [ Warning ] - the these migrations. If a sub-node is not active, it will be activated as part of the
-".$timestamp."; [ Warning ] - upgrade process.\n";
-	print "\n".$anvil->Words->string({key => "message_0021"})."\n";
+	# Make sure the user is ready to proceed.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0426", variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}});
+	print $anvil->Words->string({key => "message_0021"})."\n";
 	my $answer = <STDIN>;
 	chomp $answer;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
@@ -144,7 +166,10 @@ update_nodes($anvil);
 
 manage_daemons($anvil, "start");
 
-print $anvil->Get->date_and_time({time_only => 1})."; Updates complete!\n";
+# Updates complete!
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0427", variables => {
+	timestamp => $anvil->Get->date_and_time({time_only => 1}),
+}});
 
 my $host_uuid       = $anvil->Get->host_uuid;
 my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
@@ -156,7 +181,10 @@ if ($anvil->data->{sys}{reboot_needed})
 {
 	if ($anvil->data->{switches}{'reboot-self'})
 	{
-		print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The local system needs to be rebooted, and '--reboot-self' was used. Rebooting in 60 seconds! Use ctrl+c to abort!\n";
+		# The local system needs to be rebooted, and '--reboot-self' was used. Rebooting in 60 seconds!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0428", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 		my $waiting = 60;
 		while ($waiting)
 		{
@@ -166,7 +194,10 @@ if ($anvil->data->{sys}{reboot_needed})
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $waiting }});
 		}
 		print "\n";
-		print $anvil->Get->date_and_time({time_only => 1})."; Rebooting now!\n";
+		# Rebooting now!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0429", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 		
 		my $shell_call = $anvil->data->{path}{exe}{systemctl}." reboot";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -174,11 +205,17 @@ if ($anvil->data->{sys}{reboot_needed})
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
 		
-		print $anvil->Get->date_and_time({time_only => 1})."; Reboot requested, exiting.\n";
+		# Reboot requested, exiting.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0430", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 	}
 	else
 	{
-		print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - This host needs to be rebooted to activate the new kernel. Please update as soon as you can.\n";
+		# This host needs to be rebooted to activate the new kernel. Tell the user to reboot asap
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0431", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 	}
 }
 
@@ -188,6 +225,23 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This returns a number between 1 and 99, incrementing by '1'
+sub get_progress
+{
+	my ($anvil) = @_;
+	
+	if (not exists $anvil->data->{sys}{progress})
+	{
+		$anvil->data->{sys}{progress} = 0;
+	}
+	
+	if ($anvil->data->{sys}{progress} < 99)
+	{
+		$anvil->data->{sys}{progress}++
+	}
+	return($anvil->data->{sys}{progress});
+}
 
 # For some unknown reason, 'sys::timeout' gets periodically blanked and 'switches::timeout' resets. This
 # function ensures a sensible timeout is returned.
@@ -212,7 +266,11 @@ sub return_timeout
 		
 		if ((not $anvil->data->{sys}{timeout}) or ($anvil->data->{sys}{timeout} =~ /\D/))
 		{
-			print $anvil->Get->date_and_time({time_only => 1})."; The --timeout switch was used: [".$anvil->data->{switches}{timeout}."], but the value isn't valid. See Convert->to_seconds() for valid values.\n";
+			# The --timeout switch was used, but the value isn't valid.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0432", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				timeout   => $anvil->data->{switches}{timeout},
+			}});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -257,7 +315,10 @@ sub update_nodes
 		
 		# Before we proceed, are both nodes online? If so, great. If not, are both offline? If only 
 		# one is online, abort. Check now in case things have changed since our first scan
-		print $anvil->Get->date_and_time({time_only => 1})."; Preparing to update the Anvil! node: [".$anvil_name."]. Verifying subnode access:\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0433", variables => {
+			timestamp  => $anvil->Get->date_and_time({time_only => 1}),
+			anvil_name => $anvil_name,
+		}});
 		foreach my $host_uuid ($secondary_host_uuid, $primary_host_uuid)
 		{
 			my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
@@ -265,7 +326,11 @@ sub update_nodes
 				's1:host_uuid'       => $host_uuid,
 				's2:short_host_name' => $short_host_name, 
 			}});
-			print $anvil->Get->date_and_time({time_only => 1})."; - Verifying access to subnode: [".$short_host_name."]\n";
+			# Verifying access to the subnode
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0434", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name,
+			}});
 			my $matches = $anvil->Network->find_access({
 				debug  => 2,
 				target => $host_uuid, 
@@ -299,14 +364,23 @@ sub update_nodes
 							"s1:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
 							"s2:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
 						}});
-						print $anvil->Get->date_and_time({time_only => 1})."; - Access found over the: [".$network_name."] network using the IP: [".$target_ip."]\n";
-						last;
+						# Access found 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0435", variables => {
+							timestamp    => $anvil->Get->date_and_time({time_only => 1}),
+							network_name => $network_name,
+							target_ip    => $target_ip, 
+						}});
 					}
+					last if $anvil->data->{peer}{$short_host_name}{access}{ip};
 				}
+				last if $anvil->data->{peer}{$short_host_name}{access}{ip};
 			}
 			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; [ Warning ] - Access not found!\n";
+				# Access not found!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0436", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 			}
 		}
 		
@@ -317,13 +391,17 @@ sub update_nodes
 			if ($anvil->data->{switches}{force})
 			{
 				# Skip this Anvil! system
-				print $anvil->Get->date_and_time({time_only => 1})."; [ Warning ] - '--force' used, skipping this node.\n";
-				print $anvil->Get->date_and_time({time_only => 1})."; [  NOTE   ] - This node may not be able to communicate with the Striker dashboards until updated manually!\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0437", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				next;
 			}
 			else
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Exiting update! Please bring the missing subnode back online and try again!\n";
+				# Exiting update!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0438", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
@@ -347,9 +425,11 @@ sub update_nodes
 				's2:short_host_name' => $short_host_name, 
 			}});
 			
-			print $anvil->Get->date_and_time({time_only => 1})."; Preparing to update: [".$short_host_name."]. Withdrawing the subnode from the Anvil! node.\n";
-			print $anvil->Get->date_and_time({time_only => 1})."; - [ Note ] - If the node has servers that need to be migrated off, or if the node is SyncSource for storage,\n";
-			print $anvil->Get->date_and_time({time_only => 1})."; - [ Note ] - this could take some time to complete.\n";
+			# Preparing to update the target host
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0439", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name, 
+			}});
 			
 			# Make sure VMs are off, DRBD is down and the node is out of the cluster. Call this 
 			# with nohup so it doesn't get killed by the loss of the SSH connection.
@@ -357,6 +437,7 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($output, $error, $return_code) = $anvil->Remote->call({
+				debug      => 2,
 				shell_call => $shell_call, 
 				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 			});
@@ -367,7 +448,9 @@ sub update_nodes
 			}});
 			
 			# Now wait for DRBD resources to stop (which requires VMs be off).
-			print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0440", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			my $wait_until = time + return_timeout($anvil);
 			my $next_log   = time + 60;
 			my $waiting    = 1;
@@ -420,16 +503,26 @@ sub update_nodes
 					{
 						if ($pacemaker_up)
 						{
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The subnode is still in the cluster.\n";
+							# The subnode is still in the cluster.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0441", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							}});
 						}
 						else
 						{
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The subnode is no longer in the cluster, good.\n";
+							# The subnode is no longer in the cluster, good.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0442", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							}});
 						}
 						
 						foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
 						{
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The resource: [".$resource."] is still up.\n";
+							# The resource is still up.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0443", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								resource  => $resource,
+							}});
 						}
 						   $next_log      = time + 60;
 						my $time_left     = $wait_until - time;
@@ -444,12 +537,19 @@ sub update_nodes
 							time_left     => $time_left, 
 							say_time_left => $say_time_left, 
 						}});
-						print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for another: [".$say_time_left."], will check again shortly.\n";
+						# Keep waiting
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0444", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							time_left => $say_time_left,
+						}});
 					}
 					if (time > $wait_until)
 					{
 						# Timeout.
-						print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to stop all DRBD resources nad leave the cluster. Aborting the update.\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0445", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							host_name => $short_host_name,
+						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
 					
@@ -470,7 +570,9 @@ sub update_nodes
 			
 			# We register a job, even though anvil-daemon isn't running. This will get picked up 
 			# by 'anvil-update-systems --no-db' towards the end of it's run.
-			print $anvil->Get->date_and_time({time_only => 1})."; - Registering a job to update the subnode, which we can track to confirm when the update is done.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0446", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			$shell_call = $anvil->data->{path}{exe}{'anvil-update-system'}.$update_switches.$anvil->Log->switches();
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			my $job_uuid = $anvil->Database->insert_or_update_jobs({
@@ -483,11 +585,18 @@ sub update_nodes
 				job_title       => "job_0467"
 			});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-			print $anvil->Get->date_and_time({time_only => 1})."; - [ Note ] - Job registered with UUID: [".$job_uuid."], waiting for it to complete.\n";
+			# Job registered, tell the user we're waiting
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0447", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				job_uuid  => $job_uuid, 
+			}});
 			
 			# Now call anvil-update-system with --no-db and background it so we can close
 			# the DB connection without killing the process.
-			print $anvil->Get->date_and_time({time_only => 1})."; - Calling the no-database update of: [".$short_host_name."]\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0448", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name, 
+			}});
 			$shell_call = $anvil->data->{path}{exe}{nohup}." ".$anvil->data->{path}{exe}{'anvil-update-system'}." --no-db".$update_switches;
 			if ($anvil->data->{switches}{'clear-cache'})
 			{
@@ -535,7 +644,11 @@ sub update_nodes
 				}});
 				if ($anvil->data->{jobs}{job_progress} == 100)
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - Done! The subnode: [".$short_host_name."] has been updated\n";
+					# Done! The subnode has been updated.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0449", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						host_name => $short_host_name, 
+					}});
 					$waiting = 0;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 					
@@ -549,8 +662,10 @@ sub update_nodes
 					# Did it fail?
 					if ($anvil->data->{jobs}{job_data} eq "failed")
 					{
-						# Abort!
-						print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - There was a problem updating the subnode! Anvil! cluster update aborted.\n";
+						# Abort! There was a problem updating the subnode! Anvil! 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0450", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
 				}
@@ -558,10 +673,17 @@ sub update_nodes
 				{
 					if (time > $next_log)
 					{
-						print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
+						# Continuing to wait.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0451", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							progress  => $anvil->data->{jobs}{job_progress},
+						}});
 						if ($anvil->data->{jobs}{job_progress} eq "0")
 						{
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - It is expected for the job to stay at '0' for a while.\n";
+							# It is expected for the job to stay at '0' for a while.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0452", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							}});
 						}
 						   $next_log      = time + 60;
 						my $time_left     = $wait_until - time;
@@ -575,35 +697,53 @@ sub update_nodes
 							time_left     => $time_left, 
 							say_time_left => $say_time_left, 
 						}});
-						print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for another: [".$say_time_left."], will check again shortly.\n";
+						# Waiting, will check again shortly.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0453", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							time_left => $say_time_left, 
+						}});
 					}
 					if (time > $wait_until)
 					{
-						# Timeout.
-						print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to update. Aborting the update.\n";
+						# Timed out while waiting for the subnode to update. Aborting the update.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0454", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							host_name => $short_host_name, 
+						}});
 						$anvil->nice_exit({exit_code => 1});
 					}
 					sleep 5;
 				}
 			}
 			
-			print $anvil->Get->date_and_time({time_only => 1})."; - Update completed successfully! Checking if a reboot is needed.\n";
+			# Update completed successfully! Checking if a reboot is needed.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0455", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			my $run_anvil_safe_start = 0;
 			if ($rebooted)
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Rebooted! Will wait for it to come back up.\n";
+				# Rebooted! Will wait for it to come back up.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0456", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				wait_for_reboot($anvil, $host_uuid, $reboot_time);
 			}
 			else
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Reboot not needed, kernel appears to be up to date.\n";
+				# Reboot not needed, kernel appears to be up to date.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0457", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				$run_anvil_safe_start = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { run_anvil_safe_start => $run_anvil_safe_start }});
 			}
 			
 			# Wait for the node to rejoin the cluster. As before, this is a time 
 			# unrestricted wait loop.
-			print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for the subnode to rejoin the node.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0458", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			   $wait_until   = time + return_timeout($anvil);
 			   $waiting      = 1;
 			my $start_called = 0; 
@@ -619,7 +759,10 @@ sub update_nodes
 				# Should we call a start to the cluster?
 				if ((not $start_called) && ($run_anvil_safe_start))
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - Calling 'anvil-safe-start' to rejoin the subnode to the node.\n";
+					# Calling 'anvil-safe-start' to rejoin the subnode to the node.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0459", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					}});
 					   $start_called = 1;
 					my $shell_call   = $anvil->data->{path}{exe}{'anvil-safe-start'}.$anvil->Log->switches()." >/dev/null 2>&1 &";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -674,7 +817,9 @@ sub update_nodes
 						# connections to be up.
 						# NOTE: We call the peer to get the DRBD data as it's got a 
 						#       better view of the storage 
-						print $anvil->Get->date_and_time({time_only => 1})."; - Both subnodes are online, will now check replicated storage.\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0460", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						}});
 						$anvil->DRBD->get_status({
 							host   => $peer_short_host_name, 
 							target => $anvil->data->{peer}{$peer_short_host_name}{access}{ip},
@@ -685,7 +830,9 @@ sub update_nodes
 							### NOTE: Should we wait for all connections 
 							###       to be up?
 							# This is the second node, we don't have to wait.
-							print $anvil->Get->date_and_time({time_only => 1})."; - This is the second node, no need to wait for replication to complete.\n";
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0461", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							}});
 							$waiting = 0;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 						}
@@ -695,7 +842,10 @@ sub update_nodes
 							# UpToDate.
 							if (time > $next_log)
 							{
-								print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for all volumes to be UpToDate before updating the other subnode.\n";
+								# Waiting for all volumes to be UpToDate before updating the other subnode.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0462", variables => {
+									timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								}});
 							}
 							my $all_uptodate = 1;
 							my $resources    = 0;
@@ -736,11 +886,22 @@ sub update_nodes
 											{
 												if ($eta_in_seconds)
 												{
-													print $anvil->Get->date_and_time({time_only => 1})."; - The resource: [".$resource."/".$volume."] is not synced yet, ETA is: [".$eta_in_seconds."] to complete resync.\n";
+													# The resource is not synced yet
+													$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0463", variables => {
+														timestamp      => $anvil->Get->date_and_time({time_only => 1}),
+														resource       => $$resource, 
+														volume         => $volume, 
+														eta_in_seconds => $eta_in_seconds, 
+													}});
 												}
 												else
 												{
-													print $anvil->Get->date_and_time({time_only => 1})."; - The resource: [".$resource."/".$volume."] is not yet UpToDate.\n";
+													# The resource is not yet UpToDate
+													$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0464", variables => {
+														timestamp => $anvil->Get->date_and_time({time_only => 1}),
+														resource  => $$resource, 
+														volume    => $volume, 
+													}});
 												}
 											}
 										}
@@ -750,7 +911,10 @@ sub update_nodes
 							
 							if ($all_uptodate)
 							{
-								print $anvil->Get->date_and_time({time_only => 1})."; - All resources appear to be ready,\n";
+								# All resources appear to be ready,
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0465", variables => {
+									timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								}});
 								$waiting = 0;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 							}
@@ -758,12 +922,18 @@ sub update_nodes
 					} # End if both ready
 					elsif (time > $next_log)
 					{
-						print $anvil->Get->date_and_time({time_only => 1})."; - Both subnodes are not online yet, still waiting.\n";
+						# Both subnodes are not online yet, still waiting.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0466", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						}});
 					}
 				} # End if CIB was parsed 
 				elsif (time > $next_log)
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - Unable to parse the node's cluster information base, will try again soon.\n";
+					# Unable to parse the node's cluster information base, will try again soon.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0467", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					}});
 				}
 				
 				if (time > $next_log)
@@ -782,13 +952,19 @@ sub update_nodes
 					}});
 					
 					# Tell the user we're still waiting.
-					print $anvil->Get->date_and_time({time_only => 1})."; - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
-					print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for another: [".$say_time_left."], will check again shortly.\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0468", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						host_name => $short_host_name, 
+						time_left => $say_time_left, 
+					}});
 				}
 				if (time > $wait_until)
 				{
-					# Timeout.
-					print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to join the subcluster. Aborting the update.\n";
+					# Timed out while waiting for the subnode to join the subcluster. Aborting the update.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0469", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						host_name => $short_host_name, 
+					}});
 					$anvil->nice_exit({exit_code => 1});
 				}
 				
@@ -799,7 +975,9 @@ sub update_nodes
 			} # End while waiting for subnode to return
 			
 			# Run anvil-version-change
-			print $anvil->Get->date_and_time({time_only => 1})."; - Running 'anvil-version-changes'.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0470", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			$output      = "";
 			$error       = "";
 			$return_code = "";
@@ -825,7 +1003,10 @@ sub update_nodes
 					return_code => $return_code,
 				}});
 			}
-			print $anvil->Get->date_and_time({time_only => 1})."; - Done!\n";
+			# Done!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0471", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 		}
 	}
 	
@@ -853,11 +1034,19 @@ sub update_strikers_and_dr
 			
 			if ($host_type eq "striker")
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; Starting the update of the Striker dashboard: [".$short_host_name."].\n";
+				# Starting the update of the Striker dashboard
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0472", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 			}
 			else
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; Starting the update of the DR host: [".$short_host_name."].\n";
+				# Starting the update of the DR host
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0473", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 			}
 			
 			# If this is the local system, set the variable to track if we need to reboot. 
@@ -870,11 +1059,19 @@ sub update_strikers_and_dr
 			{
 				if ($host_type eq "striker")
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - No access to the Striker dashboard: [".$short_host_name."], skipping.\n";
+					# No access to the Striker dashboard, skipping.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0474", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						host_name => $short_host_name, 
+					}});
 				}
 				else
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - No access to the DR host: [".$short_host_name."], skipping.\n";
+					# No access to the DR host, skipping.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0475", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						host_name => $short_host_name, 
+					}});
 				}
 				next;
 			}
@@ -885,7 +1082,11 @@ sub update_strikers_and_dr
 			my $reboot_time = time;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { reboot_time => $reboot_time }});
 			
-			print $anvil->Get->date_and_time({time_only => 1})."; - Beginning OS update of: [".$short_host_name."]\n";
+			# Beginning OS update
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0476", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name, 
+			}});
 			my $rebooted = 0;
 			if (($anvil->data->{switches}{'clear-cache'}) && ($host_uuid eq $anvil->Get->host_uuid))
 			{
@@ -896,11 +1097,16 @@ sub update_strikers_and_dr
 					output      => $output, 
 					return_code => $return_code, 
 				}});
-				print $anvil->Get->date_and_time({time_only => 1})."; - Cache cleared.\n";
+				
+				# Cache cleared.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0478", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 			}
-			print $anvil->Get->date_and_time({time_only => 1})."; - Calling update now.\n";
-			print $anvil->Get->date_and_time({time_only => 1})."; - NOTE: This can seem like it's hung! You can watch the progress using 'journalctl -f' on another terminal to\n";
-			print $anvil->Get->date_and_time({time_only => 1})."; -       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.\n";
+			# Tell the user to watch dnf in ps.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0477", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
 				my $shell_call = $anvil->data->{path}{exe}{dnf}." -y update";
@@ -912,11 +1118,12 @@ sub update_strikers_and_dr
 				}});
 				if ($return_code)
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - There was a problem updating the system! Expected a return code of '0', but got: [".$return_code."]\n";
-					print $anvil->Get->date_and_time({time_only => 1})."; [ Error [ - The output, if any, was\n";
-					print "==] Output [==\n";
-					print $output."\n";
-					print "==============\n";
+					# Report the error and output
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0479", variables => {
+						timestamp   => $anvil->Get->date_and_time({time_only => 1}),
+						return_code => $return_code, 
+						output      => $output, 
+					}});
 				}
 				
 				# Loop through the output.
@@ -937,7 +1144,10 @@ sub update_strikers_and_dr
 				if (($package_changes) && ($anvil->data->{switches}{reboot}) && ($anvil->data->{switches}{'reboot-self'}))
 				{
 					# Reboot needed
-					print $anvil->Get->date_and_time({time_only => 1})."; - Updated: [".$package_changes."] packages, and '--reboot --reboot-self' used, reboot needed!\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0480", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+						packages  => $package_changes, 
+					}});
 					$anvil->data->{sys}{reboot_needed} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"sys::reboot_needed" => $anvil->data->{sys}{reboot_needed},
@@ -968,11 +1178,17 @@ sub update_strikers_and_dr
 				
 				if ($installed_kernel eq $active_kernel)
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - The kernel has not been updated.\n";
+					# The kernel has not been updated.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0481", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					}});
 				}
 				else
 				{
-					print $anvil->Get->date_and_time({time_only => 1})."; - The kernel appears to have been upgraded, reboot needed!\n";
+					# The kernel appears to have been upgraded, reboot needed!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0482", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					}});
 					$anvil->data->{sys}{reboot_needed} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"sys::reboot_needed" => $anvil->data->{sys}{reboot_needed},
@@ -982,7 +1198,10 @@ sub update_strikers_and_dr
 			else
 			{
 				# Call anvil-update-system and then wait.
-				print $anvil->Get->date_and_time({time_only => 1})."; - Beginning OS update of: [".$short_host_name."]\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0483", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 				if ($host_type eq "dr")
 				{
 					# Make sure VMs are off and DRBD is down. Call this with nohup so it 
@@ -1001,7 +1220,9 @@ sub update_strikers_and_dr
 					}});
 					
 					# Now wait for DRBD resources to stop (which requires VMs be off).
-					print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for all DRBD resource (and the servers using them) to stop before proceeding.\n";
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0484", variables => {
+						timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					}});
 					my $wait_until = time + return_timeout($anvil);
 					my $next_log   = time + 60;
 					my $waiting    = 1;
@@ -1036,7 +1257,11 @@ sub update_strikers_and_dr
 							{
 								foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}})
 								{
-									print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The resource: [".$resource."] is still up.\n";
+									# The resource is still up
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0485", variables => {
+										timestamp => $anvil->Get->date_and_time({time_only => 1}),
+										resource  => $resource, 
+									}});
 								}
 								   $next_log      = time + 60;
 								my $time_left     = $wait_until - time;
@@ -1050,12 +1275,19 @@ sub update_strikers_and_dr
 									time_left     => $time_left, 
 									say_time_left => $say_time_left, 
 								}});
-								print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for another: [".$say_time_left."], will check again shortly.\n";
+								# Waiting for bit, will check again shortly
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0486", variables => {
+									timestamp => $anvil->Get->date_and_time({time_only => 1}),
+									time_left => $say_time_left, 
+								}});
 							}
 							if (time > $wait_until)
 							{
 								# Timeout.
-								print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the DR host: [".$short_host_name."] to stop all DRBD resources. Aborting the update.\n";
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0487", variables => {
+									timestamp => $anvil->Get->date_and_time({time_only => 1}),
+									host_name => $short_host_name, 
+								}});
 								$anvil->nice_exit({exit_code => 1});
 							}
 							
@@ -1077,7 +1309,9 @@ sub update_strikers_and_dr
 				
 				# We register a job, even though anvil-daemon isn't running. This will get 
 				# picked up by 'anvil-update-systems --no-db' towards the end of it's run.
-				print $anvil->Get->date_and_time({time_only => 1})."; - Registering a job to update the system, which we can track to confirm when the update is done.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0488", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				my $shell_call = $anvil->data->{path}{exe}{'anvil-update-system'}.$update_switches.$anvil->Log->switches();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my $job_uuid = $anvil->Database->insert_or_update_jobs({
@@ -1090,11 +1324,19 @@ sub update_strikers_and_dr
 					job_title       => "job_0467"
 				});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-				print $anvil->Get->date_and_time({time_only => 1})."; - [ Note ] - Job registered with UUID: [".$job_uuid."], waiting for it to complete.\n";
+				
+				# Job registered, waiting for it to complete.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0489", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					job_uuid  => $job_uuid, 
+				}});
 				
 				# Now call anvil-update-system with --no-db and background it so we can close
 				# the DB connection without killing the process.
-				print $anvil->Get->date_and_time({time_only => 1})."; - Calling the no-database update of: [".$short_host_name."]\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0490", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 				$shell_call = $anvil->data->{path}{exe}{nohup}." ".$anvil->data->{path}{exe}{'anvil-update-system'}." --no-db".$update_switches;
 				if ($anvil->data->{switches}{'clear-cache'})
 				{
@@ -1128,7 +1370,11 @@ sub update_strikers_and_dr
 					}});
 					if ($anvil->data->{jobs}{job_progress} == 100)
 					{
-						print $anvil->Get->date_and_time({time_only => 1})."; - Done! The host: [".$short_host_name."] has been updated\n";
+						# Done!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0491", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							host_name => $short_host_name, 
+						}});
 						$waiting = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 						
@@ -1143,7 +1389,9 @@ sub update_strikers_and_dr
 						if ($anvil->data->{jobs}{job_data} eq "failed")
 						{
 							# Abort!
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - There was a problem updating the system! Anvil! cluster update aborted.\n";
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0492", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							}});
 							$anvil->nice_exit({exit_code => 1});
 						}
 					}
@@ -1151,10 +1399,17 @@ sub update_strikers_and_dr
 					{
 						if (time > $next_log)
 						{
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - The job progress is: [".$anvil->data->{jobs}{job_progress}."], continuing to wait.\n";
+							# continuing to wait.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0493", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								progress  => $anvil->data->{jobs}{job_progress}, 
+							}});
 							if ($anvil->data->{jobs}{job_progress} == 0)
 							{
-								print $anvil->Get->date_and_time({time_only => 1})."; [ Note ] - It is normal for the job to show '0' progress until the database access is restored.\n";
+								# It is normal for the job to show '0' progress until the database access is restored.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0494", variables => {
+									timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								}});
 							}
 							   $next_log      = time + 60;
 							my $time_left     = $wait_until - time;
@@ -1172,8 +1427,11 @@ sub update_strikers_and_dr
 						}
 						if (time > $wait_until)
 						{
-							# Timeout.
-							print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the machine: [".$short_host_name."] to update the OS. Aborting the update.\n";
+							# Timed out while waiting to update the OS. Aborting the update.\n";
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0495", variables => {
+								timestamp => $anvil->Get->date_and_time({time_only => 1}),
+								host_name => $short_host_name, 
+							}});
 							$anvil->nice_exit({exit_code => 1});
 						}
 						sleep 5;
@@ -1184,16 +1442,24 @@ sub update_strikers_and_dr
 			
 			if ($rebooted)
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Rebooted! Will wait for it to come back up.\n";
+				# Rebooted! Will wait for it to come back up.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0496", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				wait_for_reboot($anvil, $host_uuid, $reboot_time);
 			}
 			else
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Reboot not needed, kernel appears to be up to date.\n";
+				# Reboot not needed, kernel appears to be up to date.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0497", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 			}
 			
 			# Run anvil-version-change
-			print $anvil->Get->date_and_time({time_only => 1})."; - Running 'anvil-version-changes' now.\n";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0498", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 			my $output      = "";
 			my $error       = "";
 			my $return_code = "";
@@ -1234,6 +1500,7 @@ sub wait_for_reboot
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:host_uuid'       => $host_uuid,
 		's2:short_host_name' => $short_host_name, 
+		's3:reboot_time'     => $reboot_time, 
 	}});
 	
 	my $matches = $anvil->Network->find_access({
@@ -1243,22 +1510,32 @@ sub wait_for_reboot
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
 	
 	# Wait until the node comes back up.
-	print $anvil->Get->date_and_time({time_only => 1})."; - The target has been rebooted. We'll wait for the target to come back online.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0499", variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}});
 	
 	# This is an infinite loop, there is no timeout for this.
 	my $wait_until = time + return_timeout($anvil);
 	my $waiting    = 1;
 	my $next_log   = time + 60;
+	my $delay      = 30;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_log => $next_log }});
 	while($waiting)
 	{
+		# We wait initially because we're going to be called right after the target is rebooted.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0816", variables => { delay => $delay }});
+		sleep $delay;
+		
 		# Test access
 		my $target = $anvil->data->{peer}{$short_host_name}{access}{ip};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			target          => $target,
 			short_host_name => $short_host_name, 
 		}});
-		my $test_access = $anvil->Remote->test_access({target => $target});
+		my $test_access = $anvil->Remote->test_access({
+			debug => 2, 
+			target => $target,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_access => $test_access }});
 		
 		if ($test_access)
@@ -1275,7 +1552,9 @@ sub wait_for_reboot
 			if (($uptime) && ($uptime < $time_since_reboot))
 			{
 				# Rebooted!
-				print $anvil->Get->date_and_time({time_only => 1})."; - Rebooted! Subnode is back up.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0500", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				
 				$waiting = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
@@ -1300,17 +1579,21 @@ sub wait_for_reboot
 				}});
 				
 				# Tell the user we're still waiting.
-				print $anvil->Get->date_and_time({time_only => 1})."; - We're still waiting for the subnode: [".$short_host_name."] to reboot.\n";
-				print $anvil->Get->date_and_time({time_only => 1})."; - Waiting for another: [".$say_time_left."], will check again shortly.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0501", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+					time_left => $say_time_left, 
+				}});
 			}
 			if (time > $wait_until)
 			{
 				# Timeout.
-				print $anvil->Get->date_and_time({time_only => 1})."; [ Error ] - Timed out while waiting for the subnode: [".$short_host_name."] to reboot. Aborting the update.\n";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0502", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
-			
-			sleep 5;
 		}
 	}
 	
@@ -1328,11 +1611,17 @@ sub manage_daemons
 	
 	if ($task eq "stop")
 	{
-		print $anvil->Get->date_and_time({time_only => 1})."; Disabling Anvil! daemons on all hosts...\n";
+		# Disabling Anvil! daemons on all hosts...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0503", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 	}
 	else
 	{
-		print $anvil->Get->date_and_time({time_only => 1})."; Enabling Anvil! daemons on all hosts...\n";
+		# Enabling Anvil! daemons on all hosts...
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0504", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 	}
 	my $daemons = ["anvil-daemon", "scancore"];
 	foreach my $host_type ("dr", "node", "striker")
@@ -1352,15 +1641,26 @@ sub manage_daemons
 			
 			if ($task eq "stop")
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Disabling dameons on: [".$short_host_name."]... ";
+				# Disabling dameons
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0505", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 			}
 			else
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; - Enabling dameons on: [".$short_host_name."]... ";
+				# Enabling dameons
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0506", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+					host_name => $short_host_name, 
+				}});
 			}
 			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; Offline! Skipping.\n";
+				# Offline! Skipping.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0507", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				next;
 			}
 			
@@ -1403,33 +1703,55 @@ sub manage_daemons
 				{
 					if ($task eq "stop")
 					{
-						print $daemon." stopped... ";
+						# Stopped
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0508", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							daemon    => $daemon, 
+						}});
 					}
 					else
 					{
-						print $daemon." started... ";
+						# started
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0509", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							daemon    => $daemon, 
+						}});
 					}
 				}
 				else
 				{
 					if ($task eq "stop")
 					{
-						print $daemon." didn't stop!... ";
+						# didn't stop!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0510", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							daemon    => $daemon, 
+						}});
 					}
 					else
 					{
-						print $daemon." didn't start!... ";
+						# didn't start!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0511", variables => {
+							timestamp => $anvil->Get->date_and_time({time_only => 1}),
+							daemon    => $daemon, 
+						}});
 					}
 				}
 			}
-			print $anvil->Get->date_and_time({time_only => 1})."; Done!\n";
+			# Done!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0471", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+			}});
 		}
 	}
 	
 	# If we're in the stop stage, we need to ensure that anvil-safe-start is enabled on the nodes, or else we'll hang when the node reboots.
 	if ($task eq "stop")
 	{
-		print $anvil->Get->date_and_time({time_only => 1})."; Enabling 'anvil-safe-start' on nodes to prevent hangs on reboot.\n";
+		# Enabling 'anvil-safe-start' on nodes to prevent hangs on reboot.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0512", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
 			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
@@ -1445,7 +1767,10 @@ sub manage_daemons
 			
 			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; Offline! Skipping.\n";
+				# Offline! Skipping.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0513", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				next;
 			}
 			
@@ -1483,7 +1808,10 @@ sub manage_daemons
 				}});
 			}
 		}
-		print $anvil->Get->date_and_time({time_only => 1})."; Done!\n";
+		# Done!
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0471", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
 	}
 	
 	return(0);
@@ -1513,7 +1841,11 @@ sub verify_access
 			}});
 			next if $host_type ne $this_host_type;
 			
-			print $anvil->Get->date_and_time({time_only => 1})."; - Verifying access to: [".$short_host_name."]... ";
+			# Verifying access
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0514", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name, 
+			}});
 			my $matches = $anvil->Network->find_access({
 				debug  => 2,
 				target => $host_uuid, 
@@ -1547,7 +1879,11 @@ sub verify_access
 					if ($test_access)
 					{
 						# We're good.
-						print $anvil->Get->date_and_time({time_only => 1})."; Connected on: [".$target_ip."] via: [".$network_name."]\n";
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0515", variables => {
+							timestamp    => $anvil->Get->date_and_time({time_only => 1}),
+							target_ip    => $target_ip, 
+							network_name => $network_name, 
+						}});
 						$anvil->data->{peer}{$short_host_name}{access}{ip}      = $target_ip;
 						$anvil->data->{peer}{$short_host_name}{access}{network} = $network_name;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1560,7 +1896,10 @@ sub verify_access
 			
 			if (not $anvil->data->{peer}{$short_host_name}{access}{ip})
 			{
-				print $anvil->Get->date_and_time({time_only => 1})."; No access! Skipping.\n";
+				# No access! Skipping.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0516", variables => {
+					timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				}});
 				$all_access = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_access => $all_access }});
 			}

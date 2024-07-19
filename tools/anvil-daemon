@@ -89,6 +89,9 @@ if (not $anvil->data->{sys}{database}{connections})
 	# dashboard, then just go into a loop waiting for a database to be configured. 
 	if ($anvil->Get->host_type eq "striker")
 	{
+		# Check journald is configured for persistent storage. We need this for debugging.
+		check_journald($anvil);
+		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0201"});
 		prep_database($anvil);
 		
