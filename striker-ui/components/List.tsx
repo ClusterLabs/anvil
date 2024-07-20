@@ -187,7 +187,7 @@ const List = forwardRef(
     );
 
     const listItemElements = useMemo(() => {
-      if (loading) return <Spinner mt={0} />;
+      if (loading) return <Spinner />;
 
       if (!listItems) return listEmptyElement;
 
