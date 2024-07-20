@@ -1263,7 +1263,7 @@ sub _set_paths
 				lvrename			=>	"/usr/sbin/lvrename",
 				lvs				=>	"/usr/sbin/lvs", 
 				lvscan				=>	"/usr/sbin/lvscan", 
-				mailx				=>	"/usr/bin/mailx",
+				mailx				=>	"/usr/bin/mailx",	### Deprecated, remove with EL8
 				man				=>	"/usr/bin/man",
 				md5sum				=>	"/usr/bin/md5sum",
 				'mkdir'				=>	"/usr/bin/mkdir",
@@ -1305,6 +1305,7 @@ sub _set_paths
 				rm				=>	"/usr/bin/rm",
 				rpm				=>	"/usr/bin/rpm",
 				rsync				=>	"/usr/bin/rsync",
+				's-nail'			=>	"/usr/bin/s-nail",
 				scancore			=>	"/usr/sbin/scancore", 
 				sed				=>	"/usr/bin/sed", 
 				setsid				=>	"/usr/bin/setsid",	# See: https://serverfault.com/questions/1105733/virsh-command-hangs-when-script-runs-in-the-background
@@ -1426,27 +1427,7 @@ Anvil::Tools->new() passed something other than a hash reference.
 
 Failed to find the requested file in C<< Anvil::Tools::Storage->find >> and 'fatal' was set.
 
-=head1 Requirements
-
-The following packages are required on EL7.
-
-* C<expect>
-* C<httpd>
-* C<mailx>
-* C<perl-Test-Simple>
-* C<policycoreutils-python>
-* C<postgresql>
-* C<syslinux>
-* C<perl-XML-Simple>
-
-=head1 Recommended Packages
-
-The following packages provide non-critical functionality. 
-
-* C<subscription-manager>
-
 =cut
-
 
 # This catches SIGINT and SIGTERM and fires out an email before shutting down.
 sub catch_sig

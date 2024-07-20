@@ -157,7 +157,7 @@ sub handle_test_alert
 	if ($alert_uuid)
 	{
 		print $anvil->Words->string({key => "message_0306", variables => { level => $say_level }})."\n";
-		$anvil->Email->send_alerts();
+		$anvil->Email->send_alerts({debug => 2});
 	}
 	else
 	{
