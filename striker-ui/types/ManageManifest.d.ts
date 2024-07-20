@@ -197,3 +197,29 @@ type RunManifestInputGroupOptionalProps = {
 
 type RunManifestInputGroupProps<M extends MapToInputTestID> =
   RunManifestInputGroupOptionalProps & AddManifestInputGroupProps<M>;
+
+/** RunManifestForm */
+
+type RunManifestFormProps = {
+  detail: APIManifestDetail;
+  knownFences: APIManifestTemplateFenceList;
+  knownHosts: APIHostOverviewList;
+  knownUpses: APIManifestTemplateUpsList;
+  tools: CrudListFormTools;
+};
+
+type RunManifestHostFormikValues = {
+  anvil?: {
+    name: string;
+    uuid: string;
+  };
+  type: string;
+  uuid: string;
+};
+
+type RunManifestFormikValues = {
+  confirmPassword: string;
+  description: string;
+  hosts: Record<number, RunManifestHostFormikValues>;
+  password: string;
+};
