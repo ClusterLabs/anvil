@@ -21011,6 +21011,7 @@ sub _test_access
 	my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
 	alarm(0);
+	if ($@) { $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'alarm $@' => $@ }}); }
 	if (not $connected)
 	{
 		$anvil->data->{sys}{in_test_access} = 0 if not defined $anvil->data->{sys}{in_test_access};
@@ -21048,6 +21049,7 @@ sub _test_access
 				my $connected = $anvil->data->{cache}{database_handle}{$uuid}->ping();
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { connected => $connected }});
 				alarm(0);
+				if ($@) { $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'alarm $@' => $@ }}); }
 				
 				if ($connected)
 				{

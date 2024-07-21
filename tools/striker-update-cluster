@@ -607,6 +607,7 @@ sub update_nodes
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			($output, $error, $return_code) = $anvil->Remote->call({
+				debug      => 2,
 				shell_call => $shell_call, 
 				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 			});
@@ -994,6 +995,7 @@ sub update_nodes
 			else
 			{
 				($output, $error, $return_code) = $anvil->Remote->call({
+					debug      => 2,
 					shell_call => $shell_call, 
 					target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 				});
@@ -1210,6 +1212,7 @@ sub update_strikers_and_dr
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					
 					my ($output, $error, $return_code) = $anvil->Remote->call({
+						debug      => 2,
 						shell_call => $shell_call, 
 						target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 					});
@@ -1347,6 +1350,7 @@ sub update_strikers_and_dr
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
 				my ($output, $error, $return_code) = $anvil->Remote->call({
+					debug      => 2,
 					shell_call => $shell_call, 
 					target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
 				});
@@ -1476,6 +1480,7 @@ sub update_strikers_and_dr
 			else
 			{
 				($output, $error, $return_code) = $anvil->Remote->call({
+					debug      => 2,
 					'close'    => 1,
 					no_cache   => 1,
 					shell_call => $shell_call, 
@@ -1688,6 +1693,7 @@ sub manage_daemons
 					# connection so later access to the machines don't fail with ssh 
 					# connection timeouts.
 					($output, $error, $return_code) = $anvil->Remote->call({
+						debug      => 2,
 						'close'    => 1,
 						no_cache   => 1,
 						shell_call => $shell_call, 
@@ -1796,6 +1802,7 @@ sub manage_daemons
 				# connection so later access to the machines don't fail with ssh 
 				# connection timeouts.
 				($output, $error, $return_code) = $anvil->Remote->call({
+					debug      => 2,
 					'close'    => 1,
 					no_cache   => 1,
 					shell_call => $shell_call, 
