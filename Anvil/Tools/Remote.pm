@@ -533,6 +533,7 @@ sub call
 				's3:connect_output' => $connect_output, 
 			}});
 			alarm(0);
+			if ($@) { $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'alarm $@' => $@ }}); }
 			
 			# Any fatal issues reaching the target?
 			if ($connect_output =~ /Could not resolve hostname/i)
@@ -717,6 +718,7 @@ sub call
 			$output = "" if not defined $output;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { 'ssh_fh->error' => $ssh_fh->error }});
 			alarm(0);
+			if ($@) { $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 'alarm $@' => $@ }}); }
 		}
 		else
 		{
