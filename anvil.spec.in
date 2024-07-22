@@ -147,7 +147,8 @@ Requires:       mailx
 Conflicts:      s-nail
 %else
 Requires:       s-nail
-Conflicts:      mailx
+# This fails on updates; find a proper solution other than removing
+# Conflicts:      mailx
 %endif
 
 
