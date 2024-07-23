@@ -1,0 +1,25 @@
+.\" Manpage for the Alteeve! repo setup tool
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH unfence_pacemaker "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+unfence_pacemaker \- Tool used to unfence DRBD resource in the Anvil! IA platform
+.SH SYNOPSIS
+.B unfence_pacemaker 
+\fI\,<command>
+.SH DESCRIPTION
+unfence_pacemaker \- This tool acts between DRBD and pacemaker, unfencing a resource when the peer finishes sync'ing. Specifically, it removed the location constraint against the just-returned node.
+.IP
+.SH NOTE
+.TP
+This tool does not use the Anvil::Tools library, nor does it connect to the Anvil database. 
+.IP
+.SH OPTIONS
+.TP
+All values passed to this agent is done via environment variables. For more information, please see the LINBIT DRBD fence/unfence agent documentation.
+.TP
+See the comments here: https://github.com/LINBIT/drbd-utils/blob/master/scripts/drbd.ocf
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
