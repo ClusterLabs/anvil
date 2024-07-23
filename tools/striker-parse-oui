@@ -35,7 +35,7 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 2});
 }
 
-# Do we have a specified network to scan?
+# Get the switches
 $anvil->Get->switches({list => [
 	"job-uuid", 
 	"force", 

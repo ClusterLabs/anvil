@@ -64,7 +64,6 @@ dist_sbin_SCRIPTS	= \
 			  striker-initialize-host \
 			  striker-manage-install-target \
 			  striker-manage-peers \
-			  striker-parse-os-list \
 			  striker-parse-oui \
 			  striker-purge-target \
 			  striker-scan-network \

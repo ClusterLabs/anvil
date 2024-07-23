@@ -1714,7 +1714,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0437"><![CDATA[Missing '--anvil <name_or_uuid>'.]]></key>
 		<key name="job_0438"><![CDATA[Missing '--name <server_name>'.]]></key>
 		<key name="job_0439"><![CDATA[Missing '--os <os_variant>'. Valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).]]></key>
-		<key name="job_0440"><![CDATA[The OS: [#!variable!os!#] was not found. If you're sure the OS is valid, please run 'striker-parse-os-list --xml --new' and add the output to 'words.xml'.]]></key>
+		<key name="job_0440"><![CDATA[The OS: [#!variable!os!#] was not found. Please use 'osinfo-query os' and choose the closest option from the 'Short ID' column.]]></key>
 		<key name="job_0441"><![CDATA[Missing '--cpu <1 ~ #!variable!threads!#>'.]]></key>
 		<key name="job_0442"><![CDATA[The number of CPU cores: [#!variable!cores!#] is invalid. Must be between 1 and #!variable!threads!#.]]></key>
 		<key name="job_0443"><![CDATA[Missing '--ram <bytes or human readable, min is 64KiB, max is #!variable!max_ram!#>'.]]></key>

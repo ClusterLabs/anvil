@@ -67,7 +67,6 @@ dist_man8_MANS		= \
 			  striker-initialize-host.8 \
 			  striker-manage-install-target.8 \
 			  striker-manage-peers.8 \
-			  striker-parse-os-list.8 \
 			  striker-parse-oui.8 \
 			  striker-purge-target.8 \
 			  striker-scan-network.8 \
