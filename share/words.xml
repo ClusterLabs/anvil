@@ -2294,7 +2294,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0446">Found the network device: [#!variable!mac!#] (owned by #!variable!company!#) using the IP address: [#!variable!ip!#].</key>
 		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
-		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
+		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now. Please be patient, this can take a while.</key>
 		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
 		<key name="log_0451">Checking to see if any data needs to be archived.</key>
 		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
@@ -2753,6 +2753,7 @@ new key: [#!variable!new_key!#]</key>
 		<key name="log_0857">Cleaning up the connection to the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0858">Disconnecting from the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0859"><![CDATA[Convert->to_seconds() was passed the invalid string: [#!variable!string!#]. The supported units are 'Xw', 'Xd', 'Xh', 'Xs' and bare numbers (interpreted as seconds). If the string has multiple units, the must be separated by spaces only.]]></key>
+		<key name="log_0860">Processed: [#!variable!count!#] records, [#!variable!records_left!#] remaining.</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>

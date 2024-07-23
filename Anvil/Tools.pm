@@ -1327,7 +1327,6 @@ sub _set_paths
 				'striker-manage-install-target'	=>	"/usr/sbin/striker-manage-install-target",
 				'striker-manage-peers'		=>	"/usr/sbin/striker-manage-peers",
 				'striker-parse-oui'		=>	"/usr/sbin/striker-parse-oui",
-				'striker-prep-database'		=>	"/usr/sbin/striker-prep-database",
 				'striker-scan-network'		=>	"/usr/sbin/striker-scan-network",
 				stty				=>	"/usr/bin/stty",
 				su				=>	"/usr/bin/su",
@@ -1386,7 +1385,7 @@ sub _set_paths
 			},
 			urls			=>	{
 				skins				=>	"/skins",
-				oui_file			=>	"http://standards.ieee.org/develop/regauth/oui/oui.txt",
+				oui_file			=>	"https://standards-oui.ieee.org/oui/oui.txt",
 				alteeve_repo			=>	"https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm",
 			},
 			words			=>	{

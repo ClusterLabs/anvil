@@ -35,14 +35,13 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 2});
 }
 
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->data->{switches}{force}      = "";
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
-	"switches::force"    => $anvil->data->{switches}{force}, 
-}});
+# Do we have a specified network to scan?
+$anvil->Get->switches({list => [
+	"job-uuid", 
+	"force", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 update_progress($anvil, 0, "clear");
 update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
@@ -51,15 +50,15 @@ $anvil->data->{progress} = 1;
 check_if_time($anvil);
 
 ### NOTE: Disabled 
-print $anvil->Words->string({key => "message_0291"})."\n";
-update_progress($anvil, 100, "message_0291");
-$anvil->nice_exit({exit_code => 0});
-
-
-
+if (0)
+{
+	print $anvil->Words->string({key => "message_0291"})."\n";
+	update_progress($anvil, 100, "message_0291");
+	$anvil->nice_exit({exit_code => 0});
+}
 
 my $oui_file = $anvil->Get->users_home({debug => 3})."/oui.txt";
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { oui_file => $oui_file }});
 
 my $download = 1;
 my $process  = 0;
@@ -93,11 +92,11 @@ if (-e $oui_file)
 	}
 }
 
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { download => $download }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { download => $download }});
 if ($download)
 {
 	update_progress($anvil, 10, "log_0447,!!url!".$anvil->data->{path}{urls}{oui_file}."!!,!!file!".$oui_file."!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0095", variables => { 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0447", variables => { 
 		url  => $anvil->data->{path}{urls}{oui_file},
 		file => $oui_file,
 	}});
@@ -376,12 +375,24 @@ EOF
 	}
 	
 	# Record the details.
-	my $records = keys %{$anvil->data->{oui}};
-	   $records = $anvil->Convert->add_commas({number => $records });
+	my $records  = keys %{$anvil->data->{oui}};
+	my $count    = 0;
+	my $interval = 2500;
+	my $next_log = $interval;
 	update_progress($anvil, 50, "log_0449,!!records!".$records."!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0449", variables => { records => $records }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0449", variables => { records => $anvil->Convert->add_commas({number => $records }) }});
 	foreach my $oui (sort {$a cmp $b} keys %{$anvil->data->{oui}})
 	{
+		if ($count >= $next_log)
+		{
+			my $records_left =  $records - $count;
+			   $next_log     += $interval;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0860", variables => { 
+				count        => $anvil->Convert->add_commas({number => $count}),
+				records_left => $anvil->Convert->add_commas({number => $records_left}),
+			}});
+		}
+		$count++;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"oui::${oui}::name"    => $anvil->data->{oui}{$oui}{name}, 
 			"oui::${oui}::address" => $anvil->data->{oui}{$oui}{address}, 

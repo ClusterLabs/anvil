@@ -905,7 +905,6 @@ Parameters;
 If set, the database will be checked to see if the schema exists. This is normally not needed, but can be triggered if the database was DROP'ed by a user.
 
 =cut
-### TODO: Much of this logic is in striker-prep-database, and that tool should be OK to retire now.
 sub configure_pgsql
 {
 	my $self      = shift;
