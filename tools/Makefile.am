@@ -57,7 +57,6 @@ dist_sbin_SCRIPTS	= \
 			  striker-boot-machine \
 			  striker-check-machines \
 			  striker-collect-debug \
-			  striker-db-report \
 			  striker-db-status \
 			  striker-file-manager \
 			  striker-get-peer-data \
@@ -67,7 +66,6 @@ dist_sbin_SCRIPTS	= \
 			  striker-manage-peers \
 			  striker-parse-os-list \
 			  striker-parse-oui \
-			  striker-prep-database \
 			  striker-purge-target \
 			  striker-scan-network \
 			  striker-show-db-counts \

@@ -61,7 +61,6 @@ dist_man8_MANS		= \
 			  striker-boot-machine.8 \
 			  striker-check-machines.8 \
 			  striker-collect-debug.8 \
-			  striker-db-report.8 \
 			  striker-db-status.8 \
 			  striker-file-manager.8 \
 			  striker-get-peer-data.8 \
@@ -70,13 +69,11 @@ dist_man8_MANS		= \
 			  striker-manage-peers.8 \
 			  striker-parse-os-list.8 \
 			  striker-parse-oui.8 \
-			  striker-prep-database.8 \
 			  striker-purge-target.8 \
 			  striker-scan-network.8 \
 			  striker-show-db-counts.8 \
 			  striker-show-jobs.8 \
 			  striker-update-cluster.8 \
-			  tool-fio-tester.8 \
 			  unfence_pacemaker.8
 
 
