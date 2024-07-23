@@ -68,26 +68,18 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 my $anvil = Anvil::Tools->new();
 
 # Read switches
-$anvil->data->{switches}{check}        = 0;
-$anvil->data->{switches}{disable}      = "";
-$anvil->data->{switches}{enable}       = "";
-$anvil->data->{switches}{force}        = "";
-$anvil->data->{switches}{'job-uuid'}   = "";
-$anvil->data->{switches}{'no-refresh'} = 0;
-$anvil->data->{switches}{refresh}      = 0;
-$anvil->data->{switches}{status}       = "";
-$anvil->Get->switches();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-	'switches::check'      => $anvil->data->{switches}{check},
-	'switches::disable'    => $anvil->data->{switches}{disable},
-	'switches::enable'     => $anvil->data->{switches}{enable},
-	'switches::force'      => $anvil->data->{switches}{force},
-	'switches::job-uuid'   => $anvil->data->{switches}{'job-uuid'},
-	'switches::no-refresh' => $anvil->data->{switches}{'no-refresh'},
-	'switches::refresh'    => $anvil->data->{switches}{refresh},
-	'switches::status'     => $anvil->data->{switches}{status},
-}});
+$anvil->Get->switches({list => [
+	"check", 
+	"disable", 
+	"enable", 
+	"force", 
+	"job-uuid", 
+	"no-refresh", 
+	"refresh", 
+	"status"
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID

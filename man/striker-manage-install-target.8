@@ -1,0 +1,55 @@
+.\" Manpage for the Anvil! IA platform 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH striker-manage-install-target "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+striker-manage-install-target \- This manages the "Install Target" feature on Striker dashboards
+.SH SYNOPSIS
+.B striker-manage-install-target 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+.B Note
+This feature is currently disabled. As such, this tool is not yet useful.
+.TP
+This handles the management of the Install Target feature on Striker dashboards. That is the ability for a sub node, DR host or other Striker to PXE boot and do an OS install without an external network connection.
+.TP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.SS "Commands:"
+\fB\-\-add\fR
+This tells the program to add the host as a peer.
+.TP
+\fB\-\-list\fR
+This returns the current list of configured hosts and their host UUIDs.
+.TP
+\fB\-\-remove\fR
+This tells the program to remove the host, preventing it from being a peer.
+.TP
+\fB\-\-host\fR
+This is the hostname or IP address of the host being added. Specifically, it is used to populate the 'database::<host_uuid>::host = <host>' variable.
+.TP
+\fB\-\-host\-uuid\fR
+This is the host UUID of the peer being worked on. 
+.TP
+\fB\-\-job\-uuid\fR <uuid>
+This is the job UUID used to run this job.
+.TP
+\fB\-\-port\fR
+This is the TCP port used to connect to the peer's PostgreSQL database. The default is '5432' and generally should not be changed.
+.TP
+\fB\-\-password\-file\fR
+This is the path to the file that contains the password used to connect to the peer (both the ssh password and the PostgreSQL database). 
+.TP
+\fB\-\-ping\fR
+If set, before a connection to the peer is attempted, a simple ping will be performed. This is recommended as a failed connection to postgresql can take longer, and slow down application when the peer is offline.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
