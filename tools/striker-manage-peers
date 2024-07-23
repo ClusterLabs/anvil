@@ -41,7 +41,17 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 # Read switches
-$anvil->Get->switches({list => ["add", "list", "remove", "host", "host-uuid", "job-uuid", "port", "password-file", "ping"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"add", 
+	"list", 
+	"remove", 
+	"host", 
+	"host-uuid", 
+	"job-uuid", 
+	"port", 
+	"password-file", 
+	"ping"
+], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 if ($anvil->data->{switches}{'port'} eq "")
