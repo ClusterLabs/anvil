@@ -1039,9 +1039,6 @@ sub run_once
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
 	$anvil->System->check_ssh_keys();
 	
-	# Check setuid wrappers
-	check_setuid_wrappers($anvil);
-	
 	# Check journald is configured for persistent storage.
 	check_journald($anvil);
 	
@@ -1187,99 +1184,6 @@ sub check_journald
 			output      => $output, 
 			return_code => $return_code,
 		}});
-	}
-	
-	return(0);
-}
-
-# This creates, as needed, the setuid wrappers used by striker-ui-api to make certain system calls.
-sub check_setuid_wrappers
-{
-	my ($anvil) = @_;
-	
-	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
-	if ($host_type ne "striker")
-	{
-		# Not a dashboard, setuid scripts aren't needed.
-		return(0);
-	}
-	
-	# Does the call_striker-get-peer-data wrapper exist yet?
-	if (-e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
-	{
-		# Exists, skipping.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0436", variables => { wrapper => $anvil->data->{path}{exe}{'call_striker-get-peer-data'} }});
-	}
-	else
-	{
-		# What is the admin user and group ID?
-		my $admin_uid = getpwnam('admin');
-		my $admin_gid = getgrnam('admin');
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			admin_uid => $admin_uid,
-			admin_gid => $admin_gid, 
-		}});
-		next if not $admin_uid;
-		next if not $admin_gid;
-		
-		# Write the body out
-		my $call_striker_get_peer_data_body =  "#define REAL_PATH \"".$anvil->data->{path}{exe}{'striker-get-peer-data'}."\"\n";
-		   $call_striker_get_peer_data_body .= "main(ac, av)\n";
-		   $call_striker_get_peer_data_body .= "char **av;\n";
-		   $call_striker_get_peer_data_body .= "{\n";
-		   $call_striker_get_peer_data_body .= "        setuid(".$admin_uid.");\n";
-		   $call_striker_get_peer_data_body .= "        setgid(".$admin_gid.");\n";
-		   $call_striker_get_peer_data_body .= "        execv(REAL_PATH, av);\n";
-		   $call_striker_get_peer_data_body .= "}\n";
-		my $error = $anvil->Storage->write_file({
-			debug     => 3,
-			file      => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c",
-			body      => $call_striker_get_peer_data_body, 
-			mode      => '644', 
-			overwrite => 1,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error => $error }});
-		
-		# If it wrote out, compile it.
-		if (not -e $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c")
-		{
-			# Failed to write.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0071", variables => { file => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c" }});
-		}
-		else
-		{
-			# Compile it
-			my ($output, $return_code) = $anvil->System->call({
-				debug      => 3,
-				shell_call => $anvil->data->{path}{exe}{gcc}." -o ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}." ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				output      => $output, 
-				return_code => $return_code,
-			}});
-			
-			# If it compiled, setuid it.
-			if (not -e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
-			{
-				# Something went wrong compiling it.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0072", variables => { file => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c" }});
-			}
-			else
-			{
-				$anvil->Storage->change_owner({
-					debug => 3, 
-					path  => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}, 
-					user  => 'root', 
-					group => 'root',
-				});
-				$anvil->Storage->change_mode({
-					debug => 3, 
-					path => $anvil->data->{path}{exe}{'call_striker-get-peer-data'},
-					mode => '4755',
-				});
-			}
-		}
 	}
 	
 	return(0);
