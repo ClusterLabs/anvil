@@ -13,15 +13,17 @@ This handles peering Striker dashboards. Peered Strikers means that they act as 
 The list that is downloaded is - https://standards-oui.ieee.org/oui/oui.txt 
 .TP
 The oui.txt file is cached locally once downloaded to minimizing loading the IEEE server. It will be redownloaded every few days.
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-check\fR
 This reports 'status=[1,0]' to indicate if the install target feature is currently running or not. Specifically, it checks to see if the DHCP server is running or not.

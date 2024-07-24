@@ -8,21 +8,21 @@ anvil-manage-server \- Tool used to manage a server, like resync'ing servers on 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 anvil-manage-server \- This tool allow the management of a server.
-.TP
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\-d, \fB\-\-job-uuid\fR
-This is the jobs -> job_uuid of the job to run, if it exists.
-.TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
-\fB\-v\fR, \fB\-vv\fR, \fB\-vvv\fR
-Set the log level for this run to 1, 2 or 3 (higher == more verbose).
-.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
+\fB\-\-job-uuid\fR
+This is the jobs -> job_uuid of the job to run, if it exists.
+.TP
 \fB\-\-server\fR all, or <name or uuid>
 This is the server to work on.
 .TP

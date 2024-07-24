@@ -8,16 +8,17 @@ anvil-manage-keys \- Tool used to manage ssh keys
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 anvil-manage-keys \- This tool is used remove old SSH keys from a machine that has been rebuilt.
-.TP
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-confirm\fR
 When called without a job-uuid, a search is made to find any bad keys. If they are found, the user is prompted to delete them. This switch assumes consent is given and the keys are removed.

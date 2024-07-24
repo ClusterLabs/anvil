@@ -11,15 +11,17 @@ This does a simple nmap ping sweep of the accessible networks (usually the BCN a
 .B Note
 .TP
 This is meant to run once per day, and is run by anvil-daemon every 24 hours. 
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-force\fR
 This forces a scan, even if it's not been 24 hours since the last time a scan completed.

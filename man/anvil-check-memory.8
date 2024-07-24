@@ -12,16 +12,17 @@ This reports the total memory used by all processes with to passed-in program na
 This looks in 'ps' and finds pids for the given program name, then parses the '/proc/<pid>/smaps' kernel file to calculate the memory use. This will include shared memory space! Ending the program won't necessarily release the reported amount of RAM.
 .TP
 The output will be in the format: '<program_name> = <number_of_bytes> # <size in human readable format>
-.TP
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-program\fR <name>
 This is the name of the program to report memory usage of. 

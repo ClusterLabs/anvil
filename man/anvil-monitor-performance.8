@@ -10,7 +10,7 @@ anvil-monitor-performance \- Tool used to log system performance to anvil.conf t
 This tool uses the Get->load_average() method to collect performance data and then records the parsed data to the Anvil! logs. 
 .TP
 This is meant to be a light-weight tool run by the same-named systemd daemon. It does not connect to the database.
-.TP
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
@@ -20,6 +20,7 @@ When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-detailed\fR
 Log extended performance data. This shows extended and per-cpu-core and per block device metrics. 

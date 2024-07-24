@@ -8,16 +8,17 @@ anvil-watch-drbd \- This program displays the status of DRBD connections in a co
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 This program looks at the various 'proc/drbd' files related to DRBD 9 connections and displays them in a concise manner. It optionally can provide a continuously updating view of the DRBD status, useful for monitoring resyncs.
-.TP
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
 \fB\-\-watch\fR <seconds>
 When used alone, it tells the program to stay running, updating the view of the DRBD resources every two (2) seconds. Optionally, an integer can be passed that sets how frequently the display is updated.
