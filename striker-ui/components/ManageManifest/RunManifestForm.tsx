@@ -91,7 +91,24 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
       onSubmit: (values, { setSubmitting }) => {
         tools.confirm.prepare({
           actionProceedText: 'Run',
-          content: <FormSummary entries={values} hasPassword />,
+          content: (
+            <FormSummary
+              entries={values}
+              getEntryLabel={({ cap, key }) =>
+                cap(key.replace(/node/gi, 'subnode'))
+              }
+              hasPassword
+              renderEntryValue={(base, ...args) => {
+                const [a] = args;
+
+                if (typeof a.entry === 'string' && /node/.test(a.entry)) {
+                  a.entry = a.entry.replace(/node/gi, 'subnode');
+                }
+
+                return base(...args);
+              }}
+            />
+          ),
           onCancelAppend: () => setSubmitting(false),
           onProceedAppend: () => {
             tools.confirm.loading(true);
