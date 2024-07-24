@@ -1,36 +1,13 @@
 MAINTAINERCLEANFILES	= Makefile.in
 
+# empty dir for now
 htmldir			= ${localstatedir}/www/html
-
-jqueryver		= 3.3.1
-jqueryuiver		= 1.12.1
-
-dist_html_DATA		= \
-			  favicon.ico \
-			  jquery-$(jqueryver).js
 
 # empty dir for now
 skinsdir		= $(htmldir)/skins
 
+# empty dir for now
 skinsalteevedir		= $(skinsdir)/alteeve
-
-dist_skinsalteeve_DATA	= \
-			  skins/alteeve/anvil.html \
-			  skins/alteeve/anvil.js \
-			  skins/alteeve/config.html \
-			  skins/alteeve/config.js \
-			  skins/alteeve/email.html \
-			  skins/alteeve/email.js \
-			  skins/alteeve/files.css \
-			  skins/alteeve/files.html \
-			  skins/alteeve/files.js \
-			  skins/alteeve/jobs.js \
-			  skins/alteeve/main.css \
-			  skins/alteeve/main.html \
-			  skins/alteeve/main.js \
-			  skins/alteeve/pxe.txt \
-			  skins/alteeve/shared.html \
-			  skins/alteeve/striker.html
 
 skinsalteeveimagesdir	= $(skinsalteevedir)/images
 
@@ -119,47 +96,3 @@ dist_skinsalteeveimages_DATA= \
 			  skins/alteeve/images/users_icon.png \
 			  skins/alteeve/images/users_icon.xcf
 
-jqueryuidir		= $(htmldir)/jquery-ui-$(jqueryuiver)
-
-dist_jqueryui_DATA	= \
-			 jquery-ui-$(jqueryuiver)/AUTHORS.txt \
-			 jquery-ui-$(jqueryuiver)/index.html \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.css \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.js \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.min.css \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.min.js \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.structure.css \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.structure.min.css \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.theme.css \
-			 jquery-ui-$(jqueryuiver)/jquery-ui.theme.min.css \
-			 jquery-ui-$(jqueryuiver)/LICENSE.txt \
-			 jquery-ui-$(jqueryuiver)/package.json
-
-# empty dir
-jqueryuiexternaldir	= $(jqueryuidir)/external
-
-jqueryuiexternaljquerydir= $(jqueryuiexternaldir)/jquery
-
-dist_jqueryuiexternaljquery_DATA = \
-			 jquery-ui-$(jqueryuiver)/external/jquery/jquery.js
-
-jqueryuiimagesdir	= $(jqueryuidir)/images
-
-dist_jqueryuiimages_DATA= \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_glass_55_fbf9ee_1x400.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_glass_65_ffffff_1x400.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_glass_75_dadada_1x400.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_glass_75_e6e6e6_1x400.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_glass_95_fef1ec_1x400.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-bg_highlight-soft_75_cccccc_1x100.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-icons_222222_256x240.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-icons_2e83ff_256x240.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-icons_454545_256x240.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-icons_888888_256x240.png \
-			 jquery-ui-$(jqueryuiver)/images/ui-icons_cd0a0a_256x240.png
-
-install-data-hook:
-	(cd $(DESTDIR)/${htmldir}; $(LN_S) jquery-$(jqueryver).js jquery-latest.js; $(LN_S) jquery-ui-$(jqueryuiver) jquery-ui-latest)
-
-uninstall-hook:
-	(cd $(DESTDIR)/${htmldir}; rm -f jquery-latest.js jquery-ui-latest)
