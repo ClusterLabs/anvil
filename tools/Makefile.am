@@ -42,7 +42,6 @@ dist_sbin_SCRIPTS	= \
 			  anvil-shutdown-server \
 			  anvil-special-operations \
 			  anvil-sync-shared \
-			  anvil-test-alerts \
 			  anvil-update-issue \
 			  anvil-update-system \
 			  anvil-version-changes \
