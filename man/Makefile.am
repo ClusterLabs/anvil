@@ -39,7 +39,6 @@ dist_man8_MANS		= \
 			  anvil-report-usage.8 \
 			  anvil-safe-start.8 \
 			  anvil-safe-stop.8 \
-			  anvil-scan-network.8 \
 			  anvil-show-local-ips.8 \
 			  anvil-shutdown-server.8 \
 			  anvil-special-operations.8 \

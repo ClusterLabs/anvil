@@ -37,7 +37,6 @@ dist_sbin_SCRIPTS	= \
 			  anvil-report-usage \
 			  anvil-safe-start \
 			  anvil-safe-stop \
-			  anvil-scan-network \
 			  anvil-show-local-ips \
 			  anvil-shutdown-server \
 			  anvil-special-operations \
