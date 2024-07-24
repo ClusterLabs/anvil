@@ -213,6 +213,7 @@ type RunManifestHostFormikValues = {
     name: string;
     uuid: string;
   };
+  number: number;
   type: string;
   uuid: string;
 };
@@ -220,6 +221,6 @@ type RunManifestHostFormikValues = {
 type RunManifestFormikValues = {
   confirmPassword: string;
   description: string;
-  hosts: Record<number, RunManifestHostFormikValues>;
+  hosts: Record<string, RunManifestHostFormikValues>;
   password: string;
 };
