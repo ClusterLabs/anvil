@@ -191,13 +191,6 @@ type AddManifestInputGroupProps<M extends MapToInputTestID> =
 type EditManifestInputGroupProps<M extends MapToInputTestID> =
   AddManifestInputGroupProps<M>;
 
-type RunManifestInputGroupOptionalProps = {
-  knownHosts?: APIHostOverviewList;
-};
-
-type RunManifestInputGroupProps<M extends MapToInputTestID> =
-  RunManifestInputGroupOptionalProps & AddManifestInputGroupProps<M>;
-
 /** RunManifestForm */
 
 type RunManifestFormProps = {
