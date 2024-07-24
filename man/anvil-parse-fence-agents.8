@@ -1,0 +1,30 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-parse-fence-agents "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-parse-fence-agents \- Tool to create a unified XML file with all available fence agent metadata.
+.SH SYNOPSIS
+.B anvil-parse-fence-agents 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program reads through all installed fence agents, collecting their metadata, and storing them as a single unified XML file (/var/www/html/fences_unified_metadata.xml). This is used in Striker to create the selection and menu when adding fence devices to the Anvil! cluster.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-refresh\fR
+.TP
+Normally, the unified fence metadata is created every 24 hours (by anvil-daemon). If this progrm is called and the unified file is less than 24 hours, nothing is done. If this switch is used, however, the metadata will be processed and collected regardless. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
