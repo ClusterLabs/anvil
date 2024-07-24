@@ -117,9 +117,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
               .put(`/command/run-manifest/${detail.uuid}`, values)
               .then(() => {
                 tools.confirm.finish('Success', {
-                  children: (
-                    <>Successfully ran install manifest {detail.name}</>
-                  ),
+                  children: <>Successfully started installing {detail.name}</>,
                 });
 
                 tools.edit.open(false);
