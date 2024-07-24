@@ -1570,29 +1570,17 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
 		<key name="job_0330">The target machine is now booting!</key>
 		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
-		<!-- cgi-bin/set_power,on,job_title -->
 		<key name="job_0332">Power On Host</key>
-		<!-- cgi-bin/set_power,on,job_description -->
 		<key name="job_0333">Power on the target host by executing a start script on a striker.</key>
-		<!-- cgi-bin/set_power,off,job_title -->
 		<key name="job_0334">Power Off Host</key>
-		<!-- cgi-bin/set_power,off,job_description -->
 		<key name="job_0335">Power off the target host by executing a stop script on the host itself.</key>
-		<!-- cgi-bin/set_membership,join,job_title -->
 		<key name="job_0336">Host Join Cluster</key>
-		<!-- cgi-bin/set_membership,join,job_description -->
 		<key name="job_0337">Make target host join its anvil cluster.</key>
-		<!-- cgi-bin/set_membership,leave,job_title -->
 		<key name="job_0338">Host Leave Cluster</key>
-		<!-- cgi-bin/set_membership,leave,job_description -->
 		<key name="job_0339">Make target host leave its anvil cluster.</key>
-		<!-- cgi-bin/set_power,server,on,job_title -->
 		<key name="job_0340">Power On Server VM</key>
-		<!-- cgi-bin/set_power,server,on,job_description -->
 		<key name="job_0341">Power on the target server VM by executing a start script on the first host within the cluster.</key>
-		<!-- cgi-bin/set_power,server,off,job_title -->
 		<key name="job_0342">Power Off Server VM</key>
-		<!-- cgi-bin/set_power,server,off,job_description -->
 		<key name="job_0343">Power off the target server VM by executing a stop script on the first a host within the cluster.</key>
 		<key name="job_0344">Verifying that corosync is configured to use the SN1 as a fall-back communication channel.</key>
 		<key name="job_0345">Verifying (and waiting if needed) for the cluster to be be up and both BCN1 and SN1 connections to be active.</key>

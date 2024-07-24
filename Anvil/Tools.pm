@@ -1122,7 +1122,6 @@ sub _set_paths
 				anvil				=>	"/etc/anvil",
 				backups				=>	"/root/anvil-backups",
 				bonds				=>	"/proc/net/bonding",
-				'cgi-bin'			=>	"/var/www/cgi-bin",
 				drbd_resources			=>	"/etc/drbd.d/",
 				fence_agents			=>	"/usr/sbin",
 				firewalld_services		=>	"/usr/lib/firewalld/services",
