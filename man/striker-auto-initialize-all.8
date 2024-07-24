@@ -20,8 +20,11 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SH "Commands:"
-\fB\-\-config\fR
-
+\fB\-\-config\fR </path/to/config.txt>
+This is the path to to the configuration file used to auto-configure the various machines in the cluster. Please see \fBstriker-auto-initialize-all.example\fR for an example.
+.TP
+\fB\-\-job\-uuid\fR
+If this is set, the job will be processed.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
