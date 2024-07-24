@@ -26,13 +26,13 @@ export const runManifest: RequestHandler<
       description: rawDescription,
       hosts: rawHostList = {},
       password: rawPassword,
-      reuseHost: rawReuseHost,
+      reuseHosts: rawReuseHosts,
     } = {},
   } = request;
 
   const description = sanitize(rawDescription, 'string');
   const password = sanitize(rawPassword, 'string');
-  const reuseHost = sanitize(rawReuseHost, 'boolean');
+  const reuseHosts = sanitize(rawReuseHosts, 'boolean');
 
   const hostList: ManifestExecutionHostList = {};
 
@@ -57,25 +57,25 @@ export const runManifest: RequestHandler<
 
     const uniqueList: Record<string, boolean | undefined> = {};
     const isHostListUnique = !Object.values(rawHostList).some(
-      ({ hostNumber, hostType, hostUuid }) => {
-        const hostId = `${hostType}${hostNumber}`;
+      ({ number, type, uuid }) => {
+        const id = `${type}${number}`;
         assert(
-          /^node[12]$/.test(hostId),
-          `Host ID must be "node" followed by 1 or 2; got [${hostId}]`,
+          /^node[12]$/.test(id),
+          `Host ID must be "node" followed by 1 or 2; got [${id}]`,
         );
 
         assert(
-          REP_UUID.test(hostUuid),
-          `Host UUID assigned to ${hostId} must be a UUIDv4; got [${hostUuid}]`,
+          REP_UUID.test(uuid),
+          `Host UUID assigned to ${id} must be a UUIDv4; got [${uuid}]`,
         );
 
-        const isIdDuplicate = Boolean(uniqueList[hostId]);
-        const isUuidDuplicate = Boolean(uniqueList[hostUuid]);
+        const isIdDuplicate = Boolean(uniqueList[id]);
+        const isUuidDuplicate = Boolean(uniqueList[uuid]);
 
-        uniqueList[hostId] = true;
-        uniqueList[hostUuid] = true;
+        uniqueList[id] = true;
+        uniqueList[uuid] = true;
 
-        hostList[hostId] = { hostNumber, hostType, hostUuid, hostId };
+        hostList[id] = { id, number, type, uuid };
 
         return isIdDuplicate || isUuidDuplicate;
       },
@@ -120,11 +120,11 @@ export const runManifest: RequestHandler<
 
   try {
     anParams = Object.values(hostList).reduce<Record<string, string>>(
-      (previous, { hostId = '', hostUuid }) => {
+      (previous, { id: hostId = '', uuid: hostUuid }) => {
         const hostName = mapToHostNameData[hostUuid];
         const { anvil_name: anName } = hostUuidMapToData[hostUuid];
 
-        if (anName && !reuseHost) {
+        if (anName && !reuseHosts) {
           assert(
             anName !== manifestName,
             `Cannot use [${hostName}] for [${manifestName}] because it belongs to [${anName}]; set reuseHost:true to allow this`,
