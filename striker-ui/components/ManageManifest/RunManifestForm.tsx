@@ -63,9 +63,10 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         description: '',
         hosts: hostEntries.reduce<RunManifestFormikValues['hosts']>(
           (previous, entry) => {
-            const [, { hostNumber }] = entry;
+            const [hostId, { hostNumber }] = entry;
 
-            previous[hostNumber] = {
+            previous[hostId] = {
+              number: hostNumber,
               type: '',
               uuid: '',
             };
@@ -126,7 +127,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         (row, entry) => {
           const [hostId, { hostNumber, hostType }] = entry;
 
-          const hostChain = `${hostsChain}.${hostNumber}`;
+          const hostChain = `${hostsChain}.${hostId}`;
           const uuidChain = `${hostChain}.uuid`;
 
           const prettyId = `${hostType.replace(
@@ -154,17 +155,18 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
                   const value: RunManifestHostFormikValues = {
                     anvil,
+                    number: hostNumber,
                     type: hostType,
                     uuid,
                   };
 
                   // Check whether the newly selected value is already used.
                   const duplicate = Object.entries(formik.values.hosts).find(
-                    ([sequence, { uuid: selected }]) => {
+                    ([selectedHostId, { uuid: selectedHostUuid }]) => {
                       // Don't compare to self.
-                      if (Number(sequence) === hostNumber) return false;
+                      if (selectedHostId === hostId) return false;
 
-                      return selected === uuid;
+                      return selectedHostUuid === uuid;
                     },
                   );
 
@@ -175,7 +177,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
                     // slot.
                     formik.setFieldValue(
                       duplicateChain,
-                      formik.values.hosts[hostNumber],
+                      formik.values.hosts[hostId],
                     );
                   }
 
@@ -186,7 +188,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
                 }}
                 required
                 selectItems={hostOptions}
-                value={formik.values.hosts[hostNumber].uuid}
+                value={formik.values.hosts[hostId].uuid}
               />
             </Grid>,
           );
