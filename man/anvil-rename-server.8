@@ -1,0 +1,44 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-rename-server "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-rename-server \- Tool to rename servers. 
+.SH SYNOPSIS
+.B anvil-rename-server 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This renames a server (and the DRBD resources and LVs below it). Given the nature of this program, it runs on the node directly, and SSH's into the peer(s) to update the DRBD config files and rename LVs.
+.B Note
+The server must be stopped before it can be renamed!
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-job\-uuid\fR <job uuid>
+.TP
+This is the job UUID used when the request to rename came from the Striker UI.
+.TP
+\fB\-\-new\-name\fR <new name>
+.TP
+This is the new name of the server 
+.TP
+\fB\-\-server\fR <current name>
+.TP
+This is the current name of the server to be renamed. This is optional if '\fB\-\-server\-uuid\fR <uuid>' is used.
+.TP
+\fB\-\-server\-uuid\fR <server UUID>
+.TP
+This is the server UUID of the server to be renamed. This is optional if '\fB\-\-server\fR <name>' is used.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
