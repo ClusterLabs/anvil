@@ -45,7 +45,6 @@ dist_man8_MANS		= \
 			  anvil-special-operations.8 \
 			  anvil-sync-shared.8 \
 			  anvil-test-alerts.8 \
-			  anvil-update-definition.8 \
 			  anvil-update-issue.8 \
 			  anvil-update-system.8 \
 			  anvil-version-changes.8 \
