@@ -1,9 +1,15 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
+import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
+
 import ActionGroup from '../ActionGroup';
+import api from '../../lib/api';
+import FormSummary from '../FormSummary';
+import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import runManifestSchema from './runManifestSchema';
 import SelectWithLabel from '../SelectWithLabel';
 import { BodyText, MonoText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
@@ -12,7 +18,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const NONE = '--';
 
 const RunManifestForm: FC<RunManifestFormProps> = (props) => {
-  const { detail, knownFences, knownHosts, knownUpses } = props;
+  const { detail, knownFences, knownHosts, knownUpses, tools } = props;
 
   const { domain: manifestDomain, hostConfig, networkConfig } = detail;
   const { hosts } = hostConfig;
@@ -39,17 +45,12 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
   const hostOptions = useMemo(
     () =>
-      knownHostEntries.map<SelectItem<RunManifestHostFormikValues>>((entry) => {
-        const [, host] = entry;
-        const { anvil, hostName, hostType, hostUUID } = host;
+      knownHostEntries.map<SelectItem<string>>((entry) => {
+        const [, { hostName, hostUUID }] = entry;
 
         return {
           displayValue: hostName,
-          value: {
-            anvil,
-            type: hostType,
-            uuid: hostUUID,
-          },
+          value: hostUUID,
         };
       }),
     [knownHostEntries],
@@ -60,12 +61,58 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
       initialValues: {
         confirmPassword: '',
         description: '',
-        hosts: {},
+        hosts: hostEntries.reduce<RunManifestFormikValues['hosts']>(
+          (previous, entry) => {
+            const [, { hostNumber }] = entry;
+
+            previous[hostNumber] = {
+              type: '',
+              uuid: '',
+            };
+
+            return previous;
+          },
+          {},
+        ),
         password: '',
       },
       onSubmit: (values, { setSubmitting }) => {
-        setSubmitting(false);
+        tools.confirm.prepare({
+          actionProceedText: 'Run',
+          content: <FormSummary entries={values} hasPassword />,
+          onCancelAppend: () => setSubmitting(false),
+          onProceedAppend: () => {
+            tools.confirm.loading(true);
+
+            api
+              .put(`/command/run-manifest/${detail.uuid}`, values)
+              .then(() => {
+                tools.confirm.finish('Success', {
+                  children: (
+                    <>Successfully ran install manifest {detail.name}</>
+                  ),
+                });
+
+                tools.edit.open(false);
+              })
+              .catch((error) => {
+                const emsg = handleAPIError(error);
+
+                emsg.children = (
+                  <>Failed to run install manifest. {emsg.children}</>
+                );
+
+                tools.confirm.finish('Error', emsg);
+
+                setSubmitting(false);
+              });
+          },
+          titleText: `Run install manifest ${detail.name} with the following?`,
+        });
+
+        tools.confirm.open();
       },
+      validationSchema: runManifestSchema,
     });
 
   const confirmPasswordChain = useMemo<string>(() => 'confirmPassword', []);
@@ -73,51 +120,73 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   const hostsChain = useMemo<string>(() => 'hosts', []);
   const passwordChain = useMemo<string>(() => 'password', []);
 
-  const hostHeaderRow = useMemo(
-    () =>
-      hostEntries.reduce<React.ReactNode[]>(
-        (row, entry) => {
-          const [hostId, { hostType, hostNumber }] = entry;
-
-          const prettyId = `${hostType.replace(
-            'node',
-            'subnode',
-          )} ${hostNumber}`;
-
-          row.push(
-            <Grid item key={`${hostId}-header`} xs={1}>
-              <BodyText>{prettyId}</BodyText>
-            </Grid>,
-          );
-
-          return row;
-        },
-        [<Grid item key="host-header-offset" xs={1} />],
-      ),
-    [hostEntries],
-  );
-
   const hostSelectorRow = useMemo(
     () =>
       hostEntries.reduce<React.ReactNode[]>(
         (row, entry) => {
-          const [hostId, { hostNumber }] = entry;
+          const [hostId, { hostNumber, hostType }] = entry;
 
           const hostChain = `${hostsChain}.${hostNumber}`;
+          const uuidChain = `${hostChain}.uuid`;
+
+          const prettyId = `${hostType.replace(
+            'node',
+            'Subnode',
+          )} ${hostNumber}`;
+
+          // Selects don't require debounced validation, so don't make it
+          // controlled by children.
 
           row.push(
             <Grid item key={`${hostId}-selector`} xs={1}>
-              <UncontrolledInput
-                input={
-                  <SelectWithLabel<RunManifestHostFormikValues>
-                    id={hostChain}
-                    name={hostChain}
-                    onChange={formik.handleChange}
-                    required
-                    selectItems={hostOptions}
-                    value={formik.values.hosts[hostNumber]}
-                  />
-                }
+              <SelectWithLabel<string>
+                id={uuidChain}
+                label={prettyId}
+                name={uuidChain}
+                onChange={(event) => {
+                  const {
+                    target: { value: uuid },
+                  } = event;
+
+                  const {
+                    [uuid]: { anvil },
+                  } = knownHosts;
+
+                  const value: RunManifestHostFormikValues = {
+                    anvil,
+                    type: hostType,
+                    uuid,
+                  };
+
+                  // Check whether the newly selected value is already used.
+                  const duplicate = Object.entries(formik.values.hosts).find(
+                    ([sequence, { uuid: selected }]) => {
+                      // Don't compare to self.
+                      if (Number(sequence) === hostNumber) return false;
+
+                      return selected === uuid;
+                    },
+                  );
+
+                  if (duplicate) {
+                    const duplicateChain = `${hostsChain}.${duplicate[0]}`;
+
+                    // Move the previously selected value to the duplicated
+                    // slot.
+                    formik.setFieldValue(
+                      duplicateChain,
+                      formik.values.hosts[hostNumber],
+                    );
+                  }
+
+                  // Set the newly selected value.
+                  formik.setFieldValue(hostChain, value);
+
+                  return formik.handleChange(event);
+                }}
+                required
+                selectItems={hostOptions}
+                value={formik.values.hosts[hostNumber].uuid}
               />
             </Grid>,
           );
@@ -126,17 +195,11 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         },
         [
           <Grid item key="host-selector-header" xs={1}>
-            Use host
+            <BodyText>Use host</BodyText>
           </Grid>,
         ],
       ),
-    [
-      formik.handleChange,
-      formik.values.hosts,
-      hostEntries,
-      hostOptions,
-      hostsChain,
-    ],
+    [formik, hostEntries, hostOptions, hostsChain, knownHosts],
   );
 
   const hostRenameRow = useMemo(
@@ -147,9 +210,9 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
           row.push(
             <Grid item key={`${hostId}-rename`} xs={1}>
-              <BodyText>
+              <MonoText>
                 {hostName}.{manifestDomain}
-              </BodyText>
+              </MonoText>
             </Grid>,
           );
 
@@ -157,7 +220,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         },
         [
           <Grid item key="host-rename-header" xs={1}>
-            New hostname
+            <BodyText>New hostname</BodyText>
           </Grid>,
         ],
       ),
@@ -291,7 +354,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
     const mk = (value = NONE) => (
       <Grid item key="gateway-value" xs={1}>
-        <MonoText>{value}</MonoText>
+        <MonoText justifyContent="end">{value}</MonoText>
       </Grid>
     );
 
@@ -317,7 +380,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   const dnsRow = useMemo(() => {
     const mk = (value = NONE) => (
       <Grid item key="dns-value" xs={1}>
-        <MonoText>{value}</MonoText>
+        <MonoText justifyContent="end">{value}</MonoText>
       </Grid>
     );
 
@@ -334,7 +397,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   const ntpRow = useMemo(() => {
     const mk = (value = NONE) => (
       <Grid item key="ntp-value" xs={1}>
-        <MonoText>{value}</MonoText>
+        <MonoText justifyContent="end">{value}</MonoText>
       </Grid>
     );
 
@@ -377,11 +440,13 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={passwordChain}
               label="Password"
               name={passwordChain}
               onChange={handleChange}
               required
+              type={INPUT_TYPES.password}
               value={formik.values.password}
             />
           }
@@ -391,11 +456,13 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={confirmPasswordChain}
               label="Confirm password"
               name={confirmPasswordChain}
               onChange={handleChange}
               required
+              type={INPUT_TYPES.password}
               value={formik.values.confirmPassword}
             />
           }
@@ -407,9 +474,8 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
           columns={hostEntries.length + 1}
           columnSpacing="1em"
           container
-          rowSpacing=".4em"
+          rowSpacing=".6em"
         >
-          {...hostHeaderRow}
           {...hostSelectorRow}
           {...hostRenameRow}
           {...hostNetworkRows}
@@ -418,7 +484,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         </Grid>
       </Grid>
       <Grid item width="100%">
-        <Grid columns={2} container spacing=".4em">
+        <Grid columns={2} container spacing=".6em">
           {...gatewayRow}
           {...dnsRow}
           {...ntpRow}
