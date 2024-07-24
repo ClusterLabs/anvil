@@ -23,13 +23,20 @@ const hostSchema = yup.object({
 const runManifestSchema = yup.object({
   confirmPassword: yup
     .string()
-    .required()
-    .oneOf([yup.ref('password')]),
+    .oneOf([yup.ref('password')])
+    .required(),
   description: yup.string().required(),
   hosts: yup.lazy((entries) =>
     yup.object(buildYupDynamicObject(entries, hostSchema)),
   ),
   password: yup.string().required(),
+  reuseHosts: yup.boolean().when('hosts', (refs, field) => {
+    const hosts = refs[0] as RunManifestFormikValues['hosts'];
+
+    return Object.values(hosts).some((host) => Boolean(host.anvil))
+      ? field.isTrue()
+      : field.isFalse();
+  }),
 });
 
 export default runManifestSchema;

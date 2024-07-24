@@ -5,13 +5,16 @@ import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
+import Checkbox from '../Checkbox';
+import FlexBox from '../FlexBox';
 import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
+import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import runManifestSchema from './runManifestSchema';
 import SelectWithLabel from '../SelectWithLabel';
-import { BodyText, MonoText } from '../Text';
+import { BodyText, MonoText, SmallText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
@@ -46,10 +49,17 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   const hostOptions = useMemo(
     () =>
       knownHostEntries.map<SelectItem<string>>((entry) => {
-        const [, { hostName, hostUUID }] = entry;
+        const [, { anvil, hostName, hostUUID }] = entry;
 
         return {
-          displayValue: hostName,
+          displayValue: (
+            <FlexBox spacing={0}>
+              <BodyText inverted>{hostName}</BodyText>
+              <SmallText inverted>
+                {anvil ? `Used by ${anvil.name}` : `Ready`}
+              </SmallText>
+            </FlexBox>
+          ),
           value: hostUUID,
         };
       }),
@@ -76,6 +86,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
           {},
         ),
         password: '',
+        reuseHosts: false,
       },
       onSubmit: (values, { setSubmitting }) => {
         tools.confirm.prepare({
@@ -120,6 +131,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   const descriptionChain = useMemo<string>(() => 'description', []);
   const hostsChain = useMemo<string>(() => 'hosts', []);
   const passwordChain = useMemo<string>(() => 'password', []);
+  const reuseHostsChain = useMemo<string>(() => 'reuseHosts', []);
 
   const hostSelectorRow = useMemo(
     () =>
@@ -188,6 +200,15 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
                 }}
                 required
                 selectItems={hostOptions}
+                selectProps={{
+                  renderValue: (uuid) => {
+                    const {
+                      [uuid]: { hostName },
+                    } = knownHosts;
+
+                    return hostName;
+                  },
+                }}
                 value={formik.values.hosts[hostId].uuid}
               />
             </Grid>,
@@ -212,7 +233,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
           row.push(
             <Grid item key={`${hostId}-rename`} xs={1}>
-              <MonoText>
+              <MonoText noWrap>
                 {hostName}.{manifestDomain}
               </MonoText>
             </Grid>,
@@ -413,6 +434,46 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
     ];
   }, [ntpCsv]);
 
+  const reuseRow = useMemo<React.ReactNode>(() => {
+    const selectedHosts = Object.values(formik.values.hosts);
+
+    const usedHosts = selectedHosts.filter((host) => Boolean(host.anvil));
+
+    if (usedHosts.length === 0) return null;
+
+    const usedHostsCsv = usedHosts
+      .slice(1)
+      .reduce<string>(
+        (previous, host) =>
+          `${previous}, ${knownHosts[host.uuid].shortHostName}`,
+        knownHosts[usedHosts[0].uuid].shortHostName,
+      );
+
+    return (
+      <Grid item width="100%">
+        <MessageBox>
+          <Checkbox
+            id={reuseHostsChain}
+            invert
+            name={reuseHostsChain}
+            onChange={formik.handleChange}
+            required
+            sx={{ marginRight: '.5em' }}
+            thinPadding
+            value={formik.values.reuseHosts}
+          />
+          Confirm reusing host(s): {usedHostsCsv}.
+        </MessageBox>
+      </Grid>
+    );
+  }, [
+    formik.handleChange,
+    formik.values.hosts,
+    formik.values.reuseHosts,
+    knownHosts,
+    reuseHostsChain,
+  ]);
+
   return (
     <Grid
       columns={{ xs: 1, sm: 2 }}
@@ -492,6 +553,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
           {...ntpRow}
         </Grid>
       </Grid>
+      {reuseRow}
       <Grid item width="100%">
         <MessageGroup count={1} messages={formikErrors} />
       </Grid>
