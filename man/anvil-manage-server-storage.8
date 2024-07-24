@@ -12,7 +12,6 @@ anvil-manage-server-storage \- This tool is used to add a disk, grow an existing
 When called without switches, the list of servers than can be worked on will be displayed.
 .TP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
@@ -22,7 +21,6 @@ When logging, record sensitive data, like passwords.
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
-.TP
 \fB\-\-add\fR <size or percent>
 This is used to add a new disk to a server. Specifically, it adds a second volume to the replicated storage under the server, which appears as a second disk inside the server. Writes to this and existing disks are ordered during replication, including during short or long throw DR.
 .TP

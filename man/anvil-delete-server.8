@@ -12,7 +12,6 @@ This deletes a server, running or stopped, from an Anvil! sub-cluster. The resou
 This action is permanent!
 .TP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
@@ -22,11 +21,8 @@ When logging, record sensitive data, like passwords.
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .SS "Commands:"
-.TP
 \fB\-\-job\-uuid\fR <UUID>
 The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
-.IP
-.SS "Commands:"
 .TP
 \fB\-\-force\fR
 When used with \fB\-\-server\fR, no confirmation prompt will be shown. Use this with caution!
