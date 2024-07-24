@@ -1095,6 +1095,7 @@ sub _set_paths
 				'qemu.conf'			=>	"/etc/libvirt/qemu.conf",
 				ssh_config			=>	"/etc/ssh/ssh_config",
 				sshd_root_password		=>	"/etc/ssh/sshd_config.d/01-permitrootlogin.conf",
+				'sysctl.d'			=>	"/usr/lib/sysctl.d/51-anvil.conf",
 				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",
 				'type.node'			=>	"/etc/anvil/type.node",

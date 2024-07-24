@@ -3496,6 +3496,7 @@ proceeding.
 		<key name="message_0514">#!variable!timestamp!#; - Verifying access to: [#!variable!host_name!#]...</key>
 		<key name="message_0515">#!variable!timestamp!#; Connected on: [#!variable!target_ip!#] via: [#!variable!network_name!#]</key>
 		<key name="message_0516">#!variable!timestamp!#; No access! Skipping.</key>
+		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

@@ -1045,9 +1045,38 @@ sub run_once
 	# Make sure root can ssh
 	chech_sshd($anvil);
 	
+	# Make sure we don't spam the hell out of the console with network manager messages on boot
+	check_sysctl($anvil);
+	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub check_sysctl
+{
+	my ($anvil) = @_;
+	
+	if (($anvil->data->{path}{configs}{'sysctl.d'}) && (not -e $anvil->data->{path}{configs}{'sysctl.d'}))
+	{
+		my $body = "# Reduce the messages printing to the terminal to emergency only. Without this,
+# Network Manager will spam the console for a few minutes after boot as it 
+# configures the network. The default on EL9 is '7 4 1 7'. You can override
+# this by creating /etc/sysctl.d/51-anvil.conf or by setting 'kernel.printk'
+# in any file start with 52-x.conf.
+kernel.printk = 1 4 1 7
+";
+		$anvil->Storage->write_file({
+			debug  => 2,
+			secure => 0, 
+			file   => $anvil->data->{path}{configs}{'sysctl.d'}, 
+			body   => $body, 
+			mode   => "0644",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0517", variables => { file => $anvil->data->{path}{configs}{'sysctl.d'} }});
 	}
 	
 	return(0);
@@ -1349,7 +1378,7 @@ sub handle_special_cases
 {
 	my ($anvil) = @_;
 	
-	# Thsi is now handled by 'anvil-version-changes'
+	# This is now handled by 'anvil-version-changes'
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'}.$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
