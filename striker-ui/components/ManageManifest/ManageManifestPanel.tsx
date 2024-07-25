@@ -599,7 +599,9 @@ const ManageManifestPanel: FC = () => {
         showClose
       />
       <DialogWithHeader
-        header={`Run install manifest ${manifestDetail?.name}`}
+        header={`${manifestDetail?.anvil ? 'Rerun' : 'Run'} install manifest ${
+          manifestDetail?.name
+        }`}
         loading={loadingRunForm}
         ref={runDialogRef}
         showClose

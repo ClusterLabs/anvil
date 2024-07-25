@@ -20,16 +20,20 @@ const hostSchema = yup.object({
   uuid: yupLaxUuid().required(),
 });
 
+const rerunStringSchema = yup.string().when('rerun', (refs, field) => {
+  const rerun = refs[0] as boolean;
+
+  return rerun ? field.optional() : field.required();
+});
+
 const runManifestSchema = yup.object({
-  confirmPassword: yup
-    .string()
-    .oneOf([yup.ref('password')])
-    .required(),
-  description: yup.string().required(),
+  confirmPassword: rerunStringSchema.oneOf([yup.ref('password')]),
+  description: rerunStringSchema,
   hosts: yup.lazy((entries) =>
     yup.object(buildYupDynamicObject(entries, hostSchema)),
   ),
-  password: yup.string().required(),
+  password: rerunStringSchema,
+  rerun: yup.boolean().required(),
   reuseHosts: yup.boolean().when('hosts', (refs, field) => {
     const hosts = refs[0] as RunManifestFormikValues['hosts'];
 

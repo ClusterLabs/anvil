@@ -8,6 +8,11 @@ type APIManifestOverviewList = {
 };
 
 type APIManifestDetail = ManifestAnId & {
+  anvil?: {
+    description: string;
+    hosts: Record<string, { uuid: string }>;
+    uuid: string;
+  };
   hostConfig: ManifestHostConfig;
   name: string;
   networkConfig: ManifestNetworkConfig;

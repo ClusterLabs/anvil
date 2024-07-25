@@ -216,5 +216,6 @@ type RunManifestFormikValues = {
   description: string;
   hosts: Record<string, RunManifestHostFormikValues>;
   password: string;
+  rerun: boolean;
   reuseHosts: boolean;
 };
