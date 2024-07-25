@@ -104,7 +104,9 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
               const knownHost = knownHosts[uuid];
 
-              hostAnvil = knownHost.anvil;
+              if (knownHost) {
+                hostAnvil = knownHost.anvil;
+              }
             } else if (shortRenameTo) {
               const found = knownHostEntries.find(
                 ([, { shortHostName }]) => shortHostName === shortRenameTo,
