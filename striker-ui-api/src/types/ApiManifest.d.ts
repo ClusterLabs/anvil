@@ -58,6 +58,11 @@ type ManifestDetailHostList = {
 };
 
 type ManifestDetail = {
+  anvil?: {
+    description: string;
+    hosts: Record<string, { uuid: string }>;
+    uuid: string;
+  };
   domain: string;
   hostConfig: {
     hosts: ManifestDetailHostList;
