@@ -9,30 +9,38 @@ import {
   getHostData,
   getManifestData,
   job,
+  query,
   sub,
 } from '../../accessModule';
+import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
 export const runManifest: RequestHandler<
   { manifestUuid: string },
-  undefined,
+  undefined | ResponseErrorBody,
   RunManifestRequestBody
 > = async (request, response) => {
   const {
-    params: { manifestUuid },
+    params: { manifestUuid: rawManifestUuid },
     body: {
       debug = 2,
       description: rawDescription,
       hosts: rawHostList = {},
       password: rawPassword,
+      rerun: rawRerun,
       reuseHosts: rawReuseHosts,
     } = {},
   } = request;
 
-  const description = sanitize(rawDescription, 'string');
-  const password = sanitize(rawPassword, 'string');
+  const manifestUuid = sanitize(rawManifestUuid, 'string', {
+    modifierType: 'sql',
+  });
+  const rerun = sanitize(rawRerun, 'boolean');
   const reuseHosts = sanitize(rawReuseHosts, 'boolean');
+
+  let description = sanitize(rawDescription, 'string');
+  let password = sanitize(rawPassword, 'string');
 
   const hostList: ManifestExecutionHostList = {};
 
@@ -43,6 +51,48 @@ export const runManifest: RequestHandler<
 
     response.status(400).send();
   };
+
+  if (rerun) {
+    const sql = `
+      SELECT
+        a.anvil_description,
+        a.anvil_password
+      FROM anvils AS a
+      JOIN manifests AS b
+        ON a.anvil_name = b.manifest_name
+      WHERE b.manifest_uuid = '${manifestUuid}';`;
+
+    let rows: string[][];
+
+    try {
+      rows = await query<string[][]>(sql);
+    } catch (error) {
+      const rserror = new ResponseError(
+        '49e0e02',
+        `Failed to get existing record with manifest [${manifestUuid}]; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    if (!rows.length) {
+      const rserror = new ResponseError(
+        '2d42e16',
+        `No record found on rerun manifest [${manifestUuid}]`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(404).send(rserror.body);
+    }
+
+    // Assign existing values before value assertions.
+    ({
+      0: [description, password],
+    } = rows);
+  }
 
   try {
     assert(

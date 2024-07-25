@@ -112,5 +112,6 @@ type RunManifestRequestBody = {
   description: string;
   hosts: ManifestExecutionHostList;
   password: string;
+  rerun?: boolean;
   reuseHosts?: boolean;
 };
