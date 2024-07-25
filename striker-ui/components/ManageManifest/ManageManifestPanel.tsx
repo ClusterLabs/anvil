@@ -39,7 +39,6 @@ import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
-import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const REQ_BODY_MAX_DEPTH = 6;
 
@@ -105,8 +104,6 @@ const getFormData = (
 };
 
 const ManageManifestPanel: FC = () => {
-  const isFirstRender = useIsFirstRender();
-
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const addManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const editManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>(
@@ -118,21 +115,11 @@ const ManageManifestPanel: FC = () => {
   const [oldConfirmDialogProps, setOldConfirmDialogProps] =
     useConfirmDialogProps();
 
-  const [hostOverviews, setHostOverviews] = useState<
-    APIHostOverviewList | undefined
-  >();
   const [isEditManifests, setIsEditManifests] = useState<boolean>(false);
-  const [isLoadingHostOverviews, setIsLoadingHostOverviews] =
-    useState<boolean>(true);
   const [isLoadingManifestDetail, setIsLoadingManifestDetail] =
-    useState<boolean>(true);
-  const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
     useState<boolean>(true);
   const [manifestDetail, setManifestDetail] = useState<
     APIManifestDetail | undefined
-  >();
-  const [manifestTemplate, setManifestTemplate] = useState<
-    APIManifestTemplate | undefined
   >();
 
   const {
@@ -142,6 +129,18 @@ const ManageManifestPanel: FC = () => {
   } = useFetch<APIManifestOverviewList>('/manifest', {
     refreshInterval: 10000,
   });
+
+  const {
+    data: manifestTemplate,
+    loading: isLoadingManifestTemplate,
+    mutate: getManifestTemplate,
+  } = useFetch<APIManifestTemplate>('/manifest/template');
+
+  const {
+    data: hostOverviews,
+    loading: isLoadingHostOverviews,
+    mutate: getHostOverviews,
+  } = useFetch<APIHostOverviewList>('/host?types=node');
 
   const formUtils = useFormUtils(
     [
@@ -483,32 +482,6 @@ const ManageManifestPanel: FC = () => {
     [],
   );
 
-  if (isFirstRender) {
-    api
-      .get<APIManifestTemplate>('/manifest/template')
-      .then(({ data }) => {
-        setManifestTemplate(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingManifestTemplate(false);
-      });
-
-    api
-      .get<APIHostOverviewList>('/host', { params: { types: 'node' } })
-      .then(({ data }) => {
-        setHostOverviews(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingHostOverviews(false);
-      });
-  }
-
   const {
     confirmDialog,
     finishConfirm,
@@ -566,10 +539,22 @@ const ManageManifestPanel: FC = () => {
           knownFences={knownFences}
           knownHosts={hostOverviews}
           knownUpses={knownUpses}
+          onSubmitSuccess={() => {
+            getManifestTemplate();
+            getHostOverviews();
+          }}
           tools={formTools}
         />
       ),
-    [formTools, hostOverviews, knownFences, knownUpses, manifestDetail],
+    [
+      formTools,
+      getHostOverviews,
+      getManifestTemplate,
+      hostOverviews,
+      knownFences,
+      knownUpses,
+      manifestDetail,
+    ],
   );
 
   return (

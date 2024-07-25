@@ -193,7 +193,11 @@ type EditManifestInputGroupProps<M extends MapToInputTestID> =
 
 /** RunManifestForm */
 
-type RunManifestFormProps = {
+type RunManifestFormOptionalProps = {
+  onSubmitSuccess?: () => void;
+};
+
+type RunManifestFormProps = RunManifestFormOptionalProps & {
   detail: APIManifestDetail;
   knownFences: APIManifestTemplateFenceList;
   knownHosts: APIHostOverviewList;

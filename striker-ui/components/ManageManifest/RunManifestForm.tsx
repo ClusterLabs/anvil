@@ -22,7 +22,14 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const NONE = '--';
 
 const RunManifestForm: FC<RunManifestFormProps> = (props) => {
-  const { detail, knownFences, knownHosts, knownUpses, tools } = props;
+  const {
+    detail,
+    knownFences,
+    knownHosts,
+    knownUpses,
+    onSubmitSuccess,
+    tools,
+  } = props;
 
   const {
     anvil: existingAnvil,
@@ -174,6 +181,8 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
                 tools.confirm.finish('Success', {
                   children: <>Successfully started installing {detail.name}</>,
                 });
+
+                onSubmitSuccess?.call(null);
 
                 tools.edit.open(false);
               })
