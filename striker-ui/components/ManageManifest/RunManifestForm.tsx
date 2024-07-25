@@ -245,14 +245,14 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
                   };
 
                   // Check whether the newly selected value is already used.
-                  const duplicate = Object.entries(clonedHosts).find(
-                    ([selectedHostId, { uuid: selectedHostUuid }]) => {
-                      // Don't compare to self.
-                      if (selectedHostId === hostId) return false;
+                  const duplicate = Object.entries<RunManifestHostFormikValues>(
+                    clonedHosts,
+                  ).find(([selectedHostId, { uuid: selectedHostUuid }]) => {
+                    // Don't compare to self.
+                    if (selectedHostId === hostId) return false;
 
-                      return selectedHostUuid === uuid;
-                    },
-                  );
+                    return selectedHostUuid === uuid;
+                  });
 
                   if (duplicate) {
                     const [duplicateId, duplicateValue] = duplicate;
@@ -510,7 +510,9 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
   }, [ntpCsv]);
 
   const reuseRow = useMemo<React.ReactNode>(() => {
-    const selectedHosts = Object.values(formik.values.hosts);
+    const selectedHosts = Object.values<RunManifestHostFormikValues>(
+      formik.values.hosts,
+    );
 
     const usedHosts = selectedHosts.filter((host) => Boolean(host.anvil));
 
