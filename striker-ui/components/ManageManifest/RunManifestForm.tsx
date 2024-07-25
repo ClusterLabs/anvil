@@ -80,7 +80,8 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
         description: '',
         hosts: hostEntries.reduce<RunManifestFormikValues['hosts']>(
           (previous, entry) => {
-            const [hostId, { hostNumber, hostType }] = entry;
+            const [hostId, { hostName: shortRenameTo, hostNumber, hostType }] =
+              entry;
 
             let hostAnvil: RunManifestHostFormikValues['anvil'];
             let hostUuid = '';
@@ -97,6 +98,17 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
               const knownHost = knownHosts[uuid];
 
               hostAnvil = knownHost.anvil;
+            } else if (shortRenameTo) {
+              const found = knownHostEntries.find(
+                ([, { shortHostName }]) => shortHostName === shortRenameTo,
+              );
+
+              if (found) {
+                const [, foundValue] = found;
+
+                hostAnvil = foundValue.anvil;
+                hostUuid = foundValue.hostUUID;
+              }
             }
 
             previous[hostId] = {
