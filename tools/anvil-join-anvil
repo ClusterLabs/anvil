@@ -91,7 +91,6 @@ wait_for_etc_hosts($anvil);
 # Wait until we can ping our peer on all networks.
 wait_for_access($anvil);
 
-### TODO: Change corosync.conf to use IPs, including MN if it exists.
 # (wait for out peer and) Configure pacemaker
 configure_pacemaker($anvil);
 
@@ -1129,7 +1128,7 @@ ORDER BY
 		my $name                   = $row->[2];
 		my $device                 = $row->[3];
 		my $modified_date_unix     = $row->[4];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:network_interface_uuid" => $network_interface_uuid, 
 			"s2:mac_address"            => $mac_address, 
 			"s3:name"                   => $name, 
@@ -1258,7 +1257,7 @@ ORDER BY
 	{
 		$job_data .= $variable_name."=".$anvil->data->{job_vars}{$variable_name}."\n";
 		$job_lines++;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:job_lines" => $job_lines, 
 			"s2:job_data"  => $job_data,
 		}});
@@ -1659,7 +1658,7 @@ sub update_passwords
 	my $anvil_uuid    = $anvil->data->{sys}{anvil_uuid};
 	my $new_password  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $users         = $machine =~ /dr\d+/ ? ["root", "admin"] : ["root", "admin", "hacluster"];
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		machine          => $machine, 
 		manifest_uuid    => $manifest_uuid,
 		anvil_name       => $anvil_name, 
@@ -1669,7 +1668,7 @@ sub update_passwords
 	
 	foreach my $user (@{$users})
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { user => $user }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { user => $user }});
 		
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0093,!!user!".$user."!!");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0093", variables => { user => $user }});
@@ -1678,7 +1677,7 @@ sub update_passwords
 			user         => $user,
 			new_password => $new_password,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	}
 	
 	return(0);
@@ -1821,43 +1820,43 @@ sub configure_pacemaker
 	### Run on both nodes.
 	# Enable pcsd and start the pcsd daemon.
 	my ($return_code) = $anvil->System->enable_daemon({daemon => "pcsd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	($return_code) = $anvil->System->start_daemon({daemon => "pcsd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!pcsd.service!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "pcsd.service" }});
 	
 	# Enable libvirtd and start the libvirtd daemon.
 	($return_code) = $anvil->System->enable_daemon({daemon => "libvirtd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	($return_code) = $anvil->System->start_daemon({daemon => "libvirtd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0094,!!daemon!libvirtd.service!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "libvirtd.service" }});
 	
 	# Disabled and stop the drbd daemon.
 	($return_code) = $anvil->System->disable_daemon({daemon => "drbd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	($return_code) = $anvil->System->stop_daemon({daemon => "drbd.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!drbd.service!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "drbd.service" }});
 	
 	# Disabled and stop the ksm and ksmtuned daemon.
 	($return_code) = $anvil->System->disable_daemon({daemon => "ksm.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "ksm.service" }});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksm.service!!");
 	
 	($return_code) = $anvil->System->stop_daemon({daemon => "ksmtuned.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { return_code => $return_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { return_code => $return_code }});
 	$return_code = undef;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0095", variables => { daemon => "ksmtuned.service" }});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0095,!!daemon!ksmtuned.service!!");
@@ -3299,6 +3298,7 @@ sub do_reboot
 	return(0);
 }
 
+
 # Check if we need to change any IPs or our hostname.
 sub check_local_network
 {
@@ -3363,7 +3363,7 @@ sub check_local_network
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0077", variables => { host_name => $new_host_name }});
 	}
 	
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'sys::host_name' => $anvil->data->{sys}{host_name}, 
 	}});
 	
@@ -3382,7 +3382,7 @@ sub check_local_network
 		if ($anvil->data->{network}{$local_host}{interface}{$in_iface}{default_gateway})
 		{
 			$default_gateway_interface = $in_iface;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { default_gateway_interface => $default_gateway_interface }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { default_gateway_interface => $default_gateway_interface }});
 			last;
 		}
 	}
@@ -3439,7 +3439,7 @@ sub check_local_network
 		my $subnet  = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network}{subnet};
 		my $cidr    = $anvil->Convert->cidr({subnet_mask => $subnet});
 		my $gateway = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{name}{$network}{gateway};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:network' => $network, 
 			's2:ip'      => $ip,
 			's3:subnet'  => $subnet, 
@@ -3566,287 +3566,73 @@ sub check_local_network
 				# Record the name to restart
 				push @{$restart_interfaces}, $interface_name;
 				
-				# Read in the file. We'll update the date stamp and change the variables as 
-				# needed and write it back out.
-				my $ip_seen         = 0;
-				my $subnet_seen     = 0;
-				my $gateway_seen    = 0;
-				my $dns_seen        = 0;
-				my $mtu_seen        = 0;
-				my $boot_proto_seen = 0;
-				my $defroute_seen   = 0;
-				my $say_default     = $default_gateway_interface eq $in_iface ? "YES" : "NO";
-				my $new_config      = "";
-				my $old_config      = $anvil->Storage->read_file({file => $filename});
-				foreach my $line (split/\n/, $old_config)
+				# Query each value to see if it needs to be updated.
+				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection show ".$interface_uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				foreach my $line (split/\n/, $output)
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-					if ($line =~ /^BOOTPROTO="(.*?)"/)
+					next if $line !~ /^ipv4/;
+					
+					my ($variable, $old_value) = ($line =~ /^(ipv4.*?):\s+(.*?)/);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						variable  => $variable,
+						old_value => $old_value, 
+					}});
+					
+					if ($variable eq "ipv4.addresses")
 					{
-						my $boot_protocol   =  $1;
-						   $boot_proto_seen =  1;
-						   $new_config      .= "BOOTPROTO=\"none\"\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:boot_proto_seen' => $boot_proto_seen, 
-							's2:boot_protocol'   => $boot_protocol,
-							's3:new_config'      => $new_config,
-						}});
-						if ($boot_protocol eq "dhcp")
+						my $new_value = $ip."/".$cidr;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_value => $new_value }});
+						if ($new_value ne $old_value)
 						{
-							# Inject the network config.
-							if (not $ip_seen)
-							{
-								$ip_seen    =  1;
-								$new_config .= "IPADDR=\"".$ip."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									's1:ip_seen'    => $boot_proto_seen, 
-									's2:new_config' => $new_config,
-								}});
-							}
-							if (not $subnet_seen)
-							{
-								if ($cidr)
-								{
-									$new_config .= "PREFIX=\"".$cidr."\"\n";
-								}
-								else
-								{
-									$new_config .= "NETMASK=\"".$subnet."\"\n";
-								}
-								$subnet_seen = 1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									's1:subnet_seen' => $subnet_seen, 
-									's2:new_config'  => $new_config,
-								}});
-							}
-							if (($gateway) && (not $gateway_seen))
-							{
-								$gateway_seen =  1;
-								$new_config   .= "GATEWAY=\"".$gateway."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									's1:gateway_seen' => $gateway_seen, 
-									's2:new_config'   => $new_config,
-								}});
-							}
-							if (not $defroute_seen)
-							{
-								$defroute_seen =  1;
-								$new_config    .= "DEFROUTE=\"".$say_default."\"\n";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									's1:defroute_seen' => $defroute_seen, 
-									's2:new_config'    => $new_config,
-								}});
-							}
-							if (($default_gateway_interface eq $in_iface) && ($cleaned_wanted_dns))
-							{
-								if (not $dns_seen)
-								{
-									my $i = 1;
-									foreach my $this_dns (split/,/, $cleaned_wanted_dns)
-									{
-										$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
-										$i++;
-									}
-
-									$dns_seen = 1;
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-										's1:dns_seen'   => $dns_seen, 
-										's2:new_config' => $new_config,
-									}});
-								}
-							}
+							update_nmcli($anvil, $interface_uuid, $variable, $new_value);
 						}
 					}
-					elsif ($line =~ /^IPADDR=".*?"/)
+					if ($variable eq "ipv4.gateway")
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ip_seen => $ip_seen }});
-						if (not $ip_seen)
+						# Is this the default gateway? 
+						my $new_value = "";
+						if ($default_gateway_interface eq $in_iface)
 						{
-							$ip_seen    =  1;
-							$new_config .= "IPADDR=\"".$ip."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:ip_seen'    => $boot_proto_seen, 
-								's2:new_config' => $new_config,
-							}});
+							# Yes.
+							$new_value = $gateway;
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_value => $new_value }});
+						if ($new_value ne $old_value)
+						{
+							update_nmcli($anvil, $interface_uuid, $variable, $new_value);
 						}
 					}
-					elsif (($line =~ /^PREFIX=".*?"/) or ($line =~ /^NETMASK=".*?"/))
+					if ($variable eq "ipv4.dns")
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subnet_seen => $subnet_seen }});
-						if (not $subnet_seen)
+						# Is this the default gateway? 
+						my $new_value = "";
+						if ($default_gateway_interface eq $in_iface)
 						{
-							$subnet_seen = 1;
-							if ($cidr)
-							{
-								$new_config .= "PREFIX=\"".$cidr."\"\n";
-							}
-							else
-							{
-								$new_config .= "NETMASK=\"".$subnet."\"\n";
-							}
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:subnet_seen' => $subnet_seen, 
-								's2:new_config'  => $new_config,
-							}});
+							# Yes.
+							$new_value = $cleaned_wanted_dns;
+						}
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_value => $new_value }});
+						if ($new_value ne $old_value)
+						{
+							update_nmcli($anvil, $interface_uuid, $variable, $new_value);
 						}
 					}
-					elsif ($line =~ /^GATEWAY=".*"/)
+					if ($variable eq "ipv4.method")
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
-						if ($in_iface ne $default_gateway_interface)
+						# Is this the default gateway? 
+						if ($old_value eq "auto")
 						{
-							# This interface shouldn't have DNS.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0111", variables => { 
-								interface    => $in_iface,
-								gateway_line => $line,
-							}});
-							next;
+							update_nmcli($anvil, $interface_uuid, $variable, "manual");
 						}
-						if (not $gateway_seen)
-						{
-							$gateway_seen =  1;
-							$new_config   .= "GATEWAY=\"".$gateway."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:gateway_seen' => $gateway_seen, 
-								's2:new_config'   => $new_config,
-							}});
-						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gateway_seen => $gateway_seen }});
-					}
-					elsif ($line =~ /^DNS\d+=".*"/)
-					{
-						# The first time we see a DNS entry, we inject the DNS we've 
-						# got and then ignore the rest.
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dns_seen => $dns_seen }});
-						if ($in_iface ne $default_gateway_interface)
-						{
-							# This interface shouldn't have DNS.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0110", variables => { 
-								interface => $in_iface,
-								dns_line  => $line,
-							}});
-							next;
-						}
-						if (not $dns_seen)
-						{
-							
-							# If there's no DNS, this will do nothing.
-							my $i = 1;
-							foreach my $this_dns (split/,/, $cleaned_wanted_dns)
-							{
-								$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
-								$i++;
-							}
-							$dns_seen = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:dns_seen'   => $dns_seen, 
-								's2:new_config' => $new_config,
-							}});
-						}
-					}
-					elsif ($line =~ /^MTU=".*"/)
-					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu_seen => $mtu_seen }});
-						if (not $mtu_seen)
-						{
-							$mtu_seen   =  1;
-							$new_config .= "MTU=\"".$mtu."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:mtu_seen'   => $mtu_seen, 
-								's2:new_config' => $new_config,
-							}});
-						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mtu_seen => $mtu_seen }});
-					}
-					elsif ($line =~ /^DEFROUTE=".*"/)
-					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
-						if (not $defroute_seen)
-						{
-							$defroute_seen =  1;
-							$new_config   .= "DEFROUTE=\"".$say_default."\"\n";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								's1:defroute_seen' => $defroute_seen, 
-								's2:new_config'    => $new_config,
-							}});
-						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
-					}
-					else
-					{
-						$new_config .= $line."\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { defroute_seen => $defroute_seen }});
 					}
 				}
-				
-				# Add any values I've not yet seen.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					ip_seen       => $ip_seen, 
-					subnet_seen   => $subnet_seen, 
-					gateway_seen  => $gateway_seen, 
-					dns_seen      => $dns_seen, 
-					mtu_seen      => $mtu_seen, 
-					defroute_seen => $defroute_seen, 
-				}});
-				if (not $ip_seen)
-				{
-					$new_config .= "IPADDR=\"".$ip."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-				}
-				if (not $subnet_seen)
-				{
-					if ($cidr)
-					{
-						$new_config .= "PREFIX=\"".$cidr."\"\n";
-					}
-					else
-					{
-						$new_config .= "NETMASK=\"".$subnet."\"\n";
-					}
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-				}
-				if ($in_iface eq $default_gateway_interface)
-				{
-					if (not $gateway_seen)
-					{
-						$new_config .= "GATEWAY=\"".$gateway."\"\n";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-					}
-					if (not $dns_seen)
-					{
-						# If there's no DNS, this will do nothing.
-						my $i = 1;
-						foreach my $this_dns (split/,/, $cleaned_wanted_dns)
-						{
-							$new_config .= "DNS".$i."=\"".$this_dns."\"\n";
-							$i++;
-						}
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-					}
-				}
-				if (not $mtu_seen)
-				{
-					$new_config .= "MTU=\"".$mtu."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-				}
-				if (not $defroute_seen)
-				{
-					$new_config .= "DEFROUTE=\"".$say_default."\"\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
-				}
-				
-				# Write out the new file.
-				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0083,!!file!".$filename."!!");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0083", variables => { file => $filename }});
-				$anvil->Storage->write_file({
-					debug     => 2,
-					file      => $filename, 
-					body      => $new_config, 
-					user      => "root", 
-					group     => "root", 
-					mode      => "0644", 
-					overwrite => 1,
-				});
 			}
 			last;
 		}
@@ -3854,7 +3640,7 @@ sub check_local_network
 	
 	# If there are any entries in '$restart_interfaces', restart
 	my $restart_interface_count = @{$restart_interfaces};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { restart_interface_count => $restart_interface_count }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { restart_interface_count => $restart_interface_count }});
 	if ($restart_interface_count)
 	{
 		# Disconnect from the database, as we're about to tear down our connection.
@@ -3862,28 +3648,20 @@ sub check_local_network
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0079");
 		$anvil->Database->disconnect();
 		
-		# Tell nmcli to re-read the config files.
+		# Reload
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0463"});
 		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection reload"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code, 
 		}});
 		# NM seems to have a race issue, so we sleep a second after nmcli calls.
 		sleep 1;
 		
-		foreach my $interface_name (sort {$a cmp $b} @{$restart_interfaces})
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0462", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection down \"".$interface_name."\""});
-			# NM seems to have a race issue, so we sleep a second after nmcli calls.
-			sleep 1;
-			
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0464", variables => { interface => $interface_name }});
-			$anvil->System->call({debug => 3, shell_call => $anvil->data->{path}{exe}{nmcli}." connection up \"".$interface_name."\""});
-			# NM seems to have a race issue, so we sleep a second after nmcli calls.
-			sleep 1;
-		}
+		# Restart
+		$anvil->System->stop_daemon({debug => 2, daemon => "NetowkrManager.service"});
+		sleep 5;
+		$anvil->System->stop_daemon({debug => 2, daemon => "NetowkrManager.service"});
 		
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
 		my $wait_until = time + 130;
@@ -3934,12 +3712,14 @@ sub check_local_network
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "job_0086"});
 	update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0086");
 	
+	### NOTE: MTUs are dynamic on EL9, so we don't configure this anymore.
 	# Update MTUs (running interface and config) if needed.
+=cut
 	foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 	{
 		# Only one interface will start with the network name and have an IP address.
 		my $current_mtu = $anvil->data->{network}{$local_host}{interface}{$in_iface}{mtu};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:in_iface'    => $in_iface, 
 			's2:current_mtu' => $current_mtu,
 		}});
@@ -3948,7 +3728,7 @@ sub check_local_network
 		{
 			# It's fine
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0087,!!interface!".$in_iface."!!,!!mtu!".$mtu."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, key => "job_0087", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0087", variables => { 
 				interface => $in_iface,
 				mtu       => $mtu,
 			}});
@@ -3970,7 +3750,7 @@ sub check_local_network
 			my $interface_uuid = $anvil->data->{nmcli}{$local_host}{device_to_uuid}{$in_iface};
 			my $filename       = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{filename};
 			my $interface_name = $anvil->data->{nmcli}{$local_host}{uuid}{$interface_uuid}{name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:interface_name' => $interface_name, 
 				's2:filename'       => $filename, 
 				's3:interface_uuid' => $interface_uuid, 
@@ -3981,7 +3761,7 @@ sub check_local_network
 			my $old_config = $anvil->Storage->read_file({file => $filename});
 			foreach my $line (split/\n/, $old_config)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				if ($line =~ /^MTU=".*?"/)
 				{
 					$mtu_seen   =  1;
@@ -3990,7 +3770,7 @@ sub check_local_network
 				else
 				{
 					$new_config .= $line."\n";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config => $new_config }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_config => $new_config }});
 				}
 			}
 			if (not $mtu_seen)
@@ -4016,6 +3796,7 @@ sub check_local_network
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0034");
 		}
 	}
+=cut
 	
 	# Update NTP if set and needed.
 	if ($ntp)
@@ -4036,7 +3817,7 @@ sub check_local_network
 		my $old_config = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'chrony.conf'}});
 		foreach my $line (split/\n/, $old_config)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 			$new_config .= $line."\n";
 			if ($line =~ /^Server (.*)$/)
 			{
@@ -4135,6 +3916,21 @@ sub check_local_network
 			sleep 5;
 		}
 	}
+	
+	return(0);
+}
+
+sub update_nmcli
+{
+	my ($anvil, $interface_uuid, $variable, $new_value) = @_;
+	
+	my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection modify ".$interface_uuid." ".$variable." \"".$new_value."\"";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }
@@ -4246,7 +4042,7 @@ sub load_job
 	
 	# Parse the manifest
 	my $problem = $anvil->Striker->load_manifest({manifest_uuid => $anvil->data->{sys}{manifest_uuid}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		manifest_uuid => $anvil->data->{sys}{manifest_uuid},
 		problem       => $problem, 
 	}});
@@ -4272,7 +4068,7 @@ sub load_job
 	# Load the anvil
 	$anvil->data->{sys}{node1_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	$anvil->data->{sys}{node2_host_uuid} = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"sys::node1_host_uuid" => $anvil->data->{sys}{node1_host_uuid},
 		"sys::node2_host_uuid" => $anvil->data->{sys}{node2_host_uuid},
 	}});
@@ -4289,7 +4085,7 @@ sub load_job
 sub update_progress
 {
 	my ($anvil, $progress, $message) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:progress' => $progress,
 		's2:message'  => $message, 
 	}});
