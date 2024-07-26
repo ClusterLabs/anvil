@@ -1800,13 +1800,22 @@ sub run_jobs
 						}
 						elsif ($anvil->data->{jobs}{running}{$started_job_uuid}{job_progress} != 100)
 						{
-							# Don't start it in this pass.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
-								command        => $job_command,
-								this_job_uuid  => $job_uuid, 
-								other_job_uuid => $started_job_uuid,
-							}});
-							next;
+							# Some tools are expected to run in parallel. The 
+							# rest, only run once at a time.
+							if ($command =~ /striker-initialize-host/)
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0862", variables => {  command => $job_command }});
+							}
+							else
+							{
+								# Don't start it in this pass.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
+									command        => $job_command,
+									this_job_uuid  => $job_uuid, 
+									other_job_uuid => $started_job_uuid,
+								}});
+								next;
+							}
 						}
 						else
 						{
