@@ -1802,9 +1802,9 @@ sub run_jobs
 						{
 							# Some tools are expected to run in parallel. The 
 							# rest, only run once at a time.
-							if ($command =~ /striker-initialize-host/)
+							if ($job_command =~ /striker-initialize-host/)
 							{
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0862", variables => {  command => $job_command }});
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0862", variables => { command => $job_command }});
 							}
 							else
 							{
