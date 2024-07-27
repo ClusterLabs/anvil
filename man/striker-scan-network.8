@@ -1,0 +1,35 @@
+.\" Manpage for the Anvil! IA platform 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH striker-scan-network "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+striker-scan-network \- This scans accessible networks to create a map of MAC addresses to IP addresses
+.SH SYNOPSIS
+.B striker-scan-network 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This does a simple nmap ping sweep of the accessible networks (usually the BCN and IFN). The goal is to create a reference table of MAC addresses to IP addresses, useful for determining which IPs are in use by servers. It also allows a referencing of the MAC addresses to vendors using the OUI data.
+.B Note
+.TP
+This is meant to run once per day, and is run by anvil-daemon every 24 hours. 
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-force\fR
+This forces a scan, even if it's not been 24 hours since the last time a scan completed.
+.TP
+\fB\-\-network\fR <ip/subnet>
+This is used to scan one specific network. When this switch is used, the 24 hour run check is NOT performed, so \fB\-\-force\fR is not required.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

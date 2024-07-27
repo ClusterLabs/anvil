@@ -1039,18 +1039,44 @@ sub run_once
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
 	$anvil->System->check_ssh_keys();
 	
-	# Check setuid wrappers
-	check_setuid_wrappers($anvil);
-	
 	# Check journald is configured for persistent storage.
 	check_journald($anvil);
 	
 	# Make sure root can ssh
 	chech_sshd($anvil);
 	
+	# Make sure we don't spam the hell out of the console with network manager messages on boot
+	check_sysctl($anvil);
+	
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub check_sysctl
+{
+	my ($anvil) = @_;
+	
+	if (($anvil->data->{path}{configs}{'sysctl.d'}) && (not -e $anvil->data->{path}{configs}{'sysctl.d'}))
+	{
+		my $body = "# Reduce the messages printing to the terminal to emergency only. Without this,
+# Network Manager will spam the console for a few minutes after boot as it 
+# configures the network. The default on EL9 is '7 4 1 7'. You can override
+# this by creating /etc/sysctl.d/51-anvil.conf or by setting 'kernel.printk'
+# in any file start with 52-x.conf.
+kernel.printk = 1 4 1 7
+";
+		$anvil->Storage->write_file({
+			debug  => 2,
+			secure => 0, 
+			file   => $anvil->data->{path}{configs}{'sysctl.d'}, 
+			body   => $body, 
+			mode   => "0644",
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0517", variables => { file => $anvil->data->{path}{configs}{'sysctl.d'} }});
 	}
 	
 	return(0);
@@ -1187,99 +1213,6 @@ sub check_journald
 			output      => $output, 
 			return_code => $return_code,
 		}});
-	}
-	
-	return(0);
-}
-
-# This creates, as needed, the setuid wrappers used by striker-ui-api to make certain system calls.
-sub check_setuid_wrappers
-{
-	my ($anvil) = @_;
-	
-	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_type => $host_type }});
-	if ($host_type ne "striker")
-	{
-		# Not a dashboard, setuid scripts aren't needed.
-		return(0);
-	}
-	
-	# Does the call_striker-get-peer-data wrapper exist yet?
-	if (-e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
-	{
-		# Exists, skipping.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, key => "log_0436", variables => { wrapper => $anvil->data->{path}{exe}{'call_striker-get-peer-data'} }});
-	}
-	else
-	{
-		# What is the admin user and group ID?
-		my $admin_uid = getpwnam('admin');
-		my $admin_gid = getgrnam('admin');
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			admin_uid => $admin_uid,
-			admin_gid => $admin_gid, 
-		}});
-		next if not $admin_uid;
-		next if not $admin_gid;
-		
-		# Write the body out
-		my $call_striker_get_peer_data_body =  "#define REAL_PATH \"".$anvil->data->{path}{exe}{'striker-get-peer-data'}."\"\n";
-		   $call_striker_get_peer_data_body .= "main(ac, av)\n";
-		   $call_striker_get_peer_data_body .= "char **av;\n";
-		   $call_striker_get_peer_data_body .= "{\n";
-		   $call_striker_get_peer_data_body .= "        setuid(".$admin_uid.");\n";
-		   $call_striker_get_peer_data_body .= "        setgid(".$admin_gid.");\n";
-		   $call_striker_get_peer_data_body .= "        execv(REAL_PATH, av);\n";
-		   $call_striker_get_peer_data_body .= "}\n";
-		my $error = $anvil->Storage->write_file({
-			debug     => 3,
-			file      => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c",
-			body      => $call_striker_get_peer_data_body, 
-			mode      => '644', 
-			overwrite => 1,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { error => $error }});
-		
-		# If it wrote out, compile it.
-		if (not -e $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c")
-		{
-			# Failed to write.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0071", variables => { file => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c" }});
-		}
-		else
-		{
-			# Compile it
-			my ($output, $return_code) = $anvil->System->call({
-				debug      => 3,
-				shell_call => $anvil->data->{path}{exe}{gcc}." -o ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}." ".$anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				output      => $output, 
-				return_code => $return_code,
-			}});
-			
-			# If it compiled, setuid it.
-			if (not -e $anvil->data->{path}{exe}{'call_striker-get-peer-data'})
-			{
-				# Something went wrong compiling it.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0072", variables => { file => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}.".c" }});
-			}
-			else
-			{
-				$anvil->Storage->change_owner({
-					debug => 3, 
-					path  => $anvil->data->{path}{exe}{'call_striker-get-peer-data'}, 
-					user  => 'root', 
-					group => 'root',
-				});
-				$anvil->Storage->change_mode({
-					debug => 3, 
-					path => $anvil->data->{path}{exe}{'call_striker-get-peer-data'},
-					mode => '4755',
-				});
-			}
-		}
 	}
 	
 	return(0);
@@ -1445,7 +1378,7 @@ sub handle_special_cases
 {
 	my ($anvil) = @_;
 	
-	# Thsi is now handled by 'anvil-version-changes'
+	# This is now handled by 'anvil-version-changes'
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'}.$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
@@ -1491,14 +1424,6 @@ sub prep_database
 		if ($prep_database)
 		{
 			$anvil->Database->configure_pgsql({debug => 2})
-# 			### NOTE: This failed once, in case / until it happens again, we'll force log level 2 and secure logging.
-# 			my $shell_call = $anvil->data->{path}{exe}{'striker-prep-database'}$anvil->Log->switches;
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-# 			my ($database_output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call, source => $THIS_FILE, line => __LINE__ });
-# 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-# 				database_output => $database_output,
-# 				return_code     => $return_code, 
-# 			}});
 		}
 		elsif (not $anvil->data->{sys}{database}{connections})
 		{
@@ -1875,13 +1800,22 @@ sub run_jobs
 						}
 						elsif ($anvil->data->{jobs}{running}{$started_job_uuid}{job_progress} != 100)
 						{
-							# Don't start it in this pass.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
-								command        => $job_command,
-								this_job_uuid  => $job_uuid, 
-								other_job_uuid => $started_job_uuid,
-							}});
-							next;
+							# Some tools are expected to run in parallel. The 
+							# rest, only run once at a time.
+							if ($job_command =~ /striker-initialize-host/)
+							{
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0862", variables => { command => $job_command }});
+							}
+							else
+							{
+								# Don't start it in this pass.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
+									command        => $job_command,
+									this_job_uuid  => $job_uuid, 
+									other_job_uuid => $started_job_uuid,
+								}});
+								next;
+							}
 						}
 						else
 						{

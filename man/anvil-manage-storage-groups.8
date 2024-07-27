@@ -8,19 +8,18 @@ anvil-manage-storage-group \- This program manages if a server is (and when) a s
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 This tool manages storage groups. Storage Groups are collections of LVM Volume Groups across sub-nodes and DR hosts. A server's virtual hard disk syncs across LVs in common storage groups.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-add\fR
 This creates a new Storage Group on a given Anvil! node. Requires \fB\-\-group <name>\fR.
 .TP
@@ -38,7 +37,7 @@ The is the storage group name or UUID that is being worked with.
 .TP
 \fB\-\-member <VG internal UUID>\fR
 This is the LVM volume group's 
-.b internal
+.B internal
 UUID (as shown by \fBvgdisplay\fR or with \fB\-\-show\fR. It is used to specify which volume group is being added or removed.
 .TP
 \fB\-\-new\-name <new name>\fR

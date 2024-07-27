@@ -1,0 +1,30 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-sync-shared "8" "July 14 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-sync-shared \- Tool to sync and manage files on the Anvil! cluster.
+.SH SYNOPSIS
+.B anvil-sync-shared 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool is responsible for copying files to other machines in the cluster, or removing them when deleted. This tool is not meant to be directly used by users, it's mainly controlled by the Striker user interface.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-job\-uuid\fR
+.TP
+This is the job UUID that controls how files are managed.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

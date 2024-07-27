@@ -8,25 +8,23 @@ anvil-join-anvil \- This tool assembles two subnodes into a node.
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 This program takes two subnodes and merges them into an Anvil! node. This can be two new subnodes, or an existing subnode with a replacement subnode after a subnode failure.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-as\-machine\fR <'node1' or 'node2'>
 .TP
 When using \fB\-\-rejoin\fR, this is the subnode role that this host will take. 
 .TP
 .B NOTE:
-.TP
 The previous subnode that held this position will be purged! All data associated with the previous subnode will be deleted from the Anvil! database.
 .TP
 \fB\-\-auto\-grow\-pv\fR
@@ -34,7 +32,6 @@ The previous subnode that held this position will be purged! All data associated
 This checks the LVM physical volumes on the host and if any have usable free space after then, the PV is grown to use that free space.
 .TP
 .B NOTE:
-.TP
 This has the (low) potential to cause boot issues. If this is an in-production system, please consider manually growing any PVs.
 .TP
 \fB\-\-yes\fR

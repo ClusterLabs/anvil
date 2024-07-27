@@ -17,6 +17,9 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+$anvil->Get->switches({list => ["run-once"], man => $THIS_FILE});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
 =cut colours (from the Term::ANSIColor source)
 %ATTRIBUTES = ('clear'      => 0,
                'reset'      => 0,
@@ -172,8 +175,6 @@ $anvil->data->{colours} = {
 # 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
 # 	$anvil->nice_exit({exit_code => 1});
 # }
-$anvil->data->{switches}{'run-once'} = "";
-$anvil->Get->switches();
 
 while(1)
 {

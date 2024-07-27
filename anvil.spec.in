@@ -311,7 +311,6 @@ getent passwd %{suiapi} >/dev/null \
 
 
 %post striker
-### NOTE: PostgreSQL is initialized and enabled by striker-prep-database later.
 
 if [ $1 -eq 1 ]
 then

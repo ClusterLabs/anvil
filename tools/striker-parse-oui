@@ -35,14 +35,13 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 2});
 }
 
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->data->{switches}{force}      = "";
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
-	"switches::force"    => $anvil->data->{switches}{force}, 
-}});
+# Get the switches
+$anvil->Get->switches({list => [
+	"job-uuid", 
+	"force", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 update_progress($anvil, 0, "clear");
 update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
@@ -50,16 +49,16 @@ $anvil->data->{progress} = 1;
 
 check_if_time($anvil);
 
-### NOTE: Disabled 
-print $anvil->Words->string({key => "message_0291"})."\n";
-update_progress($anvil, 100, "message_0291");
-$anvil->nice_exit({exit_code => 0});
-
-
-
+### NOTE: Set this to '1' to disable if this causes issues down the road.
+if (0)
+{
+	print $anvil->Words->string({key => "message_0291"})."\n";
+	update_progress($anvil, 100, "message_0291");
+	$anvil->nice_exit({exit_code => 0});
+}
 
 my $oui_file = $anvil->Get->users_home({debug => 3})."/oui.txt";
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { oui_file => $oui_file }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { oui_file => $oui_file }});
 
 my $download = 1;
 my $process  = 0;
@@ -93,11 +92,11 @@ if (-e $oui_file)
 	}
 }
 
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { download => $download }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { download => $download }});
 if ($download)
 {
 	update_progress($anvil, 10, "log_0447,!!url!".$anvil->data->{path}{urls}{oui_file}."!!,!!file!".$oui_file."!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => 0, priority => "err", key => "error_0095", variables => { 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0447", variables => { 
 		url  => $anvil->data->{path}{urls}{oui_file},
 		file => $oui_file,
 	}});
@@ -168,7 +167,7 @@ sub check_if_time
 	{
 		return(0);
 	}
-	
+
 	# What's the uptime? If the uptime is less than an hour, don't run.
 	my $uptime = $anvil->Get->uptime;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { uptime => $uptime }});
@@ -180,60 +179,52 @@ sub check_if_time
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	if (not $anvil->data->{switches}{'job-uuid'})
+	my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => "parse-oui::parsed"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		unixtime      => $unixtime, 
+		variable_uuid => $variable_uuid, 
+		modified_date => $modified_date, 
+	}});
+	if (($unixtime eq "") or ($unixtime =~ /\D/))
 	{
-		# No job_uuid, so a manual call.
-		return(0);
+		$unixtime = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { unixtime => $unixtime }});
 	}
-	else
+	
+	# If the database variable 'parse-oui::parsed' is not set, or is more than 24 hours old, 
+	# proceed with the parse.
+	$anvil->data->{'parse-oui'}{'parse-period'} =  86400 if not defined $anvil->data->{'parse-oui'}{'parse-period'};
+	$anvil->data->{'parse-oui'}{'parse-period'} =~ s/,//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'parse-period'}, 
+	}});
+	if ($anvil->data->{'parse-oui'}{'parse-period'} =~ /\D/)
 	{
-		my ($unixtime, $variable_uuid, $modified_date) = $anvil->Database->read_variable({variable_name => "parse-oui::parsed"});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			unixtime      => $unixtime, 
-			variable_uuid => $variable_uuid, 
-			modified_date => $modified_date, 
-		}});
-		if (($unixtime eq "") or ($unixtime =~ /\D/))
-		{
-			$unixtime = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { unixtime => $unixtime }});
-		}
-		
-		# If the database variable 'parse-oui::parsed' is not set, or is more than 24 hours old, 
-		# proceed with the parse.
-		$anvil->data->{'parse-oui'}{'parse-period'} =  86400 if not defined $anvil->data->{'parse-oui'}{'parse-period'};
-		$anvil->data->{'parse-oui'}{'parse-period'} =~ s/,//g;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->data->{'parse-oui'}{'parse-period'} = 86400;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'parse-period'}, 
 		}});
-		if ($anvil->data->{'parse-oui'}{'parse-period'} =~ /\D/)
-		{
-			$anvil->data->{'parse-oui'}{'parse-period'} = 86400;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-				'parse-oui::parse-period' => $anvil->data->{'parse-oui'}{'parse-period'}, 
-			}});
-		}
-		my $time_now   = time;
-		my $next_parse  = $unixtime + $anvil->data->{'parse-oui'}{'parse-period'};
-		my $difference = ($next_parse - $time_now);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			's1:time_now'   => $time_now, 
-			's2:next_parse'  => $next_parse, 
-			's3:difference' => $difference, 
-		}});
-		if ((not $variable_uuid) or ($unixtime !~ /^\d+/) or ($difference < 0))
-		{
-			# It's been long enough (or it's the first time), scan.
-			return(0);
-		}
-		elsif ($difference > 0)
-		{
-			# Log when the next scan will happen and then exit.
-			my $say_when = $anvil->Convert->time({'time' => $difference, long => 1});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, 'print' => 1, key => "log_0468", variables => { next_parse => $anvil->Convert->add_commas({number => $say_when}) }});
-			update_progress($anvil, 100, "log_0468,!!next_parse!".$anvil->Convert->add_commas({number => $say_when})."!!");
-			$anvil->nice_exit({exit_code => 3});
-		}
+	}
+	my $time_now   = time;
+	my $next_parse  = $unixtime + $anvil->data->{'parse-oui'}{'parse-period'};
+	my $difference = ($next_parse - $time_now);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:time_now'   => $time_now, 
+		's2:next_parse'  => $next_parse, 
+		's3:difference' => $difference, 
+	}});
+	if ((not $variable_uuid) or ($unixtime !~ /^\d+/) or ($difference < 0))
+	{
+		# It's been long enough (or it's the first time), scan.
+		return(0);
+	}
+	elsif ($difference > 0)
+	{
+		# Log when the next scan will happen and then exit.
+		my $say_when = $anvil->Convert->time({'time' => $difference, long => 1});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0468", variables => { next_parse => $anvil->Convert->add_commas({number => $say_when}) }});
+		update_progress($anvil, 100, "log_0468,!!next_parse!".$anvil->Convert->add_commas({number => $say_when})."!!");
+		$anvil->nice_exit({exit_code => 3});
 	}
 	
 	return(0);
@@ -376,12 +367,24 @@ EOF
 	}
 	
 	# Record the details.
-	my $records = keys %{$anvil->data->{oui}};
-	   $records = $anvil->Convert->add_commas({number => $records });
+	my $records  = keys %{$anvil->data->{oui}};
+	my $count    = 0;
+	my $interval = 2500;
+	my $next_log = $interval;
 	update_progress($anvil, 50, "log_0449,!!records!".$records."!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0449", variables => { records => $records }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0449", variables => { records => $anvil->Convert->add_commas({number => $records }) }});
 	foreach my $oui (sort {$a cmp $b} keys %{$anvil->data->{oui}})
 	{
+		if ($count >= $next_log)
+		{
+			my $records_left =  $records - $count;
+			   $next_log     += $interval;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0860", variables => { 
+				count        => $anvil->Convert->add_commas({number => $count}),
+				records_left => $anvil->Convert->add_commas({number => $records_left}),
+			}});
+		}
+		$count++;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 			"oui::${oui}::name"    => $anvil->data->{oui}{$oui}{name}, 
 			"oui::${oui}::address" => $anvil->data->{oui}{$oui}{address}, 

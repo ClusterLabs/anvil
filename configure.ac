@@ -156,7 +156,6 @@ AC_SUBST([UTC_DATE])
 AC_CONFIG_FILES([Makefile
 		 anvil.version
 		 Anvil/Makefile
-		 cgi-bin/Makefile
 		 html/Makefile
 		 journald.conf.d/Makefile
 		 libvirt/Makefile

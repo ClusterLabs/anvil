@@ -37,13 +37,10 @@ dist_sbin_SCRIPTS	= \
 			  anvil-report-usage \
 			  anvil-safe-start \
 			  anvil-safe-stop \
-			  anvil-scan-network \
 			  anvil-show-local-ips \
 			  anvil-shutdown-server \
 			  anvil-special-operations \
 			  anvil-sync-shared \
-			  anvil-test-alerts \
-			  anvil-update-definition \
 			  anvil-update-issue \
 			  anvil-update-system \
 			  anvil-version-changes \
@@ -57,17 +54,13 @@ dist_sbin_SCRIPTS	= \
 			  striker-boot-machine \
 			  striker-check-machines \
 			  striker-collect-debug \
-			  striker-db-report \
 			  striker-db-status \
 			  striker-file-manager \
-			  striker-get-peer-data \
 			  striker-get-screenshots \
 			  striker-initialize-host \
 			  striker-manage-install-target \
 			  striker-manage-peers \
-			  striker-parse-os-list \
 			  striker-parse-oui \
-			  striker-prep-database \
 			  striker-purge-target \
 			  striker-scan-network \
 			  striker-show-db-counts \

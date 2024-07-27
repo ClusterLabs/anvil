@@ -1570,29 +1570,17 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
 		<key name="job_0330">The target machine is now booting!</key>
 		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
-		<!-- cgi-bin/set_power,on,job_title -->
 		<key name="job_0332">Power On Host</key>
-		<!-- cgi-bin/set_power,on,job_description -->
 		<key name="job_0333">Power on the target host by executing a start script on a striker.</key>
-		<!-- cgi-bin/set_power,off,job_title -->
 		<key name="job_0334">Power Off Host</key>
-		<!-- cgi-bin/set_power,off,job_description -->
 		<key name="job_0335">Power off the target host by executing a stop script on the host itself.</key>
-		<!-- cgi-bin/set_membership,join,job_title -->
 		<key name="job_0336">Host Join Cluster</key>
-		<!-- cgi-bin/set_membership,join,job_description -->
 		<key name="job_0337">Make target host join its anvil cluster.</key>
-		<!-- cgi-bin/set_membership,leave,job_title -->
 		<key name="job_0338">Host Leave Cluster</key>
-		<!-- cgi-bin/set_membership,leave,job_description -->
 		<key name="job_0339">Make target host leave its anvil cluster.</key>
-		<!-- cgi-bin/set_power,server,on,job_title -->
 		<key name="job_0340">Power On Server VM</key>
-		<!-- cgi-bin/set_power,server,on,job_description -->
 		<key name="job_0341">Power on the target server VM by executing a start script on the first host within the cluster.</key>
-		<!-- cgi-bin/set_power,server,off,job_title -->
 		<key name="job_0342">Power Off Server VM</key>
-		<!-- cgi-bin/set_power,server,off,job_description -->
 		<key name="job_0343">Power off the target server VM by executing a stop script on the first a host within the cluster.</key>
 		<key name="job_0344">Verifying that corosync is configured to use the SN1 as a fall-back communication channel.</key>
 		<key name="job_0345">Verifying (and waiting if needed) for the cluster to be be up and both BCN1 and SN1 connections to be active.</key>
@@ -1714,7 +1702,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0437"><![CDATA[Missing '--anvil <name_or_uuid>'.]]></key>
 		<key name="job_0438"><![CDATA[Missing '--name <server_name>'.]]></key>
 		<key name="job_0439"><![CDATA[Missing '--os <os_variant>'. Valid options match 'virt-install --os-variant' (run: 'osinfo-query os' and reference the 'Short ID' column).]]></key>
-		<key name="job_0440"><![CDATA[The OS: [#!variable!os!#] was not found. If you're sure the OS is valid, please run 'striker-parse-os-list --xml --new' and add the output to 'words.xml'.]]></key>
+		<key name="job_0440"><![CDATA[The OS: [#!variable!os!#] was not found. Please use 'osinfo-query os' and choose the closest option from the 'Short ID' column.]]></key>
 		<key name="job_0441"><![CDATA[Missing '--cpu <1 ~ #!variable!threads!#>'.]]></key>
 		<key name="job_0442"><![CDATA[The number of CPU cores: [#!variable!cores!#] is invalid. Must be between 1 and #!variable!threads!#.]]></key>
 		<key name="job_0443"><![CDATA[Missing '--ram <bytes or human readable, min is 64KiB, max is #!variable!max_ram!#>'.]]></key>
@@ -2294,7 +2282,7 @@ Failed to promote the DRBD resource: [#!variable!resource!#] primary. Expected a
 		<key name="log_0446">Found the network device: [#!variable!mac!#] (owned by #!variable!company!#) using the IP address: [#!variable!ip!#].</key>
 		<key name="log_0447">About to download: [#!variable!url!#] and save it to: [#!variable!file!#].</key>
 		<key name="log_0448">Ready to parse: [#!variable!file!#].</key>
-		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now.</key>
+		<key name="log_0449">Parsed: [#!variable!records!#], adding/updating them to the database now. Please be patient, this can take a while.</key>
 		<key name="log_0450">Skipping the network scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
 		<key name="log_0451">Checking to see if any data needs to be archived.</key>
 		<key name="log_0452">Skipping archiving, not a Striker dashboard.</key>
@@ -2753,6 +2741,9 @@ new key: [#!variable!new_key!#]</key>
 		<key name="log_0857">Cleaning up the connection to the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0858">Disconnecting from the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0859"><![CDATA[Convert->to_seconds() was passed the invalid string: [#!variable!string!#]. The supported units are 'Xw', 'Xd', 'Xh', 'Xs' and bare numbers (interpreted as seconds). If the string has multiple units, the must be separated by spaces only.]]></key>
+		<key name="log_0860">Processed: [#!variable!count!#] records, [#!variable!records_left!#] remaining.</key>
+		<key name="log_0861">Skipping the OUI parseer scan. The next scheduled scan will be done in: [#!variable!next_scan!#]. Override with '--force'.</key>
+		<key name="log_0862">We're starting another copy of: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3506,6 +3497,7 @@ proceeding.
 		<key name="message_0514">#!variable!timestamp!#; - Verifying access to: [#!variable!host_name!#]...</key>
 		<key name="message_0515">#!variable!timestamp!#; Connected on: [#!variable!target_ip!#] via: [#!variable!network_name!#]</key>
 		<key name="message_0516">#!variable!timestamp!#; No access! Skipping.</key>
+		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->

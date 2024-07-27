@@ -50,17 +50,13 @@ if (not $anvil->data->{sys}{database}{connections})
 }
 
 # Do we have a specified network to scan?
-$anvil->data->{switches}{network}    = "";
-$anvil->data->{switches}{'job-uuid'} = "";
-$anvil->data->{switches}{force}      = "";
-$anvil->Get->switches;
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"switches::network"  => $anvil->data->{switches}{network},
-	"switches::job-uuid" => $anvil->data->{switches}{'job-uuid'}, 
-	"switches::force"    => $anvil->data->{switches}{force}, 
-}});
-
+$anvil->Get->switches({list => [
+	"network", 
+	"job-uuid", 
+	"force", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 update_progress($anvil, 0, "clear");
 update_progress($anvil, 1, "log_0239,!!job-uuid!".$anvil->data->{switches}{'job-uuid'}."!!");

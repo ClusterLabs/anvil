@@ -8,19 +8,18 @@ anvil-watch-servers \- Tool used to watch the status of servers on an Anvil! nod
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 anvil-watch-servers \- This is designed to be run on an Anvil! node to monitor the status of servers it is hosting. It is not designed for use on Strikers or to monitor multiple nodes (yet).
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-watch\fR <interval, default '2'>
 Without this switch, the state of the servers is shown as it is now, and then the program exists. With this switch, the program will stay active, refreshing every X seconds, as set with this switch. The default is to refresh every 2 seconds.
 .IP

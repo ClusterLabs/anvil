@@ -26,7 +26,7 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
-$anvil->Get->switches;
+$anvil->Get->switches({list => [], man => $THIS_FILE});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Connect to the database(s).

@@ -1,0 +1,17 @@
+.\" Manpage for the Anvil! IA platform 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-virsh-wrapper "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-virsh-wrapper \- Tools to prevent parallel runs of 'virsh'.
+.SH SYNOPSIS
+.B anvil-virsh-wrapper 
+\fI\,<command>
+.SH DESCRIPTION
+To prevent issues with 'virsh' caused by too many simultaneous calls, this wrapper uses 'flock' to prevent parallel calls, except when called with 'virsh --list'.
+.B Note
+This is a simple wrapper and takes no switches of it's own. All switches are passed through to virsh.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

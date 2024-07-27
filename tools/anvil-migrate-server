@@ -30,23 +30,15 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
-# passed directly, it will be used. Otherwise, the password will be read from the database.
-$anvil->data->{switches}{'job-uuid'}    = "";
-$anvil->data->{switches}{'no-wait'}     = "";	# We normall wait for each migation to finish. This skips that. With '--all', this causes all migrations to run in parallel
-$anvil->data->{switches}{'server'}      = "";
-$anvil->data->{switches}{'server-uuid'} = "";
-$anvil->data->{switches}{'target'}      = "";
-$anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::job-uuid'    => $anvil->data->{switches}{'job-uuid'}, 
-	'switches::no-wait'     => $anvil->data->{switches}{'no-wait'},
-	'switches::server'      => $anvil->data->{switches}{'server'},
-	'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'}, 
-	'switches::target'      => $anvil->data->{switches}{'target'},
-}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
-$anvil->Log->variables({source  => $THIS_FILE, line => __LINE__, level => 2, list => { 'switches::job-uuid' => $anvil->data->{switches}{'job-uuid'} }});
+# Get switches
+$anvil->Get->switches({list => [
+	"job-uuid",
+	"no-wait", 
+	"server", 
+	"server-uuid", 
+	"target" 
+], man => $THIS_FILE});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->Database->connect();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});

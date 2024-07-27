@@ -1,0 +1,22 @@
+.\" Manpage for the Anvil! IA platform 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-update-issue "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-update-issue \- Tool to update /etc/issues with the current IP addresses on the system
+.SH SYNOPSIS
+.B anvil-update-issue 
+.SH DESCRIPTION
+This tool updates the /etc/issue file with the current IP addresses in use on the system. This is meant to make it easy to see how to reach a machine without needing to log in.
+.TP
+.SH NOTE
+This tool does not use the Anvil::Tools library, nor does it connect to the Anvil database. 
+.IP
+.SH OPTIONS
+All values passed to this agent is done via environment variables. For more information, please see the LINBIT DRBD fence/unfence agent documentation.
+.TP
+See the comments here: https://github.com/LINBIT/drbd-utils/blob/master/scripts/drbd.ocf
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

@@ -1,0 +1,28 @@
+.\" Manpage for the Anvil! server system manager
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-watch-power "8" "November 27 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-watch-power \- Tool used to watch the status of UPSes powering an Anvil! cluster.
+.SH SYNOPSIS
+.B anvil-watch-power 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-watch-power \- This monitors the status of devices in the 'power' table, typically UPSes. It is meant to provide a simple way to monitor if the UPSes have mains power, what their charge percentage is, and estimated hold up time remaining is.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+This program takes no additional switches.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
