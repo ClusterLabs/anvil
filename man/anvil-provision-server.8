@@ -1,0 +1,85 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-provision-server "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-provision-server \- Tool to provision new servers. 
+.SH SYNOPSIS
+.B anvil-provision-server 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool is used to privision (create) new servers on an Anvil! IA cluster. It can be run interactively, or using switches.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-anvil\fR, \fB\-\-anvil\-name\fR, \fB\-\-anvil\-uuid\fR <anvil name or uuid>
+.TP
+This is the Anvil! name or UUID that the new server will be provisioned on.
+.TP
+\fB\-\-ci\-test\fR <new name>
+.TP
+This switch is not meant to be used outside of automated testing. It reports the resources available to create a new servers for a given \fB\-\-anvil\fR. Use with \fB\-\-machine\fR to display the information in a machine-parsable format.
+.TP
+\fB\-\-driver\-disc\fR <ISO name>
+.TP
+This tells the system to create to new server with a second optical disc with the specified ISO mounted as a driver disc. This ISO will NOT be the one used to boot the new server.
+.TP
+\fB\-\-cpu\fR <cores>
+.TP
+This is the number of CPU cores to allocate to the new server. This will be created as a single socket CPU with the requested number of cores.
+.TP
+\fB\-\-install\-media\fR <ISO name>
+.TP
+This selects the ISO to boot off of. It is generally the OS installation disc for your selected operating system.
+.TP
+\fB\-\-machine\fR <ISO name>
+.TP
+This tells the program to display information in a machine-parsable format.
+.TP
+\fB\-\-name\fR <name>
+.TP
+This is the name to give to the new server. The limitations on the name are the same as the limitation imposed of 'virt-install'. The name must be globally unique across the Anvil! IA cluster. It is recommended to keep the name under 16 characters long.
+.TP
+\fB\-\-network\fR <string; bridge=<bridge_name>[,mac=<mac_address>],model=<virt-install NIC model>]]>
+.TP
+This is a string that controls how the network is configured. The 'bridge=<bridge_name>' is required, and determines which bridge (virtual ethernet switch) the interface will be "plugged into". Optionally, you can add ',mac=<mac_address>' to specify the MAC address that the new network interface will be given. This is useful when migrating a server from another host. Last, you can optionally use ',model=<NIC model>' to control what hardware is used to emulate the new network card. Generally this is 'virtio', but could also be 'e1000e' to emulate an Intel network card, or 'rtl8139' to emulate a basic Realtek network card.
+.TP
+\fB\-\-options\fR
+.TP
+This tells the program to report valid options that can be used, including the valid range of CPU cores, RAM, available ISOs, etc. 
+.TP
+\fB\-\-os\fR <short id>
+.TP
+This controls how the hypervisor will optimize the new server for a given operating system. The list of valid options are long, and can be seen by running 'osinfo-query os'. Use the name under the 'Short ID' column that is the closest match to the OS you plan to install.
+.TP
+\fB\-\-uuid\fR <UUID>
+.TP
+Normally, a new UUID is created for the new server. If you want to specify a specific UUID, typically when migrating a server from another host, you can do so with this switch.
+.TP
+\fB\-\-ram\fR <human readible size>
+.TP
+This tells the program how much RAM to allocate to the new server. It can be specified in bytes, or in a human-readible format (without spaces). For example, '--ram 8GiB' would allocate 8 gibibyte to the server. In the unlikely case that you want to specify a base-10 value, '--8GB' would allocate 8 billion bytes even (or about 7.45 GiB). 
+.TP
+\fB\-\-storage\-group\fR <name or UUID>
+.TP
+This is the storage group (by name or UUID) to use when creating the new hard drive for the server. 
+.TP
+\fB\-\-storage\-size\fR <human readible size>
+.TP
+This tells the program how big to create the hard drive for the new server. It can be specified in bytes, or in a human-readible format (without spaces). For example, '--storage-size 100GiB' would allocate 100 gibibyte to the server. In the unlikely case that you want to specify a base-10 value, '--100GB' would allocate 100 billion bytes even (or about 93.13 GiB). 
+.TP
+.B Note
+The replicated storage meta data will be at the end of this disk. The practical effect of this is that the disk size presented to the new server will be ~ 32 MiB per 1 TiB less than what you are requesting. If you are planning to copy an image from an existing server, it is recommended to allocate an additional 1 GiB to be sure that the image will fit. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

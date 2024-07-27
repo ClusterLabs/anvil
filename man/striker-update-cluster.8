@@ -1,4 +1,4 @@
-.\" Manpage for the Anvil! cluster update tool.
+.\" Manpage for the Anvil! IA platform 
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
 .TH striker-update-cluster "8" "July 11 2023" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
@@ -10,23 +10,21 @@ striker-update-cluster \- This program updates all physical machines in an Anvil
 This program sequentially updates Striker dashboards, DR hosts and Anvil! nodes (the paired sub-nodes). It does this without needing to take hosted servers offline.
 .TP
 .B Note:
-.TP
 This program requires all machines be online, and Anvil! nodes being paired and sync'ed. When nodes are updated, the inactive subnode will be removed from the node, updated, rebooted if necessary, and then rejoined to the node. Then hosted servers will migrate to the now-updated subnode, and the process repeated for the other subnode. Anvil! nodes are updated sequentially, so the process can take some time to complete, but should not require a maintenance window.
 .TP
 The upgrade process will live-migrate all hosted servers! If any hosted server is either under heavy load, or the replication link (the BCN or MN) is relatively lower bandwidth, this could cause performance concerns. As such, it's ideal to run the upgrades at a time less sensitive to performance impacts.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-clear\-cache\fR
 .TP
 This will force the dnf cache to be cleared before the OS update is started. This slows the update down a bit, but ensures the latest updates are installed.

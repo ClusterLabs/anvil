@@ -8,23 +8,21 @@ striker-initialize-host \- Tool used on Striker dashboards to initialize new Nod
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 striker-initialize-host \- This tool logs into a target Anvil! sub-node or DR host, adds the Alteeve! repository, installs \fBanvil-node\fR or \fBanvil-dr\fR, and then configures \fBanvil.conf\fR so that the target can start communicating with any peered Striker dashboards.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
 \-d, \fB\-\-job-uuid\fR
 This is the jobs -> job_uuid of the job to run, if it exists.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \fB\-v\fR, \fB\-vv\fR, \fB\-vvv\fR
 Set the log level for this run to 1, 2 or 3 (higher == more verbose).
-.TP
+.IP
 .SS "Commands:"
-.TP
 \-k, \fB\-\-enterprise-uuid\fR <uuid>
 If you have a key, provide it this way. This will configure the host to use the Alteeve enterprise repository. (see 'man alteeve-repo-setup' for repo options).
 .TP

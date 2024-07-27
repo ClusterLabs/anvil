@@ -10,23 +10,21 @@ striker-collect-debug \- This program collects data needed to help diagnose prob
 This program collects database data, logs, config files and other information needed to help diagnose problems with the Anvil! platform. By default, this collects all data from all accessible machines.
 .TP
 .B Note:
-.TP
 This program collects potentially secure information, like passwords. Be careful who you share the collected data with!
 .TP
 The data from Striker dashboards are always collected.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-anvil\fR <name or UUID>
 .TP
 This restricts the data to be collected to the Striker dashboards and the specific Anvil! node pair.

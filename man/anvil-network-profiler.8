@@ -1,0 +1,53 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-network-profiler "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-network-profiler \- Tool to test the network performance between this host and a target host.
+.SH SYNOPSIS
+.B anvil-network-profiler 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This program uses 'iperf' to determine the real world network performance between this host and a target over a given network. This uses unfragmentable pings to detect the maximum usable MTU, and then repeatedly tests the performance, incrementing the MTU by a set amount between each tests. In this way, the optimal MTU is also found.
+.TP
+.B Warning!
+This test manipulates the network interface during the test. As such, DO NOT run this test on any host (as source or target) that is in active use!
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-max\-mtu\fR <bytes>
+.TP
+This option sets a limit of the maximum MTU that will be used, bypassing max MTU size auto detection.
+.TP
+\fB\-\-password\fR <string>
+.TP
+If passwordless SSH is not configured with the target host, then specify the root user password used to ssh into the target. This is needed to alter the MTU and setup iperf.
+.TP
+\fB\-\-stepping\fR <bytes>
+.TP
+By default, the MTU is incremented by 500 bytes between tests. If you want to use a different stepping, specify the number of bytes to increment between tests with this switch.
+.TP
+\fB\-\-source\fR <ip address>
+.TP
+This is the local IP address that will be used during the test. The interface with this IP address will have it's MTU size manipulated during the test.
+.TP
+\fB\-\-target\fR <ip address>
+.TP
+This is the IP address on the peer that will be used to connect to the target. The interface with this IP on the peer will have it's MTU size adjusted during the test.
+.TP
+\fB\-\-tests\fR <number>
+.TP
+By default, each tested MTU will be run three times and the results will be averaged. If you want to change the number of tests run per MTU size, use this switch. 
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

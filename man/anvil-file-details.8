@@ -8,9 +8,8 @@ anvil-file-details \- Display details of the file passed in
 \fI\,</path/to/file> \/\fR
 .SH DESCRIPTION
 All this does is stat a file and return the information in a parsable way. For this reason, translatable strings are not used.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
@@ -19,8 +18,8 @@ When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-file\fR /path/to/file
 .TP
 This is the file being examined.
@@ -30,7 +29,6 @@ This is the file being examined.
 Given how long calculating MD5 sums can take on large files, by default this is not done. If you want the md5sum calculated, use this switch.
 .TP
 .SS "EXAMPLE"
-.TP
 The output will show the following information:
 .TP
 .Bl -width

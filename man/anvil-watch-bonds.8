@@ -1,0 +1,29 @@
+.\" Manpage for the Anvil! IA platform 
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-watch-bonds "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-watch-bonds \- Tools to monitor the state of bonded network interfaces
+.SH SYNOPSIS
+.B anvil-watch-bonds 
+\fI\,<command>
+.SH DESCRIPTION
+This tool provids a concise way to monitor the state of bonded network interfaces. 
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SH "Commands:"
+\fB\-\-run\-once\fR
+Normally, this program stays active, updating every two seconds. If this switch is used, it shows the status once and exits.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

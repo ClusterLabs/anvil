@@ -8,17 +8,18 @@ anvil-manage-power \- This program can power off, reboot, or set a flag indicati
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
 This program can mark a machine as needing to be powered off or rebooted, or perform those actions directly or as a job. 
-.TP
+.IP
+.SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-no-wait\fR
 .TP
 Normally, this program will not reboot a machine until the uptime is over five minutes. This is done to provide a chance for someone to log in and disable anvil-daemon in the case of a reboot loop. This switch prevents waiting for that 5 minute delay.

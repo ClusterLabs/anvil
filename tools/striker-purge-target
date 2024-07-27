@@ -29,22 +29,21 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
-$anvil->data->{switches}{'anvil'} = "";
-$anvil->data->{switches}{'host'}  = "";
-$anvil->data->{switches}{'y'}     = "";
-$anvil->data->{switches}{'yes'}   = "";
-$anvil->Get->switches();
+# Get the switches
+$anvil->Get->switches({list => [
+	"anvil", 
+	"host", 
+	"y", 
+	"yes", 
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
 if ((not $anvil->data->{switches}{'anvil'}) && (not $anvil->data->{switches}{'host'}))
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0240"});
 	$anvil->nice_exit({exit_code => 1});
 }
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	"switches::anvil" => $anvil->data->{switches}{'anvil'},
-	"switches::host"  => $anvil->data->{switches}{'host'},
-	"switches::y"     => $anvil->data->{switches}{'y'},
-	"switches::yes"   => $anvil->data->{switches}{'yes'},
-}});
 
 $anvil->data->{purge}{anvil_uuid} = "";
 $anvil->data->{purge}{anvil_name} = "";

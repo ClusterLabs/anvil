@@ -1,0 +1,30 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-show-local-ips "8" "July 14 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-show-local-ips \- Tool to show IP addresses, MAC addresses and interface names in use on the system
+.SH SYNOPSIS
+.B anvil-show-local-ips 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool is meant to be a concise and tabled list of the interfaces with IP addresses on the system. By default, it shows the IP address, subnet mask and MAC address for each interface with the option to show extended data.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-detailed\fR
+.TP
+When this switch is used, the data transmitted and received since the interface last came up is shown, as well as the gateway and DNS configured on each interface.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

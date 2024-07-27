@@ -179,7 +179,7 @@ sub resync_database
 	# Disconnect and reconnect.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0284"});
 	$anvil->data->{sys}{database}{resync_needed} = 1;
-	$anvil->Database->resync_databases({debug => 2});
+	$anvil->Database->resync_databases({debug => 3});
 	
 	return(0);
 }

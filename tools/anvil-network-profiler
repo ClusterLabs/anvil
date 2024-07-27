@@ -20,23 +20,17 @@ $| = 1;
 
 my $anvil = Anvil::Tools->new();
 
-$anvil->data->{switches}{'max-mtu'} = "";
-$anvil->data->{switches}{password}  = "";
-$anvil->data->{switches}{stepping}  = "";
-$anvil->data->{switches}{source}    = "";
-$anvil->data->{switches}{target}    = "";
-$anvil->data->{switches}{tests}     = "";
-$anvil->data->{switches}{y}         = "";
-$anvil->Get->switches;
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'switches::max-mtu'  => $anvil->data->{switches}{'max-mtu'},
-	'switches::password' => $anvil->Log->is_secure($anvil->data->{switches}{password}),
-	'switches::stepping' => $anvil->data->{switches}{stepping},
-	'switches::source'   => $anvil->data->{switches}{source},
-	'switches::target'   => $anvil->data->{switches}{target},
-	'switches::tests'    => $anvil->data->{switches}{tests},
-	'switches::y'        => $anvil->data->{switches}{y},
-}});
+# Get switches
+$anvil->Get->switches({list => [
+	"max-mtu",
+	"password", 
+	"stepping", 
+	"source", 
+	"target", 
+	"tests", 
+	"y"
+], man => $THIS_FILE});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 checks($anvil);
 print "Checks passed, beginning.\n";
@@ -492,6 +486,13 @@ sub find_maximum_usable_mtu
 	
 	# This is the increment, in bytes starting at 1500, that the MTU will be raised to the maximum.
 	$anvil->data->{sys}{iperf_mtu_stepping} = 500;
+	if (($anvil->data->{switches}{stepping}) && (($anvil->data->{switches}{stepping}) =~ /^\d+$/))
+	{
+		$anvil->data->{sys}{iperf_mtu_stepping} = $anvil->data->{switches}{stepping};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::iperf_mtu_stepping" => $anvil->data->{sys}{iperf_mtu_stepping},
+		}});
+	}
 	
 	# This sets a maximum MTU to test for. It is useful if setting a too-high MTU will break the network
 	# link.

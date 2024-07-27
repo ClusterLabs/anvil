@@ -19,9 +19,9 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
-# Get a list of all interfaces with IP addresses.
-$anvil->Get->switches({debug => 3, list => []});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+# Read switches
+$anvil->Get->switches({list => ["watch"], man => $THIS_FILE});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 $anvil->data->{'say'}{yes}               = $anvil->Words->string({key => "unit_0001"});
 $anvil->data->{'say'}{'no'}              = $anvil->Words->string({key => "unit_0002"});

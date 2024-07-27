@@ -10,19 +10,18 @@ anvil-manage-server-system \- Tool used to manage the system configuration of a 
 anvil-manage-server-system \- This tool is used to manage various system configuration components of hosted servers. Storage is NOT managed here, see 'anvil-manage-server-storage' for that.
 .TP
 When called without switches, the list of servers than can be worked on will be displayed.
-.TP
+.IP
 .SH OPTIONS
-.TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
 .TP
-\fB\-\-log-secure\fR
+\fB\-\-log\-secure\fR
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-.TP
 \fB\-\-boot\-menu\fR <yes,no>
 When called without a value, it shows if the boot menu is enabled or not. If called with 'yes', it enables the boot menu. If called with 'no', the boot meny is disabled.
 .TP
