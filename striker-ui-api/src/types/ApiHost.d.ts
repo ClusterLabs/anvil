@@ -49,6 +49,10 @@ type HostIpmi = {
 };
 
 type HostOverview = {
+  anvil?: {
+    name: string;
+    uuid: string;
+  };
   hostName: string;
   hostStatus: string;
   hostType: string;

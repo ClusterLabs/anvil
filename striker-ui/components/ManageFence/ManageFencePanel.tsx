@@ -177,6 +177,7 @@ const ManageFencePanel: FC = () => {
         disableDelete={!hasChecks}
         edit={isEditFences}
         header
+        listEmpty="No fence device(s) registered."
         listItems={fenceOverviews}
         onAdd={() => {
           setFormDialogProps({

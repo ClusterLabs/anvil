@@ -37,7 +37,7 @@ const ManageHost: FC = () => {
       getDeleteSuccessMessage={() => ({
         children: <>Successfully deleted host(s)</>,
       })}
-      listEmpty="No host(s) found"
+      listEmpty="No host(s) found."
       listProps={{
         allowAddItem: true,
         allowEdit: false,
@@ -49,7 +49,11 @@ const ManageHost: FC = () => {
         <>
           <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />
           {inquireHostResponse && (
-            <PrepareHostForm host={inquireHostResponse} tools={tools} />
+            <PrepareHostForm
+              host={inquireHostResponse}
+              setResponse={setInquireHostResponse}
+              tools={tools}
+            />
           )}
         </>
       )}

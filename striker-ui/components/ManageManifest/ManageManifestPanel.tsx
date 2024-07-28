@@ -1,7 +1,5 @@
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-
 import AddManifestInputGroup from './AddManifestInputGroup';
 import {
   INPUT_ID_AI_DOMAIN,
@@ -22,6 +20,7 @@ import {
 } from './AnNetworkConfigInputGroup';
 import api from '../../lib/api';
 import ConfirmDialog from '../ConfirmDialog';
+import { DialogWithHeader } from '../Dialog';
 import EditManifestInputGroup from './EditManifestInputGroup';
 import FlexBox from '../FlexBox';
 import FormDialog from '../FormDialog';
@@ -32,19 +31,14 @@ import List from '../List';
 import MessageBox from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
-import RunManifestInputGroup, {
-  buildInputIdRMHost,
-  INPUT_ID_RM_AN_CONFIRM_PASSWORD,
-  INPUT_ID_RM_AN_DESCRIPTION,
-  INPUT_ID_RM_AN_PASSWORD,
-} from './RunManifestInputGroup';
+import RunManifestForm from './RunManifestForm';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
-import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const REQ_BODY_MAX_DEPTH = 6;
 
@@ -109,77 +103,44 @@ const getFormData = (
   );
 };
 
-const getRunFormData = (
-  mdetailHosts: ManifestHostList,
-  ...[{ target }]: DivFormEventHandlerParameters
-): APIRunManifestRequestBody => {
-  const { elements } = target as HTMLFormElement;
-
-  const { value: description } = elements.namedItem(
-    INPUT_ID_RM_AN_DESCRIPTION,
-  ) as HTMLInputElement;
-  const { value: password } = elements.namedItem(
-    INPUT_ID_RM_AN_PASSWORD,
-  ) as HTMLInputElement;
-
-  const hosts = Object.entries(mdetailHosts).reduce<
-    APIRunManifestRequestBody['hosts']
-  >((previous, [hostId, { hostNumber, hostType }]) => {
-    const inputId = buildInputIdRMHost(hostId);
-    const { value: hostUuid } = elements.namedItem(inputId) as HTMLInputElement;
-
-    previous[hostId] = { hostNumber, hostType, hostUuid };
-
-    return previous;
-  }, {});
-
-  return { description, hosts, password };
-};
-
 const ManageManifestPanel: FC = () => {
-  const isFirstRender = useIsFirstRender();
-
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const addManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const editManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>(
     {},
   );
-  const runManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
+  const runDialogRef = useRef<DialogForwardedRefContent>(null);
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
 
-  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
+  const [oldConfirmDialogProps, setOldConfirmDialogProps] =
+    useConfirmDialogProps();
 
-  const [hostOverviews, setHostOverviews] = useState<
-    APIHostOverviewList | undefined
-  >();
   const [isEditManifests, setIsEditManifests] = useState<boolean>(false);
-  const [isLoadingHostOverviews, setIsLoadingHostOverviews] =
-    useState<boolean>(true);
   const [isLoadingManifestDetail, setIsLoadingManifestDetail] =
     useState<boolean>(true);
-  const [isLoadingManifestTemplate, setIsLoadingManifestTemplate] =
-    useState<boolean>(true);
-  const [manifestOverviews, setManifestOverviews] = useState<
-    APIManifestOverviewList | undefined
-  >();
   const [manifestDetail, setManifestDetail] = useState<
     APIManifestDetail | undefined
   >();
-  const [manifestTemplate, setManifestTemplate] = useState<
-    APIManifestTemplate | undefined
-  >();
 
-  const { isLoading: isLoadingManifestOverviews } =
-    periodicFetch<APIManifestOverviewList>(`${API_BASE_URL}/manifest`, {
-      onSuccess: (data) => setManifestOverviews(data),
-      refreshInterval: 60000,
-    });
+  const {
+    data: manifestOverviews,
+    loading: isLoadingManifestOverviews,
+    mutate: getManifestOverviews,
+  } = useFetch<APIManifestOverviewList>('/manifest', {
+    refreshInterval: 10000,
+  });
 
-  const getManifestOverviews = useCallback(() => {
-    api.get('/manifest').then(({ data }) => {
-      setManifestOverviews(data);
-    });
-  }, [setManifestOverviews]);
+  const {
+    data: manifestTemplate,
+    loading: isLoadingManifestTemplate,
+    mutate: getManifestTemplate,
+  } = useFetch<APIManifestTemplate>('/manifest/template');
+
+  const {
+    data: hostOverviews,
+    loading: isLoadingHostOverviews,
+    mutate: getHostOverviews,
+  } = useFetch<APIHostOverviewList>('/host?types=node');
 
   const formUtils = useFormUtils(
     [
@@ -193,20 +154,6 @@ const ManageManifestPanel: FC = () => {
   );
   const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
 
-  const runFormUtils = useFormUtils(
-    [
-      INPUT_ID_RM_AN_CONFIRM_PASSWORD,
-      INPUT_ID_RM_AN_DESCRIPTION,
-      INPUT_ID_RM_AN_PASSWORD,
-    ],
-    messageGroupRef,
-  );
-  const {
-    isFormInvalid: isRunFormInvalid,
-    isFormSubmitting: isRunFormSubmitting,
-    submitForm: submitRunForm,
-  } = runFormUtils;
-
   const {
     buildDeleteDialogProps,
     checks,
@@ -218,14 +165,9 @@ const ManageManifestPanel: FC = () => {
     list: manifestOverviews,
   });
 
-  const {
-    hostConfig: { hosts: mdetailHosts = {} } = {},
-    name: mdetailName,
-    uuid: mdetailUuid,
-  } = useMemo<Partial<APIManifestDetail>>(
-    () => manifestDetail ?? {},
-    [manifestDetail],
-  );
+  const { name: mdetailName, uuid: mdetailUuid } = useMemo<
+    Partial<APIManifestDetail>
+  >(() => manifestDetail ?? {}, [manifestDetail]);
   const {
     domain: mtemplateDomain,
     fences: knownFences,
@@ -312,7 +254,7 @@ const ManageManifestPanel: FC = () => {
         const body = getFormData(...args);
         const { messages } = countHostFences(body);
 
-        setConfirmDialogProps({
+        setOldConfirmDialogProps({
           actionProceedText: 'Add',
           content: <FormSummary entries={body} maxDepth={REQ_BODY_MAX_DEPTH} />,
           onProceedAppend: () => {
@@ -344,7 +286,7 @@ const ManageManifestPanel: FC = () => {
       mtemplateDomain,
       mtemplatePrefix,
       mtemplateSequence,
-      setConfirmDialogProps,
+      setOldConfirmDialogProps,
       submitForm,
     ],
   );
@@ -364,7 +306,7 @@ const ManageManifestPanel: FC = () => {
         const body = getFormData(...args);
         const { messages } = countHostFences(body);
 
-        setConfirmDialogProps({
+        setOldConfirmDialogProps({
           actionProceedText: 'Edit',
           content: <FormSummary entries={body} maxDepth={REQ_BODY_MAX_DEPTH} />,
           onProceedAppend: () => {
@@ -398,60 +340,8 @@ const ManageManifestPanel: FC = () => {
       manifestDetail,
       mdetailName,
       mdetailUuid,
-      setConfirmDialogProps,
+      setOldConfirmDialogProps,
       submitForm,
-    ],
-  );
-
-  const runManifestFormDialogProps = useMemo<ConfirmDialogProps>(
-    () => ({
-      actionProceedText: 'Run',
-      content: (
-        <RunManifestInputGroup
-          formUtils={runFormUtils}
-          knownFences={knownFences}
-          knownHosts={hostOverviews}
-          knownUpses={knownUpses}
-          previous={manifestDetail}
-        />
-      ),
-      loading: isLoadingManifestDetail,
-      onSubmitAppend: (...args) => {
-        const body = getRunFormData(mdetailHosts, ...args);
-
-        setConfirmDialogProps({
-          actionProceedText: 'Run',
-          content: <FormSummary entries={body} hasPassword />,
-          onProceedAppend: () => {
-            submitRunForm({
-              body,
-              getErrorMsg: (parentMsg) => (
-                <>Failed to run install manifest. {parentMsg}</>
-              ),
-              method: 'put',
-              successMsg: `Successfully ran install manifest ${mdetailName}`,
-              url: `/command/run-manifest/${mdetailUuid}`,
-            });
-          },
-          titleText: `Run install manifest ${mdetailName}?`,
-        });
-
-        confirmDialogRef.current.setOpen?.call(null, true);
-      },
-      titleText: `Run install manifest ${mdetailName}`,
-    }),
-    [
-      runFormUtils,
-      knownFences,
-      hostOverviews,
-      knownUpses,
-      manifestDetail,
-      isLoadingManifestDetail,
-      mdetailName,
-      mdetailHosts,
-      setConfirmDialogProps,
-      submitRunForm,
-      mdetailUuid,
     ],
   );
 
@@ -491,7 +381,7 @@ const ManageManifestPanel: FC = () => {
           addManifestFormDialogRef.current.setOpen?.call(null, true);
         }}
         onDelete={() => {
-          setConfirmDialogProps(
+          setOldConfirmDialogProps(
             buildDeleteDialogProps({
               onProceedAppend: () => {
                 submitForm({
@@ -537,11 +427,7 @@ const ManageManifestPanel: FC = () => {
               disabled={isEditManifests}
               mapPreset="play"
               onClick={() => {
-                setManifestDetail({
-                  name: manifestName,
-                  uuid: manifestUUID,
-                } as APIManifestDetail);
-                runManifestFormDialogRef.current.setOpen?.call(null, true);
+                runDialogRef.current?.setOpen(true);
                 getManifestDetail(manifestUUID);
               }}
               variant="normal"
@@ -562,7 +448,7 @@ const ManageManifestPanel: FC = () => {
       manifestOverviews,
       resetChecks,
       setCheck,
-      setConfirmDialogProps,
+      setOldConfirmDialogProps,
       setManifestDetail,
       submitForm,
     ],
@@ -596,31 +482,80 @@ const ManageManifestPanel: FC = () => {
     [],
   );
 
-  if (isFirstRender) {
-    api
-      .get<APIManifestTemplate>('/manifest/template')
-      .then(({ data }) => {
-        setManifestTemplate(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingManifestTemplate(false);
-      });
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog({
+    initial: {
+      scrollContent: true,
+      wide: true,
+    },
+  });
 
-    api
-      .get<APIHostOverviewList>('/host', { params: { types: 'node' } })
-      .then(({ data }) => {
-        setHostOverviews(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingHostOverviews(false);
-      });
-  }
+  const formTools = useMemo<CrudListFormTools>(
+    () => ({
+      add: { open: () => null },
+      confirm: {
+        finish: finishConfirm,
+        loading: setConfirmDialogLoading,
+        open: (v = true) => setConfirmDialogOpen(v),
+        prepare: setConfirmDialogProps,
+      },
+      edit: {
+        open: (v = true) => runDialogRef?.current?.setOpen(v),
+      },
+    }),
+    [
+      finishConfirm,
+      setConfirmDialogLoading,
+      setConfirmDialogOpen,
+      setConfirmDialogProps,
+    ],
+  );
+
+  const loadingRunForm = useMemo<boolean>(
+    () =>
+      isLoadingManifestTemplate ||
+      isLoadingManifestDetail ||
+      isLoadingHostOverviews,
+    [
+      isLoadingHostOverviews,
+      isLoadingManifestDetail,
+      isLoadingManifestTemplate,
+    ],
+  );
+
+  const runForm = useMemo<React.ReactNode>(
+    () =>
+      manifestDetail &&
+      knownFences &&
+      hostOverviews &&
+      knownUpses && (
+        <RunManifestForm
+          detail={manifestDetail}
+          knownFences={knownFences}
+          knownHosts={hostOverviews}
+          knownUpses={knownUpses}
+          onSubmitSuccess={() => {
+            getManifestTemplate();
+            getHostOverviews();
+          }}
+          tools={formTools}
+        />
+      ),
+    [
+      formTools,
+      getHostOverviews,
+      getManifestTemplate,
+      hostOverviews,
+      knownFences,
+      knownUpses,
+      manifestDetail,
+    ],
+  );
 
   return (
     <>
@@ -648,22 +583,25 @@ const ManageManifestPanel: FC = () => {
         scrollContent
         showClose
       />
-      <FormDialog
-        {...runManifestFormDialogProps}
-        disableProceed={isRunFormInvalid}
-        loadingAction={isRunFormSubmitting}
-        preActionArea={messageArea}
-        ref={runManifestFormDialogRef}
-        scrollContent
+      <DialogWithHeader
+        header={`${manifestDetail?.anvil ? 'Rerun' : 'Run'} install manifest ${
+          manifestDetail?.name
+        }`}
+        loading={loadingRunForm}
+        ref={runDialogRef}
         showClose
-      />
+        wide
+      >
+        {runForm}
+      </DialogWithHeader>
       <ConfirmDialog
         closeOnProceed
-        {...confirmDialogProps}
+        {...oldConfirmDialogProps}
         ref={confirmDialogRef}
         scrollContent
         wide
       />
+      {confirmDialog}
     </>
   );
 };

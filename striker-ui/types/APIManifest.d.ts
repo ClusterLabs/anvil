@@ -8,6 +8,11 @@ type APIManifestOverviewList = {
 };
 
 type APIManifestDetail = ManifestAnId & {
+  anvil?: {
+    description: string;
+    hosts: Record<string, { uuid: string }>;
+    uuid: string;
+  };
   hostConfig: ManifestHostConfig;
   name: string;
   networkConfig: ManifestNetworkConfig;
@@ -41,15 +46,3 @@ type APIManifestTemplate = {
 };
 
 type APIBuildManifestRequestBody = Omit<APIManifestDetail, 'name' | 'uuid'>;
-
-type APIRunManifestRequestBody = {
-  description: string;
-  hosts: {
-    [hostId: string]: {
-      hostNumber: number;
-      hostType: string;
-      hostUuid: string;
-    };
-  };
-  password: string;
-};

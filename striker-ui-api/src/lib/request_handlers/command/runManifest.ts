@@ -9,28 +9,38 @@ import {
   getHostData,
   getManifestData,
   job,
+  query,
   sub,
 } from '../../accessModule';
+import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
 export const runManifest: RequestHandler<
   { manifestUuid: string },
-  undefined,
+  undefined | ResponseErrorBody,
   RunManifestRequestBody
 > = async (request, response) => {
   const {
-    params: { manifestUuid },
+    params: { manifestUuid: rawManifestUuid },
     body: {
       debug = 2,
       description: rawDescription,
       hosts: rawHostList = {},
       password: rawPassword,
+      rerun: rawRerun,
+      reuseHosts: rawReuseHosts,
     } = {},
   } = request;
 
-  const description = sanitize(rawDescription, 'string');
-  const password = sanitize(rawPassword, 'string');
+  const manifestUuid = sanitize(rawManifestUuid, 'string', {
+    modifierType: 'sql',
+  });
+  const rerun = sanitize(rawRerun, 'boolean');
+  const reuseHosts = sanitize(rawReuseHosts, 'boolean');
+
+  let description = sanitize(rawDescription, 'string');
+  let password = sanitize(rawPassword, 'string');
 
   const hostList: ManifestExecutionHostList = {};
 
@@ -41,6 +51,48 @@ export const runManifest: RequestHandler<
 
     response.status(400).send();
   };
+
+  if (rerun) {
+    const sql = `
+      SELECT
+        a.anvil_description,
+        a.anvil_password
+      FROM anvils AS a
+      JOIN manifests AS b
+        ON a.anvil_name = b.manifest_name
+      WHERE b.manifest_uuid = '${manifestUuid}';`;
+
+    let rows: string[][];
+
+    try {
+      rows = await query<string[][]>(sql);
+    } catch (error) {
+      const rserror = new ResponseError(
+        '49e0e02',
+        `Failed to get existing record with manifest [${manifestUuid}]; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    if (!rows.length) {
+      const rserror = new ResponseError(
+        '2d42e16',
+        `No record found on rerun manifest [${manifestUuid}]`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(404).send(rserror.body);
+    }
+
+    // Assign existing values before value assertions.
+    ({
+      0: [description, password],
+    } = rows);
+  }
 
   try {
     assert(
@@ -55,25 +107,25 @@ export const runManifest: RequestHandler<
 
     const uniqueList: Record<string, boolean | undefined> = {};
     const isHostListUnique = !Object.values(rawHostList).some(
-      ({ hostNumber, hostType, hostUuid }) => {
-        const hostId = `${hostType}${hostNumber}`;
+      ({ number, type, uuid }) => {
+        const id = `${type}${number}`;
         assert(
-          /^node[12]$/.test(hostId),
-          `Host ID must be "node" followed by 1 or 2; got [${hostId}]`,
+          /^node[12]$/.test(id),
+          `Host ID must be "node" followed by 1 or 2; got [${id}]`,
         );
 
         assert(
-          REP_UUID.test(hostUuid),
-          `Host UUID assigned to ${hostId} must be a UUIDv4; got [${hostUuid}]`,
+          REP_UUID.test(uuid),
+          `Host UUID assigned to ${id} must be a UUIDv4; got [${uuid}]`,
         );
 
-        const isIdDuplicate = Boolean(uniqueList[hostId]);
-        const isUuidDuplicate = Boolean(uniqueList[hostUuid]);
+        const isIdDuplicate = Boolean(uniqueList[id]);
+        const isUuidDuplicate = Boolean(uniqueList[uuid]);
 
-        uniqueList[hostId] = true;
-        uniqueList[hostUuid] = true;
+        uniqueList[id] = true;
+        uniqueList[uuid] = true;
 
-        hostList[hostId] = { hostNumber, hostType, hostUuid, hostId };
+        hostList[id] = { id, number, type, uuid };
 
         return isIdDuplicate || isUuidDuplicate;
       },
@@ -118,14 +170,14 @@ export const runManifest: RequestHandler<
 
   try {
     anParams = Object.values(hostList).reduce<Record<string, string>>(
-      (previous, { hostId = '', hostUuid }) => {
+      (previous, { id: hostId = '', uuid: hostUuid }) => {
         const hostName = mapToHostNameData[hostUuid];
         const { anvil_name: anName } = hostUuidMapToData[hostUuid];
 
-        if (anName) {
+        if (anName && !reuseHosts) {
           assert(
             anName !== manifestName,
-            `Host [${hostName}] cannot be used for [${manifestName}] because it belongs to [${anName}]`,
+            `Cannot use [${hostName}] for [${manifestName}] because it belongs to [${anName}]; set reuseHost:true to allow this`,
           );
         }
 

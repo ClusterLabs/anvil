@@ -52,7 +52,7 @@ const renderEntryBase: RenderFormEntryFunction = (args) => {
   );
 };
 
-const skipBase: SkipFormEntryFunction = ({ key }) => !/confirm|uuid/i.test(key);
+const skipBase: SkipFormEntryFunction = ({ key }) => /confirm|uuid/i.test(key);
 
 const buildEntryList = <T extends FormEntries>({
   depth = 0,
@@ -95,7 +95,7 @@ const buildEntryList = <T extends FormEntries>({
       key: itemKey,
     };
 
-    if (skip(skipBase, fnArgs)) {
+    if (!skip(skipBase, fnArgs)) {
       result.push(
         <MUIListItem
           key={itemId}

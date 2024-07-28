@@ -1,8 +1,10 @@
 import { RequestHandler } from 'express';
 
-import { getManifestData } from '../../accessModule';
+import { getManifestData, query } from '../../accessModule';
 import { getEntityParts } from '../../disassembleEntityId';
+import { ResponseError } from '../../ResponseError';
 import { perr, pout, poutvar } from '../../shell';
+import { sanitize } from '../../sanitize';
 
 const handleSortEntries = <T extends [string, unknown]>(
   [aId]: T,
@@ -69,8 +71,12 @@ const handleSortNetworks = <T extends [string, unknown]>(
 
 export const getManifestDetail: RequestHandler = async (request, response) => {
   const {
-    params: { manifestUUID: manifestUuid },
+    params: { manifestUUID: rawManifestUuid },
   } = request;
+
+  const manifestUuid = sanitize(rawManifestUuid, 'string', {
+    modifierType: 'sql',
+  });
 
   let rawManifestListData: AnvilDataManifestListHash | undefined;
 
@@ -109,7 +115,49 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
     },
   } = rawManifestListData;
 
+  const sql = `
+    SELECT
+      anvil_uuid,
+      anvil_description,
+      anvil_node1_host_uuid,
+      anvil_node2_host_uuid
+    FROM anvils
+    WHERE anvil_name = '${name}';`;
+
+  let rows: string[][];
+
+  try {
+    rows = await query<string[][]>(sql);
+  } catch (error) {
+    const rserror = new ResponseError(
+      '26bd07d',
+      `Failed to find existing record with manifest name [${name}]; CAUSE: ${error}`,
+    );
+
+    perr(rserror.toString());
+
+    return response.status(500).send(rserror.body);
+  }
+
+  let anvil: ManifestDetail['anvil'];
+
+  if (rows.length > 0) {
+    const {
+      0: [uuid, description, subnode1Uuid, subnode2Uuid],
+    } = rows;
+
+    anvil = {
+      description,
+      hosts: {
+        1: { uuid: subnode1Uuid },
+        2: { uuid: subnode2Uuid },
+      },
+      uuid,
+    };
+  }
+
   const manifestData: ManifestDetail = {
+    anvil,
     domain,
     hostConfig: {
       hosts: Object.entries(machine)

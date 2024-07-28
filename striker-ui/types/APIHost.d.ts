@@ -39,6 +39,10 @@ type APIHostIPMI = {
 };
 
 type APIHostOverview = {
+  anvil?: {
+    name: string;
+    uuid: string;
+  };
   hostName: string;
   hostStatus: APIHostStatus;
   hostType: string;

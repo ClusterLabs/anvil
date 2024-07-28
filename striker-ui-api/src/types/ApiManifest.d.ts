@@ -58,6 +58,11 @@ type ManifestDetailHostList = {
 };
 
 type ManifestDetail = {
+  anvil?: {
+    description: string;
+    hosts: Record<string, { uuid: string }>;
+    uuid: string;
+  };
   domain: string;
   hostConfig: {
     hosts: ManifestDetailHostList;
@@ -74,15 +79,13 @@ type ManifestDetail = {
 };
 
 type ManifestExecutionHost = {
-  hostId?: string;
-  hostNumber: number;
-  hostType: string;
-  hostUuid: string;
+  id?: string;
+  number: number;
+  type: string;
+  uuid: string;
 };
 
-type ManifestExecutionHostList = {
-  [hostId: string]: ManifestExecutionHost;
-};
+type ManifestExecutionHostList = Record<string, ManifestExecutionHost>;
 
 type ManifestTemplate = {
   domain: string;
@@ -109,4 +112,6 @@ type RunManifestRequestBody = {
   description: string;
   hosts: ManifestExecutionHostList;
   password: string;
+  rerun?: boolean;
+  reuseHosts?: boolean;
 };

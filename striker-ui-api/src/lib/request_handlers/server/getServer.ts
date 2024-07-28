@@ -12,7 +12,7 @@ export const getServer = buildGetRequestHandler(
 
     const condAnvilUUIDs = join(sanitize(anvilUUIDs, 'string[]'), {
       beforeReturn: (toReturn) =>
-        toReturn ? `AND ser.server_anvil_uuid IN (${toReturn})` : '',
+        toReturn ? `AND a.server_anvil_uuid IN (${toReturn})` : '',
       elementWrapper: "'",
       separator: ', ',
     });
@@ -51,16 +51,17 @@ export const getServer = buildGetRequestHandler(
 
     return `
       SELECT
-        ser.server_uuid,
-        ser.server_name,
-        ser.server_state,
-        ser.server_host_uuid,
-        anv.anvil_uuid,
-        anv.anvil_name
-      FROM servers AS ser
-      JOIN anvils AS anv
-        ON ser.server_anvil_uuid = anv.anvil_uuid
-      WHERE ser.server_state != '${DELETED}'
-        ${condAnvilUUIDs};`;
+        a.server_uuid,
+        a.server_name,
+        a.server_state,
+        a.server_host_uuid,
+        b.anvil_uuid,
+        b.anvil_name
+      FROM servers AS a
+      JOIN anvils AS b
+        ON a.server_anvil_uuid = b.anvil_uuid
+      WHERE a.server_state != '${DELETED}'
+        ${condAnvilUUIDs}
+      ORDER BY a.server_name;`;
   },
 );

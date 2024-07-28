@@ -28,17 +28,38 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
       a.host_name,
       a.host_status,
       a.host_type,
-      a.host_uuid
+      a.host_uuid,
+      b.anvil_uuid,
+      b.anvil_name
     FROM hosts AS a
+    LEFT JOIN anvils AS b
+      ON a.host_uuid IN (
+        b.anvil_node1_host_uuid,
+        b.anvil_node2_host_uuid,
+        b.anvil_dr1_host_uuid
+      )
     ${condition}
     ORDER BY a.host_name ASC;`;
 
   let afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
-      (previous, [hostName, hostStatus, hostType, hostUUID]) => {
+      (previous, row) => {
+        const [hostName, hostStatus, hostType, hostUUID, anvilUuid, anvilName] =
+          row;
+
         const key = toLocal(hostUUID, localHostUUID);
 
+        let anvil: HostOverview['anvil'];
+
+        if (anvilUuid) {
+          anvil = {
+            name: anvilName,
+            uuid: anvilUuid,
+          };
+        }
+
         previous[key] = {
+          anvil,
           hostName,
           hostStatus,
           hostType,
