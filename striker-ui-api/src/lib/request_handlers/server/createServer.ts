@@ -1,8 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
-import { OS_LIST_MAP } from '../../consts/OS_LIST';
+import { DELETED, OS_LIST_MAP, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
