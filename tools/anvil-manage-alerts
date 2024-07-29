@@ -1815,10 +1815,17 @@ sub check_switches
 		}});
 		if ($anvil->data->{switches}{"mail-server-authentication"} eq "none")
 		{
+			# none, no need to translate
+			$anvil->data->{sys}{say_new_auth} = "name_0007";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"sys::say_new_auth" => $anvil->data->{sys}{say_new_auth},
+			}});
+		}
+		elsif ($anvil->data->{switches}{"mail-server-authentication"} eq "plain-text")
+		{
 			# normal_password
 			$anvil->data->{sys}{say_new_auth}                      = "name_0001";
-			# TODO: revisit translation(s) after verifying against config syntax
-			# $anvil->data->{switches}{"mail-server-authentication"} = "normal_password";
+			$anvil->data->{switches}{"mail-server-authentication"} = "normal_password";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"sys::say_new_auth"                    => $anvil->data->{sys}{say_new_auth}, 
 				"switches::mail-server-authentication" => $anvil->data->{switches}{"mail-server-authentication"},
