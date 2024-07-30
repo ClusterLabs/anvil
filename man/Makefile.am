@@ -60,6 +60,7 @@ dist_man8_MANS		= \
 			  striker-collect-debug.8 \
 			  striker-db-status.8 \
 			  striker-file-manager.8 \
+			  striker-get-peer-data.8 \
 			  striker-initialize-host.8 \
 			  striker-manage-install-target.8 \
 			  striker-manage-peers.8 \
