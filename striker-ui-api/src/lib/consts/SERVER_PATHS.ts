@@ -1,5 +1,10 @@
 import path from 'path';
 
+/**
+ * Defines all external files required by the striker UI API.
+ *
+ * DO NOT use direct paths in the codebase.
+ */
 const EMPTY_SERVER_PATHS: ServerPath = {
   etc: {
     anvil: { 'host.uuid': {} },
@@ -22,6 +27,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       getent: {},
       mkfifo: {},
       openssl: {},
+      'osinfo-query': {},
       psql: {},
       rm: {},
       sed: {},
@@ -46,7 +52,6 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'striker-initialize-host': {},
       'striker-manage-install-target': {},
       'striker-manage-peers': {},
-      'striker-parse-os-list': {},
     },
   },
   var: { www: { html: {} } },

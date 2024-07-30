@@ -6,6 +6,16 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { sanitize } from '../../sanitize';
 
+/**
+ * Each object key is the actual value recorded in the database by
+ * `anvil-manage-alerts`, and each object value is the actual value used by the
+ * manage mail server forms in the UI.
+ */
+const MAP_TO_FORM_AUTH: Record<string, string> = {
+  encrypted_password: 'encrypted',
+  normal_password: 'plain-text',
+};
+
 export const getMailServerDetail: RequestHandler<MailServerParamsDictionary> =
   buildGetRequestHandler((request, options) => {
     const {
@@ -43,10 +53,14 @@ export const getMailServerDetail: RequestHandler<MailServerParamsDictionary> =
             username,
             password,
             security,
-            authentication,
+            rawAuthentication,
             heloDomain,
           ],
         } = rows;
+
+        // Try to translate. If no translation, fallback to use the value as-is.
+        const authentication =
+          MAP_TO_FORM_AUTH[rawAuthentication] ?? rawAuthentication;
 
         return {
           address,

@@ -61,7 +61,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
 
         tools.confirm.prepare({
           actionProceedText,
-          content: <FormSummary entries={rest} />,
+          content: <FormSummary entries={rest} hasPassword />,
           onCancelAppend: () => setSubmitting(false),
           onProceedAppend: () => {
             tools.confirm.loading(true);

@@ -3500,7 +3500,7 @@ proceeding.
 		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
 
 		<!-- Translate names (protocols, etc) -->
-		<key name="name_0001">Normal Password</key>	<!-- none in mail-server -->
+		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
 		<key name="name_0002">Enctrypted Password</key>	<!-- encrypted in mail-server -->
 		<key name="name_0003">Kerberos GSSAPI</key>	<!-- kerberos in mail-server -->
 		<key name="name_0004">NTLM</key>		<!-- ntlm in mail-server -->
