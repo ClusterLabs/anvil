@@ -159,7 +159,6 @@ Common base libraries required for the Anvil! system.
 %package striker
 Summary:        Alteeve's Anvil! Striker dashboard package
 Requires:       anvil-core == %{version}-%{release}
-Requires:       augeas
 Requires:       bpg-dejavu-sans-fonts
 Requires:       createrepo
 Requires:       dejavu-sans-fonts
