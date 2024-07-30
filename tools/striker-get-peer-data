@@ -1,0 +1,360 @@
+#!/usr/bin/perl
+# 
+# This program is setuid 'admin' and calls a (new) peer to read its host name and system UUID. It takes the 
+# target's password in via a file.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 2 = Password not found in the database.
+# 3 = Peer not accessible
+# 4 = Unable to find the peer's host UUID
+# 5 = 
+# 
+
+use strict;
+use warnings;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
+# passed directly, it will be used. Otherwise, the password will be read from the database.
+$anvil->Get->switches({list => [
+	"target", 
+	"state-uuid", 
+	"password"
+], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0435", variables => { 
+	program        => $THIS_FILE,
+	real_user      => getpwuid($<), 
+	real_uid       => $<, 
+	effective_user => getpwuid($>), 
+	effective_uid  => $>,
+}});
+
+$anvil->data->{target}{user}     = "admin";
+$anvil->data->{target}{host}     = $anvil->data->{switches}{target};
+$anvil->data->{target}{port}     = 22;
+$anvil->data->{target}{password} = get_password($anvil);
+if ($anvil->data->{target}{host} =~ /^(.*?)@/)
+{
+	$anvil->data->{target}{user}   =  $1;
+	$anvil->data->{target}{host} =~ s/^(.*?)@//;
+}
+if ($anvil->data->{target}{host} =~ /:(\d+)$/)
+{
+	$anvil->data->{target}{port} =  $1;
+	$anvil->data->{target}{host} =~ s/:(\d+)$//;
+}
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'target::user'     => $anvil->data->{target}{user},
+	'target::target'   => $anvil->data->{target}{host},
+	'target::port'     => $anvil->data->{target}{port}, 
+	'target::password' => $anvil->Log->is_secure($anvil->data->{target}{password}),
+}});
+
+my ($host_uuid)               = get_host_uuid($anvil);
+my ($host_name)               = get_host_name($anvil);
+my ($host_os, $os_registered) = get_host_os($anvil);
+my $internet                  = $anvil->Network->check_internet({
+	remote_user => $anvil->data->{target}{user},
+	target      => $anvil->data->{target}{host},
+	port        => $anvil->data->{target}{port}, 
+	password    => $anvil->data->{target}{password},
+	tries       => 1,
+});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	host_uuid     => $host_uuid, 
+	host_name     => $host_name, 
+	host_os       => $host_os, 
+	os_registered => $os_registered, 
+}});
+print "connected=1\n";
+print "host_name=".$host_name."\n";
+print "host_uuid=".$host_uuid."\n";
+print "host_os=".$host_os."\n";
+print "os_registered=".$os_registered."\n";
+print "internet=".$internet."\n";
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
+
+# This tries to read the target's OS
+sub get_host_os
+{
+	my ($anvil) = @_;
+	
+	my $host_os       = "unknown";
+	my $os_registered = "n/a";
+	
+	# We can't assume that rsync exists, so we'll cat the file.
+	my $shell_call = "
+if [ -e '".$anvil->data->{path}{data}{'redhat-release'}."' ]; 
+then
+  ".$anvil->data->{path}{exe}{cat}." ".$anvil->data->{path}{data}{'redhat-release'}."
+fi;
+";
+	my ($file_body, $error, $return_code) = $anvil->Remote->call({
+		debug      => 3,
+		shell_call => $shell_call,
+		user       => $anvil->data->{target}{user}, 
+		target     => $anvil->data->{target}{host}, 
+		port       => $anvil->data->{target}{port}, 
+		password   => $anvil->data->{target}{password}, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_body   => $file_body, 
+		error       => $error,
+		return_code => $return_code, 
+	}});
+	$file_body =~ s/\n$//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
+	if ($file_body)
+	{
+		if ($file_body =~ /Red Hat .*? release (\d+\.\d+) /)
+		{
+			$host_os = "rhel ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_os => $host_os }});
+		}
+	}
+	
+	# If the OS is 'rhel', see if it is registered.
+	if ($host_os =~ /^rhel /)
+	{
+		# Is it subscribed? This isn't the best call to make, but it seems to be the one that returns
+		# the fastest. Return code of '0' is registered, return code of '1' is not or not verified.
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug      => 2,
+			shell_call => $anvil->data->{path}{exe}{'subscription-manager'}." identity", 
+			user       => $anvil->data->{target}{user}, 
+			target     => $anvil->data->{target}{host}, 
+			port       => $anvil->data->{target}{port}, 
+			password   => $anvil->data->{target}{password}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			error       => $error, 
+			return_code => $return_code,
+		}});
+		
+		# Possible output;
+=cut
+system identity: 3a9065a1-625a-48e1-86f4-97a3eac4b730
+name: el8-striker01.digimer.ca
+org name: xxx
+org ID: yyy
+# rc:0
+
+This system is not yet registered. Try 'subscription-manager register --help' for more information.
+# rc:1
+
+Network error, unable to connect to server. Please see /var/log/rhsm/rhsm.log for more information.
+# rc:70
+=cut
+		if ($return_code eq "0")
+		{
+			$os_registered = "yes";
+		}
+		elsif ($return_code eq "1")
+		{
+			$os_registered = "no";
+		}
+		elsif ($return_code eq "70")
+		{
+			# Unable to check, maybe, maybe not?
+			$os_registered = "offline";
+		}
+	}
+	
+	return($host_os, $os_registered);
+}
+
+# This tries to read the target's UUID either via host.uuid or via dmidecode.
+sub get_host_name
+{
+	my ($anvil) = @_;
+	
+	my ($host_name, $error, $return_code) = $anvil->Remote->call({
+		debug      => 3,
+		shell_call => $anvil->data->{path}{exe}{hostnamectl}." --static",
+		user       => $anvil->data->{target}{user}, 
+		target     => $anvil->data->{target}{host}, 
+		port       => $anvil->data->{target}{port}, 
+		password   => $anvil->data->{target}{password}, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_name   => $host_name, 
+		error       => $error,
+		return_code => $return_code, 
+	}});
+	
+	return($host_name);
+}
+
+# This tries to read the target's UUID either via host.uuid or via dmidecode.
+sub get_host_uuid
+{
+	my ($anvil) = @_;
+	
+	# This is the first thing called, so start by verifying we can talk to the target at all.
+	my $access = $anvil->Remote->test_access({
+		debug    => 3,
+		user     => $anvil->data->{target}{user}, 
+		target   => $anvil->data->{target}{host}, 
+		port     => $anvil->data->{target}{port}, 
+		password => $anvil->data->{target}{password}, 
+	});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+	if (not $access)
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0069", variables => { 
+			host => $anvil->data->{target}{user}.'@'.$anvil->data->{target}{host}.':'.$anvil->data->{target}{port},
+		}});
+		$anvil->nice_exit({exit_code => 3});
+	}
+	
+	# Try to read the host.uuid file on the target, if possible.
+	# We can't assume that rsync exists, so we'll cat the file.
+	my $shell_call = "
+if [ -e '".$anvil->data->{path}{data}{host_uuid}."' ]; 
+then
+  ".$anvil->data->{path}{exe}{cat}." ".$anvil->data->{path}{data}{host_uuid}."
+fi;
+";
+	my ($file_body, $error, $return_code) = $anvil->Remote->call({
+		debug      => 3,
+		shell_call => $shell_call,
+		user       => $anvil->data->{target}{user}, 
+		target     => $anvil->data->{target}{host}, 
+		port       => $anvil->data->{target}{port}, 
+		password   => $anvil->data->{target}{password}, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		file_body   => $file_body, 
+		error       => $error,
+		return_code => $return_code, 
+	}});
+	$file_body =~ s/\n$//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
+	
+	my $host_uuid = "";
+	if ((not $file_body) or (not $anvil->Validate->uuid({uuid => $file_body})))
+	{
+		# No good, Try dmidecode.
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug      => 3,
+			shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid",
+			user       => $anvil->data->{target}{user}, 
+			target     => $anvil->data->{target}{host}, 
+			port       => $anvil->data->{target}{port}, 
+			password   => $anvil->data->{target}{password}, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			error       => $error, 
+			return_code => $return_code, 
+		}});
+		if ($anvil->Validate->uuid({uuid => $output}))
+		{
+			# Got it.
+			$host_uuid = $output;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+		}
+	}
+	else
+	{
+		$host_uuid = $file_body;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	}
+	
+	# Exit out if I failed to get the host's UUID.
+	if (not $host_uuid)
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0070", variables => { 
+			host => $anvil->data->{target}{user}.'@'.$anvil->data->{target}{host}.':'.$anvil->data->{target}{port},
+		}});
+		$anvil->nice_exit({exit_code => 4});
+	}
+	
+	return($host_uuid);
+}
+
+# This reads in the password from the password file, if possible.
+sub get_password
+{
+	my ($anvil) = @_;
+	
+	# If we were given the password directly, use it.
+	if ($anvil->data->{switches}{password})
+	{
+		return($anvil->data->{switches}{password});
+	}
+	
+	# We'll pick up the peer's password from the database.
+	$anvil->Database->connect({check_for_resync => 1});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0067"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Do we have a (valid) state_uuid?
+	if (not $anvil->data->{switches}{'state-uuid'})
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0083"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	elsif (not $anvil->Validate->uuid({uuid => $anvil->data->{switches}{'state-uuid'}}))
+	{
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0082", variables => {state_uuid => $anvil->data->{switches}{'state-uuid'} }});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $query = "SELECT state_note FROM states WHERE state_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $password = $anvil->Database->query({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+	   $password = "" if not defined $password;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
+	if (not $password)
+	{
+		# Well poo.
+		print "connected=0\n";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0068"});
+		$anvil->nice_exit({exit_code => 2});
+	}
+	else
+	{
+		# We have the password. Delete the entry now.
+		my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'state-uuid'}).";";
+		$anvil->Database->write({uuid => $anvil->data->{sys}{host_uuid}, debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
+	}
+	
+	return($password);
+}
