@@ -784,7 +784,7 @@ The XML that failed sanity check was:
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
 		<!--       comments and which are command lines that can't be changed! -->
 		<key name="file_0001"><![CDATA[# Resource for #!variable!server!#
-resource #!variable!server!# {
+resource "#!variable!server!#" {
 	on #!variable!node1_short_name!# {
 		node-id 0;
 		volume 0 {
@@ -1056,7 +1056,7 @@ sys::manage::firewall						=	1
 	}
 ]]></key>
 		<key name="file_0006"><![CDATA[# Resource for #!variable!server!#
-resource #!variable!server!# {
+resource "#!variable!server!#" {
 	#!variable!proxy!#
 	#!variable!hosts!#
 	#!variable!connections!#
