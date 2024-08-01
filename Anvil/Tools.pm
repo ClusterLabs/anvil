@@ -1169,7 +1169,6 @@ sub _set_paths
 				'anvil-delete-server'		=>	"/usr/sbin/anvil-delete-server",
 				'anvil-download-file'		=>	"/usr/sbin/anvil-download-file",
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
-				'anvil-get-server-screenshot'	=>	"/usr/sbin/anvil-get-server-screenshot",
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",
