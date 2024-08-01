@@ -17,6 +17,7 @@ import NetworkInitForm, {
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { Panel, PanelHeader } from './Panels';
 import Spinner from './Spinner';
+import SwitchWithLabel from './SwitchWithLabel';
 import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import { HeaderText } from './Text';
 import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
@@ -114,6 +115,8 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
     string | undefined
   >();
 
+  const [mini, setMini] = useState<boolean>(false);
+
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
@@ -149,12 +152,13 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
         expectHostDetail
         hostDetail={hostDetail}
         ref={netconfFormRef}
+        mini={mini}
         toggleSubmitDisabled={(valid) => {
           setValidity(INPUT_GROUP_ID_PREP_NET_NETCONF, valid);
         }}
       />
     ),
-    [hostDetail, setValidity],
+    [hostDetail, mini, setValidity],
   );
   const generalInputMessageArea = useMemo(
     () => (
@@ -220,36 +224,43 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
               confirmDialogRef.current.setOpen?.call(null, true);
             }}
           >
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  formControlProps={{ sx: { maxWidth: '20em' } }}
-                  id={INPUT_ID_PREP_NET_HOST_NAME}
-                  label={INPUT_LABEL_PREP_NET_HOST_NAME}
-                  value={hostDetail?.hostName}
-                />
-              }
-              inputTestBatch={buildPeacefulStringTestBatch(
-                INPUT_LABEL_PREP_NET_HOST_NAME,
-                () => {
-                  setMessage(INPUT_ID_PREP_NET_HOST_NAME);
-                },
-                {
-                  onFinishBatch: buildFinishInputTestBatchFunction(
-                    INPUT_ID_PREP_NET_HOST_NAME,
-                  ),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_PREP_NET_HOST_NAME, {
-                    children: message,
-                  });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(
-                INPUT_ID_PREP_NET_HOST_NAME,
-              )}
-              required
-            />
+            <FlexBox sm="row" xs="column">
+              <InputWithRef
+                input={
+                  <OutlinedInputWithLabel
+                    formControlProps={{ sx: { maxWidth: '20em' } }}
+                    id={INPUT_ID_PREP_NET_HOST_NAME}
+                    label={INPUT_LABEL_PREP_NET_HOST_NAME}
+                    value={hostDetail?.hostName}
+                  />
+                }
+                inputTestBatch={buildPeacefulStringTestBatch(
+                  INPUT_LABEL_PREP_NET_HOST_NAME,
+                  () => {
+                    setMessage(INPUT_ID_PREP_NET_HOST_NAME);
+                  },
+                  {
+                    onFinishBatch: buildFinishInputTestBatchFunction(
+                      INPUT_ID_PREP_NET_HOST_NAME,
+                    ),
+                  },
+                  (message) => {
+                    setMessage(INPUT_ID_PREP_NET_HOST_NAME, {
+                      children: message,
+                    });
+                  },
+                )}
+                onFirstRender={buildInputFirstRenderFunction(
+                  INPUT_ID_PREP_NET_HOST_NAME,
+                )}
+                required
+              />
+              <SwitchWithLabel
+                checked={mini}
+                label="Minimal"
+                onChange={() => setMini((previous) => !previous)}
+              />
+            </FlexBox>
             {generalInputMessageArea}
             {netconfForm}
             <FlexBox row justifyContent="flex-end">
@@ -264,20 +275,21 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
 
     return result;
   }, [
-    isLoadingHostDetail,
-    fatalErrorMessage,
-    panelHeaderElement,
-    hostDetail?.hostName,
-    hostDetail?.shortHostName,
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,
+    fatalErrorMessage,
     generalInputMessageArea,
-    netconfForm,
-    isFormInvalid,
-    setConfirmDialogProps,
-    submitForm,
+    hostDetail?.hostName,
+    hostDetail?.shortHostName,
     hostUUID,
+    isFormInvalid,
+    isLoadingHostDetail,
+    mini,
+    netconfForm,
+    panelHeaderElement,
+    setConfirmDialogProps,
     setMessage,
+    submitForm,
   ]);
 
   const getHostDetail = useCallback(
