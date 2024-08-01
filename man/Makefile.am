@@ -54,6 +54,18 @@ dist_man8_MANS		= \
 			  fence_delay.8 \
 			  fence_pacemaker.8 \
 			  scancore.8 \
+			  scan-apc-pdu.8 \
+			  scan-apc-ups.8 \
+			  scan-cluster.8 \
+			  scan-drbd.8 \
+			  scan-filesystems.8 \
+			  scan-hardware.8 \
+			  scan-hpacucli.8 \
+			  scan-ipmitool.8 \
+			  scan-lvm.8 \
+			  scan-network.8 \
+			  scan-server.8 \
+			  scan-storcli.8 \
 			  striker-auto-initialize-all.8 \
 			  striker-boot-machine.8 \
 			  striker-check-machines.8 \

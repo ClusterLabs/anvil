@@ -32,10 +32,10 @@ When called without a value, it shows if the current order of boot devices. To s
 If called without a value, the current CPU core allocation is shown. To change it, you can specify simply a core count, which will appear as a single socket CPU with the specified number of cores. The maximum total number of cores is two-less than the total cores on the host Anvil! node.
 .TP
 .BR
-Alternatively, you can specify '--cput x,y', where 'x' will be the number of sockets to emulate, and 'y' will be the number of cores per socket. Example; '--cpu 2,4' would give 8 total cores, emulates as 2 sockets, each with a 4-core CPU.
+Alternatively, you can specify '--cpu x,y', where 'x' will be the number of sockets to emulate, and 'y' will be the number of cores per socket. Example; '--cpu 2,4' would give 8 total cores, emulates as 2 sockets, each with a 4-core CPU.
 .TP
 .BR
-Lastly, you can specify '--cput x,y,z', where the 'z' adds how many threads to use. Example; '--cpu 1,2,2' would give 8 total cores, emulates as 1 socket, each with a 2-core CPU, and each core being 2 threads.
+Lastly, you can specify '--cpu x,y,z', where the 'z' adds how many threads to use. Example; '--cpu 1,2,2' would give 8 total cores, emulates as 1 socket, each with a 2-core CPU, and each core being 2 threads.
 .TP
 \fB\-\-job\-uuid\fR
 This is the jobs -> job_uuid to execute. Generally this is only used by other programs.

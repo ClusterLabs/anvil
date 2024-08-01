@@ -1,0 +1,31 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH scan-filesystems "8" "July 31 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+scan-filesystems \- Scancore scan agent for monitoring filesystems.
+.SH SYNOPSIS
+.B scan-filesystems 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This monitors the free space on a filesystems. It's goal is to trigger an alert before a given filesystem runs out of free space.
+.IP
+.SH OPTIONS
+.TP
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+.TP
+\fB\-\-purge\fR
+This switch causes all of the existing scan agent data to be purged from the database.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

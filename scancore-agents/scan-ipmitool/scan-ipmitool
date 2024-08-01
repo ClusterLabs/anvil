@@ -221,7 +221,7 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1 , key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches({debug => 3, list => ["force", "purge"]});
+$anvil->Get->switches({list => ["purge"], man => $THIS_FILE});
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});

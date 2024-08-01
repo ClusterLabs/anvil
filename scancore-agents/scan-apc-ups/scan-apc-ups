@@ -187,7 +187,7 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches;
+$anvil->Get->switches({list => ["force", "purge"], man => $THIS_FILE});
 
 # Too many connections cause the UPS to lag out, so we only run on Strikers.
 my $host_type = $anvil->Get->host_type();
