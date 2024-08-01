@@ -3302,7 +3302,7 @@ Proceed? [y/N]</key>
 		<key name="message_0360"><![CDATA[
 [ Warning ] - Auto-growing the LVM physical volumes could, in some case, leave the system unbootable.
 The steps that will taken are;
-- LVM Pyhiscal volumes will be found.
+- LVM Physical volumes will be found.
 - For each found, 'parted' is used to see if there is > 1GiB of free space available.
 - If so, and if no other partitions are after it, it will be grown to use the free space.
 - The PV itself will then be resized to use the new space
