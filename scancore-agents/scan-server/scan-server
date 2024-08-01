@@ -60,7 +60,7 @@ $anvil->data->{switches}{force}                          = 0;
 $anvil->Storage->read_config();
 
 # Read switches
-$anvil->Get->switches;
+$anvil->Get->switches({list => ["purge"], man => $THIS_FILE});
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});

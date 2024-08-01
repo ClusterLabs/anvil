@@ -51,13 +51,12 @@ $anvil->data->{scancore}{'scan-hardware'}{ram}{high_threshold}   = 1073741824;	#
 $anvil->data->{scancore}{'scan-hardware'}{score}{less_ram}       = 5;
 $anvil->data->{scancore}{'scan-hardware'}{swap}{clear_threshold} = 25;
 $anvil->data->{scancore}{'scan-hardware'}{swap}{high_threshold}  = 75;
-$anvil->data->{switches}{force}                                  = 0;
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches;
+$anvil->Get->switches({list => ["purge"], man => $THIS_FILE});
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
