@@ -251,7 +251,7 @@ The global common configuration file: [#!variable!file!#] needs to be updated. T
 		<key name="scan_drbd_state_secondary_name">Secondary</key>
 		<key name="scan_drbd_state_secondary_explain">The resource is currently in the secondary role. It normally receives updates from its peer (unless running in disconnected mode), but may neither be read from nor written to. This role may occur on one or both nodes.</key>
 		<key name="scan_drbd_state_unknown_name">Unknown</key>
-		<key name="scan_drbd_state_unknown_explain">The resource’s role is currently unknown. The local resource role never has this status. It is only displayed for the peer’s resource role, and only in disconnected mode.</key>
+		<key name="scan_drbd_state_unknown_explain">The resource's role is currently unknown. The local resource role never has this status. It is only displayed for the peer's resource role, and only in disconnected mode.</key>
 		
 	</language>
 </words>
