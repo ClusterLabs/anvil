@@ -1,4 +1,12 @@
 #!/bin/bash
+#
+# Generates wrapper subroutines for the subroutines in a given perl module
+# (*.pm). The wrappers can be called through the generated wrapper script by
+# external programs.
+#
+# This was meant to be used by striker-ui-api, but it's deprecated since the
+# introduction of anvil-access-module.
+#
 
 THIS_SCRIPT_NAME="$(basename ${BASH_SOURCE[0]})"
 
