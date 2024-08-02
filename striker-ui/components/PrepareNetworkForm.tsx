@@ -255,6 +255,7 @@ const PrepareNetworkForm: FC<PrepareNetworkFormProps> = ({
                 )}
                 required
               />
+              {/* Look for the sys::minimal-network::enable = 0/1 config in /etc/anvil.conf to decide whether to show this switch */}
               <SwitchWithLabel
                 checked={mini}
                 label="Minimal"
