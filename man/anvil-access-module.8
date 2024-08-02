@@ -1,0 +1,160 @@
+.TH anvil-access-module "8" "July 24, 2023" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-access-module \- external-facing interface to Anvil! internal functions
+.SH SYNOPSIS
+.TP
+To use interactively:
+.SY
+anvil-access-module
+.YS
+.TP
+To process a script:
+.SY
+anvil-access-module \-\-script <script_pathname>
+.YS
+.TP
+To read from database:
+.SY
+anvil-access-module \-\-query <sql_command>
+.OP \-\-uuid <database_uuid>
+.YS
+.TP
+To write to database:
+.SY
+anvil-access-module \-\-mode write \-\-query <sql_command>
+.OP \-\-uuid <database_uuid>
+.YS
+.TP
+To execute a Perl subroutine:
+.SY
+anvil-access-module \-\-sub <subroutine_name>
+.OP \-\-sub-module <perl_module_name>
+.OP \-\-sub-params <json_object>
+.YS
+.TP
+To access the data hash:
+.SY
+anvil-access-module \-\-data <json_object>
+.OP \-\-predata <json_array>
+.YS
+.SH DESCRIPTION
+\fBanvil-access-module\fR exposes access to Anvil! perl modules to the command line, allowing non-perl executables to reuse existing functionalities. Upon execution, this script creates an instance of Anvil::Tools which provides reference to all *.pm instances under the \fIAnvil/Tools\fR directory.
+.SH OPTIONS
+.TP
+\-\-data <json_object>
+Specifies the data structure to copy from the data hash under the global \fIanvil\fR object. The script will recursively traverse each of the given JSON object's properties and pick values from the anvil->data hash for each property key that exists.
+.TP
+\-\-emit-events
+Toggles whether to print event lines before and/or after operations. For example, line 'connected' will be printed after establishing the database connection when \fI\-\-emit-events\fR is given. The event lines should enable other programs to parse and activate additional logic as necessary.
+.TP
+\-\-mode <read | write>
+Used along with \fI\-\-query\fR to specify whether the provided sql should be executed in read or write mode. For example, a SELECT sql command should be executed in read mode, and an UPDATE sql command should be executed in write mode.
+.TP
+\-\-predata <json_array>
+Specifies a 2-dimentional JSON array for specifying 1 or more subroutines to execute in ascending index order before extracting data from the data hash. Each element of the top-level array contains a 2nd-level array. Each 2nd-level array should only have 2 elements, where index 0 is a string in Perl syntax that identifies the target subroutine, and index 1 is a JSON object with parameters to supply to the target subroutine.
+.TP
+\-\-query <sql_command>
+Specifies a SQL command to execute. Also see \fI\-\-mode\fR, which controls whether the given SQL command will be executed in read or write mode.
+.RS
+.P
+When in read mode, the output should be a 2 dimentional array where the 1st-level is rows and the 2nd-level is each value matching the given columns.
+.P
+When in write mode, the output should be a return code where 0 is success and non-zero is write error.
+.RE
+.TP
+\-\-script <filepath>
+Specifies a file that contains actions; these actions are the same as ones to provide to interactive mode.
+.RS
+An action must start with a character from one of \fBr\fR (read), \fBw\fR (write), or \fBx\fR (execute). The action character can optionally be prefixed with a UUID which will be used to prefix the corresponding output of the action.
+.P
+Each line should follow one of the following formats:
+.SY
+.OP <line_uuid>
+r
+.OP uuid=<database_uuid>
+<sql_script>
+.YS
+.SY
+.OP <line_uuid>
+w
+.OP uuid=<database_uuid>
+<sql_script>
+.YS
+.SY
+.OP <line_uuid>
+x
+<module->subroutine>
+.OP space-separated_positional_subroutine_parameters...
+.YS
+.SY
+.OP <line_uuid>
+x <data->hash>
+.OP = <value_to_set>
+.YS
+.RE
+.TP
+\-\-sub <subroutine_name>
+Specifies the target subroutine to execute in perl syntax, which can include the arrow notation (->).
+.TP
+\-\-sub-module <perl_module_name>
+Used with \fI\-\-sub\fR to specify the perl module name of the target subroutine. It is expected to be the file name (excluding extension) of any .pm file under the \fIAnvil/Tools\fR directory.
+.TP
+\-\-sub-params <json_object>
+Used with \fI\-\-sub\fR to specify the parameters to provide to the target subroutine. The given JSON object will be converted to a perl hash and passed to the specified subroutine.
+.TP
+\-\-uuid <database_uuid>
+Used with \fI\-\-query\fR to specify a database to execute the given SQL command.
+.SH EXAMPLES
+.TP
+Select hosts from database:
+.EX
+$ anvil-access-module \-\-query "SELECT host_uuid, host_name FROM hosts;"
+> [["09a3ac2f-5904-42a6-bb5e-28cffc7fa4af","mockhost01"],["df3653e3-7378-43e2-be2a-ead1b8aee881","mockhost02"],...]
+
+OR interactively:
+
+r SELECT host_uuid, host_name FROM hosts;
+.EE
+.TP
+Get local host name:
+.EX
+$ anvil-access-module \-\-sub 'host_name' \-\-sub-module 'Get' \-\-sub-params '{ "debug": 1 }'
+> {"sub_results":"..."}
+
+OR interactively:
+
+x Get->host_name '{ "debug": 1 }'
+.EE
+.TP
+Get database data and 1 path from data hash:
+.EX
+$ anvil-access-module \-\-data '{ "database": true, "path": { "exe": { "grep": true } } }'
+> {"database":{...},"path":{"exe":{"grep":"/usr/bin/grep"}}}
+
+OR interactively:
+
+x data->database
+x data->path->exe->grep
+.EE
+.TP
+Get network data collected and recorded by the Network->get_ips() subroutine:
+.EX
+$ anvil-access-module \-\-predata '[ ["Network->get_ips", { "debug": 1 }] ]' \-\-data '{ "network": true }'
+> {"network":{...}}
+
+OR interactively:
+
+x Network->get_ips '{ "debug": 1 }'
+x data->network
+.EE
+.SH EXIT STATUS
+.TP
+.B 0
+Successful program execution.
+.TP
+.B 1
+Usage, syntax, file access, or database connection error.
+.SH AUTHOR
+Written by Yanhao Lei, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org
