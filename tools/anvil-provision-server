@@ -3174,13 +3174,14 @@ sub interactive_ask_server_confirm
 		else
 		{
 			# Make sure it's valid.
-			my $os_key  = "os_list_".$anvil->data->{switches}{os};
-			my $os_name = $anvil->Words->string({key => $os_key});
+			$anvil->Get->virsh_list_os({debug => 2});
+			my $os_key  = $anvil->data->{switches}{os};
+			my $os_name = $anvil->data->{osinfo}{'os-list'}{$os_key}{name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				os_key  => $os_key,
 				os_name => $os_name, 
 			}});
-			if ($os_name =~ /#!not_found/)
+			if (not exists $anvil->data->{osinfo}{'os-list'}{$os_key})
 			{
 				my $print = $anvil->data->{switches}{options} ? 0 : 1;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => $print, level => 0, key => "job_0440", variables => {
