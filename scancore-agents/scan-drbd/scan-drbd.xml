@@ -13,18 +13,12 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_server_log
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors hardware, like RAM modules, CSS LED status, CPU information, etc.">
 		
-		<!-- Alert entries -->
-		<key name="scan_drbd_alert_0001"></key>
-		
 		<!-- Error entries -->
 		<key name="scan_drbd_error_0001">DRBD is not configured on this host, exiting.</key>
 			
 		<!-- Warnings entries -->
 		<key name="scan_drbd_warning_0001">[ Warning ] - The variable 'old_scan_drbd_resource_xml' is undefined, which should never be the case. This is likely a program error.</key>
 		<key name="scan_drbd_warning_0002">[ Warning ] - The variable 'scan_drbd_peer_scan_drbd_volume_uuid' is empty, which should never be the case. This is likely a program error.</key>
-			
-		<!-- Error entries -->
-		<key name="scan_drbd_log_0001">Starting The: [#!variable!program!#] DRBD resource agent.</key>
 		
 		<!-- Messages -->
 		<key name="scan_drbd_message_0001">
@@ -62,11 +56,7 @@ A new DRBD resource has been found on this host.
 - Resource Name: ...... [#!variable!resource_name!#]
 - Resource State: ..... [#!variable!resource_state!#]
 		</key>
-		<key name="scan_drbd_message_0008">
-A resource was found with a resource UUID that isn't valid on this host. An attempt to find a valid database entry was made but no candidate was found. Adding the resource to the database as if it were new, and generating a new resource UUID for the resource configuration file.
-- Resource Name: ...... [#!variable!resource_name!#]
-- Resource State: ..... [#!variable!resource_state!#]
-		</key>
+		<key name="scan_drbd_message_0008">#!free!#</key>
 		<key name="scan_drbd_message_0009">The resource config: [#!variable!resource_name!#] has been deleted. The backing storage may or may not have been removed.</key>
 		<key name="scan_drbd_message_0010">The resource: [#!variable!old_value!#] has been renamed to: [#!variable!new_value!#].</key>
 		<key name="scan_drbd_message_0011">The resource: [#!variable!resource_name!#] state has changed from: [#!variable!old_value!#] to: [#!variable!new_value!#].</key>
@@ -143,11 +133,7 @@ The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] 
 Note: The fencing policy 'resource-and-stonith' must always be used between nodes. The fencing policy 'dont-care' must be used between nodes and DR hosts.
 		</key>
 		<key name="scan_drbd_message_0032">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] has been deleted.</key>
-		<key name="scan_drbd_message_0033">
-The DRBD resource was not found in the database, but appears to have been in the past. Re-adding it.
-- Resource Name: ...... [#!variable!resource_name!#]
-- Resource State: ..... [#!variable!resource_state!#]
-		</key>
+		<key name="scan_drbd_message_0033">#!free!#</key>
 		<key name="scan_drbd_message_0034">
 The global common configuration file: [#!variable!file!#] needs to be updated. The difference is:
 ====

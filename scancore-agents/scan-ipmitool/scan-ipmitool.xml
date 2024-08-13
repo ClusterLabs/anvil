@@ -113,7 +113,7 @@ The new sensor: [#!variable!sensor_name!#] has been found on the machine: [#!var
 		<key name="scan_ipmitool_log_0001">Starting to read the IPMI sensor values for: [#!variable!host_name!#]</key>
 		<key name="scan_ipmitool_log_0002">Failed to query node: [#!variable!host_name!#]'s IPMI interface using the call: [#!variable!call!#]. Is the password correct?</key>
 		<key name="scan_ipmitool_log_0003">IPMI sensor values read from: [#!variable!host_name!#] in: [#!variable!time!#].</key>
-		<key name="scan_ipmitool_log_0004">The sensor named: [#!variable!sensor_name!#] appears to have vanished, but this is the first scan that it vanished. This is generally harmless and just a sensor read issue.</key>
+		<key name="scan_ipmitool_log_0004">#!free!#</key>
 		<key name="scan_ipmitool_log_0005">The sensor named: [#!variable!sensor_name!#] has returned.</key>
 		<key name="scan_ipmitool_log_0006">No changes found.</key>
 		

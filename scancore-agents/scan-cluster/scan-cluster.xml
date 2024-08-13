@@ -56,9 +56,6 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_log_0011">Checking to see if the server has recovered yet...</key>
 		<key name="scan_cluster_log_0012">Found the stale DRBD fenced attribute: [#!variable!attribute!#], removing it.</key>
 		
-		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_cluster_message_0001"></key>
-		
 		<!-- Units -->
 		<key name="scan_cluster_unit_0001">Yes</key>
 		<key name="scan_cluster_unit_0002">No</key>

@@ -5,7 +5,7 @@ Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
 
-NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_filesystem_log_0001'.
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_filesystem_xxx'.
 -->
 
 <words>
@@ -47,15 +47,6 @@ To: . [#!variable!new_hr_used!#] (#!variable!new_byte_used!# bytes) used, [#!var
 		</key>
 		<key name="scan_filesystem_alert_0015">The: [#!variable!new_type!#] file system: [#!variable!new_kernel_name!#] that was removed is back and mounted at: [#!variable!new_mount_point!#].</key>
 		<key name="scan_filesystem_alert_0016">The: [#!variable!old_type!#] file system: [#!variable!old_kernel_name!#] mounted at: [#!variable!old_mount_point!#] has been removed or unplugged.</key>
-
-		<!-- Log entries -->
-		<key name="scan_filesystem_log_0001">Starting: [#!variable!program!#].</key>
-		
-		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_filesystem_message_0001"></key>
-		
-		<!-- Units -->
-		<key name="scan_filesystem_unit_0001"></key>
 		
 	</language>
 </words>

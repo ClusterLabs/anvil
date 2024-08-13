@@ -5,7 +5,7 @@ Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
 
-NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_log_0001'.
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_network_xxx'.
 -->
 
 <words>
