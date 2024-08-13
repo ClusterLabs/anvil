@@ -2146,8 +2146,8 @@ WHERE
 			# See if the temperature outside of the warning or critical thresholds.
 			my $temperature_state = "ok";
 			my $temperature_is    = "nominal";
-			my $alert_level       = "warning";
-			my $message_key       = "";
+			my $alert_level       = "info";
+			my $message_key       = "scan_hpacucli_note_0069";
 			if ($new_scan_hpacucli_physical_drive_temperature > $high_critical)
 			{
 				# Crossed the high critical threshold. This should always be unset because it
@@ -2234,7 +2234,7 @@ WHERE
 				"new::temperature::scan_hpacucli_physical_drive_temperature::${sensor_host_key}::temperature_is"      => $anvil->data->{new}{temperature}{scan_hpacucli_physical_drive_temperature}{$sensor_host_key}{temperature_is}, 
 			}});
 			
-			if ($message_key)
+			if ($temperature_is ne "nominal")
 			{
 				# Send an alert telling the user that we've found a drive outside nominal 
 				# temperature. Note that we add ' C' to the temperatures so that they get

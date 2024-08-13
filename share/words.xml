@@ -163,7 +163,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0103">The file: [#!variable!file!#] wasn't found.</key>
 		<key name="error_0104">The parameter get_company_from_oui->mac must be a valid MAC address or be in the format 'xx:xx:xx'. Received: [#!variable!mac!#].</key>
 		<key name="error_0105">The file: [#!variable!file!#] was not found.</key>
-		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!key!#], but it does not reference a hash. Are any IPs associated with this target? The caller was: [#!variable!source!#:#!variable!line!#].]]></key>
+		<key name="error_0106"><![CDATA[The method Network->find_matches() was given the hash key: [#!variable!bad_key!#], but it does not reference a hash. Are any IPs associated with this target? The caller was: [#!variable!source!#:#!variable!line!#].]]></key>
 		<key name="error_0107">Failed to reconnect after reconfiguring the network. Will reboot in hopes of coming up cleanly.</key>
 		<key name="error_0108">The 'recipient_level': [#!variable!recipient_level!#] is invalid. It should be '0', '1', '2', '3', or '4'.</key>
 		<key name="error_0109">The 'notification_alert_level': [#!variable!notification_alert_level!#] is invalid. It should be '0', '1', '2', '3', or '4'.</key>
@@ -413,7 +413,7 @@ We're done waiting, exiting out.
 		<key name="error_0295">The host: [#!variable!host_name!#] is not in an Anvil!, unable to parse fence methods.</key>
 		<key name="error_0296">The Anvil!: [#!variable!anvil_name!#] does not have a recored CIB in the database, unable to parse fence methods.</key>
 		<key name="error_0297">Either we failed to find a fence method, or all fence methods failed to boot this machine, unable to proceed.</key>
-		<key name="error_0298"><![CDATA[The method Cluster->check_stonith_config() only runs on nodes, and this host is a: [#!variable!host_type!#].]]></key>
+		<key name="error_0298">The method Cluster/check_stonith_config() only runs on nodes, and this host is a: [#!variable!host_type!#].</key>
 		<key name="error_0299">This host is not in a cluster, or it's in the cluster but not ready yet. Either way, unable to check the config.</key>
 		<key name="error_0300">Failed to find the install manifest for the: [#!variable!anvil_name!#] Anvil! system. Unable to check or update the fence configuration.</key>
 		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
@@ -779,6 +779,7 @@ The XML that failed sanity check was:
 		<key name="error_0488">[ Error ] - Can't find a device to assign the: [#!variable!network!#] IP address: [#!variable!ip_address!#/#!variable!subnet_mask!#] to!</key>
 		<key name="error_0489">[ Error ] - Failed to map the IP address: [#!variable!ip_address!#] to a network manager connection UUID!</key>
 		<key name="error_0490">[ Error ] - Both the netbios name: [#!variable!wanted_link_name!#] and the old device name: [#!variable!old_device!#] are the same, 'match.interface-name' would break!</key>
+		<key name="error_0491">[ Error ] - Neither an Anvil! name or a host name was specified, nothing to purge.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1690,7 +1691,15 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0417">The resource config file: [#!variable!config_file!#] doesn't exist locally, pulling a copy over from: [#!variable!source!#].</key>
 		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
 		<key name="job_0419">The server: [#!variable!server!#] was found to be running outside the cluster. Asking it to shut down now.</key>
-		<key name="job_0428">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
+		<key name="job_0420">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
+		<key name="job_0421">#!free!#</key>
+		<key name="job_0422">#!free!#</key>
+		<key name="job_0423">#!free!#</key>
+		<key name="job_0424">#!free!#</key>
+		<key name="job_0425">#!free!#</key>
+		<key name="job_0426">#!free!#</key>
+		<key name="job_0427">#!free!#</key>
+		<key name="job_0428">#!free!#</key>
 		<key name="job_0429">Copying the Long-throw (drbd proxy) license file: [#!variable!file!#] into place.</key>
 		<key name="job_0430">The fence device: [#!variable!device!#] no longer has a port associated with it, will remove it.</key>
 		<key name="job_0431">Calling drbdadm adjust to load the new resource, then waiting for the DRBD device to appear.</key>
@@ -2110,6 +2119,7 @@ We will keep looking.</key>
 		<key name="log_0288">[ Error ] - The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
 		<key name="log_0289">[ Error ] - The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
 		<key name="log_0290">[ Error ] - The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
+		<key name="log_0291">#!free!#</key>
 		<key name="log_0292">[ Error ] - The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
 		<key name="log_0293">[ Error ] - The requested URL: [#!variable!url!#] failed for an unknown reason.</key>
 		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
@@ -2565,7 +2575,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0701">Running the scan agent: [#!variable!agent_name!#]...</key>
 		<key name="log_0702">I was asked to update the timestamp, but the returned timestamp matches the last one. Will loop until a new timestamp is returned.</key>
 		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
-		<key name="log_0704"><![CDATA[[ Error ] - The method Database->read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.]]></key>
+		<key name="log_0704">[ Error ] - The method Database/read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.</key>
 		<key name="log_0705">Forcing the dailing resync and checking to clear records in the history schema no longer in public schema.</key>
 		<key name="log_0706">Updating the OUI list will happen after the system has been up for at least an hour. You can force an update now by running 'striker-parse-oui --force' at the command line.</key>
 		<key name="log_0707">Updated: [#!data!path::configs::firewalld.conf!#] to disable 'AllowZoneDrifting'. See: https://firewalld.org/2020/01/allowzonedrifting</key>

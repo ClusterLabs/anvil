@@ -285,7 +285,7 @@ sub download_file
 		}
 		elsif ($line =~ /Network is unreachable/i)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0291", variables => { url => $url }});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0292", variables => { url => $url }});
 			$failed = 7;
 		}
 		elsif ($line =~ /^(\d+)K .*? (\d+)% (.*?) (\d+.*)$/)

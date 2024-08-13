@@ -2211,43 +2211,6 @@ sub connect
 			"database::${uuid}::user"     => $database_user, 
 			"database::${uuid}::password" => $anvil->Log->is_secure($anvil->data->{database}{$uuid}{password}), 
 		}});
-		
-		### TODO: Is this still an issue? If so, then we either need to require that the DB host 
-		###       matches the actual host name (dumb) or find another way of mapping the host name.
-		# Query to see if the newly connected host is in the DB yet. If it isn't, don't send an
-		# alert as it'd cause a duplicate UUID error.
-# 		my $query = "SELECT COUNT(*) FROM hosts WHERE host_name = ".$anvil->Database->quote($anvil->data->{database}{$uuid}{host}).";";
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-# 
-# 		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-# 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { count => $count }});
-# 		
-# 		if ($count > 0)
-# 		{
-# 			my $cleared = $anvil->Alert->check_alert_sent({
-# 				debug          => $debug, 
-#				clear          => 1,
-# 				set_by         => $THIS_FILE,
-# 				record_locator => $uuid,
-# 				name           => "connect_to_db",
-# 				modified_date  => $anvil->Database->refresh_timestamp,
-# 			});
-# 			if ($cleared)
-# 			{
-# 				$anvil->Alert->register({
-# 					debug      => $debug, 
-# 					level      => "warning", 
-# 					agent_name => "Anvil!",
-# 					title_key  => "an_title_0006",
-# 					message    => "cleared_log_0055",
-# 					variables  => {
-# 						name => $database_name,
-# 						host => $anvil->data->{database}{$uuid}{host},
-# 						port => defined $anvil->data->{database}{$uuid}{port} ? $anvil->data->{database}{$uuid}{port} : 5432,
-# 					},
-# 				});
-# 			}
-# 		}
 	}
 	
 	# Make sure my host UUID is valid

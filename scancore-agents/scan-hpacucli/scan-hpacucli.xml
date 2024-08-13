@@ -298,6 +298,7 @@ WARNING: If enough sensors go critical, emergency power off will occure to prote
 		</key>
 		<key name="scan_hpacucli_note_0067">The variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
 		<key name="scan_hpacucli_note_0068">The diagnostics variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0069">The temperature of the physical drive: [#!variable!serial_number!#] temperature has changed to: [#!variable!new_temperature!#]</key>
 		
 		<!-- Log strings -->
 		<key name="scan_hpacucli_log_0001">Found: [#!variable!count!#] controller(s).</key>

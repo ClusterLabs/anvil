@@ -151,7 +151,7 @@ elsif($anvil->data->{switches}{'host'})
 }
 else
 {
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => ""});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0491"});
 	$anvil->nice_exit({exit_code => 1});
 }
 

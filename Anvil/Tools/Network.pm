@@ -1732,9 +1732,9 @@ sub find_matches
 		{
 			# Well, we tried.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
-				key    => "first -> network::".$first,
-				source => $source, 
-				line   => $line,
+				bad_key => "first -> network::".$first,
+				source  => $source, 
+				line    => $line,
 			}});
 			return("");
 		}
@@ -1755,9 +1755,9 @@ sub find_matches
 		{
 			# Well, we tried.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0106", variables => { 
-				key    => "second -> network::".$second,
-				source => $source, 
-				line   => $line,
+				bad_key => "second -> network::".$second,
+				source  => $source, 
+				line    => $line,
 			}});
 			$anvil->nice_exit({exit_code => 1});
 			return("");
