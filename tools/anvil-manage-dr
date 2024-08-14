@@ -2941,19 +2941,19 @@ sub process_protect
 	}});
 
 	# Node 1 to Node 2 first
-	my $proxy      = "";
-	my $max_c_rate = 500;
-	my $file_key   = "file_0005";
+	my $proxy       = "";
+	my $max_c_rate  = 500;
+	my $message_key = "file_0005";
 	if ($use_drbd_proxy)
 	{
-		$proxy      = $anvil->Words->string({key => "file_0008", variables => { memlimit => 256 }});
-		$max_c_rate = 100;
-		$file_key   = "file_0007";
+		$proxy       = $anvil->Words->string({key => "file_0008", variables => { memlimit => 256 }});
+		$max_c_rate  = 100;
+		$message_key = "file_0007";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		proxy      => $proxy, 
 		max_c_rate => $max_c_rate,
-		file_key   => $file_key, 
+		file_key   => $message_key, 
 	}});
 	
 	# Node 1 to 2
@@ -2970,7 +2970,7 @@ sub process_protect
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 	
 	# Node 1 to DR
-	$connections .= $anvil->Words->string({key => $file_key, variables => {
+	$connections .= $anvil->Words->string({key => $message_key, variables => {
 		host1_short_name => $node1_short_host_name, 
 		host1_ip         => $node1_dr_ip, 
 		host2_short_name => $dr_short_host_name,
@@ -2985,7 +2985,7 @@ sub process_protect
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connections => $connections }});
 
 	# Node 2 to DR
-	$connections .= $anvil->Words->string({key => $file_key, variables => {
+	$connections .= $anvil->Words->string({key => $message_key, variables => {
 		host1_short_name => $node2_short_host_name, 
 		host1_ip         => $node2_dr_ip, 
 		host2_short_name => $dr_short_host_name,
