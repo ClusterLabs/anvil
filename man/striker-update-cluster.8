@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! IA platform 
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH striker-update-cluster "8" "July 11 2023" "Anvil! Intelligent Availability™ Platform"
+.TH striker-update-cluster "8" "August 15 2023" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 striker-update-cluster \- This program updates all physical machines in an Anvil! cluster
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ striker-update-cluster \- This program updates all physical machines in an Anvil
 This program sequentially updates Striker dashboards, DR hosts and Anvil! nodes (the paired sub-nodes). It does this without needing to take hosted servers offline.
 .TP
 .B Note:
-This program requires all machines be online, and Anvil! nodes being paired and sync'ed. When nodes are updated, the inactive subnode will be removed from the node, updated, rebooted if necessary, and then rejoined to the node. Then hosted servers will migrate to the now-updated subnode, and the process repeated for the other subnode. Anvil! nodes are updated sequentially, so the process can take some time to complete, but should not require a maintenance window.
+This program requires all machines to be online, and Anvil! nodes being paired and synced. When nodes are updated, the inactive subnode will be removed from the node, updated, rebooted if necessary, and then rejoined to the node. Then hosted servers will migrate to the now-updated subnode, and the process repeated for the other subnode. Anvil! nodes are updated sequentially, so the process can take some time to complete, but should not require a maintenance window.
 .TP
 The upgrade process will live-migrate all hosted servers! If any hosted server is either under heavy load, or the replication link (the BCN or MN) is relatively lower bandwidth, this could cause performance concerns. As such, it's ideal to run the upgrades at a time less sensitive to performance impacts.
 .IP
@@ -39,11 +39,11 @@ Automatically continue with the upgrade without prompting for confirmation.
 .TP
 \fB\-\-no\-reboot\fR
 .TP
-If the kernel is updated on a remote system, the system will normally be rebooted. This switch prevents the reboot from occuring.
+If the kernel is updated on a remote system, the system will normally be rebooted. This switch prevents the reboot from occurring.
 .TP
 \fB\-\-reboot\-self\fR
 .TP
-By default, if the kenrel on the local system is updated, and so a reboot is needed, a message is printed but the local system is NOT rebooted. This switch will instead cause this host to reboot at the end of the cluster update.
+By default, if the kernel on the local system is updated, and so a reboot is needed, a message is printed but the local system is NOT rebooted. This switch will instead cause this host to reboot at the end of the cluster update.
 .TP
 See \fB\-\-reboot\fR for rebooting if anything is updated.
 .TP
