@@ -238,13 +238,13 @@ The error was:
 		<key name="error_0158">Unable to migrate the server: [#!variable!server!#] as this server was not found in the cluster information base (CIB).</key>
 		<key name="error_0159">Unable to read the stat information for the file: [#!variable!file_path!#], the file doesn't appear to exist.</key>
 		<key name="error_0160">The '#!variable!name!#': [#!variable!uuid!#] is not valid.</key>
-		<key name="error_0161">Unable to mark the server with UUID: [#!variable!uuid!#] as "deleted" because it doesn't apprear to exist in the database in the first place.</key>
+		<key name="error_0161">Unable to mark the server with UUID: [#!variable!uuid!#] as "deleted" because it doesn't appear to exist in the database in the first place.</key>
 		<key name="error_0162">The 'anvil_uuid': [#!variable!anvil_uuid!#] in invalid.</key>
 		<key name="error_0163">The MIB file: [#!variable!mib!#] doesn't exist or can't be read.</key>
 		<key name="error_0164">The date: [#!variable!date!#] is not in either the 'mm/dd/yy' or 'mm/dd/yyyy' formats. Can't convert to 'yyyy/mm/dd'.</key>
 		<key name="error_0165">The temperature: [#!variable!temperature!#] does not appear to be valid.</key>
 		<key name="error_0166">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, but does not appear to be a valid UUID: [#!variable!uuid!#].</key>
-		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a valud UUID.</key>
+		<key name="error_0167">The resource: [#!variable!resource!#] in the config file: [#!variable!file!#] was found, and we were asked to replace the 'scan_drbd_resource_uuid' but the new UUID: [#!variable!uuid!#] is not a value UUID.</key>
 		<key name="error_0168">The 'fence_ipmilan' command: [#!variable!command!#] does not appear to be valid.</key>
 		<key name="error_0169">The Anvil! UUID: [#!variable!anvil_uuid!#] doesn't appear to exist in the database.</key>
 		<key name="error_0170">Unable to move an uploaded file from the: [#!data!path::directories::shared::incoming!#] directory as a file name wasn't set (or failed to parse) from the 'job_data' in the job: [#!variable!job_uuid!#].</key>
@@ -458,9 +458,9 @@ Giving up.
 		<key name="error_0335">Failed to access the DR host: [#!variable!host_name!#] using the IP: [#!variable!ip_address!#]. Is it running? Exiting.</key>
 		<key name="error_0336">Failed to parse the CIB. Is this node in the cluster? Exiting.</key>
 		<key name="error_0337">We're not a full member of the cluster yet. Please try again once we're fully in. Exiting.</key>
-		<key name="error_0338">We can't setup a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.</key>
+		<key name="error_0338">We can't set up a server to be protected unless both nodes are up, and the peer isn't at this time. Exiting.</key>
 		<key name="error_0339">We can't remove a server from DR unless both nodes are up, and the peer isn't at this time. Exiting.</key>
-		<key name="error_0340"><![CDATA[Please specify the server to manager using '--server <name or uuid>'. Exiting.]]></key>
+		<key name="error_0340"><![CDATA[Please specify the server to manage using '--server <name or uuid>'. Exiting.]]></key>
 		<key name="error_0341">Failed to find the server: [#!variable!server!#] by name or UUID? Exiting.</key>
 		<key name="error_0342">The protocol: [#!variable!protocol!#] is invalid. Please use '--help' for more information.</key>
 		<key name="error_0343">The DR host: [#!variable!host_name!#] doesn't appear to be in the storage group: [#!variable!storage_group!#]. Unable to proceed.</key>
@@ -506,7 +506,7 @@ The output, if any, was;
 		<key name="error_0360">Unable to find the Anvil! information for the Anvil! UUID: [#!variable!anvil_uuid!#].</key>
 		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
 		<key name="error_0362">#!free!#</key>
-		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the dupplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
+		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the duplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
 		<key name="error_0366">#!free!#</key>
@@ -527,7 +527,7 @@ The definition data passed in was:
 		<key name="error_0372">We're set to migrate servers (--stop-servers not used) but both nodes are not in the cluster, so migrations would fail. Aborting.</key>
 		<key name="error_0373">Long-throw requires a license, and the license file is not installed, and '--license-file /path/to/drbd-proxy.license' was not passed.</key>
 		<key name="error_0374">The long-throw license file: [#!variable!file!#] was not found, so unable to install it.</key>
-		<key name="error_0375">There was a problem with the "Long-throw" lincense file. This will prevent Long-Throw DR from working. Details of the error will be recorded in the log file.</key>
+		<key name="error_0375">There was a problem with the "Long-throw" license file. This will prevent Long-Throw DR from working. Details of the error will be recorded in the log file.</key>
 		<key name="error_0376">[ Error ] - (At least) two interfaces have the same MAC address assigned to them. This should not happen, and would cause endless reboots. Unable to complete configuration, please re-map the network again and watch for duplicates. The duplicate MAC address is: [#!variable!mac_address!#] which is used by both: [#!variable!iface1!#] and: [#!variable!iface2!#].</key>
 		<key name="error_0377">[ Error ] - The '--type' must be 'host' or 'dr'. Was given: [#!variable!type!#].</key>
 		<key name="error_0378">[ Error ] - The UUID: [#!variable!uuid!#] is not a valid UUID.</key>
@@ -551,7 +551,7 @@ The definition data passed in was:
 		<key name="error_0386">[ Error ] - The email address: [#!variable!email!#] appears to be invalid.</key>
 		<key name="error_0387">[ Error ] - The switch: [--#!variable!switch!#] is required, but not provided.</key>
 		<key name="error_0388">[ Error ] - The mail server UUID: [#!variable!uuid!#] was not found.</key>
-		<key name="error_0389">[ Error ] - I was asked to delete a notification over-ride, but no 'notification_uuid' was provides.</key>
+		<key name="error_0389">[ Error ] - I was asked to delete a notification override, but no 'notification_uuid' was provides.</key>
 		<key name="error_0390">[ Error ] - The alert recipient UUID: [#!variable!uuid!#] wasn't found in the database.</key>
 		<key name="error_0391">[ Error ] - The host UUID: [#!variable!uuid!#] wasn't found in the database.</key>
 		<key name="error_0392">[ Error ] - The switch '--test' requires an alert level to send the test '--alert X' at. Valid alert levels are;
@@ -700,7 +700,7 @@ The extension of the resource is incomplete, manual intervention is required!!
 ==========
 #!variable!output!#
 ==========
-The creation of the new replicatedd disk is incomplete, manual intervention is required!]]></key>
+The creation of the new replicated disk is incomplete, manual intervention is required!]]></key>
 		<key name="error_0461"><![CDATA[ Error!
 [ Failed ] - When trying to create the peer: [#!variable!host_name!#]'s logical volume: [#!variable!backing_disk!#]
 [ Failed ] - using the command: [#!variable!shell_call!#]
@@ -721,7 +721,7 @@ The XML that failed sanity check was:
 ]]></key>
 		<key name="error_0465"><![CDATA[The file: [#!variable!file!#] doesn't exist on the target: [#!variable!target!#].]]></key>
 		<key name="error_0466"><![CDATA[The Anvil! string (name or UUID): [#!variable!string!#] didn't match any known Anvil! in the database.]]></key>
-		<key name="error_0467"><![CDATA[[ Error ] - The repartition attemp failed! Reloading the partition table now!]]]></key>
+		<key name="error_0467"><![CDATA[[ Error ] - The repartition attempt failed! Reloading the partition table now!]]]></key>
 		<key name="error_0468">We need: [#!variable!space_needed!# (#!variable!space_needed_bytes!# Bytes)] from the storage group: [#!variable!storage_group!#], but the requested DR host does not appear to have a volume group in this storage group. Hint, please use 'anvil-manage-storage-groups' to resolve. Unable to proceed.</key>
 		<key name="error_0469">[ Error ] - The device: [#!variable!device_target!#] was not found, exiting.</key>
 		<key name="error_0470">[ Error ] - The new definition is bad:
@@ -739,7 +739,7 @@ The XML that failed sanity check was:
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
-		<key name="error_0481">[ Error ] - Failed to delete the 'connection.interface-name', got: [#!variable!output!#] and it should bhave been blank, aborting!</key>
+		<key name="error_0481">[ Error ] - Failed to delete the 'connection.interface-name', got: [#!variable!output!#] and it should have been blank, aborting!</key>
 		<key name="error_0482">[ Error ] - Failed to create the 'match.interface-name' value. Expected: [#!variable!new_name!#,#!variable!old_device!#], got: [#!variable!output!#], aborting!</key>
 		<key name="error_0483">[ Error ] - The attempt to add the bond: [#!variable!bond_name!#] failed! The return code was: [#!variable!return_code!#]. The output, if any, was:
 ========
@@ -872,11 +872,11 @@ sys::privacy::strong						=	#!data!sys::privacy::strong!#
 # 
 # When the number exceeds the trigger, the number of records that are archived is approximately (number of 
 # records above trigger + 'count'). This is not an exact number because a representative timestamp will be 
-# selected from the hostory schema at this count, and then any record equal to or older than the time stamp 
+# selected from the history schema at this count, and then any record equal to or older than the time stamp 
 # is removed.
 # 
 # To protect against the potential of using too much disk space, archives are off by default. Under normal 
-# behaviour, old records are simple removed. To enable the archive function, set this to '1'.
+# behaviour, old records are simply removed. To enable the archive function, set this to '1'.
 #sys::database::archive::save_to_disk				=	1
 # 
 # When archiving to disk is enabled, to protect against large memory use or long archive times in the case 
@@ -901,7 +901,7 @@ sys::database::archive::division				=	30000
 sys::database::archive::directory				=	/usr/local/anvil/archives/
 
 # This puts a limit on how many queries (writes, generally) to make in a single batch transaction. This is 
-# useful when doing very large transacions, like resync'ing a large table, by limiting how long a given 
+# useful when doing very large transactions, like resync'ing a large table, by limiting how long a given 
 # transaction can take and how much memory is used. 
 sys::database::maximum_batch_size				=	25000
 
@@ -920,13 +920,13 @@ sys::database::maximum_batch_size				=	25000
 # NOTE: Be sure the language exists before changing it!
 defaults::languages::output					=	en_CA
 
-# This controls how many loops Anvil::Tools::Words is allow to make while processing a string. This acts as a 
-# mechanism to exit infinite loops, and generally should not need to be changed.
+# This controls how many loops Anvil::Tools::Words is allowed to make while processing a string. This acts as
+# a mechanism to exit infinite loops, and generally should not need to be changed.
 defaults::limits::string_loops					=	1000
 
 
 ### Logging options
-# This controls whether all database transactions are recorded or not. Genreally this should be left off 
+# This controls whether all database transactions are recorded or not. Generally this should be left off 
 # unless you are debugging the program.
 # WARNING: This ignores 'secure', and will always be logged. Be careful about exposing sensitive data!
 sys::database::log_transactions					=	0
@@ -957,13 +957,7 @@ defaults::log::secure						=	0
 defaults::log::tag						=	anvil
 
 
-### Templates
-# This sets the default template used when rendering HTML pages. It must be the same as the directory name
-# under /var/www/html/skins/
-defaults::template::html					=	alteeve
-
-
-### Install Target options
+### Install Target options - (NOT YET IMPLEMENTED)
 # Note; Please see 'pxe.txt' for editable templates for 'dhcpd.conf', (tftpboot's BIOS) 'default' and the
 #       kickstart templates.
 # 
@@ -974,12 +968,12 @@ defaults::template::html					=	alteeve
 # - https://docs.fedoraproject.org/en-US/fedora/f28/install-guide/appendixes/Kickstart_Syntax_Reference/#sect-kickstart-commands-keyboard
 #kickstart::keyboard						=	--vckeymap=us --xlayouts='us'
 #
-# This sets the default password of newly stage-1 built machines. Generally, this shouldn't be change. It is
+# This sets the default password of newly stage-1 built machines. Generally, this shouldn't be changed. It is
 # recorded in plain text and it is used in the stage-2 configuration tools. 
 #kickstart::password						=	Initial1
 #
 # This is the system timezone to be set. Generally, it's recommended to leave the Anvil! machines to UTC, but
-# you might want to change this is if you spend time working directly on the various Anvil! cluster machines.
+# you might want to change this if you spend time working directly on the various Anvil! cluster machines.
 #kickstart::timezone						=	Etc/GMT --isUtc
 
 # If this is set to '1', the packages used to build machines via the Install Target feature will not 
@@ -1011,7 +1005,7 @@ sys::manage::firewall						=	1
 ### Server related options
 # This is the "short list" of servers shown when provisioning a new server. To see the full list of options,
 # run '/usr/bin/osinfo-query os' on any machine in the Anvil!. 
-#sys::servers::os_short_list					=	debian10,fedora32,freebsd12.1,gentoo,macosx10.7,msdos6.22,openbsd6.7,opensuse15.2,rhel5.11,rhel6.10,rhel7.9,rhel8.3,sles12sp5,solaris11,ubuntu20.04,win10,win2k16,win2k19
+#sys::servers::os_short_list					=	rhel9.4,ubuntu22.04,win10,win2k22
 ]]></key>
 		<key name="file_0003"><![CDATA[
         on #!variable!short_host_name!# {
@@ -1248,7 +1242,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		</key>
 		<key name="job_0036">Adding the repo: [#!variable!repo!#]</key>
 		<key name="job_0037">Verifying the the needed repos are enabled now.</key>
-		<key name="job_0038">[ Warning ] - The repo: [#!variable!repo!#] is not subcribed to this system! Initialization will continue, but it might fail.</key>
+		<key name="job_0038">[ Warning ] - The repo: [#!variable!repo!#] is not subscribed to this system! Initialization will continue, but it might fail.</key>
 		<key name="job_0039">Updating the target's operating system prior to package install.</key>
 		<key name="job_0040">[ Note ] - This step can take a while to finish, and there will be no input here until it completes.</key>
 		<key name="job_0041">Removing conflicting packages.</key>
@@ -1260,15 +1254,15 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
 		<key name="job_0048">Removing bad machine keys.</key>
 		<key name="job_0049">Removing existing entries for the target machine: [#!variable!target!#] from: [#!variable!file!#].</key>
-		<key name="job_0050">[ Error ] - The known hosts file: [#!variable!file!#] was not found. Skipping it.</key>
+		<key name="job_0050">[ Error ] - The known_hosts file: [#!variable!file!#] was not found. Skipping it.</key>
 		<key name="job_0051">Finished.</key>
-		<key name="job_0052">[ Error ] - There was a problem reading the known hosts file: [#!variable!file!#]. Skipping it.</key>
+		<key name="job_0052">[ Error ] - There was a problem reading the known_hosts file: [#!variable!file!#]. Skipping it.</key>
 		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0054">#!free!#</key>
 		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
 		<key name="job_0056">#!free!#</key>
 		<key name="job_0057">#!free!#</key>
-		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a progrem error, skipping this.</key>
+		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a program error, skipping this.</key>
 		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
 		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
 		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
@@ -1293,7 +1287,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0080">About to update the network, as necessary.</key>
 		<key name="job_0081">Checking: [#!variable!name!#].</key>
 		<key name="job_0082">No changes needed.</key>
-		<key name="job_0083">Backing up and writting out the new version of: [#!variable!file!#].</key>
+		<key name="job_0083">Backing up and writing out the new version of: [#!variable!file!#].</key>
 		<key name="job_0084">Reconnected to: [#!data!sys::database::connections!#] database(s).</key>
 		<key name="job_0085">The default 'virbr0' libvirtd bridge exists. Removing it.</key>
 		<key name="job_0086">Checking if the MTU needs to be updated on any interfaces.</key>
@@ -1307,7 +1301,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0094">Enabled and started the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0095">Disable and stop the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0096">This is a DR host, skipping pacemaker configuration.</key>
-		<key name="job_0097"><![CDATA[[ Error ] - Authorizing against 'pcsd' failed. Has the peer configured it's 'hacluster' user yet?. Will try again in a moment.]]></key>
+		<key name="job_0097"><![CDATA[[ Error ] - Authorizing against 'pcsd' failed. Has the peer configured its 'hacluster' user yet?. Will try again in a moment.]]></key>
 		<key name="job_0098">Successfully authorized using 'pcsd' on both nodes.</key>
 		<key name="job_0099">No existing cluster found, will run initial setup.</key>
 		<key name="job_0100">The corosync.conf file does not exist locally, but it does exist on the peer. Copying the file to here.</key>
@@ -1341,7 +1335,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0128">Update not required, nothing changed.</key>
 		<key name="job_0129">Completed joining the #!string!brand_0002!#.</key>
 		<key name="job_0130">No job was found that needs to be run.</key>
-		<key name="job_0131">Reconnecting will start a synchonization of the database. This step might take a while to complete, please be patient.</key>
+		<key name="job_0131">Reconnecting will start a synchronization of the database. This step might take a while to complete, please be patient.</key>
 		<key name="job_0132">Sync Uploaded File</key>
 		<key name="job_0133">This moves an uploaded file from the: [#!data!path::directories::shared::incoming!#] directory to: [#!data!path::directories::shared::files!#] directory, adds it to the Anvil! database, and pushed it out to other systems.</key>
 		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
@@ -1408,7 +1402,7 @@ It should be provisioned in the next minute or two.</key>
 		<key name="job_0185">Sanity checks complete.</key>
 		<key name="job_0186">The new DRBD resource will use minor number: [#!variable!minor!#] and the base TCP port: [#!variable!port!#].</key>
 		<key name="job_0187">[ Warning ] - The logical volume: [#!variable!lv_path!#] to use for this server already exists. We will NOT initialize it! If the LV does not have DRBD metadata, the server install will fail. If the LV is a DRBD resource, and it is inconsistent or outdated, provisioning will stall until the peer comes online. If the install fails, please determine why (or remove the existing LV) and try again.</key>
-		<key name="job_0188">The peer job: [#!variable!job_uuid!#] has been created for the peer: [#!variable!peer_name!#] to create it's side of the storage.</key>
+		<key name="job_0188">The peer job: [#!variable!job_uuid!#] has been created for the peer: [#!variable!peer_name!#] to create its side of the storage.</key>
 		<key name="job_0189">The new logical volume: [#!variable!lv_path!#] has been created. This will back the replicated storage used for the new server.</key>
 		<key name="job_0190">The DRBD resource: [#!variable!resource!#] configuration has been created and loaded.</key>
 		<key name="job_0191">The DRBD resource: [#!variable!resource!#] metadata has been created.</key>
@@ -1459,7 +1453,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0231">Waiting now for the peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] to show up in our database.</key>
 		<key name="job_0232">The peer Striker: [#!variable!number!#] with host name: [#!variable!peer_host_name!#] has successfully peered with us!</key>
 		<key name="job_0233">The peer Striker: [#!variable!number!#] with host UUID: [#!variable!peer_host_uuid!#] has not yet started using our database. Waiting a bit before checking again...</key>
-		<key name="job_0234">Peering Striker dashbaords</key>
+		<key name="job_0234">Peering Striker dashboards</key>
 		<key name="job_0235">Striker peers now working with us!</key>
 		<key name="job_0236">Adding UPSes now.</key>
 		<key name="job_0237">Successfully added/updated the UPS: [#!variable!ups_name!#] at: [#!variable!ups_ip_address!#] using the agent: [#!variable!ups_agent!#]. It's UPS UUID is: [#!variable!ups_uuid!#].</key>
@@ -1499,7 +1493,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0271">One of the Striker dashboards has not yet updated network information in the database. We need this to know which IP to tell the peer to use to connect to us. We'll wait a moment and check again.</key>
 		<key name="job_0272">The cluster still hasn't started. Calling startup again (will try once per minute).</key>
 		<key name="job_0273">Successfully added/confirmed the filter in lvm.conf.</key>
-		<key name="job_0274">Failed to add/confirmed the filter in lvm.conf! This should be corrected later by 'scan-drbd' though.</key>
+		<key name="job_0274">Failed to add/confirm the filter in lvm.conf! This should be corrected later by 'scan-drbd' though.</key>
 		<key name="job_0275">The cluster isn't up. Provisioning the server will hold until it is. Will check every 10 seconds.</key>
 		<key name="job_0276">The cluster is up.</key>
 		<key name="job_0277">The cluster is not started yet, waiting. Will check again shortly.</key>
@@ -1636,7 +1630,7 @@ Do you want to update the DR host for the server: [#!variable!server!#]?
 Note: This will connect the DR host until the disk(s) on DR are (all) UpToDate.
       Depending on the disk write load and storage network speed to the DR host,
       this could cause reduced disk write performance.</key>
-		<key name="job_0396">Still sync'ing from: [#!variable!sync_source!#] at a rate of: [#!variable!sync_speed!#/sec]. Estimated time remaining is: [#!variable!time_to_sync!#].</key>
+		<key name="job_0396">Still syncing from: [#!variable!sync_source!#] at a rate of: [#!variable!sync_speed!#/sec]. Estimated time remaining is: [#!variable!time_to_sync!#].</key>
 		<key name="job_0397">Sync'ed! Bringing the resource back down now.</key>
 		<key name="job_0398">Waiting for the connection to come up...</key>
 		<key name="job_0399">Manage Firewall</key>
@@ -1677,7 +1671,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0417">The resource config file: [#!variable!config_file!#] doesn't exist locally, pulling a copy over from: [#!variable!source!#].</key>
 		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
 		<key name="job_0419">The server: [#!variable!server!#] was found to be running outside the cluster. Asking it to shut down now.</key>
-		<key name="job_0420">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the poewr button again.</key>
+		<key name="job_0420">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the power button again.</key>
 		<key name="job_0421">#!free!#</key>
 		<key name="job_0422">#!free!#</key>
 		<key name="job_0423">#!free!#</key>
@@ -1752,7 +1746,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0486">Cluster hasn't started, will check is re-auth is needed.</key>
 		<key name="job_0487">Authorization via 'pcsd' failed, attempting to re-auth.</key>
 		<key name="job_0488">
-[ Note ] - The host name was updated. The hostname is cached in several place, and it is important all are updated during the cluster config.
+[ Note ] - The host name was updated. The hostname is cached in several places, and it is important all are updated during the cluster config.
 [ Note ]   *** the system will now reboot. ***
 [ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
 
@@ -1944,7 +1938,7 @@ The database connection error was:
 		<key name="log_0153"><![CDATA[The Storage->backup() method was called with the source file: [#!variable!source_file!#], which isn't actually a file.]]></key>
 		<key name="log_0154">The file: [#!variable!source_file!#] has been backed up as: [#!variable!target_file!#].</key>
 		<key name="log_0155">#!free!#</key>
-		<key name="log_0156"><![CDATA[[ Error ] - The method: [#!variable!method!#] must be called with root-level priviledges.]]></key>
+		<key name="log_0156"><![CDATA[[ Error ] - The method: [#!variable!method!#] must be called with root-level privileges.]]></key>
 		<key name="log_0157"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it appears to be missing the file name. Aborting.]]></key>
 		<key name="log_0158">Ensuring we've recorded: [#!variable!target!#]'s RSA fingerprint for the user: [#!variable!user!#].</key>
 		<key name="log_0159">Adding the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
@@ -1961,7 +1955,7 @@ The database connection error was:
 		<key name="log_0170"><![CDATA[[ Note ] - The method Storage->#!variable!method!#() was asked to copy: [#!variable!source_file!#] to: [#!variable!target_file!#], but the target's parent directory doesn't exist and we were unable to create it.]]></key>
 		<key name="log_0171"><![CDATA[[ Error ] - The method: Account->encrypt_password() tried to use the algorithm: [#!variable!algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported. The desired algorithm can be set via 'sys::password::algorithm'.]]></key>
 		<key name="log_0172"><![CDATA[[ Error ] - Asked to validate a password for the user: [#!variable!user!#], but that user wasn't found.]]></key>
-		<key name="log_0173"><![CDATA[[ Error ] - Asked to valudate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
+		<key name="log_0173"><![CDATA[[ Error ] - Asked to validate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
 		<key name="log_0174"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#], but that variable was not found.]]></key>
 		<key name="log_0175"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#] on the host: [#!variable!target!#], but that variable was not found.]]></key>
 		<key name="log_0176">#!free!#</key>
@@ -1972,10 +1966,10 @@ The database connection error was:
 		<key name="log_0181">The user hash in the user's cookie was valid yesterday, updating the stored hash and allowing the user to proceed.</key>
 		<key name="log_0182">The user hash in the user's cookie is invalid. It is probably expired.</key>
 		<key name="log_0183">The user: [#!variable!user!#] logged in successfully.</key>
-		<key name="log_0184">Theew was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
+		<key name="log_0184">There was a failed login attempt from: [#!variable!user_agent!#], trying to log in as: [#!variable!user!#]. log in rejected.</key>
 		<key name="log_0185"><![CDATA[<unknown>]]></key>	<!-- Used in some cases when a variable isn't known -->
 		<key name="log_0186"><![CDATA[<suppressed>]]></key>	<!-- Used in some cases when a variable isn't known -->
-		<key name="log_0187">Host UUID cache file: [#!data!path::data::host_uuid!#] doesn't exists and we're not running as root so we can't read dmidecode. Unable to proceed.</key>
+		<key name="log_0187">Host UUID cache file: [#!data!path::data::host_uuid!#] doesn't exist and we're not running as root so we can't read dmidecode. Unable to proceed.</key>
 		<key name="log_0188">Database archive check skipped, not running as root.</key>
 		<key name="log_0189">Database archiving is disabled, skipping archive checks.</key>
 		<key name="log_0190">Peer: [#!variable!peer!#], database: [#!variable!name!#], password: [#!variable!password!#], host UUID: [#!variable!uuid!#]</key>
@@ -2076,7 +2070,7 @@ The user: [#!variable!user!#]'s SSH key yet has been generated. The output is be
 		<key name="log_0272">The user: [#!variable!user!#] doesn't appear to have a base SSH directory. Will now create: [#!variable!directory!#].</key>
 		<key name="log_0273">The user: [#!variable!user!#]'s: [#!variable!file!#] file needs to be updated.</key>
 		<key name="log_0274">
-The fingerprint of: [#!variable!machine!#] has changed! Updating it's entry in known hosts.
+The fingerprint of: [#!variable!machine!#] has changed! Updating its entry in known_hosts.
 - From: [#!variable!old_key!#]
 - To: . [#!variable!new_key!#]
 		</key>
@@ -2093,7 +2087,7 @@ We will keep looking.</key>
 		<key name="log_0282">#!free!#</key>
 		<key name="log_0283">Done.</key>
 		<key name="log_0284">[ Error ] - Failed to remove the file: [#!variable!file!#]! Please check the permissions or for SELinux denials.</key>
-		<key name="log_0285">The file: [#!variable!file!#] is marked as not sync'ed to this Anvil!, removing it now.</key>
+		<key name="log_0285">The file: [#!variable!file!#] is marked as not synced to this Anvil!, removing it now.</key>
 		<key name="log_0286">[ Error ] - The URL: [#!variable!url!#] to download appears to be invalid.</key>
 		<key name="log_0287">[ Error ] - The requested URL: [#!variable!url!#] was not found on the remote server.</key>
 		<key name="log_0288">[ Error ] - The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
@@ -2105,7 +2099,7 @@ We will keep looking.</key>
 		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0295"><![CDATA[[ Error ] - The method Remote->call() was passed the 'timeout' of: [#!variable!timeout!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0296">We have a connection open already to: [#!variable!connection!#], skipping connect stage.</key>
-		<key name="log_0297">The file: [#!variable!file!#] has beed successfully downloaded.</key>
+		<key name="log_0297">The file: [#!variable!file!#] has been successfully downloaded.</key>
 		<key name="log_0298">ocf:alteeve:server invoked</key>
 		<key name="log_0299">We were asked to promote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
 		<key name="log_0300">We were asked to demote: [#!variable!server!#], which makes no sense and is not supported. Ignoreing.</key>
@@ -2172,7 +2166,7 @@ We will keep looking.</key>
 		<key name="log_0361">Running validation tests...</key>
 		<key name="log_0362">#!free!#</key>
 		<key name="log_0363">- Server name is valid.</key>
-		<key name="log_0364">- Eumlator is valid.</key>
+		<key name="log_0364">- Emulator is valid.</key>
 		<key name="log_0365">- Sufficient RAM is available.</key>
 		<key name="log_0366">- Network bridge(s) are available.</key>
 		<key name="log_0367">- Storage is valid and ready.</key>
@@ -2347,7 +2341,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0520">The server: [#!variable!server!#] is indeed running. It will be shut down now.</key>
 		<key name="log_0521">Checking the status of the server: [#!variable!server!#].</key>
 		<key name="log_0522">#!free!#</key>
-		<key name="log_0523">Found the server to be running using it's PID. The state of the server can't be determined, however. There appears to be a problem with 'virsh'!</key>
+		<key name="log_0523">Found the server to be running using its PID. The state of the server can't be determined, however. There appears to be a problem with 'virsh'!</key>
 		<key name="log_0524">#!free!#</key>
 		<key name="log_0525">The server: [#!variable!server_name!#] is shutting down. Will wait for it to finish...</key>
 		<key name="log_0526">The server: [#!variable!server_name!#] is off (not found in virsh or by PID).</key>
@@ -2433,7 +2427,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0602">Disabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0603">This node is not in an Anvil! yet, so there's no reason to run this program.</key>
 		<key name="log_0604">Successful access over the network: [#!variable!network!#] to the peer: [#!variable!peer!#] using the peer's IP: [#!variable!peer_ip!#].</key>
-		<key name="log_0605">Failed to acess over the peer: [#!variable!peer!#] over the network: [#!variable!network!#] via the peer's IP: [#!variable!peer_ip!#].</key>
+		<key name="log_0605">Failed to access over the peer: [#!variable!peer!#] over the network: [#!variable!network!#] via the peer's IP: [#!variable!peer_ip!#].</key>
 		<key name="log_0606">At least one network connection to the peer: [#!variable!peer!#] is still down. Waiting a bit and then will check again.</key>
 		<key name="log_0607">All connections to the peer: [#!variable!peer!#] are up!</key>
 		<key name="log_0608">The cluster does not appear to be running, starting it now.</key>
@@ -2441,7 +2435,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0610">We're online as: [#!variable!node_name!#], but we're not quorate yet. Continuing to wait.</key>
 		<key name="log_0611">We're online as: [#!variable!node_name!#] and quorate!</key>
 		<key name="log_0612">We're not online yet. Waiting for 'in_ccm/crmd/join': [#!variable!in_ccm!#/#!variable!crmd!#/#!variable!join!#]. ('in_ccm' = consensus cluster member, communication layer. 'crmd' = cluster resource manager daemon is up, 'join' = allowed to host resources).</key>
-		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the host [#!variable!host_name!#] yet. Registering it now as not sync'ed to this system.</key>
+		<key name="log_0613">The file: [#!variable!file_name!#] is not recorded for the host [#!variable!host_name!#] yet. Registering it now as not synced to this system.</key>
 		<key name="log_0614">Asking 'anvil-boot-server' to boot the servers now.</key>
 		<key name="log_0615">We were asked to delete the file: [#!variable!file!#], but it doesn't exist, so nothing to do.</key>
 		<key name="log_0616">The file: [#!variable!file!#] has been successfully removed.</key>
@@ -2469,7 +2463,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0638">We're hosting servers, and our peer is not. Making the fence delay favours this node.</key>
 		<key name="log_0639">The Anvil! daemon is in startup mode, and the job: [#!variable!job_uuid!#], command: [#!variable!job_command!#] is not a startup job, ignoring it for now.</key>
 		<key name="log_0640">Our peer is online, no need to check server location constraints.</key>
-		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that preferres our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
+		<key name="log_0641">The server: [#!variable!server!#] has a location constraint that prefers our peer, but our peer is offline. Updating the location constraint to prefer this node.</key>
 		<key name="log_0642">Disabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0643">The corosync config file is being updated with these differences;
 ====
@@ -2485,12 +2479,12 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0650">[ Note ] - We're a Striker and we did not connect to a peer's database. Will check now if we can load a recent backup, then start postgres locally (with or without a load).</key>
 		<key name="log_0651">Evaluating the dump file: [#!variable!full_path!#].</key>
 		<key name="log_0652">The database host UUID: [#!variable!host_uuid!#] is not configured here, ignoring: [#!variable!full_path!#].</key>
-		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], will compare it's modidified time to other dumps we may find.</key>
+		<key name="log_0653">We created the database dump file: [#!variable!full_path!#], will compare its modified time to other dumps we may find.</key>
 		<key name="log_0654">The database was dumped to: [#!variable!file!#] in: [#!variable!took!#] second(s). The size of the dump file is: [#!variable!size!#] (#!variable!size_bytes) bytes).</key>
-		<key name="log_0655">The database was loaded successfull from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
+		<key name="log_0655">The database was loaded successful from the file: [#!variable!file!#] in: [#!variable!took!#] second(s)!</key>
 		<key name="log_0656">No databases were available, so we will become primary after loading: [#!variable!file!#], which is: [#!variable!size!#] (#!variable!size_bytes!# bytes). Please be patient, this could take a moment.</key>
 		<key name="log_0657">The database was loaded, clear it and other DB dumps out now so that they don't get reloaded again in the future.</key>
-		<key name="log_0658">Sync'ed the file: [#!variable!file!#] to the peer Striker: [#!variable!host_name!#]. The sync took: [#!variable!took!#] seconds, and the file was: [#!variable!size!#] (#!variable!size_bytes!# bytes).</key>
+		<key name="log_0658">Synced the file: [#!variable!file!#] to the peer Striker: [#!variable!host_name!#]. The sync took: [#!variable!took!#] seconds, and the file was: [#!variable!size!#] (#!variable!size_bytes!# bytes).</key>
 		<key name="log_0659">#!free!#</key>
 		<key name="log_0660">Stopped the postgresql daemon as a peer is currently primary.</key>
 		<key name="log_0661">Our most recent database dump is newer than any from our peers. As such, we'll just start the database without a load.</key>
@@ -2512,7 +2506,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0677">Found an installable DRBD kernel module RPM that matches the current kernel. Installing it now.</key>
 		<key name="log_0678">[ Note ] - We need to build the DRBD kernel module. This can take a few minutes, please be patient! Use 'journalctl -f' to monitor the build process.</key>
 		<key name="log_0679">Successfully built and installed the new DRBD kernel module!</key>
-		<key name="log_0680">We were asked to resync the database, but this host is hosting: [#!variable!count!#] server(s). Resync is not allowed when servers are running to reduce the risk the kernel's out of memory handler shooting a VM if the resync consumes too much RAM. You can see which servers are running with 'virsh list' and look for servers whose states are "running", "paused", "in shutdown" or "pmsuspended".</key>
+		<key name="log_0680">We were asked to resync the database, but this host is hosting: [#!variable!count!#] server(s). Resync is not allowed when servers are running to reduce the risk of the kernel's out of memory handler shooting a VM if the resync consumes too much RAM. You can see which servers are running with 'virsh list' and look for servers whose states are "running", "paused", "in shutdown" or "pmsuspended".</key>
 		<key name="log_0681">Testing that our short host name resolves to one of our IP prior to starting the cluster.</key>
 		<key name="log_0682">Changing the ownership of: [#!variable!file!#] to be owned by: [#!variable!user!#:#!variable!user!#].</key>
 		<key name="log_0683">Enabling 'ping' for all users.</key>
@@ -2556,22 +2550,22 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0721">The server: [#!variable!server!#] is ready to boot.</key>
 		<key name="log_0722">The server: [#!variable!server!#] was found to be running already, but it wasn't marked as booted. Marking it as if it just booted to handle any dependent servers.</key>
 		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>
-		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variable!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variable!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variable!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodocally until the size stops changing.</key>
+		<key name="log_0724">The file: [#!variable!file!#] needs to be added to the database, but since the last scan it's size grew from: [#!variable!old_size_bytes!# (#!variable!old_size_hr!#)] to: [#!variable!new_size_bytes!# (#!variable!new_size_hr!#)]. A difference of: [#!variable!difference_bytes!# (#!variable!difference_hr!#)]. It might still be being uploaded, so we'll keep checking periodically until the size stops changing.</key>
 		<key name="log_0725">Found the missing file: [#!variable!file!#] in the directory: [#!variable!directory!#]. Updating the database now.</key>
 		<key name="log_0726">Deleting the hash key: [#!variable!hash_key!#].</key>
 		<key name="log_0727">[ Note ] - The server: [#!variable!server!#] is not yet off, but we've been told not to wait for it to stop.</key>
 		<key name="log_0728">The DRBD Proxy license file: [#!data!path::configs::drbd-proxy.license!#] doesn't exist.</key>
 		<key name="log_0729">The DRBD Proxy license file has expired.</key>
-		<key name="log_0730">None of the MAC sddresses in the The DRBD Proxy license file match any of the MAC addresses on this system.</key>
+		<key name="log_0730">None of the MAC addresses in the The DRBD Proxy license file match any of the MAC addresses on this system.</key>
 		<key name="log_0731">The DRBD Proxy license file: [#!data!path::configs::drbd-proxy.license!#] is missing expected data or is malformed.</key>
 		<key name="log_0732">Updating logind to ignore ACPI power button events so that IPMI-based fence requests don't trigger an attempt to gracefully shut down. For more information, see: https://access.redhat.com/solutions/1578823</key>
 		<key name="log_0733">Restarting the daemon: [#!variable!daemon!#].</key>
-		<key name="log_0734">The DR host: [#!variable!host!#] as been linked to the Anvil! node: [#!variable!anvil!#].</key>
-		<key name="log_0735">The DR host: [#!variable!host!#] as been _unlinked_ to the Anvil! node: [#!variable!anvil!#].</key>
+		<key name="log_0734">The DR host: [#!variable!host!#] has been linked to the Anvil! node: [#!variable!anvil!#].</key>
+		<key name="log_0735">The DR host: [#!variable!host!#] has been _unlinked_ to the Anvil! node: [#!variable!anvil!#].</key>
 		<key name="log_0736">The DR host: [#!variable!host!#] was not linked to the Anvil! node: [#!variable!anvil!#], nothing to do.</key>
 		<key name="log_0737">The job: [#!variable!command!#] (with job UUID: [#!variable!job_uuid!#]) is being skipped for now, already started a job (started job_uuid: [#!variable!started_job!#]) with this command on this loop.</key>
 		<key name="log_0738">There are no databases available at this time.</key>
-		<key name="log_0739">The server: [#!variable!server!#] needs it's pacemaker configuration updated. Running: [#!variable!command!#].</key>
+		<key name="log_0739">The server: [#!variable!server!#] needs its pacemaker configuration updated. Running: [#!variable!command!#].</key>
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 		<key name="log_0742">#!free!#</key>
@@ -2585,7 +2579,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0750">Done!</key>
 		<key name="log_0751">- Testing the updated DRBD resource config file to ensure the new volumes are cromulent...</key>
 		<key name="log_0752">Success!</key>
-		<key name="log_0753">- Copying the new resource file to out peers.</key>
+		<key name="log_0753">- Copying the new resource file to our peers.</key>
 		<key name="log_0754"> - Copying: [#!variable!resource_file!#] to: [#!variable!host_name!#:#!variable!destination!#] via: [#!variable!use_ip!#].</key>
 		<key name="log_0755">- Creating the replicated storage metadata on the new backing devices now.</key>
 		<key name="log_0756"> - Creating the new LV on the peer: [#!variable!host_name!#:#!variable!backing_disk!#], via: [#!variable!use_ip!# (#!variable!use_network!#)]</key>
@@ -2612,7 +2606,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0776">- Reading the updated server definition</key>
 		<key name="log_0777">- Validating the updated definition</key>
 		<key name="log_0778">- Updating the stored definition and undefining the server now...</key>
-		<key name="log_0779"> - Adding the drivve to the server using its host: [#!variable!server_host!#] via: [#!variable!use_ip!#]...</key>
+		<key name="log_0779"> - Adding the drive to the server using its host: [#!variable!server_host!#] via: [#!variable!use_ip!#]...</key>
 		<key name="log_0780">- Updating the stored definition and undefining the server now...</key>
 		<key name="log_0781"> - The peer: [#!variable!peer_name!#], is stuck 'Negotiating'; disconnecting... </key>
 		<key name="log_0782"> reconnecting... </key>
@@ -2681,13 +2675,13 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0829">Failed to connect to any database, waiting before trying to connect again. We will reboot if we do not connect in: [#!variable!time_left!#] second.</key>
 		<key name="log_0830">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file with the expected IP: [#!variable!ip_address!#]!</key>
 		<key name="log_0831">The host: [#!variable!host_name!#] was found in the '/etc/hosts' file, but the expected IP: [#!variable!ip_address!#] doesn't match the found IP: [#!variable!found_ip!#]! Ignoring this entry.</key>
-		<key name="log_0832">The host: [#!variable!host_name!#] was found not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
+		<key name="log_0832">The host: [#!variable!host_name!#] was not found in the '/etc/hosts' file! We'll wait a few seconds and check again.</key>
 		<key name="log_0833">All host names were found in '/etc/hosts', ready to proceed!</key>
 		<key name="log_0834">One or more hosts are not yet in the '/etc/hosts' file with expected IPs. We'll wait a short bit and check again.</key>
 		<key name="log_0835">The CPU load average is; (one / five / ten minutes): [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#].</key>
 		<key name="log_0836">Processes; (total, running, blocked): [#!variable!total!#, #!variable!running!#, #!variable!blocked!#]</key>
 		<key name="log_0837">Time spend (in secs) doing; IO wait: [#!variable!io_wait!#], user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
-		<key name="log_0838">CPU Core: [#!variable!core!#], time doind (seconds); user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
+		<key name="log_0838">CPU Core: [#!variable!core!#], time doing (seconds); user mode: [#!variable!user_mode!#], niced user mode: [#!variable!user_mode_nice!#], system mode: [#!variable!system_mode!#], idle tasks: [#!variable!idle_tasks!#], hard IRQ: [#!variable!hard_irq!#], soft IRQ: [#!variable!soft_irq!#].</key>
 		<key name="log_0839">Drive: [#!variable!device_name!#], IOs currently in progress: [#!variable!in_progress!#], weighted time spent: [#!variable!weighted_time_spent!# sec].</key>
 		<key name="log_0840">CPU percent time doing; (IO wait / user / system / nice'd / idle / involuntary wait): [#!variable!iowait!# / #!variable!user!# / #!variable!system!# / #!variable!nice!# / #!variable!idle!#/ #!variable!steal!#].</key>
 		<key name="log_0841">Processes; (total / running / blocked / IRQ interrupts): [#!variable!total!# / #!variable!running!# / #!variable!blocked!# / #!variable!interrupts!#].</key>
@@ -2781,7 +2775,7 @@ Report maintenance mode: #!variable!program!#
 		<key name="message_0051">This system was not in maintenance mode, nothing changed.</key>
 		<key name="message_0052">Bad call. Usage: 
 Set that a reboot is required: #!variable!program!# --reboot-needed 1
-Clear the need for a reboot:   #!variable!program!# --reboot-neededset 0
+Clear the need for a reboot:   #!variable!program!# --reboot-needed 0
 Report if a reboot is needed:  #!variable!program!#
 Reboot the system:             #!variable!program!# --reboot [-y]
 Poweroff the system:           #!variable!program!# --poweroff [-y]
@@ -2803,7 +2797,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0065">#!free!#</key>
 		<key name="message_0066">Starting the job to add or update an #!string!brand_0006!# database peer.</key>
 		<key name="message_0067">Starting the job to remove an #!string!brand_0006!# database peer.</key>
-		<key name="message_0068">Sanity checkes passed.</key>
+		<key name="message_0068">Sanity checks passed.</key>
 		<key name="message_0069">Added the peer to the config file.</key>
 		<key name="message_0070">Old peer found and removed from the config file.</key>
 		<key name="message_0071">Existing peer found and update needed and made.</key>
@@ -2814,7 +2808,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0076">The job the peer add us has been registered. It should add us as soon as it looks for new jobs (generally within a second or two).</key>
 		<key name="message_0077">
 NOTE: Please be patient! 
-      The 'dnf' cache will be cleared to ensure the freshest RPMs are download. This will cause a delay 
+      The 'dnf' cache will be cleared to ensure the freshest RPMs are downloaded. This will cause a delay 
       before output starts to appear. Once started, each RPM will be reported after it is downloaded. Large
       RPMs may cause the output to appear stalled. You can verify that the download it proceeding by using
       'df -hs #!variable!directory!#' to verify the numbers are increasing.
@@ -2863,7 +2857,7 @@ NOTE: Please be patient!
 		<key name="message_0118">Regenerating the source repository metadata.</key>
 		<key name="message_0119">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was not found. This provides package group information required for Install Target guests.</key>
 		<key name="message_0120">
-About to try to download aproximately: [#!variable!packages!#] packages needed to:
+About to try to download approximately: [#!variable!packages!#] packages needed to:
 - [#!variable!directory!#].
 		</key>
 		<key name="message_0121">Successfully enabled the Install Target function.</key>
@@ -2880,7 +2874,7 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0132">#!free!#</key>
 		<key name="message_0133">#!free!#</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
-		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to conenct again.</key>
+		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to connect again.</key>
 		<key name="message_0136">#!free!#</key>
 		<key name="message_0137">#!free!#</key>
 		<key name="message_0138">#!free!#</key>
@@ -2935,17 +2929,17 @@ About to try to download aproximately: [#!variable!packages!#] packages needed t
 		<key name="message_0178">Hosts added or updated by the #!string!brand_0002!# on: [#!variable!date!#]:</key>
 		<key name="message_0179">ScanCore has started.</key>
 		<key name="message_0180">The scan agent: [#!variable!agent_name!#] timed out! It was given: [#!variable!timeout!#] seconds to run, but it didn't return, so it was terminated.</key>
-		<key name="message_0181">The scan agent: [#!variable!agent_name!#] check if it's schema was loaded! This is likely a problem with the SQL schema in the file: [#!variable!file!#]. Details are likely available in the: [#!data!path::log::main!#] log file.</key>
+		<key name="message_0181">The scan agent: [#!variable!agent_name!#] check if its schema was loaded! This is likely a problem with the SQL schema in the file: [#!variable!file!#]. Details are likely available in the: [#!data!path::log::main!#] log file.</key>
 		<key name="message_0182">The scan agent: [#!variable!agent_name!#] has now successfully loaded! Whatever issue existed with: [#!variable!file!#] has been resolved.</key>
 		<key name="message_0183">The SQL schema for the scan agent: [#!variable!agent_name!#] has been loaded into the database host: [#!variable!host_name!#].</key>
-		<key name="message_0184">This Striker is a RHEL host. As such, we'll need to download any updated to packages in the High Availability repositories from entitled nodes. Will search now for a node to use...</key>
+		<key name="message_0184">This Striker is a RHEL host. As such, we'll need to download any updates to packages in the High Availability repositories from entitled nodes. Will search now for a node to use...</key>
 		<key name="message_0185">The node: [#!variable!node_name!#] is online, has internet access and it is a RHEL machine. Will use it to download HA packages.</key>
 		<key name="message_0186">No RHEL-based nodes are available. Unable to check for updated packages under the High Availability entitlement.</key>
 		<key name="message_0187">Downloaded and copied HA packages that started with the letter: [#!variable!letter!#].</key>
 		<key name="message_0188">Finished downloading HA packages!</key>
 		<key name="message_0189">
 	# The following line was added to track this resource UUID in the Anvil! database.
-	# Please do edit or remove it.
+	# Please do not edit or remove it.
 	# scan_drbd_resource_uuid = #!variable!uuid!#
 		</key>	<!-- Translation note: The format of [# scan_drbd_resource_uuid = #!variable!uuid!#] is important, don't alter it. -->
 		<key name="message_0190">Preparing to provision a new server.</key>
@@ -2995,14 +2989,14 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0230">The 'anvil-safe-start' tool is disabled on this node and enabled on the peer.</key>
 		<key name="message_0231">The 'anvil-safe-start' tool is disabled, exiting. Use '--force' to run anyway.</key>
 		<key name="message_0232">The 'anvil-safe-start' tool is disabled, but '--force' was used, so proceeding.</key>
-		<key name="message_0233">It appears that another instance of: [#!variable!program!#] is already runing. Please wait for it to complete (or kill it manually if needed).</key>
+		<key name="message_0233">It appears that another instance of: [#!variable!program!#] is already running. Please wait for it to complete (or kill it manually if needed).</key>
 		<key name="message_0234">Preparing to rename a server.</key>
 		<key name="message_0235">Preparing to rename stop this node.</key>
-		<key name="message_0236">This records how long it took to migrate a given server. The average of the last five migations is used to guess how long future migrations will take.</key>
+		<key name="message_0236">This records how long it took to migrate a given server. The average of the last five migrations is used to guess how long future migrations will take.</key>
 		<key name="message_0237">One or more servers are migrating. While this is the case, ScanCore post-scan checks are not performed.</key>
 		<key name="message_0238">Preventative live migration has completed.</key>
 		<key name="message_0239">Preventative live migration has been disabled. We're healthier than our peer, but we will take no action.</key>
-		<key name="message_0240"><![CDATA[Please specify the Anvil! or host you want to purge. Use '--anvil <name_or_uuid>' or '--host <name_or_uuid>'.]]></key>
+		<key name="message_0240"><![CDATA[Please specify the Anvil! or DR host you want to purge. Use '--anvil <name_or_uuid>' or '--host <name_or_uuid>'.]]></key>
 		<key name="message_0241"><![CDATA[Used '-y' or '--yes', proceeding automatically.]]></key>
 		<key name="message_0242">Are you sure that you want to completely purge: [#!variable!host_name!#] (UUID: [#!variable!host_uuid!#] from the Anvil! database(s)?</key>
 		<key name="message_0243">Are you sure that you want to completely purge the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#] along with the machines:</key>
@@ -3049,7 +3043,7 @@ Available options;
 
 --age-out-database
 
-	This purches older records to reduce the size of the database.
+	This purges older records to reduce the size of the database.
 
 --check-configured
 
@@ -3235,7 +3229,7 @@ proceeding.
              If anything goes wrong, we will attempt to recover automatically. If needed, you can try
              recovering with: [#!variable!restore_command!#]</key>
 		<key name="message_0362">Bad SSH key target: [#!variable!target!#], file:line with the bad entry: [#!variable!file!#:#!variable!line!#].</key>
-		<key name="message_0363">[ Warning ] - Only proceed if you know the target has been rebuily!
+		<key name="message_0363">[ Warning ] - Only proceed if you know the target has been rebuilt!
 - Do you want to remove these bad keys? [y/N]</key>
 		<key name="message_0364">- Node Name: [#!variable!anvil_name!#], Description: [#!variable!description!#]</key>
 		<key name="message_0365"> - Linked: [#!variable!host_name!#], link UUID: [#!variable!link_uuid!#]</key>
@@ -3310,7 +3304,7 @@ proceeding.
 		<key name="message_0426">#!variable!timestamp!#; [  Note   ] - All nodes need to be up and running for the update to run on nodes. 
 #!variable!timestamp!#; [  Note   ] - Any out-of-sync storage needs to complete before a node can be updated. 
 #!variable!timestamp!#; [ Warning ] - Servers will be migrated between subnodes, which can cause reduced performance during
-#!variable!timestamp!#; [ Warning ] - the these migrations. If a sub-node is not active, it will be activated as part of the
+#!variable!timestamp!#; [ Warning ] - these migrations. If a sub-node is not active, it will be activated as part of the
 #!variable!timestamp!#; [ Warning ] - upgrade process.</key>
 		<key name="message_0427">#!variable!timestamp!#; Updates complete!</key>
 		<key name="message_0428">#!variable!timestamp!#; [ Note ] - The local system needs to be rebooted, and '--reboot-self' was used.
@@ -3369,7 +3363,7 @@ proceeding.
 		<key name="message_0476">#!variable!timestamp!#; - Beginning OS update of: [#!variable!host_name!#].</key>
 		<key name="message_0477">#!variable!timestamp!#; - Calling update now.
 #!variable!timestamp!#; - NOTE: This can seem like it's hung! You can watch the progress using 'journalctl -f' on another terminal to
-#!variable!timestamp!#; -       watch the progress via the system logs. You can also check wiht 'ps aux | grep dnf'.</key>
+#!variable!timestamp!#; -       watch the progress via the system logs. You can also check with 'ps aux | grep dnf'.</key>
 		<key name="message_0478">#!variable!timestamp!#; - Cache cleared.</key>
 		<key name="message_0479">#!variable!timestamp!#; [ Error ] - There was a problem updating the system! Expected a return code of '0', but got: [#!variable!return_code!#]
 #!variable!timestamp!#; [ Error ] - The output, if any, was:
@@ -3402,7 +3396,7 @@ proceeding.
 		<key name="message_0502">#!variable!timestamp!#; [ Error ] - Timed out while waiting for the subnode: [#!variable!host_name!#] to reboot. Aborting the update.</key>
 		<key name="message_0503">#!variable!timestamp!#; Disabling Anvil! daemons on all hosts...</key>
 		<key name="message_0504">#!variable!timestamp!#; Enabling Anvil! daemons on all hosts...</key>
-		<key name="message_0505">#!variable!timestamp!#; - Disabling dameons on: [#!variable!host_name!#]... </key>
+		<key name="message_0505">#!variable!timestamp!#; - Disabling daemons on: [#!variable!host_name!#]... </key>
 		<key name="message_0506">#!variable!timestamp!#; - Enabling dameons on: [#!variable!host_name!#]... </key>
 		<key name="message_0507">#!variable!timestamp!#; Offline! Skipping.</key>
 		<key name="message_0508">#!variable!timestamp!#; #!variable!daemon!# stopped.</key>
@@ -3418,7 +3412,7 @@ proceeding.
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
-		<key name="name_0002">Enctrypted Password</key>	<!-- encrypted in mail-server -->
+		<key name="name_0002">Encrypted Password</key>	<!-- encrypted in mail-server -->
 		<key name="name_0003">Kerberos GSSAPI</key>	<!-- kerberos in mail-server -->
 		<key name="name_0004">NTLM</key>		<!-- ntlm in mail-server -->
 		<key name="name_0005">TLS Certificate</key>	<!-- tls in mail-server -->
@@ -3485,7 +3479,7 @@ proceeding.
 		<key name="striker_0029">Primary Interface</key>
 		<key name="striker_0030">#!free!#</key>
 		<key name="striker_0031">#!free!#</key>
-		<key name="striker_0032">This is the user name that you will log into Striker as and the name of the user that owns the database.</key>
+		<key name="striker_0032">This is the username that you will log into Striker as and the name of the user that owns the database.</key>
 		<key name="striker_0033">#!free!#</key>
 		<key name="striker_0034"><![CDATA[This will be the password used to log into this Striker and connect to its database. It must be 6+ characters long.<br /><b>NOTE</b>: This password needs to be stored in plain text. Do not use a password you use elsewhere.]]></key>
 		<key name="striker_0035">#!free!#</key>
@@ -3563,7 +3557,7 @@ proceeding.
 		<key name="striker_0107">#!free!#</key>
 		<key name="striker_0108">#!free!#</key>
 		<key name="striker_0109">#!free!#</key>
-		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, #!string!brand_0006!# nodes or Disaster Recivery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
+		<key name="striker_0110">The 'Install Target' feature is used to do base (stage 1) installs on new or rebuilt Striker dashboards, #!string!brand_0006!# nodes or Disaster Recovery hosts. Specifically, it allows machines to boot off their BCN network interface and install the base operating system.</key>
 		<key name="striker_0111">#!free!#</key>
 		<key name="striker_0112">#!free!#</key>
 		<key name="striker_0113">#!free!#</key>
@@ -3758,7 +3752,7 @@ proceeding.
 		<key name="striker_0302">This indicates when, in unix time, the database was last aged-out.</key>
 		<key name="striker_0303">This indicates when, in unix time, the database was last archived.</key>
 		<key name="striker_0304">This indicates when, in unix time, the local install target data was updated.</key>
-		<key name="striker_0305">This indicates when, in unix time, the OUI data was last update. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
+		<key name="striker_0305">This indicates when, in unix time, the OUI data was last updated. The OUI data is a list of MAC address prefixes and which companies they've been assigned to.</key>
 		<key name="striker_0306">This indicates when, in unix time, the network was last scanned. This is done to determine what IPs are used by servers on the Anvil! node, and to try to identify foundation pack devices on the network. These scans are simple ping sweeps used to get the MAC addresses of devices with IPs.</key>
 		<key name="striker_0307">Powered Off</key>
 		<key name="striker_0308">Online</key>
@@ -3963,8 +3957,8 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="warning_0026">#!free!#</key>
 		<key name="warning_0027">#!free!#</key>
 		<key name="warning_0028">[ Warning ] - Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
-		<key name="warning_0029">[ Warning ] - While resync'ing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and it probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
-		<key name="warning_0030">[ Warning ] - Databse->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
+		<key name="warning_0029">[ Warning ] - While resyncing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and is probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
+		<key name="warning_0030">[ Warning ] - Database->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
 		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
 		<key name="warning_0032">#!free!#</key>
 		<key name="warning_0033">#!free!#</key>
@@ -4051,30 +4045,30 @@ The error was:
 		<key name="warning_0080">[ Warning ] - Failed to read the XML formatted output of 'lshw'. Expected the return code '0' but received: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="warning_0081">[ Warning ] - The temporary file: [#!variable!temp_file!#] vanished (or failed to be created) before it could be copied to: [#!variable!target!#].</key>
 		<key name="warning_0082">[ Warning ] - This host is not in the cluster, and all UPSes are running on batteries, and have been for at least: [#!variable!time_on_batteries!#]. Shutting down to conserve power.</key>
-		<key name="warning_0083">[ Warning ] - This host is not in the cluster, and the temperatures is anomalous. Shutting down to limit thermal loading.</key>
+		<key name="warning_0083">[ Warning ] - This host is not in the cluster, and the temperature is anomalous. Shutting down to limit thermal loading.</key>
 		<key name="warning_0084">[ Warning ] - We are healthier than our peer: [#!variable!peer_name!#]! Scores (local/peer): [#!variable!local_health!# / #!variable!peer_health!#]. This has been the case for: [#!variable!age!# seconds]. After 120 seconds, preventative migration will be triggered.</key>
 		<key name="warning_0085">[ Warning ] - Initiating preventative live migration, taking the servers from our peer: [#!variable!peer_name!#]! Scores (local/peer): [#!variable!local_health!# / #!variable!peer_health!#]. This has been so for over two minutes, so we will not perform a preventative migration of server.</key>
 		<key name="warning_0086">[ Warning ] - We're not a cluster member, but the server: [#!variable!server_name!#] is in the status: [#!variable!status!#]. ScanCore will take no action on this node.</key>
 		<key name="warning_0087">[ Warning ] - We're alone in the cluster, and our temperature is now critical. Gracefully stopping servers and then shutting down.</key>
 		<key name="warning_0088">[ Warning ] - We're alone in the cluster, we've been running on batteries for more than 2 minutes, and the strongest UPS shows less than ten minutes hold up time left. Gracefully stopping servers and then shutting down.</key>
 		<key name="warning_0089">[ Warning ] - This host is not in the cluster, and all UPSes are running on batteries. The most recent UPS to lose power was roughly: [#!variable!time_on_batteries!#] seconds ago. After 120 seconds, this node will power down to conserve battery power.</key>
-		<key name="warning_0090">[ Warning ] - This host is not in the cluster, and the temperatures is anomalous. This has been the case for roughly: [#!variable!age!#] seconds. After 120 seconds, this node will shut down to reduce thermal loading.</key>
+		<key name="warning_0090">[ Warning ] - This host is not in the cluster, and the temperature is anomalous. This has been the case for roughly: [#!variable!age!#] seconds. After 120 seconds, this node will shut down to reduce thermal loading.</key>
 		<key name="warning_0091">[ Warning ] - Both nodes have been running on batteries for more than two minutes, and both show the strongest UPS as having less than 10 minutes runtime left. Full power loss is highly likely, and imminent. Gracefully shutting down servers and powering off.</key>
 		<key name="warning_0092">[ Warning ] - Both nodes have been running on batteries for more than two minutes. To conserve battery power, load shedding will begin. A node will be selected for shutdown momentarily.</key>
 		<key name="warning_0093">[ Warning ] - Both nodes are running on batteries, but this has been so for less than two minutes. Will take no action yet in the hopes that this is a transient issue.</key>
 		<key name="warning_0094">[ Warning ] - Our peer node: [#!variable!host_name!#] has been running on batteries for more than two minutes. We've still got power, so we will pull the servers off of our peer and on to this machine.</key>
 		<key name="warning_0095">[ Warning ] - Our peer node: [#!variable!host_name!#] is running on batteries, but it has been less than two minutes. Not doing anything, yet.</key>
-		<key name="warning_0096">[ Warning ] - We're running on batteries, have been so for more than two minutes, and the strongest UPS has an estimated hold up time below ten minutes. Power loss is innevitable, so we will start a graceful shutdown now.</key>
+		<key name="warning_0096">[ Warning ] - We're running on batteries, have been so for more than two minutes, and the strongest UPS has an estimated hold up time below ten minutes. Power loss is inevitable, so we will start a graceful shutdown now.</key>
 		<key name="warning_0097">[ Warning ] - We're running on batteries, and have been for more than two minutes. We'll shut down to conserve battery power now.</key>
 		<key name="warning_0098">[ Warning ] - We're running on batteries, but it's been less than two minutes. We'll wait to see if this is a transient event before taking any action.</key>
-		<key name="warning_0099">[ Warning ] - Both node's temperatures have been anomolous for more than two minutes. We'll shut down to reduce thermal loading of the room we're in.</key>
-		<key name="warning_0100">[ Warning ] - Both node's temperatures are anomolous, and we've been critically anomolous for more than two minutes. Hardware shutdown is very likely, so we'll gracefully shutdown now.</key>
-		<key name="warning_0101">[ Warning ] - Both node's temperatures are anomolous, but this has been the case for less than two minutes. We'll wait to see if the temperatures clear before taking action.</key>
-		<key name="warning_0102">[ Warning ] - Our peer node: [#!variable!host_name!#]'s temperature has been anomolous for more than two minutes. We're still thermally nominal, so we will pull the servers off of our peer and on to this machine.</key>
-		<key name="warning_0103">[ Warning ] - Our peer node: [#!variable!host_name!#]'s is anomolous, but it hasn't been so for two minutes yet. Not doing anything, yet.</key>
-		<key name="warning_0104">[ Warning ] - Our temperature is anomolous, and have been so for more than two minutes. We'll shut down to reduce thermal loading in the room.</key>
+		<key name="warning_0099">[ Warning ] - Both node's temperatures have been anomalous for more than two minutes. We'll shut down to reduce thermal loading of the room we're in.</key>
+		<key name="warning_0100">[ Warning ] - Both node's temperatures are anomalous, and we've been critically anomalous for more than two minutes. Hardware shutdown is very likely, so we'll gracefully shutdown now.</key>
+		<key name="warning_0101">[ Warning ] - Both node's temperatures are anomalous, but this has been the case for less than two minutes. We'll wait to see if the temperatures clear before taking action.</key>
+		<key name="warning_0102">[ Warning ] - Our peer node: [#!variable!host_name!#]'s temperature has been anomalous for more than two minutes. We're still thermally nominal, so we will pull the servers off of our peer and on to this machine.</key>
+		<key name="warning_0103">[ Warning ] - Our peer node: [#!variable!host_name!#]'s is anomalous, but it hasn't been so for two minutes yet. Not doing anything, yet.</key>
+		<key name="warning_0104">[ Warning ] - Our temperature is anomalous, and has been so for more than two minutes. We'll shut down to reduce thermal loading in the room.</key>
 		<key name="warning_0105">[ Warning ] - We are "SyncSource" for at least one resource, meaning that a peer is copying data from our storage in order to synchronize. As such, all shut down options are disabled until the sync ends or the peer goes offline.</key>
-		<key name="warning_0106">[ Warning ] - Our temperature is critically anomolous, and has been so for more than two minutes. Hardware shutdown is highly likely, so will gracefully shut down now.</key>
+		<key name="warning_0106">[ Warning ] - Our temperature is critically anomalous, and has been so for more than two minutes. Hardware shutdown is highly likely, so will gracefully shut down now.</key>
 		<key name="warning_0107">[ Warning ] - We're doing a load shed to conserve UPS power, and we're SyncSource (meaning our data is more complete than our peer's data). We will stay up and pull the servers to us.</key>
 		<key name="warning_0108">[ Warning ] - We're doing a load shed to reduce thermal loading, and we're SyncSource (meaning our data is more complete than our peer's data). We will stay up and pull the servers to us.</key>
 		<key name="warning_0109">[ Warning ] - We're doing a load shed to conserve UPS power, and we have no servers running locally. We will shut down now.</key>
@@ -4123,7 +4117,7 @@ We will sleep a bit and try again.
 		<key name="warning_0136">[ Warning ] - Failed to connect to the host: [#!variable!host!#]! Unable to up the resource, so the server may not start. If the peer can't be recovered, manually forcing the local resource(s) to UpToDate may be required.</key>
 		<key name="warning_0137">[ Warning ] - Timed out waiting for the connections to the peers, and the local resource(s) is not in 'UpToDate' state. Booting the server will likely fail.</key>
 		<key name="warning_0138">[ Warning ] - Timed out waiting for the connections to the peers.</key>
-		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is runnng, (progress is: [#!variable!job_progress!#]), which might be why the RAM is high. NOT exiting while this program is running.</key>
+		<key name="warning_0139">[ Warning ] - We're using: [#!variable!ram_used!#] (#!variable!ram_used_bytes!# Bytes). but there is a job: [#!variable!job_command!#] is running, (progress is: [#!variable!job_progress!#]), which might be why the RAM is high. NOT exiting while this program is running.</key>
 		<key name="warning_0140">[ Warning ] - A no-longer active PID: [#!variable!pid!#] (used by: [#!variable!caller!#] had marked the database: [#!variable!db!#] as "in_use", but the PID is gone now. Reaping the flag.</key>
 		<key name="warning_0141">[ Warning ] - We waited for: [#!variable!wait_time!#] seconds for all users of the local database to exit. Giving up waiting and taking the database down now.</key>
 		<key name="warning_0142">[ Warning ] - The command: [#!variable!command!#] is still using our database.</key>
