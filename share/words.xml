@@ -1326,8 +1326,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0119">Deleting the old fence device: [#!variable!device!#].</key>
 		<key name="job_0120">Creating the new fence device: [#!variable!device!#].</key>
 		<key name="job_0121">The fence device: [#!variable!device!#] information in the existing fence configuration is different from the details stored in the database. Will reconfigure.</key>
-		<key name="job_0122">The fence device: [#!variable!device!#] does not exist as a fence device, adding it.</key>
-		<key name="job_0123">#!free!#</key>
+		<key name="job_0122">The fence device: [#!variable!device!#] is not configured in the pacemaker cluster, adding it.</key>
+		<key name="job_0123">The fence device: [#!variable!device!#] exists but needs to be updated.</key>
 		<key name="job_0124">Configuring the cluster to loop fence attempts indefinitely.</key>
 		<key name="job_0125">Enabling fencing!</key>
 		<key name="job_0126">Checking to see if: [#!data!path::configs::global-common.conf!#] needs to be configured or updated.</key>
