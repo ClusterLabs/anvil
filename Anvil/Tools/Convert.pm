@@ -1008,7 +1008,7 @@ sub human_readable_to_bytes
 	}
 
 	# Start cleaning up the variables.
-	   $size  =~ s/\(.*?\)//;	# Sometimes, the bytes with the human readible size in brackets is passed.
+	   $size  =~ s/\(.*?\)//;	# Sometimes, the bytes with the human readable size in brackets is passed.
 	my $value =  $size;
 	   $size  =~ s/ //g;
 	   $type  =~ s/ //g;

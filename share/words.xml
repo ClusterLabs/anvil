@@ -288,9 +288,9 @@ Output (if any):
 </key>
 		<key name="error_0202">Failed to write the DRBD resource file: [#!variable!drbd_res_file!#]. The cause of the failure should be in the logs.</key>
 		<key name="error_0203">Failed to load the DRBD resource file: [#!variable!drbd_res_file!#]. Tried dumping the new DRBD config and the file new resource wasn't found.</key>
-		<key name="error_0204">It appears that creating the DRBD meta data on the new logic volume(s) failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
+		<key name="error_0204">It appears that creating the DRBD metadata on the new logic volume(s) failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
 		<key name="error_0205">It appears that the initial forced primary role to initialize the new DRBD resource failed. Expected the return code '0' but got: [#!variable!return_code!#]. The command returned: [#!variable!output!#].</key>
-		<key name="error_0206">The logical volume behind the resource: [#!variable!resource!#] existed, and started the resource has the disk state 'diskless'. This is likely because the LV doesn't have DRBD meta-data. We can't (safely) create it. Please either remove the LV backing this resource or create the meta data manually.</key>
+		<key name="error_0206">The logical volume behind the resource: [#!variable!resource!#] existed, and started the resource has the disk state 'diskless'. This is likely because the LV doesn't have DRBD meta-data. We can't (safely) create it. Please either remove the LV backing this resource or create the metadata manually.</key>
 		<key name="error_0207">Failed to make the resource: [#!variable!resource!#] disk state to 'UpToDate'. After attempt, the disk state is: [#!variable!disk_state!#].</key>
 		<key name="error_0208">No operating system type was found for the server: [#!variable!server_name!#] in the job: [#!variable!job_uuid!#].</key>
 		<key name="error_0209">The call to create the server appears to have failed. The attempt to parse the server's definition failed. The command was run as a background process so exact error details are not available here. Please check the logs for more details. The call used to create the server was:
@@ -1595,7 +1595,7 @@ The following LV(s) will be created:
 		<key name="job_0369">- Updating the resource file: [#!variable!file!#] on the host: [#!variable!host_name!#] via IP: [#!variable!ip_address!#].</key>
 		<key name="job_0370">- Creating logical volumes on DR, if needed. New LVs will have metadata created.</key>
 		<key name="job_0371">- Volume: [#!variable!volume!#], logical volume: [#!variable!lv_path!#].</key>
-		<key name="job_0372">- The logical volume: [#!variable!lv_path!#] already exists, skipping it, and NOT create DRBD meta data.</key>
+		<key name="job_0372">- The logical volume: [#!variable!lv_path!#] already exists, skipping it, and NOT create DRBD metadata.</key>
 		<key name="job_0373">- Reloading the local DRBD resource config.</key>
 		<key name="job_0374">- Reloading the resource: [#!variable!server!#] on the host: [#!variable!host_name!#].</key>
 		<key name="job_0375">- Checking, and starting where needed, the: [#!variable!server!#] resource locally and on peers.

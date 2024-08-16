@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server boot program
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH striker-boot-machine "8" "October 12 2023" "Anvil! Intelligent Availability™ Platform"
+.TH striker-boot-machine "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 striker-boot-machine \- Tool used to boot physical machines that have IPMI configuration information.
 .SH SYNOPSIS
@@ -24,7 +24,7 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 This is the host name or UUID of the server to power on. If this is set to 'all', all machines that have IPMI configuration information will be checked, and if it's found to be off, it will be booted.
 .TP
 \fB\-\-host-uuid\fR <UUID>
-This is effectively the same as \fB\-\-host\fR, but provides backwards compatibility. It's use is discouraged.
+This is effectively the same as \fB\-\-host\fR, but provides backwards compatibility. Its use is discouraged.
 .TP
 \fB\-\-job\-uuid\fR <uuid>
 If this is set, the job will be processed.

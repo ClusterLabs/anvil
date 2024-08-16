@@ -222,7 +222,7 @@ The global common configuration file: [#!variable!file!#] needs to be updated. T
 		<key name="scan_drbd_state_uptodate_name">UpToDate</key>
 		<key name="scan_drbd_state_uptodate_explain">Consistent, up-to-date state of the data. This is the normal state</key>
 		<key name="scan_drbd_state_attaching_name">Attaching</key>
-		<key name="scan_drbd_state_attaching_explain">Transient state while reading meta data.</key>
+		<key name="scan_drbd_state_attaching_explain">Transient state while reading metadata.</key>
 		<key name="scan_drbd_state_detaching_name">Detaching</key>
 		<key name="scan_drbd_state_detaching_explain">Transient state while detaching and waiting for ongoing IOs to complete.</key>
 		<key name="scan_drbd_state_DELETED_name">Deleted</key>

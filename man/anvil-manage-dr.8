@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! DR hosts
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-dr "8" "August 18 2022" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-dr "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-dr \- This program manages if a server is (and when) a server is protected by a DR host.
 .SH SYNOPSIS
@@ -30,7 +30,7 @@ Connect a server already on DR to it's DR copy, update the data there if needed 
 Disconnect a server from the DR image. This will end streaming replication.
 .TP
 \fB\-\-dr\-host\fR
-This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined. It is also use when linking or unlinking DR hosts to Anvil! nodes.
+This is the host name or host UUID for the DR to use. It is optional if only one DR host is connected to this Anvil! node, but required if two or more are defined. It is also used when linking or unlinking DR hosts to Anvil! nodes.
 .TP
 \fB\-\-license\-file\fR
 This is the path to the license file, needed when setting up "long-throw" DR for the first time.
@@ -39,7 +39,7 @@ This is the path to the license file, needed when setting up "long-throw" DR for
 This takes an --anvil and a --dr-host to enable using the DR host as a target for the Anvil! node.
 .TP
 \fB\-\-protect\fR
-The sets up the server to be imaged on DR, if it isn't already protected.
+This sets up the server to be imaged on DR, if it isn't already protected.
 .TP
 Notes: If the server is not running, the DRBD resource volume(s) will be brought up. Both nodes need to be online and in the cluster.
 .TP
@@ -52,7 +52,7 @@ short-throw (default)
 
 This tells the storage layer to consider the write to be completed once the data is on the active node's network transmit buffer. In this way, the DR host is allowed to fall behind a small amount, but the active nodes will not slow down because of higher network transit times to the DR location. 
 .br
-    NOTE: The transmit (TX) buffer size can be checked / updated with 'ethtool -g <link_device>'. If the transmit buffer fills, storage will hold until the buffer flushes, causing periodic storage IO waits. You can increase the buffer size to a certain degree with'ethtool -G <link_device> tx <size>' (set on all storage network link devices on both nodes. For more information, see:
+    NOTE: The transmit (TX) buffer size can be checked / updated with 'ethtool -g <link_device>'. If the transmit buffer fills, storage will hold until the buffer flushes, causing periodic storage IO waits. You can increase the buffer size to a certain degree with 'ethtool -G <link_device> tx <size>' (set on all storage network link devices on both nodes. For more information, see:
 
     https://www.linuxjournal.com/content/queueing-linux-network-stack
 
@@ -72,7 +72,7 @@ long-throw
 
     This is an option that requires an additional license fee to use.
 
-    This option (based on LINBIT's DRBD Proxy) and is designed for DR hosts that are connected over a wide-area network (or other cases where the connection to the DR is high-latency, low bandwidth or intermittently interrupted). It uses RAM on the host to act, effectively, as a  very large transmit buffer. This requires allocating host RAM to the task, and so could  reduces the available RAM assignable to assign to servers.
+    This option (based on LINBIT's DRBD Proxy) and is designed for DR hosts that are connected over a wide-area network (or other cases where the connection to the DR is high-latency, low bandwidth or intermittently interrupted). It uses RAM on the host to act, effectively, as a  very large transmit buffer. This requires allocating host RAM to the task, and so could reduce the available RAM assignable to servers.
 
     In this mode, the DR host is allowed to fall further behind production, but it significantly reduces (hopefully eliminates) how often node replication waits because of a full transmit buffer. 
 
@@ -91,11 +91,25 @@ This is the name or UUID of the server being worked on.
 This takes an --anvil and a --dr-host to disable using the DR host as a target for the Anvil! node.
 .TP
 \fB\-\-update\fB
-This tells the DR to be connected and sync, Once the volume(s) on DR are 'UpToDate', the connection is closed. This provides a point in time update of the server's image on DR.
+This tells the DR to be connected and sync. Once the volume(s) on DR are 'UpToDate', the connection is closed. This provides a point in time update of the server's image on DR.
 .TP
 \fB\-\-Yes\fB
 Note the capital 'Y'. This can be set to proceed without confirmation. Use carefully with '\-\-protect' and '\-\-remove'! If the '\-\-job-uuid' is set, this is assumed and no prompt will be presented.
 .IP
+.SH EXAMPLES
+
+.RE
+Link a DR host to an Anvil! node (be sure to connect the new DR host's volume group to the appropriate storage group after this step):
+
+.RS
+anvil-manage-dr --dr-host an-a03dr01 --anvil an-anvil-03 --link
+
+.RE
+Protect the 'srv01-test' server (use 'anvil-watch-drbd' to confirm it's being protected on the DR host).
+
+.RS
+anvil-manage-dr --protect --server srv01-test
+
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
 .SH "REPORTING BUGS"
