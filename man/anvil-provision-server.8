@@ -74,7 +74,7 @@ This is the storage group (by name or UUID) to use when creating the new hard dr
 .TP
 \fB\-\-storage\-size\fR <human readable size>
 .TP
-This tells the program how big to create the hard drive for the new server. It can be specified in bytes, or in a human-readable format (without spaces). For example, '--storage-size 100GiB' would allocate 100 gibibyte to the server. In the unlikely case that you want to specify a base-10 value, '--100GB' would allocate 100 billion bytes even (or about 93.13 GiB). 
+This tells the program how big to create the hard drive for the new server. It can be specified in bytes, or in a human-readable format (without spaces). For example, '--storage-size 100GiB' would allocate 100 gibibytes to the server. In the unlikely case that you want to specify a base-10 value, '--100GB' would allocate 100 billion bytes even (or about 93.13 GiB). 
 .TP
 .B Note
 The replicated storage metadata will be at the end of this disk. The practical effect of this is that the disk size presented to the new server will be ~ 32 MiB per 1 TiB less than what you are requesting. If you are planning to copy an image from an existing server, it is recommended to allocate an additional 1 GiB to be sure that the image will fit. 
