@@ -1323,7 +1323,8 @@ sub _check_known_hosts_for_target
 		   $test_line =~ s/#.*$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { test_line => $test_line }});
 		if (($test_line !~ /^\w.*?\s+\w.*?\s+\w.*/) or 
-		    ($test_line =~ /No route to host/i) or 
+		    ($test_line =~ /No route to host/i)     or 
+		    ($test_line =~ /Connection refused/i)   or 
 		    ($test_line =~ /getaddrinfo/))
 		{
 			# Bad line.
@@ -1341,7 +1342,7 @@ sub _check_known_hosts_for_target
 		{
 			my $target_host = $1;
 			my $algorithm   = $2;
-			my $key         = $3;
+			my $key         = $anvil->Words->clean_spaces({string => $3});;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				's1:target_host' => $target_host,
 				's2:algorithm'   => $algorithm, 

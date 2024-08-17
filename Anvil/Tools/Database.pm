@@ -10058,6 +10058,13 @@ sub insert_or_update_hosts
 		$host_key =  $anvil->Storage->read_file({file => $anvil->data->{path}{data}{host_ssh_key}});
 		$host_key =~ s/\n$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key => $host_key }});
+		
+		# If the host is added to the key, take it off.
+		if ($host_key =~ /^(.*?\s+.*?)\s/)
+		{
+			$host_key = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key => $host_key }});
+		}
 	}
 	
 	# Read the old values, if they exist.
