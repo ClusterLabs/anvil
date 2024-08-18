@@ -1,19 +1,19 @@
 .\" Manpage for the Anvil! IA platform 
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH fence_delay "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.TH fence_delay "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 fence_delay \- Fake fence agent that causes a delay before returning failure
 .SH SYNOPSIS
 .B fence_delay 
 \fI\,<command>
 .SH DESCRIPTION
-This is a pseudo fence agent for Pacemaker clusters. It's job is to inject a delay after all configured fence agents have been tried, before starting over again at the first agent. This is useful to give time for an IPMI BMC to finish booting before attempting a new call to fence_ipmilan.
+This is a pseudo fence agent for Pacemaker clusters. Its job is to inject a delay after all configured fence agents have been tried, before starting over again at the first agent. This is useful to give time for an IPMI BMC to finish booting before attempting a new call to fence_ipmilan.
 .TP
 .SH NOTE
 This tool does not use the Anvil::Tools library, nor does it connect to the Anvil database. 
 .IP
 .SH OPTIONS
-All values passed to this agent is done via environment variables. For more information, please see the LINBIT DRBD fence/unfence agent documentation.
+All values passed to this agent are done via environment variables. For more information, please see the LINBIT DRBD fence/unfence agent documentation.
 .TP
 See the comments here: https://github.com/LINBIT/drbd-utils/blob/master/scripts/drbd.ocf
 .IP

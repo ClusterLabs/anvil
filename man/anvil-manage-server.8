@@ -1,8 +1,8 @@
 .\" Manpage for the Alteeve! anvil-manage-server tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server "8" "Mar 21 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-manage-server \- Tool used to manage a server, like resync'ing servers on a rebuilt host.
+anvil-manage-server \- Tool used to manage a server, like resyncing servers on a rebuilt host.
 .SH SYNOPSIS
 .B anvil-manage-server 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
@@ -27,7 +27,7 @@ This is the jobs -> job_uuid of the job to run, if it exists.
 This is the server to work on.
 .TP
 \fB\-\-resync\fR
-This will check to see if the server is sync'ing on this host. If it is not, and if there are sufficient free resources, the server will be configured locally. This will create a local logical volume, which will be used to connect to the peer's replicated storage. The definition file will be written out, if needed. If '\fB\-\-server\fR' isn't used, all servers will be sync'ed (alphatically, stopping if there are insufficient resources).
+This will check to see if the server is syncing on this host. If it is not, and if there are sufficient free resources, the server will be configured locally. This will create a local logical volume, which will be used to connect to the peer's replicated storage. The definition file will be written out, if needed. If '\fB\-\-server\fR' isn't used, all servers will be synced (alphabetically, stopping if there are insufficient resources).
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

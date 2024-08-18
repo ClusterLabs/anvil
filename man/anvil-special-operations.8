@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! storage groups
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-special-operations "8" "Jun 30 2023" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-special-operations "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-special-operations \- This program is generally meant to be used by other programs.
 .SH SYNOPSIS
 .B anvil-special-operations
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This tool is used, generally by other parts of the Anvil!, the accomplish tasks that generally can't be accomplished by direct system calls. It's a general purpose tool meant to solve specific corner cases.
+This tool is used, generally by other parts of the Anvil!, to accomplish tasks that generally can't be accomplished by direct system calls. It's a general purpose tool meant to solve specific corner cases.
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
@@ -21,7 +21,7 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .IP
 .SS "Commands:"
 \fB\-\-task\fR
-This is the task being requested. Current optiopns are:
+This is the task being requested. Current options are:
 .IP refresh-drbd-resource
 This requires \fB\-\-resource <new name>\fR, and will call 'drbdadm adjust <resource>' as a background task and then return immediately. This is required when adding a new volume to an existing resource as 'drbdadm adjust <res>' will hold until it is called on all active DRBD nodes. This blocks the caller after the first remote host call.
 .IP

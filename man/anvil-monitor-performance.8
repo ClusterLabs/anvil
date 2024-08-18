@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server boot program
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-monitor-performance "8" "February 12 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-monitor-performance "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-monitor-performance \- Tool used to log system performance to anvil.conf to assist with performance issue debugging.
 .SH SYNOPSIS
@@ -29,7 +29,7 @@ Log extended performance data. This shows extended and per-cpu-core and per bloc
 By default, the performance data is collected and logged every five seconds. If you want to change this frequency, you can use this switch to set the interval seconds you wish to use.
 .TP
 \fB\-\-print\fR
-By default, this programs logs to /var/log/anvil.log. This switch also sends the logged data to STDOUT.
+By default, this program logs to /var/log/anvil.log. This switch also sends the logged data to STDOUT.
 .TP
 \fB\-\-run\-once\fR <uuid>
 This tells the program to collect and report the performance data once, and then to exit.

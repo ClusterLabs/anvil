@@ -439,31 +439,6 @@ sub find_changes
 						old_sensor_value          => $old_sensor_value, 
 					}});
 					
-					### TODO: We can remove this, I think.
-					### Look for changes
-					# NOTE: If the new sensor has a state of 'na' and the old state 
-					#       wasn't 'na', we ignore it. It happens not uncommonly and it's
-					#       never been an indication of a real problem before.
-# 					if ($new_scan_ipmitool_sensor_status eq "na")
-# 					{
-# 						# This is usually harmless, so we simple log this and move on
-# 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_log_0004", variables => { sensor_name => $scan_ipmitool_sensor_name }});
-# 						
-# 						# We loop out now because the rest of the values will look 
-# 						# really bad (ie: temps down to 0c) and we don't want to 
-# 						# trigger preventative actions on bad data.
-# 						delete $anvil->data->{sql}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
-# 						next;
-# 					}
-# 					elsif (($new_scan_ipmitool_sensor_status ne "na") && ($old_scan_ipmitool_sensor_status eq "na"))
-# 					{
-# 						# It disappeared in a previous sweep, now it's back. We 
-# 						# continue normal processing to handle those rare occassions
-# 						# where a sensor was lost back when we cared, and returned 
-# 						# after updating to this version when we stopped caring.
-# 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }});
-# 					}
-					
 					# Sensor value:
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						new_scan_ipmitool_value_sensor_value => $new_scan_ipmitool_value_sensor_value, 
@@ -553,7 +528,7 @@ WHERE
 					else
 					{
 						# No change.
-						$anvil->Log->entry({log_level => 2, message_key => "scancore_log_0047", file => $THIS_FILE, line => __LINE__});
+						$anvil->Log->entry({level => 2, key => "scan_ipmitool_log_0006", source => $THIS_FILE, line => __LINE__});
 					}
 					
 					# Everything else
@@ -660,7 +635,7 @@ AND
 					if ($anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} eq "")
 					{
 						# Ignore it.
-						$anvil->Log->entry({log_level => 3, message_key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }, file => $THIS_FILE, line => __LINE__});
+						$anvil->Log->entry({level => 3, key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }, source => $THIS_FILE, line => __LINE__});
 						delete $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
 						next;
 					}
@@ -794,13 +769,13 @@ INSERT INTO
 				if ($anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_value_sensor_value} eq "")
 				{
 					# Ignore it.
-					$anvil->Log->entry({log_level => 3, message_key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }, file => $THIS_FILE, line => __LINE__});
+					$anvil->Log->entry({level => 3, key => "scan_ipmitool_log_0005", variables => { sensor_name => $scan_ipmitool_sensor_name }, source => $THIS_FILE, line => __LINE__});
 					delete $anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name};
 					next;
 				}
 				
 				# Generate the UUID.
-				my $scan_ipmitool_uuid = $anvil->Get->uuid() or $anvil->Alert->error({title_key => "error_title_0020", message_key => "error_message_0024", code => 2, file => $THIS_FILE, line => __LINE__});
+				my $scan_ipmitool_uuid = $anvil->Get->uuid() or $anvil->Alert->error({title_key => "error_title_0020", message_key => "scan_ipmitool_warn_0002", code => 2, file => $THIS_FILE, line => __LINE__});
 				
 				# Record it.
 				$anvil->data->{ipmi}{$host_name}{scan_ipmitool_sensor_name}{$scan_ipmitool_sensor_name}{scan_ipmitool_uuid} = $scan_ipmitool_uuid;

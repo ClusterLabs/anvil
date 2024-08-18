@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server system manager
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server-system "8" "August 30 2023" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server-system "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-server-system \- Tool used to manage the system configuration of a hosted server.
 .SH SYNOPSIS
@@ -9,7 +9,7 @@ anvil-manage-server-system \- Tool used to manage the system configuration of a 
 .SH DESCRIPTION
 anvil-manage-server-system \- This tool is used to manage various system configuration components of hosted servers. Storage is NOT managed here, see 'anvil-manage-server-storage' for that.
 .TP
-When called without switches, the list of servers than can be worked on will be displayed.
+When called without switches, the list of servers that can be worked on will be displayed.
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
@@ -23,16 +23,16 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .IP
 .SS "Commands:"
 \fB\-\-boot\-menu\fR <yes,no>
-When called without a value, it shows if the boot menu is enabled or not. If called with 'yes', it enables the boot menu. If called with 'no', the boot meny is disabled.
+When called without a value, it shows if the boot menu is enabled or not. If called with 'yes', it enables the boot menu. If called with 'no', the boot menu is disabled.
 .TP
 \fB\-\-boot\-order\fR <dev1,dev2,...,devN>
-When called without a value, it shows if the current order of boot devices. To set a new boot device order, use a comma-separated list of boot devices. Note that any boot devices that are not specified will be moved in their original order to boot after the specified devices are moved up. For this reason, you can just specify the device you want to boot, and it will be moved to the front of the list.
+When called without a value, it shows the current order of boot devices. To set a new boot device order, use a comma-separated list of boot devices. Note that any boot devices that are not specified will be moved in their original order to boot after the specified devices are moved up. For this reason, you can just specify the device you want to boot, and it will be moved to the front of the list.
 .TP
 \fB\-\-cpu\fR <cores or sockets,cores or sockets,cores,threads>
 If called without a value, the current CPU core allocation is shown. To change it, you can specify simply a core count, which will appear as a single socket CPU with the specified number of cores. The maximum total number of cores is two-less than the total cores on the host Anvil! node.
 .TP
 .BR
-Alternatively, you can specify '--cpu x,y', where 'x' will be the number of sockets to emulate, and 'y' will be the number of cores per socket. Example; '--cpu 2,4' would give 8 total cores, emulates as 2 sockets, each with a 4-core CPU.
+Alternatively, you can specify '--cpu x,y', where 'x' will be the number of sockets to emulate, and 'y' will be the number of cores per socket. Example; '--cpu 2,4' would give 8 total cores, emulated as 2 sockets, each with a 4-core CPU.
 .TP
 .BR
 Lastly, you can specify '--cpu x,y,z', where the 'z' adds how many threads to use. Example; '--cpu 1,2,2' would give 8 total cores, emulates as 1 socket, each with a 2-core CPU, and each core being 2 threads.
@@ -44,7 +44,7 @@ This is the jobs -> job_uuid to execute. Generally this is only used by other pr
 If this is called without a value, the current RAM allocated to the server is displayed. If it is passed with a size, and if that size is available, the amount of RAM allocated to the server will be updated.
 .TP
 .BR
-The size can be in bytes, or a human-readible size, using base-2 notation. Ie: '8GiB' (no space) and '8589934592' are the same.
+The size can be in bytes, or a human-readable size, using base-2 notation. Ie: '8GiB' (no space) and '8589934592' are the same.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

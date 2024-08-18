@@ -5,7 +5,7 @@ Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
 
-NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_log_0001'.
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hardware_xxx'.
 -->
 
 <words>
@@ -156,7 +156,7 @@ If the RAM is being updated, this alert will clear once this node has been upgra
 		</key>
 		
 		<!-- Log entries -->
-		<key name="scan_hardware_log_0001">Starting: [#!variable!program!#].</key>
+		<key name="scan_hardware_log_0001">#!free!#</key>
 		<key name="scan_hardware_log_0002">[ Note ] - There were: [#!variable!count!#] entries for this host. This should not happen! Deleting all entries and then exiting. Entries will be recreated on the next run.</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->

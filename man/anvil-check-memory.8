@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! memory checking tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-check-memory "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-check-memory "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-check-memory \- This reports the total memory used by all processes with to passed-in program name.
+anvil-check-memory \- This reports the total memory used by all processes with the passed-in program name.
 .SH SYNOPSIS
 .B anvil-check-memory 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This reports the total memory used by all processes with to passed-in program name. It can be an Anvil! or Striker program, or any other program running on the system.
+This reports the total memory used by all processes with the passed-in program name. It can be an Anvil! or Striker program, or any other program running on the system.
 .TP
 This looks in 'ps' and finds pids for the given program name, then parses the '/proc/<pid>/smaps' kernel file to calculate the memory use. This will include shared memory space! Ending the program won't necessarily release the reported amount of RAM.
 .TP

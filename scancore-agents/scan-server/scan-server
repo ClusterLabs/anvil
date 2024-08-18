@@ -153,27 +153,27 @@ sub connect_to_virsh
 	};
 	if ($@)
 	{
-		my $key     = $is_local ? "scan_server_alert_0021" : "scan_server_alert_0023";
-		my $changed = $anvil->Alert->check_alert_sent({
+		my $message_key = $is_local ? "scan_server_alert_0021" : "scan_server_alert_0023";
+		my $changed     = $anvil->Alert->check_alert_sent({
 			record_locator => $record_locator,
 			set_by         => $THIS_FILE,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			key     => $key,
+			key     => $message_key,
 			changed => $changed,
 		}});
 		if ($changed)
 		{
 			# Register an alert.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 			$anvil->Alert->register({
 				alert_level => "notice", 
-				message     => $key, 
+				message     => $message_key, 
 				variables   => $variables, 
 				set_by      => $THIS_FILE, 
 			});
 		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $key, variables => { $variables }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => { $variables }});
 		
 		if ($is_local)
 		{
@@ -195,12 +195,12 @@ sub connect_to_virsh
 		if ($changed)
 		{
 			# Register an alert-cleared event.
-			my $key = $is_local ? "scan_server_alert_0022" : "scan_server_alert_0024";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key});
+			my $message_key = $is_local ? "scan_server_alert_0022" : "scan_server_alert_0024";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key});
 			$anvil->Alert->register({
 				alert_level => "notice", 
 				clear       => 1,
-				message     => $key, 
+				message     => $message_key, 
 				set_by      => $THIS_FILE,
 				variables   => $variables, 
 			});
@@ -883,10 +883,10 @@ sub collect_data
 		if ($server_user_stop ne $old_server_user_stop)
 		{
 			# Server booted and cleared this or the user shut down the server and this got set)
-			my $say_user_stop = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
-			my $variables     = { server => $server_name };
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_user_stop, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_user_stop, variables => $variables, set_by => $THIS_FILE});
+			my $message_key = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
+			my $variables   = { server => $server_name };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 		}
@@ -925,16 +925,16 @@ sub collect_data
 		{
 			# The amount of allocated RAM has changed, but if this value doesn't match
 			# 'server_ram_in_use', the user needs to reboot. 
-			my $say_ram   = $server_configured_ram eq $server_ram_in_use ? "scan_server_alert_0014" : "scan_server_alert_0015";
-			my $variables = { 
+			my $message_key = $server_configured_ram eq $server_ram_in_use ? "scan_server_alert_0014" : "scan_server_alert_0015";
+			my $variables   = { 
 				server                   => $server_name,
 				old_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_configured_ram}),
 				old_configured_ram_bytes => $anvil->Convert->add_commas({number => $old_server_configured_ram}),
 				new_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}),
 				new_configured_ram_bytes => $anvil->Convert->add_commas({number => $server_configured_ram}),
 			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_ram, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_ram, variables => $variables, set_by => $THIS_FILE});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 		}

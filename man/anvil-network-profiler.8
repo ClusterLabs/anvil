@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! cluster update tool.
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-network-profiler "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-network-profiler "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-network-profiler \- Tool to test the network performance between this host and a target host.
 .SH SYNOPSIS
 .B anvil-network-profiler 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This program uses 'iperf' to determine the real world network performance between this host and a target over a given network. This uses unfragmentable pings to detect the maximum usable MTU, and then repeatedly tests the performance, incrementing the MTU by a set amount between each tests. In this way, the optimal MTU is also found.
+This program uses 'iperf' to determine the real world network performance between this host and a target over a given network. This uses unfragmentable pings to detect the maximum usable MTU, and then repeatedly tests the performance, incrementing the MTU by a set amount between each test. In this way, the optimal MTU is also found.
 .TP
 .B Warning!
 This test manipulates the network interface during the test. As such, DO NOT run this test on any host (as source or target) that is in active use!
@@ -37,11 +37,11 @@ By default, the MTU is incremented by 500 bytes between tests. If you want to us
 .TP
 \fB\-\-source\fR <ip address>
 .TP
-This is the local IP address that will be used during the test. The interface with this IP address will have it's MTU size manipulated during the test.
+This is the local IP address that will be used during the test. The interface with this IP address will have its MTU size manipulated during the test.
 .TP
 \fB\-\-target\fR <ip address>
 .TP
-This is the IP address on the peer that will be used to connect to the target. The interface with this IP on the peer will have it's MTU size adjusted during the test.
+This is the IP address on the peer that will be used to connect to the target. The interface with this IP on the peer will have its MTU size adjusted during the test.
 .TP
 \fB\-\-tests\fR <number>
 .TP

@@ -1160,7 +1160,7 @@ sub cgi
 			if (not $cgi->upload('upload_file'))
 			{
 				# Empty file passed, looks like the user forgot to select a file to upload.
-				$anvil->Log->entry({level => 2, message_key => "log_0242", file => $THIS_FILE, line => __LINE__});
+				$anvil->Log->entry({level => 2, key => "log_0242", file => $THIS_FILE, line => __LINE__});
 			}
 			else
 			{

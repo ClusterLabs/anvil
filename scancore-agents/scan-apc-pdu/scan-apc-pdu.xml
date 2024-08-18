@@ -13,14 +13,8 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_apc_pdu_lo
 	<!-- Canadian English -->
 	<language name="en_CA" long_name="Canadian English" description="ScanCore scan agent that monitors APC-brand switched PDUs.">
 		
-		<!-- Error entries -->
-		<key name="scan_apc_pdu_error_0001">Failed to read the number of phases for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
-		<key name="scan_apc_pdu_error_0002">Able to now read the number of phases for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
-		<key name="scan_apc_pdu_error_0003">Failed to read the number of outlets for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
-		<key name="scan_apc_pdu_error_0004">Able to now read the number of outlets for the PDU: [#!variable!name!#] at IP: [#!variable!ip!#] (sn: #!variable!serial_number!#).</key>
-		
 		<!-- Log entries -->
-		<key name="scan_apc_pdu_log_0001">Starting: [#!variable!program!#].</key>
+		<key name="scan_apc_pdu_log_0001">#!free!#</key>
 		<key name="scan_apc_pdu_log_0002">[ Note ] - The APC PDU associated with the fence device: [#!variable!name!#] with 'scan_apc_pdu_uuid': [#!variable!uuid!#] is a duplicate, removing it from the database(s).</key>
 		
 		<!-- Message entries (usually meant to be alerts) -->

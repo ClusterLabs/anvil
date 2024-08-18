@@ -5,7 +5,7 @@ Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
 
-NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_cluster_log_0001'.
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_cluster_xxx'.
 -->
 
 <words>
@@ -43,7 +43,7 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_alert_0016">The node name: [#!variable!node_name!#] failed to translate to a host UUID. Does the node name match the host name?</key>
 		
 		<!-- Log entries -->
-		<key name="scan_cluster_log_0001">Starting: [#!variable!program!#].</key>
+		<key name="scan_cluster_log_0001">#!free!#</key>
 		<key name="scan_cluster_log_0002">This host is a: [#!variable!host_type!#], this agent is only useful on nodes. Exiting.</key>
 		<key name="scan_cluster_log_0003">[ Warning ] - The server: [#!variable!server!#] is in a FAILED state! Checking to see if it's safe to attempt recovery.</key>
 		<key name="scan_cluster_log_0004">Searching node: [#!variable!node_name!# (#!variable!host_uuid!#] which is in ready state: [#!variable!node_ready!#].</key>
@@ -55,9 +55,6 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_log_0010">Attempting recovery now...</key>
 		<key name="scan_cluster_log_0011">Checking to see if the server has recovered yet...</key>
 		<key name="scan_cluster_log_0012">Found the stale DRBD fenced attribute: [#!variable!attribute!#], removing it.</key>
-		
-		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_cluster_message_0001"></key>
 		
 		<!-- Units -->
 		<key name="scan_cluster_unit_0001">Yes</key>

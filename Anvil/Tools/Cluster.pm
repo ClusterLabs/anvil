@@ -1549,8 +1549,20 @@ sub check_stonith_config
 			}
 			elsif ((not $delete_old) && (not $dont_create))
 			{
-				# No existing entry, add a new one.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0122", variables => { device => $stonith_name }});
+				# If the pcmk_host_name was not set, we'll want to do an update.
+				if (exists $anvil->data->{crm_mon}{parsed}{'pacemaker-result'}{resources}{stonith}{$stonith_name})
+				{
+					# Change the 'create' to 'update'
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0123", variables => { device => $stonith_name }});
+					
+					$pcs_add_command =~ s/ stonith create / stonith update /;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pcs_add_command => $pcs_add_command }});
+				}
+				else
+				{
+					# No existing entry, add a new one.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0122", variables => { device => $stonith_name }});
+				}
 				
 				$create_entry = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { create_entry => $create_entry }});

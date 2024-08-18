@@ -1,13 +1,13 @@
 .\" Manpage for the Alteeve! repo setup tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH alteeve-repo-setup "8" "August 02 2022" "Anvil! Intelligent Availability™ Platform"
+.TH alteeve-repo-setup "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 alteeve-repo-setup \- Tool used to configure the Anvil! repository.
 .SH SYNOPSIS
 .B alteeve-repo-setup 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-alteeve-repo-setup \- This tool configures the local repository needed to install the Anvil! Intelligent Availability™ platform. The repository will be based on the OS running on this system. For example, if the host is RHEL 8, the repo will be configured for 'rhel-8'. Similarly, if this host is CentOS 8 Stream, the repo will be configured for 'centos-8-stream'. 
+alteeve-repo-setup \- This tool configures the local repository needed to install the Anvil! Intelligent Availability™ platform. The repository will be based on the OS running on this system. For example, if the host is RHEL 9, the repo will be configured for 'rhel-9'. Similarly, if this host is Alma 9, the repo will be configured for 'alma-9'. 
 .TP
 There are two main repos for the Anvil! system; 
 .TP
@@ -38,7 +38,7 @@ Show this man page.
 When logging, record sensitive data, like passwords.
 .TP
 \-d, \fB\-\-debug\fR
-This tool does not use the main Anvil::Tools modules, so debugging is limited to messaged shown during the run. This enables those debug messages.
+This tool does not use the main Anvil::Tools modules, so debugging is limited to messages shown during the run. This enables those debug messages.
 .IP
 .SS "Commands:"
 .TP

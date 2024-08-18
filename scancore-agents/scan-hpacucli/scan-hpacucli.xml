@@ -63,11 +63,11 @@ NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_hpacucli_l
 		<key name="scan_hpacucli_error_0003">No HPE-type RAID controllers were found, exiting.</key>
 		<key name="scan_hpacucli_error_0004">Failed to find the serial number for the adapter: [#!variable!adapter!#]. Please check the output of '#!data!path::hpacucli!# #!data!sys::arguments::controller_info!#' and look for the 'Serial Number = X' string. Exiting.</key>
 		<key name="scan_hpacucli_error_0005">The attempt to generate the XML diagnostics file: [#!variable!file!#] appears to have failed.</key>
-		<key name="scan_hpacucli_error_0006">Non-numeric value in a numeric variable; controller last diagnostics (unix time): [#!variable!last_diagnostics!#]. This is likely a program error.</key>
-		<key name="scan_hpacucli_error_0007">Non-numeric value in a numeric variable; cache module size: [#!variable!size!#]. This is likely a program error.</key>
-		<key name="scan_hpacucli_error_0008">Non-numeric value in a numeric variable; array unused space: [#!variable!unused_space!#]. This is likely a program error.</key>
-		<key name="scan_hpacucli_error_0009">Non-numeric value in a numeric variable; logical drive size: [#!variable!logical_drive_size!#], strip size: [#!variable!strip_size!#], or stripe size: [#!variable!stripe_size!#]. This is likely a program error.</key>
-		<key name="scan_hpacucli_error_0010">Non-numeric value in a numeric variable; drive size: [#!variable!size!#], RPM: [#!variable!rpm!#] or temperature: [#!variable!temperature!#]. This is likely a program error.</key>
+		<key name="scan_hpacucli_error_0006">#!free!#</key>
+		<key name="scan_hpacucli_error_0007">#!free!#</key>
+		<key name="scan_hpacucli_error_0008">#!free!#</key>
+		<key name="scan_hpacucli_error_0009">#!free!#</key>
+		<key name="scan_hpacucli_error_0010">#!free!#</key>
 		<key name="scan_hpacucli_error_0011">Failed to find the serial number of the physical drive at the following location:
 - RAID Controller Serial Number: [#!variable!serial_number!#]
 - Array Name: .................. [#!variable!array_name!#]
@@ -162,9 +162,7 @@ WARNING: If enough sensors go critical, emergency power off will occure to prote
 		</key>
 		<key name="scan_hpacucli_note_0027">The HP RAID array: [#!variable!name!#] has cleared the old error message: [#!variable!old_error_message!#]</key>
 		<key name="scan_hpacucli_note_0028">The HP RAID array: [#!variable!name!#] has an error message: [#!variable!new_error_message!#]</key>
-		<key name="scan_hpacucli_note_0029">The error message for the HP RAID array: [#!variable!name!#] has changed:
-- [#!variable!old_error_message!#] -> [#!variable!new_error_message!#]
-		</key>
+		<key name="scan_hpacucli_note_0029">#!free!#</key>
 		<key name="scan_hpacucli_note_0030">The HP RAID array: [#!variable!name!#] type has changed:
 - [#!variable!old_type!#] -> [#!variable!new_type!#]
 		</key>
@@ -206,9 +204,7 @@ WARNING: This is generally caused by a drive failing or having been removed. Ple
 - Strip Size: ..... [#!variable!old_strip_size!#] -> [#!variable!new_strip_size!#]
 - Stripe Size: .... [#!variable!old_stripe_size!#] -> [#!variable!new_stripe_size!#]
 		</key>
-		<key name="scan_hpacucli_note_0043">A variable on the HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has changed!
-- #!variable!variable_name!#: [#!variable!old_value!#] -> [#!variable!new_value!#]
-		</key>
+		<key name="scan_hpacucli_note_0043">#!free!#</key>
 		<key name="scan_hpacucli_note_0044">The HP RAID logical drive: [#!variable!logical_drive!#] has vanished!</key>
 		<key name="scan_hpacucli_note_0045">The HP RAID logical drive: [#!variable!logical_drive!#] under the array: [#!variable!array!#] on the controller: [#!variable!serial_number!#] has returned!</key>
 		<key name="scan_hpacucli_note_0046">A new physical disk was found on the HP RAID controller: [#!variable!controller_serial_number!#]:
@@ -231,7 +227,7 @@ WARNING: This is generally caused by a drive failing or having been removed. Ple
 - Logical Drive Name: .......... [#!variable!old_logical_drive_name!#] -> [#!variable!new_logical_drive_name!#]
 		</key>
 		<key name="scan_hpacucli_note_0048">The status of the physical disk [#!variable!serial_number!#] has changed! [#!variable!old_status!#] -> [#!variable!new_status!#]</key>
-		<key name="scan_hpacucli_note_0049">The physical disk: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0049">#!free!#</key>
 		<key name="scan_hpacucli_note_0050">The physical disk: [#!variable!serial_number!#] has returned.</key>
 		<key name="scan_hpacucli_note_0051">The physical disk: [#!variable!serial_number!#] is back to normal.</key>
 		<key name="scan_hpacucli_note_0052">The physical disk: [#!variable!serial_number!#] has changed in an unusual way:
@@ -298,10 +294,11 @@ WARNING: If enough sensors go critical, emergency power off will occure to prote
 		</key>
 		<key name="scan_hpacucli_note_0067">The variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
 		<key name="scan_hpacucli_note_0068">The diagnostics variable: [#!variable!name!#] on the physical drive with the serial number: [#!variable!serial_number!#] has vanished!</key>
+		<key name="scan_hpacucli_note_0069">The temperature of the physical drive: [#!variable!serial_number!#] temperature has changed to: [#!variable!new_temperature!#]</key>
 		
 		<!-- Log strings -->
 		<key name="scan_hpacucli_log_0001">Found: [#!variable!count!#] controller(s).</key>
-		<key name="scan_hpacucli_log_0002">The thermal sensor named: [#!variable!sensor_name!#], on: [#!variable!sensor_host!#] has not changed.</key>
+		<key name="scan_hpacucli_log_0002">#!free!#</key>
 		<key name="scan_hpacucli_log_0003">Running: [#!variable!shell_call!#] to gather drive diagnostics. This will take up to fifteen seconds to run.</key>
 		
 	</language>

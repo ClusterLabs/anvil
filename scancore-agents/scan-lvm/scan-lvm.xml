@@ -5,7 +5,7 @@ Company: Alteeve's Niche, Inc.
 License: GPL v2+
 Author:  Madison Kelly <mkelly@alteeve.ca>
 
-NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_lvm_log_0001'.
+NOTE: All string keys MUST be prefixed with the agent name! ie: 'scan_lvm_log_xxx'.
 -->
 
 <words>
@@ -225,17 +225,11 @@ The attribute bits are:
 		<key name="scan_lvm_alert_0035">The logical volume with the internal UUID: [#!variable!internal_uuid!#] (name: [#!variable!lv_name!#]) has a duplicate entry! Deleting the one with the scan_lvm_lv_uuid: [#!variable!lv_uuid!#].</key>
 
 		<!-- Log entries -->
-		<key name="scan_lvm_log_0001">Starting: [#!variable!program!#].</key>
+		<key name="scan_lvm_log_0001">#!free!#</key>
 		<key name="scan_lvm_log_0002">[ NOTE ] - Please update lvm.conf to remove the filter: filter = [ "r|/dev/drbd*|" ]</key>
                 
                 <!-- Warning entries -->
 		<key name="scan_lvm_warning_0001">[ Warning ] - Failed to find the sector size for: [#!variable!device!#] This should be in the path: [#!variable!sector_path!#]. Assuming the sector size of: [#!variable!sector_size!#], but this could be incorrect.</key>
-		
-		<!-- Message entries (usually meant to be alerts) -->
-		<key name="scan_lvm_message_0001"></key>
-		
-		<!-- Units -->
-		<key name="scan_lvm_unit_0001"></key>
 		
 	</language>
 </words>
