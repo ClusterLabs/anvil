@@ -2392,14 +2392,14 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0567">The host: [#!variable!host_name!#] was powered off because of power loss. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0568">The host: [#!variable!host_name!#] was powered off because of thermal issues. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0569">Unable to find an install manifest for the Anvil! [#!variable!anvil_name!#]. As such, unable to determine what UPSes power the machine: [#!variable!host_name!#]. Unable to determine if the power feeding this node is OK or not.</key>
-		<key name="log_0570">#!free!#</key>
+		<key name="log_0570">Startung replicated storage resources for servers protected by this DR host.</key>
 		<key name="log_0571">The UPS referenced by the 'power_uuid': [#!variable!power_uuid!#] under the host: [#!variable!host_name!#] has no record of being on mains power, so we can't determine how long it's been on batteries. Setting the "shortest time on batteries" to zero seconds.</key>
 		<key name="log_0572">Marking the host as 'online' and clearing the host's stop reason.</key>
 		<key name="log_0573">There appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command for the host: [#!variable!host_name!#]. Unable to check the thermal data of the host.</key>
 		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
-		<key name="log_0577">#!free!#</key>
+		<key name="log_0577">Starting (adjusting) the server: [#!variable!resource!#] now.</key>
 		<key name="log_0578">I was about to start: [#!variable!command!#], but I last tried to run this: [#!variable!last_start!#] seconds ago. We'll wait at least a minute before we try to run it again.</key>
 		<key name="log_0579">The LV(s) behind the resource: [#!variable!resource!#] have had their DRBD metadata created successfully.</key>
 		<key name="log_0580">The LV(s) behind the resource: [#!variable!resource!#] have been forced to primary to initialize the resource.</key>
@@ -2420,7 +2420,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		<key name="log_0596">The host: [#!variable!host_name!#] last updated the database: [#!variable!difference!#] seconds ago, skipping power checks.</key>
 		<key name="log_0597">The host: [#!variable!host_name!#] has no entries in the 'updated' table, so ScanCore has likely never run. Skipping this host for now.</key>
-		<key name="log_0598">This host is not an Anvil! sub node, this program isn't designed to run here.</key>
+		<key name="log_0598">This is a Striker dashboard, this program isn't designed to run here.</key>
 		<key name="log_0599">Enabled 'anvil-safe-start' locally on this node.</key>
 		<key name="log_0600">Enabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
