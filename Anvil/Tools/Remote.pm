@@ -502,11 +502,12 @@ sub call
 	{
 		# We're going to try up to 3 times, as sometimes there are transient issues that cause 
 		# connection errors.
-		my $connected   = 0;
-		my $message_key = "message_0005";
-		my $last_loop   = 2;
-		my $bad_file    = "";
-		my $bad_line    = "";
+		my $connected         = 0;
+		my $message_key       = "message_0005";
+		my $last_loop         = 2;
+		my $bad_file          = "";
+		my $bad_line          = "";
+		my $check_known_hosts = 0;
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
@@ -567,8 +568,13 @@ sub call
 						}});
 					}
 				}
-				$message_key = "message_0149";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				$message_key       = "message_0149";
+				$check_known_hosts = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					i                 => $i, 
+					message_key       => $message_key,
+					check_known_hosts => $check_known_hosts, 
+				}});
 				
 				# If I have a database connection, record this bad entry in 'states'.
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::connections' => $anvil->data->{sys}{database}{connections} }});
@@ -591,8 +597,13 @@ sub call
 			elsif ($connect_output =~ /Host key verification failed/i)
 			{
 				# Need to accept the fingerprint
-				$message_key = "message_0135";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				$message_key       = "message_0135";
+				$check_known_hosts = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					i                 => $i, 
+					message_key       => $message_key,
+					check_known_hosts => $check_known_hosts, 
+				}});
 				
 				# Make sure we know the fingerprint of the remote machine
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => getpwuid($<) }});
@@ -683,20 +694,21 @@ sub call
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-				'close'    => $close, 
-				password   => $anvil->Log->is_secure($password), 
-				secure     => $secure, 
-				shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
-				ssh_fh     => $ssh_fh,
-				start_time => $start_time, 
-				timeout    => $timeout, 
-				port       => $port, 
-				target     => $target,
-				ssh_fh_key => $ssh_fh_key, 
+				'close'           => $close, 
+				password          => $anvil->Log->is_secure($password), 
+				secure            => $secure, 
+				shell_call        => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+				ssh_fh            => $ssh_fh,
+				start_time        => $start_time, 
+				timeout           => $timeout, 
+				port              => $port, 
+				target            => $target,
+				ssh_fh_key        => $ssh_fh_key, 
+				check_known_hosts => $check_known_hosts,
 			}});
 			
 			# If there's a bad file/line, check if the new key is known.
-			if (($bad_file) or ($bad_line))
+			if ($check_known_hosts)
 			{
 				$anvil->Remote->add_target_to_known_hosts({
 					debug  => $debug, 
