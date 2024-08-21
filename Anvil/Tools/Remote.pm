@@ -10,6 +10,7 @@ use Scalar::Util qw(weaken isweak);
 use Net::SSH2;	### TODO: Phase out.
 use Net::OpenSSH;
 use Capture::Tiny ':all';
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Remote.pm";
@@ -1244,25 +1245,71 @@ sub _call_ssh_keyscan
 	}
 	
 	# Redirect STDERR to STDOUT and grep off the comments.
-	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target;
 	if (($port) && ($port ne "22"))
 	{
-		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 -p ".$port." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 -p ".$port." ".$target;
 	}
-	my $output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	my $new_line = "";
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^\Q$target\E ecdsa-sha2-nistp256 /)
+		{
+			# Good line.
+			$new_line = $line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
+			last;
+		}
 	}
 	
-	# Set the ownership
-	$output     = "";
-	$shell_call = $anvil->data->{path}{exe}{'chown'}." ".$user.":".$user." ".$known_hosts;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
-	foreach my $line (split/\n/, $output)
+	if ($new_line)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		# Append it. 
+		my $old_body = $anvil->Storage->read_file({
+			debug      => $debug, 
+			file       => $known_hosts,
+			cache      => 0, 
+			force_read => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'old_body' => $old_body }});
+		
+		my $new_body = "";
+		foreach my $line (split/\n/, $old_body)
+		{
+			next if not $line;
+			$new_body .= $line."\n";
+		}
+		$new_body .= $new_line."\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'new_body' => $new_body }});
+		
+		my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0003", variables => { 
+			file       => $known_hosts, 
+			difference => $difference,
+		}});
+		
+		if ($difference)
+		{
+			# Write the new file body.
+			$anvil->Storage->write_file({
+				debug     => $debug, 
+				file      => $known_hosts, 
+				body      => $new_body, 
+				backup    => 1, 
+				overwrite => 1, 
+				mode      => "644", 
+				user      => $user, 
+				group     => $user, 
+			})
+		}
 	}
 	
 	# Verify that it's now there.

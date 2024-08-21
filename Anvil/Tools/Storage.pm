@@ -5721,8 +5721,11 @@ sub write_file
 		file_name => $file_name,
 	}});
 	
+	my $is_local = $anvil->Network->is_local({host => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	
 	# Now, are we writing locally or on a remote system?
-	if ($anvil->Network->is_local({host => $target}))
+	if ($is_local)
 	{
 		# Local
 		if (-e $file)
@@ -5773,10 +5776,31 @@ sub write_file
 			# Now write the file.
 			my $shell_call = $file;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0013", variables => { shell_call => $shell_call }});
-			open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
-			#open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
+			#open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
 			print $file_handle $body;
 			close $file_handle;
+			
+			# Read back the file and see that it's accurate.
+			my $new_body = $anvil->Storage->read_file({
+				debug      => $debug,
+				file       => $file, 
+				force_read => 1, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+			
+			my $difference = diff \$body, \$new_body, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+			
+			if ($difference)
+			{
+				# Failed!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0002", variables => { 
+					file       => $file,
+					difference => $difference, 
+				}});
+				return(1);
+			}
 			
 			# Delete the cache for this file, if it exists.
 			if (exists $anvil->data->{cache}{file}{$file})

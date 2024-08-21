@@ -1759,7 +1759,11 @@ It is multiple lines with single quotes ['] and double-quotes (") and here are r
 
 It also has replacement variables: [#!variable!first!#] and [#!variable!second!#].
 		</key>
-		<key name="log_0003">#!free!#</key>
+		<key name="log_0003">The known_hosts file: [#!variable!file!#] has changed:
+====
+#!variable!difference!#
+====
+</key>
 		<key name="log_0004">#!free!#</key>
 		<key name="log_0005">#!free!#</key>
 		<key name="log_0006">#!free!#</key>
@@ -2378,7 +2382,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 #!variable!difference!#
 ====
-		</key>
+</key>
 		<key name="log_0557">- Scan agent: [#!variable!agent_name!#] exited after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
 		<key name="log_0558">I'm not on the same network as: [#!variable!host_name!#]. Unable to check the power state.</key>
 		<key name="log_0559">The host: [#!variable!host_name!#] appears to be off, but there's no IPMI information, so unable to check the power state or power on the machine.</key>
@@ -3930,7 +3934,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		
 		<!-- Warnings --> 
 		<key name="warning_0001">[ Warning ] - There was a duplicate IP address found in the database for the host: [#!variable!host_uuid!#] with the IP: [#!variable!ip_address!#/#!variable!subnet_mask!#]. It was last seen on the interface type: [#!variable!on_type!#] with UUID: [#!variable!on_uuid!#]. It had the 'ip_address_uuid': [#!variable!ip_address_uuid!#]! of. Deleting it now!</key>
-		<key name="warning_0002">#!free!#</key>
+		<key name="warning_0002">[ Warning ] - Failed to update the file: [#!variable!file!#]. The new body wasn't written, or it wasn't written accurately. The difference was:
+====
+#!variable!difference!#
+====
+</key>
 		<key name="warning_0003">#!free!#</key>
 		<key name="warning_0004">#!free!#</key>
 		<key name="warning_0005">#!free!#</key>
