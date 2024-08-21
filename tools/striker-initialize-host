@@ -928,6 +928,7 @@ sub wait_for_access
 	while ($waiting)
 	{
 		$access = $anvil->Remote->test_access({
+			debug    => 2,
 			password => $anvil->data->{data}{password}, 
 			port     => $anvil->data->{data}{ssh_port}, 
 			target   => $anvil->data->{data}{host_ip_address},
