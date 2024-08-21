@@ -694,6 +694,17 @@ sub call
 				target     => $target,
 				ssh_fh_key => $ssh_fh_key, 
 			}});
+			
+			# If there's a bad file/line, check if the new key is known.
+			if (($bad_file) or ($bad_line))
+			{
+				$anvil->Remote->add_target_to_known_hosts({
+					debug  => $debug, 
+					target => $target, 
+					user   => getpwuid($<),
+				});
+			}
+			#die;
 		}
 	}
 	

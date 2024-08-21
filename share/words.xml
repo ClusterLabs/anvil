@@ -2888,7 +2888,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0146">#!free!#</key>
 		<key name="message_0147">#!free!#</key>
 		<key name="message_0148">#!free!#</key>
-		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
+		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">#!free!#</key>
 		<key name="message_0151">#!free!#</key>
 		<key name="message_0152">#!free!#</key>
@@ -3929,7 +3929,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0049"><![CDATA[<ejected>]]></key>
 		
 		<!-- Warnings --> 
-		<key name="warning_0001">#!free!#</key>
+		<key name="warning_0001">[ Warning ] - There was a duplicate IP address found in the database for the host: [#!variable!host_uuid!#] with the IP: [#!variable!ip_address!#/#!variable!subnet_mask!#]. It was last seen on the interface type: [#!variable!on_type!#] with UUID: [#!variable!on_uuid!#]. It had the 'ip_address_uuid': [#!variable!ip_address_uuid!#]! of. Deleting it now!</key>
 		<key name="warning_0002">#!free!#</key>
 		<key name="warning_0003">#!free!#</key>
 		<key name="warning_0004">#!free!#</key>

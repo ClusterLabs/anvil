@@ -4644,7 +4644,9 @@ FROM
 WHERE 
     ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)." 
 AND 
-    ip_address_note != 'DELETED';
+    ip_address_note != 'DELETED'
+ORDER BY 
+    modified_date DESC
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -4670,6 +4672,31 @@ AND
 				ip_address_address     => $ip_address_address, 
 				ip_address_subnet_mask => $ip_address_subnet_mask, 
 			}});
+			
+			# There can be multiple entries for the same IP, which is a bug of course. However, 
+			# until the root cause is found, this will detect/cleanup the dupes. By sorting by 
+			# the modified_date, we'll preserve the newest one.
+			if (exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address_address})
+			{
+				# Duplicate, delete it.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, priority => "alert", key => "warning_0001", variables => { 
+					ip_address_uuid => $ip_address_uuid, 
+					host_uuid       => $ip_address_host_uuid, 
+					on_type         => $ip_address_on_type, 
+					on_uuid         => $ip_address_on_uuid, 
+					ip_address      => $ip_address_address, 
+					subnet_mask     => $ip_address_subnet_mask, 
+				}});
+				
+				my $query = "DELETE FROM history.ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				$query = "DELETE FROM ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				next;
+			}
 			
 			# Which device is it on?
 			my $on_interface = "";
