@@ -704,7 +704,6 @@ sub call
 					user   => getpwuid($<),
 				});
 			}
-			#die;
 		}
 	}
 	
@@ -797,6 +796,47 @@ sub call
 		$clean_output =~ s/\n$//;
 		$output       =  $clean_output;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+		
+		# Check to see if there is a 'host_key_changed' for this target and, if so, clear it.
+		if ($anvil->data->{sys}{database}{connections})
+		{
+			my $test_name = "host_key_changed::".$target;
+			my $query     = "SELECT state_uuid, state_note FROM states WHERE state_name = ".$anvil->Database->quote($test_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				results => $results, 
+				count   => $count,
+			}});
+			if ($count)
+			{
+				my $state_uuid = $results->[0]->[0];
+				my $state_note = $results->[0]->[1];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					state_uuid => $state_uuid,
+					state_note => $state_note, 
+				}});
+				
+				# What's the user's known_hosts file and does it match the key?
+				my $users_home = $anvil->Get->users_home({debug => $debug});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
+				if ($users_home)
+				{
+					my $known_hosts = $users_home."/.ssh/known_hosts";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+					
+					if ($state_note =~ /file=\Q$known_hosts\E,/)
+					{
+						# Delete it
+						my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					}
+				}
+			}
+		}
 		
 		# Have we been asked to close the connection?
 		if ($close)
