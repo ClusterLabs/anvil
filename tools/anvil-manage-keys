@@ -107,7 +107,7 @@ WHERE
 		{
 			# No bad keys found on this host.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0078"});
-			sleep 10;
+			update_progress($anvil, 100, "error_0078");
 			$anvil->nice_exit({exit_code => 2});
 		}
 		foreach my $row (@{$results})
