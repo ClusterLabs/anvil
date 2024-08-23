@@ -1640,8 +1640,14 @@ sub _check_known_hosts_for_target
 	{
 		### NOTE: It appears the port is not needed.
 		# If we have a non-digit user, run this through 'su.
+		my $current_user = getpwuid($<);
+		my $i_am_root    = (($< == 0) or ($> == 0)) ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			current_user => $current_user, 
+			i_am_root    => $i_am_root, 
+		}});
 		my $shell_call = $anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target;
-		if (($user) && ($user =~ /\D/))
+		if (($i_am_root) && ($user) && ($user =~ /\D/) && ())
 		{
 			$shell_call = $anvil->data->{path}{exe}{su}." - ".$user." -c '".$anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target."'";
 		}
