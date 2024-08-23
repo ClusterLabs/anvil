@@ -1764,7 +1764,7 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 #!variable!difference!#
 ====
 </key>
-		<key name="log_0004">#!free!#</key>
+		<key name="log_0004">The known hosts file: [#!variable!file!#] had an entry for: [#!variable!target!#] at line: [#!variable!bad_line!#]. A check was made and it appears this entry was updated.</key>
 		<key name="log_0005">#!free!#</key>
 		<key name="log_0006">#!free!#</key>
 		<key name="log_0007">#!free!#</key>

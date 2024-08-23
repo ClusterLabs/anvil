@@ -587,12 +587,32 @@ sub call
 				}
 				if ($anvil->data->{sys}{database}{connections})
 				{
-					my ($state_uuid) = $anvil->Database->insert_or_update_states({
-						debug      => 2, 
-						state_name => "host_key_changed::".$target, 
-						state_note => "file=".$bad_file.",line=".$bad_line, 
+					# See if we already know the new key from the DB.
+					my ($known_machine) = $anvil->Remote->_check_known_hosts_for_target({
+						debug  => $debug,
+						port   => $port, 
+						target => $target,
+						user   => $user,
 					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+					if ($known_machine eq "2")
+					{
+						# The key was found and changed.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0158", variables => { 
+							target   => $target, 
+							file     => $bad_file, 
+							bad_line => $bad_line,
+						}});
+					}
+					elsif ($known_machine eq "1")
+					{
+						# Found but not replaced. Mark it as a bad key.
+						my ($state_uuid) = $anvil->Database->insert_or_update_states({
+							debug      => 2, 
+							state_name => "host_key_changed::".$target, 
+							state_note => "file=".$bad_file.",line=".$bad_line, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+					}
 				}
 			}
 			elsif ($connect_output =~ /Host key verification failed/i)
@@ -1330,7 +1350,7 @@ sub _call_ssh_keyscan
 
 This checks to see if a given C<< target >> machine is in the C<< user >>'s C<< known_hosts >> file.
 
-Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found.
+Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found. If the key was replaced, C<< 2 >> is returned.
 
 Parameters;
 
@@ -1575,8 +1595,12 @@ sub _check_known_hosts_for_target
 						old_key     => $current_key_string,
 						new_key     => $host_key_string,
 					}});
+					$known_machine   = 2;   
 					$delete_if_found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_if_found => $delete_if_found }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						known_machine   => $known_machine, 
+						delete_if_found => $delete_if_found,
+					}});
 				}
 			}
 		}
