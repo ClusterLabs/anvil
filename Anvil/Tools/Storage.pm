@@ -422,21 +422,21 @@ If set to C<< 0 >>, any problem with the backup will be ignored and an empty str
 
 This is the path and file name of the file to be backed up. Fully paths must be used.
 
-=head3 port (optional, default 22)
-
-If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
-
 =head3 password (optional)
 
 If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
 
-=head3 target (optional)
+=head3 port (optional, default 22)
 
-If set, the file will be backed up on the target machine. This must be either an IP address or a resolvable host name. 
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
 
 =head3 remote_user (optional)
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional)
+
+If set, the file will be backed up on the target machine. This must be either an IP address or a resolvable host name. 
 
 =cut
 sub backup
@@ -583,12 +583,36 @@ fi";
 	# Proceed?
 	if ($proceed)
 	{
-		# Proceed with the backup. We'll recreate the path 
+		# Make sure the backup directory exists.
 		my ($directory, $file) = ($source_file =~ /^(\/.*)\/(.*)$/);
-		my $timestamp          = $anvil->Get->date_and_time({file_name => 1});
 		my $backup_directory   = $anvil->data->{path}{directories}{backups}.$directory;
-		my $backup_target      = $file.".".$timestamp.".".$anvil->Get->uuid({short => 1});
-		   $target_file        = $backup_directory."/".$backup_target; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_directory => $backup_directory }});
+		if (($< != 0) && ($> != 0))
+		{
+			# Change the backup directory to the user's home directory.
+			my $users_home = $anvil->Get->users_home({debug => $debug});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { users_home => $users_home }});
+			if ($users_home)
+			{
+				$backup_directory = $users_home.'/anvil-backups/'.$directory;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_directory => $backup_directory }});
+			}
+		}
+		
+		if (not -d $backup_directory)
+		{
+			# Create the directory
+			my $failed = $anvil->Storage->make_directory({
+				debug     => $debug,
+				directory => $backup_directory,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
+		
+		# Proceed with the backup. We'll recreate the path 
+		my $timestamp     = $anvil->Get->date_and_time({file_name => 1});
+		my $backup_target = $file.".".$timestamp.".".$anvil->Get->uuid({short => 1});
+		   $target_file   = $backup_directory."/".$backup_target; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			directory        => $directory, 
 			file             => $file, 
