@@ -503,12 +503,11 @@ sub call
 	{
 		# We're going to try up to 3 times, as sometimes there are transient issues that cause 
 		# connection errors.
-		my $connected         = 0;
-		my $message_key       = "message_0005";
-		my $last_loop         = 2;
-		my $bad_file          = "";
-		my $bad_line          = "";
-		my $check_known_hosts = 0;
+		my $connected   = 0;
+		my $message_key = "message_0005";
+		my $last_loop   = 2;
+		my $bad_file    = "";
+		my $bad_line    = "";
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
@@ -569,12 +568,17 @@ sub call
 						}});
 					}
 				}
-				$message_key       = "message_0149";
-				$check_known_hosts = 1;
+				$message_key = "message_0149";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					i                 => $i, 
-					message_key       => $message_key,
-					check_known_hosts => $check_known_hosts, 
+					i           => $i, 
+					message_key => $message_key,
+				}});
+				
+				# Log that the key is bad.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0005", variables => { 
+					target   => $target,
+					file     => $bad_file, 
+					bad_line => $bad_line, 
 				}});
 				
 				# If I have a database connection, record this bad entry in 'states'.
@@ -587,43 +591,22 @@ sub call
 				}
 				if ($anvil->data->{sys}{database}{connections})
 				{
-					# See if we already know the new key from the DB.
-					my ($known_machine) = $anvil->Remote->_check_known_hosts_for_target({
-						debug  => $debug,
-						port   => $port, 
-						target => $target,
-						user   => $user,
+					# Mark the key as being bad in the database.
+					my ($state_uuid) = $anvil->Database->insert_or_update_states({
+						debug      => 2, 
+						state_name => "host_key_changed::".$target, 
+						state_note => "file=".$bad_file.",line=".$bad_line, 
 					});
-					if ($known_machine eq "2")
-					{
-						# The key was found and changed.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0158", variables => { 
-							target   => $target, 
-							file     => $bad_file, 
-							bad_line => $bad_line,
-						}});
-					}
-					elsif ($known_machine eq "1")
-					{
-						# Found but not replaced. Mark it as a bad key.
-						my ($state_uuid) = $anvil->Database->insert_or_update_states({
-							debug      => 2, 
-							state_name => "host_key_changed::".$target, 
-							state_note => "file=".$bad_file.",line=".$bad_line, 
-						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
-					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 				}
 			}
 			elsif ($connect_output =~ /Host key verification failed/i)
 			{
 				# Need to accept the fingerprint
-				$message_key       = "message_0135";
-				$check_known_hosts = 1;
+				$message_key = "message_0135";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					i                 => $i, 
-					message_key       => $message_key,
-					check_known_hosts => $check_known_hosts, 
+					i           => $i, 
+					message_key => $message_key,
 				}});
 				
 				# Make sure we know the fingerprint of the remote machine
@@ -715,28 +698,17 @@ sub call
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => $message_key, variables => $variables});
 			
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
-				'close'           => $close, 
-				password          => $anvil->Log->is_secure($password), 
-				secure            => $secure, 
-				shell_call        => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
-				ssh_fh            => $ssh_fh,
-				start_time        => $start_time, 
-				timeout           => $timeout, 
-				port              => $port, 
-				target            => $target,
-				ssh_fh_key        => $ssh_fh_key, 
-				check_known_hosts => $check_known_hosts,
+				'close'    => $close, 
+				password   => $anvil->Log->is_secure($password), 
+				secure     => $secure, 
+				shell_call => (not $secure) ? $shell_call : $anvil->Log->is_secure($shell_call),
+				ssh_fh     => $ssh_fh,
+				start_time => $start_time, 
+				timeout    => $timeout, 
+				port       => $port, 
+				target     => $target,
+				ssh_fh_key => $ssh_fh_key, 
 			}});
-			
-			# If there's a bad file/line, check if the new key is known.
-			if ($check_known_hosts)
-			{
-				$anvil->Remote->add_target_to_known_hosts({
-					debug  => $debug, 
-					target => $target, 
-					user   => getpwuid($<),
-				});
-			}
 		}
 		else
 		{
@@ -1350,7 +1322,7 @@ sub _call_ssh_keyscan
 
 This checks to see if a given C<< target >> machine is in the C<< user >>'s C<< known_hosts >> file.
 
-Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found. If the key was replaced, C<< 2 >> is returned.
+Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found.
 
 Parameters;
 
@@ -1563,45 +1535,6 @@ sub _check_known_hosts_for_target
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,
 				}});
-			}
-			
-			if ($target_host_uuid)
-			{
-				# If we have a host_key and it doesn't match the one we just read, delete it.
-				my $host_key = $anvil->Words->clean_spaces({string => $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{host_key}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-					's1:host_key'    => $host_key,
-					's2:current_key' => $current_key, 
-				}});
-				
-				my ($current_key_type, $current_key_string) =  ($current_key =~ /(.*?)\s+(.*)$/);
-				my ($host_key_type, $host_key_string)       =  ($host_key =~ /(.*?)\s+(.*)$/);
-				   $host_key_string                         =~ s/\s.*$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-					's1:current_key_type'   => $current_key_type,
-					's2:host_key_type'      => $host_key_type, 
-					's3:current_key_string' => $current_key_string, 
-					's4:host_key_string'    => $host_key_string, 
-				}});
-				
-				# If the key type is the same, but the string is not, delete the old key.
-				if (($current_key_type eq $host_key_type) && ($current_key_string ne $host_key_string))
-				{
-					# It's changed, clear the old one.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0851", variables => { 
-						known_hosts => $known_hosts, 
-						target      => $target, 
-						key_type    => $current_key_type, 
-						old_key     => $current_key_string,
-						new_key     => $host_key_string,
-					}});
-					$known_machine   = 2;   
-					$delete_if_found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						known_machine   => $known_machine, 
-						delete_if_found => $delete_if_found,
-					}});
-				}
 			}
 		}
 	}
