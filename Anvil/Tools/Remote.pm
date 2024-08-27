@@ -10,6 +10,7 @@ use Scalar::Util qw(weaken isweak);
 use Net::SSH2;	### TODO: Phase out.
 use Net::OpenSSH;
 use Capture::Tiny ':all';
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Remote.pm";
@@ -507,6 +508,7 @@ sub call
 		my $last_loop   = 2;
 		my $bad_file    = "";
 		my $bad_line    = "";
+		my $bad_key     = "";
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
@@ -568,7 +570,17 @@ sub call
 					}
 				}
 				$message_key = "message_0149";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					i           => $i, 
+					message_key => $message_key,
+				}});
+				
+				# Log that the key is bad.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0005", variables => { 
+					target   => $target,
+					file     => $bad_file, 
+					bad_line => $bad_line, 
+				}});
 				
 				# If I have a database connection, record this bad entry in 'states'.
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 'sys::database::connections' => $anvil->data->{sys}{database}{connections} }});
@@ -576,14 +588,48 @@ sub call
 				{
 					# Try to connect
 					$anvil->Database->connect();
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 				}
 				if ($anvil->data->{sys}{database}{connections})
 				{
+					# Get the key from the file
+					my $users_home  = $anvil->Get->users_home({debug => 3, user => $user});
+					my $known_hosts = $users_home."/.ssh/known_hosts";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+					
+					my ($old_body) = $anvil->Storage->read_file({file => $known_hosts});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_body => $old_body }});
+					
+					my $line_number = 0;
+					foreach my $line (split/\n/, $old_body)
+					{
+						$line_number++;
+						next if $line_number ne $bad_line;
+						$line = $anvil->Words->clean_spaces({string => $line});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line_number.":".$line }});
+						
+						my ($host, $algo, $key) = ($line =~ /^(.*?)\s+(.*?)\s+(.*)$/);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:host' => $host,
+							's2:algp' => $algo,
+							's3:key'  => $key, 
+						}});
+						
+						if ($key)
+						{
+							$bad_key = $key;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
+						}
+						last;
+					}
+					my $state_note = $bad_key ? "key=".$bad_key : "file=".$bad_file.",line=".$bad_line;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_note => $state_note }});
+					
+					# Mark the key as being bad in the database.
 					my ($state_uuid) = $anvil->Database->insert_or_update_states({
-						debug      => 2, 
+						debug      => $debug, 
 						state_name => "host_key_changed::".$target, 
-						state_note => "file=".$bad_file.",line=".$bad_line, 
+						state_note => $state_note, 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 				}
@@ -592,7 +638,10 @@ sub call
 			{
 				# Need to accept the fingerprint
 				$message_key = "message_0135";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { i => $i, message_key => $message_key }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					i           => $i, 
+					message_key => $message_key,
+				}});
 				
 				# Make sure we know the fingerprint of the remote machine
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => getpwuid($<) }});
@@ -694,6 +743,33 @@ sub call
 				target     => $target,
 				ssh_fh_key => $ssh_fh_key, 
 			}});
+		}
+		else
+		{
+			# Check to see if there is a 'host_key_changed' for this target and, if so, clear it.
+			if ($anvil->data->{sys}{database}{connections})
+			{
+				my $test_name = "host_key_changed::".$target;
+				my $query     = "SELECT state_uuid FROM states WHERE state_name = ".$anvil->Database->quote($test_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count,
+				}});
+				if ($count)
+				{
+					my $state_uuid = $results->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+					
+					# Delete it
+					my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+			}
 		}
 	}
 	
@@ -1179,25 +1255,71 @@ sub _call_ssh_keyscan
 	}
 	
 	# Redirect STDERR to STDOUT and grep off the comments.
-	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+	my $shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 ".$target;
 	if (($port) && ($port ne "22"))
 	{
-		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 -p ".$port." ".$target." 2>&1 | ".$anvil->data->{path}{exe}{'grep'}." -v ^# >> ".$known_hosts;
+		$shell_call = $anvil->data->{path}{exe}{'ssh-keyscan'}." -4 -t ecdsa-sha2-nistp256 -p ".$port." ".$target;
 	}
-	my $output = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+
+	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	my $new_line = "";
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^\Q$target\E ecdsa-sha2-nistp256 /)
+		{
+			# Good line.
+			$new_line = $line;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_line => $new_line }});
+			last;
+		}
 	}
 	
-	# Set the ownership
-	$output     = "";
-	$shell_call = $anvil->data->{path}{exe}{'chown'}." ".$user.":".$user." ".$known_hosts;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { output => $output }});
-	foreach my $line (split/\n/, $output)
+	if ($new_line)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		# Append it. 
+		my $old_body = $anvil->Storage->read_file({
+			debug      => $debug, 
+			file       => $known_hosts,
+			cache      => 0, 
+			force_read => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'old_body' => $old_body }});
+		
+		my $new_body = "";
+		foreach my $line (split/\n/, $old_body)
+		{
+			next if not $line;
+			$new_body .= $line."\n";
+		}
+		$new_body .= $new_line."\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 'new_body' => $new_body }});
+		
+		my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0003", variables => { 
+			file       => $known_hosts, 
+			difference => $difference,
+		}});
+		
+		if ($difference)
+		{
+			# Write the new file body.
+			$anvil->Storage->write_file({
+				debug     => $debug, 
+				file      => $known_hosts, 
+				body      => $new_body, 
+				backup    => 1, 
+				overwrite => 1, 
+				mode      => "644", 
+				user      => $user, 
+				group     => $user, 
+			})
+		}
 	}
 	
 	# Verify that it's now there.
@@ -1432,41 +1554,6 @@ sub _check_known_hosts_for_target
 					target_host_name => $target_host_name,
 				}});
 			}
-			
-			if ($target_host_uuid)
-			{
-				# If we have a host_key and it doesn't match the one we just read, delete it.
-				my $host_key = $anvil->Words->clean_spaces({string => $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{host_key}});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-					's1:host_key'    => $host_key,
-					's2:current_key' => $current_key, 
-				}});
-				
-				my ($current_key_type, $current_key_string) =  ($current_key =~ /(.*?)\s+(.*)$/);
-				my ($host_key_type, $host_key_string)       =  ($host_key =~ /(.*?)\s+(.*)$/);
-				   $host_key_string                         =~ s/\s.*$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-					's1:current_key_type'   => $current_key_type,
-					's2:host_key_type'      => $host_key_type, 
-					's3:current_key_string' => $current_key_string, 
-					's4:host_key_string'    => $host_key_string, 
-				}});
-				
-				# If the key type is the same, but the string is not, delete the old key.
-				if (($current_key_type eq $host_key_type) && ($current_key_string ne $host_key_string))
-				{
-					# It's changed, clear the old one.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0851", variables => { 
-						known_hosts => $known_hosts, 
-						target      => $target, 
-						key_type    => $current_key_type, 
-						old_key     => $current_key_string,
-						new_key     => $host_key_string,
-					}});
-					$delete_if_found = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_if_found => $delete_if_found }});
-				}
-			}
 		}
 	}
 	
@@ -1504,8 +1591,14 @@ sub _check_known_hosts_for_target
 	{
 		### NOTE: It appears the port is not needed.
 		# If we have a non-digit user, run this through 'su.
+		my $current_user = getpwuid($<);
+		my $i_am_root    = (($< == 0) or ($> == 0)) ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			current_user => $current_user, 
+			i_am_root    => $i_am_root, 
+		}});
 		my $shell_call = $anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target;
-		if (($user) && ($user =~ /\D/))
+		if (($i_am_root) && ($user) && ($user =~ /\D/) && ())
 		{
 			$shell_call = $anvil->data->{path}{exe}{su}." - ".$user." -c '".$anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target."'";
 		}

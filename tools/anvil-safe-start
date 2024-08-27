@@ -571,6 +571,50 @@ sub wait_for_access
 	return(0);
 }
 
+### TODO: When scheduling is added, this should honour that.
+# Look for configured DRBD resources and start them
+sub start_dr
+{
+	my ($anvil) = @_;
+	
+	# We look for resources instead of just calling 'adjust' globally so that, later, we can honour 
+	# scheduling.
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $anvil->data->{path}{directories}{drbd_resources});
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file !~ /\.res$/;
+		my $resource_file = $anvil->data->{path}{directories}{drbd_resources}."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_file => $resource_file }});
+		
+		my $resource_config = $anvil->Storage->read_file({file => $resource_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_config => $resource_config }});
+		foreach my $line (split/\n/, $resource_config)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lineg => $line }});
+			if (($line =~ /resource \"(.*?)\"/) or ($line =~ /resource (.*?)\s+{/))
+			{
+				# Found a resource. This is where we'd check for schedules. For now, just 
+				# adjust.
+				my $resource = $1;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0577", variables => {resource => $resource}});
+				
+				my $shell_call = $anvil->data->{path}{exe}{'drbdadm'}." adjust ".$resource;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+			}
+		}
+	}
+	closedir(DIRECTORY);
+	
+	return(0);
+}
+
 # This checks to verify that we're a node, and if so, if this tool is enabled. If it's disabled or this isn't
 # a node, this method will exit.
 sub prerun_checks
@@ -594,10 +638,19 @@ sub prerun_checks
 		$anvil->DRBD->get_status({debug => 2});
 	}
 	
-	if ($host_type ne "node")
+	if ($host_type eq "striker")
 	{
 		# We're done.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0598"});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# If we're a DR Host, just adjust DRBD and call it a day.
+	if ($host_type eq "dr")
+	{
+		# Call adjust and then exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0570"});
+		start_dr($anvil);
 		$anvil->nice_exit({exit_code => 0});
 	}
 	

@@ -42,7 +42,7 @@ If you need any assistance, please feel free to contact #!string!brand_0001!# (h
 		</key>
 		
 		<!-- Errors -->
-		<key name="error_0001">#!free!#</key>
+		<key name="error_0001">[ Error ] - Failed to find the SSH key that should have been in file: [#!variable!file!#] at line: [#!variable!line!#]!</key>
 		<key name="error_0002">#!free!#</key>
 		<key name="error_0003">None of the databases are accessible, unable to proceed. Please be sure that 'anvil-daemon' is enabled and running on the database machine(s).</key>
 		<key name="error_0004">#!free!#</key>
@@ -134,7 +134,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
 		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
-		<key name="error_0078">Did not find any offending keys on this host, exiting.</key>
+		<key name="error_0078">#!free!#</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
 		<key name="error_0080">#!free!#</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
@@ -1202,9 +1202,9 @@ resource "#!variable!server!#" {
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
-		<key name="job_0002">#!free!#</key>
-		<key name="job_0003">#!free!#</key>
-		<key name="job_0004">#!free!#</key>
+		<key name="job_0002">Created a job to delete the SSH key for the target machine: [#!variable!target!#] on the host: [#!variable!host_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0003">Converted all old-style jobs to the new style. The new jobs will run shortly. Exiting now.</key>
+		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!host!#] has been removed.</key>
 		<key name="job_0005">#!free!#</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">#!free!#</key>
@@ -1257,12 +1257,12 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0050">[ Error ] - The known_hosts file: [#!variable!file!#] was not found. Skipping it.</key>
 		<key name="job_0051">Finished.</key>
 		<key name="job_0052">[ Error ] - There was a problem reading the known_hosts file: [#!variable!file!#]. Skipping it.</key>
-		<key name="job_0053">Found an entry for the target at line: [#!variable!line!#], removing it.</key>
-		<key name="job_0054">#!free!#</key>
+		<key name="job_0053">#!free!#</key>
+		<key name="job_0054">Found an entry matching the key being removed at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
-		<key name="job_0056">#!free!#</key>
-		<key name="job_0057">#!free!#</key>
-		<key name="job_0058">The state UUID: [#!variable!state_uuid!#] is for the machine with the host UUID: [#!variable!host_uuid!#], which is not us. This is probably a program error, skipping this.</key>
+		<key name="job_0056">Manage Keys</key>
+		<key name="job_0057">The selected old/bad ssh host key(s) will be removed from the specified files.</key>
+		<key name="job_0058">#!free!#</key>
 		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
 		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
 		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
@@ -1759,9 +1759,13 @@ It is multiple lines with single quotes ['] and double-quotes (") and here are r
 
 It also has replacement variables: [#!variable!first!#] and [#!variable!second!#].
 		</key>
-		<key name="log_0003">#!free!#</key>
+		<key name="log_0003">The known_hosts file: [#!variable!file!#] has changed:
+====
+#!variable!difference!#
+====
+</key>
 		<key name="log_0004">#!free!#</key>
-		<key name="log_0005">#!free!#</key>
+		<key name="log_0005">Failed connecting to: [#!variable!target!#], the host key in the file: [#!variable!file!#] at line: [#!variable!bad_line!#] has changed!</key>
 		<key name="log_0006">#!free!#</key>
 		<key name="log_0007">#!free!#</key>
 		<key name="log_0008">#!free!#</key>
@@ -2378,7 +2382,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 ====
 #!variable!difference!#
 ====
-		</key>
+</key>
 		<key name="log_0557">- Scan agent: [#!variable!agent_name!#] exited after: [#!variable!runtime!#] seconds with the return code: [#!variable!return_code!#].</key>
 		<key name="log_0558">I'm not on the same network as: [#!variable!host_name!#]. Unable to check the power state.</key>
 		<key name="log_0559">The host: [#!variable!host_name!#] appears to be off, but there's no IPMI information, so unable to check the power state or power on the machine.</key>
@@ -2392,14 +2396,14 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0567">The host: [#!variable!host_name!#] was powered off because of power loss. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0568">The host: [#!variable!host_name!#] was powered off because of thermal issues. Checking to see if it is now safe to restart it.</key>
 		<key name="log_0569">Unable to find an install manifest for the Anvil! [#!variable!anvil_name!#]. As such, unable to determine what UPSes power the machine: [#!variable!host_name!#]. Unable to determine if the power feeding this node is OK or not.</key>
-		<key name="log_0570">#!free!#</key>
+		<key name="log_0570">Startung replicated storage resources for servers protected by this DR host.</key>
 		<key name="log_0571">The UPS referenced by the 'power_uuid': [#!variable!power_uuid!#] under the host: [#!variable!host_name!#] has no record of being on mains power, so we can't determine how long it's been on batteries. Setting the "shortest time on batteries" to zero seconds.</key>
 		<key name="log_0572">Marking the host as 'online' and clearing the host's stop reason.</key>
 		<key name="log_0573">There appears to be a problem translating the 'fence_ipmilan' into a workable 'ipmitool' command for the host: [#!variable!host_name!#]. Unable to check the thermal data of the host.</key>
 		<key name="log_0574">The host: [#!variable!host_name!#] was powered off because of power loss. Power is back and the UPSes are sufficiently charged. Booting it back up now.</key>
 		<key name="log_0575">The host: [#!variable!host_name!#] was powered off for thermal reasons. All available thermal sensors read as OK now. Booting it back up now.</key>
 		<key name="log_0576">The file: [#!variable!file_path!#] isn't on (or isn't the right size on) Striker: [#!variable!host_name!#]. Not using it to pull from.</key>
-		<key name="log_0577">#!free!#</key>
+		<key name="log_0577">Starting (adjusting) the server: [#!variable!resource!#] now.</key>
 		<key name="log_0578">I was about to start: [#!variable!command!#], but I last tried to run this: [#!variable!last_start!#] seconds ago. We'll wait at least a minute before we try to run it again.</key>
 		<key name="log_0579">The LV(s) behind the resource: [#!variable!resource!#] have had their DRBD metadata created successfully.</key>
 		<key name="log_0580">The LV(s) behind the resource: [#!variable!resource!#] have been forced to primary to initialize the resource.</key>
@@ -2420,7 +2424,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0595">Updated the lvm.conf file to add the filter: [#!variable!filter!#] to prevent LVM from seeing the DRBD devices as LVM devices.</key>
 		<key name="log_0596">The host: [#!variable!host_name!#] last updated the database: [#!variable!difference!#] seconds ago, skipping power checks.</key>
 		<key name="log_0597">The host: [#!variable!host_name!#] has no entries in the 'updated' table, so ScanCore has likely never run. Skipping this host for now.</key>
-		<key name="log_0598">This host is not an Anvil! sub node, this program isn't designed to run here.</key>
+		<key name="log_0598">This is a Striker dashboard, this program isn't designed to run here.</key>
 		<key name="log_0599">Enabled 'anvil-safe-start' locally on this node.</key>
 		<key name="log_0600">Enabled 'anvil-safe-start' on both nodes in this Anvil! system.</key>
 		<key name="log_0601">Disabled 'anvil-safe-start' locally on this node.</key>
@@ -2694,10 +2698,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0848">The fence level exists and it's the same fence agent, nothing to do.</key>
 		<key name="log_0849">The fence level exists, but it's for the fence name: [#!variable!old_fence_name!#], agent: [#!variable!old_fence_agent!#], deleting it.</key>
 		<key name="log_0850">Creating the fence level: [#!variable!key_name!#] for the agent: [#!variable!fence_agent!#] using the device(s): [#!variable!devices!#]</key>
-		<key name="log_0851">The key in: [#!variable!known_hosts!#] for: [#!variable!target!#] of the type: [#!variable!key_type!#] has changed. 
-The key in the database has been updated, so we're going to swap the key. The change is;
-old key: [#!variable!old_key!#]
-new key: [#!variable!new_key!#]</key>
+		<key name="log_0851">#!free!#</key>
 		<key name="log_0852">Finished configuring bonds.</key>
 		<key name="log_0853">Now configuring bridges.</key>
 		<key name="log_0854">The connection to the database: [#!variable!server!#] has been restored!</key>
@@ -2725,7 +2726,7 @@ new key: [#!variable!new_key!#]</key>
 		<key name="message_0009">The SSH session to: [#!variable!target!#] was successfully closed.</key>
 		<key name="message_0010">The SSH session to: [#!variable!target!#] was closed because 'no_cache' was set and there was an open SSH connection.</key>
 		<key name="message_0011">Wrote the system UUID to the file: [#!variable!file!#] to enable the web based tools to read this system's UUID.</key>
-		<key name="message_0012">#!free!#</key>
+		<key name="message_0012">Not job UUID was passed, and no bad keys were found. Nothing to do.</key>
 		<key name="message_0013">Updated the journald config file: [#!variable!file!#] to enable persistent storage of logs to disk. Will restart the journald daemon now.</key>
 		<key name="message_0014">One or more files on disk have changed. Exiting to reload.</key>
 		<key name="message_0015">The reconfigure of the network has begun.</key>
@@ -2751,7 +2752,7 @@ NOTE: You must update the password of any other system using this host's
 		<key name="message_0031">Beginning configuration of local system.</key>
 		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#], UUID: [#!variable!uuid!#]</key>
 		<key name="message_0033">Clearing update cache and checking for available updates.</key>
-		<key name="message_0034">#!free!#</key>
+		<key name="message_0034">Leaving the old key in place.</key>
 		<key name="message_0035">Downloading approximately: [#!variable!size!#] worth of updates.</key>
 		<key name="message_0036">ERROR: There was a problem with the OS update process. Please check the system logs for more details.</key>
 		<key name="message_0037">Downloading complete. Installation of updates now underway.</key>
@@ -2888,7 +2889,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0146">#!free!#</key>
 		<key name="message_0147">#!free!#</key>
 		<key name="message_0148">#!free!#</key>
-		<key name="message_0149">The target's host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
+		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">#!free!#</key>
 		<key name="message_0151">#!free!#</key>
 		<key name="message_0152">#!free!#</key>
@@ -3209,7 +3210,7 @@ Proceed? [y/N]</key>
 		<key name="message_0356">#!free!#</key>
 		<key name="message_0357">No hosts with IPMI found, done.</key>
 		<key name="message_0358">Searching for free space to grow PVs into.</key>
-		<key name="message_0359">- The '--confirm' switch was used, proceeding.</key>
+		<key name="message_0359">- The '--confirm' switch was used, proceeding with removing the host: [#!variable!host!#]'s old key.</key>
 		<key name="message_0360"><![CDATA[
 [ Warning ] - Auto-growing the LVM physical volumes could, in some case, leave the system unbootable.
 The steps that will taken are;
@@ -3228,9 +3229,10 @@ proceeding.
 		<key name="message_0361">- [ Note ] - The original partition table for: [#!variable!device_path!#] has been saved to: [#!variable!partition_backup!#]
              If anything goes wrong, we will attempt to recover automatically. If needed, you can try
              recovering with: [#!variable!restore_command!#]</key>
-		<key name="message_0362">Bad SSH key target: [#!variable!target!#], file:line with the bad entry: [#!variable!file!#:#!variable!line!#].</key>
-		<key name="message_0363">[ Warning ] - Only proceed if you know the target has been rebuilt!
-- Do you want to remove these bad keys? [y/N]</key>
+		<key name="message_0362">The host: [#!variable!host!#] has an old/bad SSH key: 
+- Old Key: [#!variable!algo!# #!variable!key!#]</key>
+		<key name="message_0363">- Do you want to remove the old key? [y/N]
+[ Note ] - Only proceed if you know the target has been rebuilt!</key>
 		<key name="message_0364">- Node Name: [#!variable!anvil_name!#], Description: [#!variable!description!#]</key>
 		<key name="message_0365"> - Linked: [#!variable!host_name!#], link UUID: [#!variable!link_uuid!#]</key>
 		<key name="message_0366"> - No linked DR hosts yet.</key>
@@ -3929,8 +3931,12 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0049"><![CDATA[<ejected>]]></key>
 		
 		<!-- Warnings --> 
-		<key name="warning_0001">#!free!#</key>
-		<key name="warning_0002">#!free!#</key>
+		<key name="warning_0001">[ Warning ] - There was a duplicate IP address found in the database for the host: [#!variable!host_uuid!#] with the IP: [#!variable!ip_address!#/#!variable!subnet_mask!#]. It was last seen on the interface type: [#!variable!on_type!#] with UUID: [#!variable!on_uuid!#]. It had the 'ip_address_uuid': [#!variable!ip_address_uuid!#]! of. Deleting it now!</key>
+		<key name="warning_0002">[ Warning ] - Failed to update the file: [#!variable!file!#]. The new body wasn't written, or it wasn't written accurately. The difference was:
+====
+#!variable!difference!#
+====
+</key>
 		<key name="warning_0003">#!free!#</key>
 		<key name="warning_0004">#!free!#</key>
 		<key name="warning_0005">#!free!#</key>
