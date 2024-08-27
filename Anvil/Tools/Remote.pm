@@ -508,6 +508,7 @@ sub call
 		my $last_loop   = 2;
 		my $bad_file    = "";
 		my $bad_line    = "";
+		my $bad_key     = "";
 		foreach (my $i = 0; $i <= $last_loop; $i++)
 		{
 			last if $connected;
@@ -587,15 +588,48 @@ sub call
 				{
 					# Try to connect
 					$anvil->Database->connect();
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 				}
 				if ($anvil->data->{sys}{database}{connections})
 				{
+					# Get the key from the file
+					my $users_home  = $anvil->Get->users_home({debug => 3, user => $user});
+					my $known_hosts = $users_home."/.ssh/known_hosts";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+					
+					my ($old_body) = $anvil->Storage->read_file({file => $known_hosts});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_body => $old_body }});
+					
+					my $line_number = 0;
+					foreach my $line (split/\n/, $old_body)
+					{
+						$line_number++;
+						next if $line_number ne $bad_line;
+						$line = $anvil->Words->clean_spaces({string => $line});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line_number.":".$line }});
+						
+						my ($host, $algo, $key) = ($line =~ /^(.*?)\s+(.*?)\s+(.*)$/);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:host' => $host,
+							's2:algp' => $algo,
+							's3:key'  => $key, 
+						}});
+						
+						if ($key)
+						{
+							$bad_key = $key;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
+						}
+						last;
+					}
+					my $state_note = $bad_key ? "key=".$bad_key : "file=".$bad_file.",line=".$bad_line;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_note => $state_note }});
+					
 					# Mark the key as being bad in the database.
 					my ($state_uuid) = $anvil->Database->insert_or_update_states({
-						debug      => 2, 
+						debug      => $debug, 
 						state_name => "host_key_changed::".$target, 
-						state_note => "file=".$bad_file.",line=".$bad_line, 
+						state_note => $state_note, 
 					});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 				}
@@ -716,7 +750,7 @@ sub call
 			if ($anvil->data->{sys}{database}{connections})
 			{
 				my $test_name = "host_key_changed::".$target;
-				my $query     = "SELECT state_uuid, state_note FROM states WHERE state_name = ".$anvil->Database->quote($test_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+				my $query     = "SELECT state_uuid FROM states WHERE state_name = ".$anvil->Database->quote($test_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
 				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
@@ -728,28 +762,12 @@ sub call
 				if ($count)
 				{
 					my $state_uuid = $results->[0]->[0];
-					my $state_note = $results->[0]->[1];
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						state_uuid => $state_uuid,
-						state_note => $state_note, 
-					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
 					
-					# What's the user's known_hosts file and does it match the key?
-					my $users_home = $anvil->Get->users_home({debug => $debug});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
-					if ($users_home)
-					{
-						my $known_hosts = $users_home."/.ssh/known_hosts";
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
-						
-						if ($state_note =~ /file=\Q$known_hosts\E,/)
-						{
-							# Delete it
-							my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
-							$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
-						}
-					}
+					# Delete it
+					my $query = "DELETE FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
 				}
 			}
 		}
