@@ -615,32 +615,39 @@ AND
 								{
 									# Proceed.
 									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
-									
-									my $job_uuid = $anvil->Database->insert_or_update_jobs({
-										debug           => 2,
-										file            => $THIS_FILE, 
-										line            => __LINE__, 
-										job_title       => "job_0056",
-										job_description => "job_0057",
-										job_host_uuid   => $anvil->Get->host_uuid, 
-										job_data        => "bad_key=".$bad_key,
-										job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
-										job_name        => "manage::broken_keys", 
-										job_progress    => 0,
-									});
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-									
-									# Tell the user we've created a new job.
-									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0002", variables => {
-										job_uuid => $job_uuid, 
-										target   => $host, 
-									}});
 								}
 								else
 								{
 									# Skip this key.
 									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0034"});
+									next;
 								}
+							}
+							
+							# Create a job to remove the key from all hosts.
+							foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+							{
+								my $this_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+								my $job_uuid       = $anvil->Database->insert_or_update_jobs({
+									debug           => 2,
+									file            => $THIS_FILE, 
+									line            => __LINE__, 
+									job_title       => "job_0056",
+									job_description => "job_0057",
+									job_host_uuid   => $this_host_uuid, 
+									job_data        => "bad_key=".$bad_key,
+									job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+									job_name        => "manage::broken_keys", 
+									job_progress    => 0,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+								
+								# Tell the user we've created a new job.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0002", variables => {
+									job_uuid  => $job_uuid, 
+									host_name => $host_name, 
+									target    => $host, 
+								}});
 							}
 						}
 					}

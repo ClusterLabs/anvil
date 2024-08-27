@@ -1202,7 +1202,7 @@ resource "#!variable!server!#" {
 
 		<!-- Strings used by jobs -->
 		<key name="job_0001">Configure Network</key>
-		<key name="job_0002">Created a job to delete the SSH key for the host: [#!variable!target!#] with the job UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0002">Created a job to delete the SSH key for the target machine: [#!variable!target!#] on the host: [#!variable!host_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0003">Converted all old-style jobs to the new style. The new jobs will run shortly. Exiting now.</key>
 		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!host!#] has been removed.</key>
 		<key name="job_0005">#!free!#</key>
