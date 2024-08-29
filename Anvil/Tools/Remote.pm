@@ -280,6 +280,14 @@ B<NOTE>: This is the timeout for the command to return, in seconds. This is NOT 
 
 If this is set to a numeric whole number, then the called shell command will have the set number of seconds to complete. If this is set to C<< 0 >>, then no timeout will be used.
 
+=head3 tries (optional, default '3')
+
+By default, three connection attempts are made to the target. This is meant to handle transient connection failures. Setting this to '1' effectively disables this behaviour.
+
+=head3 use_ip (optional, default '1')
+
+Normally, if C<< target >> is a host name, it gets resolved to an IP address before the connection attempt is made. If you want to force the C<< target >> to be used without converting to an IP, set this to C<< 0 >>.
+
 =cut
 sub call
 {
@@ -314,6 +322,8 @@ sub call
 	my $secure      = defined $parameter->{secure}     ? $parameter->{secure}     : 0;
 	my $shell_call  = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $timeout     = defined $parameter->{timeout}    ? $parameter->{timeout}    : 10;
+	my $tries       = defined $parameter->{tries}      ? $parameter->{tries}      : 0;
+	my $use_ip      = defined $parameter->{use_ip}     ? $parameter->{use_ip}     : 1;
 	my $start_time  = time;
 	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
@@ -326,8 +336,10 @@ sub call
 		ssh_fh     => $ssh_fh,
 		start_time => $start_time, 
 		timeout    => $timeout, 
+		tries      => $tries, 
 		port       => $port, 
 		target     => $target,
+		use_ip     => $use_ip, 
 		ssh_fh_key => $ssh_fh_key, 
 	}});
 	
@@ -353,22 +365,6 @@ sub call
 			no_cache => $no_cache, 
 		}});
 	}
-
-	### NOTE: This caused problems that are currently unsolved.
-=cut
-	# If the call is to ourselves, switch to a local system call.
-	if ($anvil->Network->is_local({host => $target}))
-	{
-		# Use a local system call.
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output,
-			return_code => $return_code,
-		}});
-		
-		return($output, "local", $return_code);
-	}
-=cut
 	
 	if (not $shell_call)
 	{
@@ -404,6 +400,13 @@ sub call
 	if ((not $parameter->{port}) && ($anvil->data->{hosts}{$target}{port}))
 	{
 		$port = $anvil->data->{hosts}{$target}{port};
+	}
+	
+	# If there's no tries requested, set it to '3'
+	if (not $tries)
+	{
+		$tries = 3;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { tries => $tries }});
 	}
 	
 	# Break out the port, if needed.
@@ -455,7 +458,7 @@ sub call
 	}
 	
 	# If the target is a host name, convert it to an IP.
-	if (not $anvil->Validate->ipv4({ip => $target}))
+	if (($use_ip) && (not $anvil->Validate->ipv4({ip => $target})))
 	{
 		my $new_target = $anvil->Convert->host_name_to_ip({host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
@@ -505,11 +508,11 @@ sub call
 		# connection errors.
 		my $connected   = 0;
 		my $message_key = "message_0005";
-		my $last_loop   = 2;
+		my $last_loop   = $tries;
 		my $bad_file    = "";
 		my $bad_line    = "";
 		my $bad_key     = "";
-		foreach (my $i = 0; $i <= $last_loop; $i++)
+		foreach (my $i = 1; $i <= $last_loop; $i++)
 		{
 			last if $connected;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -576,7 +579,7 @@ sub call
 				}});
 				
 				# Log that the key is bad.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0005", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0005", variables => { 
 					target   => $target,
 					file     => $bad_file, 
 					bad_line => $bad_line, 
@@ -1094,6 +1097,22 @@ sub test_access
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	### NOTE: This caused problems that are currently unsolved.
+=cut
+	# If the call is to ourselves, switch to a local system call.
+	if ($anvil->Network->is_local({host => $target}))
+	{
+		# Use a local system call.
+		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output,
+			return_code => $return_code,
+		}});
+		
+		return($output, "local", $return_code);
+	}
+=cut
+
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->test_access()" }});
 	
 	my $close    = defined $parameter->{'close'}  ? $parameter->{'close'}  : 1;

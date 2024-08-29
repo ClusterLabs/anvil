@@ -11,9 +11,7 @@
 # 2 = Job not found.
 # 3 = No offending keys found.
 # 
-# TODO: Record the keys we remove, then check for the same keys on any other machine we know about. If any 
-#       are found on those machines, create a job for that host to remove the same.
-#       Also, look in the 'ip_addresses' table for any matching keys and delete them.
+# TODO: Add '--test' that called 'Remote->test_access' for all hosts in ~/.ssh/known_hosts
 # 
 
 use strict;
@@ -38,6 +36,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"confirm", 
 	"job-uuid", 
+	"test", 
 	], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -51,6 +50,12 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0077"});
 	sleep 10;
 	$anvil->nice_exit({exit_code => 1});
+}
+
+if ($anvil->data->{switches}{test})
+{
+	do_tests($anvil);
+	$anvil->nice_exit({exit_code => 0});
 }
 
 # Pick up the job details
@@ -67,6 +72,136 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub do_tests
+{
+	my ($anvil) = @_;
+	
+	# Tell the user we're starting.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0004"});
+	
+	# Does the known_hosts file exist?
+	my $known_hosts    = "";
+	my $home_directory = $anvil->Get->users_home({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { home_directory => $home_directory }});
+	if ($home_directory)
+	{
+		$known_hosts = $home_directory."/.ssh/known_hosts";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_hosts => $known_hosts }});
+		
+		if (-f $known_hosts)
+		{
+			# Found it
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0006", variables => { known_hosts => $known_hosts }});
+		}
+		else
+		{
+			# We're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0006", variables => { known_hosts => $known_hosts }});
+			return(0);
+		}
+		
+		my $bad_key_found = {};
+		my ($old_body)    = $anvil->Storage->read_file({file => $known_hosts});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_body => $old_body }});
+		foreach my $line (split/\n/, $old_body)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			
+			$line =~ s/#.*$//;
+			next if not $line;
+			
+			if ($line =~ /^(.*?)\s+(.*?)\s+(.*)$/)
+			{
+				my $host = $1;
+				my $algo = $2;
+				my $key  = $3;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:host' => $host,
+					's2:algp' => $algo,
+					's3:key'  => $key, 
+				}});
+				
+				# Tell the user we're going to test this host.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0009", variables => { host => $host }});
+				
+				# Call the target
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					debug      => 2, 
+					shell_call => $anvil->data->{path}{exe}{echo}." 1", 
+					target     => $host,
+					tries      => 1,
+					'close'    => 1,
+					no_cache   => 1,
+					use_ip     => 0,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
+					output      => $output,
+					error       => $error,
+					return_code => $return_code, 
+				}});
+				
+				if ($output)
+				{
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0010", variables => { host => $host }});
+				}
+				else
+				{
+					# Failed to connect. See if there's a 'host_key_changed::<host>' 
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0029"});
+					
+					my $state_name = "host_key_changed::".$host;
+					my $query      = "SELECT state_note FROM states WHERE state_name = ".$anvil->Database->quote($state_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count,
+					}});
+					if ($count)
+					{
+						my $state_note = $results->[0]->[0];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							state_note    => $state_note,
+							bad_key_found => $bad_key_found, 
+						}});
+						
+						$bad_key_found->{$host} = $state_note;
+						
+						# Tell the user.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0008"});
+					}
+					else
+					{
+						# Nope, failed for another reason.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0030"});
+					}
+				}
+			}
+			else
+			{
+				next;
+			}
+		}
+		
+		# If we found a bad key, tell the user to re-run 
+		my $bad_key_count = keys %{$bad_key_found};
+		if ($bad_key_count)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0042", variables => { count => $bad_key_count }});
+			foreach my $host (sort {$a cmp $b} keys %{$bad_key_found})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0062", variables => { host => $host }});
+			}
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0032"});
+		}
+	}
+	
+	return(0);
+}
 
 sub process_key
 {

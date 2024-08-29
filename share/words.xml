@@ -1764,13 +1764,13 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 #!variable!difference!#
 ====
 </key>
-		<key name="log_0004">#!free!#</key>
+		<key name="log_0004">Starting check for known hosts with changed keys.</key>
 		<key name="log_0005">Failed connecting to: [#!variable!target!#], the host key in the file: [#!variable!file!#] at line: [#!variable!bad_line!#] has changed!</key>
-		<key name="log_0006">#!free!#</key>
-		<key name="log_0007">#!free!#</key>
-		<key name="log_0008">#!free!#</key>
-		<key name="log_0009">#!free!#</key>
-		<key name="log_0010">#!free!#</key>
+		<key name="log_0006">- The current user's known hosts file: [#!variable!known_hosts!#] was found, reading it now.</key>
+		<key name="log_0007">- The current user's known hosts file: [#!variable!known_hosts!#] wasn't found, nothing to do.</key>
+		<key name="log_0008"> \- The host key has changed!</key>
+		<key name="log_0009">- Found the host: [#!variable!host!#], testing it now.</key>
+		<key name="log_0010"> \- Accessed the host: [#!variable!host!#], no problem.</key>
 		<key name="log_0011">About to run the shell command: [#!variable!shell_call!#]</key>
 		<key name="log_0012">About to read the file: [#!variable!shell_call!#]</key>
 		<key name="log_0013">About to write the file: [#!variable!shell_call!#]</key>
@@ -1789,10 +1789,13 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0026"><![CDATA[[ Error ] - The requested template file: [#!variable!source!#] is not readable. Please check that it is readable by the webserver user: [#!variable!user_name!#]]]></key>
 		<key name="log_0027"><![CDATA[[ Error ] - No template name passed to Template->get().]]></key>
 		<key name="log_0028">Successfully read the words file: [#!variable!file!#].</key>
-		<key name="log_0029">#!free!#</key>
-		<key name="log_0030">#!free!#</key>
+		<key name="log_0029"> |- [ Failed ] - Did not connect to the host, checking if there is an SSH key change.</key>
+		<key name="log_0030"> \- No entry found. The target might simply be offline.</key>
 		<key name="log_0031"><![CDATA[[ Warning ] - Storage->search_directories() was passed the array: [#!variable!array!#], but it wasn't actually an array. Using @INC + path::directories::tools + \$ENV{'PATH'} for the list of directories to search instead.]]></key>
-		<key name="log_0032">#!free!#</key>
+		<key name="log_0032">\- Done.
+
+If you rebuilt the host(s) with changed keys, run this again without '--test'.
+You will be asked per-key to remove the old keys.</key>
 		<key name="log_0033"><![CDATA[[ Warning ] - Words->read()' asked to read: [#!variable!file!#] which was not found.]]></key>
 		<key name="log_0034"><![CDATA[[ Warning ] - Anvil::Tools::Words->read()' asked to read: [#!variable!file!#] which was not readable by: [#!variable!user!#] (uid/euid: [#!variable!uid!#]).]]></key>
 		<key name="log_0035"><![CDATA[[ Warning ] - The config file: [#!variable!file!#] appears to have a malformed line: [#!variable!count!#:#!variable!line!#].]]></key>
@@ -1802,7 +1805,8 @@ It also has replacement variables: [#!variable!first!#] and [#!variable!second!#
 		<key name="log_0039">The host: [#!variable!host!#] has released its database lock.</key>
 		<key name="log_0040"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it already exists and 'overwrite' was not set. Aborting.]]></key>
 		<key name="log_0041"><![CDATA[[ Error ] - The method Storage->write_file() was asked to write the file: [#!variable!file!#] but it is not a full path. Aborting.]]></key>
-		<key name="log_0042">#!free!#</key>
+		<key name="log_0042">
+-=] Found: [#!variable!count!#] host(s) found with changed keys!</key>
 		<key name="log_0043"><![CDATA[[ Error ] - The method System->call() was called but 'shell_call' was not passed or was empty.]]></key>
 		<key name="log_0044">The host: [#!variable!host!#] has renewed its database lock.</key>
 		<key name="log_0045">The host: [#!variable!host!#] is requesting a database lock.</key>
@@ -1830,7 +1834,7 @@ Connecting to Database with configuration ID: [#!variable!uuid!#]
 		<key name="log_0059">Started the PostgreSQL database server.</key>
 		<key name="log_0060">Database user: [#!variable!user!#] already exists with UUID: [#!variable!id!#].</key>
 		<key name="log_0061"><![CDATA[[ Error ] - The method Get->users_home() was asked to find the home directory for the user: [#!variable!user!#], but was unable to do so.]]></key>
-		<key name="log_0062">#!free!#</key>
+		<key name="log_0062">- Host: [#!variable!host!#]</key>
 		<key name="log_0063"><![CDATA[The database: [#!variable!host!# -> #!variable!name!#] with the UUID: [#!variable!uuid!#] did not respond to pings and 'database::#!variable!uuid!#::ping' is not set to '0' in '#!data!path::configs::anvil.conf!#', skipping it.]]></key>
 		<key name="log_0064">[ Note ] - The database: [#!variable!name!#] on host: [#!variable!host!#] with UUID: [#!variable!uuid!#] is not available, skipping it.</key>
 		<key name="log_0065">
