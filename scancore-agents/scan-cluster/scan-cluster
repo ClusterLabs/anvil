@@ -615,6 +615,26 @@ sub find_changes
 			cluster_cib => $cluster_cib, 
 			return_code => $return_code,
 		}});
+		
+		# The update time is per-machine and can be different on subnodes. To prevent cycling CIB changed alerts, break down the <cib ...> attributes. Example;
+		# -<cib crm_feature_set="3.19.0" validate-with="pacemaker-3.9" epoch="39" num_updates="50" admin_epoch="0" cib-last-written="Thu Aug 29 13:06:09 2024" update-origin="an-a03n02" update-client="root" have-quorum="1" dc-uuid="2">
+		# +<cib crm_feature_set="3.19.0" validate-with="pacemaker-3.9" epoch="39" num_updates="50" admin_epoch="0" cib-last-written="Thu Aug 29 13:06:20 2024" update-origin="an-a03n02" update-client="root" have-quorum="1" dc-uuid="2">
+		my $new_cib = "";
+		foreach my $line (split/\n/, $cluster_cib)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /<cib .*?>/)
+			{
+				$line =~ s/ cib-last-written="(.*?)"//;
+				$line =~ s/ update-user="(.*?)"//;
+			}
+			$new_cib .= $line."\n";
+		}
+		
+		my $difference = diff \$cluster_cib, \$new_cib, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+		
+		$cluster_cib = $new_cib;
 	}
 	
 	if (exists $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid})
