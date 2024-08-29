@@ -284,6 +284,10 @@ If this is set to a numeric whole number, then the called shell command will hav
 
 By default, three connection attempts are made to the target. This is meant to handle transient connection failures. Setting this to '1' effectively disables this behaviour.
 
+=head3 use_ip (optional, default '1')
+
+Normally, if C<< target >> is a host name, it gets resolved to an IP address before the connection attempt is made. If you want to force the C<< target >> to be used without converting to an IP, set this to C<< 0 >>.
+
 =cut
 sub call
 {
@@ -319,6 +323,7 @@ sub call
 	my $shell_call  = defined $parameter->{shell_call} ? $parameter->{shell_call} : "";
 	my $timeout     = defined $parameter->{timeout}    ? $parameter->{timeout}    : 10;
 	my $tries       = defined $parameter->{tries}      ? $parameter->{tries}      : 0;
+	my $use_ip      = defined $parameter->{use_ip}     ? $parameter->{use_ip}     : 1;
 	my $start_time  = time;
 	my $ssh_fh      = $anvil->data->{cache}{ssh_fh}{$ssh_fh_key};
 	# NOTE: The shell call might contain sensitive data, so we show '--' if 'secure' is set and $anvil->Log->secure is not.
@@ -334,6 +339,7 @@ sub call
 		tries      => $tries, 
 		port       => $port, 
 		target     => $target,
+		use_ip     => $use_ip, 
 		ssh_fh_key => $ssh_fh_key, 
 	}});
 	
@@ -452,7 +458,7 @@ sub call
 	}
 	
 	# If the target is a host name, convert it to an IP.
-	if (not $anvil->Validate->ipv4({ip => $target}))
+	if (($use_ip) && (not $anvil->Validate->ipv4({ip => $target})))
 	{
 		my $new_target = $anvil->Convert->host_name_to_ip({host_name => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_target => $new_target }});
@@ -573,7 +579,7 @@ sub call
 				}});
 				
 				# Log that the key is bad.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0005", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0005", variables => { 
 					target   => $target,
 					file     => $bad_file, 
 					bad_line => $bad_line, 
