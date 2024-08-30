@@ -524,6 +524,10 @@ sub handle_periodic_tasks
 			# Something is causing broken manifests to be created. Until found, this removes them.
 			check_for_broken_manifests($anvil);
 			
+			# Check that we're recorded our known peers, and that our anvil.conf has entries for
+			# our peers.
+			check_peers($conf);
+			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
 			my $shell_call = $anvil->data->{path}{exe}{'striker-get-screenshots'}.$anvil->Log->switches;
@@ -836,6 +840,67 @@ sub handle_periodic_tasks
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
+	}
+	
+	return(0);
+}
+
+sub check_peers
+{
+	my ($conf) = @_;
+	
+	# If we can log into our peers, see if they have an entry for us. If so, and we don't have them, add
+	# them.
+	$anvil->Database->get_hosts();
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}})
+	{
+		next if $anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}{$host_name}{host_uuid} eq $anvil->Get->host_uuid();
+		
+		# Do I have this strikerconfigured already?
+		my $peer_host_uuid = $anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}{$host_name}{host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:host_name'      => $host_name,
+			's2:peer_host_uuid' => $peer_host_uuid, 
+		}});
+		
+		if ((exists $anvil->data->{database}{$peer_host_uuid}) && ($anvil->data->{database}{$peer_host_uuid}{host}))
+		{
+			# Already configured.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0077", variables => { 
+				host_name => $host_name,
+				host_uuid => $host_uuid, 
+				target    => $anvil->data->{database}{$peer_host_uuid}{host},
+			}});
+			next;
+		}
+		
+		# Still here? Lets try to add it. First though, can we connect to it? We'll have to try with
+		# our password. If we've been rebuilt, then the password shouid match.
+		my $host_uuid = $anvil->Get->host_uuid();
+		my $password  = $anvil->data->{database}{$host_uuid}{password};
+		my $target_ip = $anvil->Network->find_target_ip({
+			debug     => 2,
+			networks  => "bcn,ifn,any",
+			host_uuid => $peer_host_uuid, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:host_name'      => $host_name,
+			's2:peer_host_uuid' => $peer_host_uuid, 
+			's3:target_ip'      => $target_ip, 
+		}});
+		
+		if ($target_ip)
+		{
+			my $access = $anvil->Network->test_access({
+				debug  => 2,
+				target => $target_ip, 
+			});
+			if ($access)
+			{
+				# We're good, add our peer! 
+				
+			}
+		}
 	}
 	
 	return(0);

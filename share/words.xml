@@ -1860,7 +1860,7 @@ The database connection error was:
 		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
-		<key name="log_0077">#!free!#</key>
+		<key name="log_0077">The peer striker: [#!variable!host_name!#] (uuid: [#!variable!host_uuid!#]) is already configured. We connect to it via: [#!variable!target!#].</key>
 		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with UUID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!uuid!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
 		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
