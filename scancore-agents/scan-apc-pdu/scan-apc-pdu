@@ -160,7 +160,10 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches({list => ["force", "purge"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"force", 
+	"purge", 
+], man => $THIS_FILE});
 
 # Handle start-up tasks
 my $problem = $anvil->ScanCore->agent_startup({agent => $THIS_FILE});
@@ -200,7 +203,7 @@ if ((not $anvil->data->{switches}{force}) && ($anvil->data->{sys}{database}{prim
 if (not find_pdus($anvil))
 {
 	# No PDUs found.
-	$anvil->Log->entry({level => 1, key => "scan_apc_pdu_message_0001", file => $THIS_FILE, line => __LINE__});
+	$anvil->Log->entry({level => 2, key => "scan_apc_pdu_message_0001", file => $THIS_FILE, line => __LINE__});
 	$anvil->nice_exit({exit_code => 1});
 }
 

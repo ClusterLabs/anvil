@@ -623,11 +623,17 @@ sub find_changes
 		foreach my $line (split/\n/, $cluster_cib)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($line =~ /<cib .*?>/)
-			{
-				$line =~ s/ cib-last-written="(.*?)"//;
-				$line =~ s/ update-user="(.*?)"//;
-			}
+			
+			# These may not exist on both and need to be cut out
+			$line =~ s/ cib-last-written="(.*?)"//;
+			$line =~ s/ update-user="(.*?)"//;
+			
+			# These exist on both but can differ, so x out the value
+			$line =~ s/ name="last-lrm-refresh" value="(.*?)"/ name="last-lrm-refresh" value="x"/;
+			$line =~ s/ call-id="(.*?)"/ call-id="x"/;
+			$line =~ s/ last-rc-change="(.*?)"/ last-rc-change="x"/;
+			$line =~ s/ exec-time="(.*?)"/ exec-time=""/;
+			
 			$new_cib .= $line."\n";
 		}
 		
