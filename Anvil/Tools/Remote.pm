@@ -579,7 +579,7 @@ sub call
 				}});
 				
 				# Log that the key is bad.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0005", variables => { 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0005", variables => { 
 					target   => $target,
 					file     => $bad_file, 
 					bad_line => $bad_line, 
@@ -591,7 +591,7 @@ sub call
 				{
 					# Try to connect
 					$anvil->Database->connect();
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0132"});
 				}
 				if ($anvil->data->{sys}{database}{connections})
 				{
@@ -612,7 +612,7 @@ sub call
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line_number.":".$line }});
 						
 						my ($host, $algo, $key) = ($line =~ /^(.*?)\s+(.*?)\s+(.*)$/);
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:host' => $host,
 							's2:algp' => $algo,
 							's3:key'  => $key, 
@@ -621,16 +621,29 @@ sub call
 						if ($key)
 						{
 							$bad_key = $key;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bad_key => $bad_key }});
 						}
 						last;
 					}
 					my $state_note = $bad_key ? "key=".$bad_key : "file=".$bad_file.",line=".$bad_line;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_note => $state_note }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_note => $state_note }});
+					
+					# If I am a striker, make sure I write to my own database. Otherwise,
+					# when rebuilding a striker, it would be possible to have the state 
+					# written to the rebuilt peer but not ourselves.
+					my $uuid      = "";
+					my $host_type = $anvil->Get->host_type({debug => 3});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+					if ($host_type eq "striker")
+					{
+						$uuid = $anvil->Get->host_uuid({debug => 3});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+					}
 					
 					# Mark the key as being bad in the database.
 					my ($state_uuid) = $anvil->Database->insert_or_update_states({
 						debug      => $debug, 
+						uuid       => $uuid, 
 						state_name => "host_key_changed::".$target, 
 						state_note => $state_note, 
 					});
@@ -1558,7 +1571,7 @@ sub _check_known_hosts_for_target
 			my $target_host_name = "";
 			if ($is_ip)
 			{
-				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => 2, ip_address => $target});
+				($target_host_uuid, $target_host_name) = $anvil->Get->host_from_ip_address({debug => $debug, ip_address => $target});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 					target_host_uuid => $target_host_uuid, 
 					target_host_name => $target_host_name,

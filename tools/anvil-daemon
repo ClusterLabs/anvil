@@ -554,6 +554,19 @@ sub handle_periodic_tasks
 		# down our database.
 		if ($host_type eq "striker")
 		{
+			# In case our peer has been rebuilt, check known_hosts for changed keys.
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-keys'}." --test";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({
+				shell_call => $shell_call, 
+				source     => $THIS_FILE, 
+				line       => __LINE__,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			
 			# If we're the active database, dump our database out and rsync it to our peers.
 			my $peers       = keys %{$anvil->data->{database}};
 			my $connections = $anvil->data->{sys}{database}{connections}; 
