@@ -50,7 +50,6 @@ if (($< != 0) && ($> != 0))
 # These are the threasholds for when to alert when swap is running out.
 $anvil->data->{scancore}{'scan-filesystems'}{disable} = 0;
 $anvil->data->{'scan-filesystems'}{alert_sort}        = 2;
-$anvil->data->{switches}{force}                       = 0;
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -463,15 +462,15 @@ INSERT INTO
 		my $percent_free_notice = 15; 
 		my $percent_free_clear  = 25;
 		my $variables           = {
-			filesystem_internal_uuid => $filesystem_internal_uuid, 
-			new_kernel_name          => $new_kernel_name, 
-			new_type                 => $new_type,
-			new_mount_point          => $new_mount_point,
-			new_hr_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
-			new_byte_size            => $anvil->Convert->add_commas({number => $new_size}),
-			new_hr_free              => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}),
-			new_byte_free            => $anvil->Convert->add_commas({number => $new_free}),
-			new_free_percent         => $new_free_percent,
+			filesystem_uuid  => $filesystem_internal_uuid, 
+			new_kernel_name  => $new_kernel_name, 
+			new_type         => $new_type,
+			new_mount_point  => $new_mount_point,
+			new_hr_size      => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_size}),
+			new_byte_size    => $anvil->Convert->add_commas({number => $new_size}),
+			new_hr_free      => $anvil->Convert->bytes_to_human_readable({'bytes' => $new_free}),
+			new_byte_free    => $anvil->Convert->add_commas({number => $new_free}),
+			new_free_percent => $new_free_percent,
 		};
 		
 		if ($new_free_percent < $percent_free_warn)
@@ -487,13 +486,13 @@ INSERT INTO
 			{
 				# First time we've fallen under 5%
 				my $alert_level = "warning";
-				if ($new_mount_point =~ /swap/)
+				if ($new_mount_point =~ /swap/i)
 				{
 					$alert_level = "notice";
 				}
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_filesystem_alert_0002", variables => $variables});
 				$anvil->Alert->register({
-					alert_level   => "warning", 
+					alert_level   => $alert_level, 
 					message       => "scan_filesystem_alert_0002", 
 					sort_position => 1,
 					variables     => $variables, 

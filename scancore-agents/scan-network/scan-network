@@ -42,9 +42,6 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# These are the threasholds for when to alert when swap is running out.
-$anvil->data->{switches}{force} = 0;
-
 #$anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -2862,7 +2859,7 @@ sub check_interfaces
 				# Is it up or down?
 				my $clear       = 0;
 				my $message_key = "scan_network_alert_0040";
-				my $alert_level = "notice";
+				my $alert_level = "warning";
 				if ($old_operational eq "DELETED")
 				{
 					# Link is back. Is it up?
@@ -2890,6 +2887,14 @@ sub check_interfaces
 				{
 					# Not an interface we care about.
 					$alert_level = "notice";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
+				}
+				
+				# vnet devices come and go all the time, no need to be an alert level warning.
+				if ($network_interface_name =~ /^vnet/)
+				{
+					$alert_level = "notice";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
 				}
 				
 				my $variables = {
@@ -3260,9 +3265,17 @@ sub check_interfaces
 				say_rx         => $anvil->Convert->add_commas({number => $new_rx_bytes})." #!string!suffix_0057!# (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")",
 			};
 			
+			# If this a vnet device, it's only a notice message as this is expected when a VM boots.
+			my $alert_level = "warning";
+			if ($network_interface_name =~ /^vnet/)
+			{
+				$alert_level = "notice";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0029", variables => $variables});
 			$anvil->Alert->register({
-				alert_level => "warning", 
+				alert_level => $alert_level, 
 				message     => "scan_network_alert_0029", 
 				variables   => $variables,
 				set_by      => $THIS_FILE,
@@ -3288,7 +3301,12 @@ sub check_interfaces
 		
 		# If this a vnet device, it's only a notice message as this is expected when a VM migrates or
 		# shuts down.
-		my $alert_level = $network_interface_name =~ /^vnet/ ? "notice" : "warning";
+		my $alert_level = "warning";
+		if ($network_interface_name =~ /^vnet/)
+		{
+			$alert_level = "notice";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0059", variables => $variables});
 		$anvil->Alert->register({
