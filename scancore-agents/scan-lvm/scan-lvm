@@ -49,7 +49,6 @@ if (($< != 0) && ($> != 0))
 
 # These are the threasholds for when to alert when swap is running out.
 $anvil->data->{scancore}{'scan-lvm'}{disable} = 0;
-$anvil->data->{switches}{force}               = 0;
 
 $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
