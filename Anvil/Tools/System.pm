@@ -1185,8 +1185,114 @@ sub check_ssh_keys
 				debug => $debug,
 				file  => $authorized_keys_file,
 			});
-			$authorized_keys_old_body  = $authorized_keys_file_body;
+			$authorized_keys_old_body = $authorized_keys_file_body;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
+			
+			# Look for duplicate entries. If any are found, the last ones are kept.
+			if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file})
+			{
+				delete $anvil->data->{authorizied_keys}{$authorized_keys_file};
+			}
+			my $duplicates_found = 0;
+			foreach my $line (split/\n/, $authorized_keys_file_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				if ($line =~ /^(.*?)\s+(.*?)\s+(.*?)\@(.*)$/)
+				{
+					my $algo = $1;
+					my $key  = $2;
+					my $user = $3;
+					my $host = $4;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:algo' => $algo,
+						's2:key'  => $key, 
+						's3:user' => $user, 
+						's4:host' => $host,
+					}});
+					
+					if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo})
+					{
+						$duplicates_found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { duplicates_found => $duplicates_found }});
+					}
+					$anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key} = $key;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"authorizied_keys::${authorized_keys_file}::${host}::${user}::${algo}::key" => $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key},
+					}});
+				}
+			}
+			
+			if ($duplicates_found)
+			{
+				# Update the file.
+				my $new_authorized_keys_file_body = "";
+				foreach my $line (split/\n/, $authorized_keys_file_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					
+					if ($line =~ /^(.*?)\s+(.*?)\s+(.*?)\@(.*)$/)
+					{
+						my $algo = $1;
+						my $key  = $2;
+						my $user = $3;
+						my $host = $4;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							's1:algo' => $algo,
+							's2:key'  => $key, 
+							's3:user' => $user, 
+							's4:host' => $host,
+						}});
+						
+						my $good_key = $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key};
+						if (($good_key) && ($good_key ne $key))
+						{
+							# Skip this line.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0003", variables => { 
+								host    => $host, 
+								user    => $user, 
+								algo    => $algo,
+								file    => $authorized_keys_file,
+								old_key => $key,
+								new_key => $good_key,
+							}});
+							next;
+						}
+					}
+					$new_authorized_keys_file_body .= $line."\n";
+				}
+				
+				# If the file has changed, update it.
+				my $difference = diff \$authorized_keys_file_body, \$new_authorized_keys_file_body, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+				if ($difference)
+				{
+					$anvil->Storage->get_file_stats({debug => $debug, file_path => $authorized_keys_file});
+					my $unix_mode  = $anvil->data->{file_stat}{$authorized_keys_file}{unix_mode};
+					my $user_name  = $anvil->data->{file_stat}{$authorized_keys_file}{user_name};
+					my $group_name = $anvil->data->{file_stat}{$authorized_keys_file}{group_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:authorized_keys_file' => $authorized_keys_file, 
+						's2:unix_mode'            => $unix_mode, 
+						's3:user_name'            => $user_name, 
+						's4:group_name'           => $group_name, 
+					}});
+					
+					$anvil->Storage->write_file({
+						debug     => $debug, 
+						file      => $authorized_keys_file, 
+						body      => $new_authorized_keys_file_body, 
+						backup    => 1, 
+						overwrite => 1, 
+						mode      => $unix_mode, 
+						user      => $user_name, 
+						group     => $group_name, 
+					});
+					
+					$authorized_keys_file_body = $new_authorized_keys_file_body;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
+				}
+			}
 		}
 		
 		# Walk through the Striker dashboards we use. If we're a Node or DR host, walk through our 

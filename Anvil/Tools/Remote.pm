@@ -1514,7 +1514,7 @@ sub _check_known_hosts_for_bad_entries
 			mode      => $unix_mode, 
 			user      => $user_name, 
 			group     => $group_name, 
-		})
+		});
 	}
 	
 	return($new_body);

@@ -3941,7 +3941,15 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 #!variable!difference!#
 ====
 </key>
-		<key name="warning_0003">#!free!#</key>
+		<key name="warning_0003">[ Warning ] - There are multiple entries for: [#!variable!user!#@#!variable!host!#] in the authorized_keys file: [#!variable!file!#]. The most recent key is being kept:
+====
+#!variable!algo!# #!variable!new_key!#
+====
+The older one:
+====
+#!variable!algo!# #!variable!old_key!#
+====
+Will now be removed.</key>
 		<key name="warning_0004">#!free!#</key>
 		<key name="warning_0005">#!free!#</key>
 		<key name="warning_0006">#!free!#</key>
