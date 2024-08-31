@@ -14125,13 +14125,16 @@ sub insert_or_update_ssh_keys
 	{
 		my $query = "
 SELECT 
-    ssh_key_uuid 
+    ssh_key_uuid, 
+    modified_date  
 FROM 
     ssh_keys 
 WHERE 
     ssh_key_user_name = ".$anvil->Database->quote($ssh_key_user_name)." 
 AND 
     ssh_key_host_uuid = ".$anvil->Database->quote($ssh_key_host_uuid)." 
+ORDER BY 
+    modified_date DESC
 ;";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		
@@ -14145,6 +14148,17 @@ AND
 		{
 			$ssh_key_uuid = $results->[0]->[0];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ssh_key_uuid => $ssh_key_uuid }});
+			
+			# If there are multiple, there's a bug. Above is the most recent, so delete the others.
+			foreach my $row (@{$results})
+			{
+				my $this_ssh_key_uuid = $row->[0];
+				next if $ssh_key_uuid eq $this_ssh_key_uuid;
+				
+				my $query = "DELETE FROM ssh_keys WHERE ssh_key_uuid = ".$anvil->Database->quote($this_ssh_key_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
 		}
 	}
 	
