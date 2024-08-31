@@ -1239,8 +1239,8 @@ sub check_ssh_keys
 						machine => $host_name, 
 						old_key => $line, 
 						new_key => $test_line,
-						
 					}});
+					die;
 					$found              = 1;
 					$line               = $test_line;
 					$update_known_hosts = 1;

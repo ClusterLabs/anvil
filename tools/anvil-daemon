@@ -526,7 +526,7 @@ sub handle_periodic_tasks
 			
 			# Check that we're recorded our known peers, and that our anvil.conf has entries for
 			# our peers.
-			check_peers($conf);
+			check_peers($anvil);
 			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
@@ -847,7 +847,7 @@ sub handle_periodic_tasks
 
 sub check_peers
 {
-	my ($conf) = @_;
+	my ($anvil) = @_;
 	
 	# If we can log into our peers, see if they have an entry for us. If so, and we don't have them, add
 	# them.
@@ -868,7 +868,7 @@ sub check_peers
 			# Already configured.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0077", variables => { 
 				host_name => $host_name,
-				host_uuid => $host_uuid, 
+				host_uuid => $peer_host_uuid, 
 				target    => $anvil->data->{database}{$peer_host_uuid}{host},
 			}});
 			next;
@@ -877,7 +877,6 @@ sub check_peers
 		# Still here? Lets try to add it. First though, can we connect to it? We'll have to try with
 		# our password. If we've been rebuilt, then the password shouid match.
 		my $host_uuid = $anvil->Get->host_uuid();
-		my $password  = $anvil->data->{database}{$host_uuid}{password};
 		my $target_ip = $anvil->Network->find_target_ip({
 			debug     => 2,
 			networks  => "bcn,ifn,any",
@@ -891,14 +890,18 @@ sub check_peers
 		
 		if ($target_ip)
 		{
-			my $access = $anvil->Network->test_access({
-				debug  => 2,
-				target => $target_ip, 
+			my $password = $anvil->data->{database}{$host_uuid}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { password => $anvil->Log->is_secure($password) }});
+			
+			my $access = $anvil->Remote->test_access({
+				debug    => 2,
+				target   => $target_ip, 
+				password => $password,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 			if ($access)
 			{
 				# We're good, add our peer! 
-				
 			}
 		}
 	}
