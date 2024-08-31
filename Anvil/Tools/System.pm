@@ -1300,7 +1300,7 @@ sub check_ssh_keys
 		# and the key has changed, update the line with the new key. If it isn't found, add it. Once
 		# we check the old body for this entry, change the "old" body to the new one, then repeat the
 		# process.
-		my $trusted_host_uuids = $anvil->Get->trusted_hosts();
+		my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
 		
 		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
 		# user keys either don't exist or have changed.
@@ -1314,16 +1314,15 @@ sub check_ssh_keys
 		# Check for changes to known_hosts
 		foreach my $host_uuid (@{$trusted_host_uuids})
 		{
+			# If the host_key is 'DELETED', skip it.
 			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 			my $host_key  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				host_name => $host_name, 
-				host_uuid => $host_uuid,
-				host_key  => $host_key, 
-			}});
-			
-			# If the host_key is 'DELETED', skip if.
 			next if $host_key eq "DELETED";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:host_name' => $host_name, 
+				's2:host_uuid' => $host_uuid,
+				's3:host_key'  => $host_key, 
+			}});
 			
 			# Is this in the file and, if so, has it changed?
 			my $found     = 0;
@@ -1340,21 +1339,15 @@ sub check_ssh_keys
 				}
 				elsif ($line =~ /^$host_name /)
 				{
-					# Key has changed, update.
+					# Key has changed, remove the old one.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0274", variables => { 
 						machine => $host_name, 
 						old_key => $line, 
 						new_key => $test_line,
 					}});
-					die;
-					$found              = 1;
-					$line               = $test_line;
 					$update_known_hosts = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						found              => $found,
-						line               => $line, 
-						update_known_hosts => $update_known_hosts, 
-					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_known_hosts => $update_known_hosts }});
+					next;
 				}
 				$known_hosts_new_body .= $line."\n";
 			}
