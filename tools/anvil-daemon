@@ -902,9 +902,37 @@ sub check_peers
 			if ($access)
 			{
 				# We're good, add our peer! 
+				my $pw_file = "/tmp/striker.".$anvil->Get->uuid({short => 1});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pw_file => $pw_file }});
+				$anvil->Storage->write_file({
+					debug  => 2,
+					secure => 1, 
+					file   => $pw_file, 
+					body   => $password, 
+					mode   => "0600",
+				});
+				
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0093", variables => { 
+					target => $target_ip,
+					host   => $host_name
+				}});
+				my $shell_call = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_host_uuid." --host ".$target_ip." --ping 1 --port 5432 --password-file ".$pw_file.$anvil->Log->switches;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $return_code) = $anvil->System->call({
+					shell_call => $shell_call, 
+					source     => $THIS_FILE, 
+					line       => __LINE__,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+				
+				unlink $pw_file;
 			}
 		}
 	}
+	die;
 	
 	return(0);
 }

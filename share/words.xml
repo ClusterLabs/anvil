@@ -1876,7 +1876,11 @@ The database connection error was:
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
-		<key name="log_0093">#!free!#</key>
+		<key name="log_0093">[ Note ] - There is a Striker dashboard: [#!variable!host!#] in our database that is not one we're configured to use.
+[ Note ] - We successfully connected to it, so We are going to add it to our anvil.conf file.
+[ Note ] - We will connect to it over: [#!variable!target!#].
+[ Note ] - Please be patient, this will resync the database, which could take a while to complete!
+</key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
 		<key name="log_0095">The database user: [#!variable!user!#] was created with UUID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
