@@ -994,7 +994,7 @@ sub _set_defaults
 			facility	=>	"local0",
 			language	=>	"en_CA",
 			level		=>	1,
-			pids		=>	0,
+			pids		=>	1,
 			secure		=>	0,
 			server		=>	"",
 			tag		=>	"anvil",

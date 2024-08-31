@@ -2903,7 +2903,7 @@ sub switches
 	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
 	{
 		# Set defaults, then see if we should override from the body.
-		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{V}            = "";
 		$anvil->data->{switches}{v}            = "";
 		$anvil->data->{switches}{vv}           = "#!SET!#";
 		$anvil->data->{switches}{'log-secure'} = "#!SET!#";

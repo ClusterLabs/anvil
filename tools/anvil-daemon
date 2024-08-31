@@ -64,6 +64,26 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
+#### TODO - REMOVE THIS
+if (1)
+{
+	if (not -e $anvil->data->{path}{configs}{'anvil.debug'})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0843", variables => {
+			file => $anvil->data->{path}{configs}{'anvil.debug'},
+			host => $anvil->Get->short_host_name(), 
+		}});
+		my $problem = $anvil->Storage->write_file({
+			file      => $anvil->data->{path}{configs}{'anvil.debug'}, 
+			body      => "",
+			overwrite => 1,
+			user      => "root", 
+			group     => "root", 
+			mode      => "0666",
+		});
+	}
+}
+
 # If, so some reason, anvil.conf is lost, create it.
 $anvil->System->_check_anvil_conf();
 
