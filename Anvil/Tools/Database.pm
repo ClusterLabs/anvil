@@ -595,7 +595,7 @@ sub check_lock_age
 		if ($lock_age > $half_reap_age)
 		{
 			# Renew the lock.
-			$anvil->Database->locking({renew => 1});
+			#$anvil->Database->locking({renew => 1});
 			$renewed = 1;
 			
 			# Update the lock age
@@ -732,35 +732,14 @@ sub check_agent_data
 					
 				}});
 			}
-			
-			### NOTE: Don't sync here, leave it for anvil-daemon to handle.
-# 			# Now check to see if a resync is required, it likely is.
-# 			if ($anvil->data->{sys}{database}{connections} > 1)
-# 			{
-# 				# The source is the agent
-# 				$anvil->Database->_find_behind_databases({
-# 					debug  => $debug, 
-# 					source => $agent, 
-# 					tables => $tables, 
-# 				});
-# 			}
-# 			
-# 			# Hold if a lock has been requested.
-# 			$anvil->Database->locking({debug => $debug});
-# 			
-# 			# Mark that we're now active.
-# 			$anvil->Database->mark_active({debug => $debug, set => 1});
-# 			
-# 			# Sync the database, if needed.
-# 			$anvil->Database->resync_databases({debug => $debug, force });
 		}
 	}
 	
 	# Hold if a lock has been requested.
-	$anvil->Database->locking({debug => $debug});
+	#$anvil->Database->locking({debug => $debug});
 	
 	# Mark that we're now active.
-	$anvil->Database->mark_active({debug => $debug, set => 1});
+	#$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	return(0);
 }
@@ -2281,11 +2260,12 @@ sub connect
 	$anvil->data->{sys}{database}{last_db_count} = $anvil->data->{sys}{database}{connections};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::last_db_count" => $anvil->data->{sys}{database}{last_db_count} }});
 	
+	### TODO: Locking needs to be heavily reworked.
 	# Hold if a lock has been requested.
-	$anvil->Database->locking({debug => $debug});
+	#$anvil->Database->locking({debug => $debug});
 	
 	# Mark that we're now active.
-	$anvil->Database->mark_active({debug => $debug, set => 1});
+	#$anvil->Database->mark_active({debug => $debug, set => 1});
 	
 	# Sync the database, if needed.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -2339,8 +2319,8 @@ sub disconnect
 		if ((not $marked_inactive) && ($cleanup))
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0857", variables => { uuid => $uuid }});
-			$anvil->Database->mark_active({debug => $debug, set => 0});
-			$anvil->Database->locking({debug => $debug, release => 1});
+			#$anvil->Database->mark_active({debug => $debug, set => 0});
+			#$anvil->Database->locking({debug => $debug, release => 1});
 			$marked_inactive = 1;
 		}
 		
@@ -16844,7 +16824,7 @@ INSERT INTO
 			elsif ($lock_source_uuid ne $source_uuid)
 			{
 				# Mark 'wait', set inactive and sleep.
-				$anvil->Database->mark_active({set => 0});
+				#$anvil->Database->mark_active({set => 0});
 				
 				$waiting = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -19140,10 +19120,10 @@ AND
 	$anvil->Database->write({debug => $debug, uuid => $host_uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 	
 	# Mark ourself as no longer using the DB
-	$anvil->Database->mark_active->({set => 0});
+	#$anvil->Database->mark_active->({set => 0});
 	
 	# Close our own connection.
-	$anvil->Database->locking({debug => $debug, release => 1});
+	#$anvil->Database->locking({debug => $debug, release => 1});
 	
 	# Disconnect from all databases and then stop the daemon, then reconnect.
 	$anvil->Database->disconnect({debug => $debug});
@@ -19845,7 +19825,7 @@ sub _age_out_data
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->_age_out_data()" }});
 
 	# Get a lock.
-	$anvil->Database->locking({debug => $debug, request => 1});
+	#$anvil->Database->locking({debug => $debug, request => 1});
 	
 	# Log our start, as this takes some time to run.
 	my $start_time = time;
@@ -19926,7 +19906,7 @@ sub _age_out_data
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_uuid => $variable_uuid }});
 
-		$anvil->Database->locking({debug => $debug, renew => 1});
+		#$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	# Remove old processed alerts.
@@ -19966,7 +19946,7 @@ sub _age_out_data
 			# Commit the DELETEs.
 			$anvil->Database->write({debug => $debug, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
-		$anvil->Database->locking({debug => $debug, renew => 1});
+		#$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	# Now process power and tempoerature, if not disabled.
@@ -19983,7 +19963,7 @@ sub _age_out_data
 	if ($age == 0)
 	{
 		# Disabled, return.
-		$anvil->Database->locking({debug => $debug, release => 1});
+		#$anvil->Database->locking({debug => $debug, release => 1});
 		return(0);
 	}
 	
@@ -20157,7 +20137,7 @@ sub _age_out_data
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { vacuum => $vacuum }});
 						undef $queries;
 					}
-					$anvil->Database->locking({debug => $debug, renew => 1});
+					#$anvil->Database->locking({debug => $debug, renew => 1});
 				}
 			}
 		}
@@ -20172,13 +20152,13 @@ sub _age_out_data
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 		$anvil->Database->write({debug => $debug, uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		
-		$anvil->Database->locking({debug => $debug, renew => 1});
+		#$anvil->Database->locking({debug => $debug, renew => 1});
 	}
 	
 	my $runtime = time - $start_time;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0624", variables => { runtime => $runtime }});
 	
-	$anvil->Database->locking({debug => $debug, release => 1});
+	#$anvil->Database->locking({debug => $debug, release => 1});
 	
 	return(0);
 }

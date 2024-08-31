@@ -2858,6 +2858,7 @@ sub switches
 			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";
 			next if $set_switch eq "resync-db";
+			next if $set_switch eq "V";
 			next if $set_switch eq "v";
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
