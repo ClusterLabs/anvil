@@ -1277,7 +1277,8 @@ sub check_ssh_keys
 						's3:user_name'            => $user_name, 
 						's4:group_name'           => $group_name, 
 					}});
-					
+# TODO: Re-enable after we find out what is creating the dupes as we're in a loop atm
+=cut
 					$anvil->Storage->write_file({
 						debug     => $debug, 
 						file      => $authorized_keys_file, 
@@ -1288,7 +1289,7 @@ sub check_ssh_keys
 						user      => $user_name, 
 						group     => $group_name, 
 					});
-					
+=cut
 					$authorized_keys_file_body = $new_authorized_keys_file_body;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
 				}

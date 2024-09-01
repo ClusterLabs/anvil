@@ -1840,6 +1840,8 @@ sub run_jobs
 					job_uuid    => $job_uuid,
 					job_command => $job_command, 
 				}});
+				# Delete this so it starts when we come out of startup.
+				delete $anvil->data->{sys}{started}{$short_command};
 				next;
 			}
 			
