@@ -1198,16 +1198,16 @@ sub check_ssh_keys
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 				
-				if ($line =~ /^(.*?)\s+(.*?)\s+(.*?)\@(.*)$/)
+				# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
+				if (($line =~ /^(.*?)\s+(.*?)\s$/) or ($line =~ /^(.*?)\s+(.*)$/))
 				{
 					my $algo = $1;
 					my $key  = $2;
-					my $user = $3;
-					my $host = $4;
+					my $host = $anvil->Get->host_name();
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						's1:algo' => $algo,
 						's2:key'  => $key, 
-						's3:user' => $user, 
+						's3:user' => $user,	# From the above for loop 
 						's4:host' => $host,
 					}});
 					
@@ -1277,8 +1277,7 @@ sub check_ssh_keys
 						's3:user_name'            => $user_name, 
 						's4:group_name'           => $group_name, 
 					}});
-# TODO: Re-enable after we find out what is creating the dupes as we're in a loop atm
-=cut
+					
 					$anvil->Storage->write_file({
 						debug     => $debug, 
 						file      => $authorized_keys_file, 
@@ -1289,7 +1288,8 @@ sub check_ssh_keys
 						user      => $user_name, 
 						group     => $group_name, 
 					});
-=cut
+					
+					# Update the 'authorized_keys_file_body' variable.
 					$authorized_keys_file_body = $new_authorized_keys_file_body;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
 				}
