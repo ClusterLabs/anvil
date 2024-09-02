@@ -3945,15 +3945,11 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 #!variable!difference!#
 ====
 </key>
-		<key name="warning_0003">[ Warning ] - There are multiple entries for: [#!variable!user!#@#!variable!host!#] in the authorized_keys file: [#!variable!file!#]. The most recent key is being kept:
+		<key name="warning_0003">[ Warning ] - There are multiple entries in the authorized_keys file: [#!variable!file!#]. The duplicate key is:
 ====
-#!variable!algo!# #!variable!new_key!#
+#!variable!algo!# #!variable!key!#
 ====
-The older one:
-====
-#!variable!algo!# #!variable!old_key!#
-====
-Will now be removed.</key>
+The duplicate will be removed.</key>
 		<key name="warning_0004">#!free!#</key>
 		<key name="warning_0005">#!free!#</key>
 		<key name="warning_0006">#!free!#</key>

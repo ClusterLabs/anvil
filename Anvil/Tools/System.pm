@@ -1206,7 +1206,7 @@ sub check_ssh_keys
 			{
 				delete $anvil->data->{authorizied_keys}{$authorized_keys_file};
 			}
-			my $duplicates_found = 0;
+			my $new_authorized_keys_file_body = "";
 			foreach my $line (split/\n/, $authorized_keys_file_body)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
@@ -1224,53 +1224,16 @@ sub check_ssh_keys
 						's4:host' => $host,
 					}});
 					
-					if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo})
+					# Only delete multiple entries that have the same key.
+					if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file}{$algo})
 					{
-						$duplicates_found = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { duplicates_found => $duplicates_found }});
-					}
-					$anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key} = $key;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"authorizied_keys::${authorized_keys_file}::${host}::${user}::${algo}::key" => $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key},
-					}});
-				}
-			}
-			
-			if ($duplicates_found)
-			{
-				# Update the file.
-				my $new_authorized_keys_file_body = "";
-				foreach my $line (split/\n/, $authorized_keys_file_body)
-				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-					
-					# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
-					if (($line =~ /^(.*?)\s+(.*?)\s$/) or ($line =~ /^(.*?)\s+(.*)$/))
-					{
-						my $algo = $1;
-						my $key  = $2;
-						my $host = $anvil->Get->host_name();
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-							's1:algo' => $algo,
-							's2:key'  => $key, 
-							's3:user' => $user,	# From the above for loop 
-							's4:host' => $host,
+						# Skip it.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0003", variables => { 
+							algo => $algo,
+							key  => $key, 
+							file => $authorized_keys_file,
 						}});
-						
-						my $good_key = $anvil->data->{authorizied_keys}{$authorized_keys_file}{$host}{$user}{$algo}{key};
-						if (($good_key) && ($good_key ne $key))
-						{
-							# Skip this line.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0003", variables => { 
-								host    => $host, 
-								user    => $user, 
-								algo    => $algo,
-								file    => $authorized_keys_file,
-								old_key => $key,
-								new_key => $good_key,
-							}});
-							next;
-						}
+						next;
 					}
 					$new_authorized_keys_file_body .= $line."\n";
 				}
