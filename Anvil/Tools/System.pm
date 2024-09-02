@@ -1148,6 +1148,19 @@ sub check_ssh_keys
 		$users_public_key =~ s/\n$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_public_key => $users_public_key }});
 		
+		# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
+		# We only care about the algo and key, not the comment.
+		if ($users_public_key =~ /^(.*?)\s+(.*?)\s$/)
+		{
+			my $algo = $1;
+			my $key  = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:algo' => $algo,
+				's2:key'  => $key, 
+			}});
+			$users_public_key = $1." ".$2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_public_key => $users_public_key }});
+		}
 		# Now store the key in the 'ssh_key' table, if needed.
 		my $ssh_key_uuid = $anvil->Database->insert_or_update_ssh_keys({
 			debug              => $debug,
@@ -1231,16 +1244,16 @@ sub check_ssh_keys
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 					
-					if ($line =~ /^(.*?)\s+(.*?)\s+(.*?)\@(.*)$/)
+					# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
+					if (($line =~ /^(.*?)\s+(.*?)\s$/) or ($line =~ /^(.*?)\s+(.*)$/))
 					{
 						my $algo = $1;
 						my $key  = $2;
-						my $user = $3;
-						my $host = $4;
+						my $host = $anvil->Get->host_name();
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 							's1:algo' => $algo,
 							's2:key'  => $key, 
-							's3:user' => $user, 
+							's3:user' => $user,	# From the above for loop 
 							's4:host' => $host,
 						}});
 						
