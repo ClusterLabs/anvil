@@ -1047,6 +1047,8 @@ This works on the C<< admin >> and C<< root >> users. If the host is a node, it 
 
 B<< Note >>: If a machine's fingerprint changes, this method will NOT update C<< ~/.ssh/known_hosts >>! You will see an alert on the Striker dashboard prompting you to clear the bad keys (or, if that wasn't expected, find the "man in the middle" attacker).
 
+B<< Note >>: This method is disabled until a host is flagged as C<< configured >>. 
+
 This method takes no parameters.
 
 =cut
@@ -1057,6 +1059,19 @@ sub check_ssh_keys
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ssh_keys()" }});
+	
+	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
+	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
+	# supposed to trust. For each, we make sure that they're in the appropriate local user's 
+	# authorized_keys file.
+	my $configured = $anvil->System->check_if_configured;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+	if (not $configured)
+	{
+		# Don't run.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102"});
+		return(1);
+	}
 	
 	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
 	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
