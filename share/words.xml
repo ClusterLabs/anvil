@@ -1895,7 +1895,7 @@ The database connection error was:
 		</key>
 		<key name="log_0099">[ Warning ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::configs::anvil.conf!#]'s DB entry: [#!variable!uuid!#]. Using 'admin'.</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
-		<key name="log_0101">#!free!#</key>
+		<key name="log_0101">Exiting: [#!variable!file!#] with RC: [#!variable!rc!#]</key>
 		<key name="log_0102">#!free!#</key>
 		<key name="log_0103">The local machine's UUID: [#!variable!host_uuid!#] was not read properly. It should be stored in: [#!data!path::data::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
 		<key name="log_0104">#!free!#</key>
