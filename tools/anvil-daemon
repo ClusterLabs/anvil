@@ -481,9 +481,6 @@ sub handle_periodic_tasks
 		# Check to see if the PXE environment needs to be updated.
 		check_install_target($anvil);
 		
-		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
-		$anvil->System->check_ssh_keys({debug => 2});
-		
 		$anvil->System->update_hosts({debug => 2});
 		
 		# Check if the files on disk have changed. Even if it is time to check, don't if a job is 
@@ -573,6 +570,9 @@ sub handle_periodic_tasks
 			host_type => $host_type, 
 			host_uuid => $host_uuid, 
 		}});
+		
+		# Check that the users we care about have ssh public keys and they're recorded in ssh_keys.
+		$anvil->System->check_ssh_keys({debug => 2});
 		
 		# Are we a Striker and is there two or more connections? If so, evaluate if we should shut 
 		# down our database.
@@ -1166,7 +1166,7 @@ sub run_once
 	
 	# Check the ssh stuff. 
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
-	$anvil->System->check_ssh_keys();
+	#$anvil->System->check_ssh_keys({debug => 2});
 	
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);
