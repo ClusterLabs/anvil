@@ -544,7 +544,7 @@ sub handle_periodic_tasks
 			### NOTE: Don't use this, it appears to break CI. Leaving the code for later fixing
 			# Check that we're recorded our known peers, and that our anvil.conf has entries for
 			# our peers.
-			#check_peers($anvil);
+			check_peers($anvil);
 			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
@@ -953,7 +953,6 @@ sub check_peers
 			}
 		}
 	}
-	die;
 	
 	return(0);
 }
