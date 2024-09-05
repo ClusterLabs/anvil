@@ -73,7 +73,7 @@ if (($< != 0) && ($> != 0))
 $anvil->data->{sys}{database}{resync_needed} = 1;
 $anvil->Database->connect({
 	debug            => 2,
-	check_for_resync => 1,
+	check_for_resync => $anvil->data->{switches}{add} ? 1 : 0,
 });
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132"});
 

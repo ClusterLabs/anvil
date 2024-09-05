@@ -1047,6 +1047,8 @@ This works on the C<< admin >> and C<< root >> users. If the host is a node, it 
 
 B<< Note >>: If a machine's fingerprint changes, this method will NOT update C<< ~/.ssh/known_hosts >>! You will see an alert on the Striker dashboard prompting you to clear the bad keys (or, if that wasn't expected, find the "man in the middle" attacker).
 
+B<< Note >>: This method is disabled until a host is flagged as C<< configured >>. 
+
 This method takes no parameters.
 
 =cut
@@ -1057,6 +1059,19 @@ sub check_ssh_keys
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ssh_keys()" }});
+	
+	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
+	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
+	# supposed to trust. For each, we make sure that they're in the appropriate local user's 
+	# authorized_keys file.
+	my $configured = $anvil->System->check_if_configured;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+	if (not $configured)
+	{
+		# Don't run.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0102"});
+		return(1);
+	}
 	
 	# We do a couple things here. First we make sure our user's keys are up to date and stored in the 
 	# 'ssh_keys' table. Then we look through the 'Get->trusted_hosts' array any other users@hosts we're
@@ -1107,7 +1122,7 @@ sub check_ssh_keys
 			# Generate the SSH keys.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0270", variables => { user => $user }});
 			
-			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -t rsa -N \"\" -b 8191 -f ".$ssh_private_key_file});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{'ssh-keygen'}." -N \"\" -f ".$ssh_private_key_file});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				output      => $output,
 				return_code => $return_code, 
@@ -1148,6 +1163,19 @@ sub check_ssh_keys
 		$users_public_key =~ s/\n$//;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_public_key => $users_public_key }});
 		
+		# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
+		# We only care about the algo and key, not the comment.
+		if ($users_public_key =~ /^(.*?)\s+(.*?)\s$/)
+		{
+			my $algo = $1;
+			my $key  = $2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:algo' => $algo,
+				's2:key'  => $key, 
+			}});
+			$users_public_key = $1." ".$2;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_public_key => $users_public_key }});
+		}
 		# Now store the key in the 'ssh_key' table, if needed.
 		my $ssh_key_uuid = $anvil->Database->insert_or_update_ssh_keys({
 			debug              => $debug,
@@ -1185,8 +1213,78 @@ sub check_ssh_keys
 				debug => $debug,
 				file  => $authorized_keys_file,
 			});
-			$authorized_keys_old_body  = $authorized_keys_file_body;
+			$authorized_keys_old_body = $authorized_keys_file_body;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
+			
+			# Look for duplicate entries. If any are found, the last ones are kept.
+			if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file})
+			{
+				delete $anvil->data->{authorizied_keys}{$authorized_keys_file};
+			}
+			my $new_authorized_keys_file_body = "";
+			foreach my $line (split/\n/, $authorized_keys_file_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				
+				# See: https://datatracker.ietf.org/doc/html/rfc4253#section-4.2
+				if (($line =~ /^(.*?)\s+(.*?)\s$/) or ($line =~ /^(.*?)\s+(.*)$/))
+				{
+					my $algo = $1;
+					my $key  = $2;
+					my $host = $anvil->Get->host_name();
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:algo' => $algo,
+						's2:key'  => $key, 
+						's3:user' => $user,	# From the above for loop 
+						's4:host' => $host,
+					}});
+					
+					# Only delete multiple entries that have the same key.
+					if (exists $anvil->data->{authorizied_keys}{$authorized_keys_file}{$algo})
+					{
+						# Skip it.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "warning_0003", variables => { 
+							algo => $algo,
+							key  => $key, 
+							file => $authorized_keys_file,
+						}});
+						next;
+					}
+					$new_authorized_keys_file_body .= $line."\n";
+				}
+				
+				# If the file has changed, update it.
+				my $difference = diff \$authorized_keys_file_body, \$new_authorized_keys_file_body, { STYLE => 'Unified' };
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+				if ($difference)
+				{
+					$anvil->Storage->get_file_stats({debug => $debug, file_path => $authorized_keys_file});
+					my $unix_mode  = $anvil->data->{file_stat}{$authorized_keys_file}{unix_mode};
+					my $user_name  = $anvil->data->{file_stat}{$authorized_keys_file}{user_name};
+					my $group_name = $anvil->data->{file_stat}{$authorized_keys_file}{group_name};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:authorized_keys_file' => $authorized_keys_file, 
+						's2:unix_mode'            => $unix_mode, 
+						's3:user_name'            => $user_name, 
+						's4:group_name'           => $group_name, 
+					}});
+					
+					$anvil->Storage->write_file({
+						debug     => $debug, 
+						file      => $authorized_keys_file, 
+						body      => $new_authorized_keys_file_body, 
+						backup    => 1, 
+						overwrite => 1, 
+						mode      => $unix_mode, 
+						user      => $user_name, 
+						group     => $group_name, 
+					});
+					
+					# Update the 'authorized_keys_file_body' variable.
+					$authorized_keys_file_body = $new_authorized_keys_file_body;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
+				}
+			}
 		}
 		
 		# Walk through the Striker dashboards we use. If we're a Node or DR host, walk through our 
@@ -1194,7 +1292,7 @@ sub check_ssh_keys
 		# and the key has changed, update the line with the new key. If it isn't found, add it. Once
 		# we check the old body for this entry, change the "old" body to the new one, then repeat the
 		# process.
-		my $trusted_host_uuids = $anvil->Get->trusted_hosts();
+		my $trusted_host_uuids = $anvil->Get->trusted_hosts({debug => $debug});
 		
 		# Look at all the hosts I know about (other than myself) and see if any of the machine or 
 		# user keys either don't exist or have changed.
@@ -1208,16 +1306,15 @@ sub check_ssh_keys
 		# Check for changes to known_hosts
 		foreach my $host_uuid (@{$trusted_host_uuids})
 		{
+			# If the host_key is 'DELETED', skip it.
 			my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 			my $host_key  = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				host_name => $host_name, 
-				host_uuid => $host_uuid,
-				host_key  => $host_key, 
-			}});
-			
-			# If the host_key is 'DELETED', skip if.
 			next if $host_key eq "DELETED";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:host_name' => $host_name, 
+				's2:host_uuid' => $host_uuid,
+				's3:host_key'  => $host_key, 
+			}});
 			
 			# Is this in the file and, if so, has it changed?
 			my $found     = 0;
@@ -1234,21 +1331,15 @@ sub check_ssh_keys
 				}
 				elsif ($line =~ /^$host_name /)
 				{
-					# Key has changed, update.
+					# Key has changed, remove the old one.
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0274", variables => { 
 						machine => $host_name, 
 						old_key => $line, 
 						new_key => $test_line,
-						
 					}});
-					$found              = 1;
-					$line               = $test_line;
 					$update_known_hosts = 1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						found              => $found,
-						line               => $line, 
-						update_known_hosts => $update_known_hosts, 
-					}});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { update_known_hosts => $update_known_hosts }});
+					next;
 				}
 				$known_hosts_new_body .= $line."\n";
 			}

@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! IA platform 
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH striker-manage-peers "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
+.TH striker-manage-peers "8" "August 31 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 striker-manage-peers \- This manages peering two Striker dashboards
 .SH SYNOPSIS
@@ -20,29 +20,32 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SS "Commands:"
-\fB\-\-check\fR
-This reports 'status=[1,0]' to indicate if the install target feature is currently running or not. Specifically, it checks to see if the DHCP server is running or not.
+\fB\-\-add\fR
+This tells the program to add the peer to the anvil.conf file.
 .TP
-\fB\-\-disable\fR
-This disables the install target feature.
+\fB\-\-list\fR
+This lists the configured striker peers (including the striker this is run on).
 .TP
-\fB\-\-enable\fR
-This enables the install target feature.
+\fB\-\-remove\fR
+This tells the program to remove the peer to the anvil.conf file.
 .TP
-\fB\-\-force\fR
-This is the same as '--refresh', forcing the update of the RPM repo.
+\fB\-\-host\fR
+This is the host (name or IP) used when connecting the a new striker (used with '--add').
+.TP
+\fB\-\-host\-uuid\fR <uuid>
+This is the striker's host UUID. This is used with '--add' or '--remove'.
 .TP
 \fB\-\-job\-uuid\fR <uuid>
 This is the job UUID used to run this job.
 .TP
-\fB\-\-no\-refresh\fR
-If a refresh of the RPM repository would have been called, this switch will prevent it from happening.
+\fB\-\-port\fR (default 5432)
+This is the TCP port used to connected to the postgresql database on the peer. Generally this is 5432 and shouldn't be changed without careful consideration and testing.
 .TP
-\fB\-\-refresh\-file\fR
-This tells this run to refresh the RPM repository, regardless of whether it would have run otherwise.
+\fB\-\-password\-file\fR /path/to/file.txt
+This is the file that contains the password used to connect to the striker database password. The file should contain only the password in the first line, and nothing else. The caller should remove the file once the task is complete.
 .TP
-\fB\-\-status\fR
-This checks to see if dhcpd is running or not, then exits (effectively checking if the install target feature is running).
+\fB\-\-ping\fR (default '1')
+If set to '1', the dashboard will be pinged before an attempt to connect to the database is made. This is helpful because a pgsql connection can take a long time to timeout, making everything that uses the database slow down when a dashboard's database is unreachable.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
