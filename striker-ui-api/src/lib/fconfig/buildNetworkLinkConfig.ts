@@ -7,12 +7,12 @@ export const buildNetworkLinkConfig = (
 ) =>
   interfaces.reduce<FormConfigData>((previous, iface, index) => {
     if (iface) {
-      const { networkInterfaceMACAddress } = iface;
+      const { mac } = iface;
       const linkNumber = index + 1;
 
       previous[
         cvar(configStep, `${networkShortName}_link${linkNumber}_mac_to_set`)
-      ] = { step: configStep, value: networkInterfaceMACAddress };
+      ] = { step: configStep, value: mac };
     }
 
     return previous;

@@ -1,60 +1,75 @@
 import { DELETED, LOCAL } from '../../consts';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toHostUUID } from '../../convertHostUUID';
 
 export const getNetworkInterface = buildGetRequestHandler(
   (request, buildQueryOptions) => {
     const {
-      params: { hostUUID: rHostUUID = LOCAL },
+      params: { hostUUID: rHostUuid = LOCAL },
     } = request;
 
-    const hostUUID = toHostUUID(rHostUUID);
+    const hostUuid = toHostUUID(rHostUuid);
 
     const query = `
       SELECT
-        network_interface_uuid,
-        network_interface_mac_address,
-        network_interface_name,
+        a.network_interface_uuid,
+        a.network_interface_mac_address,
+        a.network_interface_name,
         CASE
-          WHEN network_interface_link_state = '1'
-            AND network_interface_operational = 'up'
+          WHEN a.network_interface_link_state = '1'
+            AND a.network_interface_operational = 'up'
             THEN 'up'
           ELSE 'down'
-        END AS network_interface_state,
-        network_interface_speed,
-        ROW_NUMBER() OVER(ORDER BY modified_date ASC) AS network_interface_order
-      FROM network_interfaces
-      WHERE network_interface_operational != '${DELETED}'
-        AND network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
-        AND network_interface_host_uuid = '${hostUUID}';`;
+        END AS iface_state,
+        a.network_interface_speed,
+        ROW_NUMBER() OVER(ORDER BY a.modified_date ASC) AS iface_order,
+        b.ip_address_address,
+        b.ip_address_subnet_mask,
+        b.ip_address_gateway,
+        b.ip_address_dns
+      FROM network_interfaces AS a
+      LEFT JOIN ip_addresses AS b
+        ON b.ip_address_on_uuid = a.network_interface_uuid
+      WHERE a.network_interface_operational != '${DELETED}'
+        AND a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
+        AND a.network_interface_host_uuid = '${hostUuid}';`;
 
     if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = (queryStdout) => {
-        let result = queryStdout;
+      buildQueryOptions.afterQueryReturn =
+        buildQueryResultReducer<NetworkInterfaceOverviewList>(
+          (previous, row) => {
+            const [
+              uuid,
+              mac,
+              name,
+              state,
+              speed,
+              order,
+              ip,
+              subnetMask,
+              gateway,
+              dns,
+            ] = row;
 
-        if (queryStdout instanceof Array) {
-          result = queryStdout.map<NetworkInterfaceOverview>(
-            ([
-              networkInterfaceUUID,
-              networkInterfaceMACAddress,
-              networkInterfaceName,
-              networkInterfaceState,
-              networkInterfaceSpeed,
-              networkInterfaceOrder,
-            ]) => ({
-              networkInterfaceUUID,
-              networkInterfaceMACAddress,
-              networkInterfaceName,
-              networkInterfaceState,
-              networkInterfaceSpeed,
-              networkInterfaceOrder,
-            }),
-          );
-        }
+            previous[uuid] = {
+              dns,
+              gateway,
+              ip,
+              mac,
+              name,
+              order: Number(order),
+              speed: Number(speed),
+              state,
+              subnetMask,
+              uuid,
+            };
 
-        return result;
-      };
+            return previous;
+          },
+          {},
+        );
     }
 
     return query;
