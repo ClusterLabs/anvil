@@ -429,7 +429,7 @@ sub nice_exit
 	}});
 	
 	# Log our exit code for debug purposes
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { exit_code => $exit_code }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { exit_code => $exit_code }});
 	
 	# Close the log file.
 	if ($anvil->data->{HANDLE}{'log'}{main})
