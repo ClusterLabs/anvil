@@ -404,7 +404,7 @@ We're done waiting, exiting out.
 		<key name="error_0287">Failed to write the file: [#!variable!file!#] on the host: [#!variable!target!#].</key>
 		<key name="error_0288">Failed to add the server: [#!variable!server_name!#] to the cluster. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0289">The server: [#!variable!server!#] already exists on this Anvil!. Please use a different new name.</key>
-		<key name="error_0290">#!free!#</key>
+		<key name="error_0290">The host 'all' can't be used with '--force-off' or '--force-reboot'! Please specify the specific machine to force off.</key>
 		<key name="error_0291"><![CDATA[The host name: [#!variable!host_name!#] was not found in the database.]]></key>
 		<key name="error_0292">The attempt to boot the machine failed! The output, if anything, was: [#!variable!output!#].</key>
 		<key name="error_0293">The attempt to check the power status of the machine failed. The output, if anything, was: [#!variable!output!#].</key>
@@ -1551,12 +1551,12 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
 		<key name="job_0330">The target machine is now booting!</key>
 		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
-		<key name="job_0332">#!free!#</key>
-		<key name="job_0333">#!free!#</key>
-		<key name="job_0334">#!free!#</key>
-		<key name="job_0335">#!free!#</key>
-		<key name="job_0336">#!free!#</key>
-		<key name="job_0337">#!free!#</key>
+		<key name="job_0332">The target machine is on, forcing it off now.</key>
+		<key name="job_0333">The target machine is off. Powering it back up now.</key>
+		<key name="job_0334">The target machine is on again.</key>
+		<key name="job_0335">The target machine is now off.</key>
+		<key name="job_0336">The target was already off, proceeding with booting it.</key>
+		<key name="job_0337">The target machine is already off, nothing to do.</key>
 		<key name="job_0338">#!free!#</key>
 		<key name="job_0339">#!free!#</key>
 		<key name="job_0340">#!free!#</key>
@@ -2803,7 +2803,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
 		<key name="message_0064">The #!string!brand_0006!# has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
-		<key name="message_0065">#!free!#</key>
+		<key name="message_0065">Are you certain that you want to immediately force-off the machine: [#!variable!host!#]?</key>
 		<key name="message_0066">Starting the job to add or update an #!string!brand_0006!# database peer.</key>
 		<key name="message_0067">Starting the job to remove an #!string!brand_0006!# database peer.</key>
 		<key name="message_0068">Sanity checks passed.</key>
