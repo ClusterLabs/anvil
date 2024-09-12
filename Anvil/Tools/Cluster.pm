@@ -1986,6 +1986,10 @@ B<< Note >>: There is usually only one method, but if there are two or more, the
 
 Parameters;
 
+=head3 anvil_uuid (Optional, default Cluster->get_anvil_uuid)
+
+This is the Anvil! UUID of the host being searched for. 
+
 =head3 host_uuid (Optional, default Get->host_uuid)
 
 This is the host whose fence methods we're looking for.
@@ -1999,24 +2003,37 @@ sub get_fence_methods
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Cluster->get_fence_methods()" }});
 	
-	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : $anvil->Get->host_uuid;
-	my $host_name = $anvil->Get->host_name_from_uuid({debug => $debug, host_uuid => $host_uuid});
+	my $anvil_uuid = defined $parameter->{anvil_uuid} ? $parameter->{anvil_uuid} : "";
+	my $host_uuid  = defined $parameter->{host_uuid}  ? $parameter->{host_uuid}  : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		host_uuid => $host_uuid, 
-		host_name => $host_name, 
+		anvil_uuid => $anvil_uuid, 
+		host_uuid  => $host_uuid, 
 	}});
 	
+	if (not $host_uuid)
+	{
+		$host_uuid = $anvil->Get->host_uuid({debug => $debug});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
+	
+	my $host_name       =  $anvil->Get->host_name_from_uuid({debug => $debug, host_uuid => $host_uuid});
 	my $short_host_name =  $host_name;
 	   $short_host_name =~ s/\..*$//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { short_host_name => $short_host_name }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_name       => $host_name, 
+		short_host_name => $short_host_name,
+	}});
 	
-	# Find the Anvil! UUID.
-	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 	if (not $anvil_uuid)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0295", variables => { host_name => $host_name }});
-		return(1);
+		# Find the Anvil! UUID.
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
+		if (not $anvil_uuid)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0295", variables => { host_name => $host_name }});
+			return(1);
+		}
 	}
 	
 	# Get the Anvil! name now, for logging.
@@ -2060,7 +2077,7 @@ sub get_fence_methods
 	}
 	if ($update_fence_data)
 	{
-		$anvil->Striker->get_fence_data({debug => $debug});
+		$anvil->Striker->get_fence_data({debug => 3});
 	}
 	
 	# Parse out the fence methods for this host. 
@@ -2089,7 +2106,7 @@ sub get_fence_methods
 				
 				# We ignore the fake, delay method 
 				next if $agent eq "fence_delay";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					's1:this_method' => $this_method,
 					's2:agent'       => $agent,
 				}});
@@ -2100,19 +2117,25 @@ sub get_fence_methods
 					next if $stdin_name =~ /pcmk_o\w+_action/;
 					my $switch = "";
 					my $value  = $anvil->data->{cib}{parsed}{data}{node}{$node_name}{fencing}{device}{$this_method}{argument}{$stdin_name}{value};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 						's1:stdin_name' => $stdin_name,
 						's2:value'      => $value, 
 					}});
 					
 					foreach my $this_switch (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$agent}{switch}})
 					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_switch => $this_switch }});
+						
+						next if not defined $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
 						my $this_name = $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_name => $this_name }});
+						
 						if ($stdin_name eq $this_name)
 						{
-								$switch  =  $this_switch;
+							   $switch  =  $this_switch;
 							my $dashes  =  (length($switch) > 1) ? "--" : "-";
 							$shell_call .= $dashes.$switch." \"".$value."\" ";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
 							last;
 						}
 					}
@@ -3766,15 +3789,25 @@ sub parse_cib
 						"cib::parsed::data::node::${node_name}::fencing::device::${primitive_id}::argument::${name}::value" => $variables->{$name},
 					}});
 					
+					my $value =  $variables->{$name};
+					   $value =~ s/"/\\"/g;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay_set => $delay_set }});
+					
 					if ($name eq "delay")
 					{
-						$delay_set = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay_set => $delay_set }});
+						if ($value)
+						{
+							$delay_set = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delay_set => $delay_set }});
+						}
+						else
+						{
+							# The delay is '0', ignore it.
+							next;
+						}
 					}
 					
-					my $value           =  $variables->{$name};
-					   $value           =~ s/"/\\"/g;
-					   $argument_string .= $name."=\"".$value."\" ";
+					$argument_string .= $name."=\"".$value."\" ";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						argument_string => $argument_string,
 					}});
