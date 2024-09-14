@@ -6052,6 +6052,7 @@ WHERE
 		results => $results, 
 		count   => $count, 
 	}});
+	
 	foreach my $row (@{$results})
 	{
 		my $server_uuid                     =         $row->[0];
@@ -13223,8 +13224,6 @@ This indicates when a server was stopped by a user. If this is set to C<< 1 >>, 
 =head3 server_start_after_server_uuid (optional)
 
 If the user wants to boot this server after another server, this can be set to C<< servers >> -> C<< server_uuid >>. When set, the server referenced will be booted (at least) C<< server_start_delay >> seconds before this server is booted.
-
-B<< Note >>: If this is set to C<< 00000000-0000-0000-0000-000000000000 >>, the server will be left off.
 
 =head3 server_start_delay (optional, default '0')
 

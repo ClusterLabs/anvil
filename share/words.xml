@@ -1917,7 +1917,7 @@ The database connection error was:
 		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
 		<key name="log_0121">#!free!#</key>
 		<key name="log_0122">#!free!#</key>
-		<key name="log_0123">#!free!#</key>
+		<key name="log_0123">About to write the query: [#!variable!query!#].</key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
@@ -3458,7 +3458,7 @@ proceeding.
 		<key name="prefix_0006">#!free!#</key>
 		
 		<!-- General strings shown in Striker -->
-		<key name="striker_0001">#!free!#</key>
+		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
 		<key name="striker_0002">#!free!#</key>
 		<key name="striker_0003">#!free!#</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
