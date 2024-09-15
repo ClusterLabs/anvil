@@ -1251,39 +1251,41 @@ sub check_ssh_keys
 						next;
 					}
 					$new_authorized_keys_file_body .= $line."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_authorized_keys_file_body => $new_authorized_keys_file_body }});
 				}
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_authorized_keys_file_body => $new_authorized_keys_file_body }});
+			
+			# If the file has changed, update it.
+			my $difference = diff \$authorized_keys_file_body, \$new_authorized_keys_file_body, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+			if ($difference)
+			{
+				$anvil->Storage->get_file_stats({debug => $debug, file_path => $authorized_keys_file});
+				my $unix_mode  = $anvil->data->{file_stat}{$authorized_keys_file}{unix_mode};
+				my $user_name  = $anvil->data->{file_stat}{$authorized_keys_file}{user_name};
+				my $group_name = $anvil->data->{file_stat}{$authorized_keys_file}{group_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					's1:authorized_keys_file' => $authorized_keys_file, 
+					's2:unix_mode'            => $unix_mode, 
+					's3:user_name'            => $user_name, 
+					's4:group_name'           => $group_name, 
+				}});
 				
-				# If the file has changed, update it.
-				my $difference = diff \$authorized_keys_file_body, \$new_authorized_keys_file_body, { STYLE => 'Unified' };
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
-				if ($difference)
-				{
-					$anvil->Storage->get_file_stats({debug => $debug, file_path => $authorized_keys_file});
-					my $unix_mode  = $anvil->data->{file_stat}{$authorized_keys_file}{unix_mode};
-					my $user_name  = $anvil->data->{file_stat}{$authorized_keys_file}{user_name};
-					my $group_name = $anvil->data->{file_stat}{$authorized_keys_file}{group_name};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						's1:authorized_keys_file' => $authorized_keys_file, 
-						's2:unix_mode'            => $unix_mode, 
-						's3:user_name'            => $user_name, 
-						's4:group_name'           => $group_name, 
-					}});
-					
-					$anvil->Storage->write_file({
-						debug     => $debug, 
-						file      => $authorized_keys_file, 
-						body      => $new_authorized_keys_file_body, 
-						backup    => 1, 
-						overwrite => 1, 
-						mode      => $unix_mode, 
-						user      => $user_name, 
-						group     => $group_name, 
-					});
-					
-					# Update the 'authorized_keys_file_body' variable.
-					$authorized_keys_file_body = $new_authorized_keys_file_body;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
-				}
+				$anvil->Storage->write_file({
+					debug     => $debug, 
+					file      => $authorized_keys_file, 
+					body      => $new_authorized_keys_file_body, 
+					backup    => 1, 
+					overwrite => 1, 
+					mode      => $unix_mode, 
+					user      => $user_name, 
+					group     => $group_name, 
+				});
+				
+				# Update the 'authorized_keys_file_body' variable.
+				$authorized_keys_file_body = $new_authorized_keys_file_body;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { authorized_keys_file_body => $authorized_keys_file_body }});
 			}
 		}
 		
