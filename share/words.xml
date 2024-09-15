@@ -1917,7 +1917,7 @@ The database connection error was:
 		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
 		<key name="log_0121">#!free!#</key>
 		<key name="log_0122">#!free!#</key>
-		<key name="log_0123">#!free!#</key>
+		<key name="log_0123">About to write the query: [#!variable!query!#].</key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
@@ -2723,10 +2723,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
 		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
 		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
-		<key name="message_0004">#!free!#</key>
+		<key name="message_0004">The server: [#!variable!server!#] wasn't found on the Anvil! node: [#!variable!anvil_name!#] (#!variable!anvil_description!#).</key>
 		<key name="message_0005">There was an unknown error while connecting as: [#!variable!user!#] to: [#!variable!remote_user!#@#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
-		<key name="message_0007">#!free!#</key>
+		<key name="message_0007">The server: [#!variable!server!#] wasn't found anywhere on the Anvil!</key>
 		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error:
 ====
 #!variable!error!#
@@ -2823,19 +2823,19 @@ NOTE: Please be patient!
       'df -hs #!variable!directory!#' to verify the numbers are increasing.
 		</key>
 		<key name="message_0078">Output: [#!variable!line!#].</key>
-		<key name="message_0079">#!free!#</key>
-		<key name="message_0080">#!free!#</key>
-		<key name="message_0081">#!free!#</key>
-		<key name="message_0082">#!free!#</key>
-		<key name="message_0083">#!free!#</key>
-		<key name="message_0084">#!free!#</key>
-		<key name="message_0085">#!free!#</key>
-		<key name="message_0086">#!free!#</key>
-		<key name="message_0087">#!free!#</key>
-		<key name="message_0088">#!free!#</key>
-		<key name="message_0089">#!free!#</key>
-		<key name="message_0090">#!free!#</key>
-		<key name="message_0091">#!free!#</key>
+		<key name="message_0079">The sever: [#!variable!server!#] will boot without delay.</key>
+		<key name="message_0080">The server: [#!variable!server_name!#] will not boot automatically.</key>
+		<key name="message_0081">The server: [#!variable!server!#] will boot: [#!variable!delay!# seconds] after: [#!variable!boot_after!#].</key>
+		<key name="message_0082">The boot-after server: [#!variable!boot_after!#] wasn't found on the Anvil! node: [#!variable!anvil_name!#] (#!variable!anvil_description!#).</key>
+		<key name="message_0083">The boot-after server: [#!variable!boot_after!#] wasn't found anywhere on the Anvil!</key>
+		<key name="message_0084">The delay value: [#!variable!delay!#] isn't a whole number.</key>
+		<key name="message_0085">I was asked to set: [#!variable!server_name!#] to not auto boot, but it was already configured not to auto boot. Nothing to do.</key>
+		<key name="message_0086">Updating: [#!variable!server!#] to not automatically boot.</key>
+		<key name="message_0087">I was asked to set: [#!variable!server!#] to not wait on any other servers, which is already the case. Nothing to do.</key>
+		<key name="message_0088">Updating: [#!variable!server!#] to not wait for any other servers.</key>
+		<key name="message_0089">Updating the server: [#!variable!server!#] to change the boot delay from: [#!variable!start_delay!# seconds] to: [#!variable!start_delay!# seconds] after: [#!variable!boot_after#!variable!] boots.</key>
+		<key name="message_0090">I was asked to set: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots, which is already the case. Nothing to do.</key>
+		<key name="message_0091">Updating: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots.</key>
 		<key name="message_0092">#!free!#</key>
 		<key name="message_0093">#!free!#</key>
 		<key name="message_0094">#!free!#</key>
@@ -3458,7 +3458,7 @@ proceeding.
 		<key name="prefix_0006">#!free!#</key>
 		
 		<!-- General strings shown in Striker -->
-		<key name="striker_0001">#!free!#</key>
+		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
 		<key name="striker_0002">#!free!#</key>
 		<key name="striker_0003">#!free!#</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
@@ -3950,9 +3950,9 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 #!variable!algo!# #!variable!key!#
 ====
 The duplicate will be removed.</key>
-		<key name="warning_0004">#!free!#</key>
-		<key name="warning_0005">#!free!#</key>
-		<key name="warning_0006">#!free!#</key>
+		<key name="warning_0004">Unable to stop servers, failed to parse the CIB. Will try again shortly.</key>
+		<key name="warning_0005">The server: [#!variable!server_name!#] can't stop yet. It's waiting for: [#!variable!wait_for_server_name!#] to turn "off", but it's status is: [#!variable!wait_for_server_status!# (#!variable!wait_for_server_role!#)].</key>
+		<key name="warning_0006">Not all servers asked to stop, will check again shortly.</key>
 		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="warning_0008">#!free!#</key>
 		<key name="warning_0009">#!free!#</key>
