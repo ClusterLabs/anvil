@@ -1429,19 +1429,34 @@ sub migrate_server
 	}});
 	if ($test_ip)
 	{
-		# Can we access the peer with this?
-		my ($access) = $anvil->Remote->test_access({debug => 3, target => $test_ip});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
-		
-		# Did we get access?
-		if ($access)
+		# Some ISPs return a routed IP for any names that don't resolve. As such, ignore the IP if 
+		# it's not an unrouted IP.
+		if (($test_ip !~ /^10\./)  && 
+		    ($test_ip !~ /^127\./) && 
+		    ($test_ip !~ /^192\.168\./))
 		{
-			# Yup! Switch the target.
-			$target = $test_ip;
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0663", variables => { 
-				target => $test_target,
-				ip     => $target,
+			# Ignore it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0104", variables => { 
+				host => $test_target, 
+				ip   => $test_ip, 
 			}});
+		}
+		else
+		{
+			# Can we access the peer with this?
+			my ($access) = $anvil->Remote->test_access({debug => 3, target => $test_ip});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+			
+			# Did we get access?
+			if ($access)
+			{
+				# Yup! Switch the target.
+				$target = $test_ip;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0663", variables => { 
+					target => $test_target,
+					ip     => $target,
+				}});
+			}
 		}
 	}
 	
