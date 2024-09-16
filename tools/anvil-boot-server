@@ -300,7 +300,6 @@ sub boot_all_servers
 {
 	my ($anvil) = @_;
 	
-	### TODO: Manage the boot order here.
 	# We top out at 90, bottom is 20. 
 	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
@@ -381,7 +380,7 @@ sub boot_all_servers
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_after_server_uuid => $boot_after_server_uuid }});
 			if ($boot_after_server_uuid)
 			{
-				if ($stay_off_key)
+				if ($server_stay_off)
 				{
 					# This server is configured to stay off. 
 					$anvil->data->{boot_server}{$server_name}{processed} = time;
