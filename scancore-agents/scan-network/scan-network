@@ -42,9 +42,6 @@ if (($< != 0) && ($> != 0))
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# These are the threasholds for when to alert when swap is running out.
-$anvil->data->{switches}{force} = 0;
-
 #$anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -2709,16 +2706,16 @@ sub check_interfaces
 				$changes = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
-				my $key = "scan_network_alert_0032";
+				my $message_key = "scan_network_alert_0032";
 				if (not $new_bond_uuid)
 				{
 					# Left the bond
-					$key = "scan_network_alert_0031";
+					$message_key = "scan_network_alert_0031";
 				}
 				elsif (not $old_bond_uuid)
 				{
 					# Joined the bond
-					$key = "scan_network_alert_0030";
+					$message_key = "scan_network_alert_0030";
 				}
 				
 				my $variables = {
@@ -2727,10 +2724,10 @@ sub check_interfaces
 					new  => $new_bond_name." (".$new_bond_uuid.")",
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "warning", 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2744,7 +2741,7 @@ sub check_interfaces
 				
 				my $log_level   = 1;
 				my $alert_level = "warning";
-				my $key         = "scan_network_alert_0035";
+				my $message_key = "scan_network_alert_0035";
 				if ($network_interface_name =~ /^vnet/)
 				{
 					# Left the bridge
@@ -2754,12 +2751,12 @@ sub check_interfaces
 				if ($new_bridge_uuid)
 				{
 					# Left the bridge
-					$key = "scan_network_alert_0034";
+					$message_key = "scan_network_alert_0034";
 				}
 				elsif (not $old_bridge_uuid)
 				{
 					# Joined the bridge
-					$key = "scan_network_alert_0033";
+					$message_key = "scan_network_alert_0033";
 				}
 				
 				my $variables = {
@@ -2768,10 +2765,10 @@ sub check_interfaces
 					new  => $new_bridge_name." (".$new_bridge_uuid.")",
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "warning", 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2783,13 +2780,13 @@ sub check_interfaces
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
 				my $clear       = 0;
-				my $key         = "scan_network_alert_0036";
+				my $message_key = "scan_network_alert_0036";
 				my $alert_level = "notice";
 				if ($new_duplex eq "full")
 				{
 					# Duplex is back to being OK
-					$clear = 1;
-					$key   = "scan_network_alert_0037";
+					$clear       = 1;
+					$message_key = "scan_network_alert_0037";
 				}
 				
 				# Is this one of our interface?
@@ -2805,11 +2802,11 @@ sub check_interfaces
 					new  => $new_duplex, 
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
 					clear_alert => $clear, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2821,13 +2818,13 @@ sub check_interfaces
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				
 				my $clear       = 0;
-				my $key         = "scan_network_alert_0038";
+				my $message_key = "scan_network_alert_0038";
 				my $alert_level = "warning";
 				if ($new_link_state)
 				{
 					# Link is up
-					$clear = 1;
-					$key   = "scan_network_alert_0039";
+					$clear       = 1;
+					$message_key = "scan_network_alert_0039";
 				}
 				
 				# Is this one of our interface?
@@ -2843,11 +2840,11 @@ sub check_interfaces
 					new  => $new_link_state, 
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
 					clear_alert => $clear, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2861,28 +2858,28 @@ sub check_interfaces
 				
 				# Is it up or down?
 				my $clear       = 0;
-				my $key         = "scan_network_alert_0040";
-				my $alert_level = "notice";
+				my $message_key = "scan_network_alert_0040";
+				my $alert_level = "warning";
 				if ($old_operational eq "DELETED")
 				{
 					# Link is back. Is it up?
 					if ($new_operational eq "up")
 					{
 						# It's up
-						$clear = 1;
-						$key   = "scan_network_alert_0042";
+						$clear       = 1;
+						$message_key = "scan_network_alert_0042";
 					}
 					else
 					{
 						# It's back, but down
-						$key   = "scan_network_alert_0043";
+						$message_key = "scan_network_alert_0043";
 					}
 				}
 				elsif ($new_operational eq "up")
 				{
 					# It's up
-					$clear = 1;
-					$key   = "scan_network_alert_0041";
+					$clear       = 1;
+					$message_key = "scan_network_alert_0041";
 				}
 				
 				# Is this one of our interface?
@@ -2890,6 +2887,14 @@ sub check_interfaces
 				{
 					# Not an interface we care about.
 					$alert_level = "notice";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
+				}
+				
+				# vnet devices come and go all the time, no need to be an alert level warning.
+				if ($network_interface_name =~ /^vnet/)
+				{
+					$alert_level = "notice";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
 				}
 				
 				my $variables = {
@@ -2898,11 +2903,11 @@ sub check_interfaces
 					new  => $new_operational, 
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
 					clear_alert => $clear, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2920,17 +2925,17 @@ sub check_interfaces
 					new  => $new_mac_address, 
 				};
 				
-				my $key = "scan_network_alert_0044";
+				my $message_key = "scan_network_alert_0044";
 				if ($network_interface_name =~ /^vnet/)
 				{
 					# This is a server booting or migrating
-					$key = "scan_network_alert_0061";
+					$message_key = "scan_network_alert_0061";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "notice", 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -2970,13 +2975,13 @@ sub check_interfaces
 				
 				my $log_level   = 2;
 				my $alert_level = "notice";
-				my $key         = "scan_network_alert_0046";
+				my $message_key = "scan_network_alert_0046";
 				if ($new_mtu < $old_mtu)
 				{
 					# Make it an alert
 					$log_level   = 1;
 					$alert_level = "warning";
-					$key         = "scan_network_alert_0047";
+					$message_key = "scan_network_alert_0047";
 				}
 				
 				# Is this one of our interface?
@@ -2986,10 +2991,10 @@ sub check_interfaces
 					$alert_level = "notice";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3006,11 +3011,11 @@ sub check_interfaces
 					new  => $new_speed, 
 				};
 				
-				my $key = "scan_network_alert_0048";
+				my $message_key = "scan_network_alert_0048";
 				if ($new_speed > $old_speed)
 				{
 					# Speed dropped, likely a faulty network cable
-					$key = "scan_network_alert_0049";
+					$message_key = "scan_network_alert_0049";
 				}
 				
 				# Is this one of our interface?
@@ -3021,10 +3026,10 @@ sub check_interfaces
 					$alert_level = "notice";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3093,21 +3098,21 @@ sub check_interfaces
 					};
 					
 					# Reset or normal increase?
-					my $key         = "scan_network_alert_0007";
+					my $message_key = "scan_network_alert_0007";
 					my $alert_level = "info";
 					my $log_level   = 2;
 					if ($old_tx_bytes > $new_tx_bytes)
 					{
 						# Reset
-						$key         = "scan_network_alert_0008";
+						$message_key = "scan_network_alert_0008";
 						$alert_level = "notice";
 						$log_level   = 2;
 					}
 					
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 					$anvil->Alert->register({
 						alert_level => $alert_level, 
-						message     => $key, 
+						message     => $message_key, 
 						variables   => $variables,
 						set_by      => $THIS_FILE,
 					});
@@ -3147,21 +3152,21 @@ sub check_interfaces
 					};
 					
 					# Reset or normal increase?
-					my $key         = "scan_network_alert_0009";
+					my $message_key = "scan_network_alert_0009";
 					my $alert_level = "info";
 					my $log_level   = 2;
 					if ($old_rx_bytes > $new_rx_bytes)
 					{
 						# Reset
-						$key         = "scan_network_alert_0010";
+						$message_key = "scan_network_alert_0010";
 						$alert_level = "notice";
 						$log_level   = 2;
 					}
 					
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 					$anvil->Alert->register({
 						alert_level => $alert_level, 
-						message     => $key, 
+						message     => $message_key, 
 						variables   => $variables,
 						set_by      => $THIS_FILE,
 					});
@@ -3260,9 +3265,17 @@ sub check_interfaces
 				say_rx         => $anvil->Convert->add_commas({number => $new_rx_bytes})." #!string!suffix_0057!# (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")",
 			};
 			
+			# If this a vnet device, it's only a notice message as this is expected when a VM boots.
+			my $alert_level = "warning";
+			if ($network_interface_name =~ /^vnet/)
+			{
+				$alert_level = "notice";
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
+			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0029", variables => $variables});
 			$anvil->Alert->register({
-				alert_level => "warning", 
+				alert_level => $alert_level, 
 				message     => "scan_network_alert_0029", 
 				variables   => $variables,
 				set_by      => $THIS_FILE,
@@ -3288,7 +3301,12 @@ sub check_interfaces
 		
 		# If this a vnet device, it's only a notice message as this is expected when a VM migrates or
 		# shuts down.
-		my $alert_level = $network_interface_name =~ /^vnet/ ? "notice" : "warning";
+		my $alert_level = "warning";
+		if ($network_interface_name =~ /^vnet/)
+		{
+			$alert_level = "notice";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { alert_level => $alert_level }});
 		
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_network_alert_0059", variables => $variables});
 		$anvil->Alert->register({
@@ -3455,19 +3473,19 @@ sub check_bonds
 				
 				my $log_level   = 2;
 				my $alert_level = "notice";
-				my $key         = "scan_network_alert_0013";
+				my $message_key = "scan_network_alert_0013";
 				if ($new_mtu < $old_mtu)
 				{
 					# Make it an alert
 					$log_level   = 1;
 					$alert_level = "warning";
-					$key         = "scan_network_alert_0014";
+					$message_key = "scan_network_alert_0014";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3505,30 +3523,30 @@ sub check_bonds
 				};
 				
 				# Gone up, down or returned?
-				my $key = "scan_network_alert_0016";
+				my $message_key = "scan_network_alert_0016";
 				if ($old_operational eq "DELETED")
 				{
 					# Bond is back from being deleted. Is it up or down?
 					if ($new_operational eq "up")
 					{
 						# Back and up
-						$key = "scan_network_alert_0027";
+						$message_key = "scan_network_alert_0027";
 					}
 					else
 					{
 						# Back but down
-						$key = "scan_network_alert_0028";
+						$message_key = "scan_network_alert_0028";
 					}
 				}
 				elsif ($new_operational eq "up")
 				{
-					$key = "scan_network_alert_0017";
+					$message_key = "scan_network_alert_0017";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "warning", 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3607,17 +3625,17 @@ sub check_bonds
 				};
 				
 				# Did the primary interface return?
-				my $key = "scan_network_alert_0021";
+				my $message_key = "scan_network_alert_0021";
 				if ($new_active_interface eq $new_primary_interface)
 				{
 					# Primary link is back
-					$key = "scan_network_alert_0022";
+					$message_key = "scan_network_alert_0022";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "warning", 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3674,10 +3692,10 @@ sub check_bonds
 					new  => $new_down_delay, 
 				};
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_alert_0024", variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_alert_0025", variables => $variables});
 				$anvil->Alert->register({
 					alert_level => "notice", 
-					message     => "scan_network_alert_0024", 
+					message     => "scan_network_alert_0025", 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3741,21 +3759,21 @@ sub check_bonds
 				};
 				
 				# Reset or normal increase?
-				my $key         = "scan_network_alert_0007";
+				my $message_key = "scan_network_alert_0007";
 				my $alert_level = "info";
 				my $log_level   = 2;
 				if ($old_tx_bytes > $new_tx_bytes)
 				{
 					# Reset
-					$key         = "scan_network_alert_0008";
+					$message_key = "scan_network_alert_0008";
 					$alert_level = "notice";
 					$log_level   = 2;
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -3795,21 +3813,21 @@ sub check_bonds
 				};
 				
 				# Reset or normal increase?               Reset                       Normal increase
-				my $key         = "scan_network_alert_0009";
+				my $message_key = "scan_network_alert_0009";
 				my $alert_level = "info";
 				my $log_level   = 2;
 				if ($old_rx_bytes > $new_rx_bytes)
 				{
 					# Reset
-					$key         = "scan_network_alert_0010";
+					$message_key = "scan_network_alert_0010";
 					$alert_level = "notice";
 					$log_level   = 2;
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -4015,21 +4033,21 @@ sub check_bridges
 				};
 				
 				# Did the bridge return?
-				my $key         = "scan_network_alert_0003";
+				my $message_key = "scan_network_alert_0003";
 				my $log_level   = 2;
 				my $alert_level = "notice";
 				if ($old_bridge_id eq "DELETED")
 				{
 					# Bridge is back.
-					$key         = "scan_network_alert_0026";
+					$message_key = "scan_network_alert_0026";
 					$log_level   = 1;
 					$alert_level = "warning";
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -4145,21 +4163,21 @@ sub check_bridges
 				};
 				
 				# Reset or normal increase?
-				my $key         = "scan_network_alert_0007";
+				my $message_key = "scan_network_alert_0007";
 				my $alert_level = "info";
 				my $log_level   = 2;
 				if ($old_tx_bytes > $new_tx_bytes)
 				{
 					# Reset
-					$key         = "scan_network_alert_0008";
+					$message_key = "scan_network_alert_0008";
 					$alert_level = "notice";
 					$log_level   = 2;
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});
@@ -4199,21 +4217,21 @@ sub check_bridges
 				};
 				
 				# Reset or normal increase?               Reset                       Normal increase
-				my $key         = "scan_network_alert_0009";
+				my $message_key = "scan_network_alert_0009";
 				my $alert_level = "info";
 				my $log_level   = 2;
 				if ($old_rx_bytes > $new_rx_bytes)
 				{
 					# Reset
-					$key         = "scan_network_alert_0010";
+					$message_key = "scan_network_alert_0010";
 					$alert_level = "notice";
 					$log_level   = 2;
 				}
 				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $key, variables => $variables});
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $log_level, key => $message_key, variables => $variables});
 				$anvil->Alert->register({
 					alert_level => $alert_level, 
-					message     => $key, 
+					message     => $message_key, 
 					variables   => $variables,
 					set_by      => $THIS_FILE,
 				});

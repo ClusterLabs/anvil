@@ -443,7 +443,7 @@ sub get_fence_data
 			next if $name eq "help";
 			next if $name eq "version";
 			next if $name eq "separator";
-			next if $name eq "plug";
+			# next if $name eq "plug";
 			next if $name =~ /snmp(.*?)_path/;
 			next if $name eq "verbose";
 			
@@ -451,6 +451,14 @@ sub get_fence_data
 			my $required   = exists $hash_ref->{required}   ? $hash_ref->{required}   : 0;
 			my $deprecated = exists $hash_ref->{deprecated} ? $hash_ref->{deprecated} : 0;
 			my $obsoletes  = exists $hash_ref->{obsoletes}  ? $hash_ref->{obsoletes}  : 0;
+			
+			# Port is deprecated, but we can't stop using it just yet.
+			if ($name eq "port")
+			{
+				$deprecated = 0;
+			}
+			
+			# Store the data on the hash
 			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{unique}       =  $unique;
 			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{required}     =  $required;
 			$anvil->data->{fence_data}{$fence_agent}{parameters}{$name}{deprecated}   =  $deprecated;

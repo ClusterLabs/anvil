@@ -36,8 +36,8 @@ $anvil->Get->switches({list => [
 	"status", 
 	"stop",
 ], man => $THIS_FILE});
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => $anvil->data->{switches}});
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Common daemons
 $anvil->data->{daemons}{core}{'anvil-daemon'}              = "anvil-daemon.service";
@@ -206,7 +206,7 @@ sub check_daemon
 			my $shell_call = $anvil->data->{path}{exe}{systemctl}." is-".$test." ".$daemon;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
 			
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				output      => $output, 
 			  	return_code => $return_code,
@@ -282,7 +282,7 @@ sub process_daemons
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
 			print "Enabling: [".$daemon."] now...\n";
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -294,7 +294,7 @@ sub process_daemons
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
 			print "Disabling: [".$daemon."] now...\n";
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -318,7 +318,7 @@ sub process_daemons
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
 			print "Starting: [".$daemon."] now...\n";
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -330,7 +330,7 @@ sub process_daemons
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 			
 			print "Stopping: [".$daemon."] now...\n";
-			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 				output      => $output, 
 				return_code => $return_code,
@@ -381,7 +381,7 @@ sub monitor_daemons
 					my $shell_call = $anvil->data->{path}{exe}{systemctl}." restart ".$daemon;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { shell_call => $shell_call }});
 					
-					my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+					my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { 
 						output      => $output, 
 						return_code => $return_code,

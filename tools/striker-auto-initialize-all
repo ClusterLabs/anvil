@@ -104,6 +104,7 @@ else
 	striker_stage1($anvil);
 }
 
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0101", variables => { file => $THIS_FILE, rc => "0" }});
 $anvil->nice_exit({exit_code => 0});
 
 
@@ -1146,6 +1147,8 @@ sub add_fences
 			}});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0238"});
 			update_progress($anvil, 100, "job_0238");
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0101", variables => { file => $THIS_FILE, rc => "1" }});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -1200,6 +1203,8 @@ sub add_upses
 			}});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0238"});
 			update_progress($anvil, 100, "job_0238");
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0101", variables => { file => $THIS_FILE, rc => "1" }});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}

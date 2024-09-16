@@ -141,8 +141,5 @@ The following definition file failed to parse and is likely corrupt.
 		<key name="scan_server_message_0001">The server: [#!variable!server!#] is migrating, skipping scanning it.</key>
 		<key name="scan_server_message_0002">Undefining the server: [#!variable!server!#].</key>
 		
-		<!-- Units -->
-		<key name="scan_server_unit_0001"></key>
-		
 	</language>
 </words>

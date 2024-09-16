@@ -422,21 +422,21 @@ If set to C<< 0 >>, any problem with the backup will be ignored and an empty str
 
 This is the path and file name of the file to be backed up. Fully paths must be used.
 
-=head3 port (optional, default 22)
-
-If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
-
 =head3 password (optional)
 
 If C<< target >> is set, this is the password used to log into the remote system as the C<< remote_user >>. If it is not set, an attempt to connect without a password will be made (though this will usually fail).
 
-=head3 target (optional)
+=head3 port (optional, default 22)
 
-If set, the file will be backed up on the target machine. This must be either an IP address or a resolvable host name. 
+If C<< target >> is set, this is the TCP port number used to connect to the remote machine.
 
 =head3 remote_user (optional)
 
 If C<< target >> is set, this is the user account that will be used when connecting to the remote system.
+
+=head3 target (optional)
+
+If set, the file will be backed up on the target machine. This must be either an IP address or a resolvable host name. 
 
 =cut
 sub backup
@@ -583,12 +583,36 @@ fi";
 	# Proceed?
 	if ($proceed)
 	{
-		# Proceed with the backup. We'll recreate the path 
+		# Make sure the backup directory exists.
 		my ($directory, $file) = ($source_file =~ /^(\/.*)\/(.*)$/);
-		my $timestamp          = $anvil->Get->date_and_time({file_name => 1});
 		my $backup_directory   = $anvil->data->{path}{directories}{backups}.$directory;
-		my $backup_target      = $file.".".$timestamp.".".$anvil->Get->uuid({short => 1});
-		   $target_file        = $backup_directory."/".$backup_target; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_directory => $backup_directory }});
+		if (($< != 0) && ($> != 0))
+		{
+			# Change the backup directory to the user's home directory.
+			my $users_home = $anvil->Get->users_home({debug => $debug});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { users_home => $users_home }});
+			if ($users_home)
+			{
+				$backup_directory = $users_home.'/anvil-backups/'.$directory;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_directory => $backup_directory }});
+			}
+		}
+		
+		if (not -d $backup_directory)
+		{
+			# Create the directory
+			my $failed = $anvil->Storage->make_directory({
+				debug     => $debug,
+				directory => $backup_directory,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
+		
+		# Proceed with the backup. We'll recreate the path 
+		my $timestamp     = $anvil->Get->date_and_time({file_name => 1});
+		my $backup_target = $file.".".$timestamp.".".$anvil->Get->uuid({short => 1});
+		   $target_file   = $backup_directory."/".$backup_target; 
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			directory        => $directory, 
 			file             => $file, 
@@ -5721,8 +5745,11 @@ sub write_file
 		file_name => $file_name,
 	}});
 	
+	my $is_local = $anvil->Network->is_local({host => $target});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_local => $is_local }});
+	
 	# Now, are we writing locally or on a remote system?
-	if ($anvil->Network->is_local({host => $target}))
+	if ($is_local)
 	{
 		# Local
 		if (-e $file)
@@ -5773,10 +5800,31 @@ sub write_file
 			# Now write the file.
 			my $shell_call = $file;
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0013", variables => { shell_call => $shell_call }});
-			open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
-			#open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
+			#open (my $file_handle, ">", $shell_call) or $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, secure => $secure, priority => "err", key => "log_0016", variables => { shell_call => $shell_call, error => $! }});
+			open (my $file_handle, ">", $shell_call) or die "Failed to write: [$shell_call], error was: [".$!."]\n";;
 			print $file_handle $body;
 			close $file_handle;
+			
+			# Read back the file and see that it's accurate.
+			my $new_body = $anvil->Storage->read_file({
+				debug      => $debug,
+				file       => $file, 
+				force_read => 1, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+			
+			my $difference = diff \$body, \$new_body, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+			
+			if ($difference)
+			{
+				# Failed!
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "warning_0002", variables => { 
+					file       => $file,
+					difference => $difference, 
+				}});
+				return(1);
+			}
 			
 			# Delete the cache for this file, if it exists.
 			if (exists $anvil->data->{cache}{file}{$file})

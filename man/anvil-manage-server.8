@@ -1,8 +1,8 @@
 .\" Manpage for the Alteeve! anvil-manage-server tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server "8" "Mar 21 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server "8" "September 11 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-anvil-manage-server \- Tool used to manage a server, like resync'ing servers on a rebuilt host.
+anvil-manage-server \- Tool used to manage a server, like resyncing servers on a rebuilt host.
 .SH SYNOPSIS
 .B anvil-manage-server 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
@@ -20,14 +20,27 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SS "Commands:"
-\fB\-\-job-uuid\fR
+\fB\-\-boot\-after\fR <'none', 'stay-off', name or uuid>
+This will control the boot order of the server when booting all servers (ie: after restoring power). If this is set to 'none', then the server will not wait on any other servers. When shutting down all servers, the boot order is reversed! That is to say, the specified server will shut down before the \fB\-\-boot\-after\fR server.
+.TP
+If this is set to '\fB\-\-boot\-after\fR stay-off', the server will not be booted, unless specifically asked to boot by the user.
+.TP
+If no server name or UUID is given, the current configuration will be reported. This requires \fB\-\-server\fR to be passed with a specific name or UUID.
+.TP
+\fB\-\-delay\fR <seconds, default '30'>
+This can be used along with \fB\-\-boot\-after\fR to control the minimum amount of time to wait after the dependant server boots. Note that this is the minimum delay. The actual delay could be longer in practice.
+.TP
+.B Note
+When shutting down all servers, the delay is ignored. Dependant servers will not shut down until this server is off, regardless of how long that takes.
+.TP
+\fB\-\-job\-uuid\fR
 This is the jobs -> job_uuid of the job to run, if it exists.
 .TP
-\fB\-\-server\fR all, or <name or uuid>
+\fB\-\-server\fR <'all', name or uuid>
 This is the server to work on.
 .TP
 \fB\-\-resync\fR
-This will check to see if the server is sync'ing on this host. If it is not, and if there are sufficient free resources, the server will be configured locally. This will create a local logical volume, which will be used to connect to the peer's replicated storage. The definition file will be written out, if needed. If '\fB\-\-server\fR' isn't used, all servers will be sync'ed (alphatically, stopping if there are insufficient resources).
+This will check to see if the server is syncing on this host. If it is not, and if there are sufficient free resources, the server will be configured locally. This will create a local logical volume, which will be used to connect to the peer's replicated storage. The definition file will be written out, if needed. If '\fB\-\-server\fR' isn't used, all servers will be synced (alphabetically, stopping if there are insufficient resources).
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

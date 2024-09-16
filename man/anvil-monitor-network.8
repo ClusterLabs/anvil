@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! cluster update tool.
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-monitor-network "8" "July 24 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-monitor-network "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-monitor-network \- Tool that watches for changes to any network interface on the system
 .SH SYNOPSIS
 .B anvil-monitor-network 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This tool is meant to be run as a daemon. It will collect data on all interface on the host, and then start watching for any changes to those interfaces. Each time a change in state is detected (like a cable being unplugged or plugged in), 'scan-network' will be called. This will keep the Anvil! database up to date with the changes in the network, required for tasks like mapping the network interfaces of new hosts.
+This tool is meant to be run as a daemon. It will collect data on all interfaces on the host, and then start watching for any changes to those interfaces. Each time a change in state is detected (like a cable being unplugged or plugged in), 'scan-network' will be called. This will keep the Anvil! database up to date with the changes in the network, required for tasks like mapping the network interfaces of new hosts.
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR

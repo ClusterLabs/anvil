@@ -300,7 +300,6 @@ sub boot_all_servers
 {
 	my ($anvil) = @_;
 	
-	### TODO: Manage the boot order here.
 	# We top out at 90, bottom is 20. 
 	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
@@ -347,6 +346,21 @@ sub boot_all_servers
 				's7:boot_delay'  => $boot_delay, 
 			}});
 			
+			# Read to see if this server is set to stay off during auto boot.
+			my $stay_off_key = "server::".$server_name."::stay-off";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stay_off_key => $stay_off_key }});
+			my ($server_stay_off, $variable_uuid, undef, undef) = $anvil->Database->read_variable({
+				debug                 => 2,
+				variable_name         => $stay_off_key, 
+				variable_source_uuid  => $server_uuid, 
+				variable_source_table => "servers", 
+			});
+			$server_stay_off = 0 if not $server_stay_off;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_stay_off => $server_stay_off, 
+				variable_uuid   => $variable_uuid,
+			}});
+			
 			if (not exists $anvil->data->{boot_server}{$server_name}{processed})
 			{
 				# This will get set to the boot time once we actually start it. This will let
@@ -366,7 +380,7 @@ sub boot_all_servers
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_after_server_uuid => $boot_after_server_uuid }});
 			if ($boot_after_server_uuid)
 			{
-				if ($boot_after_server_uuid eq "00000000-0000-0000-0000-000000000000")
+				if ($server_stay_off)
 				{
 					# This server is configured to stay off. 
 					$anvil->data->{boot_server}{$server_name}{processed} = time;

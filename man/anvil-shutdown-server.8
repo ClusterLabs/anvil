@@ -1,13 +1,13 @@
 .\" Manpage for the Anvil! server shutdown tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-shutdown-server "8" "July 20 2023" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-shutdown-server "8" "September 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-shutdown-server \- This program shuts down servers hosted on the Anvil! cluster.
 .SH SYNOPSIS
 .B anvil-shutdown-server 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This program shuts down a server that is running on a Anvil! node or DR host. It can optionally stop all servers.
+This program shuts down a server that is running on an Anvil! node or DR host. It can optionally stop all servers.
 .TP
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
@@ -30,6 +30,9 @@ This tells the program to run without connecting to any databases. This is used 
 \fB\-\-no\-wait\fR
 .TP
 This tells the program to call the shut down, but not wait for the server to actually stop. By default, when shutting down one specific server, this program will wait for the server to be off before it returns. 
+.TP
+.B Note:
+Any server that has to boot before another will not shut down until those servers are stopped. This is the reverse order of the boot up sequence. For example, if server B boots after C has started, C will not shut down until B is off. The 'no-wait' still applies once the request to shut down is sent, however. See 'anvil-manage-server's man page for boot order details.
 .TP
 \fB\-\-server\fR {<name>,all}
 .TP

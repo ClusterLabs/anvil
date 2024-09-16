@@ -55,7 +55,6 @@ if (($< != 0) && ($> != 0))
 
 $anvil->data->{scancore}{'scan-server'}{disable}         = 0;
 $anvil->data->{scancore}{'scan-server'}{'auto-undefine'} = 1;
-$anvil->data->{switches}{force}                          = 0;
 
 $anvil->Storage->read_config();
 
@@ -153,27 +152,27 @@ sub connect_to_virsh
 	};
 	if ($@)
 	{
-		my $key     = $is_local ? "scan_server_alert_0021" : "scan_server_alert_0023";
-		my $changed = $anvil->Alert->check_alert_sent({
+		my $message_key = $is_local ? "scan_server_alert_0021" : "scan_server_alert_0023";
+		my $changed     = $anvil->Alert->check_alert_sent({
 			record_locator => $record_locator,
 			set_by         => $THIS_FILE,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			key     => $key,
+			key     => $message_key,
 			changed => $changed,
 		}});
 		if ($changed)
 		{
 			# Register an alert.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key, variables => $variables});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
 			$anvil->Alert->register({
 				alert_level => "notice", 
-				message     => $key, 
+				message     => $message_key, 
 				variables   => $variables, 
 				set_by      => $THIS_FILE, 
 			});
 		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $key, variables => { $variables }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => { $variables }});
 		
 		if ($is_local)
 		{
@@ -195,12 +194,12 @@ sub connect_to_virsh
 		if ($changed)
 		{
 			# Register an alert-cleared event.
-			my $key = $is_local ? "scan_server_alert_0022" : "scan_server_alert_0024";
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $key});
+			my $message_key = $is_local ? "scan_server_alert_0022" : "scan_server_alert_0024";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key});
 			$anvil->Alert->register({
 				alert_level => "notice", 
 				clear       => 1,
-				message     => $key, 
+				message     => $message_key, 
 				set_by      => $THIS_FILE,
 				variables   => $variables, 
 			});
@@ -883,10 +882,10 @@ sub collect_data
 		if ($server_user_stop ne $old_server_user_stop)
 		{
 			# Server booted and cleared this or the user shut down the server and this got set)
-			my $say_user_stop = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
-			my $variables     = { server => $server_name };
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_user_stop, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_user_stop, variables => $variables, set_by => $THIS_FILE});
+			my $message_key = $server_user_stop eq "TRUE" ? "scan_server_alert_0010" : "scan_server_alert_0011";
+			my $variables   = { server => $server_name };
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 		}
@@ -925,16 +924,16 @@ sub collect_data
 		{
 			# The amount of allocated RAM has changed, but if this value doesn't match
 			# 'server_ram_in_use', the user needs to reboot. 
-			my $say_ram   = $server_configured_ram eq $server_ram_in_use ? "scan_server_alert_0014" : "scan_server_alert_0015";
-			my $variables = { 
+			my $message_key = $server_configured_ram eq $server_ram_in_use ? "scan_server_alert_0014" : "scan_server_alert_0015";
+			my $variables   = { 
 				server                   => $server_name,
 				old_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $old_server_configured_ram}),
 				old_configured_ram_bytes => $anvil->Convert->add_commas({number => $old_server_configured_ram}),
 				new_configured_ram_short => $anvil->Convert->bytes_to_human_readable({'bytes' => $server_configured_ram}),
 				new_configured_ram_bytes => $anvil->Convert->add_commas({number => $server_configured_ram}),
 			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $say_ram, variables => $variables});
-			$anvil->Alert->register({alert_level => "notice", message => $say_ram, variables => $variables, set_by => $THIS_FILE});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => $message_key, variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => $message_key, variables => $variables, set_by => $THIS_FILE});
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { update => $update }});
 		}
@@ -1061,72 +1060,78 @@ sub collect_data
 		}
 	}
 	
-	# Lastly, if we can access our peer, see what servers are running there. This will let us know if a 
-	# server that had been running on us before is not off (versus migrated).
-	$anvil->Cluster->get_peers();
-	my $peer_is   = $anvil->data->{sys}{anvil}{peer_is};
-	my $peer_uuid = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
-	my $peer_name = $anvil->data->{hosts}{host_uuid}{$peer_uuid}{short_host_name};
-	my $password  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:peer_is'   => $peer_is,
-		's2:peer_name' => $peer_name, 
-		's3:peer_uuid' => $peer_uuid, 
-		's4:password'  => $anvil->Log->is_secure($password), 
-	}});
-	
-	# If we can access our peer or DR host, see what servers are running on them. We do no parsing or 
-	# processing of servers on other machines, we only care what servers are running.
-	my $peer_access = $anvil->Remote->test_access({
-		debug    => 2,
-		target   => $peer_name,
-		password => $password,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_access => $peer_access }});
-	if ($peer_access)
+	# If we're a node, check our peer.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type eq "node")
 	{
-		# Get a list of servers running on our peer. 
-		my ($problem) = connect_to_virsh($anvil, $peer_name);
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		# Lastly, if we can access our peer, see what servers are running there. This will let us 
+		# know if a server that had been running on us before is not off (versus migrated).
+		$anvil->Cluster->get_peers();
+		my $peer_is   = $anvil->data->{sys}{anvil}{peer_is};
+		my $peer_uuid = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
+		my $peer_name = $anvil->data->{hosts}{host_uuid}{$peer_uuid}{short_host_name};
+		my $password  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:peer_is'   => $peer_is,
+			's2:peer_name' => $peer_name, 
+			's3:peer_uuid' => $peer_uuid, 
+			's4:password'  => $anvil->Log->is_secure($password), 
+		}});
 		
-		if (not $problem)
+		# If we can access our peer or DR host, see what servers are running on them. We do no 
+		# parsing or processing of servers on other machines, we only care what servers are running.
+		my $peer_access = $anvil->Remote->test_access({
+			debug    => 2,
+			target   => $peer_name,
+			password => $password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_access => $peer_access }});
+		if ($peer_access)
 		{
-			my $stream  = $anvil->data->{qemu}{$peer_name}{connection}->new_stream();
-			my @domains = $anvil->data->{qemu}{$peer_name}{connection}->list_all_domains();
-			foreach my $domain (@domains)
+			# Get a list of servers running on our peer. 
+			my ($problem) = connect_to_virsh($anvil, $peer_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			
+			if (not $problem)
 			{
-				my $server_name   = $domain->get_name;
-				my $server_id     = $domain->get_id == -1 ? "" : $domain->get_id; 
-				my $server_uuid   = $domain->get_uuid_string;
-				my $is_updated    = $domain->is_updated();
-				my $is_persistent = $domain->is_persistent();
-				my $os_type       = $domain->get_os_type();
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					server_name   => $server_name,
-					server_id     => $server_id, 
-					server_uuid   => $server_uuid, 
-					is_updated    => $is_updated, 
-					is_persistent => $is_persistent, 
-					os_type       => $os_type, 
-				}});
-				
-				### OK
-				# Record the handle to the domain.
-				$anvil->data->{domain}{$server_name}{handle} = $domain;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"domain::${server_name}::handle" => $anvil->data->{domain}{$server_name}{handle}, 
-				}});
-				
-				# Get the server state.
-				my $server_state = get_server_state($anvil, $server_name);
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
-				
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{server_state} = $server_state;
-				$anvil->data->{'scan-server'}{server_name}{$server_name}{host}         = $peer_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"scan-server::server_name::${server_name}::server_state" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state}, 
-					"scan-server::server_name::${server_name}::host"         => $anvil->data->{'scan-server'}{server_name}{$server_name}{host}, 
-				}});
+				my $stream  = $anvil->data->{qemu}{$peer_name}{connection}->new_stream();
+				my @domains = $anvil->data->{qemu}{$peer_name}{connection}->list_all_domains();
+				foreach my $domain (@domains)
+				{
+					my $server_name   = $domain->get_name;
+					my $server_id     = $domain->get_id == -1 ? "" : $domain->get_id; 
+					my $server_uuid   = $domain->get_uuid_string;
+					my $is_updated    = $domain->is_updated();
+					my $is_persistent = $domain->is_persistent();
+					my $os_type       = $domain->get_os_type();
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						server_name   => $server_name,
+						server_id     => $server_id, 
+						server_uuid   => $server_uuid, 
+						is_updated    => $is_updated, 
+						is_persistent => $is_persistent, 
+						os_type       => $os_type, 
+					}});
+					
+					### OK
+					# Record the handle to the domain.
+					$anvil->data->{domain}{$server_name}{handle} = $domain;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"domain::${server_name}::handle" => $anvil->data->{domain}{$server_name}{handle}, 
+					}});
+					
+					# Get the server state.
+					my $server_state = get_server_state($anvil, $server_name);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
+					
+					$anvil->data->{'scan-server'}{server_name}{$server_name}{server_state} = $server_state;
+					$anvil->data->{'scan-server'}{server_name}{$server_name}{host}         = $peer_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"scan-server::server_name::${server_name}::server_state" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_state}, 
+						"scan-server::server_name::${server_name}::host"         => $anvil->data->{'scan-server'}{server_name}{$server_name}{host}, 
+					}});
+				}
 			}
 		}
 	}

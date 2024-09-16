@@ -604,6 +604,19 @@ sub rename_server
 		}
 	}
 	
+	# What node does this server prefer?
+	my $preferred_host_string = "prefers";
+	foreach my $node (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{location_constraint}{$old_server_name}{node}})
+	{
+		my $score = $anvil->data->{cib}{parsed}{data}{location_constraint}{$old_server_name}{node}{$node}{score};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:node"  => $node,
+			"s2:score" => $score,
+		}});
+		$preferred_host_string .= " ".$node."=".$score;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_host_string => $preferred_host_string }});
+	}
+	
 	# Delete the old server from pacemaker.
 	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{pcs}." resource delete ".$old_server_name});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -649,7 +662,30 @@ sub rename_server
 	{
 		# Success
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0308", variables => { server_name => $new_server_name }});
-		$anvil->Job->update_progress({progress => 95, message => "job_0308,!!server_name!".$old_server_name."!!"});
+		$anvil->Job->update_progress({progress => 93, message => "job_0308,!!server_name!".$old_server_name."!!"});
+	}
+	
+	# Set the preferred host
+	my $prefer_command = $anvil->data->{path}{exe}{pcs}." constraint location ".$new_server_name." ".$preferred_host_string;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prefer_command => $prefer_command }});
+
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({shell_call => $prefer_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# Failed, but don't fail out.
+		$anvil->Job->update_progress({progress => 100, message => "error_0304,!!server_name!".$new_server_name."!!,!!return_code!".$return_code."!!,!!output!".$output."!!"});
+	}
+	else
+	{
+		# Success
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0005", variables => { server_name => $new_server_name }});
+		$anvil->Job->update_progress({progress => 96, message => "job_0005,!!server_name!".$old_server_name."!!"});
 	}
 	
 	# Rename the server in the database.
@@ -662,8 +698,56 @@ SET
 WHERE 
     server_uuid   = ".$anvil->Database->quote($anvil->data->{switches}{'server-uuid'})."
 ;";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0123", variables => { query => $query }});
 	$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+	
+	# Update the variables -> variable_name - "server::<old_name>::stay-off" if it exists.
+	$query = "
+SELECT 
+    variable_uuid, 
+    variable_name 
+FROM 
+    variables 
+WHERE 
+    variable_source_table = 'servers' 
+AND 
+    variable_source_uuid = '86a39e25-c61d-486c-b840-c4a91cd17706' 
+AND 
+    variable_name LIKE '%::stay-off'
+;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		my $variable_uuid = $results->[0]->[0];
+		my $variable_name = $results->[0]->[1];
+		my $stay_off_key  = "server::".$new_server_name."::stay-off";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:variable_uuid' => $variable_uuid, 
+			's2:variable_name' => $variable_name, 
+			's3:stay_off_key'  => $stay_off_key,
+		}});
+		
+		if ($variable_name ne $stay_off_key)
+		{
+			my $query = "
+UPDATE 
+    variables 
+SET 
+    variable_name = ".$anvil->Database->quote($stay_off_key).", 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    variable_uuid = ".$anvil->Database->quote($variable_uuid)."
+;";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0123", variables => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
 
 	# Done!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0311", variables => { server_name => $new_server_name }});

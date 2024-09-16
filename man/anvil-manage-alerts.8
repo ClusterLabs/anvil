@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server removal tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-alerts "8" "October 26 2022" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-alerts "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-alerts \- This program manages alerts; Email servers, recipients, alert-override overrides, and generating test alerts.
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ anvil-manage-alerts \- This program manages alerts; Email servers, recipients, a
 The program allows you to add, edit and delete email servers, alert recipients, and alert-override overrides. You can also use it to generate a test alert. 
 If run without any switches, the list of mail servers and recipients are returned. 
 
-When called without any switches, the list of currect mail servers, alert recipients and alert-override overrides are shown, along with all known hosts.
+When called without any switches, the list of current mail servers, alert recipients and alert-override overrides are shown, along with all known hosts.
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
@@ -27,7 +27,7 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 This is used to add a new mail server or alert recipient.
 .TP
 \fB\-\-edit\fR 
-This is used to edit and existing mail server or alert recipient.
+This is used to edit an existing mail server or alert recipient.
 
 NOTE: All fields are required when editing an existing mail server or recipient!
 .TP
@@ -75,7 +75,7 @@ Valid values are:
 4 or "info"
 .TP
 \fB\-\-mail\-servers\fR 
-This is used to manage mail servers. Specifically, this control the mail server that we send alert emails to. The options used with this are;
+This is used to manage mail servers. Specifically, this controls the mail server that we send alert emails to. The options used with this are;
 .TP
 \fB\-\-mail\-server\-uuid\fR <uuid>
 This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing mail server being worked on.
@@ -116,10 +116,10 @@ Example: example.com
 See: https://www.ibm.com/docs/en/zos/2.2.0?topic=sc-helo-command-identify-domain-name-sending-host-smtp
 .TP
 \fB\-\-recipients\fR 
-This is used to manage alert recipients. Specifically, this control the mail server that we send alert emails to. The options used with this are;
+This is used to manage alert recipients. Specifically, this controls the mail server that we send alert emails to. The options used with this are;
 .TP
 \fB\-\-recipient\-uuid\fR 
-This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert recipient is being worked on.
+This is required for \fB\-\-edit\fR and \fB\-\-delete\fR. It is the existing alert recipient that is being worked on.
 .TP
 \fB\-\-recipient\-name\fR 
 This is the name of the person receiving the alerts. This is used in the email header.
@@ -135,7 +135,7 @@ Example: notaspy@example.com
 In the future, languages will be added and this can be used to indicate what language the user will receive their alerts in. At the time of writing this man page, only 'en_CA' is supported.
 .TP
 \fB\-\-recipient\-level\fR <1, 2, 3 or 4>
-This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'alert-overrides' over-rides.
+This is the default alert level this recipient is interested in. It can be adjusted on a per-host basis via the 'alert-overrides' overrides.
 
 Valid values are: 
 

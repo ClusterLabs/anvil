@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server storage manager
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server-storage "8" "August 30 2023" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server-storage "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-server-storage \- Tool used to manage the storage of a hosted server.
 .SH SYNOPSIS
@@ -9,7 +9,7 @@ anvil-manage-server-storage \- Tool used to manage the storage of a hosted serve
 .SH DESCRIPTION
 anvil-manage-server-storage \- This tool is used to add a disk, grow an existing disk, change the ISO (optical disk) in a virtual optical drive, and change boot devices.
 .TP
-When called without switches, the list of servers than can be worked on will be displayed.
+When called without switches, the list of servers that can be worked on will be displayed.
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
@@ -63,7 +63,7 @@ This is the device, ie: 'sda', to insert the optical disc (ISO file) into or to 
 This is the server being worked on. If this switch is used alone, then the current state of the storage of the server is displayed, as well as the details of the Storage Groups the server is or can use.
 .TP
 \fB\-\-storage\-group\fR <name or uuid>
-If there are two or more Storage Groups exist, and you're adding a disk, this allows you to specify which storage group to use for the new disk. 
+If two or more Storage Groups exist, and you're adding a disk, this allows you to specify which storage group to use for the new disk. 
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

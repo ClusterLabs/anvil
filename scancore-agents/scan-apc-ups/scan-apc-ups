@@ -187,7 +187,10 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches({list => ["force", "purge"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"force", 
+	"purge",
+], man => $THIS_FILE});
 
 # Too many connections cause the UPS to lag out, so we only run on Strikers.
 my $host_type = $anvil->Get->host_type();
@@ -219,7 +222,7 @@ if ($anvil->data->{switches}{purge})
 if (not find_upses($anvil))
 {
 	# No UPSes found.
-	$anvil->Log->entry({log_level => 1, 'print' => 1, message_key => "scan_apc_ups_message_0001", file => $THIS_FILE, line => __LINE__});
+	$anvil->Log->entry({level => 2, 'print' => 1, key => "scan_apc_ups_message_0001", file => $THIS_FILE, line => __LINE__});
 	$anvil->nice_exit({exit_code => 1});
 }
 
@@ -1477,7 +1480,7 @@ WHERE
 						
 						my $low_charge_key = $scan_apc_ups_uuid."::battery-".$battery_number."::scan_apc_ups_low_charge";
 						my $level          = "info";
-						my $message_key    = "scan_apc_ups_note_0022";
+						my $message_key    = "scan_apc_ups_message_0024";
 						my $alert_sent     = 0;
 						my $variables      = {
 							ups_name         => $scan_apc_ups_name,
@@ -2232,7 +2235,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_ac_restore_delay} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_ac_restore_delay} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_ac_restore_delay", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_ac_restore_delay}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2257,7 +2260,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_shutdown_delay} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_shutdown_delay} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_shutdown_delay", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_shutdown_delay}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2536,7 +2539,7 @@ sub gather_ups_data
 			}});
 			if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_percentage_charge} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_percentage_charge} =~ /\D/))
 			{
-				$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+				$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 					name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::battery::${battery_number}::scan_apc_ups_battery_percentage_charge", 
 					value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_percentage_charge}, 
 				}, file => $THIS_FILE, line => __LINE__});
@@ -2607,7 +2610,7 @@ sub gather_ups_data
 			}});
 			if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_temperature} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_temperature} =~ /\D/))
 			{
-				$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+				$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 					name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::battery::${battery_number}::scan_apc_ups_battery_temperature", 
 					value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_temperature}, 
 				}, file => $THIS_FILE, line => __LINE__});
@@ -2637,7 +2640,7 @@ sub gather_ups_data
 			}});
 			if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_alarm_temperature} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_alarm_temperature} =~ /\D/))
 			{
-				$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+				$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 					name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::battery::${battery_number}::scan_apc_ups_battery_alarm_temperature", 
 					value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_alarm_temperature}, 
 				}, file => $THIS_FILE, line => __LINE__});
@@ -2672,7 +2675,7 @@ sub gather_ups_data
 			}});
 			if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_voltage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_voltage} =~ /\D/))
 			{
-				$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+				$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 					name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::battery::${battery_number}::scan_apc_ups_battery_voltage", 
 					value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{battery}{$battery_number}{scan_apc_ups_battery_voltage}, 
 				}, file => $THIS_FILE, line => __LINE__});
@@ -2706,7 +2709,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_frequency} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_frequency} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_input_frequency", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_frequency}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2738,7 +2741,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_sensitivity} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_sensitivity} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_input_sensitivity", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_sensitivity}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2767,7 +2770,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_voltage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_voltage} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_input_voltage", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_voltage}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2796,7 +2799,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_maximum_input_voltage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_maximum_input_voltage} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_input_1m_maximum_input_voltage", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_maximum_input_voltage}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2824,7 +2827,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_minimum_input_voltage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_minimum_input_voltage} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_input_1m_minimum_input_voltage", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_input_1m_minimum_input_voltage}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2858,7 +2861,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_load_percentage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_load_percentage} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_load_percentage", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_load_percentage}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2888,7 +2891,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_time_on_batteries} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_time_on_batteries} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_time_on_batteries", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_time_on_batteries}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2916,7 +2919,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_estimated_runtime} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_estimated_runtime} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_estimated_runtime", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_estimated_runtime}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2945,7 +2948,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_frequency} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_frequency} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_frequency", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_frequency}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -2974,7 +2977,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_voltage} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_voltage} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_voltage", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_voltage}, 
 			}, file => $THIS_FILE, line => __LINE__});
@@ -3004,7 +3007,7 @@ sub gather_ups_data
 		}});
 		if (($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_total_output} eq "--") or ($anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_total_output} =~ /\D/))
 		{
-			$anvil->Log->entry({log_level => 1, message_key => "scan_apc_ups_error_0001", variables => {
+			$anvil->Log->entry({level => 1, key => "scan_apc_ups_error_0001", variables => {
 				name  => "ups::scan_apc_ups_uuid::${scan_apc_ups_uuid}::scan_apc_ups_output_total_output", 
 				value => $anvil->data->{ups}{scan_apc_ups_uuid}{$scan_apc_ups_uuid}{scan_apc_ups_output_total_output}, 
 			}, file => $THIS_FILE, line => __LINE__});

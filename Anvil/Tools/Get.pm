@@ -1160,7 +1160,7 @@ sub cgi
 			if (not $cgi->upload('upload_file'))
 			{
 				# Empty file passed, looks like the user forgot to select a file to upload.
-				$anvil->Log->entry({level => 2, message_key => "log_0242", file => $THIS_FILE, line => __LINE__});
+				$anvil->Log->entry({level => 2, key => "log_0242", file => $THIS_FILE, line => __LINE__});
 			}
 			else
 			{
@@ -2858,6 +2858,7 @@ sub switches
 			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";
 			next if $set_switch eq "resync-db";
+			next if $set_switch eq "V";
 			next if $set_switch eq "v";
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
@@ -2903,7 +2904,7 @@ sub switches
 	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
 	{
 		# Set defaults, then see if we should override from the body.
-		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{V}            = "";
 		$anvil->data->{switches}{v}            = "";
 		$anvil->data->{switches}{vv}           = "#!SET!#";
 		$anvil->data->{switches}{'log-secure'} = "#!SET!#";
@@ -3126,6 +3127,15 @@ sub users_home
 		return($home_directory);
 	}
 	
+	# If we've cached the answer, just return it.
+	if ((exists $anvil->data->{sys}{users_home_cache}{$user}) && ($anvil->data->{sys}{users_home_cache}{$user}))
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"sys::users_home_cache::${user}" => $anvil->data->{sys}{users_home_cache}{$user},
+		}});
+		return($anvil->data->{sys}{users_home_cache}{$user});
+	}
+	
 	my $body = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{passwd}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { body => $body }});
 	foreach my $line (split /\n/, $body)
@@ -3144,6 +3154,12 @@ sub users_home
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0061", variables => { user => $user }});
 	}
+	
+	# Cache the answer.
+	$anvil->data->{sys}{users_home_cache}{$user} = $home_directory;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::users_home_cache::${user}" => $anvil->data->{sys}{users_home_cache}{$user},
+	}});
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { home_directory => $home_directory }});
 	return($home_directory);

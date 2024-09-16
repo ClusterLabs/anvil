@@ -208,7 +208,10 @@ $anvil->Storage->read_config();
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # Read switches
-$anvil->Get->switches({list => ["purge"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"force", 
+	"purge",
+], man => $THIS_FILE});
 
 # If we're disabled and '--force' wasn't used, exit.
 if (($anvil->data->{scancore}{'scan-storcli'}{disable}) && (not $anvil->data->{switches}{force}))
@@ -7807,7 +7810,7 @@ sub get_physical_disk_data
 		{
 			my $sas_port    = $1;
 			my $port_status = $2;
-			my $link_speed  = $3." #!variable!scan_storcli_unit_0013!#";
+			my $link_speed  = $3." #!string!scan_storcli_unit_0013!#";
 			my $sas_address = $4;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				sas_port    => $sas_port, 
@@ -7951,7 +7954,7 @@ sub get_physical_disk_data
 				
 				my $sectors = Math::BigInt->new($hex_sectors);
 				my $bytes   = $anvil->Convert->human_readable_to_bytes({base2 => 1, size => $size});
-				   $value   = $bytes." #!variable!scan_storcli_unit_0001!#, ".$sectors." #!variable!scan_storcli_unit_0012!#";
+				   $value   = $bytes." #!string!scan_storcli_unit_0001!#, ".$sectors." #!string!scan_storcli_unit_0012!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					size        => $size, 
 					'bytes'     => $bytes, 
@@ -8001,7 +8004,7 @@ sub get_physical_disk_data
 			}
 			if ($value =~ /^(\d.*?)Gb\/s$/)
 			{
-				$value = $1." #!variable!scan_storcli_unit_0013!#";
+				$value = $1." #!string!scan_storcli_unit_0013!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value eq "NA")
@@ -8916,7 +8919,7 @@ sub get_bbu_data
 			{
 				# This is a static time span (like the time between learn cycles.
 				$value =  $1;
-				$value .= " #!variable!scan_storcli_unit_0006!#";
+				$value .= " #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -8945,7 +8948,7 @@ sub get_bbu_data
 			{
 				# 'Murica! mm/dd/yyyy -> yyyy/mm/dd
 				$value =  $1 * 3600;
-				$value .= " #!variable!scan_storcli_unit_0006!#";
+				$value .= " #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9108,7 +9111,7 @@ sub get_cachevault_data
 			{
 				# This is a static time span (like the time between learn cycles.
 				$value =  $1;
-				$value .= " #!variable!scan_storcli_unit_0006!#";
+				$value .= " #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9138,7 +9141,7 @@ sub get_cachevault_data
 			{
 				# 'Murica! mm/dd/yyyy -> yyyy/mm/dd
 				$value =  $1 * 3600;
-				$value .= " #!variable!scan_storcli_unit_0006!#";
+				$value .= " #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9582,8 +9585,8 @@ sub get_controller_info
 		$line =~ s/NCQ/Native Command Queuing/i;		# https://en.wikipedia.org/wiki/Native_Command_Queuing
 		$line =~ s/ LDBBM/ Logical Disk Bad Block Management/i;
 		$line =~ s/TPM/Trusted Platform Module/i;		# https://en.wikipedia.org/wiki/Trusted_Platform_Module
-		$line =~ s/\(hrs\)/\(#!variable!scan_storcli_unit_0002!#\)/i;
-		$line =~ s/ hrs/ #!variable!scan_storcli_unit_0002!#/i;
+		$line =~ s/\(hrs\)/\(#!string!scan_storcli_unit_0002!#\)/i;
+		$line =~ s/ hrs/ #!string!scan_storcli_unit_0002!#/i;
 		$line =~ s/ZCR /Zero-Channel RAID /i;
 		$line =~ s/R1E /RAID 1E /i;
 		$line =~ s/ R10/ RAID 10/i;
@@ -9834,7 +9837,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0002!#";
+				$value    .= " #!string!scan_storcli_unit_0002!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9847,7 +9850,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0003!#";
+				$value    .= " #!string!scan_storcli_unit_0003!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9860,7 +9863,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0004!#";
+				$value    .= " #!string!scan_storcli_unit_0004!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9873,7 +9876,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0005!#";
+				$value    .= " #!string!scan_storcli_unit_0005!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9886,7 +9889,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0006!#";
+				$value    .= " #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9899,7 +9902,7 @@ sub get_controller_info
 				$variable =~ s/^\s+//;
 				$variable =~ s/^\s+//;
 				$variable =~ s/\s+/ /g;
-				$value    .= " #!variable!scan_storcli_unit_0007!#";
+				$value    .= " #!string!scan_storcli_unit_0007!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					variable => $variable, 
 					value    => $value, 
@@ -9915,17 +9918,17 @@ sub get_controller_info
 			}
 			if ($value =~ /(\d+) hrs/)
 			{
-				$value = $1." #!variable!scan_storcli_unit_0002!#";
+				$value = $1." #!string!scan_storcli_unit_0002!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /\(hrs\)/)
 			{
-				$value =~ s/\(hrs\)/\(#!variable!scan_storcli_unit_0002!#\)/;
+				$value =~ s/\(hrs\)/\(#!string!scan_storcli_unit_0002!#\)/;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /^(\d+)s/)
 			{
-				$value = $1." #!variable!scan_storcli_unit_0006!#";
+				$value = $1." #!string!scan_storcli_unit_0006!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /^0x\w+$/)
@@ -9949,28 +9952,28 @@ sub get_controller_info
 			if ($value =~ /^00\/00\/00$/i)
 			{
 				# N/A
-				$value = "#!variable!scan_storcli_unit_0008!#";
+				$value = "#!string!scan_storcli_unit_0008!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			
 			if ($value =~ /^AWB$/i)
 			{
-				$value = "#!variable!scan_storcli_unit_0009!#";
+				$value = "#!string!scan_storcli_unit_0009!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /^WB$/i)
 			{
-				$value = "#!variable!scan_storcli_unit_0010!#";
+				$value = "#!string!scan_storcli_unit_0010!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /^WT$/i)
 			{
-				$value = "#!variable!scan_storcli_unit_0011!#";
+				$value = "#!string!scan_storcli_unit_0011!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			if ($value =~ /^(\d+) sectors/i)
 			{
-				$value = $1." #!variable!scan_storcli_unit_0012!#";
+				$value = $1." #!string!scan_storcli_unit_0012!#";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 			}
 			
