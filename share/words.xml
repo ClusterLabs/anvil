@@ -418,7 +418,7 @@ We're done waiting, exiting out.
 		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
 		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
-		<key name="error_0304">#!free!#</key>
+		<key name="error_0304">Failed to set the host node preferances for the server: [#!variable!server_name!#]. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
 		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		<key name="error_0307">#!free!#</key>
@@ -1205,7 +1205,7 @@ resource "#!variable!server!#" {
 		<key name="job_0002">Created a job to delete the SSH key for the target machine: [#!variable!target!#] on the host: [#!variable!host_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0003">Converted all old-style jobs to the new style. The new jobs will run shortly. Exiting now.</key>
 		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!host!#] has been removed.</key>
-		<key name="job_0005">#!free!#</key>
+		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">#!free!#</key>
 		<key name="job_0008">#!free!#</key>

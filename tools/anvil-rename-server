@@ -604,6 +604,19 @@ sub rename_server
 		}
 	}
 	
+	# What node does this server prefer?
+	my $preferred_host_string = "prefers";
+	foreach my $node (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{location_constraint}{$old_server_name}{node}})
+	{
+		my $score = $anvil->data->{cib}{parsed}{data}{location_constraint}{$old_server_name}{node}{$node}{score};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:node"  => $node,
+			"s2:score" => $score,
+		}});
+		$preferred_host_string .= " ".$node."=".$score;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_host_string => $preferred_host_string }});
+	}
+	
 	# Delete the old server from pacemaker.
 	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $anvil->data->{path}{exe}{pcs}." resource delete ".$old_server_name});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -649,7 +662,30 @@ sub rename_server
 	{
 		# Success
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0308", variables => { server_name => $new_server_name }});
-		$anvil->Job->update_progress({progress => 95, message => "job_0308,!!server_name!".$old_server_name."!!"});
+		$anvil->Job->update_progress({progress => 93, message => "job_0308,!!server_name!".$old_server_name."!!"});
+	}
+	
+	# Set the preferred host
+	my $prefer_command = $anvil->data->{path}{exe}{pcs}." constraint location ".$new_server_name." ".$preferred_host_string;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { prefer_command => $prefer_command }});
+
+	$output      = "";
+	$return_code = "";
+	($output, $return_code) = $anvil->System->call({shell_call => $prefer_command});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# Failed, but don't fail out.
+		$anvil->Job->update_progress({progress => 100, message => "error_0304,!!server_name!".$new_server_name."!!,!!return_code!".$return_code."!!,!!output!".$output."!!"});
+	}
+	else
+	{
+		# Success
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0005", variables => { server_name => $new_server_name }});
+		$anvil->Job->update_progress({progress => 96, message => "job_0005,!!server_name!".$old_server_name."!!"});
 	}
 	
 	# Rename the server in the database.
