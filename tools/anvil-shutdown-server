@@ -180,6 +180,28 @@ if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}
 	}
 }
 
+# If we don't have a job_uuid and the user didn't pass 'confirm', ask to proceed.
+if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{'confirm'}))
+{
+	if ($anvil->data->{switches}{'server'} =~ /all/i)
+	{
+		print $anvil->Words->string({key => "message_0092"})." ";
+	}
+	else
+	{
+		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{'server'} }})." ";
+	}
+	my $answer = <STDIN>;
+	chomp($answer);
+	if (($answer ne "y") && ($answer ne "Y"))
+	{
+		# Abort and exit.
+		print $anvil->Words->string({key => "message_0061"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+}
+
 # This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 
 # being up.
 if ($anvil->data->{sys}{host_type} eq "node")

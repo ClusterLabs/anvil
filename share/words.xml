@@ -2800,8 +2800,8 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0057">No updates were found or needed.</key>
 		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
 		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
-		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
-		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
+		<key name="message_0059">Are you sure you want to reboot this system? [y/N]</key>
+		<key name="message_0060">Are you sure you want to power off this system? [y/N]</key>
 		<key name="message_0061">Aborting.</key>
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
@@ -2839,8 +2839,8 @@ NOTE: Please be patient!
 		<key name="message_0089">Updating the server: [#!variable!server!#] to change the boot delay from: [#!variable!start_delay!# seconds] to: [#!variable!start_delay!# seconds] after: [#!variable!boot_after#!variable!] boots.</key>
 		<key name="message_0090">I was asked to set: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots, which is already the case. Nothing to do.</key>
 		<key name="message_0091">Updating: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots.</key>
-		<key name="message_0092">#!free!#</key>
-		<key name="message_0093">#!free!#</key>
+		<key name="message_0092">Are you sure you want to shutdown ALL servers? [y/N].</key>
+		<key name="message_0093">Are you sure you want to shutdown: [#!variable!server_name!#]? [y/N].</key>
 		<key name="message_0094">#!free!#</key>
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
