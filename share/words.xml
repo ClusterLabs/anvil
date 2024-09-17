@@ -2841,7 +2841,7 @@ NOTE: Please be patient!
 		<key name="message_0091">Updating: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots.</key>
 		<key name="message_0092">Are you sure you want to shutdown ALL servers? [y/N].</key>
 		<key name="message_0093">Are you sure you want to shutdown: [#!variable!server_name!#]? [y/N].</key>
-		<key name="message_0094">#!free!#</key>
+		<key name="message_0094">Are you sure you want to rename the server: [#!variable!server_name!#] to: [#!variable!new_name!#]? [y/N]</key>
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
 		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>

@@ -199,7 +199,6 @@ if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{
 		print $anvil->Words->string({key => "message_0061"})."\n";
 		$anvil->nice_exit({exit_code => 0});
 	}
-	
 }
 
 # This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 
