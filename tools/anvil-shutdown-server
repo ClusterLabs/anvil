@@ -375,35 +375,160 @@ sub shutdown_all_servers
 {
 	my ($anvil) = @_;
 	
-	### TODO: Manage the stop order here, inverse of boot order.
-	# We top out at 90, bottom is 20. 
-	my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
-	my $increment    = $server_count ? int(70 / $server_count) : 70;
-	my $percent      = 15;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server_count => $server_count, 
-		increment    => $increment,
-	}});
-	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	# Get the server data so that we know the stop order.
+	$anvil->Database->get_servers({debug => 2});
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	
+	# We need to know which servers shut down before others, and this is the reverse of the boot order. 
+	# If a server boots after another, the other must stop before we shut the first down. The delay 
+	# doesn't matter, as the boot_after server has to be off, and once off, waiting makes no sense.
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
 	{
-		my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-		my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server}{host_name};
-		my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server}{role};
-		my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server}{active};
+		my $server_uuid             = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		my $status                  = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
+		my $start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+		   $start_after_server_uuid = "" if $start_after_server_uuid eq "NULL";
+		my $start_after_server_name = $start_after_server_uuid ? $anvil->data->{servers}{server_uuid}{$start_after_server_uuid}{server_name} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:server'    => $server,
-			's2:status'    => $status,
-			's2:host_name' => $host_name,
-			's4:role'      => $role,
-			's5:active'    => $active, 
+			's1:server_name'             => $server_name,
+			's2:server_uuid'             => $server_uuid, 
+			's3:status'                  => $status, 
+			's4:start_after_server_name' => $start_after_server_name, 
+			's5:start_after_server_uuid' => $start_after_server_uuid, 
 		}});
 		
-		if ($status ne "off")
+		# If we boot after another server, make sure that the other server know to stop before us.
+		if ($start_after_server_name)
 		{
-			# Shut it down (don't wait).
-			my $wait    =  $anvil->data->{switches}{'wait'} ? 1 : 0;
-			   $percent += $increment;
-			shutdown_server($anvil, $server, $wait, $percent);
+			$anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"server_stop::${start_after_server_name}::wait_for::${server_name}" => $anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name},
+			}});
+		}
+		
+		# This makes it quicker to track the status of other servers.
+		$anvil->data->{server_stop}{$server_name}{is_off}      = $status ne "off" ? 0 : 1;
+		$anvil->data->{server_stop}{$server_name}{stop_called} = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"server_stop::${server_name}::is_off"      => $anvil->data->{server_stop}{$server_name}{is_off},
+			"server_stop::${server_name}::stop_called" => $anvil->data->{server_stop}{$server_name}{stop_called},
+		}});
+	}
+	
+	# Loop until all servers are off (or asked to power off).
+	my $all_processed = 0;
+	until($all_processed)
+	{
+		# We top out at 90, bottom is 20. 
+		$all_processed = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
+		
+		my $problem = $anvil->Cluster->parse_cib({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			$all_processed = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
+			
+			# Tell the user we can't shut down yet.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0004"});
+			sleep 5; 
+			next;
+		}
+		my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
+		my $increment    = $server_count ? int(70 / $server_count) : 70;
+		my $percent      = 15;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_count => $server_count, 
+			increment    => $increment,
+		}});
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+		{
+			my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_name => $server_name,
+				server_uuid => $server_uuid, 
+			}});
+			next if $anvil->data->{server_stop}{$server_name}{is_off};
+			
+			# If this server needs to wait, check that the others are off.
+			my $stop = 1;
+			if ($anvil->data->{server_stop}{$server_name}{wait_for})
+			{
+				foreach my $wait_for_server_name (sort {$a cmp $b} keys %{$anvil->data->{server_stop}{$server_name}{wait_for}})
+				{
+					my $wait_for_server_status = $anvil->data->{cib}{parsed}{data}{server}{$wait_for_server_name}{status};
+					my $wait_for_server_role   = $anvil->data->{cib}{parsed}{data}{server}{$wait_for_server_name}{role};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"s1:wait_for_server_name"   => $wait_for_server_name,
+						"s2:wait_for_server_status" => $wait_for_server_status, 
+						"s3:wait_for_server_role"   => $wait_for_server_role, 
+					}});
+					if ($wait_for_server_status ne "off")
+					{
+						# We need to keep waiting.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0005", variables => {
+							server_name            => $server_name, 
+							wait_for_server_name   => $wait_for_server_name, 
+							wait_for_server_status => $wait_for_server_status, 
+							wait_for_server_role   => $wait_for_server_role, 
+						}});
+						
+						$all_processed = 0;
+						$stop          = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							all_processed => $all_processed,
+							stop          => $stop,
+						}});
+					}
+				}
+			}
+			next if not $stop;
+			
+			# Still here? Ask the server to stop
+			my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
+			my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
+			my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{role};
+			my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{active};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's2:server_uuid' => $server_uuid, 
+				's2:status'      => $status,
+				's2:host_name'   => $host_name,
+				's4:role'        => $role,
+				's5:active'      => $active, 
+			}});
+			
+			if ($status eq "off")
+			{
+				# It's off, have we recorded that?
+				if (not $anvil->data->{server_stop}{$server_name}{is_off})
+				{
+					# Nope, do so now
+					$anvil->data->{server_stop}{$server_name}{is_off} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"server_stop::${server_name}::is_off" => $anvil->data->{server_stop}{$server_name}{is_off},
+					}});
+				}
+			}
+			elsif (not $anvil->data->{server_stop}{$server_name}{stop_called})
+			{
+				# Shut it down (don't wait).
+				my $wait    =  $anvil->data->{switches}{'wait'} ? 1 : 0;
+				   $percent += $increment;
+				shutdown_server($anvil, $server_name, $wait, $percent);
+				
+				$anvil->data->{server_stop}{$server_name}{stop_called} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"server_stop::${server_name}::stop_called" => $anvil->data->{server_stop}{$server_name}{stop_called},
+				}});
+			}
+		}
+		if (not $all_processed)
+		{
+			# Sleep a bit before checking again.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0006"});
+			sleep 5;
 		}
 	}
 	

@@ -102,7 +102,10 @@ sub do_tests
 		}
 		
 		my $bad_key_found = {};
-		my ($old_body)    = $anvil->Storage->read_file({file => $known_hosts});
+		my $old_body      = $anvil->Remote->_check_known_hosts_for_bad_entries({
+			debug       => 2,
+			known_hosts => $known_hosts,
+		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_body => $old_body }});
 		foreach my $line (split/\n/, $old_body)
 		{

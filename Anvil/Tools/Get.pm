@@ -2858,6 +2858,7 @@ sub switches
 			next if $set_switch eq "log-db-transactions";
 			next if $set_switch eq "raw";
 			next if $set_switch eq "resync-db";
+			next if $set_switch eq "V";
 			next if $set_switch eq "v";
 			next if $set_switch eq "vv";
 			next if $set_switch eq "vvv";
@@ -2903,7 +2904,7 @@ sub switches
 	if (-e $anvil->data->{path}{configs}{'anvil.debug'})
 	{
 		# Set defaults, then see if we should override from the body.
-		$anvil->data->{switches}{v}            = "";
+		$anvil->data->{switches}{V}            = "";
 		$anvil->data->{switches}{v}            = "";
 		$anvil->data->{switches}{vv}           = "#!SET!#";
 		$anvil->data->{switches}{'log-secure'} = "#!SET!#";

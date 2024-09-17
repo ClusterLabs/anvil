@@ -428,6 +428,9 @@ sub nice_exit
 		's3:line'     => $line,
 	}});
 	
+	# Log our exit code for debug purposes
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { exit_code => $exit_code }});
+	
 	# Close the log file.
 	if ($anvil->data->{HANDLE}{'log'}{main})
 	{
@@ -994,7 +997,7 @@ sub _set_defaults
 			facility	=>	"local0",
 			language	=>	"en_CA",
 			level		=>	1,
-			pids		=>	0,
+			pids		=>	1,
 			secure		=>	0,
 			server		=>	"",
 			tag		=>	"anvil",
@@ -1169,7 +1172,6 @@ sub _set_paths
 				'anvil-delete-server'		=>	"/usr/sbin/anvil-delete-server",
 				'anvil-download-file'		=>	"/usr/sbin/anvil-download-file",
 				'anvil-file-details'		=>	"/usr/sbin/anvil-file-details",
-				'anvil-get-server-screenshot'	=>	"/usr/sbin/anvil-get-server-screenshot",
 				'anvil-join-anvil'		=>	"/usr/sbin/anvil-join-anvil",
 				'anvil-maintenance-mode'	=>	"/usr/sbin/anvil-maintenance-mode",
 				'anvil-manage-dr'		=>	"/usr/sbin/anvil-manage-dr",

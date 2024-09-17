@@ -30,6 +30,8 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
+	"boot-after",
+	"delay", 
 	"resync", 
 	"server", 
 	"y"
@@ -74,12 +76,458 @@ if ($anvil->data->{switches}{resync})
 	handle_resync($anvil);
 }
 
+if ($anvil->data->{switches}{'boot-after'})
+{
+	handle_boot_order($anvil);
+}
+
 $anvil->nice_exit({exit_code => 0});
 
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This handles setting / updating server boot order.
+sub handle_boot_order
+{
+	my ($anvil) = @_;
+	
+	# If we're an Anvil! subnode, we'll limit the servers shown to this node.
+	my $this_anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_anvil_uuid => $this_anvil_uuid }});
+	
+	$anvil->Database->get_anvils({debug => 2});
+	$anvil->Database->get_servers({debug => 2});
+	if (not $anvil->data->{switches}{server})
+	{
+		show_boot_order($anvil, $this_anvil_uuid);
+	}
+	
+	# Is the server valid?
+	my ($server_name, $server_uuid) = $anvil->Get->server_from_switch({
+		server     => $anvil->data->{switches}{server},
+		anvil_uuid => $this_anvil_uuid,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_name => $server_name,
+		server_uuid => $server_uuid, 
+	}});
+	
+	if (not $server_uuid)
+	{
+		if ($this_anvil_uuid)
+		{
+			# The server wasn't found on the Anvil! node.
+			my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_name};
+			my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_description};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0004", variables => { 
+				server            => $anvil->data->{switches}{server},
+				anvil_name        => $anvil_name, 
+				anvil_description => $anvil_description, 
+			}});
+		}
+		else
+		{
+			# The server wasn't found anywhere on the Anvil!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0007", variables => { server => $anvil->data->{switches}{server}}});
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Read to see if this server is set to stay off during auto boot.
+	my $stay_off_key = "server::".$server_name."::stay-off";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stay_off_key => $stay_off_key }});
+	my ($server_stay_off, $variable_uuid, undef, undef) = $anvil->Database->read_variable({
+		debug                 => 2,
+		variable_name         => $stay_off_key, 
+		variable_source_uuid  => $server_uuid, 
+		variable_source_table => "servers", 
+	});
+	$server_stay_off = 0 if not $server_stay_off;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_stay_off => $server_stay_off, 
+		variable_uuid   => $variable_uuid,
+	}});
+	
+	my $boot_after_server_name         = "";
+	my $server_start_delay             = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
+	my $server_start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+	   $server_start_after_server_uuid = "" if $server_start_after_server_uuid eq "NULL";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_start_delay             => $server_start_delay, 
+		server_start_after_server_uuid => $server_start_after_server_uuid,
+	}});
+	if ($server_stay_off)
+	{
+		# The server stays off, boot after not applicable
+		$server_start_delay = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_start_delay => $server_start_delay }});
+	}
+	elsif ((not $server_start_after_server_uuid) or ($server_start_after_server_uuid eq "NULL"))
+	{
+		$server_start_after_server_uuid = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_start_after_server_uuid => $server_start_after_server_uuid }});
+	}
+	else
+	{
+		$boot_after_server_name = $anvil->data->{servers}{server_uuid}{$server_start_after_server_uuid}{server_name};
+		$server_start_delay     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			boot_after_server_name => $boot_after_server_name,
+			server_start_delay     => $server_start_delay, 
+		}});
+	}
+	
+	# Is the user asking to change the boot after machine?
+	if ((not $anvil->data->{switches}{'boot-after'}) or ($anvil->data->{switches}{'boot-after'} eq "#!SET!#"))
+	{
+		# Just show the info about the server.
+		if (not $server_start_after_server_uuid)
+		{
+			# The sever will boot without delay.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0079", variables => { server => $server_name }});
+		}
+		elsif ($server_stay_off)
+		{
+			# The server will stay off.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0080", variables => { server => $server_name }});
+		}
+		else
+		{
+			# The server will boot after another server
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0081", variables => { 
+				server     => $server_name,
+				delay      => $server_start_delay, 
+				boot_after => $boot_after_server_name, 
+			}});
+		}
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	my $boot_after_none                    = 0;
+	my $dont_auto_boot                     = 0;
+	my $new_server_start_delay             = 30;
+	my $new_boot_after_server_name         = "";
+	my $new_server_start_after_server_uuid = "";
+	if ($anvil->data->{switches}{'boot-after'} eq "none")
+	{
+		$boot_after_none = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_after_none => $boot_after_none }});
+	}
+	elsif ($anvil->data->{switches}{'boot-after'} eq "stay-off")
+	{
+		$dont_auto_boot = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dont_auto_boot => $dont_auto_boot }});
+	}
+	elsif ($anvil->data->{switches}{'boot-after'})
+	{
+		($new_boot_after_server_name, $new_server_start_after_server_uuid) = $anvil->Get->server_from_switch({
+			server     => $anvil->data->{switches}{'boot-after'},
+			anvil_uuid => $this_anvil_uuid,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_name => $server_name,
+			server_uuid => $server_uuid, 
+		}});
+	}
+	
+	# If we don't have a boot after server, show the current config and exit.
+	if ((not $boot_after_none) && (not $dont_auto_boot) && (not $new_boot_after_server_name))
+	{
+		if ($this_anvil_uuid)
+		{
+			# The boot-after server was not found on this Anvil! node.
+			my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_name};
+			my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_description};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0082", variables => { 
+				boot_after        => $anvil->data->{switches}{'boot-after'}, 
+				anvil_name        => $anvil_name, 
+				anvil_description => $anvil_description, 
+			}});
+		}
+		else
+		{
+			# The boot-after server wasn't found anywhere on the Anvil!.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0083", variables => { boot_after => $anvil->data->{switches}{'boot-after'} }});
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Still alive? ok, do we have a delay?
+	if ($anvil->data->{switches}{delay})
+	{
+		# Is the value valid?
+		if ($anvil->data->{switches}{delay} =~ /\D/)
+		{
+			# The delay isn't valid
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0084", variables => { delay => $anvil->data->{switches}{delay} }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		$new_server_start_delay = $anvil->data->{switches}{delay};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_server_start_delay => $new_server_start_delay }});
+	}
+	
+	# OK, now do the update, if needed.
+	if ($dont_auto_boot)
+	{
+		if ($server_stay_off)
+		{
+			# Already configured to not auto-boot.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0085", variables => { server => $server_name }});
+		}
+		else
+		{
+			# Updating to not automatically boot.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0086", variables => { server => $server_name }});
+			my $variable_uuid = $anvil->Database->insert_or_update_variables({
+				debug                 => 2,
+				variable_name         => $stay_off_key, 
+				variable_value        => "1", 
+				variable_default      => "0", 
+				variable_description  => "striker_0001", 
+				variable_section      => "servers", 
+				variable_source_uuid  => $server_uuid, 
+				variable_source_table => "servers", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			
+			if (($boot_after_none) or ($server_start_delay ne "30"))
+			{
+				# Clear the old boot-after
+				my $query = "
+UPDATE 
+    servers
+SET 
+    server_start_after_server_uuid = NULL, 
+    server_start_delay             = '30', 
+    modified_date                  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0123", variables => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	if ($boot_after_none)
+	{
+		if ((not $server_start_after_server_uuid) && (not $server_stay_off))
+		{
+			# I was asked to set the server to not wait on any other servers, which is already the case.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0087", variables => { server => $server_name }});
+		}
+		else
+		{
+			# Updating the not wait for any other servers
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0088", variables => { server => $server_name }});
+			if ($server_stay_off)
+			{
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug                 => 2,
+					variable_name         => $stay_off_key, 
+					variable_value        => "0", 
+					variable_default      => "0", 
+					variable_description  => "striker_0001", 
+					variable_section      => "servers", 
+					variable_source_uuid  => $server_uuid, 
+					variable_source_table => "servers", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			}
+			if ($server_start_after_server_uuid)
+			{
+				my $query = "
+UPDATE 
+    servers
+SET 
+    server_start_after_server_uuid = NULL, 
+    server_start_delay             = '30', 
+    modified_date                  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0123", variables => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			}
+		}
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	if ($new_boot_after_server_name)
+	{
+		my $update = 0;
+		if ($new_boot_after_server_name eq $boot_after_server_name)
+		{
+			# Did the delay change?
+			if ($server_start_delay ne $new_server_start_delay)
+			{
+				$update = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_server_start_delay => $new_server_start_delay }});
+				
+				# Updating the server to change the boot delay after
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0089", variables => { 
+					server      => $server_name,
+					start_delay => $server_start_delay, 
+					boot_after  => $new_boot_after_server_name, 
+				}});
+			}
+			else
+			{
+				# I was asked to set the server to boot after another server boots, which is already the case.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0090", variables => { 
+					server      => $server_name,
+					start_delay => $new_server_start_delay, 
+					boot_after  => $new_boot_after_server_name, 
+				}});
+			}
+		}
+		else
+		{
+			# Updating the to boot after the new other boots
+			$update = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_server_start_delay => $new_server_start_delay }});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0091", variables => { 
+				server      => $server_name,
+				start_delay => $new_server_start_delay, 
+				boot_after  => $new_boot_after_server_name, 
+			}});
+		}
+		
+		if ($update)
+		{
+			my $query = "
+UPDATE 
+    servers
+SET 
+    server_start_after_server_uuid = ".$anvil->Database->quote($new_server_start_after_server_uuid).", 
+    server_start_delay             = ".$anvil->Database->quote($new_server_start_delay).", 
+    modified_date                  = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0123", variables => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			# Clear stay-off if needed
+			if ($server_stay_off)
+			{
+				my $variable_uuid = $anvil->Database->insert_or_update_variables({
+					debug                 => 2,
+					variable_name         => $stay_off_key, 
+					variable_value        => "0", 
+					variable_default      => "0", 
+					variable_description  => "striker_0001", 
+					variable_section      => "servers", 
+					variable_source_uuid  => $server_uuid, 
+					variable_source_table => "servers", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+			}
+		}
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+sub show_boot_order
+{
+	my ($anvil, $this_anvil_uuid) = @_;
+	
+	# There's no server, so show all servers and their boot orders
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_name' => $anvil_name,
+			's2:anvil_uuid' => $anvil_uuid,
+		}});
+		next if (($this_anvil_uuid) && ($this_anvil_uuid ne $anvil_uuid));
+		
+		my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_description => $anvil_description }});
+		
+		print "Anvil! Node: [".$anvil_name."] - ".$anvil_description."\n";
+		my $server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+		
+		if ($server_count)
+		{
+			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+			{
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:server_name'  => $server_name,
+					's2:server_uuid'  => $server_uuid,
+					's3:server_state' => $server_state,
+				}});
+				next if $server_state eq "DELETED";
+				
+				# Read to see if this server is set to stay off during auto boot.
+				my $stay_off_key = "server::".$server_name."::stay-off";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stay_off_key => $stay_off_key }});
+				my ($server_stay_off, $variable_uuid, undef, undef) = $anvil->Database->read_variable({
+					debug                 => 2,
+					variable_name         => $stay_off_key, 
+					variable_source_uuid  => $server_uuid, 
+					variable_source_table => "servers", 
+				});
+				$server_stay_off = 0 if not $server_stay_off;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					server_stay_off => $server_stay_off, 
+					variable_uuid   => $variable_uuid,
+				}});
+				
+				my $server_start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_start_after_server_uuid => $server_start_after_server_uuid }});
+				if ($server_stay_off)
+				{
+					print " |- ".$server_name." will not boot automatically.\n";
+					next;
+				}
+				elsif ((not $server_start_after_server_uuid) or ($server_start_after_server_uuid eq "NULL"))
+				{
+					print " |- ".$server_name." will boot without delay.\n";
+					next;
+				}
+
+				my $boot_after_server_name  = $anvil->data->{servers}{server_uuid}{$server_start_after_server_uuid}{server_name};
+				my $boot_after_server_state = $anvil->data->{servers}{server_uuid}{$server_start_after_server_uuid}{server_state};
+				my $server_start_delay      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:boot_after_server_name'  => $boot_after_server_name,
+					's2:boot_after_server_state' => $boot_after_server_state,
+					's3:server_start_delay'      => $server_start_delay, 
+				}});
+				
+				if ($boot_after_server_state eq "DELETED")
+				{
+					print " |- ".$server_name." will boot without delay. It used to boot after the now-deleted: [".$boot_after_server_name."] server.\n";
+				}
+				else
+				{
+					$server_start_delay = 30 if not $server_start_delay;
+					print " |- ".$server_name." will boot at least: [".$server_start_delay."s] after: [".$boot_after_server_name."].\n";
+				}
+			}
+			print " \\- End List.\n\n";
+		}
+		else
+		{
+			print " \\- This node has no servers yet.\n\n";
+		}
+	}
+	
+	# We're done.
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
 
 # This looks for a server (or all servers) and if any aren't found locally, they're connected.
 sub handle_resync

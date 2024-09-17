@@ -1,0 +1,42 @@
+.TH anvil-access-module "8" "August 8, 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-vnc-pipe \- builds or destroys "VNC pipe"
+.SH SYNOPSIS
+.TP
+To open a VNC pipe:
+.SY
+anvil-manage-vnc-pipe --server <libvirt_domain_name>
+.OP --server-vnc-port <vnc_port>
+--open
+.YS
+.TP
+To close a VNC pipe:
+.SY
+anvil-manage-vnc-pipe --server <libvirt_domain_name>
+.YS
+.SH DESCRIPTION
+A VNC pipe consists of 1 instance of websockify that translates the VNC protocol to websocket protocol, which allows the VNC data to travel over a protocol that the browser understands. \fBanvil-manage-vnc-pipe\fR manages the lifespan of a VNC pipe with the given server identifier.
+.SH OPTIONS
+.TP
+--open
+Opens a VNC pipe with the given target server. Close is assumed when this option is not provided.
+.TP
+--server <libvirt_domain_name>
+An alternative to the \fI--server-uuid\fR option that makes this script do the server name resolution. One of \fI--server\fR or \fI--server-uuid\fR is required.
+.TP
+--server-uuid <libvirt_domain_uuid>
+Specifies a libvirt domain as VNC data source.
+.TP
+--server-vnc-port <vnc_port>
+Specifies the target libvirt domain VNC port instead of letting the script do the detection.
+.SH EXIT STATUS
+.TP
+.B 0
+Successful program execution.
+.TP
+.B 1
+VNC pipe setup process failed. It's possible to reuse the command to try again without needing to worry about duplicating component(s). The script is capable of detecting existing usable component(s) and only setup the missing piece(s).
+.SH AUTHOR
+Written by Yanhao Lei, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

@@ -1368,89 +1368,34 @@ sub _call_ssh_keyscan
 }
 
 
-=head3 _check_known_hosts_for_target
+=head2 _check_known_hosts_for_bad_entries
 
-This checks to see if a given C<< target >> machine is in the C<< user >>'s C<< known_hosts >> file.
+This checks for badly formatted or duplicate entries in the given C<< ~/.ssh/known_hosts >> file. The C<< known_hosts >> body is returned (cleaned up, if needed).
 
-Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found.
-
-Parameters;
-
-=head3 delete_if_found (optional, default 0)
-
-Deletes the existing RSA fingerprint if one is found for the C<< target >>.
+Parameters
 
 =head3 known_hosts (required)
 
-This is the specific C<< known_hosts >> file we're checking.
-
-=head3 port (optional, default 22)
-
-This is the SSH TCP port used to connect to C<< target >>.
-
-=head3 target (required)
-
-This is the IP or (resolvable) host name of the machine who's RSA fingerprint we're checking.
-
-=head3 user (optional, default to user running this method)
-
-This is the user who's C<< known_hosts >> we're checking.
+This is the known_hosts file to check.
 
 =cut
-sub _check_known_hosts_for_target
+sub _check_known_hosts_for_bad_entries
 {
 	my $self      = shift;
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->_check_known_hosts_for_target()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->_check_known_hosts_for_bad_entries()" }});
 	
-	my $delete_if_found = defined $parameter->{delete_if_found} ? $parameter->{delete_if_found} : 0;
-	my $known_hosts     = defined $parameter->{known_hosts}     ? $parameter->{known_hosts}     : "";
-	my $port            = defined $parameter->{port}            ? $parameter->{port}            : "";
-	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
-	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<);
-	my $known_machine   = 0;
+	my $known_hosts = defined $parameter->{known_hosts} ? $parameter->{known_hosts} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		delete_if_found => $delete_if_found,
-		known_hosts     => $known_hosts, 
-		port            => $port, 
-		target          => $target,
-		user            => $user,
+		known_hosts => $known_hosts, 
 	}});
 	
-	# Is there a known_hosts file at all?
 	if (not $known_hosts)
 	{
-		# Can we divine it?
-		my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
-		if ($users_home)
-		{
-			$known_hosts = $users_home."/.ssh/known_hosts";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
-		}
-		
-		if (not $known_hosts)
-		{
-			# Nope.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
-			return($known_machine);
-		}
-	}
-	
-	# Does the known_hosts file actually exist?
-	if (not -f $known_hosts)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
-		return($known_machine);
-	}
-	
-	### NOTE: This is called by ocf:alteeve:server, so there might not be a database available.
-	# Make sure we've loaded hosts.
-	if (($anvil->data->{sys}{database}{read_uuid}) && (not exists $anvil->data->{hosts}{host_uuid}))
-	{
-		$anvil->Database->get_hosts({debug => $debug});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Remote->_check_known_hosts_for_bad_entries()", parameter => "known_hosts" }});
+		return("!!error!!");
 	}
 	
 	if (exists $anvil->data->{duplicate_keys})
@@ -1541,6 +1486,135 @@ sub _check_known_hosts_for_target
 			}
 		}
 		$new_body .= $line."\n";
+	}
+	
+	# If there was a bad line, write out the fixed body first.
+	if ($bad_line)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+		
+		# Read the stat of the known_hosts file.
+		$anvil->Storage->get_file_stats({debug => $debug, file_path => $known_hosts});
+		my $unix_mode  = $anvil->data->{file_stat}{$known_hosts}{unix_mode};
+		my $user_name  = $anvil->data->{file_stat}{$known_hosts}{user_name};
+		my $group_name = $anvil->data->{file_stat}{$known_hosts}{group_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:known_hosts' => $known_hosts, 
+			's2:unix_mode'   => $unix_mode, 
+			's3:user_name'   => $user_name, 
+			's4:group_name'  => $group_name, 
+		}});
+		
+		$anvil->Storage->write_file({
+			debug     => $debug, 
+			file      => $known_hosts, 
+			body      => $new_body, 
+			backup    => 1, 
+			overwrite => 1, 
+			mode      => $unix_mode, 
+			user      => $user_name, 
+			group     => $group_name, 
+		});
+	}
+	
+	return($new_body);
+}
+
+
+=head2 _check_known_hosts_for_target
+
+This checks to see if a given C<< target >> machine is in the C<< user >>'s C<< known_hosts >> file.
+
+Returns C<< 0 >> if the target is not in the C<< known_hosts >> file, C<< 1 >> if it was found.
+
+Parameters;
+
+=head3 delete_if_found (optional, default 0)
+
+Deletes the existing RSA fingerprint if one is found for the C<< target >>.
+
+=head3 known_hosts (required)
+
+This is the specific C<< known_hosts >> file we're checking.
+
+=head3 port (optional, default 22)
+
+This is the SSH TCP port used to connect to C<< target >>.
+
+=head3 target (required)
+
+This is the IP or (resolvable) host name of the machine who's RSA fingerprint we're checking.
+
+=head3 user (optional, default to user running this method)
+
+This is the user who's C<< known_hosts >> we're checking.
+
+=cut
+sub _check_known_hosts_for_target
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->_check_known_hosts_for_target()" }});
+	
+	my $delete_if_found = defined $parameter->{delete_if_found} ? $parameter->{delete_if_found} : 0;
+	my $known_hosts     = defined $parameter->{known_hosts}     ? $parameter->{known_hosts}     : "";
+	my $port            = defined $parameter->{port}            ? $parameter->{port}            : "";
+	my $target          = defined $parameter->{target}          ? $parameter->{target}          : "";
+	my $user            = defined $parameter->{user}            ? $parameter->{user}            : getpwuid($<);
+	my $known_machine   = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		delete_if_found => $delete_if_found,
+		known_hosts     => $known_hosts, 
+		port            => $port, 
+		target          => $target,
+		user            => $user,
+	}});
+	
+	# Is there a known_hosts file at all?
+	if (not $known_hosts)
+	{
+		# Can we divine it?
+		my $users_home = $anvil->Get->users_home({debug => 3, user => $user});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users_home => $users_home }});
+		if ($users_home)
+		{
+			$known_hosts = $users_home."/.ssh/known_hosts";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { known_hosts => $known_hosts }});
+		}
+		
+		if (not $known_hosts)
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+			return($known_machine);
+		}
+	}
+	
+	# Does the known_hosts file actually exist?
+	if (not -f $known_hosts)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
+		return($known_machine);
+	}
+	
+	### NOTE: This is called by ocf:alteeve:server, so there might not be a database available.
+	# Make sure we've loaded hosts.
+	if (($anvil->data->{sys}{database}{read_uuid}) && (not exists $anvil->data->{hosts}{host_uuid}))
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
+	# Check for bad lines and duplicates 
+	my $old_body = $anvil->Remote->_check_known_hosts_for_bad_entries({debug => $debug, known_hosts => $known_hosts});
+	my $new_body = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { old_body => $old_body }});
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { line => $line }});
+		
+		$new_body .= $line."\n";
 		
 		# This is wider scope now to catch hosts using other hashes than 'ssh-rsa'
 		if (($line =~ /$target (.*)$/) or ($line =~ /\[$target\]:$port (.*)$/))
@@ -1589,35 +1663,6 @@ sub _check_known_hosts_for_target
 		}
 	}
 	
-	# If there was a bad line, write out the fixed body first.
-	if ($bad_line)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
-		
-		# Read the stat of the known_hosts file.
-		$anvil->Storage->get_file_stats({debug => $debug, file_path => $known_hosts});
-		my $unix_mode  = $anvil->data->{file_stat}{$known_hosts}{unix_mode};
-		my $user_name  = $anvil->data->{file_stat}{$known_hosts}{user_name};
-		my $group_name = $anvil->data->{file_stat}{$known_hosts}{group_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:known_hosts' => $known_hosts, 
-			's2:unix_mode'   => $unix_mode, 
-			's3:user_name'   => $user_name, 
-			's4:group_name'  => $group_name, 
-		}});
-		
-		$anvil->Storage->write_file({
-			debug     => $debug, 
-			file      => $known_hosts, 
-			body      => $new_body, 
-			backup    => 1, 
-			overwrite => 1, 
-			mode      => $unix_mode, 
-			user      => $user_name, 
-			group     => $group_name, 
-		})
-	}
-	
 	# If we know of this machine and we've been asked to remove it, do so.
 	if (($delete_if_found) && ($known_machine))
 	{
@@ -1630,8 +1675,9 @@ sub _check_known_hosts_for_target
 			i_am_root    => $i_am_root, 
 		}});
 		my $shell_call = $anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target;
-		if (($i_am_root) && ($user) && ($user =~ /\D/) && ())
+		if (($i_am_root) && ($user) && ($user =~ /\D/))
 		{
+			# This is for another user, so use su
 			$shell_call = $anvil->data->{path}{exe}{su}." - ".$user." -c '".$anvil->data->{path}{exe}{'ssh-keygen'}." -R ".$target."'";
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { shell_call => $shell_call }});

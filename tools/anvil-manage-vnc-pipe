@@ -1,6 +1,31 @@
 #!/usr/bin/perl
 #
-# Manages VNC ports for server VMs that have VNC enabled.
+# Builds or destroys "VNC pipe" -- the collection of components(s) that connect
+# a server VM and the web UI.
+#
+# --- Notes ---
+#
+# * The target server VM (or guest) must be a 'qemu-kvm' process.
+#
+# * --server takes priority if both --server and --server-uuid are correctly
+#   provided.
+#
+# --- Usage ---
+#
+#   To open VNC pipe to a guest:
+#   anvil-manage-vnc-pipe --server <guest name> [--server-vnc-port <port>] --open
+#   OR
+#   anvil-manage-vnc-pipe --server-uuid <guest UUID> [--server-vnc-port <port>] --open
+#
+#   * Non-zero return code means the VNC pipe setup process failed, but it's
+#     possible to reuse the command to try again without needing to worry about
+#     duplicating component(s). The script is capable of detecting existing
+#     usable component(s) and only setup the missing piece(s).
+#
+#   To close VNC pipe to a guest:
+#   anvil-manage-vnc-pipe --server <guest name>
+#   OR
+#   anvil-manage-vnc-pipe --server-uuid <guest UUID>
 #
 
 use strict;

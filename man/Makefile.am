@@ -8,6 +8,7 @@ dist_man5_MANS		= \
 
 dist_man8_MANS		= \
 			  anvil-boot-server.8 \
+			  anvil-access-module.8 \
 			  anvil-change-password.8 \
 			  anvil-check-memory.8 \
 			  anvil-configure-host.8 \
@@ -28,6 +29,7 @@ dist_man8_MANS		= \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
 			  anvil-manage-storage-groups.8 \
+			  anvil-manage-vnc-pipe.8 \
 			  anvil-monitor-network.8 \
 			  anvil-monitor-performance.8 \
 			  anvil-migrate-server.8 \

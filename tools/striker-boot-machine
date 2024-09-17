@@ -27,6 +27,9 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches({list => [
+	"confirm", 
+	"force-off", 
+	"force-reboot", 
 	"host",
 	"host-uuid",
 	"job-uuid"], man => $THIS_FILE});
@@ -73,17 +76,45 @@ if ($anvil->data->{switches}{'job-uuid'})
 				'switches::host' => $anvil->data->{switches}{host},
 			}});
 		}
+		if ($line =~ /task=(.*?)$/)
+		{
+			my $task = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
+			
+			if ($task eq "force-off")
+			{
+				$anvil->data->{switches}{'force-off'} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'switches::force-off' => $anvil->data->{switches}{'force-off'},
+				}});
+			}
+			elsif ($task eq "force-reboot")
+			{
+				$anvil->data->{switches}{'force-reboot'} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'switches::force-reboot' => $anvil->data->{switches}{'force-reboot'},
+				}});
+			}
+		}
 	}
 }
 
 # Get the host info (copy host-uuid to host)
-$anvil->data->{switches}{'host-name'} = "" if not defined $anvil->data->{switches}{'host-name'};
 if ((not $anvil->data->{switches}{host}) && ($anvil->data->{switches}{'host-uuid'}))
 {
 	$anvil->data->{switches}{host} = $anvil->data->{switches}{'host-uuid'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'switches::host' => $anvil->data->{switches}{host},
 	}});
+}
+
+# If the 'host' is 'all', then we can't be doing a force-off/reboot.
+if (($anvil->data->{switches}{host} eq "all") && (($anvil->data->{switches}{'force-off'}) or ($anvil->data->{switches}{'force-reboot'})))
+{
+	# Not allowed
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0290"});
+	$anvil->Job->update_progress({progress => 100, message => "error_0290"});
+	$anvil->nice_exit({exit_code => 0});
 }
 
 # If the host is 'all', don't translate to the host_uuid. Otherwise, look for the host_uuid from the host string
@@ -108,7 +139,7 @@ if ((not $anvil->data->{switches}{'host-uuid'}) && ($anvil->data->{switches}{hos
 	}});
 }
 
-find_boot_method($anvil);
+find_power_control($anvil);
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -117,13 +148,13 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-# This will try to boot the node with host_ipmi data, if available. If not, it will try to find a (non-PDU)
-# fence method to try
-sub find_boot_method
+# This will try to boot or force off the node with host_ipmi data, if available. If not, it will try to find
+# a (non-PDU) fence method to try
+sub find_power_control
 {
 	my ($anvil) = @_;
 	
-	$anvil->Database->get_hosts_info({debug => 2});
+	$anvil->Database->get_hosts_info({debug => 3});
 	
 	my $hosts = [];
 	if ($anvil->data->{switches}{'host-uuid'})
@@ -192,58 +223,69 @@ sub find_boot_method
 			my $problem = call_fence_agent($anvil, $shell_call, $anvil->data->{sys}{progress});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { problem => $problem }});
 			
-			$anvil->data->{sys}{progress} += $steps;
-			if ($problem)
+			# If there was no problem, we're done.
+			if (not $problem)
 			{
-				# If I am here, there is no IPMI. Can we boot it using another fence method?
-				# The machine would have to be in an Anvil! for this to work.
-				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
-				if ($anvil_uuid)
+				$anvil->Job->update_progress({progress => 100, message => "message_0025"});
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		
+		$anvil->data->{sys}{progress} += $steps;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"sys::progress" => $anvil->data->{sys}{progress},
+		}});
+		
+		# If I am here, there is no IPMI. Can we control it using another fence method?
+		# The machine would have to be in an Anvil! for this to work.
+		my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({host_uuid => $host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+		if ($anvil_uuid)
+		{
+			my $anvil_name = $anvil->Cluster->get_anvil_name({anvil_uuid => $anvil_uuid});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0331", variables => { 
+				host_name  => $host_name, 
+				anvil_name => $anvil_name,
+			}});
+			$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "job_0331,!!host_name!".$host_name."!!,!!anvil_name!".$anvil_name."!!"});
+			
+			$anvil->Cluster->get_fence_methods({
+				debug      => 2,
+				anvil_uuid => $anvil_uuid, 
+				host_uuid  => $host_uuid,
+			});
+			
+			foreach my $target_host_name (sort {$a cmp $b} keys %{$anvil->data->{fence_method}})
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_name => $target_host_name }});
+				foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{fence_method}{$target_host_name}{order}})
 				{
-					my $anvil_name = $anvil->Cluster->get_anvil_name({anvil_uuid => $anvil_uuid});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_name => $anvil_name }});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0331", variables => { 
-						host_name  => $host_name, 
-						anvil_name => $anvil_name,
-					}});
-					$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "job_0331,!!host_name!".$host_name."!!,!!anvil_name!".$anvil_name."!!"});
-					
-					$anvil->Cluster->get_fence_methods({host_uuid => $host_uuid});
-					foreach my $target_host_name (sort {$a cmp $b} keys %{$anvil->data->{fence_method}})
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { order => $order }});
+					foreach my $method (sort {$a cmp $b} keys %{$anvil->data->{fence_method}{$target_host_name}{order}{$order}{method}})
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_name => $target_host_name }});
-						foreach my $order (sort {$a cmp $b} keys %{$anvil->data->{fence_method}{$target_host_name}{order}})
+						next if $method =~ /pdu/;
+						my $shell_call = $anvil->data->{fence_method}{$target_host_name}{order}{$order}{method}{$method}{command};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							method     => $method,
+							shell_call => $anvil->Log->is_secure($shell_call),
+						}});
+						my $problem = call_fence_agent($anvil, $shell_call, $anvil->data->{sys}{progress});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+						
+						if ($problem)
 						{
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { order => $order }});
-							foreach my $method (sort {$a cmp $b} keys %{$anvil->data->{fence_method}{$target_host_name}{order}{$order}{method}})
-							{
-								next if $method =~ /pdu/;
-								my $shell_call = $anvil->data->{fence_method}{$target_host_name}{order}{$order}{method}{$method}{command};
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									method     => $method,
-									shell_call => $anvil->Log->is_secure($shell_call),
-								}});
-								my $problem = call_fence_agent($anvil, $shell_call, $anvil->data->{sys}{progress});
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-								
-								if ($problem)
-								{
-									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0297"});
-									$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "error_0297"});
-								}
-							}
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0297"});
+							$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "error_0297"});
 						}
 					}
 				}
-				else
-				{
-					# Nothing we can do to boot this machine.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0294"});
-					$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "error_0294"});
-				}
-				
 			}
+		}
+		else
+		{
+			# Nothing we can do to boot this machine.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0294"});
+			$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "error_0294"});
 		}
 	}
 	
@@ -254,12 +296,16 @@ sub find_boot_method
 	return(0);
 }
 
-# This calls a fence agent and exits if it successfully boots the target
+# This calls a fence agent and exits if it successfully boots or powers off the target
 sub call_fence_agent
 {
 	my ($anvil, $shell_call, $progress) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		shell_call => $shell_call, 
+		progress   => $progress,
+	}});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call." -o status", secure => 1});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -267,29 +313,146 @@ sub call_fence_agent
 	
 	if ($return_code eq "0")
 	{
-		# The machine is already on
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0328"});
-		$anvil->Job->update_progress({progress => 100, message => "job_0328"});
-		return(0);
+		# The machine is already on. Shall we turn it off?
+		if (($anvil->data->{switches}{'force-off'}) or ($anvil->data->{switches}{'force-reboot'}))
+		{
+			# Yup, force it off. But first, ask to confirm?
+			if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{confirm}))
+			{
+				# Ask to confirm.
+				print $anvil->Words->string({key => "message_0065", variables => { host => $anvil->data->{switches}{'host-name'} }})."\n";
+				print $anvil->Words->string({key => "message_0021"})."\n";
+				my $answer = <STDIN>;
+				chomp $answer;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+
+				if ($answer =~ /^y/i)
+				{
+					print $anvil->Words->string({key => "message_0175"})."\n";
+				}
+				else
+				{
+					print $anvil->Words->string({key => "message_0022"})."\n";
+					$anvil->nice_exit({exit_code => 0});
+				}
+			}
+			
+			# Proceed!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0332"});
+			$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress} += 4, message => "job_0332"});
+
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call." -o off" }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			
+			if ($return_code eq "0")
+			{
+				# Success! Do we need to turn it back on?
+				if ($anvil->data->{switches}{'force-reboot'})
+				{
+					# Boot it again.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0333"});
+					$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}+=10, message => "job_0333"});
+					
+					# Wait a sec
+					sleep 5;
+					
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call." -o on" }});
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call." -o on", secure => 1});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+					
+					if ($return_code eq "0")
+					{
+						# Success!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0334"});
+						$anvil->Job->update_progress({progress => 100, message => "job_0334"});
+						
+						# Update the host's status to 'booting' and exit
+						$anvil->Database->update_host_status({
+							debug       => 2,
+							host_uuid   => $anvil->data->{switches}{'host-uuid'}, 
+							host_status => "booting", 
+						});
+						$anvil->nice_exit({exit_code => 0});
+					}
+					else
+					{
+						# Failed. 
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0292", variables => { output => $output }});
+						$anvil->Job->update_progress({progress => 100, message => "error_0292,!!output!".$output."!!"});
+						$anvil->nice_exit({exit_code => 1});
+					}
+				}
+				else
+				{
+					# We're done
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0335"});
+					$anvil->Job->update_progress({progress => 100, message => "job_0335"});
+					
+					# Update the host's status to 'powered off' and exit
+					$anvil->Database->update_host_status({
+						debug       => 2,
+						host_uuid   => $anvil->data->{switches}{'host-uuid'}, 
+						host_status => "powered off", 
+					});
+					$anvil->nice_exit({exit_code => 0});
+				}
+			}
+			else
+			{
+				# Failed. 
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0292", variables => { output => $output }});
+				$anvil->Job->update_progress({progress => 100, message => "error_0292,!!output!".$output."!!"});
+				$anvil->nice_exit({exit_code => 1});
+			}
+			
+		}
+		else
+		{
+			# Nope, we're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0328"});
+			$anvil->Job->update_progress({progress => 100, message => "job_0328"});
+			$anvil->nice_exit({exit_code => 0});
+		}
 	}
 	elsif ($return_code eq "1")
 	{
 		# Unable to connect to the fence device.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0293", variables => { output => $output }});
 		$anvil->Job->update_progress({progress => 100, message => "error_0293,!!output!".$output."!!"});
-		return(1);
+		$anvil->nice_exit({exit_code => 1});
 	}
 	elsif ($return_code eq "2")
 	{
-		# The machine is off, try to start it.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0329"});
+		# The machine is off, Are we forcing it off?
+		if ($anvil->data->{switches}{'force-off'})
+		{
+			# It's off, we're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0337"});
+			$anvil->Job->update_progress({progress => 100, message => "job_job_0337"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+		elsif ($anvil->data->{switches}{'force-reboot'})
+		{
+			# It's off, but we were asked to reboot it, so proceed with turning it on.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0336"});
+		}
+		else
+		{
+			# We're booting it.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "job_0329"});
+		}
+		
 		$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}+=10, message => "job_0329"});
-		
-		# First, is the node already on?
-		$shell_call .= " -o on";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
+
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call." -o on" }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call." -o on", secure => 1});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output, 
 			return_code => $return_code,
@@ -307,14 +470,14 @@ sub call_fence_agent
 				host_uuid   => $anvil->data->{switches}{'host-uuid'}, 
 				host_status => "booting", 
 			});
-			return(0);
+			$anvil->nice_exit({exit_code => 0});
 		}
 		else
 		{
 			# Failed. 
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0292", variables => { output => $output }});
 			$anvil->Job->update_progress({progress => 100, message => "error_0292,!!output!".$output."!!"});
-			return(1);
+			$anvil->nice_exit({exit_code => 1});
 		}
 	}
 	

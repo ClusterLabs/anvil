@@ -404,7 +404,7 @@ We're done waiting, exiting out.
 		<key name="error_0287">Failed to write the file: [#!variable!file!#] on the host: [#!variable!target!#].</key>
 		<key name="error_0288">Failed to add the server: [#!variable!server_name!#] to the cluster. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0289">The server: [#!variable!server!#] already exists on this Anvil!. Please use a different new name.</key>
-		<key name="error_0290">#!free!#</key>
+		<key name="error_0290">The host 'all' can't be used with '--force-off' or '--force-reboot'! Please specify the specific machine to force off.</key>
 		<key name="error_0291"><![CDATA[The host name: [#!variable!host_name!#] was not found in the database.]]></key>
 		<key name="error_0292">The attempt to boot the machine failed! The output, if anything, was: [#!variable!output!#].</key>
 		<key name="error_0293">The attempt to check the power status of the machine failed. The output, if anything, was: [#!variable!output!#].</key>
@@ -418,7 +418,7 @@ We're done waiting, exiting out.
 		<key name="error_0301">Failed to parse the install manifest with UUID: [#!variable!manifest_uuid!#]. Unable to check or update the fence configuration.</key>
 		<key name="error_0302">The passed in Anvil! UUID: [#!variable!anvil_uuid!#] was not found in the database.</key>
 		<key name="error_0303">The passed in host UUID: [#!variable!host_uuid!#] was not found in the database.</key>
-		<key name="error_0304">#!free!#</key>
+		<key name="error_0304">Failed to set the host node preferances for the server: [#!variable!server_name!#]. The return code from the pcs command was: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="error_0305">Unable to connect to the database, unable to manage a server at this time.</key>
 		<key name="error_0306">Unable to connect to the database, unable to provision a server at this time.</key>
 		<key name="error_0307">#!free!#</key>
@@ -1205,7 +1205,7 @@ resource "#!variable!server!#" {
 		<key name="job_0002">Created a job to delete the SSH key for the target machine: [#!variable!target!#] on the host: [#!variable!host_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0003">Converted all old-style jobs to the new style. The new jobs will run shortly. Exiting now.</key>
 		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!host!#] has been removed.</key>
-		<key name="job_0005">#!free!#</key>
+		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">#!free!#</key>
 		<key name="job_0008">#!free!#</key>
@@ -1551,12 +1551,12 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0329">The target machine is confirmed off, will try to start now.</key>
 		<key name="job_0330">The target machine is now booting!</key>
 		<key name="job_0331">The machine: [#!variable!host_name!#] does not have a (known) IPMI BMC, but it is a member of the Anvil! [#!variable!anvil_name!#]. Searching for a fence method to boot it...</key>
-		<key name="job_0332">#!free!#</key>
-		<key name="job_0333">#!free!#</key>
-		<key name="job_0334">#!free!#</key>
-		<key name="job_0335">#!free!#</key>
-		<key name="job_0336">#!free!#</key>
-		<key name="job_0337">#!free!#</key>
+		<key name="job_0332">The target machine is on, forcing it off now.</key>
+		<key name="job_0333">The target machine is off. Powering it back up now.</key>
+		<key name="job_0334">The target machine is on again.</key>
+		<key name="job_0335">The target machine is now off.</key>
+		<key name="job_0336">The target was already off, proceeding with booting it.</key>
+		<key name="job_0337">The target machine is already off, nothing to do.</key>
 		<key name="job_0338">#!free!#</key>
 		<key name="job_0339">#!free!#</key>
 		<key name="job_0340">#!free!#</key>
@@ -1860,7 +1860,7 @@ The database connection error was:
 		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
-		<key name="log_0077">#!free!#</key>
+		<key name="log_0077">The peer striker: [#!variable!host_name!#] (uuid: [#!variable!host_uuid!#]) is already configured. We connect to it via: [#!variable!target!#].</key>
 		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with UUID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!uuid!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
 		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
@@ -1876,7 +1876,11 @@ The database connection error was:
 		<key name="log_0090"><![CDATA[[ Error ] - Failed to 'do' the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0091">Failed to connect to any database.</key>
 		<key name="log_0092"><![CDATA[[ Error ] - Unable to connect to the database: [#!variable!server!#] (id: [#!variable!uuid!#]).]]></key>
-		<key name="log_0093">#!free!#</key>
+		<key name="log_0093">[ Note ] - There is a Striker dashboard: [#!variable!host!#] in our database that is not one we're configured to use.
+[ Note ] - We successfully connected to it, so We are going to add it to our anvil.conf file.
+[ Note ] - We will connect to it over: [#!variable!target!#].
+[ Note ] - Please be patient, this will resync the database, which could take a while to complete!
+</key>
 		<key name="log_0094">[ Error ] - Failed to start the Postgres server. Please check the system logs for details.</key>
 		<key name="log_0095">The database user: [#!variable!user!#] was created with UUID: [#!variable!id!#].</key>
 		<key name="log_0096">[ Error ] - Failed to add the database user: [#!variable!user!#]! Unable to proceed.</key>
@@ -1891,10 +1895,10 @@ The database connection error was:
 		</key>
 		<key name="log_0099">[ Warning ] - There is no #!string!brand_0002!# database user set for the local machine. Please check: [#!data!path::configs::anvil.conf!#]'s DB entry: [#!variable!uuid!#]. Using 'admin'.</key>
 		<key name="log_0100">Database user: [#!variable!user!#] password has been set/updated.</key>
-		<key name="log_0101">#!free!#</key>
-		<key name="log_0102">#!free!#</key>
+		<key name="log_0101">Exiting: [#!variable!file!#] with RC: [#!variable!rc!#]</key>
+		<key name="log_0102">This method is disabled until the host is marked as configured.</key>
 		<key name="log_0103">The local machine's UUID: [#!variable!host_uuid!#] was not read properly. It should be stored in: [#!data!path::data::host_uuid!#] and contain hexadecimal characters in the format: '012345-6789-abcd-ef01-23456789abcd' and usually matches the output of 'dmidecode --string system-uuid'. If this file exists and if there is a string in the file, please verify that it is structured correctly.</key>
-		<key name="log_0104">#!free!#</key>
+		<key name="log_0104">The hostname: [#!variable!host!#] resolved to an IP: [#!variable!ip!#] that appears to be a public IP. This could be a false DNS answer, which would break migration. Ignoring it.</key>
 		<key name="log_0105">#!string!brand_0002!# database: [#!variable!database!#] already exists.</key>
 		<key name="log_0106">The table: [#!variable!table!#] (and possibly others) in the database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is behind by: [#!variable!seconds!#] seconds. A database resync will be requested.</key>
 		<key name="log_0107">[ Warning ] - Failed to delete the temporary postgres password.</key>
@@ -1913,7 +1917,7 @@ The database connection error was:
 		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
 		<key name="log_0121">#!free!#</key>
 		<key name="log_0122">#!free!#</key>
-		<key name="log_0123">#!free!#</key>
+		<key name="log_0123">About to write the query: [#!variable!query!#].</key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
@@ -2719,10 +2723,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
 		<key name="message_0002">The connection to: [#!variable!connection!#] was refused. If you recently booted the target, the network might have started, the ssh daemon might not be running yet.</key>
 		<key name="message_0003">There is no route to: [#!variable!target!#]. Is the machine (or the interface) up?</key>
-		<key name="message_0004">#!free!#</key>
+		<key name="message_0004">The server: [#!variable!server!#] wasn't found on the Anvil! node: [#!variable!anvil_name!#] (#!variable!anvil_description!#).</key>
 		<key name="message_0005">There was an unknown error while connecting as: [#!variable!user!#] to: [#!variable!remote_user!#@#!variable!target!#]. The error was: [#!variable!error!#]</key>
 		<key name="message_0006">We were unable to log in to: [#!variable!connection!#]. Please check that the password is correct or that passwordless SSH is configured properly.</key>
-		<key name="message_0007">#!free!#</key>
+		<key name="message_0007">The server: [#!variable!server!#] wasn't found anywhere on the Anvil!</key>
 		<key name="message_0008">The remote shell call: [#!variable!shell_call!#] to: [#!variable!connection!#] failed with the error:
 ====
 #!variable!error!#
@@ -2799,7 +2803,7 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
 		<key name="message_0064">The #!string!brand_0006!# has restarted at: [#!variable!date_and_time!#] after powering back on.</key>
-		<key name="message_0065">#!free!#</key>
+		<key name="message_0065">Are you certain that you want to immediately force-off the machine: [#!variable!host!#]?</key>
 		<key name="message_0066">Starting the job to add or update an #!string!brand_0006!# database peer.</key>
 		<key name="message_0067">Starting the job to remove an #!string!brand_0006!# database peer.</key>
 		<key name="message_0068">Sanity checks passed.</key>
@@ -2819,19 +2823,19 @@ NOTE: Please be patient!
       'df -hs #!variable!directory!#' to verify the numbers are increasing.
 		</key>
 		<key name="message_0078">Output: [#!variable!line!#].</key>
-		<key name="message_0079">#!free!#</key>
-		<key name="message_0080">#!free!#</key>
-		<key name="message_0081">#!free!#</key>
-		<key name="message_0082">#!free!#</key>
-		<key name="message_0083">#!free!#</key>
-		<key name="message_0084">#!free!#</key>
-		<key name="message_0085">#!free!#</key>
-		<key name="message_0086">#!free!#</key>
-		<key name="message_0087">#!free!#</key>
-		<key name="message_0088">#!free!#</key>
-		<key name="message_0089">#!free!#</key>
-		<key name="message_0090">#!free!#</key>
-		<key name="message_0091">#!free!#</key>
+		<key name="message_0079">The sever: [#!variable!server!#] will boot without delay.</key>
+		<key name="message_0080">The server: [#!variable!server_name!#] will not boot automatically.</key>
+		<key name="message_0081">The server: [#!variable!server!#] will boot: [#!variable!delay!# seconds] after: [#!variable!boot_after!#].</key>
+		<key name="message_0082">The boot-after server: [#!variable!boot_after!#] wasn't found on the Anvil! node: [#!variable!anvil_name!#] (#!variable!anvil_description!#).</key>
+		<key name="message_0083">The boot-after server: [#!variable!boot_after!#] wasn't found anywhere on the Anvil!</key>
+		<key name="message_0084">The delay value: [#!variable!delay!#] isn't a whole number.</key>
+		<key name="message_0085">I was asked to set: [#!variable!server_name!#] to not auto boot, but it was already configured not to auto boot. Nothing to do.</key>
+		<key name="message_0086">Updating: [#!variable!server!#] to not automatically boot.</key>
+		<key name="message_0087">I was asked to set: [#!variable!server!#] to not wait on any other servers, which is already the case. Nothing to do.</key>
+		<key name="message_0088">Updating: [#!variable!server!#] to not wait for any other servers.</key>
+		<key name="message_0089">Updating the server: [#!variable!server!#] to change the boot delay from: [#!variable!start_delay!# seconds] to: [#!variable!start_delay!# seconds] after: [#!variable!boot_after#!variable!] boots.</key>
+		<key name="message_0090">I was asked to set: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots, which is already the case. Nothing to do.</key>
+		<key name="message_0091">Updating: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots.</key>
 		<key name="message_0092">#!free!#</key>
 		<key name="message_0093">#!free!#</key>
 		<key name="message_0094">#!free!#</key>
@@ -3454,7 +3458,7 @@ proceeding.
 		<key name="prefix_0006">#!free!#</key>
 		
 		<!-- General strings shown in Striker -->
-		<key name="striker_0001">#!free!#</key>
+		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
 		<key name="striker_0002">#!free!#</key>
 		<key name="striker_0003">#!free!#</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
@@ -3941,10 +3945,14 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 #!variable!difference!#
 ====
 </key>
-		<key name="warning_0003">#!free!#</key>
-		<key name="warning_0004">#!free!#</key>
-		<key name="warning_0005">#!free!#</key>
-		<key name="warning_0006">#!free!#</key>
+		<key name="warning_0003">[ Warning ] - There are multiple entries in the authorized_keys file: [#!variable!file!#]. The duplicate key is:
+====
+#!variable!algo!# #!variable!key!#
+====
+The duplicate will be removed.</key>
+		<key name="warning_0004">Unable to stop servers, failed to parse the CIB. Will try again shortly.</key>
+		<key name="warning_0005">The server: [#!variable!server_name!#] can't stop yet. It's waiting for: [#!variable!wait_for_server_name!#] to turn "off", but it's status is: [#!variable!wait_for_server_status!# (#!variable!wait_for_server_role!#)].</key>
+		<key name="warning_0006">Not all servers asked to stop, will check again shortly.</key>
 		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="warning_0008">#!free!#</key>
 		<key name="warning_0009">#!free!#</key>
