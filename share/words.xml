@@ -1907,7 +1907,7 @@ The database connection error was:
 		<key name="log_0110">#!string!brand_0002!# database: [#!variable!database!#] created.</key>
 		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
 		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
-		<key name="log_0113">#!free!#</key>
+		<key name="log_0113">We're being asked to expand the boot disk for the server: [#!variable!server_name!# (#!variable!server_uuid!#)]. The server is: [#!variable!server_state!#], not "shut off", which it must be. Please shut off the server for the grow to proceed. We will loop and wait for it to shut down.</key>
 		<key name="log_0114">#!free!#</key>
 		<key name="log_0115">#!variable!program!# has started.</key>
 		<key name="log_0116"><![CDATA[The method: [#!variable!method!#] was passed the parameter: [#!variable!parameter!#] with the value: [#!variable!value!#], which is invalid.]]></key>
