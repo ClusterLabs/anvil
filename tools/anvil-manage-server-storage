@@ -405,12 +405,11 @@ sub manage_disk
 					# Wait until it is off.
 					$anvil->Job->update_progress({
 						progress  => 15,
-						message   => "log_0749", 
+						message   => "log_0113", 
 						log_level => 1, 
 						'print'   => 1, 
 						variables => {
 							server_name  => $server_name, 
-							server_uuid  => $server_uuid, 
 							server_state => $server_state, 
 						}, 
 					});
@@ -435,7 +434,7 @@ sub manage_disk
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_off => $is_off }});
 							$anvil->Job->update_progress({
 								progress  => 18,
-								message   => "log_0749", 
+								message   => "log_0114", 
 								log_level => 1, 
 								'print'   => 1, 
 								variables => {
@@ -457,6 +456,7 @@ sub manage_disk
 									log_level => 1, 
 									'print'   => 1, 
 									variables => {
+										timestamp    => $anvil->Get->date_and_time({time_only => 1}),
 										server_name  => $server_name, 
 										server_state => $server_state, 
 									}, 
@@ -466,6 +466,7 @@ sub manage_disk
 							{
 								# Just log it so we don't flood the DB
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0121", variables => { 
+									timestamp    => $anvil->Get->date_and_time({time_only => 1}),
 									server_name  => $server_name, 
 									server_state => $server_state, 
 								}});
@@ -473,7 +474,6 @@ sub manage_disk
 						}
 					}
 				}
-				die;
 			}
 			manage_disk_grow($anvil, $drbd_resource, $drbd_volume, $max_free_space);
 		}
