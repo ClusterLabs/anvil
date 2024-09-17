@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server storage manager
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server-storage "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server-storage "8" "September 17 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-server-storage \- Tool used to manage the storage of a hosted server.
 .SH SYNOPSIS
@@ -52,6 +52,9 @@ This is used to grow an existing disk by the specified amount. The drive to grow
 The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size. Human readable sizes must NOT have a space between the number and letter suffix. 
 .TP
 Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' = '1,000,000,000 bytes'. A single letter used to denote size will be interpreted as base2. ie: '1G' is the same as '1GiB'.
+.TP
+.B Note
+Growing the first disk (volume 0) requires the server be off. If the server is running, the job to grow the storage will hold until the server is powered off. 
 .TP
 \fB\-\-insert\fR </path/to/file.iso>
 This inserts the optical disc (ISO) into the drive specified by \fB\-\-optical\fR.

@@ -389,6 +389,92 @@ sub manage_disk
 		# What are we doing?
 		if ($anvil->data->{switches}{grow})
 		{
+			# If the volume is '0', it's the boot disk. The server needs to be off.
+			if ($drbd_volume eq "0")
+			{
+				# Make sure the server is off.
+				my $server_uuid  = $anvil->data->{switches}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:server_uuid'  => $server_uuid,
+					's2:server_state' => $server_state, 
+				}});
+				
+				if ($server_state ne "shut off")
+				{
+					# Wait until it is off.
+					$anvil->Job->update_progress({
+						progress  => 15,
+						message   => "log_0749", 
+						log_level => 1, 
+						'print'   => 1, 
+						variables => {
+							server_name  => $server_name, 
+							server_uuid  => $server_uuid, 
+							server_state => $server_state, 
+						}, 
+					});
+					my $is_off        = 0;
+					my $update_period = 120;
+					my $next_update   = time + $update_period;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:update_period' => $update_period,
+						's2:next_update'   => $next_update, 
+					}});
+					until ($is_off)
+					{
+						sleep 5;
+						$anvil->Database->get_servers({debug => 3});
+						my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_state => $server_state }});
+						
+						if ($server_state eq "shut off")
+						{
+							# We're done, we can proceed.
+							$is_off = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_off => $is_off }});
+							$anvil->Job->update_progress({
+								progress  => 18,
+								message   => "log_0749", 
+								log_level => 1, 
+								'print'   => 1, 
+								variables => {
+									server_name  => $server_name, 
+								}, 
+							});
+						}
+						else
+						{
+							# Not off yet.
+							if (time > $next_update)
+							{
+								# Update the job.
+								$next_update = time + $update_period;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_update => $next_update }});
+								$anvil->Job->update_progress({
+									progress  => 16,
+									message   => "log_0121", 
+									log_level => 1, 
+									'print'   => 1, 
+									variables => {
+										server_name  => $server_name, 
+										server_state => $server_state, 
+									}, 
+								});
+							}
+							else
+							{
+								# Just log it so we don't flood the DB
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0121", variables => { 
+									server_name  => $server_name, 
+									server_state => $server_state, 
+								}});
+							}
+						}
+					}
+				}
+				die;
+			}
 			manage_disk_grow($anvil, $drbd_resource, $drbd_volume, $max_free_space);
 		}
 	}
@@ -746,7 +832,6 @@ sub manage_disk_add
 				$anvil->Job->update_progress({
 					progress  => ++$progress,
 					message   => "error_0428", 
-				 	variables => $variables, 
 					log_level => 1, 
 					'print'   => 1, 
 					priority  => "err",
@@ -814,7 +899,6 @@ sub manage_disk_add
 				$anvil->Job->update_progress({
 					progress  => ($progress += 2),
 					message   => "log_0748", 
-					variables => $variables, 
 					log_level => 1, 
 					'print'   => 1, 
 					variables => {
@@ -831,7 +915,6 @@ sub manage_disk_add
 					$anvil->Job->update_progress({
 						progress  => 100,
 						message   => "error_0460", 
-						variables => $variables, 
 						log_level => 1, 
 						'print'   => 1, 
 						priority  => "err",
@@ -1887,7 +1970,6 @@ sub manage_disk_add
 			$anvil->Job->update_progress({
 				progress  => ($progress += 2),
 				message   => "log_0779", 
-				variables => $variables, 
 				log_level => 1, 
 				'print'   => 1, 
 				variables => {
@@ -2255,7 +2337,6 @@ sub manage_disk_grow
 		$anvil->Job->update_progress({
 			progress  => 99,
 			message   => "error_0439", 
-			variables => $variables, 
 			log_level => 1, 
 			'print'   => 1, 
 			priority  => "err",
@@ -2300,7 +2381,6 @@ sub manage_disk_grow
 			$anvil->Job->update_progress({
 				progress  => ++$progress,
 				message   => "error_0428", 
-				variables => $variables, 
 				log_level => 1, 
 				'print'   => 1, 
 				priority  => "err",
@@ -2382,7 +2462,6 @@ sub manage_disk_grow
 				$anvil->Job->update_progress({
 					progress  => ++$progress,
 					message   => "error_0428", 
-					variables => $variables, 
 					log_level => 1, 
 					'print'   => 1, 
 					priority  => "err",
@@ -2437,7 +2516,6 @@ sub manage_disk_grow
 					$anvil->Job->update_progress({
 						progress  => 100,
 						message   => "error_0442", 
-						variables => $variables, 
 						log_level => 1, 
 						'print'   => 1, 
 						priority  => "err",
@@ -2491,7 +2569,6 @@ sub manage_disk_grow
 					$anvil->Job->update_progress({
 						progress  => 100,
 						message   => "error_0443", 
-						variables => $variables, 
 						log_level => 1, 
 						'print'   => 1, 
 						priority  => "err",
@@ -2539,7 +2616,6 @@ sub manage_disk_grow
 		$anvil->Job->update_progress({
 			progress  => 100,
 			message   => "error_0444", 
-			variables => $variables, 
 			log_level => 1, 
 			'print'   => 1, 
 			priority  => "err",
@@ -2626,7 +2702,6 @@ sub manage_disk_grow
 					$anvil->Job->update_progress({
 						progress  => ($progress += 2),
 						message   => "log_0796", 
-						variables => $variables, 
 						log_level => 1, 
 						'print'   => 1, 
 						variables => {
@@ -2915,7 +2990,6 @@ sub manage_optical
 		$anvil->Job->update_progress({
 			progress  => 50,
 			message   => "log_0800", 
-			variables => $variables, 
 			log_level => 1, 
 			'print'   => 1, 
 			variables => {
@@ -3742,7 +3816,6 @@ sub update_definition
 		$anvil->Job->update_progress({
 			progress  => 100,
 			message   => "error_0455", 
-			variables => $variables, 
 			log_level => 1, 
 			'print'   => 1, 
 			priority  => "err",
