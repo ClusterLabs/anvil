@@ -29,6 +29,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
+	"confirm",
 	"immediate",
 	"no-db", 
 	"no-wait", 

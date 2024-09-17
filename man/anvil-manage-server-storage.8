@@ -43,9 +43,6 @@ When not specified, if only one disk exists, it will be chosen automatically.
 \fB\-\-eject\fR
 This ejects the optical disc (ISO) in the drive specified by \fB\-\-optical\fR.
 .TP
-\fB\-\-job\-uuid\fR
-This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
-.TP
 \fB\-\-grow\fR <size or percent>
 This is used to grow an existing disk by the specified amount. The drive to grow is specified using \fB\-\-disk\fR.
 .TP
@@ -58,6 +55,12 @@ Growing the first disk (volume 0) requires the server be off. If the server is r
 .TP
 \fB\-\-insert\fR </path/to/file.iso>
 This inserts the optical disc (ISO) into the drive specified by \fB\-\-optical\fR.
+.TP
+\fB\-\-job\-uuid\fR
+This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
+.TP
+\fB\-\-machine\fR
+This tells the program to show information in a machine-parsable format.
 .TP
 \fB\-\-optical\fR <device>
 This is the device, ie: 'sda', to insert the optical disc (ISO file) into or to eject a disc from.

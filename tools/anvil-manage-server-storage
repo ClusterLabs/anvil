@@ -51,6 +51,7 @@ $anvil->Get->switches({list => [
 	"job-uuid", 
 	"grow", 
 	"insert", 
+	"machine",
 	"optical", 
 	"server", 
 	"storage-group", 
@@ -94,13 +95,16 @@ if (not $anvil->data->{switches}{server})
 {
 	# Show the list of servers.
 	show_server_list($anvil);
-	$anvil->Job->update_progress({
-		progress => 100,
-		message  => "error_0456", 
-		log_level => 1, 
-		'print'   => 1, 
-		priority  => "err",
-	});
+	if (not $anvil->data->{switches}{machine})
+	{
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0456", 
+			log_level => 1, 
+			'print'   => 1, 
+			priority  => "err",
+		});
+	}
 	$anvil->nice_exit({exit_code => 0});
 }
 
@@ -123,7 +127,7 @@ $anvil->Job->update_progress({
 	progress => 100,
 	message  => "job_0281", 
 	log_level => 1, 
-	'print'   => 1, 
+	'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 });
 $anvil->nice_exit({exit_code => 0});
 
@@ -3130,12 +3134,18 @@ sub show_server_details
 		if ($device eq "disk")
 		{
 			# Disk drives
-			print "\n".$anvil->Words->string({key => "message_0334"})."\n";
+			if (not $anvil->data->{switches}{machine})
+			{
+				print "\n".$anvil->Words->string({key => "message_0334"})."\n";
+			}
 		}
 		else
 		{
 			# Optical drives
-			print "\n".$anvil->Words->string({key => "message_0335"})."\n";
+			if (not $anvil->data->{switches}{machine})
+			{
+				print "\n".$anvil->Words->string({key => "message_0335"})."\n";
+			}
 		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { device => $device }});
 		next if $device ne "cdrom" &&  $device ne "disk";
@@ -3195,19 +3205,25 @@ sub show_server_details
 					's14:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 				}});
 				
-				print $anvil->Words->string({key => "message_0336", variables => {
-					device_target => $device_target, 
-					say_boot      => $say_boot, 
-					drbd_resource => $drbd_resource, 
-					drbd_volume   => $drbd_volume, 
-				}})."\n";
-				print $anvil->Words->string({key => "message_0337", variables => {
-					resource_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size}), 
-					lv_size        => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}),
-					metadata_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size}), 
-					max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
-				}})."\n";
-				#print " |- Resource / LV / Metadata sizes: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size})." / ".$anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size})."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space})."], cache: [".$driver_cache."], IO Policy: [".$driver_io."]\n";
+				if ($anvil->data->{switches}{machine})
+				{
+					$anvil->data->{xml}{body} .= "\t<disk target=\"".$device_target." boot-order=\"".$say_boot."\" drbd-resource=\"".$drbd_resource."\" drbd-volume=\"".$drbd_volume."\" resource-size=\"".$resource_size."B\" lv-size=\"".$lv_size."B\"metadata-size=\"".$metadata_size."B\" />\n";
+				}
+				else
+				{
+					print $anvil->Words->string({key => "message_0336", variables => {
+						device_target => $device_target, 
+						say_boot      => $say_boot, 
+						drbd_resource => $drbd_resource, 
+						drbd_volume   => $drbd_volume, 
+					}})."\n";
+					print $anvil->Words->string({key => "message_0337", variables => {
+						resource_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $resource_size}), 
+						lv_size        => $anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}),
+						metadata_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $metadata_size}), 
+						max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
+					}})."\n";
+				}
 			}
 			else
 			{
@@ -3225,28 +3241,49 @@ sub show_server_details
 					's3:address_target'     => $address_target, 
 					's4:device_path'        => $device_path, 
 				}});
-				print $anvil->Words->string({key => "message_0338", variables => {
-					device_target => $device_target, 
-					say_boot      => $say_boot, 
-					device_path   => $device_path, 
-				}})."\n";
+				if ($anvil->data->{switches}{machine})
+				{
+					$anvil->data->{xml}{body} .= "\t<optical target=\"".$device_target." boot-order=\"".$say_boot."\" iso=\"".$device_path."\"/>\n";
+				}
+				else
+				{
+					print $anvil->Words->string({key => "message_0338", variables => {
+						device_target => $device_target, 
+						say_boot      => $say_boot, 
+						device_path   => $device_path, 
+					}})."\n";
+				}
 			}
 		}
 	}
-	print "\n";
+	if (not $anvil->data->{switches}{machine})
+	{
+		print "\n";
+	}
 	
 	if ($show_nodes)
 	{
-		print $anvil->Words->string({key => "message_0339"})."\n";
+		if (not $anvil->data->{switches}{machine})
+		{
+			print $anvil->Words->string({key => "message_0339"})."\n";
+		}
 		show_volume($anvil, $drbd_resource, "node");
 		
 		my $dr_count = keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{dr}{short_host_name}};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_count => $dr_count }});
 		if ($dr_count)
 		{
-			print $anvil->Words->string({key => "message_0340"})."\n";
+			if (not $anvil->data->{switches}{machine})
+			{
+				print $anvil->Words->string({key => "message_0340"})."\n";
+			}
 			show_volume($anvil, $drbd_resource, "dr");
 		}
+	}
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} .= "</server>\n";
+		print $anvil->data->{xml}{body};
 	}
 	
 	return(0);
@@ -3443,10 +3480,18 @@ sub show_volume
 			's1:short_host_name' => $short_host_name,
 			's2:host_uuid'       => $host_uuid, 
 		}});
-		print $anvil->Words->string({key => "message_0341", variables => {
-			host_name => $short_host_name, 
-			host_uuid => $host_uuid, 
-		}})."\n";
+		if ($anvil->data->{switches}{machine})
+		{
+			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			$anvil->data->{xml}{body} .= "\t<host name=\"".$short_host_name." type=\"".$host_type."\" uuid=\"".$host_uuid."\"/>\n";
+		}
+		else
+		{
+			print $anvil->Words->string({key => "message_0341", variables => {
+				host_name => $short_host_name, 
+				host_uuid => $host_uuid, 
+			}})."\n";
+		}
 		foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 		{
 			my $device_path        = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
@@ -3477,16 +3522,23 @@ sub show_volume
 				's1:storage_group_size'       => $storage_group_size,
 				's2:storage_group_free_space' => $storage_group_free_space, 
 			}});
-			print $anvil->Words->string({key => "message_0342", variables => {
-				volume_number            => $volume_number, 
-				backing_disk             => $backing_disk, 
-				device_minor             => $device_minor, 
-				volume_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}), 
-				storage_group_name       => $storage_group_name, 
-				storage_group_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_size}), 
-				storage_group_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_free_space}), 
-				
-			}})."\n";
+			if ($anvil->data->{switches}{machine})
+			{
+				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$volume_number." backing-lv=\"".$backing_disk."\" lv-size=\"".$volume_size."B\" sg-name=\"".$storage_group_name."\" sg-uuid=\"".$storage_group_uuid."\"/>\n";
+			}
+			else
+			{
+				print $anvil->Words->string({key => "message_0342", variables => {
+					volume_number            => $volume_number, 
+					backing_disk             => $backing_disk, 
+					device_minor             => $device_minor, 
+					volume_size              => $anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}), 
+					storage_group_name       => $storage_group_name, 
+					storage_group_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_size}), 
+					storage_group_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $storage_group_free_space}), 
+					
+				}})."\n";
+			}
 			
 			# How much space is available in the storage group this volume is in?
 			foreach my $this_scan_lvm_lv_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{lv}})
@@ -3524,6 +3576,10 @@ sub show_volume
 					}
 				}
 			}
+		}
+		if ($anvil->data->{switches}{machine})
+		{
+			$anvil->data->{xml}{body} .= "\t</host>\n";
 		}
 	}
 	
@@ -3572,11 +3628,16 @@ sub validate_server
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->data->{switches}{server_name}."\" uuid=\"".$anvil->data->{switches}{server_uuid}."\">\n";
+	}
 	$anvil->Job->update_progress({
 		progress  => 2,
 		message   => "log_0802", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			server_name => $anvil->data->{switches}{server_name}, 
 			server_uuid => $anvil->data->{switches}{server_uuid}, 
@@ -3885,6 +3946,11 @@ sub show_server_list
 	my ($anvil) = @_;
 	
 	# Loop through all Anvil! nodes, then all server in that Anvil!
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+		$anvil->data->{xml}{body} .= "<anvil>\n";
+	}
 	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
 	{
 		my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
@@ -3898,11 +3964,19 @@ sub show_server_list
 		{
 			next;
 		}
-		print "\n".$anvil->Words->string({key => "message_0343", variables => {
-			anvil_name        => $anvil_name, 
-			anvil_uuid        => $anvil_uuid, 
-			anvil_description => $anvil_description, 
-		}})."\n";
+		if ($anvil->data->{switches}{machine})
+		{
+			$anvil_description =~ s/"/\"/g;
+			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" description=\"".$anvil_description."\">\n";
+		}
+		else
+		{
+			print "\n".$anvil->Words->string({key => "message_0343", variables => {
+				anvil_name        => $anvil_name, 
+				anvil_uuid        => $anvil_uuid, 
+				anvil_description => $anvil_description, 
+			}})."\n";
+		}
 		
 		my $server_count = 0;
 		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name})
@@ -3912,10 +3986,23 @@ sub show_server_list
 		}
 		if (not $server_count)
 		{
-			print $anvil->Words->string({key => "message_0344"})."\n";
+			if ($anvil->data->{switches}{machine})
+			{
+				$anvil->data->{xml}{body} .= "\t\t<server_count=\"0\" />\n";
+				print "server_count=\"0\"\n";
+			}
+			else
+			{
+				print $anvil->Words->string({key => "message_0344"})."\n";
+			}
 		}
 		else
 		{
+			if ($anvil->data->{switches}{machine})
+			{
+				my $server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
+				$anvil->data->{xml}{body} .= "\t\t<server_count=\"".$server_count."\" />\n";
+			}
 			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 			{
 				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
@@ -3926,12 +4013,28 @@ sub show_server_list
 					server_state => $server_state,
 				}});
 				next if $server_state eq "DELETED";
-				print $anvil->Words->string({key => "message_0345", variables => {
-					server_name => $server_name, 
-					server_uuid => $server_uuid, 
-				}})."\n";
+				if ($anvil->data->{switches}{machine})
+				{
+					$anvil->data->{xml}{body} .= "\t\t<server name=\"".$server_name."\" uuid=\"".$server_uuid."\" />\n";
+				}
+				else
+				{
+					print $anvil->Words->string({key => "message_0345", variables => {
+						server_name => $server_name, 
+						server_uuid => $server_uuid, 
+					}})."\n";
+				}
 			}
 		}
+		if ($anvil->data->{switches}{machine})
+		{
+			$anvil->data->{xml}{body} .= "\t<\/node>\n";
+		}
+	}
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} .= "<\/anvil>\n";
+		print $anvil->data->{xml}{body};
 	}
 	
 	return(0);

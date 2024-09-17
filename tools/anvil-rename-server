@@ -30,6 +30,7 @@ my $anvil = Anvil::Tools->new();
 
 # Get switches
 $anvil->Get->switches({list => [
+	"confirm",
 	"job-uuid",
 	"new-name",
 	"server", 
