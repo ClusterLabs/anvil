@@ -406,6 +406,47 @@ sub update_nodes
 			}
 		}
 		
+		# Update anvil-node on both machines before we do the main OS update. This is needed because,
+		# depending on what has changed, migations could fail if the changes in version (ie: db calls to added/removed columns) breaks live migration.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0103", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
+		foreach my $host_uuid ($secondary_host_uuid, $primary_host_uuid)
+		{
+			# Update anvil-node (which will update anvil-core also)
+			my $short_host_name      = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			my $peer_host_uuid       = $host_uuid eq $primary_host_uuid ? $secondary_host_uuid : $primary_host_uuid;
+			my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host_uuid'            => $host_uuid, 
+				's2:short_host_name'      => $short_host_name, 
+				's3:peer_host_uuid'       => $peer_host_uuid, 
+				's4:peer_short_host_name' => $peer_short_host_name,
+			}});
+			
+			# Preparing to update the target host
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0104", variables => {
+				timestamp => $anvil->Get->date_and_time({time_only => 1}),
+				host_name => $short_host_name, 
+			}});
+			
+			my $shell_call = $anvil->data->{path}{exe}{dnf}." clean expire-cache && ".$anvil->data->{path}{exe}{dnf}." -y update anvil-node";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				debug      => 2,
+				shell_call => $shell_call, 
+				target     => $anvil->data->{peer}{$short_host_name}{access}{ip},
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				error       => $error,
+				return_code => $return_code,
+			}});
+		}
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0105", variables => {
+			timestamp => $anvil->Get->date_and_time({time_only => 1}),
+		}});
+		
 		# Update the secondary first, as it should have no VMs on it.
 		foreach my $host_uuid ($secondary_host_uuid, $primary_host_uuid)
 		{
@@ -418,11 +459,6 @@ sub update_nodes
 				's2:short_host_name'      => $short_host_name, 
 				's3:peer_host_uuid'       => $peer_host_uuid, 
 				's4:peer_short_host_name' => $peer_short_host_name,
-			}});
-			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:host_uuid'       => $host_uuid,
-				's2:short_host_name' => $short_host_name, 
 			}});
 			
 			# Preparing to update the target host
@@ -1494,6 +1530,18 @@ sub update_strikers_and_dr
 			}
 		}
 	}
+	
+	# Run anvil-version-change to make sure any DB schema updates are sorted out
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0470", variables => {
+		timestamp => $anvil->Get->date_and_time({time_only => 1}),
+	}});
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-version-changes'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }

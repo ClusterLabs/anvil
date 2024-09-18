@@ -2850,10 +2850,10 @@ NOTE: Please be patient!
 		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
 		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
 		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
-		<key name="message_0103">#!free!#</key>
-		<key name="message_0104">#!free!#</key>
-		<key name="message_0105">#!free!#</key>
-		<key name="message_0106">#!free!#</key>
+		<key name="message_0103">#!variable!timestamp!#; To ensure server migration capability, Anvil! RPMs will now be updated on both subnodes prior to the main OS update.</key>
+		<key name="message_0104">#!variable!timestamp!#; Updating Anvil! RPMs on: [#!variable!host_name!#].</key>
+		<key name="message_0105">#!variable!timestamp!#; The node's Anvil! RPMs are updated, now proceeding with main OS update.</key>
+		<key name="message_0106">Expired 'dnf' cache.</key>
 		<key name="message_0107">#!free!#</key>
 		<key name="message_0108">#!free!#</key>
 		<key name="message_0109">#!free!#</key>
