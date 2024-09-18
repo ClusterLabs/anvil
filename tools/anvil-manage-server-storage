@@ -507,8 +507,8 @@ sub manage_disk_add
 	}});
 	
 	# Are they asking for an available amount of space?
-	my $say_up     = $anvil->Words->string({key => 'message_0331'});
-	my $say_down   = $anvil->Words->string({key => 'message_0332'});
+	my $say_up   = $anvil->Words->string({key => 'message_0331'});
+	my $say_down = $anvil->Words->string({key => 'message_0332'});
 	
 	# Do we have a storage group?
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1844,11 +1844,41 @@ sub manage_disk_add
 			log_level => 1, 
 			'print'   => 1, 
 		});
-		($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			output      => $output,
 			return_code => $return_code,
 		}});
+		
+		# Read the new virsh definition
+		$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		(my $virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			virsh_definition => $virsh_definition,
+			return_code      => $return_code,
+		}});
+		
+		# Make sure the definition we read is sane.
+		my $problem = $anvil->Server->parse_definition({
+			server     => $server_name,
+			source     => "from_virsh", 
+			definition => $virsh_definition, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Failed?!
+			$anvil->Job->update_progress({
+				progress => 100,
+				message  => "error_0434", 
+				log_level => 1, 
+				'print'   => 1, 
+				priority  => "err",
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
 		
 		# Updating the stored definition and undefining the server now...
 		$anvil->Job->update_progress({
@@ -1857,7 +1887,7 @@ sub manage_disk_add
 			log_level => 1, 
 			'print'   => 1, 
 		});
-		update_definition($anvil, "undefine", "");
+		update_definition($anvil, "undefine", $virsh_definition);
 		
 		# Done!
 		$anvil->Job->update_progress({
@@ -3787,7 +3817,7 @@ sub update_definition
 		$use_definition = $definition;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
 	}
-	else
+	elsif ($virsh_definition)
 	{
 		$use_definition = $virsh_definition;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_definition => $use_definition }});
@@ -3838,7 +3868,7 @@ sub update_definition
 						host       => $short_host_name,
 						server     => $server_name, 
 						source     => "from_virsh",
-						definition => $virsh_definition, 
+						definition => $use_definition, 
 					});
 				}
 			}
@@ -3852,7 +3882,7 @@ sub update_definition
 					host       => $short_host_name,
 					server     => $server_name, 
 					source     => "from_virsh",
-					definition => $virsh_definition, 
+					definition => $use_definition, 
 				});
 			}
 		}
@@ -3866,7 +3896,7 @@ sub update_definition
 				host       => $short_host_name,
 				server     => $server_name, 
 				source     => "from_disk",
-				definition => $virsh_definition, 
+				definition => $use_definition, 
 			});
 		}
 	}

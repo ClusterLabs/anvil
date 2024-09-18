@@ -630,7 +630,7 @@ The error was:
 [ Error ] - The peers did not connect in the expected period of time.</key>
 		<key name="error_0433">#!free!#</key>
 		<key name="error_0434">
-[ Error ] - The definition file read hear appears to be invalid after trying to attach the disk! It is unsafe
+[ Error ] - The definition file read here appears to be invalid after trying to attach the disk! It is unsafe
 [ Error ] - to update the on disk and in DB definition. It's likely the attach has failed.
 [ Error ] - Manual update to the server is likely required now.
 </key>
