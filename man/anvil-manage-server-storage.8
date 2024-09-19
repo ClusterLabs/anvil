@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server storage manager
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server-storage "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server-storage "8" "September 17 2024" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-server-storage \- Tool used to manage the storage of a hosted server.
 .SH SYNOPSIS
@@ -43,9 +43,6 @@ When not specified, if only one disk exists, it will be chosen automatically.
 \fB\-\-eject\fR
 This ejects the optical disc (ISO) in the drive specified by \fB\-\-optical\fR.
 .TP
-\fB\-\-job\-uuid\fR
-This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
-.TP
 \fB\-\-grow\fR <size or percent>
 This is used to grow an existing disk by the specified amount. The drive to grow is specified using \fB\-\-disk\fR.
 .TP
@@ -53,8 +50,17 @@ The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-r
 .TP
 Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' = '1,000,000,000 bytes'. A single letter used to denote size will be interpreted as base2. ie: '1G' is the same as '1GiB'.
 .TP
+.B Note
+Growing the first disk (volume 0) requires the server be off. If the server is running, the job to grow the storage will hold until the server is powered off. 
+.TP
 \fB\-\-insert\fR </path/to/file.iso>
 This inserts the optical disc (ISO) into the drive specified by \fB\-\-optical\fR.
+.TP
+\fB\-\-job\-uuid\fR
+This is the jobs -> job_uuid to execute. Generally this is only used by other programs.
+.TP
+\fB\-\-machine\fR
+This tells the program to show information in a machine-parsable format.
 .TP
 \fB\-\-optical\fR <device>
 This is the device, ie: 'sda', to insert the optical disc (ISO file) into or to eject a disc from.

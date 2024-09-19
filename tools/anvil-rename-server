@@ -30,6 +30,7 @@ my $anvil = Anvil::Tools->new();
 
 # Get switches
 $anvil->Get->switches({list => [
+	"confirm",
 	"job-uuid",
 	"new-name",
 	"server", 
@@ -187,6 +188,23 @@ if ($anvil->data->{sys}{host_type} ne "node")
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0264"});
 	$anvil->Job->update_progress({progress => 100, message => "error_0264"});
 	$anvil->nice_exit({exit_code => 1});
+}
+
+# If we don't have a job_uuid and the user didn't pass 'confirm', ask to proceed.
+if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{'confirm'}))
+{
+	print $anvil->Words->string({key => "message_0094", variables => { 
+		server_name => $anvil->data->{switches}{'server'},
+		new_name    => $new_server_name, 
+	}})." ";
+	my $answer = <STDIN>;
+	chomp($answer);
+	if (($answer ne "y") && ($answer ne "Y"))
+	{
+		# Abort and exit.
+		print $anvil->Words->string({key => "message_0061"})."\n";
+		$anvil->nice_exit({exit_code => 0});
+	}
 }
 
 # This is copied from anvil-boot-server, but it works here as well. We can't use 'pcs' without pacemaker 

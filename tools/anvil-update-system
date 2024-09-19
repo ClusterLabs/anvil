@@ -356,6 +356,18 @@ WHERE
 		}});
 		update_progress($anvil, 5, "message_0316");
 	}
+	else
+	{
+		# Expire the cache.
+		my $shell_call  = $anvil->data->{path}{exe}{dnf}." clean expire-cache";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code, 
+		}});
+		update_progress($anvil, 5, "message_0106");
+	}
 	
 	# Before we start, do we need to remove our locally build DRBD kernel modules?
 	my $package_changes  = 0;

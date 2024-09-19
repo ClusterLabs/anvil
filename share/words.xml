@@ -630,7 +630,7 @@ The error was:
 [ Error ] - The peers did not connect in the expected period of time.</key>
 		<key name="error_0433">#!free!#</key>
 		<key name="error_0434">
-[ Error ] - The definition file read hear appears to be invalid after trying to attach the disk! It is unsafe
+[ Error ] - The definition file read here appears to be invalid after trying to attach the disk! It is unsafe
 [ Error ] - to update the on disk and in DB definition. It's likely the attach has failed.
 [ Error ] - Manual update to the server is likely required now.
 </key>
@@ -1907,15 +1907,18 @@ The database connection error was:
 		<key name="log_0110">#!string!brand_0002!# database: [#!variable!database!#] created.</key>
 		<key name="log_0111">[ Warning ] - Failed to reload the Postgres server. Please check the system logs for details. The updated configuration is probably not active yet.</key>
 		<key name="log_0112">Reloaded the PostgreSQL database server.</key>
-		<key name="log_0113">#!free!#</key>
-		<key name="log_0114">#!free!#</key>
+		<key name="log_0113">[ Note ] - We're being asked to expand the boot disk for the server: [#!variable!server_name!#]. 
+[ Note ] - The server is: [#!variable!server_state!#], not "shut off", which it must be. 
+[ Note ] - Please shut off the server for the grow to proceed. We will loop and wait for it to shut down.</key>
+		<key name="log_0114">The server: [#!variable!server_name!#] is now off, proceeding with growing the boot disk.</key>
 		<key name="log_0115">#!variable!program!# has started.</key>
 		<key name="log_0116"><![CDATA[The method: [#!variable!method!#] was passed the parameter: [#!variable!parameter!#] with the value: [#!variable!value!#], which is invalid.]]></key>
 		<key name="log_0117"><![CDATA[The method 'Convert->human_readable_to_bytes()' was passed the byte size: [#!variable!size!#] in the string: [sign: #!variable!sign!#, size: #!variable!size!#, type: #!variable!type!#] contains an illegal value. Sizes can only be integers or real numbers. It may also have commas in it which will be removed automatically.]]></key>
 		<key name="log_0118"><![CDATA[The method 'Convert->human_readable_to_bytes()' was passed the byte size: [#!variable!size!#] in the string: [sign: #!variable!sign!#, size: #!variable!size!#, type: #!variable!type!#] appears to be a byte size already but the size does not seem to be an integer. Byte sizes can only be signed integers. It may also have commas in it which will be removed automatically.]]></key>
 		<key name="log_0119"><![CDATA[The method 'Convert->human_readable_to_bytes()' method was called with the value: [#!variable!value!#] which we split into the size: [#!variable!size!#] and type: [#!variable!type!#]. The type appears to be invalid.]]></key>
 		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
-		<key name="log_0121">#!free!#</key>
+		<key name="log_0121">[#!variable!timestamp!#] - The server: [#!variable!server_name!#] state is: [#!variable!server_state!#], not "shut off". 
+[ Note ] - Continuing to wait for it to shut off before proceeding with growing storage.</key>
 		<key name="log_0122">#!free!#</key>
 		<key name="log_0123">About to write the query: [#!variable!query!#].</key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
@@ -2797,8 +2800,8 @@ The '-y' option prevents a confirmation prompt.
 		<key name="message_0057">No updates were found or needed.</key>
 		<!-- NOTE: If you change the variable names below, you have to update 'anvil-update-system' as well. -->
 		<key name="message_0058">* Packages downloaded: [#!variable!downloaded!#], Installed or updated: [#!variable!installed!#], Verified: [#!variable!verified!#], Output lines: [#!variable!lines!#].</key>
-		<key name="message_0059">Are you sure you want to reboot this system? [y/N].</key>
-		<key name="message_0060">Are you sure you want to power off this system? [y/N].</key>
+		<key name="message_0059">Are you sure you want to reboot this system? [y/N]</key>
+		<key name="message_0060">Are you sure you want to power off this system? [y/N]</key>
 		<key name="message_0061">Aborting.</key>
 		<key name="message_0062">Powering off the local system now.</key>
 		<key name="message_0063">Rebooting the local system now.</key>
@@ -2836,9 +2839,9 @@ NOTE: Please be patient!
 		<key name="message_0089">Updating the server: [#!variable!server!#] to change the boot delay from: [#!variable!start_delay!# seconds] to: [#!variable!start_delay!# seconds] after: [#!variable!boot_after#!variable!] boots.</key>
 		<key name="message_0090">I was asked to set: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots, which is already the case. Nothing to do.</key>
 		<key name="message_0091">Updating: [#!variable!server!#] to boot: [#!variable!start_delay!# seconds] after: [#!variable!boot_after!#] boots.</key>
-		<key name="message_0092">#!free!#</key>
-		<key name="message_0093">#!free!#</key>
-		<key name="message_0094">#!free!#</key>
+		<key name="message_0092">Are you sure you want to shutdown ALL servers? [y/N].</key>
+		<key name="message_0093">Are you sure you want to shutdown: [#!variable!server_name!#]? [y/N].</key>
+		<key name="message_0094">Are you sure you want to rename the server: [#!variable!server_name!#] to: [#!variable!new_name!#]? [y/N]</key>
 		<key name="message_0095">Restarting: [#!variable!daemon!#] after updating the file: [#!variable!file!#].</key>
 		<key name="message_0096">The file: [#!variable!file!#] did not need to be updated.</key>
 		<key name="message_0097">The file: [#!variable!file!#] was updated.</key>
@@ -2847,10 +2850,10 @@ NOTE: Please be patient!
 		<key name="message_0100">Copying the syslinux files: [#!data!path::directories::syslinux!#/*] into the tftpboot directory: [#!data!path::directories::tftpboot!#].</key>
 		<key name="message_0101">The syslinux files from: [#!data!path::directories::syslinux!#] appear to already be in the tftpboot directory: [#!data!path::directories::tftpboot!#], skipping.</key>
 		<key name="message_0102">Checking that the "Install Target" function is configured and updated.</key>
-		<key name="message_0103">#!free!#</key>
-		<key name="message_0104">#!free!#</key>
-		<key name="message_0105">#!free!#</key>
-		<key name="message_0106">#!free!#</key>
+		<key name="message_0103">#!variable!timestamp!#; To ensure server migration capability, Anvil! RPMs will now be updated on both subnodes prior to the main OS update.</key>
+		<key name="message_0104">#!variable!timestamp!#; Updating Anvil! RPMs on: [#!variable!host_name!#].</key>
+		<key name="message_0105">#!variable!timestamp!#; The node's Anvil! RPMs are updated, now proceeding with main OS update.</key>
+		<key name="message_0106">Expired 'dnf' cache.</key>
 		<key name="message_0107">#!free!#</key>
 		<key name="message_0108">#!free!#</key>
 		<key name="message_0109">#!free!#</key>
