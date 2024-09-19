@@ -633,6 +633,7 @@ sub find_changes
 			$line =~ s/ call-id="(.*?)"/ call-id="x"/;
 			$line =~ s/ last-rc-change="(.*?)"/ last-rc-change="x"/;
 			$line =~ s/ exec-time="(.*?)"/ exec-time=""/;
+			$line =~ s/ update-client="(.*?)"/ update-client="x"/g;
 			
 			$new_cib .= $line."\n";
 		}

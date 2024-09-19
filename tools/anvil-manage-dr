@@ -75,9 +75,9 @@ if ($anvil->data->{switches}{'job-uuid'})
 {
 	load_job($anvil);
 }
-elsif ($anvil->data->{switches}{list})
+elsif ($anvil->data->{switches}{show})
 {
-	# If '--list' was used, show all Nodes, DR hosts and servers.
+	# If '--show' was used, show all Nodes, DR hosts and servers.
 	show_list($anvil);
 }
 
