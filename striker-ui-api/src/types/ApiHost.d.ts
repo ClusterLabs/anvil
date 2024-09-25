@@ -68,7 +68,7 @@ type InitializeStrikerNetworkForm = {
   createBridge?: StringBoolean;
   interfaces: Array<NetworkInterfaceOverview | null | undefined>;
   ipAddress: string;
-  name: string;
+  sequence: number;
   subnetMask: string;
   type: string;
 };

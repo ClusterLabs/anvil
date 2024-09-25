@@ -15,12 +15,15 @@ export const buildNetworkConfig = (
     counters: Record<InitializeStrikerNetworkForm['type'], number>;
     data: FormConfigData;
   }>(
-    (previous, { createBridge, interfaces, ipAddress, subnetMask, type }) => {
+    (
+      previous,
+      { createBridge, interfaces, ipAddress, sequence, subnetMask, type },
+    ) => {
       const { counters } = previous;
 
       counters[type] = counters[type] ? counters[type] + 1 : 1;
 
-      const networkShortName = `${type}${counters[type]}`;
+      const networkShortName = `${type}${sequence}`;
 
       previous.data = {
         ...previous.data,
