@@ -48,11 +48,11 @@ const UncontrolledInput = forwardRef(
 
     const {
       onChange: inputOnChange,
-      [valueKey]: inputValue,
+      [valueKey]: originValue,
       ...restInputProps
     } = inputProps;
 
-    const [value, setValue] = useState<MapToInputType[ValueType]>(inputValue);
+    const [value, setValue] = useState<MapToInputType[ValueType]>(originValue);
 
     const baseChangeEventHandler = useCallback<
       React.ChangeEventHandler<HTMLInputElement>
@@ -87,6 +87,11 @@ const UncontrolledInput = forwardRef(
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Always update the input's local value when the origin changes
+    useEffect(() => {
+      setValue(originValue);
+    }, [originValue]);
 
     useImperativeHandle(
       ref,
