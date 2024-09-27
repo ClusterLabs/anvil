@@ -87,7 +87,6 @@ const styledScrollbars = (
 
 const Panel: FC<PanelProps> = ({
   children,
-  classes: rootClasses,
   className: rootClassName,
   paperProps: {
     className: paperClassName,
@@ -96,14 +95,7 @@ const Panel: FC<PanelProps> = ({
   sx: rootSx,
   ...restRootProps
 }) => (
-  <StyledBox
-    {...{
-      classes: rootClasses,
-      className: rootClassName,
-      sx: rootSx,
-      ...restRootProps,
-    }}
-  >
+  <StyledBox className={rootClassName} sx={rootSx} {...restRootProps}>
     {styledScrollbars}
     <Box className={`${classes.square} ${classes.topSquare}`} />
     <Box className={`${classes.square} ${classes.bottomSquare}`} />
