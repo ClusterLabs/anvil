@@ -43,9 +43,9 @@ If you need any assistance, please feel free to contact #!string!brand_0001!# (h
 		
 		<!-- Errors -->
 		<key name="error_0001">[ Error ] - Failed to find the SSH key that should have been in file: [#!variable!file!#] at line: [#!variable!line!#]!</key>
-		<key name="error_0002">#!free!#</key>
+		<key name="error_0002">[ Error ] - The config file: [#!variable!file!#] was not found.</key>
 		<key name="error_0003">None of the databases are accessible, unable to proceed. Please be sure that 'anvil-daemon' is enabled and running on the database machine(s).</key>
-		<key name="error_0004">#!free!#</key>
+		<key name="error_0004">Failed to find any interface to connect the bridge: [#!variable!bridge_name!#] to. This is likely a program error.</key>
 		<key name="error_0005">This program must run with 'root' level privileges.</key>
 		<key name="error_0006">No password was given, exiting.</key>
 		<key name="error_0007">The passwords don't match, exiting.</key>
@@ -2854,7 +2854,7 @@ NOTE: Please be patient!
 		<key name="message_0104">#!variable!timestamp!#; Updating Anvil! RPMs on: [#!variable!host_name!#].</key>
 		<key name="message_0105">#!variable!timestamp!#; The node's Anvil! RPMs are updated, now proceeding with main OS update.</key>
 		<key name="message_0106">Expired 'dnf' cache.</key>
-		<key name="message_0107">#!free!#</key>
+		<key name="message_0107">There is no bond interface, we will connect the bridge to the device: [#!variable!on_device!#] with the UUID: [#!variable!on_device_uuid!#].</key>
 		<key name="message_0108">#!free!#</key>
 		<key name="message_0109">#!free!#</key>
 		<key name="message_0110">#!free!#</key>
