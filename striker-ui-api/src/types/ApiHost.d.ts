@@ -86,6 +86,10 @@ type InitializeStrikerForm = {
   organizationPrefix: string;
 };
 
+type InitializeStrikerResponseBody = {
+  jobUuid: string;
+};
+
 type PrepareHostRequestBody = {
   enterpriseUUID?: string;
   hostIPAddress: string;
