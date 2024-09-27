@@ -1919,7 +1919,7 @@ The database connection error was:
 		<key name="log_0120"><![CDATA[The method 'Convert->round()' was passed the number: [#!variable!number!#] which contains an illegal value. Only digits and one decimal place are allowed.]]></key>
 		<key name="log_0121">[#!variable!timestamp!#] - The server: [#!variable!server_name!#] state is: [#!variable!server_state!#], not "shut off". 
 [ Note ] - Continuing to wait for it to shut off before proceeding with growing storage.</key>
-		<key name="log_0122">#!free!#</key>
+		<key name="log_0122">The network: [#!variable!network!#] on the host: [#!variable!host_name!#] doesn't exist, not waiting for it in '/etc/hosts'.</key>
 		<key name="log_0123">About to write the query: [#!variable!query!#].</key>
 		<key name="log_0124">About to query: [#!variable!query!#]</key>
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>

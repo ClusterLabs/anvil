@@ -823,11 +823,13 @@ sub reconfigure_bridges
 						{
 							$link1_uuid = $uuid;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
+							last;
 						}
 						elsif ($interface eq $link2_key)
 						{
 							$link2_uuid = $uuid;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_uuid => $link2_uuid }});
+							last;
 						}
 					}
 				}
