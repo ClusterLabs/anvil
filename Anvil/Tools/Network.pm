@@ -3327,6 +3327,7 @@ sub load_ips
 	
 	if (not $host_uuid)
 	{
+		# The host UUID should be based on the host.
 		$host_uuid = $anvil->Get->host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	}
@@ -3399,34 +3400,69 @@ AND
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_interface_uuid => $network_interface_uuid }});
 		}
 		else
-		{
-			my $query = "";
+		{                  
+			my $query            = "";
+			my $active_interface = "";
 			if ($ip_address_on_type eq "bridge")
 			{
-				# What's the bridge UUID?
-				$query = "SELECT bond_name, bond_active_interface FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				# is this on a bond? If so, what's the bond UUID?
+				my $query = "SELECT bond_name, bond_active_interface FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 				
-				# Get the bridge name, also.
-				if (1)
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				if ($count)
 				{
+					# This is on a bridge
+					$bond_name        = $results->[0]->[0];
+					$active_interface = $results->[0]->[1];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						bond_name        => $bond_name, 
+						active_interface => $active_interface,
+					}});
+					
+					# Get the bridge name, also.
 					my $query       = "SELECT bridge_name FROM bridges WHERE bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
 					   $bridge_name = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bridge_name => $bridge_name }});
 				}
+				else
+				{
+					# It must be on an interface then.
+					my $query = "SELECT network_interface_uuid, network_interface_name, network_interface_device FROM network_interfaces WHERE network_interface_bridge_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+					
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					$network_interface_uuid = $results->[0]->[0];
+					$interface_name         = $results->[0]->[1];
+					$interface_device       = $results->[0]->[2];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						network_interface_uuid => $network_interface_uuid, 
+						interface_name         => $interface_name,
+						interface_device       => $interface_device, 
+					}});
+				}
 			}
 			else
 			{
+				# This is a bond
 				$query = "SELECT bond_name, bond_active_interface FROM bonds WHERE bond_uuid = ".$anvil->Database->quote($ip_address_on_uuid).";";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				my $results          = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				   $bond_name        = $results->[0]->[0];
+				   $active_interface = $results->[0]->[1];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					bond_name        => $bond_name, 
+					active_interface => $active_interface,
+				}});
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-			my $results          = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-			   $bond_name        = $results->[0]->[0];
-			my $active_interface = $results->[0]->[1];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				bond_name        => $bond_name, 
-				active_interface => $active_interface,
-			}});
 			
+			# If this is a bond, or it is a bridge that is on a bond, find the 
+			# network_interface_uuid.
 			if ($active_interface)
 			{
 				my $query = "

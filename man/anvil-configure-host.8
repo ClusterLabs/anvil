@@ -20,6 +20,67 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SS "Commands:"
+\fB\-\-file\fR </path/to/file>
+This provides an alternative to using the Striker UI's network configuration tool. To use this, create a file with the format;
+.TP
+.B Strikers
+.EX
+organization            = <company>
+prefix                  = <prefix>
+sequence                = 1+
+domain                  = <domain name>
+striker_password        = <secret>
+host_name               = <striker full domain name>
+gateway_interface       = <ifnX,bcnX>
+gateway                 = <ip, optional>
+dns                     = <csv ips>
+# If you have only one BCN but it's BCN 2 (or 3, 4...), set the BCN count to 
+# the number of the real BCN and the previous BCNs will be ignored.
+ifn_count               = 1
+ifn1_ip                 = <ip>
+ifn1_subnet_mask        = <subnet>
+ifn1_link1_mac_to_set   = <mac>
+ifn1_link2_mac_to_set   = <mac, optional>
+bcn_count               = 1
+bcn1_ip                 = <ip, 10.201.x.y>
+bcn1_subnet_mask        = <subnet>
+bcn1_link1_mac_to_set   = <mac>
+bcn1_link2_mac_to_set   = <mac, optional>
+.EE
+.TP
+.B Nodes and DR hosts
+.EX
+### Nodes/DRHosts
+# If you have only one BCN but it's BCN 2 (or 3, 4...), set the BCN count to 
+# the number of the real BCN and the previous BCNs will be ignored.
+host_name               = <full host name>
+gateway_interface       = <ifnX,bcnX>
+gateway                 = <ip, optional>
+dns                     = <csv ips>
+bcn_count               = 1
+bcn1_ip                 = <ip, 10.201.x.y>
+bcn1_subnet_mask        = <subnet>
+bcn1_create_bridge      = [0.1]
+bcn1_link1_mac_to_set   = <mac>
+bcn1_link2_mac_to_set   = <mac, optional>
+ifn_count               = 1
+ifn1_ip                 = <ip>
+ifn1_subnet_mask        = <subnet>
+ifn1_create_bridge      = [0,1]
+ifn1_link1_mac_to_set   = <mac>
+ifn1_link2_mac_to_set   = <mac, optional>
+sn_count                = 0+
+sn1_ip                  = 10.101.x.y
+sn1_subnet_mask         = <subnet>
+sn1_link1_mac_to_set    = <mac, optional>
+sn1_link2_mac_to_set    = <mac, optional>
+mn_count                = 0+
+mn1_ip                  = 10.199.x.y
+mn1_subnet_mask         = <subnet>
+mn1_link1_mac_to_set    = <mac, optional>
+mn1_link2_mac_to_set    = <mac, optional>
+.EE
+.TP
 \fB\-\-job\-uuid\fR <name>
 The program is normally run as a job, with data on how to configure the host defined in the job. This switch allows the running of a specific job. If this is not set, the program will search for a job that has not yet been picked up by another process. If found, that job UUID is used automatically.
 .IP

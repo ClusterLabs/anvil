@@ -4614,7 +4614,6 @@ AND
 		$query = "
 SELECT 
     ip_address_uuid, 
-    ip_address_host_uuid, 
     ip_address_on_type, 
     ip_address_on_uuid, 
     ip_address_address, 
@@ -4639,14 +4638,12 @@ ORDER BY
 		foreach my $row (@{$results})
 		{
 			my $ip_address_uuid        = $row->[0];
-			my $ip_address_host_uuid   = $row->[1];
-			my $ip_address_on_type     = $row->[2];
-			my $ip_address_on_uuid     = $row->[3];
-			my $ip_address_address     = $row->[4];
-			my $ip_address_subnet_mask = $row->[5];
+			my $ip_address_on_type     = $row->[1];
+			my $ip_address_on_uuid     = $row->[2];
+			my $ip_address_address     = $row->[3];
+			my $ip_address_subnet_mask = $row->[4];
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address_uuid        => $ip_address_uuid, 
-				ip_address_host_uuid   => $ip_address_host_uuid, 
 				ip_address_on_type     => $ip_address_on_type, 
 				ip_address_on_uuid     => $ip_address_on_uuid,
 				ip_address_address     => $ip_address_address, 
@@ -4661,7 +4658,6 @@ ORDER BY
 				# Duplicate, delete it.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, priority => "alert", key => "warning_0001", variables => { 
 					ip_address_uuid => $ip_address_uuid, 
-					host_uuid       => $ip_address_host_uuid, 
 					on_type         => $ip_address_on_type, 
 					on_uuid         => $ip_address_on_uuid, 
 					ip_address      => $ip_address_address, 
@@ -4697,7 +4693,7 @@ ORDER BY
 			}
 			
 			# We want to be able to map IPs to hosts.
-			$anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}       = $ip_address_host_uuid;
+			$anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}       = $host_uuid;
 			$anvil->data->{ip_addresses}{$ip_address_address}{ip_address_uuid} = $ip_address_uuid;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"ip_addresses::${ip_address_address}::host_uuid"       => $anvil->data->{ip_addresses}{$ip_address_address}{host_uuid}, 

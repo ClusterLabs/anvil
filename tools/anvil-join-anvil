@@ -1320,7 +1320,11 @@ sub wait_for_etc_hosts
 		my $this_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{"anvil_".$machine."_host_uuid"};
 		my $this_short_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
 		my $bcn_name             = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine => $machine }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:machine'              => $machine,
+			's2:this_host_uuid'       => $this_host_uuid, 
+			's3:this_short_host_name' => $this_short_host_name, 
+		}});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{network}})
 		{
 			my $host_name  = $this_short_host_name.".".$network_name;
@@ -1427,6 +1431,40 @@ sub wait_for_etc_hosts
 				last if $found;
 			}
 			
+			# Is the network missing?
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+			if (not $found)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+				if ($host_name =~ /^(.*)\.(.*?)$/)
+				{
+					my $short_host_name = $1;
+					my $network         = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"s1:short_host_name"            => $short_host_name, 
+						"s2:network"                    => $network,
+					}});
+					
+					$anvil->data->{unused_network}{$network} = 0 if not defined $anvil->data->{unused_network}{$network};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"unused_network::${network}" => $anvil->data->{unused_network}{$network},
+					}});
+					
+					if ($anvil->data->{unused_network}{$network})
+					{
+						# This network doesn't exist, don't wait for it.
+						$found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+						
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0122", variables => { 
+							host_name => $host_name,
+							network   => $network,
+						}});
+					}
+				}
+			}
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
 			if (not $found)
 			{
 				$ready = 0;
@@ -3415,7 +3453,7 @@ sub check_local_network
 	my $wanted_dns_hash = {};
 	foreach my $this_dns (sort {$a cmp $b} @dns_array)
 	{
-		$this_dns                     = $anvil->Words->clean_spaces({ string => $this_dns });
+		$this_dns                     = $anvil->Words->clean_spaces({string => $this_dns});
 		$wanted_dns_hash->{$this_dns} = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"wanted_dns_hash->${this_dns}" => $wanted_dns_hash->{$this_dns}, 
@@ -3446,6 +3484,14 @@ sub check_local_network
 			's4:cidr'    => $cidr, 
 			's5:gateway' => $gateway, 
 		}});
+		
+		# If a network in the manifest isn't found locally, note it so we don't wait for it in 
+		# /etc/hosts. This gets set to '0' if found.
+		$anvil->data->{unused_network}{$network} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"unused_network::${network}" => $anvil->data->{unused_network}{$network}, 
+		}});
+		
 		foreach my $in_iface (sort {$a cmp $b} keys %{$anvil->data->{network}{$local_host}{interface}})
 		{
 			# Only one interface will start with the network name and have an IP address.
@@ -3464,6 +3510,12 @@ sub check_local_network
 				's5:current_gateway' => $current_gateway, 
 				's6:current_dns'     => $current_dns, 
 				's7:current_mtu'     => $current_mtu, 
+			}});
+			
+			# Mark that there's an interface for this network so we wait for it in /etc/hosts
+			$anvil->data->{unused_network}{$network} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"unused_network::${network}" => $anvil->data->{unused_network}{$network}, 
 			}});
 			
 			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0081,!!name!".$in_iface."!!");
@@ -3502,8 +3554,6 @@ sub check_local_network
 			if (($current_ip ne $ip) or ($current_subnet ne $subnet))
 			{
 				# IP / subnet changed.
-				#print __LINE__.": IP: .... [".$current_ip."] -> [".$ip."]\n";
-				#print __LINE__.": Subnet:  [".$current_subnet."] -> [".$subnet."]\n";
 				$change = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { change => $change }});
 			}
@@ -3661,7 +3711,7 @@ sub check_local_network
 		# Restart
 		$anvil->System->stop_daemon({debug => 2, daemon => "NetowkrManager.service"});
 		sleep 5;
-		$anvil->System->stop_daemon({debug => 2, daemon => "NetowkrManager.service"});
+		$anvil->System->start_daemon({debug => 2, daemon => "NetowkrManager.service"});
 		
 		# Wait for a DB connection. We'll wait up to 130 seconds (updelay is 120 seconds, plus a small buffer).
 		my $wait_until = time + 130;

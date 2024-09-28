@@ -38,6 +38,7 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches({list => [
+	"file", 
 	"job-uuid",
 	"debug", 
 ], man => $THIS_FILE});
@@ -782,14 +783,109 @@ sub reconfigure_bridges
 		# This is the old type of network config
 		foreach my $i (1..$count)
 		{
-			### TODO: This is almost always going to be on the bond, but we need to handle 
-			###       bridges on interfaces on DR hosts.
+			# This is almost always going to be on the bond, but bridges can be on interfaces on 
+			# MicroAnvil! nodes and DR hosts.
 			my $bridge_name = $network_type.$i."_bridge1";
 			my $on_device   = $network_type.$i."_bond1";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				bridge_name => $bridge_name,
 				on_device   => $on_device, 
 			}});
+			
+			# If there's no bond, we'll using link1 if it's available, otherwise link2. If none 
+			# are available, we're done.
+			my $on_device_uuid = "";
+			if ($anvil->data->{nmcli}{device}{$on_device}{uuid})
+			{
+				$on_device_uuid = $anvil->data->{nmcli}{device}{$on_device}{uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { on_device_uuid => $on_device_uuid }});
+			}
+			else
+			{
+				# If there a link1 or link2 device?
+				my $link1_key  = $network_type.$i."_link1";
+				my $link1_uuid = "";
+				my $link2_key  = $network_type.$i."_link2";
+				my $link2_uuid = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					link1_key => $link1_key,
+					link2_key => $link2_key,
+				}});
+				foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{uuid}})
+				{
+					my $match = $anvil->data->{nmcli}{uuid}{$uuid}{'match.interface-name'} // "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { match => $match }});
+					next if not $match;
+					foreach my $interface (split/,/, $match)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { interface => $interface }});
+						if ($interface eq $link1_key)
+						{
+							$link1_uuid = $uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link1_uuid => $link1_uuid }});
+							last;
+						}
+						elsif ($interface eq $link2_key)
+						{
+							$link2_uuid = $uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link2_uuid => $link2_uuid }});
+							last;
+						}
+					}
+				}
+				
+				if ($link1_uuid)
+				{
+					# Use this interface
+					$on_device      = $link1_key;
+					$on_device_uuid = $link1_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						on_device      => $on_device, 
+						on_device_uuid => $on_device_uuid,
+					}});
+				}
+				elsif ($link2_uuid)
+				{
+					# Use this interface
+					$on_device      = $link2_key;
+					$on_device_uuid = $link2_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						on_device      => $on_device, 
+						on_device_uuid => $on_device_uuid,
+					}});
+				}
+				else
+				{
+					# No interfaces found for this interface, we can't proceed.
+					$anvil->Job->update_progress({
+						progress   => 100, 
+						message    => "error_0004", 
+						log_level  => 1,
+						'print'    => 1, 
+						job_uuid   => $anvil->data->{job}{uuid},
+						job_status => "failed", 
+						variables  => {
+							bridge_name => $bridge_name, 
+						},
+					});
+					$anvil->nice_exit({exit_code => 1});
+				}
+				
+				# Mention that we're using link1
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
+					message   => "message_0107", 
+					log_level => 1,
+					'print'   => 1, 
+					job_uuid  => $anvil->data->{job}{uuid},
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					variables => { 
+						on_device      => $on_device, 
+						on_device_uuid => $on_device_uuid,
+					},
+				});
+			}
 			
 			# Checking if the bridge exists and that it is on the requested device
 			$anvil->Job->update_progress({
@@ -940,12 +1036,10 @@ sub reconfigure_bridges
 				variables => { on_device => $on_device },
 			});
 			my $bridge_uuid          = $anvil->data->{nmcli}{bridge}{$bridge_name}{uuid};
-			my $on_device_uuid       = $anvil->data->{nmcli}{device}{$on_device}{uuid}                       // "";
 			my $on_device_parent     = $anvil->data->{nmcli}{uuid}{$on_device_uuid}{'connection.master'}     // "";
 			my $on_device_child_type = $anvil->data->{nmcli}{uuid}{$on_device_uuid}{'connection.slave-type'} // "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				bridge_uuid          => $bridge_uuid,
-				on_device_uuid       => $on_device_uuid, 
 				on_device_parent     => $on_device_parent, 
 				on_device_child_type => $on_device_child_type, 
 			}});
@@ -1120,6 +1214,7 @@ sub reconfigure_bonds
 		elsif ($network_type eq "ifn") { $count = $ifn_count; }
 		elsif ($network_type eq "mn")  { $count = $mn_count;  }
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		next if not $count;
 		
 		# This is the old type of network config
 		foreach my $i (1..$count)
@@ -1943,6 +2038,8 @@ sub reconfigure_interfaces
 	{
 		### TODO: Any devices that are down, set:
 		###       nmcli connection modify <uuid> ipv4.method manual ipv4.addresses 169.0.0.x/8' (x == Wired connection x)
+		###       For now, we do nothing here
+		next;
 		my $connection_id          = $anvil->data->{nmcli}{uuid}{$uuid}{'connection.id'}          // "";
 		my $general_ip_iface       = $anvil->data->{nmcli}{uuid}{$uuid}{'GENERAL.IP-IFACE'}       // "";
 		   $general_ip_iface       = "" if $general_ip_iface eq "--";
@@ -1959,42 +2056,6 @@ sub reconfigure_interfaces
 			's6:connection_autoconnect' => $connection_autoconnect, 
 			's7:active'                 => $active, 
 		}});
-		
-		### NOTE: I don't think this is needed, but here's the code in case we change our mind.
-		if (0)
-		{
-			# Try activating it.
-			if ((not $general_ip_iface) && (not $active))
-			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0842", variables => { 
-					id   => $connection_id,
-					uuid => $uuid, 
-				}});
-				
-				my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$uuid;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output, 
-					return_code => $return_code, 
-				}});
-				# NM seems to have a race issue, so we sleep a second after nmcli calls.
-				sleep 2;
-				
-				# Rescan.
-				$anvil->Job->update_progress({
-					progress  => $anvil->Job->bump_progress({steps => 1}), 
-					message   => "message_0394", 
-					log_level => 1,
-					'print'   => 1, 
-					job_uuid  => $anvil->data->{job}{uuid},
-					file      => $THIS_FILE, 
-					line      => __LINE__,
-					variables => { },
-				});
-				$anvil->Network->collect_data({debug => 2});
-			}
-		}
 	}
 	
 	my $local_host = $anvil->Get->short_host_name();
@@ -2022,6 +2083,7 @@ sub reconfigure_interfaces
 		elsif ($network_type eq "ifn") { $count = $ifn_count; }
 		elsif ($network_type eq "mn")  { $count = $mn_count;  }
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		next if not $count;
 		
 		# This is the old type of network config
 		foreach my $i (1..$count)
@@ -2200,7 +2262,8 @@ sub reconfigure_interfaces
 		}
 	}
 	
-	# There is no way (that we've found) to get the network interface ames to be updated without a reboot. 
+	# There is no way (that we've found) to get the network interface names to be updated without a 
+	# reboot. 
 	if ($anvil->data->{sys}{reboot_needed})
 	{
 		do_reboot($anvil);
@@ -2530,6 +2593,90 @@ sub pickup_job_details
 {
 	my ($anvil) = @_;
 	
+	# If we're in a cluster, abort.
+	if (-e $anvil->data->{path}{exe}{pcs})
+	{
+		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
+		   $anvil->data->{cib}{parsed}{'local'}{ready} = "" if not defined $anvil->data->{cib}{parsed}{'local'}{ready};
+		my ($out_of_cluster)                           = $anvil->Cluster->parse_cib();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			out_of_cluster              => $out_of_cluster,
+			"cib::parsed::local::ready" => defined $anvil->data->{cib}{parsed}{'local'}{ready} ? $anvil->data->{cib}{parsed}{'local'}{ready} : "",
+		}});
+		if ((not $out_of_cluster) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
+		{
+			# We're in a cluster, abort.
+			$anvil->Job->update_progress({
+				progress   => 100, 
+				message    => "error_0250", 
+				job_uuid   => $anvil->data->{job}{uuid},
+				job_status => "failed", 
+				'print'    => 1,
+				log_level  => 1,
+				file       => $THIS_FILE, 
+				line       => __LINE__,
+			});
+			$anvil->nice_exit({exit_code => 7});
+		}
+	}
+	
+	### These are the new variables
+	$anvil->data->{config}{striker_password}  = "";
+	$anvil->data->{config}{prefix}            = "";
+	$anvil->data->{config}{sequence}          = "";
+	$anvil->data->{config}{domain}            = "";
+	$anvil->data->{config}{host_name}         = "";
+	$anvil->data->{config}{organization}      = "";
+	$anvil->data->{config}{bcn_count}         = 1;
+	$anvil->data->{config}{ifn_count}         = 1;
+	$anvil->data->{config}{sn_count}          = 0;
+	$anvil->data->{config}{mn_count}          = 0;
+	$anvil->data->{config}{dns}               = "";
+	$anvil->data->{config}{gateway}           = "";
+	$anvil->data->{config}{gateway_interface} = "";
+	
+	### TODO: Remove this later
+	# This will store the variables from the database
+	$anvil->data->{variables} = {};
+	
+	# If we were passed a file, read it.
+	if ($anvil->data->{switches}{file})
+	{
+		# If the file valid?
+		if (not -f $anvil->data->{switches}{file})
+		{
+			# Needs to be a full path.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 0, priority => "err", key => "error_0002", variables => { file => $anvil->data->{switches}{file} }});;
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		my $config_file = $anvil->Storage->read_file({file => $anvil->data->{switches}{file}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
+		
+		foreach my $line (split/\n/, $config_file)
+		{
+			$line = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			next if $line =~ /^#/;
+			if ($line =~ /^(\w+)\s*=\s*(.*)$/)
+			{
+				my $variable = $1;
+				my $value    = $2;
+				my $secure   = $variable =~ /passw/ ? 1 : 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => $secure, list => { 
+					variable => $variable,
+					value    => $value,
+				}});
+				
+				$anvil->data->{config}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"config::${variable}" => $anvil->data->{config}{$variable}, 
+				}});
+			}
+		}
+		return(0);
+	}
+	
 	# If this returns '1', the job-uuid was bad. If it returns '2', another process is running.
 	my $return = $anvil->Job->get_job_details({
 		check    => 1, 
@@ -2564,25 +2711,6 @@ sub pickup_job_details
 			percent => $job_progress, 
 		}});
 	}
-	
-	### These are the new variables
-	$anvil->data->{config}{striker_password}  = "";
-	$anvil->data->{config}{prefix}            = "";
-	$anvil->data->{config}{sequence}          = "";
-	$anvil->data->{config}{domain}            = "";
-	$anvil->data->{config}{host_name}         = "";
-	$anvil->data->{config}{organization}      = "";
-	$anvil->data->{config}{bcn_count}         = 1;
-	$anvil->data->{config}{ifn_count}         = 1;
-	$anvil->data->{config}{sn_count}          = 0;
-	$anvil->data->{config}{mn_count}          = 0;
-	$anvil->data->{config}{dns}               = "";
-	$anvil->data->{config}{gateway}           = "";
-	$anvil->data->{config}{gateway_interface} = "";
-	
-	### TODO: Remove this later
-	# This will store the variables from the database
-	$anvil->data->{variables} = {};
 	
 	### TODO: Remove this, it shouldn't be needed once we confirm everything is in the job_data.
 	# If we're still alive, pick up the details.
@@ -2684,33 +2812,6 @@ AND
 		file      => $THIS_FILE, 
 		line      => __LINE__,
 	});
-	
-	# If we're in a cluster, abort.
-	if (-e $anvil->data->{path}{exe}{pcs})
-	{
-		# To make logs more sensible, we'll call 'problem' as 'out_of_cluster'.
-		   $anvil->data->{cib}{parsed}{'local'}{ready} = "" if not defined $anvil->data->{cib}{parsed}{'local'}{ready};
-		my ($out_of_cluster)                           = $anvil->Cluster->parse_cib();
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			out_of_cluster              => $out_of_cluster,
-			"cib::parsed::local::ready" => defined $anvil->data->{cib}{parsed}{'local'}{ready} ? $anvil->data->{cib}{parsed}{'local'}{ready} : "",
-		}});
-		if ((not $out_of_cluster) && ($anvil->data->{cib}{parsed}{'local'}{ready}))
-		{
-			# We're in a cluster, abort.
-			$anvil->Job->update_progress({
-				progress   => 100, 
-				message    => "error_0250", 
-				job_uuid   => $anvil->data->{job}{uuid},
-				job_status => "failed", 
-				'print'    => 1,
-				log_level  => 1,
-				file       => $THIS_FILE, 
-				line       => __LINE__,
-			});
-			$anvil->nice_exit({exit_code => 7});
-		}
-	}
 	
 	return(0);
 }

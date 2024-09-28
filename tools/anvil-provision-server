@@ -1311,7 +1311,7 @@ sub get_sn_details
 		target => $peer_short_name, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
-	foreach my $preferred_network ("sn")
+	foreach my $preferred_network ("sn", "mn", "bcn", "ifn")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
