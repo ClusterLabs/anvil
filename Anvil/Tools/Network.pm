@@ -3325,18 +3325,17 @@ sub load_ips
 		host_uuid => $host_uuid,
 	}});
 	
+	if (not $host_uuid)
+	{
+		# The host UUID should be based on the host.
+		$host_uuid = $anvil->Get->host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
+	
 	if (not $host)
 	{
 		$host = $host_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host => $host }});
-	}
-	
-	if (not $host_uuid)
-	{
-		# The host UUID should be based on the host.
-		#$host_uuid = $anvil->Get->host_uuid;
-		$host_uuid = $anvil->Get->host_uuid_from_name({host_name => $host});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	}
 	
 	if (($clear) && (exists $anvil->data->{network}{$host}))
