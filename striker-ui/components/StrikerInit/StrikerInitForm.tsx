@@ -1,14 +1,101 @@
 import { Grid } from '@mui/material';
+import { Netmask } from 'netmask';
 import { FC, useCallback, useMemo, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
-import useFormikUtils from '../../hooks/useFormikUtils';
-import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
-import MessageGroup from '../MessageGroup';
-import strikerInitSchema from './strikerInitSchema';
+
 import ActionGroup from '../ActionGroup';
-import UncontrolledInput from '../UncontrolledInput';
+import api from '../../lib/api';
+import handleAPIError from '../../lib/handleAPIError';
+import { HostNetInitInputGroup } from '../HostNetInit';
+import MessageGroup from '../MessageGroup';
+import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import pad from '../../lib/pad';
+import strikerInitSchema from './strikerInitSchema';
+import StrikerInitSummary from './StrikerInitSummary';
+import UncontrolledInput from '../UncontrolledInput';
+import useFormikUtils from '../../hooks/useFormikUtils';
+
+const buildFormikInitialValues = (
+  detail?: APIHostDetail,
+): StrikerInitFormikValues => {
+  let domainName = '';
+  let hostName = '';
+  let hostNumber = '';
+
+  let dns = '';
+  let gateway = '';
+  let networks: Record<string, HostNetFormikValues> = {
+    defaultbcn: {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'bcn',
+    },
+    defaultifn: {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'ifn',
+    },
+  };
+
+  let organizationName = '';
+  let organizationPrefix = '';
+
+  if (detail) {
+    ({
+      dns = '',
+      domain: domainName = '',
+      gateway = '',
+      hostName = '',
+      sequence: hostNumber = '',
+      organization: organizationName = '',
+      prefix: organizationPrefix = '',
+    } = detail);
+
+    const { networks: nets = {} } = detail;
+
+    networks = Object.entries(nets).reduce<Record<string, HostNetFormikValues>>(
+      (previous, [nid, value]) => {
+        const { ip, link1Uuid, link2Uuid = '', subnetMask, type } = value;
+
+        const sequence = nid.replace(/^.*(\d+)$/, '$1');
+
+        const key = sequence === '1' ? `default${type}` : uuidv4();
+
+        previous[key] = {
+          interfaces: [link1Uuid, link2Uuid],
+          ip,
+          sequence,
+          subnetMask,
+          type,
+        };
+
+        return previous;
+      },
+      {},
+    );
+  }
+
+  return {
+    adminPassword: '',
+    confirmAdminPassword: '',
+    domainName,
+    hostName,
+    hostNumber,
+    networkInit: {
+      dns,
+      gateway,
+      networks,
+    },
+    organizationName,
+    organizationPrefix,
+  };
+};
 
 const guessHostName = (
   orgPrefix: string,
@@ -38,12 +125,103 @@ const guessOrgPrefix = (orgName: string, max = 5): string => {
   return result;
 };
 
-const StrikerInitForm: FC = () => {
-  const orgPrefixInputRef =
-    useRef<UncontrolledInputForwardedRefContent<keyof MapToInputType>>(null);
+const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
+  const { detail, onSubmitSuccess, tools } = props;
 
-  const hostNameInputRef =
-    useRef<UncontrolledInputForwardedRefContent<keyof MapToInputType>>(null);
+  const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);
+
+  const formikUtils = useFormikUtils<StrikerInitFormikValues>({
+    initialValues: buildFormikInitialValues(detail),
+    onSubmit: (values, { setSubmitting }) => {
+      const { networkInit: netInit, ...restValues } = values;
+      const { networks, ...restNetInit } = netInit;
+
+      const ns = Object.values(networks);
+
+      const rqbody = {
+        ...restValues,
+        ...restNetInit,
+        gatewayInterface: ns.reduce<string>((previous, n) => {
+          const { ip, sequence, subnetMask, type } = n;
+
+          let subnet: Netmask;
+
+          try {
+            subnet = new Netmask(`${ip}/${subnetMask}`);
+          } catch (error) {
+            return previous;
+          }
+
+          if (subnet.contains(netInit.gateway)) {
+            return `${type}${sequence}`;
+          }
+
+          return previous;
+        }, ''),
+        networks: ns.map((n) => {
+          const { interfaces, ip, sequence, subnetMask, type } = n;
+
+          return {
+            interfaces: interfaces.map((ifUuid) =>
+              ifUuid
+                ? {
+                    mac: ifaces.current?.[ifUuid]?.mac,
+                  }
+                : null,
+            ),
+            ipAddress: ip,
+            sequence,
+            subnetMask,
+            type,
+          };
+        }),
+      };
+
+      tools.confirm.prepare({
+        actionProceedText: 'Initialize',
+        content: ifaces.current && (
+          <StrikerInitSummary
+            gatewayIface={rqbody.gatewayInterface}
+            ifaces={ifaces.current}
+            values={values}
+          />
+        ),
+        onCancelAppend: () => setSubmitting(false),
+        onProceedAppend: () => {
+          tools.confirm.loading(true);
+
+          api
+            .put('/init', rqbody)
+            .then((response) => {
+              onSubmitSuccess?.call(null, response.data);
+
+              tools.confirm.finish('Success', {
+                children: (
+                  <>Successfully registered striker initialization job.</>
+                ),
+              });
+            })
+            .catch((error) => {
+              const emsg = handleAPIError(error);
+
+              emsg.children = (
+                <>
+                  Failed to register striker initialization job. {emsg.children}
+                </>
+              );
+
+              tools.confirm.finish('Error', emsg);
+
+              setSubmitting(false);
+            });
+        },
+        titleText: `Initialize ${values.hostName} with the following?`,
+      });
+
+      tools.confirm.open();
+    },
+    validationSchema: strikerInitSchema,
+  });
 
   const {
     disabledSubmit,
@@ -51,21 +229,7 @@ const StrikerInitForm: FC = () => {
     formikErrors,
     getFieldChanged,
     handleChange,
-  } = useFormikUtils<StrikerInitFormikValues>({
-    initialValues: {
-      adminPassword: '',
-      confirmAdminPassword: '',
-      domainName: '',
-      hostName: '',
-      hostNumber: '',
-      organizationName: '',
-      organizationPrefix: '',
-    },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
-    },
-    validationSchema: strikerInitSchema,
-  });
+  } = formikUtils;
 
   const adminPasswordChain = useMemo(() => `adminPassword`, []);
   const confirmAdminPasswordChain = useMemo(() => `confirmAdminPassword`, []);
@@ -103,8 +267,6 @@ const StrikerInitForm: FC = () => {
         }
 
         const guess = guessHostName(organizationPrefix, hostNumber, domainName);
-
-        hostNameInputRef.current?.set(guess);
 
         formik.setFieldValue(hostNameChain, guess);
       },
@@ -148,8 +310,6 @@ const StrikerInitForm: FC = () => {
 
                     const guess = guessOrgPrefix(value);
 
-                    orgPrefixInputRef.current?.set(guess);
-
                     formik.setFieldValue(orgPrefixChain, guess);
                   }}
                   onChange={handleChange}
@@ -173,7 +333,6 @@ const StrikerInitForm: FC = () => {
                   value={formik.values.organizationPrefix}
                 />
               }
-              ref={orgPrefixInputRef}
             />
           </Grid>
           <Grid item xs={1}>
@@ -223,7 +382,6 @@ const StrikerInitForm: FC = () => {
                   value={formik.values.hostName}
                 />
               }
-              ref={hostNameInputRef}
             />
           </Grid>
         </Grid>
@@ -263,6 +421,19 @@ const StrikerInitForm: FC = () => {
             />
           </Grid>
         </Grid>
+      </Grid>
+      <Grid item width="100%">
+        <HostNetInitInputGroup
+          formikUtils={formikUtils}
+          host={{
+            sequence: Number(formik.values.hostNumber),
+            type: 'striker',
+            uuid: 'local',
+          }}
+          onFetchSuccess={(data) => {
+            ifaces.current = data;
+          }}
+        />
       </Grid>
       <Grid item width="100%">
         <MessageGroup count={1} messages={formikErrors} />

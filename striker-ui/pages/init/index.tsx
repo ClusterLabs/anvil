@@ -1,17 +1,12 @@
 import { FC } from 'react';
-import { Box as MUIBox } from '@mui/material';
 
-import StrikerInitForm from '../../components/StrikerInitForm';
+import PageBody from '../../components/PageBody';
+import StrikerInit from '../../components/StrikerInit/StrikerInit';
 
 const Init: FC = () => (
-  <MUIBox
-    sx={{
-      display: 'flex',
-      flexDirection: 'column',
-    }}
-  >
-    <StrikerInitForm />
-  </MUIBox>
+  <PageBody>
+    <StrikerInit />
+  </PageBody>
 );
 
 export default Init;

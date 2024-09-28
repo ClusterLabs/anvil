@@ -1,5 +1,7 @@
 import * as yup from 'yup';
 
+import { hostNetInitSchema } from '../HostNetInit';
+
 const strikerInitSchema = yup.object({
   adminPassword: yup.string().required(),
   confirmAdminPassword: yup
@@ -11,6 +13,7 @@ const strikerInitSchema = yup.object({
   hostNumber: yup.number().required(),
   organizationName: yup.string().required(),
   organizationPrefix: yup.string().min(1).max(5).required(),
+  networkInit: hostNetInitSchema,
 });
 
 export default strikerInitSchema;

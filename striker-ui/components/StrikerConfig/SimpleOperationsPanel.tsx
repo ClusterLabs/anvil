@@ -123,9 +123,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
           </StretchedButton>
         </Grid>
         <Grid item sm={2} xs={1}>
-          <StretchedButton href="/init?re=1">
-            Reconfigure striker
-          </StretchedButton>
+          <StretchedButton href="/init">Reconfigure striker</StretchedButton>
         </Grid>
         <Grid item xs={1}>
           <StretchedButton

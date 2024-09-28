@@ -84,4 +84,10 @@ type APIHostDetail = APIHostOverview & {
   strikerUser?: string;
 };
 
-type APIDeleteHostConnectionRequestBody = { [key: 'local' | string]: string[] };
+type APIDeleteHostConnectionRequestBody = {
+  [key: 'local' | string]: string[];
+};
+
+type APIStrikerInitResponseBody = {
+  jobUuid: string;
+};
