@@ -1,7 +1,6 @@
 import { Grid } from '@mui/material';
 import { Netmask } from 'netmask';
 import { FC, useCallback, useMemo, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -14,6 +13,7 @@ import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import pad from '../../lib/pad';
 import strikerInitSchema from './strikerInitSchema';
 import StrikerInitSummary from './StrikerInitSummary';
+import toHostNetList from '../../lib/toHostNetList';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
@@ -59,26 +59,7 @@ const buildFormikInitialValues = (
 
     const { networks: nets = {} } = detail;
 
-    networks = Object.entries(nets).reduce<Record<string, HostNetFormikValues>>(
-      (previous, [nid, value]) => {
-        const { ip, link1Uuid, link2Uuid = '', subnetMask, type } = value;
-
-        const sequence = nid.replace(/^.*(\d+)$/, '$1');
-
-        const key = sequence === '1' ? `default${type}` : uuidv4();
-
-        previous[key] = {
-          interfaces: [link1Uuid, link2Uuid],
-          ip,
-          sequence,
-          subnetMask,
-          type,
-        };
-
-        return previous;
-      },
-      {},
-    );
+    networks = toHostNetList(nets);
   }
 
   return {
