@@ -30,7 +30,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
       a.host_type,
       a.host_uuid,
       b.anvil_uuid,
-      b.anvil_name
+      b.anvil_name,
+      c.variable_value
     FROM hosts AS a
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
@@ -38,14 +39,25 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
         b.anvil_node2_host_uuid,
         b.anvil_dr1_host_uuid
       )
+    LEFT JOIN variables AS c
+      ON c.variable_name = 'system::configured'
+        AND c.variable_source_table = 'hosts'
+        AND a.host_uuid = c.variable_source_uuid
     ${condition}
     ORDER BY a.host_name ASC;`;
 
   let afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
       (previous, row) => {
-        const [hostName, hostStatus, hostType, hostUUID, anvilUuid, anvilName] =
-          row;
+        const [
+          hostName,
+          hostStatus,
+          hostType,
+          hostUUID,
+          anvilUuid,
+          anvilName,
+          hostConfigured,
+        ] = row;
 
         const key = toLocal(hostUUID, localHostUUID);
 
@@ -60,6 +72,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
         previous[key] = {
           anvil,
+          hostConfigured: hostConfigured === '1',
           hostName,
           hostStatus,
           hostType,

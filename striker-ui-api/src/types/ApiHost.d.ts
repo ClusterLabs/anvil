@@ -53,6 +53,7 @@ type HostOverview = {
     name: string;
     uuid: string;
   };
+  hostConfigured: boolean;
   hostName: string;
   hostStatus: string;
   hostType: string;
