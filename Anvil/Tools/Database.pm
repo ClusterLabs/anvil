@@ -17709,7 +17709,7 @@ sub query
 		else
 		{
 			# Warn that we switched.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0073", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0131", variables => { 
 				old_uuid => $old_uuid, 
 				new_uuid => $uuid,
 			}});

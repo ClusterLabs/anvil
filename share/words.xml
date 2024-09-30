@@ -1928,7 +1928,7 @@ The database connection error was:
 		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
 		<key name="log_0129"><![CDATA[<all>]]></key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
-		<key name="log_0131">#!free!#</key>
+		<key name="log_0131"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!old_uuid!#], but it's connection is gone. SWitching to read from: [#!variable!new_uuid!#].]]></key>
 		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
 		<key name="log_0133">#!free!#</key>
 		<key name="log_0134">The host UUID: [#!variable!uuid!#] does not appear to be a valid UUID. Please check the contents of: [#!data!path::data::host_uuid!#] or the output from: [dmidecode --string system-uuid]. Note that some mainboards will report their UUID as all-0. If this is the case, manually create the 'host.uuid' file with a UUID created by 'uuidgen'.</key>
