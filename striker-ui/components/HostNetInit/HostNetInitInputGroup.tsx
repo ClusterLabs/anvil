@@ -27,7 +27,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 
   const { formik, handleChange } = formikUtils;
 
-  const firstResponse = useRef<boolean>(true);
+  const autoAddMn = useRef<boolean>(true);
 
   const [ifaceHeld, setIfaceHeld] = useState<string | undefined>();
 
@@ -75,7 +75,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           chains,
           data,
           host,
-          firstResponse,
+          autoAddMn,
           formikUtils,
         });
 

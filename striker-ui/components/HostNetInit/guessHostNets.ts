@@ -6,14 +6,14 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   chains,
   data,
   host,
-  firstResponse,
+  autoAddMn,
   formikUtils,
 }: {
   appliedIfaces: Record<string, boolean>;
   chains: Record<'dns' | 'gateway' | 'networkInit' | 'networks', string>;
   data: APINetworkInterfaceOverviewList;
   host: HostNetInitHost;
-  firstResponse: React.MutableRefObject<boolean>;
+  autoAddMn: React.MutableRefObject<boolean>;
   formikUtils: FormikUtils<F>;
 }) => {
   const { formik, getFieldChanged } = formikUtils;
@@ -23,20 +23,18 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
 
   const ifaceValues = Object.values(data);
 
-  if (firstResponse.current) {
-    firstResponse.current = false;
+  if (autoAddMn.current && host.type === 'subnode' && ifaceValues.length >= 8) {
+    const nyuId = uuidv4();
 
-    if (host.type === 'subnode' && ifaceValues.length >= 8) {
-      const nyuId = uuidv4();
+    clone.networks[nyuId] = {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'mn',
+    };
 
-      clone.networks[nyuId] = {
-        interfaces: ['', ''],
-        ip: '',
-        sequence: '1',
-        subnetMask: '',
-        type: 'mn',
-      };
-    }
+    autoAddMn.current = false;
   }
 
   // Categorize unapplied interfaces based on their IP.
