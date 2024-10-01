@@ -276,12 +276,12 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 
               return (
                 <HostNetInputGroup<Values>
+                  appliedIfaces={appliedIfaces}
                   formikUtils={formikUtils}
                   host={host}
                   ifaceHeld={ifaceHeld}
                   ifaces={ifaces}
-                  ifacesApplied={appliedIfaces}
-                  ifacesValue={ifaceValues}
+                  ifaceValues={ifaceValues}
                   key={`hostnet-${key}`}
                   netId={key}
                 />

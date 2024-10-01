@@ -22,12 +22,12 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   ...[props]: Parameters<FC<HostNetInputGroupProps<Values>>>
 ): ReturnType<FC<HostNetInputGroupProps<Values>>> => {
   const {
+    appliedIfaces,
     formikUtils,
     host,
     ifaceHeld,
     ifaces,
-    ifacesApplied,
-    ifacesValue,
+    ifaceValues,
     netId,
   } = props;
 
@@ -42,7 +42,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
 
     if (
       ['dr', 'subnode'].includes(host.type) &&
-      ifacesValue.length >= 8 &&
+      ifaceValues.length >= 8 &&
       (nets[netId].type === 'mn' ||
         Object.values(nets).every((net) => net.type !== 'mn'))
     ) {
@@ -56,7 +56,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   }, [
     formik.values.networkInit.networks,
     host.type,
-    ifacesValue.length,
+    ifaceValues.length,
     netId,
   ]);
 
@@ -136,7 +136,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               <Autocomplete
                 autoHighlight
                 getOptionDisabled={(option) =>
-                  ifacesApplied[option.uuid] &&
+                  appliedIfaces[option.uuid] &&
                   option.uuid !==
                     formik.values.networkInit.networks[netId].interfaces[0]
                 }
@@ -155,7 +155,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                   );
                 }}
                 openOnFocus
-                options={ifacesValue}
+                options={ifaceValues}
                 renderOption={(optionProps, option) => (
                   <li {...optionProps} key={`link1-ifop-${option.uuid}`}>
                     <BodyText inheritColour>{option.name}</BodyText>
@@ -180,7 +180,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               <Autocomplete
                 autoHighlight
                 getOptionDisabled={(option) =>
-                  ifacesApplied[option.uuid] &&
+                  appliedIfaces[option.uuid] &&
                   option.uuid !==
                     formik.values.networkInit.networks[netId].interfaces[1]
                 }
@@ -199,7 +199,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                   );
                 }}
                 openOnFocus
-                options={ifacesValue}
+                options={ifaceValues}
                 renderOption={(optionProps, option) => (
                   <li {...optionProps} key={`link2-ifop-${option.uuid}`}>
                     <BodyText inheritColour>{option.name}</BodyText>

@@ -32,10 +32,10 @@ type HostNetInputGroupOptionalProps = {
 
 type HostNetInputGroupProps<Values extends HostNetInitFormikExtension> =
   HostNetInputGroupOptionalProps & {
+    appliedIfaces: Record<string, boolean>;
     formikUtils: FormikUtils<Values>;
     ifaces: APINetworkInterfaceOverviewList;
-    ifacesApplied: Record<string, boolean>;
-    ifacesValue: APINetworkInterfaceOverview[];
+    ifaceValues: APINetworkInterfaceOverview[];
     host: HostNetInitHost;
     netId: string;
   };
