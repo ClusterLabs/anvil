@@ -45,7 +45,7 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
     return { label, path };
   }, [reinit]);
 
-  const { data: initJob } = useFetch<APIJobDetail>(`/job/${jobUuid}`, {
+  const { data: initJob } = useFetch<APIJobDetail>(`/init/job/${jobUuid}`, {
     onSuccess: (data) => {
       const { progress } = data;
 
