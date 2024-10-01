@@ -114,15 +114,19 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
         ipo3 = String(10 + 2 * (host.parentSequence - 1));
       }
 
+      // eslint-disable-next-line complexity
       slots[slotType].forEach(([key]) => {
         const slot = clone.networks[key];
+
+        const initialSlot: HostNetFormikValues | undefined =
+          formik.initialValues.networkInit.networks[key];
 
         const netChain = `${chains.networks}.${key}`;
         const ifChain = `${netChain}.interfaces.0`;
         const ipChain = `${netChain}.ip`;
         const maskChain = `${netChain}.subnetMask`;
 
-        if (!getFieldChanged(ipChain)) {
+        if (!getFieldChanged(ipChain) && !initialSlot?.ip) {
           const ipo2 =
             slotType === 'mn'
               ? '199'
@@ -133,11 +137,11 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
           slot.ip = ip;
         }
 
-        if (!getFieldChanged(maskChain)) {
+        if (!getFieldChanged(maskChain) && !initialSlot?.subnetMask) {
           slot.subnetMask = '255.255.0.0';
         }
 
-        if (!getFieldChanged(ifChain)) {
+        if (!getFieldChanged(ifChain) && !initialSlot?.interfaces[0]) {
           const found = candidates[slotType].find(
             (value) => value.ip === slot.ip,
           );
@@ -154,6 +158,11 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   slots.ifn.forEach(([key]) => {
     const slot = clone.networks[key];
 
+    const initialSlot: HostNetFormikValues | undefined =
+      formik.initialValues.networkInit.networks[key];
+    const initialParent: HostNetInitFormikValues =
+      formik.initialValues.networkInit;
+
     const netChain = `${chains.networks}.${key}`;
     const ifChain = `${netChain}.interfaces.0`;
     const ipChain = `${netChain}.ip`;
@@ -163,25 +172,25 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
 
     if (!candidate) return;
 
-    if (!getFieldChanged(ifChain)) {
+    if (!getFieldChanged(ifChain) && !initialSlot?.interfaces[0]) {
       slot.interfaces[0] = candidate.uuid;
     }
 
-    if (!getFieldChanged(ipChain)) {
+    if (!getFieldChanged(ipChain) && !initialSlot?.ip) {
       slot.ip = candidate.ip || '';
     }
 
-    if (!getFieldChanged(maskChain)) {
+    if (!getFieldChanged(maskChain) && !initialSlot?.subnetMask) {
       slot.subnetMask = candidate.subnetMask || '';
     }
 
     if (slot.sequence !== '1') return;
 
-    if (!getFieldChanged(chains.dns)) {
+    if (!getFieldChanged(chains.dns) && !initialParent.dns) {
       clone.dns = candidate.dns || '';
     }
 
-    if (!getFieldChanged(chains.gateway)) {
+    if (!getFieldChanged(chains.gateway) && !initialParent.gateway) {
       clone.gateway = candidate.gateway || '';
     }
   });
