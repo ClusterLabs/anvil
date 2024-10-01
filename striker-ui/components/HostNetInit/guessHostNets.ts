@@ -108,11 +108,10 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
     slotTypes.forEach((slotType) => {
       let ipo3 = '??';
 
-      if (host.parentSequence) {
-        ipo3 =
-          host.type === 'striker'
-            ? '4'
-            : String(10 + 2 * (host.parentSequence - 1));
+      if (host.type === 'striker') {
+        ipo3 = '4';
+      } else if (host.parentSequence) {
+        ipo3 = String(10 + 2 * (host.parentSequence - 1));
       }
 
       slots[slotType].forEach(([key]) => {
