@@ -21,5 +21,14 @@ type PrepareHostNetworkProps = {
 
 type PrepareHostNetworkFormProps = {
   detail: APIHostDetail;
+  tools: CrudListFormTools;
   uuid: string;
+};
+
+/** PrepareHostNetworkSummary */
+
+type PrepareHostNetworkSummaryProps = {
+  gatewayIface: string;
+  ifaces: APINetworkInterfaceOverviewList;
+  values: PrepareHostNetworkFormikValues;
 };

@@ -1,15 +1,19 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
+import api from '../../lib/api';
+import buildInitRequestBody from '../../lib/buildInitRequestBody';
+import handleAPIError from '../../lib/handleAPIError';
 import { HostNetInitInputGroup } from '../HostNetInit';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import prepareHostNetworkSchema from './prepareHostNetworkSchema';
+import PrepareHostNetworkSummary from './PrepareHostNetworkSummary';
+import SwitchWithLabel from '../SwitchWithLabel';
+import toHostNetList from '../../lib/toHostNetList';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
-import SwitchWithLabel from '../SwitchWithLabel';
-import prepareHostNetworkSchema from './prepareHostNetworkSchema';
-import toHostNetList from '../../lib/toHostNetList';
 
 const buildFormikInitialValues = (
   detail: APIHostDetail,
@@ -24,21 +28,25 @@ const buildFormikInitialValues = (
       subnetMask: '',
       type: 'bcn',
     },
-    defaultifn: {
+  };
+
+  if (detail.hostType === 'node') {
+    networks.defaultifn = {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'ifn',
-    },
-    defaultsn: {
+    };
+
+    networks.defaultsn = {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'sn',
-    },
-  };
+    };
+  }
 
   if (nets) {
     networks = toHostNetList(nets);
@@ -56,28 +64,89 @@ const buildFormikInitialValues = (
 };
 
 const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
-  const { detail, uuid } = props;
+  const { detail, tools, uuid } = props;
+
+  const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);
 
   const formikUtils = useFormikUtils<PrepareHostNetworkFormikValues>({
     initialValues: buildFormikInitialValues(detail),
     onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+      const requestBody = buildInitRequestBody(values, ifaces.current);
+
+      tools.confirm.prepare({
+        actionProceedText: 'Prepare network',
+        content: ifaces.current && (
+          <PrepareHostNetworkSummary
+            gatewayIface={requestBody.gatewayInterface}
+            ifaces={ifaces.current}
+            values={values}
+          />
+        ),
+        onCancelAppend: () => setSubmitting(false),
+        onProceedAppend: () => {
+          tools.confirm.loading(true);
+
+          api
+            .put(
+              `/host/${detail.hostUUID}?handler=subnode-network`,
+              requestBody,
+            )
+            .then(() => {
+              tools.confirm.finish('Success', {
+                children: (
+                  <>
+                    Successfully started network config on{' '}
+                    {detail.shortHostName}
+                  </>
+                ),
+              });
+            })
+            .catch((error) => {
+              const emsg = handleAPIError(error);
+
+              emsg.children = (
+                <>
+                  Failed to prepare network on {detail.shortHostName}.{' '}
+                  {emsg.children}
+                </>
+              );
+
+              tools.confirm.finish('Error', emsg);
+
+              setSubmitting(false);
+            });
+        },
+        titleText: `Prepare network on ${detail.shortHostName} with the following?`,
+      });
+
+      tools.confirm.open();
     },
     validationSchema: prepareHostNetworkSchema,
   });
 
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
-  const sequence = useMemo(() => {
-    const trailing = detail.shortHostName.replace(/^.*(\d+)$/, '$1');
+  const hostType = useMemo(
+    () => detail.hostType.replace('node', 'subnode'),
+    [detail.hostType],
+  );
 
-    return Number(trailing);
+  const { parentSequence, sequence } = useMemo(() => {
+    const numbers = detail.shortHostName.replace(/^.*a(\d+).*n(\d+)$/, '$1,$2');
+
+    const [parentSeq, seq] = numbers.split(',', 2);
+
+    return {
+      parentSequence: Number(parentSeq),
+      sequence: Number(seq),
+    };
   }, [detail.shortHostName]);
 
   const chains = useMemo(
     () => ({
-      mini: `mini`,
       hostName: `hostName`,
+      mini: `mini`,
+      networks: `networkInit.networks`,
     }),
     [],
   );
@@ -113,7 +182,17 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
           id={chains.mini}
           label="Minimal config"
           name={chains.mini}
-          onChange={formik.handleChange}
+          onChange={(event, checked) => {
+            if (checked) {
+              const { defaultbcn } = formik.values.networkInit.networks;
+
+              formik.setFieldValue(chains.networks, { defaultbcn }, true);
+            } else {
+              formik.resetForm();
+            }
+
+            formik.handleChange(event);
+          }}
           checked={formik.values.mini}
         />
       </Grid>
@@ -121,9 +200,13 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
         <HostNetInitInputGroup
           formikUtils={formikUtils}
           host={{
+            parentSequence,
             sequence,
-            type: 'subnode',
+            type: hostType,
             uuid,
+          }}
+          onFetchSuccess={(data) => {
+            ifaces.current = data;
           }}
         />
       </Grid>

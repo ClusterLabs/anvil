@@ -17,6 +17,7 @@ type HostNetInitFormikExtension = {
 };
 
 type HostNetInitHost = {
+  parentSequence: number;
   sequence: number;
   type: string;
   uuid: string;

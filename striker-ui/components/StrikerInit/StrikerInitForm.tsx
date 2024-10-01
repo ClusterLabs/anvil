@@ -1,11 +1,12 @@
 import { Grid } from '@mui/material';
-import { Netmask } from 'netmask';
+
 import { FC, useCallback, useMemo, useRef } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
+import buildInitRequestBody from '../../lib/buildInitRequestBody';
 import handleAPIError from '../../lib/handleAPIError';
 import { HostNetInitInputGroup } from '../HostNetInit';
 import MessageGroup from '../MessageGroup';
@@ -114,55 +115,13 @@ const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
   const formikUtils = useFormikUtils<StrikerInitFormikValues>({
     initialValues: buildFormikInitialValues(detail),
     onSubmit: (values, { setSubmitting }) => {
-      const { networkInit: netInit, ...restValues } = values;
-      const { networks, ...restNetInit } = netInit;
-
-      const ns = Object.values(networks);
-
-      const rqbody = {
-        ...restValues,
-        ...restNetInit,
-        gatewayInterface: ns.reduce<string>((previous, n) => {
-          const { ip, sequence, subnetMask, type } = n;
-
-          let subnet: Netmask;
-
-          try {
-            subnet = new Netmask(`${ip}/${subnetMask}`);
-          } catch (error) {
-            return previous;
-          }
-
-          if (subnet.contains(netInit.gateway)) {
-            return `${type}${sequence}`;
-          }
-
-          return previous;
-        }, ''),
-        networks: ns.map((n) => {
-          const { interfaces, ip, sequence, subnetMask, type } = n;
-
-          return {
-            interfaces: interfaces.map((ifUuid) =>
-              ifUuid
-                ? {
-                    mac: ifaces.current?.[ifUuid]?.mac,
-                  }
-                : null,
-            ),
-            ipAddress: ip,
-            sequence,
-            subnetMask,
-            type,
-          };
-        }),
-      };
+      const requestBody = buildInitRequestBody(values, ifaces.current);
 
       tools.confirm.prepare({
         actionProceedText: 'Initialize',
         content: ifaces.current && (
           <StrikerInitSummary
-            gatewayIface={rqbody.gatewayInterface}
+            gatewayIface={requestBody.gatewayInterface}
             ifaces={ifaces.current}
             values={values}
           />
@@ -172,7 +131,7 @@ const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
           tools.confirm.loading(true);
 
           api
-            .put('/init', rqbody)
+            .put('/init', requestBody)
             .then((response) => {
               onSubmitSuccess?.call(null, response.data);
 
@@ -407,6 +366,7 @@ const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
         <HostNetInitInputGroup
           formikUtils={formikUtils}
           host={{
+            parentSequence: NaN,
             sequence: Number(formik.values.hostNumber),
             type: 'striker',
             uuid: 'local',

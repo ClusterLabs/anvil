@@ -3,12 +3,13 @@ import {
   DragHandle as MuiDragHandleIcon,
 } from '@mui/icons-material';
 import { Box, BoxProps, Grid } from '@mui/material';
-import { capitalize, cloneDeep } from 'lodash';
-import { FC, useMemo, useState } from 'react';
+import { capitalize } from 'lodash';
+import { FC, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import DragArea, { dragAreaClasses } from './DragArea';
 import DragDataGrid, { dragDataGridClasses } from './DragDataGrid';
+import guessHostNets from './guessHostNets';
 import HostNetInputGroup from './HostNetInputGroup';
 import IfaceDragHandle, { ifaceDragHandleClasses } from './IfaceDragHandle';
 import IconButton from '../IconButton';
@@ -24,7 +25,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 ): ReturnType<FC<HostNetInitInputGroupProps<Values>>> => {
   const { formikUtils, host, onFetchSuccess } = props;
 
-  const { formik, getFieldChanged, handleChange } = formikUtils;
+  const { formik, handleChange } = formikUtils;
+
+  const firstResponse = useRef<boolean>(true);
 
   const [ifaceHeld, setIfaceHeld] = useState<string | undefined>();
 
@@ -33,7 +36,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     y: 0,
   });
 
-  const ifacesApplied = useMemo(
+  const appliedIfaces = useMemo(
     () =>
       Object.values(formik.values.networkInit.networks).reduce<
         Record<string, boolean>
@@ -58,6 +61,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     return {
       dns: `${base}.dns`,
       gateway: `${base}.gateway`,
+      networkInit: base,
       networks: `${base}.networks`,
     };
   }, []);
@@ -66,54 +70,13 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     `/init/network-interface/${host.uuid}`,
     {
       onSuccess: (data) => {
-        const values = Object.values(data);
-
-        const ifnCandidates = values.filter(
-          (value) =>
-            !ifacesApplied[value.uuid] &&
-            value.ip &&
-            !/^10\.[12]/.test(value.ip),
-        );
-
-        if (host.sequence > 0) {
-          const bcnSlots = hostNets.filter(([, value]) => value.type === 'bcn');
-
-          bcnSlots.forEach(([key, slot]) => {
-            const chain = `${chains.networks}.${key}`;
-
-            if (getFieldChanged(chain)) return;
-
-            const slotClone = cloneDeep(slot);
-
-            slotClone.ip = `10.20${slot.sequence}.4.${host.sequence}`;
-            slotClone.subnetMask = '255.255.0.0';
-
-            formik.setFieldValue(chain, slotClone, true);
-          });
-        }
-
-        const ifnSlots = hostNets.filter(([, value]) => value.type === 'ifn');
-
-        // eslint-disable-next-line complexity
-        ifnSlots.forEach(([key, slot]) => {
-          const chain = `${chains.networks}.${key}`;
-
-          if (slot.interfaces[0] !== '' || getFieldChanged(chain)) {
-            return;
-          }
-
-          const slotClone = cloneDeep(slot);
-          const candidate = ifnCandidates.shift();
-
-          if (!candidate) return;
-
-          slotClone.interfaces[0] = candidate.uuid;
-          slotClone.ip = candidate.ip || '';
-          slotClone.subnetMask = candidate.subnetMask || '';
-
-          formik.setFieldValue(chain, slotClone, true);
-          formik.setFieldValue(chains.dns, candidate.dns || '', true);
-          formik.setFieldValue(chains.gateway, candidate.gateway || '', true);
+        guessHostNets({
+          appliedIfaces,
+          chains,
+          data,
+          host,
+          firstResponse,
+          formikUtils,
         });
 
         onFetchSuccess?.call(null, data);
@@ -122,7 +85,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     },
   );
 
-  const ifacesValue = useMemo(() => ifaces && Object.values(ifaces), [ifaces]);
+  const ifaceValues = useMemo(() => ifaces && Object.values(ifaces), [ifaces]);
 
   const dragAreaProps = useMemo<BoxProps | undefined>(() => {
     if (!ifaceHeld) return undefined;
@@ -147,7 +110,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     };
   }, [ifaceHeld]);
 
-  if (!ifaces || !ifacesValue) {
+  if (!ifaces || !ifaceValues) {
     return <Spinner />;
   }
 
@@ -193,7 +156,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                   };
                   let icon = <MuiDragHandleIcon />;
 
-                  if (ifacesApplied[row.uuid]) {
+                  if (appliedIfaces[row.uuid]) {
                     className = ifaceDragHandleClasses.applied;
                     handleMouseDown = undefined;
                     icon = <MuiCheckIcon />;
@@ -265,7 +228,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 
                   if (!uuid) return;
 
-                  if (ifacesApplied[uuid]) return;
+                  if (appliedIfaces[uuid]) return;
 
                   setIfaceHeld(uuid);
                 },
@@ -276,7 +239,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
             getRowClassName={(cell) => {
               const { row } = cell;
 
-              return ifaceHeld || ifacesApplied[row.uuid]
+              return ifaceHeld || appliedIfaces[row.uuid]
                 ? ''
                 : dragDataGridClasses.draggable;
             }}
@@ -285,7 +248,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
             initialState={{
               sorting: { sortModel: [{ field: 'name', sort: 'asc' }] },
             }}
-            rows={ifacesValue}
+            rows={ifaceValues}
           />
           <Box
             sx={{
@@ -317,8 +280,8 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                   host={host}
                   ifaceHeld={ifaceHeld}
                   ifaces={ifaces}
-                  ifacesApplied={ifacesApplied}
-                  ifacesValue={ifacesValue}
+                  ifacesApplied={appliedIfaces}
+                  ifacesValue={ifaceValues}
                   key={`hostnet-${key}`}
                   netId={key}
                 />
