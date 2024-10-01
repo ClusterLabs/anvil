@@ -8,6 +8,10 @@ import { BodyText } from '../Text';
 const HostTabs: FC<HostTabsProps> = (props) => {
   const { list: hostValues, setValue, value } = props;
 
+  if (hostValues.length === 0) {
+    return <BodyText>No host(s) found.</BodyText>;
+  }
+
   return (
     <Tabs
       centered
