@@ -85,6 +85,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               label="Network type"
               name={chains.type}
               onChange={formik.handleChange}
+              required
               selectItems={netTypeOptions}
               value={formik.values.networkInit.networks[netId].type}
             />
