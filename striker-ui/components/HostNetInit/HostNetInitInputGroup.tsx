@@ -50,11 +50,6 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     [formik.values.networkInit.networks],
   );
 
-  const hostNets = useMemo(
-    () => Object.entries(formik.values.networkInit.networks),
-    [formik.values.networkInit.networks],
-  );
-
   const chains = useMemo(() => {
     const base = 'networkInit';
 
@@ -83,6 +78,11 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       },
       refreshInterval: 2000,
     },
+  );
+
+  const hostNets = useMemo(
+    () => Object.entries(formik.values.networkInit.networks),
+    [formik.values.networkInit.networks],
   );
 
   const ifaceValues = useMemo(() => ifaces && Object.values(ifaces), [ifaces]);
@@ -292,6 +292,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       </Grid>
       <Grid alignSelf="center" item xs={1} sm="auto">
         <IconButton
+          disabled={hostNets.length >= ifaceValues.length}
           mapPreset="add"
           onClick={() => {
             const key = uuidv4();
