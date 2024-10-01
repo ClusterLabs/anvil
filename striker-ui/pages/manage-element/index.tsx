@@ -1,24 +1,20 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { FC, ReactElement, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 
-import api from '../../lib/api';
 import getQueryParam from '../../lib/getQueryParam';
 import Grid from '../../components/Grid';
-import handleAPIError from '../../lib/handleAPIError';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
 import { ManageHost } from '../../components/ManageHost';
+import { ManageHostNetwork } from '../../components/ManageHostNetwork';
 import ManageManifestPanel from '../../components/ManageManifest';
 import ManageUpsPanel from '../../components/ManageUps';
 import { Panel, PanelHeader } from '../../components/Panels';
-import PrepareNetworkForm from '../../components/PrepareNetworkForm';
-import Spinner from '../../components/Spinner';
 import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
 import Tabs from '../../components/Tabs';
 import { HeaderText } from '../../components/Text';
-import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const TAB_ID_PREPARE_HOST = 'prepare-host';
 const TAB_ID_PREPARE_NETWORK = 'prepare-network';
@@ -57,77 +53,18 @@ const PrepareHostTabContent: FC = () => (
   />
 );
 
-const PrepareNetworkTabContent: FC = () => {
-  const isFirstRender = useIsFirstRender();
-
-  const [hostOverviewList, setHostOverviewList] = useState<
-    APIHostOverviewList | undefined
-  >();
-  const [hostSubTabId, setHostSubTabId] = useState<string | false>(false);
-
-  const hostSubTabs = useMemo(() => {
-    let result: ReactElement | undefined;
-
-    if (hostOverviewList) {
-      const hostOverviewPairs = Object.entries(hostOverviewList);
-
-      result = (
-        <Tabs
-          onChange={(event, newSubTabId) => {
-            setHostSubTabId(newSubTabId);
-          }}
-          orientation="vertical"
-          value={hostSubTabId}
-        >
-          {hostOverviewPairs.map(([hostUUID, { shortHostName }]) => (
-            <Tab
-              key={`${TAB_ID_PREPARE_NETWORK}-${hostUUID}`}
-              label={shortHostName}
-              value={hostUUID}
-            />
-          ))}
-        </Tabs>
-      );
-    } else {
-      result = <Spinner mt={0} />;
-    }
-
-    return result;
-  }, [hostOverviewList, hostSubTabId]);
-
-  if (isFirstRender) {
-    api
-      .get<APIHostOverviewList>('/host', { params: { types: ['dr', 'node'] } })
-      .then(({ data }) => {
-        setHostOverviewList(data);
-        setHostSubTabId(Object.keys(data)[0]);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      });
-  }
-
-  return (
-    <Grid
-      columns={STEP_CONTENT_GRID_COLUMNS}
-      layout={{
-        'preparenetwork-left-column': {
-          children: <Panel>{hostSubTabs}</Panel>,
-          sm: 2,
-        },
-        'preparenetwork-center-column': {
-          children: (
-            <PrepareNetworkForm
-              expectUUID
-              hostUUID={hostSubTabId || undefined}
-            />
-          ),
-          ...STEP_CONTENT_GRID_CENTER_COLUMN,
-        },
-      }}
-    />
-  );
-};
+const PrepareNetworkTabContent: FC = () => (
+  <Grid
+    columns={STEP_CONTENT_GRID_COLUMNS}
+    layout={{
+      'preparenetwork-left-column': {},
+      'preparenetwork-center-column': {
+        children: <ManageHostNetwork />,
+        ...STEP_CONTENT_GRID_CENTER_COLUMN,
+      },
+    }}
+  />
+);
 
 const ManageFenceTabContent: FC = () => (
   <Grid
