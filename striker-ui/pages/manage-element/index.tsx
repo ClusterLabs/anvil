@@ -30,8 +30,8 @@ const MAP_TO_PAGE_TITLE: Record<string, string> = {
   [TAB_ID_MANAGE_MANIFEST]: 'Manage Manifests',
 };
 const PAGE_TITLE_LOADING = 'Loading';
-const STEP_CONTENT_GRID_COLUMNS = { md: 8, sm: 6, xs: 1 };
-const STEP_CONTENT_GRID_CENTER_COLUMN = { md: 6, sm: 4, xs: 1 };
+const STEP_CONTENT_GRID_COLUMNS = { md: 8, xs: 1 };
+const STEP_CONTENT_GRID_CENTER_COLUMN = { md: 6, xs: 1 };
 
 const PrepareHostTabContent: FC = () => (
   <Grid
