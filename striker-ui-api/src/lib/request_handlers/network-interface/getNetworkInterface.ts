@@ -24,7 +24,7 @@ export const getNetworkInterface = buildGetRequestHandler(
           ELSE 'down'
         END AS iface_state,
         a.network_interface_speed,
-        ROW_NUMBER() OVER(ORDER BY a.modified_date ASC) AS iface_order,
+        ROW_NUMBER() OVER(ORDER BY a.modified_date DESC) AS iface_order,
         b.ip_address_address,
         b.ip_address_subnet_mask,
         b.ip_address_gateway,
