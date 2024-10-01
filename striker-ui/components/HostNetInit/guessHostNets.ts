@@ -101,8 +101,8 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
     const slotTypes: ['bcn', 'mn', 'sn'] = ['bcn', 'mn', 'sn'];
 
     const ipo2Prefixes = {
-      bcn: '20',
-      sn: '10',
+      bcn: 200,
+      sn: 100,
     };
 
     slotTypes.forEach((slotType) => {
@@ -110,7 +110,7 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
 
       if (host.type === 'striker') {
         ipo3 = '4';
-      } else if (host.parentSequence) {
+      } else if (host.parentSequence > 0) {
         ipo3 = String(10 + 2 * (host.parentSequence - 1));
       }
 
@@ -129,8 +129,8 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
         if (!getFieldChanged(ipChain) && !initialSlot?.ip) {
           const ipo2 =
             slotType === 'mn'
-              ? '199'
-              : `${ipo2Prefixes[slotType]}${slot.sequence}`;
+              ? 199
+              : ipo2Prefixes[slotType] + Number(slot.sequence);
 
           const ip = `10.${ipo2}.${ipo3}.${host.sequence}`;
 
