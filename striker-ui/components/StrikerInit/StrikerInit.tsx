@@ -64,7 +64,7 @@ const StrikerInit: FC = () => {
     <>
       <Panel>
         <PanelHeader>
-          <HeaderText>{detail ? 'Rei' : 'I'}nitialize Striker</HeaderText>
+          <HeaderText>{detail ? 'Rei' : 'I'}nitialize striker</HeaderText>
         </PanelHeader>
         <StrikerInitForm
           detail={detail}
