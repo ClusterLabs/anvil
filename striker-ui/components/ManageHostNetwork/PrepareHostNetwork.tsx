@@ -48,7 +48,7 @@ const PrepareHostNetwork: FC<PrepareHostNetworkProps> = (props) => {
 
   return (
     <>
-      <PrepareHostNetworkForm detail={detail} tools={formTools} uuid={uuid} />;
+      <PrepareHostNetworkForm detail={detail} tools={formTools} uuid={uuid} />
       {confirmDialog}
     </>
   );
