@@ -43,6 +43,7 @@ type APIHostOverview = {
     name: string;
     uuid: string;
   };
+  hostConfigured: boolean;
   hostName: string;
   hostStatus: APIHostStatus;
   hostType: string;

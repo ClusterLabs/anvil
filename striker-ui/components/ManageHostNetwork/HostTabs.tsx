@@ -1,9 +1,11 @@
 import { Grid } from '@mui/material';
 import { FC } from 'react';
 
+import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+
 import Tab from '../Tab';
 import Tabs from '../Tabs';
-import { BodyText } from '../Text';
+import { BodyText, MonoText } from '../Text';
 
 const HostTabs: FC<HostTabsProps> = (props) => {
   const { list: hostValues, setValue, value } = props;
@@ -22,24 +24,25 @@ const HostTabs: FC<HostTabsProps> = (props) => {
       value={value}
     >
       {hostValues.map((host) => {
-        const { anvil, hostStatus, hostUUID, shortHostName } = host;
+        const { hostConfigured, hostStatus, hostUUID, shortHostName } = host;
 
         return (
           <Tab
             key={`host-${hostUUID}`}
             label={
-              <Grid columns={4} container spacing={0}>
+              <Grid columns={{ xs: 2 }} container spacing="1em">
                 <Grid item xs={1}>
-                  <BodyText>{shortHostName}</BodyText>
+                  <MonoText noWrap>{shortHostName}</MonoText>
                 </Grid>
-                <Grid item justifySelf="end" xs={1}>
-                  <BodyText>{anvil ? `in ${anvil.name}` : 'is free'}</BodyText>
-                </Grid>
-                <Grid item xs={1}>
-                  <BodyText>{hostStatus}</BodyText>
+                <Grid borderLeft={`thin solid ${DIVIDER}`} item xs={1}>
+                  <BodyText noWrap>
+                    {hostStatus}
+                    {hostConfigured ? ', configured' : ''}
+                  </BodyText>
                 </Grid>
               </Grid>
             }
+            sx={{ textAlign: 'left' }}
             value={hostUUID}
           />
         );
