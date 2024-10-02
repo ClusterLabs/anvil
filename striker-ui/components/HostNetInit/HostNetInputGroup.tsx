@@ -78,7 +78,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   return (
     <InnerPanel>
       <InnerPanelHeader>
-        <Grid columns={{ xs: 1, sm: 2, md: 4 }} container spacing="1em">
+        <Grid columns={{ xs: 1, sm: 2, md: 4 }} container spacing="0.1em">
           <Grid item xs={1} md={3}>
             <SelectWithLabel
               id={chains.type}
@@ -95,7 +95,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               input={
                 <OutlinedInputWithLabel
                   id={chains.sequence}
-                  label="Network #"
+                  label="#"
                   name={chains.sequence}
                   onChange={handleChange}
                   required
