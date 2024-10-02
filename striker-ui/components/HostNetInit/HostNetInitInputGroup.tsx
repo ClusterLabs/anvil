@@ -42,9 +42,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 
   const appliedIfaces = useMemo(
     () =>
-      Object.values(formik.values.networkInit.networks).reduce<
-        Record<string, boolean>
-      >((applied, network) => {
+      Object.values<HostNetFormikValues>(
+        formik.values.networkInit.networks,
+      ).reduce<Record<string, boolean>>((applied, network) => {
         network.interfaces.forEach((uuid) => {
           if (uuid.length > 0) applied[uuid] = true;
         });

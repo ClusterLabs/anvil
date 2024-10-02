@@ -68,7 +68,9 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
     },
   );
 
-  const hostNets = Object.entries(formik.values.networkInit.networks);
+  const hostNets = Object.entries<HostNetFormikValues>(
+    formik.values.networkInit.networks,
+  );
 
   // Categorize slots based on their type.
   const slots = hostNets.reduce<

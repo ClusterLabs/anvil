@@ -44,7 +44,9 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
       ['dr', 'subnode'].includes(host.type) &&
       ifaceValues.length >= 8 &&
       (nets[netId].type === 'mn' ||
-        Object.values(nets).every((net) => net.type !== 'mn'))
+        Object.values<HostNetFormikValues>(nets).every(
+          (net) => net.type !== 'mn',
+        ))
     ) {
       base = [...base, 'mn'].sort();
     }
