@@ -153,7 +153,7 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
 
   return (
     <Grid
-      columns={{ xs: 1, sm: 2, md: 3 }}
+      columns={{ xs: 1, sm: 2, md: 3, lg: 4 }}
       component="form"
       container
       onSubmit={(event) => {
@@ -177,6 +177,7 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
           }
         />
       </Grid>
+      <Grid display={{ xs: 'none', md: 'initial' }} flexGrow={1} item />
       <Grid item xs={1}>
         <SwitchWithLabel
           id={chains.mini}
