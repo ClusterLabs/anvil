@@ -1261,7 +1261,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0054">Found an entry matching the key being removed at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
-		<key name="job_0057">The selected old/bad ssh host key(s) will be removed from the specified files.</key>
+		<key name="job_0057">Scans for or removes selected old/bad ssh host key(s) from the target user's known_hosts file.</key>
 		<key name="job_0058">#!free!#</key>
 		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
 		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
@@ -1930,7 +1930,7 @@ The database connection error was:
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!old_uuid!#], but it's connection is gone. SWitching to read from: [#!variable!new_uuid!#].]]></key>
 		<key name="log_0132">Connected to: [#!data!sys::database::connections!#] database(s).</key>
-		<key name="log_0133">#!free!#</key>
+		<key name="log_0133">The target machine: [#!variable!target!#] host key has changed. Doing a full scan of our 'known_hosts' file to see if other keys are stale also. This might take a minute to complete.</key>
 		<key name="log_0134">The host UUID: [#!variable!uuid!#] does not appear to be a valid UUID. Please check the contents of: [#!data!path::data::host_uuid!#] or the output from: [dmidecode --string system-uuid]. Note that some mainboards will report their UUID as all-0. If this is the case, manually create the 'host.uuid' file with a UUID created by 'uuidgen'.</key>
 		<key name="log_0135">- #!variable!caller!# runtime was approximately: [#!variable!runtime!#] seconds.</key>
 		<key name="log_0136"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called with either 'job_uuid': [#!variable!job_uuid!#] not being passed (or was not a valid UUID), or 'job_name': [#!variable!job_name!#] not being passed.]]></key>

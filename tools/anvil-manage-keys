@@ -322,11 +322,14 @@ sub process_file
 {
 	my ($anvil, $file) = @_;
 	my $bad_key        = $anvil->data->{bad_key};
-	my $target         = $anvil->{ssh_key}{$bad_key}{host};
+	my ($algo, $key)   = ($bad_key =~ /^(.*?)\s+(.*)$/);
+	my $target         = $anvil->{ssh_key}{$key}{host};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:file'    => $file,
-		's2:target'  => $target, 
-		's3:bad_key' => $bad_key, 
+		's2:bad_key' => $bad_key, 
+		's3:algo'    => $algo,
+		's4:key'     => $key, 
+		's5:target'  => $target, 
 	}});
 	
 	$anvil->data->{job}{progress} += 5;
@@ -530,7 +533,7 @@ sub load_job_data
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0048"});
 		
 		# We're got what we need.
-		$anvil->data->{bad_key} = ($job_data =~ /job_data=(.*)$/)[0];
+		$anvil->data->{bad_key} = ($job_data =~ /bad_key=(.*)$/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $anvil->data->{bad_key} }});
 	}
 	else
