@@ -4657,7 +4657,7 @@ ORDER BY
 			{
 				# Duplicate, delete it.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, priority => "alert", key => "warning_0001", variables => { 
-					host_uuid       => $host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $uuid}).")", 
+					host_uuid       => $host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $host_uuid}).")", 
 					ip_address      => $ip_address_address, 
 					subnet_mask     => $ip_address_subnet_mask, 
 					on_type         => $ip_address_on_type, 

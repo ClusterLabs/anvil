@@ -300,7 +300,7 @@ AND
 								# Delete this key.
 								$anvil->data->{job}{progress} += 5;
 								update_progress($anvil, $anvil->data->{job}{progress}, "job_0004,!!state_uuid!".$state_uuid."!!,!!host!".$host."!!,!!db_uuid!".$uuid."!!");
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => {
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0004", variables => {
 									state_uuid => $state_uuid, 
 									db_uuid    => $uuid,
 									host       => $host,
