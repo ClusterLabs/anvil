@@ -530,7 +530,7 @@ sub load_job_data
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0048"});
 		
 		# We're got what we need.
-		$anvil->data->{bad_key} = $1;
+		$anvil->data->{bad_key} = ($job_data =~ /job_data=(.*)$/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $anvil->data->{bad_key} }});
 	}
 	else
@@ -631,15 +631,34 @@ AND
 						if (not $anvil->{ssh_key}{$bad_key}{asked})
 						{
 							# Nope, ask now.
-							$anvil->{ssh_key}{$bad_key}{asked} = 1;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
-							
-							my $algo = $anvil->{ssh_key}{$bad_key}{algo};
-							my $host = $anvil->{ssh_key}{$bad_key}{host};
+							my ($algo, $hash_key) = ($bad_key =~ /^(.*?)\s+(.*)$/);
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								algo => $algo,
-								host => $host, 
+								's1:algo'     => $algo,
+								's2:hash_key' => $hash_key, 
 							}});
+							
+							$anvil->{ssh_key}{$hash_key}{asked} = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"ssh_key::${hash_key}::asked" => $anvil->{ssh_key}{$hash_key}{asked},
+							}});
+							
+							my $host = $anvil->{ssh_key}{$hash_key}{host};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+							
+							my $bad_key_host_uuid = "";
+							if ($anvil->Validate->ip({ip => $host}))
+							{
+								($bad_key_host_uuid, my $host_name) = $anvil->Get->host_from_ip_address({ip_address => $host});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									bad_key_host_uuid => $bad_key_host_uuid,
+									host_name         => $host_name, 
+								}});
+							}
+							else
+							{
+								$bad_key_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $host});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key_host_uuid => $bad_key_host_uuid }});
+							}
 							
 							# Did the user confirm already?
 							if ($anvil->data->{switches}{confirm})
@@ -653,7 +672,7 @@ AND
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0362", variables => {
 									host => $host, 
 									algo => $algo, 
-									key  => $bad_key,
+									key  => $hash_key,
 								}});
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0363"});
 								
@@ -673,30 +692,47 @@ AND
 								}
 							}
 							
-							# Create a job to remove the key from all hosts.
-							foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+							# Create a job to remove the key from all hosts. Do 
+							# it per-dashboard, because if the bad key is a 
+							# striker, we'll fail to write to it.
+							foreach my $db_uuid (keys %{$anvil->data->{cache}{database_handle}})
 							{
-								my $this_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
-								my $job_uuid       = $anvil->Database->insert_or_update_jobs({
-									debug           => 2,
-									file            => $THIS_FILE, 
-									line            => __LINE__, 
-									job_title       => "job_0056",
-									job_description => "job_0057",
-									job_host_uuid   => $this_host_uuid, 
-									job_data        => "bad_key=".$bad_key,
-									job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
-									job_name        => "manage::broken_keys", 
-									job_progress    => 0,
-								});
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-								
-								# Tell the user we've created a new job.
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0002", variables => {
-									job_uuid  => $job_uuid, 
-									host_name => $host_name, 
-									target    => $host, 
+								next if $db_uuid eq $bad_key_host_uuid;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									db_uuid           => $db_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $db_uuid}).")",
+									bad_key_host_uuid => $bad_key_host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $bad_key_host_uuid}).")",
 								}});
+								foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+								{
+									my $this_host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+									next if $this_host_uuid eq $bad_key_host_uuid;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+										host_name      => $host_name,
+										this_host_uuid => $this_host_uuid,
+									}});
+									
+									my $job_uuid = $anvil->Database->insert_or_update_jobs({
+										debug           => 2,
+										file            => $THIS_FILE, 
+										line            => __LINE__, 
+										uuid            => $db_uuid,
+										job_title       => "job_0056",
+										job_description => "job_0057",
+										job_host_uuid   => $this_host_uuid, 
+										job_data        => "bad_key=".$bad_key,
+										job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+										job_name        => "manage::broken_keys", 
+										job_progress    => 0,
+									});
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+									
+									# Tell the user we've created a new job.
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0002", variables => {
+										job_uuid  => $job_uuid, 
+										host_name => $host_name, 
+										target    => $host, 
+									}});
+								}
 							}
 						}
 					}

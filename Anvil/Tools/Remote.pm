@@ -620,7 +620,7 @@ sub call
 						
 						if ($key)
 						{
-							$bad_key = $key;
+							$bad_key = $algo." ".$key;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bad_key => $bad_key }});
 						}
 						last;
