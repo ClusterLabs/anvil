@@ -257,6 +257,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                 xs: '100%',
                 sm: '50%',
                 md: 'calc(100% / 3)',
+                lg: '25%',
               },
               gridAutoFlow: 'column',
               overflowX: 'scroll',
