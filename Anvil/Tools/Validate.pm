@@ -593,6 +593,8 @@ Checks if the passed-in string is an IPv6 address. Returns 'C<< 1 >>' if OK, 'C<
  	print "The IP address: [$ip] is valid!\n";
  }
 
+B<<Note>>: This will validate domain names as IPv6 addresses.
+
 Parameters;
 
 =head3 ip (required)

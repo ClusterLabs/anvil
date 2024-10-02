@@ -563,7 +563,7 @@ AND
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:uuid'    => $uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $uuid}).")",
+				's1:uuid'    => $uuid ? $uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $uuid}).")" : "",
 				's2:results' => $results, 
 				's3:count'   => $count, 
 			}});
@@ -649,7 +649,10 @@ AND
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
 							
 							my $bad_key_host_uuid = "";
-							if ($anvil->Validate->ip({ip => $host}))
+							### NOTE: We can only validate ipv4, ipv6 returns '1'
+							###       for hostnames, and host_name and 
+							###       domain_name checks are also unreliable. >_<
+							if ($anvil->Validate->ipv4({ip => $host}))
 							{
 								($bad_key_host_uuid, my $host_name) = $anvil->Get->host_from_ip_address({ip_address => $host});
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -667,7 +670,10 @@ AND
 							if ($anvil->data->{switches}{confirm})
 							{
 								# Yup.
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359", variables => { host => $host }});
+								if ($anvil->data->{switches}{confirm} ne "2")
+								{
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359", variables => { host => $host }});
+								}
 							}
 							else
 							{
@@ -686,6 +692,11 @@ AND
 								{
 									# Proceed.
 									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0175"});
+									
+									$anvil->data->{switches}{confirm} = 2;
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+										"switches::confirm" => $anvil->data->{switches}{confirm},
+									}});
 								}
 								else
 								{
@@ -702,8 +713,8 @@ AND
 							{
 								next if $db_uuid eq $bad_key_host_uuid;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									db_uuid           => $db_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $db_uuid}).")",
-									bad_key_host_uuid => $bad_key_host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $bad_key_host_uuid}).")",
+									db_uuid           => $db_uuid           ? $db_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $db_uuid}).")"                     : "",
+									bad_key_host_uuid => $bad_key_host_uuid ? $bad_key_host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $bad_key_host_uuid}).")" : "",
 								}});
 								foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 								{
