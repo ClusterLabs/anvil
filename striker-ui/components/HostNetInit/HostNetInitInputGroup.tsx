@@ -7,8 +7,10 @@ import { capitalize } from 'lodash';
 import { FC, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
+import Decorator, { Colours } from '../Decorator';
 import DragArea, { dragAreaClasses } from './DragArea';
 import DragDataGrid, { dragDataGridClasses } from './DragDataGrid';
+import FlexBox from '../FlexBox';
 import guessHostNets from './guessHostNets';
 import HostNetInputGroup from './HostNetInputGroup';
 import IfaceDragHandle, { ifaceDragHandleClasses } from './IfaceDragHandle';
@@ -35,6 +37,8 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     x: 0,
     y: 0,
   });
+
+  const [lostConnection, setLostConnection] = useState<boolean>(false);
 
   const appliedIfaces = useMemo(
     () =>
@@ -64,7 +68,12 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
   const { data: ifaces } = useFetch<APINetworkInterfaceOverviewList>(
     `/init/network-interface/${host.uuid}`,
     {
+      onError: () => {
+        setLostConnection(true);
+      },
       onSuccess: (data) => {
+        setLostConnection(false);
+
         guessHostNets({
           appliedIfaces,
           chains,
@@ -178,6 +187,30 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                 field: 'name',
                 flex: 1,
                 headerName: 'Name',
+                renderCell: (cell) => {
+                  const { row, value } = cell;
+                  const { state } = row;
+
+                  let colour: Colours;
+
+                  if (lostConnection || state === 'down') {
+                    colour = 'warning';
+                  } else if (state === 'up') {
+                    colour = 'ok';
+                  } else {
+                    colour = 'error';
+                  }
+
+                  return (
+                    <FlexBox row>
+                      <Decorator
+                        colour={colour}
+                        sx={{ alignSelf: 'stretch', height: 'auto' }}
+                      />
+                      <MonoText>{value}</MonoText>
+                    </FlexBox>
+                  );
+                },
               },
               {
                 field: 'mac',
@@ -196,7 +229,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                 renderCell: (cell) => {
                   const { value } = cell;
 
-                  return capitalize(value);
+                  return lostConnection ? 'Lost' : capitalize(value);
                 },
               },
               {
