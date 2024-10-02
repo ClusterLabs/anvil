@@ -106,33 +106,37 @@ const ManageManifestContent: FC = () => (
 );
 
 const ManageElement: FC = () => {
-  const {
-    isReady,
-    query: { step: rawStep },
-  } = useRouter();
+  const { isReady, push, query } = useRouter();
 
   const [pageTabId, setPageTabId] = useState<string | false>(false);
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLE_LOADING);
 
   useEffect(() => {
-    if (isReady) {
-      let step = getQueryParam(rawStep, {
-        fallbackValue: TAB_ID_PREPARE_HOST,
-      });
+    if (!isReady) return;
 
-      if (!MAP_TO_PAGE_TITLE[step]) {
-        step = TAB_ID_PREPARE_HOST;
-      }
+    const { step: rawStep } = query;
 
-      if (pageTitle === PAGE_TITLE_LOADING) {
-        setPageTitle(MAP_TO_PAGE_TITLE[step]);
-      }
+    let step = getQueryParam(rawStep, {
+      fallbackValue: TAB_ID_PREPARE_HOST,
+    });
 
-      if (!pageTabId) {
-        setPageTabId(step);
-      }
+    if (!MAP_TO_PAGE_TITLE[step]) {
+      step = TAB_ID_PREPARE_HOST;
     }
-  }, [isReady, pageTabId, pageTitle, rawStep]);
+
+    push({ query: { ...query, step } }, undefined, { shallow: true });
+
+    if (pageTitle === PAGE_TITLE_LOADING) {
+      setPageTitle(MAP_TO_PAGE_TITLE[step]);
+    }
+
+    if (!pageTabId) {
+      setPageTabId(step);
+    }
+
+    // Everything should be available when router is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
 
   return (
     <>
@@ -145,6 +149,10 @@ const ManageElement: FC = () => {
           onChange={(event, newTabId) => {
             setPageTabId(newTabId);
             setPageTitle(MAP_TO_PAGE_TITLE[newTabId]);
+
+            push({ query: { ...query, step: newTabId } }, undefined, {
+              shallow: true,
+            });
           }}
           orientation={{ xs: 'vertical', sm: 'horizontal' }}
           value={pageTabId}
