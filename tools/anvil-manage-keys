@@ -529,101 +529,9 @@ sub load_job_data
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0048");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0048"});
 		
-		### TODO: Remove the old ways when issue #706 is closed.
-		# If this is the old way, job_data is a CSV of state_uuids. If it's the new way, it's the bad key.
-		if ($job_data =~ /bad_key=(.*)$/)
-		{
-			# We're got what we need.
-			$anvil->data->{bad_key} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $anvil->data->{bad_key} }});
-		}
-		else
-		{
-			### Ahh, the old ways
-			# Break the job up, find the actual bad key(s), and create new job(s).
-			foreach my $state_uuid (split/,/, $job_data)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
-				if ($anvil->Validate->uuid({uuid => $state_uuid}))
-				{
-					# Get the state_note.
-					my $query = "SELECT state_note FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					
-					foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
-					{
-						my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
-						my $count   = @{$results};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							results => $results, 
-							count   => $count, 
-						}});
-						if ($count)
-						{
-							# Create a new job with the new bad_key job data, one per state_uuid.
-							my $state_note = $results->[0]->[0];
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_note => $state_note }});
-							
-							my $bad_key = "";
-							if ($state_note =~ /key=(.*?)$/)
-							{
-								$bad_key = $1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
-							}
-							elsif ($state_note =~ /file=(.*?),line=(\d+)$/)
-							{
-								# This was the old way, parse out the key.
-								my $bad_file = $1;
-								my $bad_line = $2;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									bad_file => $bad_file,
-									bad_line => $bad_line,
-								}});
-								if ($anvil->{ssh_keys}{$bad_file}{line}{$bad_line}{key})
-								{
-									$bad_key = $anvil->{ssh_keys}{$bad_file}{line}{$bad_line}{key};
-									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
-								}
-							}
-							my $job_uuid = $anvil->Database->insert_or_update_jobs({
-								debug           => 2,
-								file            => $THIS_FILE, 
-								line            => __LINE__, 
-								job_title       => "job_0056",
-								job_description => "job_0057",
-								job_host_uuid   => $anvil->Get->host_uuid, 
-								job_data        => "bad_key=".$bad_key,
-								job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
-								job_name        => "manage::broken_keys", 
-								job_progress    => 0,
-							});
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
-							
-							# Tell the user we've created a new job.
-							my $target = $anvil->{ssh_key}{$bad_key}{host} ? $anvil->{ssh_key}{$bad_key}{host} : "--";
-							$anvil->data->{job}{progress} += 5;
-							update_progress($anvil, $anvil->data->{job}{progress}, "job_0002,!!job_uuid!".$job_uuid."!!,!!target!".$target."!!");
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0002", variables => {
-								job_uuid => $job_uuid, 
-								target   => $target, 
-							}});
-						}
-					}
-				}
-				else
-				{
-					# Invalid, skip it.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0082", variables => {
-						state_uuid => $state_uuid, 
-					}});
-				}
-			}
-			
-			# Close this job out now.
-			update_progress($anvil, 100, "job_0003");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0003"});
-			$anvil->nice_exit({exit_code => 0});
-		}
+		# We're got what we need.
+		$anvil->data->{bad_key} = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $anvil->data->{bad_key} }});
 	}
 	else
 	{
@@ -643,20 +551,23 @@ LIKE
 AND 
     state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)."
 ;";
-
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 		
 		# Collect from all DBs.
+		my $bad_keys_found = 0;
 		foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
 		{
 			my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 			my $count   = @{$results};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				results => $results, 
-				count   => $count, 
+				's1:uuid'    => $uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $uuid}).")",
+				's2:results' => $results, 
+				's3:count'   => $count, 
 			}});
 			if ($count)
 			{
+				$bad_keys_found = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_keys_found => $bad_keys_found }});
 				foreach my $row (@{$results})
 				{
 					my $state_uuid = $row->[0];
@@ -791,13 +702,15 @@ AND
 					}
 				}
 			}
-			else
-			{
-				# No bad keys found, we're done.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0012"});
-				$anvil->nice_exit({exit_code => 0});
-			}
 		}
+		
+		if (not $bad_keys_found)
+		{
+			# No bad keys found, we're done.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0012"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+		
 		# Done looking for keys
 		$anvil->nice_exit({exit_code => 0});
 	}
