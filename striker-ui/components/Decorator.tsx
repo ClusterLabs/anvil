@@ -1,5 +1,6 @@
-import { Box as MUIBox, BoxProps as MUIBoxProps } from '@mui/material';
+import { Box, BoxProps, styled } from '@mui/material';
 import { FC } from 'react';
+
 import {
   BLUE,
   GREY,
@@ -8,9 +9,9 @@ import {
   BORDER_RADIUS,
 } from '../lib/consts/DEFAULT_THEME';
 
-export type Colours = 'ok' | 'off' | 'error' | 'warning';
+type Colours = 'ok' | 'off' | 'error' | 'warning';
 
-type DecoratorProps = MUIBoxProps & {
+type DecoratorProps = BoxProps & {
   colour: Colours;
 };
 
@@ -23,40 +24,32 @@ const classes = {
   off: `${PREFIX}-off`,
 };
 
-const Decorator: FC<DecoratorProps> = ({
-  colour,
-  sx,
-  ...restDecoratorProps
-}): JSX.Element => (
-  <MUIBox
-    {...{
-      ...restDecoratorProps,
-      className: classes[colour],
-      sx: {
-        borderRadius: BORDER_RADIUS,
-        height: '100%',
-        width: '1.4em',
+const BaseBox = styled(Box)({
+  borderRadius: BORDER_RADIUS,
+  height: '100%',
+  width: '1.4em',
 
-        [`&.${classes.ok}`]: {
-          backgroundColor: BLUE,
-        },
+  [`&.${classes.ok}`]: {
+    backgroundColor: BLUE,
+  },
 
-        [`&.${classes.warning}`]: {
-          backgroundColor: PURPLE,
-        },
+  [`&.${classes.warning}`]: {
+    backgroundColor: PURPLE,
+  },
 
-        [`&.${classes.error}`]: {
-          backgroundColor: RED,
-        },
+  [`&.${classes.error}`]: {
+    backgroundColor: RED,
+  },
 
-        [`&.${classes.off}`]: {
-          backgroundColor: GREY,
-        },
+  [`&.${classes.off}`]: {
+    backgroundColor: GREY,
+  },
+});
 
-        ...sx,
-      },
-    }}
-  />
+const Decorator: FC<DecoratorProps> = ({ colour, ...restDecoratorProps }) => (
+  <BaseBox {...restDecoratorProps} className={classes[colour]} />
 );
+
+export type { Colours };
 
 export default Decorator;
