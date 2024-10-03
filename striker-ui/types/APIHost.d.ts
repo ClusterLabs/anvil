@@ -43,6 +43,7 @@ type APIHostOverview = {
     name: string;
     uuid: string;
   };
+  hostConfigured: boolean;
   hostName: string;
   hostStatus: APIHostStatus;
   hostType: string;
@@ -84,4 +85,10 @@ type APIHostDetail = APIHostOverview & {
   strikerUser?: string;
 };
 
-type APIDeleteHostConnectionRequestBody = { [key: 'local' | string]: string[] };
+type APIDeleteHostConnectionRequestBody = {
+  [key: 'local' | string]: string[];
+};
+
+type APIStrikerInitResponseBody = {
+  jobUuid: string;
+};

@@ -1,8 +1,9 @@
 import {
   Breakpoint,
   tabClasses as muiTabClasses,
-  Tabs as MUITabs,
+  Tabs as MuiTabs,
   tabsClasses as muiTabsClasses,
+  styled,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -12,6 +13,33 @@ import { BLUE, BORDER_RADIUS } from '../lib/consts/DEFAULT_THEME';
 
 const TABS_MIN_HEIGHT = '1em';
 const TABS_VERTICAL_MIN_HEIGHT = '1.8em';
+
+const BaseTabs = styled(MuiTabs)({
+  minHeight: TABS_MIN_HEIGHT,
+
+  [`&.${muiTabsClasses.vertical}`]: {
+    minHeight: TABS_VERTICAL_MIN_HEIGHT,
+
+    [`& .${muiTabClasses.root}`]: {
+      alignItems: 'flex-start',
+      minHeight: TABS_VERTICAL_MIN_HEIGHT,
+      paddingLeft: '2em',
+    },
+
+    [`& .${muiTabsClasses.indicator}`]: {
+      right: 'initial',
+    },
+  },
+
+  [`& .${muiTabClasses.root}`]: {
+    minHeight: TABS_MIN_HEIGHT,
+  },
+
+  [`& .${muiTabsClasses.indicator}`]: {
+    backgroundColor: BLUE,
+    borderRadius: BORDER_RADIUS,
+  },
+});
 
 const Tabs: FC<TabsProps> = ({
   orientation: rawOrientation,
@@ -61,37 +89,7 @@ const Tabs: FC<TabsProps> = ({
   }, [mapToBreakpointUp, rawOrientation]);
 
   return (
-    <MUITabs
-      {...restTabsProps}
-      orientation={orientation}
-      variant={variant}
-      sx={{
-        minHeight: TABS_MIN_HEIGHT,
-
-        [`&.${muiTabsClasses.vertical}`]: {
-          minHeight: TABS_VERTICAL_MIN_HEIGHT,
-
-          [`& .${muiTabClasses.root}`]: {
-            alignItems: 'flex-start',
-            minHeight: TABS_VERTICAL_MIN_HEIGHT,
-            paddingLeft: '2em',
-          },
-
-          [`& .${muiTabsClasses.indicator}`]: {
-            right: 'initial',
-          },
-        },
-
-        [`& .${muiTabClasses.root}`]: {
-          minHeight: TABS_MIN_HEIGHT,
-        },
-
-        [`& .${muiTabsClasses.indicator}`]: {
-          backgroundColor: BLUE,
-          borderRadius: BORDER_RADIUS,
-        },
-      }}
-    />
+    <BaseTabs orientation={orientation} variant={variant} {...restTabsProps} />
   );
 };
 

@@ -642,6 +642,7 @@ const NetworkInitForm = forwardRef<
     expectHostDetail?: boolean;
     hostDetail?: APIHostDetail;
     hostSequence?: string;
+    mini?: boolean;
     toggleSubmitDisabled?: (testResult: boolean) => void;
   }
 >(
@@ -650,6 +651,7 @@ const NetworkInitForm = forwardRef<
       expectHostDetail = false,
       hostDetail,
       hostSequence,
+      mini,
       toggleSubmitDisabled,
     },
     ref,
@@ -1366,6 +1368,40 @@ const NetworkInitForm = forwardRef<
       testInputToToggleSubmitDisabled,
     ]);
 
+    useEffect((): void => {
+      if (mini) {
+        setNetworkInputs((previous) =>
+          previous.map<NetworkInput>((value) => {
+            const shallow = { ...value };
+
+            shallow.isRequired = false;
+
+            return shallow;
+          }),
+        );
+
+        return;
+      }
+
+      setNetworkInputs((previous) =>
+        previous.map<NetworkInput>((value) => {
+          const shallow = { ...value };
+
+          const found = initRequiredNetworks.find(
+            (current) =>
+              shallow.type === current.type &&
+              shallow.typeCount === current.typeCount,
+          );
+
+          if (found) {
+            shallow.isRequired = true;
+          }
+
+          return shallow;
+        }),
+      );
+    }, [initRequiredNetworks, mini]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -1638,6 +1674,7 @@ NetworkInitForm.defaultProps = {
   expectHostDetail: false,
   hostDetail: undefined,
   hostSequence: undefined,
+  mini: false,
   toggleSubmitDisabled: undefined,
 };
 NetworkInitForm.displayName = 'NetworkInitForm';

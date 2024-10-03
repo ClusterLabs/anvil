@@ -15,5 +15,6 @@ type FormikUtils<Values extends FormikValues> = {
   disabledSubmit: boolean;
   formik: Formik<Values>;
   formikErrors: Messages;
+  getFieldChanged: (field: string) => boolean;
   handleChange: FormikChangeHandler<Values>;
 };

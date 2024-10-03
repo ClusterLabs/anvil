@@ -1,24 +1,20 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { FC, ReactElement, useEffect, useMemo, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 
-import api from '../../lib/api';
 import getQueryParam from '../../lib/getQueryParam';
 import Grid from '../../components/Grid';
-import handleAPIError from '../../lib/handleAPIError';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
 import { ManageHost } from '../../components/ManageHost';
+import { ManageHostNetwork } from '../../components/ManageHostNetwork';
 import ManageManifestPanel from '../../components/ManageManifest';
 import ManageUpsPanel from '../../components/ManageUps';
 import { Panel, PanelHeader } from '../../components/Panels';
-import PrepareNetworkForm from '../../components/PrepareNetworkForm';
-import Spinner from '../../components/Spinner';
 import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
 import Tabs from '../../components/Tabs';
 import { HeaderText } from '../../components/Text';
-import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const TAB_ID_PREPARE_HOST = 'prepare-host';
 const TAB_ID_PREPARE_NETWORK = 'prepare-network';
@@ -34,8 +30,8 @@ const MAP_TO_PAGE_TITLE: Record<string, string> = {
   [TAB_ID_MANAGE_MANIFEST]: 'Manage Manifests',
 };
 const PAGE_TITLE_LOADING = 'Loading';
-const STEP_CONTENT_GRID_COLUMNS = { md: 8, sm: 6, xs: 1 };
-const STEP_CONTENT_GRID_CENTER_COLUMN = { md: 6, sm: 4, xs: 1 };
+const STEP_CONTENT_GRID_COLUMNS = { md: 8, xs: 1 };
+const STEP_CONTENT_GRID_CENTER_COLUMN = { md: 6, xs: 1 };
 
 const PrepareHostTabContent: FC = () => (
   <Grid
@@ -57,77 +53,18 @@ const PrepareHostTabContent: FC = () => (
   />
 );
 
-const PrepareNetworkTabContent: FC = () => {
-  const isFirstRender = useIsFirstRender();
-
-  const [hostOverviewList, setHostOverviewList] = useState<
-    APIHostOverviewList | undefined
-  >();
-  const [hostSubTabId, setHostSubTabId] = useState<string | false>(false);
-
-  const hostSubTabs = useMemo(() => {
-    let result: ReactElement | undefined;
-
-    if (hostOverviewList) {
-      const hostOverviewPairs = Object.entries(hostOverviewList);
-
-      result = (
-        <Tabs
-          onChange={(event, newSubTabId) => {
-            setHostSubTabId(newSubTabId);
-          }}
-          orientation="vertical"
-          value={hostSubTabId}
-        >
-          {hostOverviewPairs.map(([hostUUID, { shortHostName }]) => (
-            <Tab
-              key={`${TAB_ID_PREPARE_NETWORK}-${hostUUID}`}
-              label={shortHostName}
-              value={hostUUID}
-            />
-          ))}
-        </Tabs>
-      );
-    } else {
-      result = <Spinner mt={0} />;
-    }
-
-    return result;
-  }, [hostOverviewList, hostSubTabId]);
-
-  if (isFirstRender) {
-    api
-      .get<APIHostOverviewList>('/host', { params: { types: ['dr', 'node'] } })
-      .then(({ data }) => {
-        setHostOverviewList(data);
-        setHostSubTabId(Object.keys(data)[0]);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      });
-  }
-
-  return (
-    <Grid
-      columns={STEP_CONTENT_GRID_COLUMNS}
-      layout={{
-        'preparenetwork-left-column': {
-          children: <Panel>{hostSubTabs}</Panel>,
-          sm: 2,
-        },
-        'preparenetwork-center-column': {
-          children: (
-            <PrepareNetworkForm
-              expectUUID
-              hostUUID={hostSubTabId || undefined}
-            />
-          ),
-          ...STEP_CONTENT_GRID_CENTER_COLUMN,
-        },
-      }}
-    />
-  );
-};
+const PrepareNetworkTabContent: FC = () => (
+  <Grid
+    columns={STEP_CONTENT_GRID_COLUMNS}
+    layout={{
+      'preparenetwork-left-column': {},
+      'preparenetwork-center-column': {
+        children: <ManageHostNetwork />,
+        ...STEP_CONTENT_GRID_CENTER_COLUMN,
+      },
+    }}
+  />
+);
 
 const ManageFenceTabContent: FC = () => (
   <Grid
@@ -169,33 +106,37 @@ const ManageManifestContent: FC = () => (
 );
 
 const ManageElement: FC = () => {
-  const {
-    isReady,
-    query: { step: rawStep },
-  } = useRouter();
+  const { isReady, push, query } = useRouter();
 
   const [pageTabId, setPageTabId] = useState<string | false>(false);
   const [pageTitle, setPageTitle] = useState<string>(PAGE_TITLE_LOADING);
 
   useEffect(() => {
-    if (isReady) {
-      let step = getQueryParam(rawStep, {
-        fallbackValue: TAB_ID_PREPARE_HOST,
-      });
+    if (!isReady) return;
 
-      if (!MAP_TO_PAGE_TITLE[step]) {
-        step = TAB_ID_PREPARE_HOST;
-      }
+    const { step: rawStep } = query;
 
-      if (pageTitle === PAGE_TITLE_LOADING) {
-        setPageTitle(MAP_TO_PAGE_TITLE[step]);
-      }
+    let step = getQueryParam(rawStep, {
+      fallbackValue: TAB_ID_PREPARE_HOST,
+    });
 
-      if (!pageTabId) {
-        setPageTabId(step);
-      }
+    if (!MAP_TO_PAGE_TITLE[step]) {
+      step = TAB_ID_PREPARE_HOST;
     }
-  }, [isReady, pageTabId, pageTitle, rawStep]);
+
+    push({ query: { ...query, step } }, undefined, { shallow: true });
+
+    if (pageTitle === PAGE_TITLE_LOADING) {
+      setPageTitle(MAP_TO_PAGE_TITLE[step]);
+    }
+
+    if (!pageTabId) {
+      setPageTabId(step);
+    }
+
+    // Everything should be available when router is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReady]);
 
   return (
     <>
@@ -208,6 +149,10 @@ const ManageElement: FC = () => {
           onChange={(event, newTabId) => {
             setPageTabId(newTabId);
             setPageTitle(MAP_TO_PAGE_TITLE[newTabId]);
+
+            push({ query: { ...query, step: newTabId } }, undefined, {
+              shallow: true,
+            });
           }}
           orientation={{ xs: 'vertical', sm: 'horizontal' }}
           value={pageTabId}

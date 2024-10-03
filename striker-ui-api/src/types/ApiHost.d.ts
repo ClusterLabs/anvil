@@ -53,6 +53,7 @@ type HostOverview = {
     name: string;
     uuid: string;
   };
+  hostConfigured: boolean;
   hostName: string;
   hostStatus: string;
   hostType: string;
@@ -68,7 +69,7 @@ type InitializeStrikerNetworkForm = {
   createBridge?: StringBoolean;
   interfaces: Array<NetworkInterfaceOverview | null | undefined>;
   ipAddress: string;
-  name: string;
+  sequence: number;
   subnetMask: string;
   type: string;
 };
@@ -84,6 +85,10 @@ type InitializeStrikerForm = {
   networks: InitializeStrikerNetworkForm[];
   organizationName: string;
   organizationPrefix: string;
+};
+
+type InitializeStrikerResponseBody = {
+  jobUuid: string;
 };
 
 type PrepareHostRequestBody = {

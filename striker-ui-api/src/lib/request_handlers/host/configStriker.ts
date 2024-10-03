@@ -19,7 +19,7 @@ import { cvar } from '../../varn';
 
 export const configStriker: RequestHandler<
   unknown,
-  undefined,
+  InitializeStrikerResponseBody,
   Partial<InitializeStrikerForm>
 > = async (request, response) => {
   const { body = {} } = request;
@@ -120,6 +120,8 @@ export const configStriker: RequestHandler<
 
   const configEntries = Object.entries(configData);
 
+  let jobUuid: string;
+
   try {
     const localHostUuid = getLocalHostUUID();
 
@@ -143,7 +145,7 @@ export const configStriker: RequestHandler<
       );
     }
 
-    await job({
+    jobUuid = await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
       job_data: buildJobData({
@@ -160,5 +162,5 @@ export const configStriker: RequestHandler<
     return response.status(500).send();
   }
 
-  response.status(200).send();
+  response.status(200).send({ jobUuid });
 };

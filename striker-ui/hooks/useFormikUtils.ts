@@ -1,26 +1,27 @@
-import { FormikConfig, FormikValues, useFormik } from 'formik';
-import { isEqual, isObject } from 'lodash';
+import { FormikConfig, FormikValues, getIn, setIn, useFormik } from 'formik';
+import { isEqual, isObject, isString } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
 
-const isChainEqual = (
-  chain: string[],
-  current: Tree<unknown>,
-  initial: Tree<unknown>,
+const isEqualIn = (
+  source: Tree<unknown>,
+  path: string | string[],
+  target: Tree<unknown>,
 ): boolean => {
+  const chain = isString(path) ? path.split('.') : path;
   const [part, ...remain] = chain;
 
-  if (!(part in current)) {
+  if (!(part in source)) {
     return false;
   }
 
-  const a = current[part];
-  const b = initial[part];
+  const a = source[part];
+  const b = target[part];
 
   if (isObject(a) && isObject(b) && remain.length) {
-    return isChainEqual(remain, a as Tree<unknown>, b as Tree<unknown>);
+    return isEqualIn(a as Tree<unknown>, remain, b as Tree<unknown>);
   }
 
   return !isEqual(a, b);
@@ -29,16 +30,18 @@ const isChainEqual = (
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   formikConfig: FormikConfig<Values>,
 ): FormikUtils<Values> => {
+  const [changed, setChanged] = useState<Tree<boolean>>({});
   const [changing, setChanging] = useState<boolean>(false);
 
   const formik = useFormik<Values>({ ...formikConfig });
 
   const getFieldChanged = useCallback(
-    (field: string) => {
-      const parts = field.split('.');
+    (field: string): boolean => getIn(changed, field),
+    [changed],
+  );
 
-      return isChainEqual(parts, formik.values, formik.initialValues);
-    },
+  const getFieldIsDiff = useCallback(
+    (field: string) => isEqualIn(formik.values, field, formik.initialValues),
     [formik.initialValues, formik.values],
   );
 
@@ -48,8 +51,18 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
       setChanging(false);
     });
 
-    return (...args: Parameters<typeof base>) => {
+    return (...args: Parameters<typeof formik.handleChange>) => {
       setChanging(true);
+
+      const [maybeEvent] = args;
+
+      if (!isString(maybeEvent)) {
+        const event = maybeEvent as React.ChangeEvent<{ name: string }>;
+        const target = event.target ? event.target : event.currentTarget;
+
+        setChanged((prev) => setIn(prev, target.name, true));
+      }
+
       base(...args);
     };
 
@@ -78,15 +91,16 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   const formikErrors = useMemo<Messages>(
     () =>
       getFormikErrorMessages(formik.errors, {
-        skip: (field) => !getFieldChanged(field),
+        skip: (field) => !getFieldIsDiff(field),
       }),
-    [formik.errors, getFieldChanged],
+    [formik.errors, getFieldIsDiff],
   );
 
   return {
     disabledSubmit,
     formik,
     formikErrors,
+    getFieldChanged,
     handleChange: debounceHandleChange,
   };
 };
