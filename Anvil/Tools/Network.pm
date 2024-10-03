@@ -1836,7 +1836,7 @@ sub find_matches
 
 =head2 find_target_ip
 
-This uses the IP information for the local machine and a target host UUID, and returns an IP address that can be used to contact it. When multiple networks are shared, the BCN IP is used. If no match is found, an empty string is returned.
+This uses the IP information for the local machine and a target host UUID, and returns an IP address that can be used to contact it. If no match is found, an empty string is returned.
 
  my $target_ip = $anvil->Network->find_target_ip({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
 
