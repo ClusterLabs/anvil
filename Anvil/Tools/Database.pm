@@ -4657,11 +4657,12 @@ ORDER BY
 			{
 				# Duplicate, delete it.
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, priority => "alert", key => "warning_0001", variables => { 
-					ip_address_uuid => $ip_address_uuid, 
-					on_type         => $ip_address_on_type, 
-					on_uuid         => $ip_address_on_uuid, 
+					host_uuid       => $host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $host_uuid}).")", 
 					ip_address      => $ip_address_address, 
 					subnet_mask     => $ip_address_subnet_mask, 
+					on_type         => $ip_address_on_type, 
+					on_uuid         => $ip_address_on_uuid, 
+					ip_address_uuid => $ip_address_uuid, 
 				}});
 				
 				my $query = "DELETE FROM history.ip_addresses WHERE ip_address_uuid = ".$anvil->Database->quote($ip_address_uuid).";";
@@ -10165,7 +10166,7 @@ SET
 WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
 		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
 	}
 	
@@ -17709,7 +17710,7 @@ sub query
 		else
 		{
 			# Warn that we switched.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0073", variables => { 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "log_0131", variables => { 
 				old_uuid => $old_uuid, 
 				new_uuid => $uuid,
 			}});
@@ -18778,7 +18779,7 @@ sub resync_databases
 									$query .= "$column_name = ".$column_value.", ";
 								}
 								$query .= "modified_date = ".$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC' WHERE $uuid_column = ".$anvil->Database->quote($row_uuid).";";
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $table eq "hosts" ? 2 : $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 								
 								# Now record the query in the array
 								push @{$anvil->data->{db_resync}{$uuid}{public}{sql}}, $query;
@@ -18809,7 +18810,7 @@ sub resync_databases
 							}});
 							
 							my $query = "INSERT INTO public.".$table." (".$uuid_column.", ".$columns."modified_date) VALUES (".$anvil->Database->quote($row_uuid).", ".$values.$anvil->Database->quote($modified_date)."::timestamp AT TIME ZONE 'UTC');";
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $table eq "hosts" ? 2 : $debug, key => "log_0460", variables => { uuid => $anvil->data->{database}{$uuid}{host}, query => $query }});
 							
 							### NOTE: After an archive operationg, a record can 
 							###       end up in the public schema while nothing 
@@ -18833,7 +18834,7 @@ sub resync_databases
 									query     => $query, 
 								}});
 								$query =~ s/INSERT INTO public./INSERT INTO history./;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $table eq "hosts" ? 2 : $debug, list => { query => $query }});
 								
 								push @{$anvil->data->{db_resync}{$uuid}{history}{sql}}, $query;
 							}

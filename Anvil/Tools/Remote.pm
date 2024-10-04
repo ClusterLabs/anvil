@@ -620,7 +620,7 @@ sub call
 						
 						if ($key)
 						{
-							$bad_key = $key;
+							$bad_key = $algo." ".$key;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { bad_key => $bad_key }});
 						}
 						last;
@@ -640,14 +640,44 @@ sub call
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
 					}
 					
-					# Mark the key as being bad in the database.
-					my ($state_uuid) = $anvil->Database->insert_or_update_states({
-						debug      => $debug, 
-						uuid       => $uuid, 
-						state_name => "host_key_changed::".$target, 
-						state_note => $state_note, 
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+					# Check to see if this is the first time we've seen this. if so, we'll do a full key scan.
+					my $state_name = "host_key_changed::".$target;
+					my $query      = "SELECT COUNT(*) FROM states WHERE state_name = ".$anvil->Database->quote($state_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					
+					my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+					if (not $count)
+					{
+						# Mark the key as being bad in the database.
+						my ($state_uuid) = $anvil->Database->insert_or_update_states({
+							debug      => $debug, 
+							uuid       => $uuid, 
+							state_name => $state_name, 
+							state_note => $state_note, 
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_uuid => $state_uuid }});
+						
+						# Do a key scan.
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'ENV{_}' => $ENV{_} }});
+						if ($ENV{_} !~ /anvil-manage-keys/)
+						{
+							# We can't record this as a job as we're probably 
+							# already trying to connect to the database
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, secure => 0, key => "log_0133", variables => { target => $target }});
+							my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-keys'}." --test".$anvil->Log->switches;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+							my ($output, $return_code) = $anvil->System->call({
+								shell_call => $shell_call, 
+								source     => $THIS_FILE, 
+								line       => __LINE__,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								output      => $output, 
+								return_code => $return_code,
+							}});
+						}
+					}
 				}
 			}
 			elsif ($connect_output =~ /Host key verification failed/i)

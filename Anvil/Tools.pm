@@ -953,6 +953,9 @@ sub _set_defaults
 			# /usr/bin/osinfo-query os
 			os_short_list			=>	"rhel8.7,rhel9.1,win10,win2k19,win2k22",
 		},
+		striker				=>	{
+			'auto-add'			=>	1,
+		},
 		terminal			=>	{
 			columns				=>	80,
 			stty				=>	"",

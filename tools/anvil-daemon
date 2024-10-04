@@ -504,6 +504,9 @@ sub handle_periodic_tasks
 		# Check for stale db_in_use states.
 		check_db_in_use_states($anvil);
 		
+		# This checks to see if the strikers in the DB are also in anvil.conf
+		check_strikers($anvil);
+		
 		# Do Striker-specific minute tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
@@ -520,11 +523,6 @@ sub handle_periodic_tasks
 			
 			# Something is causing broken manifests to be created. Until found, this removes them.
 			check_for_broken_manifests($anvil);
-			
-			### NOTE: Don't use this, it appears to break CI. Leaving the code for later fixing
-			# Check that we're recorded our known peers, and that our anvil.conf has entries for
-			# our peers.
-			check_peers($anvil);
 			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
@@ -846,97 +844,6 @@ sub handle_periodic_tasks
 	return(0);
 }
 
-sub check_peers
-{
-	my ($anvil) = @_;
-	
-	# If we can log into our peers, see if they have an entry for us. If so, and we don't have them, add
-	# them.
-	$anvil->Database->get_hosts();
-	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}})
-	{
-		next if $anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}{$host_name}{host_uuid} eq $anvil->Get->host_uuid();
-		
-		# Do I have this strikerconfigured already?
-		my $peer_host_uuid = $anvil->data->{sys}{hosts}{by_type}{'striker'}{host_name}{$host_name}{host_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:host_name'      => $host_name,
-			's2:peer_host_uuid' => $peer_host_uuid, 
-		}});
-		
-		if ((exists $anvil->data->{database}{$peer_host_uuid}) && ($anvil->data->{database}{$peer_host_uuid}{host}))
-		{
-			# Already configured.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0077", variables => { 
-				host_name => $host_name,
-				host_uuid => $peer_host_uuid, 
-				target    => $anvil->data->{database}{$peer_host_uuid}{host},
-			}});
-			next;
-		}
-		
-		# Still here? Lets try to add it. First though, can we connect to it? We'll have to try with
-		# our password. If we've been rebuilt, then the password shouid match.
-		my $host_uuid = $anvil->Get->host_uuid();
-		my $target_ip = $anvil->Network->find_target_ip({
-			debug     => 2,
-			networks  => "bcn,ifn,any",
-			host_uuid => $peer_host_uuid, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:host_name'      => $host_name,
-			's2:peer_host_uuid' => $peer_host_uuid, 
-			's3:target_ip'      => $target_ip, 
-		}});
-		
-		if ($target_ip)
-		{
-			my $password = $anvil->data->{database}{$host_uuid}{password};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { password => $anvil->Log->is_secure($password) }});
-			
-			my $access = $anvil->Remote->test_access({
-				debug    => 2,
-				target   => $target_ip, 
-				password => $password,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
-			if ($access)
-			{
-				# We're good, add our peer! 
-				my $pw_file = "/tmp/striker.".$anvil->Get->uuid({short => 1});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pw_file => $pw_file }});
-				$anvil->Storage->write_file({
-					debug  => 2,
-					secure => 1, 
-					file   => $pw_file, 
-					body   => $password, 
-					mode   => "0600",
-				});
-				
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0093", variables => { 
-					target => $target_ip,
-					host   => $host_name
-				}});
-				my $shell_call = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$peer_host_uuid." --host ".$target_ip." --ping 1 --port 5432 --password-file ".$pw_file.$anvil->Log->switches;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				my ($output, $return_code) = $anvil->System->call({
-					shell_call => $shell_call, 
-					source     => $THIS_FILE, 
-					line       => __LINE__,
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output, 
-					return_code => $return_code,
-				}});
-				
-				unlink $pw_file;
-			}
-		}
-	}
-	
-	return(0);
-}
-
 ### TODO: Find the source of the problem and fix it properly.
 sub check_for_broken_manifests
 {
@@ -1148,6 +1055,9 @@ sub run_once
 	# NOTE: This actually runs again in the minutes tasks, but needs to run on boot as well.
 	#$anvil->System->check_ssh_keys({debug => 2});
 	
+	# This checks to see if the strikers in the DB are also in anvil.conf
+	check_strikers($anvil);
+	
 	# Check setuid wrappers
 	check_setuid_wrappers($anvil);
 	
@@ -1163,6 +1073,134 @@ sub run_once
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+# This checks to see if the strikers in the DB are also in anvil.conf
+sub check_strikers
+{
+	my ($anvil) = @_;
+	
+	# Is auto-adding strikers disabled?
+	if ((exists $anvil->data->{sys}{striker}{'auto-add'}) && ($anvil->data->{sys}{striker}{'auto-add'} eq "0"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0137"});
+		return(0);
+	}
+	
+	$anvil->Database->get_hosts();
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}{striker}{host_name}})
+	{
+		my $host_uuid = $anvil->data->{sys}{hosts}{by_type}{striker}{host_name}{$host_name}{host_uuid};
+		next if ((not $host_uuid) or ($host_uuid eq $anvil->Get->host_uuid()));
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+			host_name => $host_name,
+			host_uuid => $host_uuid,
+		}});
+		
+		# Is this already configured?
+		if ((exists $anvil->data->{database}{$host_uuid}) && ($anvil->data->{database}{$host_uuid}{host}))
+		{
+			# Configured, nothing to do.
+			next;
+		}
+		
+		# A striker in the DB not configured in our anvil.conf. Can we add it?
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0139", variables => {
+			host_name => $host_name,
+			host_uuid => $host_uuid,
+		}});
+		
+		# Loop through configured strikers to see if their passwords work for this unconfigured striker.
+		my $add      = 0;
+		my $host     = "";
+		my $password = "";
+		my $ping     = 1;
+		my $port     = 5432;
+		foreach my $test_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+		{
+			my $test_password = $anvil->data->{database}{$test_host_uuid}{password};
+			my $test_ping     = $anvil->data->{database}{$test_host_uuid}{ping};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				test_host_uuid => $test_host_uuid, 
+				test_password  => $anvil->Log->is_secure($test_password),
+				test_ping      => $test_ping,
+			}});
+			
+			# Can we access this Striker?
+			my $target_ip = $anvil->Network->find_target_ip({
+				debug     => 2,
+				host_uuid => $host_uuid,
+				networks  => "bcn,mn,sn,ifn,any", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+			
+			if ($target_ip)
+			{
+				# Can we ssh into it?
+				my $access = $anvil->Remote->test_access({
+					debug    => 2,
+					target   => $target_ip, 
+					password => $test_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+				
+				if ($access)
+				{
+					# We can! 
+					$add      = 1;
+					$host     = $target_ip;
+					$password = $test_password;
+					$ping     = $test_ping;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						add       => $add, 
+						host      => $target_ip, 
+						password  => $anvil->Log->is_secure($password), 
+						ping      => $test_ping, 
+					}});
+					last;
+				}
+			}
+		}
+		
+		if ($add)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0140", variables => {
+				host_name => $host_name,
+				target    => $host,
+				ping      => $ping, 
+			}});
+			
+			# Write the password to a file.
+			my $password_file = "/tmp/striker-manage-peers.".$anvil->Get->uuid;
+			$anvil->Storage->write_file({
+				debug     => 2,
+				secure    => 1, 
+				file      => $password_file, 
+				body      => $password, 
+				mode      => "0600",
+				overwrite => 1,
+			});
+			
+			my $shell_call = $anvil->data->{path}{exe}{'striker-manage-peers'}." --add --host-uuid ".$host_uuid." --host ".$host." --port ".$port." --password-file ".$password_file." --ping ".$ping.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host_uuid  => $host_uuid, 
+				shell_call => $shell_call,
+			}});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output, 
+				return_code => $return_code,
+			}});
+			
+			# Remove the password.
+			unlink $password_file;
+			
+			# Re-read the config and make sure we have our own entry.
+			$anvil->refresh();
+		}
 	}
 	
 	return(0);
