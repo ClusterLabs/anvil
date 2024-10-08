@@ -391,9 +391,11 @@ sub sanity_check
 
 	# Are we a node or DR?
 	my $host_type  = $anvil->Get->host_type();
+	my $host_uuid  = $anvil->Get->host_uuid();
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		host_type  => $host_type,
+		host_uuid  => $host_uuid, 
 		anvil_uuid => $anvil_uuid, 
 	}});
 
@@ -412,15 +414,33 @@ sub sanity_check
 
 	# If we're protecting, removing, connecting, disconnecting, or update, we need to have a server.
 	$anvil->Database->get_servers();
-	my $server_name = "";
-	my $server_uuid = "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		'switches::connect'    => $anvil->data->{switches}{'connect'},
-		'switches::disconnect' => $anvil->data->{switches}{'disconnect'},
-		'switches::protect'    => $anvil->data->{switches}{protect},
-		'switches::remove'     => $anvil->data->{switches}{remove},
-		'switches::update'     => $anvil->data->{switches}{update},
-	}});
+	my $server_name  = "";
+	my $server_uuid  = "";
+	if ($anvil->data->{switches}{server})
+	{
+		$server_uuid = $anvil->Database->get_server_uuid_from_string({
+			debug  => 2,
+			string => $anvil->data->{switches}{server},
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+	}
+	
+	my $host_anvil_uuid = "";
+	if ($server_uuid)
+	{
+		# Lastly, is this server on this Anvil! node?
+		$server_name     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+		$host_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			server_name     => $server_name,
+			host_anvil_uuid => $host_anvil_uuid." (".$anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name}.")",
+		}});
+	}
+	
+	my $dr_link_uuid = "";
+	my $dr_link_note = "";
+	my $dr_host_uuid = "";
+	my $dr_linked    = 0;
 	if (($anvil->data->{switches}{'connect'})    or
 	    ($anvil->data->{switches}{'disconnect'}) or
 	    ($anvil->data->{switches}{protect})      or
@@ -442,11 +462,6 @@ sub sanity_check
 			show_servers($anvil, $anvil_uuid);
 			$anvil->nice_exit({exit_code => 1});
 		}
-		$server_uuid = $anvil->Database->get_server_uuid_from_string({
-			debug  => 2,
-			string => $anvil->data->{switches}{server},
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
 		if (not $server_uuid)
 		{
 			my $variables = { server => $anvil->data->{switches}{server} };
@@ -462,34 +477,100 @@ sub sanity_check
 			show_servers($anvil, $anvil_uuid);
 			$anvil->nice_exit({exit_code => 1});
 		}
-
-		# Lastly, is this server on this Anvil! node?
-		   $server_name     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
-		my $host_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			server_name     => $server_name,
-			host_anvil_uuid => $host_anvil_uuid." (".$anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name}.")",
-		}});
+		else
+		{
+			if (exists $anvil->data->{dr_links}{by_anvil_uuid}{$host_anvil_uuid}{dr_link_host_uuid}{$host_uuid})
+			{
+				$dr_link_uuid = $anvil->data->{dr_links}{by_anvil_uuid}{$host_anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid};
+				$dr_link_note = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+				$dr_host_uuid = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					dr_link_uuid => $dr_link_uuid,
+					dr_link_note => $dr_link_note, 
+					dr_host_uuid => $dr_host_uuid, 
+				}});
+				
+				if ($dr_link_note ne "DELETED")
+				{
+					$dr_linked = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_linked => $dr_linked }});
+				}
+				else
+				{
+					# Clear the link UUID
+					$dr_link_uuid = "";
+					$dr_link_note = "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						dr_link_uuid => $dr_link_uuid,
+						dr_link_note => $dr_link_note, 
+					}});
+				}
+			}
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				'switches::connect'    => $anvil->data->{switches}{'connect'},
+				'switches::disconnect' => $anvil->data->{switches}{'disconnect'},
+				'switches::protect'    => $anvil->data->{switches}{protect},
+				'switches::remove'     => $anvil->data->{switches}{remove},
+				'switches::update'     => $anvil->data->{switches}{update},
+			}});
+		}
 
 		if ($anvil_uuid ne $host_anvil_uuid)
 		{
-			# Server isn't here.
-			my $variables = {
-				server     => $server_name,
-				this_anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
-				on_anvil   => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
-			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0412", variables => $variables});
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0412",
-				variables  => $variables,
-				job_status => "failed",
-			});
+			if ($host_type eq "dr")
+			{
+				# DR hosts don't belong to a single anvil, so see if this DR host is peered 
+				# with the Anvil!.
+				if ($dr_linked)
+				{
+					# We're good, set the Anvil! UUID to the host UUID.
+					$anvil_uuid                     = $host_anvil_uuid;
+					$anvil->data->{sys}{anvil_uuid} = $anvil_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						anvil_uuid        => $anvil_uuid,
+						"sys::anvil_uuid" => $anvil->data->{sys}{anvil_uuid}, 
+					}});
+				}
+				else
+				{
+					# We're not linked to this Anvil! node.
+					my $variables = {
+						server => $server_name,
+						anvil  => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0012", variables => $variables});
+					$anvil->Job->update_progress({
+						progress   => 100,
+						message    => "error_0012",
+						variables  => $variables,
+						job_status => "failed",
+					});
 
-			# Show the servers on this anvil and exit.
-			show_servers($anvil, $anvil_uuid);
-			$anvil->nice_exit({exit_code => 1});
+					# Show the servers on this anvil and exit.
+					show_servers($anvil, $anvil_uuid);
+					$anvil->nice_exit({exit_code => 1});
+				}
+			}
+			else
+			{
+				# Server isn't here.
+				my $variables = {
+					server     => $server_name,
+					this_anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+					on_anvil   => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0412", variables => $variables});
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0412",
+					variables  => $variables,
+					job_status => "failed",
+				});
+
+				# Show the servers on this anvil and exit.
+				show_servers($anvil, $anvil_uuid);
+				$anvil->nice_exit({exit_code => 1});
+			}
 		}
 	}
 
@@ -525,7 +606,7 @@ sub sanity_check
 		# Make sure we're in an Anvil! if we're a node (DR link will be checked later).
 		if (($host_type eq "node") && (not $anvil_uuid))
 		{
-			# This must be run on a node active in the cluster  hosting the server being managed.
+			# This must be run on a node active in the cluster hosting the server being managed.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0332"});
 			$anvil->Job->update_progress({
 				progress   => 100,
@@ -654,7 +735,6 @@ sub sanity_check
 
 	# Does this Anvil! have at least one DR node? If there's only one, use it. If more than one, we need
 	# a '--dr-host' switch.
-	my $dr_host_uuid = "";
 	if ($anvil->data->{switches}{'dr-host'})
 	{
 		$dr_host_uuid = $anvil->Database->get_host_uuid_from_string({string => $anvil->data->{switches}{'dr-host'}});
@@ -759,21 +839,6 @@ sub sanity_check
 		dr_short_host_name => $dr_short_host_name,
 	}});
 
-	# Last check, we've got a dr_host_uuid, is it associated with this Anvil! node?
-	if (not exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$dr_host_uuid})
-	{
-		# Bad requested DR host.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0401", variables => {
-			dr_host => $dr_host_name,
-		}});
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0401,!!dr_host!".$dr_host_name."!!",
-			job_status => "failed",
-		});
-		$anvil->nice_exit({exit_code => 1});
-	}
-
 	$anvil->data->{sys}{dr_host_uuid}       = $dr_host_uuid;
 	$anvil->data->{sys}{dr_host_name}       = $dr_host_name;
 	$anvil->data->{sys}{dr_short_host_name} = $dr_short_host_name;
@@ -786,7 +851,7 @@ sub sanity_check
 	### TODO: Switch to: my $target_ip = $anvil->Network->find_target_ip({});
 	# Can we access DR, if we're not the DR host?
 	$anvil->Database->get_ip_addresses({debug => 2});
-	my $password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password} // "";
 	my $dr_ip    = $anvil->System->find_matching_ip({
 		debug => 2,
 		host  => $dr_host_name,
@@ -865,36 +930,13 @@ sub sanity_check
 	}
 	
 	# Verify we found the server.
-	$anvil->data->{server}{'server-name'} = "";
-	$anvil->data->{server}{'server-uuid'} = "";
+	$anvil->data->{server}{'server-name'} = $server_name;
+	$anvil->data->{server}{'server-uuid'} = $server_uuid;
 	$anvil->data->{server}{'anvil-uuid'}  = $anvil_uuid;
-	if (not $anvil->data->{switches}{server})
-	{
-	}
-	else
-	{
-		my $server = $anvil->data->{switches}{server};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server => $server }});
-		
-		if (exists $anvil->data->{servers}{server_uuid}{$server})
-		{
-			$anvil->data->{server}{'server-uuid'} = $server;
-			$anvil->data->{server}{'server-name'} = $anvil->data->{servers}{server_uuid}{$server}{server_name};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'server::server-uuid' => $anvil->data->{server}{'server-uuid'},
-				'server::server-name' => $anvil->data->{server}{'server-name'},
-			}});
-		}
-		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server})
-		{
-			$anvil->data->{server}{'server-name'} = $server;
-			$anvil->data->{server}{'server-uuid'} = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server}{server_uuid};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'server::server-uuid' => $anvil->data->{server}{'server-uuid'},
-				'server::server-name' => $anvil->data->{server}{'server-name'},
-			}});
-		}
-	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'server::server-uuid' => $anvil->data->{server}{'server-uuid'},
+		'server::server-name' => $anvil->data->{server}{'server-name'},
+	}});
 	
 	# Get and parse the server's definition to find the DRBD devices.
 	if ((not $anvil->data->{server}{'server-uuid'}) or (not $anvil->data->{server}{'server-name'}))
@@ -1062,7 +1104,7 @@ sub process_update
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
-	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid            = $anvil->data->{sys}{anvil_uuid} ? $anvil->data->{sys}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
@@ -1334,7 +1376,7 @@ sub process_disconnect
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
-	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid            = $anvil->data->{sys}{anvil_uuid} ? $anvil->data->{sys}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
@@ -1462,7 +1504,7 @@ sub process_connect
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
-	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid            = $anvil->data->{sys}{anvil_uuid} ? $anvil->data->{sys}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
@@ -1708,7 +1750,7 @@ sub process_remove
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
-	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid            = $anvil->data->{sys}{anvil_uuid} ? $anvil->data->{sys}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};
@@ -2266,7 +2308,7 @@ sub process_protect
 	
 	# Parse out the DRBD resource's backing the server and get their LV sizes. 
 	$anvil->Database->get_server_definitions();
-	my $anvil_uuid            = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid            = $anvil->data->{sys}{anvil_uuid} ? $anvil->data->{sys}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
 	my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 	my $node1_host_name       = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{host_name};

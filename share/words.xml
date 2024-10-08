@@ -53,7 +53,7 @@ If you need any assistance, please feel free to contact #!string!brand_0001!# (h
 		<key name="error_0009">Failed to add the target: [#!variable!target!#]:[#!variable!port!#]'s RSA fingerprint to: [#!variable!user!#]'s list of known hosts.</key>
 		<key name="error_0010">There was a problem adding the local machine to the: [#!data!path::configs::anvil.conf!#] file. Please see the log for details.</key>
 		<key name="error_0011">Something went wrong while trying to update the password. The return code was: [#!variable!return_code!#], but '0' was expected.</key>
-		<key name="error_0012">#!free!#</key>
+		<key name="error_0012"><![CDATA[We're a DR host, and the server: [#!variable!server!#] is on the Anvil! node: [#!variable!anvil!#], which we're not linked to. Exiting.]]></key>
 		<key name="error_0013">#!free!#</key>
 		<key name="error_0014">#!free!#</key>
 		<key name="error_0015">#!free!#</key>
@@ -571,7 +571,7 @@ The definition data passed in was:
 		<key name="error_0398">[ Error ] - There was a problem processing the requested network: [#!variable!network!#]. Details should be logged.</key>
 		<key name="error_0399">#!free!#</key>
 		<key name="error_0400">[ Error ] - The requested DR host: [#!variable!dr_host!#] was not found.</key>
-		<key name="error_0401">[ Error ] - The requested DR host: [#!variable!dr_host!#] is not configured as a DR host for this Anvil! node.</key>
+		<key name="error_0401">#!free!#</key>
 		<key name="error_0402">There are multiple DR hosts connected to this Anvil! node. Please specify which you want to use to protect this server;</key>
 		<key name="error_0403"> - DR Host: [#!variable!host_name!#], Host UUID: [#!variable!host_uuid!#].</key>
 		<key name="error_0404">This needs to be run on an Anvil! sub-node.</key>
