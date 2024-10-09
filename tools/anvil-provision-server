@@ -598,7 +598,6 @@ sub provision_server
 	   $shell_call .= " --graphics vnc \\\n";
 	   $shell_call .= " --sound ich9 \\\n";
 	   $shell_call .= " --clock offset=".$clock_offset.",rtc_tickpolicy=catchup \\\n";
-	   $shell_call .= " --boot menu=on \\\n";
 	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0".$disk_bus.",driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
 	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
 	   $shell_call .= " --uuid=".$server_uuid." \\\n";
@@ -606,6 +605,18 @@ sub provision_server
 	{
 		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
 	}
+	
+	# Windows 11 need TPM
+	if ($anvil->data->{job}{os} eq "win11")
+	{
+		$shell_call .= " --tpm backend.type=emulator,backend.version=2.0,model=tpm-tis \\\n";
+		$shell_call .= " --boot menu=on,loader=/usr/share/OVMF/OVMF_CODE.secboot.fd,loader_ro=yes,loader_type=pflash,nvram_template=/usr/share/OVMF/OVMF_VARS.fd \\\n";
+	}
+	else
+	{
+		$shell_call .= " --boot menu=on \\\n";
+	}
+	
 	$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
