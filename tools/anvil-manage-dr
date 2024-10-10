@@ -2226,7 +2226,7 @@ sub process_remove
 		message  => "job_0413", 
 	});
 	
-	my $drbdadm_call = $anvil->data->{path}{directories}{drbdadm}." adjust ".$server_name.$anvil->Log->switches();
+	my $drbdadm_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name.$anvil->Log->switches();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbdadm_call => $drbdadm_call }});
 	($output, $return_code) = $anvil->System->call({shell_call => $drbdadm_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
