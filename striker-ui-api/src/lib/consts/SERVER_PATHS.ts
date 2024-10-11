@@ -43,6 +43,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-manage-keys': {},
       'anvil-manage-power': {},
       'anvil-provision-server': {},
+      'anvil-rename-server': {},
       'anvil-safe-start': {},
       'anvil-safe-stop': {},
       'anvil-shutdown-server': {},

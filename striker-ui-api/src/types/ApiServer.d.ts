@@ -27,3 +27,15 @@ type ServerDetailVncInfo = {
   port: number;
   protocol: string;
 };
+
+type ServerRenameRequestBody = {
+  newName: string;
+};
+
+type ServerUpdateParamsDictionary = {
+  uuid: string;
+};
+
+type ServerUpdateResponseBody = {
+  jobUuid: string;
+};
