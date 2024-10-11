@@ -17,6 +17,23 @@ type ServerDetailParsedQs = {
   vnc: boolean | number | string;
 };
 
+type ServerDetail = {
+  anvil: {
+    description: string;
+    name: string;
+    uuid: string;
+  };
+  name: string;
+  host: {
+    name: string;
+    short: string;
+    type: string;
+    uuid: string;
+  };
+  state: string;
+  uuid: string;
+};
+
 type ServerDetailScreenshot = {
   screenshot: string;
   timestamp: number;

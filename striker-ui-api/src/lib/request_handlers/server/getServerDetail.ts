@@ -5,7 +5,9 @@ import path from 'path';
 
 import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
-import { getVncinfo } from '../../accessModule';
+import { getVncinfo, query } from '../../accessModule';
+import { getShortHostName } from '../../disassembleHostName';
+import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
 import { perr, pout, poutvar } from '../../shell';
 
@@ -117,8 +119,72 @@ export const getServerDetail: RequestHandler<
 
     return response.send(rsbody);
   } else {
-    // For getting sever detail data.
+    const sql = `
+      SELECT
+        a.server_name,
+        a.server_state,
+        b.anvil_uuid,
+        b.anvil_name,
+        b.anvil_description,
+        c.host_uuid,
+        c.host_name,
+        c.host_type
+      FROM servers AS a
+      JOIN anvils AS b
+        ON a.server_anvil_uuid = b.anvil_uuid
+      JOIN hosts AS c
+        ON a.server_host_uuid = c.host_uuid
+      WHERE a.server_uuid = '${serverUuid}';`;
 
-    response.send();
+    let rows: string[][];
+
+    try {
+      rows = await query(sql);
+    } catch (error) {
+      const rserror = new ResponseError(
+        '30f956f',
+        `Failed to get server details; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    if (!rows.length) {
+      return response.status(404).send();
+    }
+
+    const {
+      0: [
+        serverName,
+        serverState,
+        anUuid,
+        anName,
+        anDescription,
+        hostUuid,
+        hostName,
+        hostType,
+      ],
+    } = rows;
+
+    const rsBody: ServerDetail = {
+      anvil: {
+        description: anDescription,
+        name: anName,
+        uuid: anUuid,
+      },
+      name: serverName,
+      host: {
+        name: hostName,
+        short: getShortHostName(hostName),
+        type: hostType,
+        uuid: hostUuid,
+      },
+      state: serverState,
+      uuid: serverUuid,
+    };
+
+    response.send(rsBody);
   }
 };
