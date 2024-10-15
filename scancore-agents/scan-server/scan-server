@@ -1284,10 +1284,14 @@ sub get_and_parse_virsh_definition
 	
 	# Get the inactive XML (changes requested by the user may not match the in-memory XML)
 	my $virsh_definition_active = $anvil->data->{domain}{$server_name}{handle}->get_xml_description();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { virsh_definition_active => $virsh_definition_active }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition_active => $virsh_definition_active }});
 	
 	my $virsh_definition_inactive = $anvil->data->{domain}{$server_name}{handle}->get_xml_description(Sys::Virt::Domain::XML_INACTIVE);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition_inactive => $virsh_definition_inactive }});
+	
+	# What's the difference between the active and inactive XML definitions?
+	my $difference = diff \$virsh_definition_inactive, \$virsh_definition_active, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference  => $difference }});
 	
 	# There will always be a difference because things like ID, vnc port, vnet device, etc will always 
 	# be different. So later, we might want to parse both and look for hardware changes. Until then, this

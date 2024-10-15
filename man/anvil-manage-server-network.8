@@ -1,0 +1,52 @@
+.\" Manpage for the Anvil! server system manager
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-manage-server-network "8" "October 11 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-manage-server-network \- Tool used to manage networking on (virtual) servers.
+.SH SYNOPSIS
+.B anvil-manage-server-network
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+anvil-manage-server-network \- This tool is used to manage networking on hosted servers. It can be used to add a NIC, remove a NIC, unplug a NICs virtual network cable, and plug that cable back in.
+.TP
+When called without arguments, the list of Anvil nodes, the bridges and servers on those nodes, and the existing NICs used by each server are shown.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-add\fR 
+Used with \fB\-\-bridge\fR to add a new NIC to connect a server to the bridge.
+.TP
+\fB\-\-bridge\fR <bridge name>
+When using \fB\-\-add\fR, this controls which bridge the new NIC is connected to.
+.TP
+\fB\-\-confirm\fR
+This allows confirming actions without being prompted.
+.TP
+\fB\-\-mac\fR <mac address>
+When using \fB\-\-add\fR, this optionally allows you to set the new interface's MAC address. With \fB\-\-plug\fR, \fB\-\-unplug\fR, and \fB\-\-remove\fR, this switch is required to identify which NIC is being worked on.
+.TP
+\fB\-\-model\fR 
+When used with \fB\-\-add\fR, this allows you to set the network device to emulate. When not used, the hypervisor default is used. To see the list of valid options, run: 'qemu-kvm -net nic,model=help' on a subnode or DR host.
+.TP
+\fB\-\-plug\fR 
+This will plug a virtual network cable back in, reconnecting the interface identified with '\fB\-\-mac\fR <mac address>' to it's bridge.
+.TP
+\fB\-\-remove\fR 
+This removes / deletes the interface identified with '\fB\-\-mac\fR <mac address>' from the virtual server entirely.
+.TP
+\fB\-\-unplug\fR 
+This will unplug a virtual network cable back, disconnecting the interface identified with '\fB\-\-mac\fR <mac address>' from it's bridge. In this state, no network traffic will be able to flow over this interface.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

@@ -3208,11 +3208,11 @@ Proceed? [y/N]</key>
 		<key name="message_0347">- #!variable!file_name!#, (#!variable!file_size!#, md5sum: #!variable!md5sum!#)</key>
 		<key name="message_0348">Available Storage Groups;</key>
 		<key name="message_0349">- #!variable!storage_group_name!#, free space: #!variable!free_space!#, UUID: #!variable!storage_group_uuid!#</key>
-		<key name="message_0350">Preparing to managing storage for a server.</key>
+		<key name="message_0350">Preparing to manage storage for a server.</key>
 		<key name="message_0351">Running checks before processing power request...</key>
 		<key name="message_0352">The job to: [#!variable!task!#] this host has been picked up.</key>
-		<key name="message_0353">#!free!#</key>
-		<key name="message_0354">#!free!#</key>
+		<key name="message_0353">Preparing to manage general systems for a server.</key>
+		<key name="message_0354">Preparing to manage the network for a server.</key>
 		<key name="message_0355">#!free!#</key>
 		<key name="message_0356">#!free!#</key>
 		<key name="message_0357">No hosts with IPMI found, done.</key>

@@ -22,8 +22,9 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-keys \
 			  anvil-manage-power \
 			  anvil-manage-server \
-			  anvil-manage-server-storage \
 			  anvil-manage-storage-groups \
+			  anvil-manage-server-network \
+			  anvil-manage-server-storage \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
 			  anvil-monitor-network \
