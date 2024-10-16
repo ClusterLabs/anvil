@@ -28,6 +28,8 @@ dist_man8_MANS		= \
 			  anvil-manage-power.8 \
 			  anvil-manage-server.8 \
 			  anvil-manage-server-storage.8 \
+			  anvil-manage-server-network.8 \
+			  anvil-manage-server-system.8 \
 			  anvil-manage-storage-groups.8 \
 			  anvil-manage-vnc-pipe.8 \
 			  anvil-monitor-network.8 \

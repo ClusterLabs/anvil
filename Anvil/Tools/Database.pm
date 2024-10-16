@@ -5993,6 +5993,14 @@ This loads all known servers from the database, including the corresponding C<< 
  servers::server_uuid::<server_uuid>::server_boot_time
  servers::server_uuid::<server_uuid>::server_definition_uuid
  servers::server_uuid::<server_uuid>::server_definition_xml
+
+Netork data is stored in these hashes. Note that the 'vnetX' and link state is not useful if the server is stopped.
+
+ servers::server_uuid::<server_uuid>::mac_address::<mac_address>::server_network_uuid
+ servers::server_uuid::<server_uuid>::mac_address::<mac_address>::server_network_vnet_device
+ servers::server_uuid::<server_uuid>::mac_address::<mac_address>::server_network_link_state
+ servers::server_uuid::<server_uuid>::mac_address::<mac_address>::last_updated_date
+ servers::server_uuid::<server_uuid>::mac_address::<mac_address>::last_updated_unix
  
 To simplify lookup of server UUIDs by server names, this hash is also set;
 
@@ -6131,6 +6139,60 @@ WHERE
 			"servers::server_uuid::${server_uuid}::server_definition_uuid"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_uuid}, 
 			"servers::server_uuid::${server_uuid}::server_definition_xml"           => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}, 
 		}});
+		
+		# Get the network info.
+		my $query = "
+SELECT 
+    server_network_uuid, 
+    server_network_mac_address, 
+    server_network_vnet_device, 
+    server_network_link_state, 
+    modified_date, 
+    round(extract(epoch from modified_date)) AS mtime 
+FROM 
+    server_networks 
+WHERE 
+    server_network_server_uuid = ".$anvil->Database->quote($server_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $server_network_uuid        = $row->[0];
+			my $server_network_mac_address = $row->[1];
+			my $server_network_vnet_device = $row->[2];
+			my $server_network_link_state  = $row->[3];
+			my $modified_date              = $row->[4];
+			my $mtime_unix                 = $row->[5];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				server_network_uuid        => $server_network_uuid,
+				server_network_mac_address => $server_network_mac_address, 
+				server_network_vnet_device => $server_network_vnet_device, 
+				server_network_link_state  => $server_network_link_state, 
+				modified_date              => $modified_date, 
+				mtime_unix                 => $mtime_unix, 
+			}});
+			
+			# Store the network info.
+			$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_uuid}        = $server_network_uuid;
+			$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_vnet_device} = $server_network_vnet_device;
+			$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_link_state}  = $server_network_link_state;
+			$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{last_updated_date}          = $modified_date;
+			$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{last_updated_unix}          = $mtime_unix;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				"s1:servers::server_uuid::${server_uuid}::mac_address::${server_network_mac_address}::server_network_uuid"        => $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_uuid},
+				"s2:servers::server_uuid::${server_uuid}::mac_address::${server_network_mac_address}::server_network_vnet_device" => $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_vnet_device},
+				"s3:servers::server_uuid::${server_uuid}::mac_address::${server_network_mac_address}::server_network_link_state"  => $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{server_network_link_state},
+				"s4:servers::server_uuid::${server_uuid}::mac_address::${server_network_mac_address}::last_updated_date"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{last_updated_date},
+				"s5:servers::server_uuid::${server_uuid}::mac_address::${server_network_mac_address}::last_updated_unix"          => $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$server_network_mac_address}{last_updated_unix},
+			}});
+		}
 		
 		# Store the servers in a hash by name and under each Anvil!, sortable.
 		$anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid} = $server_uuid;
@@ -13637,7 +13699,7 @@ This is the server_definition UUID of a specific record to update.
 
 This is the C<< servers >> -> C<< server_uuid >> of the server whose server_definition this belongs to.
 
-server_definition_xml (required)
+=head3 server_definition_xml (required)
 
 This is the server's XML definition file itself.
 
@@ -13826,6 +13888,227 @@ INSERT INTO
 	}
 	
 	return($server_definition_uuid);
+}
+
+
+=head2 insert_or_update_server_networks
+
+This inserts or updates the C<< server_networks >> table used to store (virtual) server network interface information.
+
+This is needed to track C<< vnetX >> interface data as that data is only stored in the active server definition, which is not recorded in C<< server_definitions >>. 
+
+Parameters;
+
+=head3 server_network_uuid (optional)
+
+This is the server_network UUID of a specific record to update. 
+
+=head3 server_network_server_uuid (required)
+
+This is the C<< servers >> -> C<< server_uuid >> of the server whose C<< server_network >> this belongs to.
+
+=head3 server_network_mac_address (required)
+
+This is the server's network interface MAC address. 
+
+=head3 server_network_vnet_device (optional)
+
+This is the C<< vnetX >> interface on the host subnode or DR host that connects the interface to the bridge.
+
+=head3 server_network_link_state (required, 'up', 'down' or 'DELETED')
+
+This is the state of the associated C<< vnetX >> link. It is either C<< up >> or C<< down >>. If there is no C<< server_network_vnet_device >> (because the server is off), this is assumed to be C<< no >>. If there is, it's assumed to be C<< up >>. If the interface with the associated MAC address was removed, this is set to C<< DELETED >>.
+
+=cut
+sub insert_or_update_server_networks
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_server_networks()" }});
+	
+	my $uuid                       = defined $parameter->{uuid}                       ? $parameter->{uuid}                       : "";
+	my $file                       = defined $parameter->{file}                       ? $parameter->{file}                       : "";
+	my $line                       = defined $parameter->{line}                       ? $parameter->{line}                       : "";
+	my $server_network_uuid        = defined $parameter->{server_network_uuid}        ? $parameter->{server_network_uuid}        : "";
+	my $server_network_server_uuid = defined $parameter->{server_network_server_uuid} ? $parameter->{server_network_server_uuid} : "";
+	my $server_network_mac_address = defined $parameter->{server_network_mac_address} ? $parameter->{server_network_mac_address} : "";
+	my $server_network_vnet_device = defined $parameter->{server_network_vnet_device} ? $parameter->{server_network_vnet_device} : "";
+	my $server_network_link_state  = defined $parameter->{server_network_link_state}  ? $parameter->{server_network_link_state}  : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		uuid                       => $uuid, 
+		file                       => $file, 
+		line                       => $line, 
+		server_network_uuid        => $server_network_uuid, 
+		server_network_server_uuid => $server_network_server_uuid, 
+		server_network_mac_address => $server_network_mac_address, 
+		server_network_vnet_device => $server_network_vnet_device, 
+		server_network_link_state  => $server_network_link_state, 
+	}});
+	
+	if (not $server_network_server_uuid)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_server_networks()", parameter => "server_network_server_uuid" }});
+		return("!!error!!");
+	}
+	if (not $anvil->Validate->uuid({uuid => $server_network_server_uuid}))
+	{
+		# Bad UUID.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0130", variables => { method => "Database->insert_or_update_server_networks()", parameter => "server_network_server_uuid", uuid => $server_network_server_uuid }});
+		return("!!error!!");
+	}
+	if (not $server_network_mac_address)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_server_networks()", parameter => "server_network_mac_address" }});
+		return("!!error!!");
+	}
+	# The vnetX can be blank, this is expected when the server is off. 
+	if (not $server_network_link_state)
+	{
+		if ($server_network_vnet_device)
+		{
+			$server_network_link_state = "down";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_network_link_state => $server_network_link_state }});
+		}
+		else
+		{
+			$server_network_link_state = "up";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_network_link_state => $server_network_link_state }});
+		}
+	}
+	
+	if (($server_network_link_state ne "up")   && 
+	    ($server_network_link_state ne "down") && 
+	    ($server_network_link_state ne "DELETED"))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0013", variables => { server_network_link_state => $server_network_link_state }});
+		return("!!error!!");
+	}
+	if (not $anvil->Validate->mac({mac => $server_network_mac_address}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0014", variables => { server_network_mac_address => $server_network_mac_address }});
+		return("!!error!!");
+	}
+	if (($server_network_vnet_device) && ($server_network_vnet_device !~ /^vnet\d+$/))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0015", variables => { server_network_vnet_device => $server_network_vnet_device }});
+		return("!!error!!");
+	}
+	
+	# If we don't have a server_network_uuid, look for one using the server_uuid and MAC address.
+	if (not $server_network_uuid)
+	{
+		my $query = "
+SELECT 
+    server_network_uuid 
+FROM 
+    server_networks 
+WHERE 
+    server_network_server_uuid = ".$anvil->Database->quote($server_network_server_uuid)."
+AND 
+    server_network_mac_address = ".$anvil->Database->quote($server_network_mac_address)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$server_network_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_network_uuid => $server_network_uuid }});
+		}
+	}
+	
+	# UPDATE or INSERT.
+	if ($server_network_uuid)
+	{
+		# Is there any difference?
+		my $query = "
+SELECT 
+    server_network_server_uuid, 
+    server_network_mac_address, 
+    server_network_vnet_device, 
+    server_network_link_state 
+FROM 
+    server_networks 
+WHERE 
+    server_network_uuid = ".$anvil->Database->quote($server_network_uuid)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count,
+		}});
+		foreach my $row (@{$results})
+		{
+			my $old_server_network_server_uuid = $row->[0];
+			my $old_server_network_mac_address = $row->[1];
+			my $old_server_network_vnet_device = $row->[2];
+			my $old_server_network_link_state  = $row->[3];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				old_server_network_server_uuid => $old_server_network_server_uuid,
+				old_server_network_mac_address => $old_server_network_mac_address, 
+				old_server_network_vnet_device => $old_server_network_vnet_device, 
+				old_server_network_link_state  => $old_server_network_link_state, 
+			}});
+			if (($old_server_network_server_uuid ne $server_network_server_uuid) or 
+			    ($old_server_network_mac_address ne $server_network_mac_address) or 
+			    ($old_server_network_vnet_device ne $server_network_vnet_device) or 
+			    ($old_server_network_link_state  ne $server_network_link_state))
+			{
+				# Save the changes.
+				my $query = "
+UPDATE 
+    server_networks
+SET 
+    server_network_server_uuid = ".$anvil->Database->quote($server_network_server_uuid).", 
+    server_network_mac_address = ".$anvil->Database->quote($server_network_mac_address).", 
+    server_network_vnet_device = ".$anvil->Database->quote($server_network_vnet_device).", 
+    server_network_link_state  = ".$anvil->Database->quote($server_network_link_state).", 
+    modified_date              = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE
+    server_network_uuid        = ".$anvil->Database->quote($server_network_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	else
+	{
+		   $server_network_uuid = $anvil->Get->uuid();
+		my $query = "
+INSERT INTO 
+    server_networks 
+(
+    server_network_uuid, 
+    server_network_server_uuid, 
+    server_network_mac_address, 
+    server_network_vnet_device, 
+    server_network_link_state, 
+    modified_date
+) VALUES (
+    ".$anvil->Database->quote($server_network_uuid).", 
+    ".$anvil->Database->quote($server_network_server_uuid).",
+    ".$anvil->Database->quote($server_network_mac_address).",
+    ".$anvil->Database->quote($server_network_vnet_device).", 
+    ".$anvil->Database->quote($server_network_link_state).", 
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query =~ /passw/ ? $anvil->Log->is_secure($query) : $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	
+	return($server_network_uuid);
 }
 
 

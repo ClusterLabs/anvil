@@ -1455,6 +1455,62 @@ CREATE TRIGGER trigger_server_definitions
     FOR EACH ROW EXECUTE PROCEDURE history_server_definitions();
 
 
+-- This stores the network information for a server. When the server is booted, this maps the interface (by 
+-- mac) to a vnetX device and tracks its link state.
+CREATE TABLE server_networks (
+    server_network_uuid           uuid                        not null    primary key,
+    server_network_server_uuid    uuid                        not null,                   -- This is the servers -> server_uuid of the server
+    server_network_mac_address    text                        not null,                   -- This is the MAC address of the interface.
+    server_network_vnet_device    text                        not null,                   -- This is the 'vnetX' device used to link the interface to the bridge when the server is running.
+    server_network_link_state     text                        not null,                   -- This is the link state (up or down) of the interface. 
+    modified_date                 timestamp with time zone    not null, 
+    
+    FOREIGN KEY(server_network_server_uuid) REFERENCES servers(server_uuid) 
+);
+ALTER TABLE server_networks OWNER TO admin;
+
+CREATE TABLE history.server_networks (
+    history_id                    bigserial,
+    server_network_uuid           uuid,
+    server_network_server_uuid    uuid, 
+    server_network_mac_address    text, 
+    server_network_vnet_device    text, 
+    server_network_link_state     text, 
+    modified_date                 timestamp with time zone    not null
+);
+ALTER TABLE history.server_networks OWNER TO admin;
+
+CREATE FUNCTION history_server_networks() RETURNS trigger
+AS $$
+DECLARE
+    history_server_networks RECORD;
+BEGIN
+    SELECT INTO history_server_networks * FROM server_networks WHERE server_network_uuid = new.server_network_uuid;
+    INSERT INTO history.server_networks
+        (server_network_uuid,
+         server_network_server_uuid, 
+         server_network_mac_address, 
+         server_network_vnet_device, 
+         server_network_link_state, 
+         modified_date)
+    VALUES
+        (history_server_networks.server_network_uuid, 
+         history_server_networks.server_network_server_uuid, 
+         history_server_networks.server_network_mac_address, 
+         history_server_networks.server_network_vnet_device, 
+         history_server_networks.server_network_link_state, 
+         history_server_networks.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_server_networks() OWNER TO admin;
+
+CREATE TRIGGER trigger_server_networks
+    AFTER INSERT OR UPDATE ON server_networks
+    FOR EACH ROW EXECUTE PROCEDURE history_server_networks();
+
+
 -- It stores a general list of OUI (Organizationally Unique Identifier) to allow lookup of MAC address to 
 -- owning company. Data for this comes from http://standards-oui.ieee.org/oui/oui.txt and is stored by 
 -- striker-parse-oui. It is a generic reference table, so it's not bound to any one host.

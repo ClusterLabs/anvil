@@ -426,7 +426,7 @@ sub collect_data
 		}
 	}
 	
-	# Get the list of servers
+	# Get the list of servers on this host.
 	my $stream  = $anvil->data->{qemu}{$target}{connection}->new_stream();
 	my @domains = $anvil->data->{qemu}{$target}{connection}->list_all_domains();
 	foreach my $domain (@domains)
@@ -565,6 +565,43 @@ sub collect_data
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0006", variables => $variables});
 			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0006", variables => $variables, set_by => $THIS_FILE});
+			
+			# Record the network insterfaces
+			foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}})
+			{
+				my $vnet_device = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{target};
+				my $link_state  = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{link_state};
+				my $bridge      = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{bridge};
+				my $model       = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{model};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:mac_address" => $mac_address,
+					"s2:vnet_device" => $vnet_device,
+					"s3:link_state"  => $link_state,
+					"s4:bridge"      => $bridge, 
+					"s5:model"       => $model, 
+				}});
+				my $server_network_uuid = $anvil->Database->insert_or_update_server_networks({
+					debug                      => 2, 
+					server_network_server_uuid => $server_uuid, 
+					server_network_mac_address => $mac_address, 
+					server_network_vnet_device => $vnet_device, 
+					server_network_link_state  => $link_state, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
+				
+				# Register an alert.
+				my $variables  = {
+					server      => $server_name,
+					mac_address => $mac_address,
+					bridge      => $bridge, 
+					vnet_device => $vnet_device, 
+					link_state  => $link_state, 
+					model       => $model, 
+					host        => $target, 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0025", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0025", variables => $variables, set_by => $THIS_FILE});
+			}
 		}
 		
 		# For 'server_boot_time', we only update if we actually read the uptime.
@@ -592,6 +629,21 @@ sub collect_data
 			"scan-server::server_name::${server_name}::server_configured_ram" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_configured_ram}, 
 		}});
 		
+		# Record the network insterfaces
+		foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}})
+		{
+			$anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{vnet_device} = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{target};
+			$anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{link_state}  = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{link_state};
+			$anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{bridge}      = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{bridge};
+			$anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{model}       = $anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}{$mac_address}{model};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:scan-server::server_name::${server_name}::interface::${mac_address}::vnet_device" => $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{vnet_device}, 
+				"s2:scan-server::server_name::${server_name}::interface::${mac_address}::link_state"  => $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{link_state}, 
+				"s3:scan-server::server_name::${server_name}::interface::${mac_address}::bridge"      => $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{bridge}, 
+				"s4:scan-server::server_name::${server_name}::interface::${mac_address}::model"       => $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{model}, 
+			}});
+		}
+		
 		if ($server_state eq "shut off")
 		{
 			my $host_type = $anvil->Get->host_type;
@@ -611,6 +663,19 @@ sub collect_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"scan-server::server_name::${server_name}::server_boot_time" => $anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time}, 
 			}});
+			
+			# Make sure all interfaces show as down.
+			foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{'from_virsh'}{device}{interface}})
+			{
+				my $server_network_uuid = $anvil->Database->insert_or_update_server_networks({
+					debug                      => 2, 
+					server_network_server_uuid => $server_uuid, 
+					server_network_mac_address => $mac_address, 
+					server_network_vnet_device => "", 
+					server_network_link_state  => "down", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_network_uuid => $server_network_uuid }});
+			}
 		}
 	}
 	
@@ -751,8 +816,8 @@ sub collect_data
 			}
 			
 			# Undefine the server now.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_message_0002", variables => { server => $server_name }});
-			$anvil->data->{domain}{$server_name}{handle}->undefine();
+			#$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_message_0002", variables => { server => $server_name }});
+			#$anvil->data->{domain}{$server_name}{handle}->undefine();
 		}
 		
 		# Now that definition updates are dealth with, has anything else changed?
@@ -961,6 +1026,125 @@ sub collect_data
 				server_post_migration_file_uuid => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_file_uuid},
 				server_post_migration_arguments => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_post_migration_arguments},
 			});
+		}
+		
+		# Look for changes in the interfaces. First, look for the interfaces we know about.
+		foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}})
+		{
+			my $server_network_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_uuid};
+			my $old_vnet_device     = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_vnet_device};
+			my $old_link_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_link_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:mac_address'         => $mac_address,
+				's2:server_network_uuid' => $server_network_uuid, 
+				's3:old_vnet_device'     => $old_vnet_device, 
+				's4:old_link_state'      => $old_link_state, 
+			}});
+			if (exists $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address})
+			{
+				# Has it changed?
+				my $new_vnet_device = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{vnet_device};
+				my $new_link_state  = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{link_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:new_vnet_device' => $new_vnet_device, 
+					's2:new_link_state'  => $new_link_state, 
+				}});
+				
+				if (($old_vnet_device ne $new_vnet_device) or 
+				    ($old_link_state  ne $new_link_state))
+				{
+					# Report the change.
+					my $server_network_uuid = $anvil->Database->insert_or_update_server_networks({
+						debug                      => 2, 
+						server_network_server_uuid => $server_uuid, 
+						server_network_mac_address => $mac_address, 
+						server_network_vnet_device => $new_vnet_device, 
+						server_network_link_state  => $new_link_state, 
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_network_uuid => $server_network_uuid }});
+					
+					# Register an alert.
+					my $variables = {
+						server          => $server_name, 
+						mac_address     => $mac_address, 
+						old_vnet_device => $old_vnet_device, 
+						new_vnet_device => $new_vnet_device, 
+						old_link_state  => $old_link_state, 
+						new_link_state  => $new_link_state, 
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0026", variables => $variables});
+					$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0026", variables => $variables, set_by => $THIS_FILE});
+				}
+				
+				# Delete this now that we've seen it
+				delete $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address};
+			}
+			else
+			{
+				# It's been deleted
+				my $server_network_uuid = $anvil->Database->insert_or_update_server_networks({
+					debug                      => 2, 
+					server_network_server_uuid => $server_uuid, 
+					server_network_mac_address => $mac_address, 
+					server_network_vnet_device => "", 
+					server_network_link_state  => "DELETED", 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_network_uuid => $server_network_uuid }});
+				
+				# Register an alert.
+				my $variables = {
+					server      => $server_name,
+					mac_address => $mac_address,
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0027", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0027", variables => $variables, set_by => $THIS_FILE});
+			}
+			
+			# Delete this interface so we know we dealt with it.
+			delete $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address};
+		}
+		
+		# Are there any interfaces we scanned but didn't see in the DB?
+		foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{'scan-server'}{server_name}{$server_name}{interface}})
+		{
+			# New interface
+			my $new_vnet_device = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{vnet_device};
+			my $new_link_state  = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{link_state};
+			my $bridge          = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{bridge};
+			my $model           = $anvil->data->{'scan-server'}{server_name}{$server_name}{interface}{$mac_address}{model};
+			my $host            = $server_host_uuid eq "NULL" ? "--" : $anvil->data->{hosts}{host_uuid}{$server_host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:mac_address"     => $mac_address, 
+				"s2:new_vnet_device" => $new_vnet_device, 
+				"s3:new_link_state"  => $new_link_state, 
+				's4:bridge'          => $bridge, 
+				's5:model'           => $model, 
+				's6:host'            => $host, 
+			}});
+			
+			my $server_network_uuid = $anvil->Database->insert_or_update_server_networks({
+				debug                      => 2, 
+				server_network_server_uuid => $server_uuid, 
+				server_network_mac_address => $mac_address, 
+				server_network_vnet_device => $new_vnet_device, 
+				server_network_link_state  => $new_link_state, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_network_uuid => $server_network_uuid }});
+			
+			# Register an alert.
+			my $variables = {
+				server      => $server_name,
+				mac_address => $mac_address,
+				bridge      => $bridge, 
+				vnet_device => $new_vnet_device, 
+				link_state  => $new_link_state, 
+				model       => $model, 
+				host        => $host, 
+			};
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0025", variables => $variables});
+			$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0025", variables => $variables, set_by => $THIS_FILE});
+			
+			# Delete this so we know we've seen it.
 		}
 		
 		# Delete the database record so we know this one has been dealt with.
@@ -1284,21 +1468,74 @@ sub get_and_parse_virsh_definition
 	
 	# Get the inactive XML (changes requested by the user may not match the in-memory XML)
 	my $virsh_definition_active = $anvil->data->{domain}{$server_name}{handle}->get_xml_description();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { virsh_definition_active => $virsh_definition_active }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition_active => $virsh_definition_active }});
 	
 	my $virsh_definition_inactive = $anvil->data->{domain}{$server_name}{handle}->get_xml_description(Sys::Virt::Domain::XML_INACTIVE);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_definition_inactive => $virsh_definition_inactive }});
+	
+	# What's the difference between the active and inactive XML definitions?
+	my $difference = diff \$virsh_definition_inactive, \$virsh_definition_active, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference  => $difference }});
 	
 	# There will always be a difference because things like ID, vnc port, vnet device, etc will always 
 	# be different. So later, we might want to parse both and look for hardware changes. Until then, this
 	# isn't useful yet.
 	my $virsh_difference = diff \$virsh_definition_active, \$virsh_definition_inactive, { STYLE => 'Unified' };
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { virsh_difference => $virsh_difference }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { virsh_difference => $virsh_difference }});
+	
+	# Parse the active first, if set.
+	my $target = $anvil->Get->short_host_name;
+	my $source = "from_virsh";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:target' => $target,
+		's2:source' => $source, 
+	}});
+	if ($virsh_definition_active)
+	{
+		# This will be clobbered when we parse the inactive definition
+		if (exists $anvil->data->{server_networks}{$server_name})
+		{
+			delete $anvil->data->{server_networks}{$server_name};
+		}
+		my $problem = $anvil->Server->parse_definition({
+			debug      => 2,
+			server     => $server_name,
+			source     => $source, 
+			definition => $virsh_definition_active, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		if (not $problem)
+		{
+			# Update tne interfaces in the DB.
+			my $server_uuid = $anvil->data->{server}{$target}{$server_name}{$source}{info}{uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+			foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}})
+			{
+				# The bridge is just for the logs.
+				my $bridge = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{bridge};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:mac_address' => $mac_address,
+					's2:bridge'      => $bridge, 
+				}});
+				
+				$anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{target}     = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{target};
+				$anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{link_state} = $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{link_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:server_networks::${server_name}::mac_address::${mac_address}::vnet"       => $anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{vnet},
+					"s2:server_networks::${server_name}::mac_address::${mac_address}::link_state" => $anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{link_state},
+				}});
+			}
+			
+			# Even though it'll be clobbered, lets be sure.
+			delete $anvil->data->{server}{$target}{$server_name}{$source};
+		}
+	}
 	
 	my $problem = $anvil->Server->parse_definition({
 		debug      => 3,
 		server     => $server_name,
-		source     => "from_virsh", 
+		source     => $source, 
 		definition => $virsh_definition_inactive, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
@@ -1308,6 +1545,22 @@ sub get_and_parse_virsh_definition
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_log_0003", variables => { definition => $virsh_definition_inactive }});
 		$virsh_definition_inactive = "";
 	}
+	else
+	{
+		# Append the network data.
+		foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server_networks}{$server_name}{mac_address}})
+		{
+			$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{target}     = $anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{target};
+			$anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{link_state} = $anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{link_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:server::${target}::${server_name}::${source}::device::interface::${mac_address}::target"       => $anvil->data->{server}{$target}{$server_name}{$source}{device}{interface}{$mac_address}{target},
+				"s2:server_networks::${server_name}::mac_address::${mac_address}::link_state" => $anvil->data->{server_networks}{$server_name}{mac_address}{$mac_address}{link_state},
+			}});
+		}
+	}
+	
+	# Clear the temp data.
+	delete $anvil->data->{server_networks}{$server_name};
 	
 	return($virsh_definition_inactive);
 }

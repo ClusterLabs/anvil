@@ -2548,21 +2548,23 @@ sub parse_definition
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{alias}             = defined $hash_ref->{alias}->[0]->{name} ? $hash_ref->{alias}->[0]->{name} : "";
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{target}            = defined $hash_ref->{target}->[0]->{dev} ? $hash_ref->{target}->[0]->{dev} : "";
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{model}             = $hash_ref->{model}->[0]->{type};
+		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{link_state}        = exists $hash_ref->{'link'}->[0]->{'state'} ? $hash_ref->{'link'}->[0]->{'state'} : "up";
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{bus}      = $hash_ref->{address}->[0]->{bus};
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{domain}   = $hash_ref->{address}->[0]->{domain};
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{type}     = $hash_ref->{address}->[0]->{type};
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{slot}     = $hash_ref->{address}->[0]->{slot};
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{function} = $hash_ref->{address}->[0]->{function};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"server::${target}::${server}::${source}::device::interface::${mac}::bridge"            => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{bridge},
-			"server::${target}::${server}::${source}::device::interface::${mac}::alias"             => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{alias},
-			"server::${target}::${server}::${source}::device::interface::${mac}::target"            => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{target},
-			"server::${target}::${server}::${source}::device::interface::${mac}::model"             => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{model},
-			"server::${target}::${server}::${source}::device::interface::${mac}::address::bus"      => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{bus},
-			"server::${target}::${server}::${source}::device::interface::${mac}::address::domain"   => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{domain},
-			"server::${target}::${server}::${source}::device::interface::${mac}::address::type"     => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{type},
-			"server::${target}::${server}::${source}::device::interface::${mac}::address::slot"     => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{slot},
-			"server::${target}::${server}::${source}::device::interface::${mac}::address::function" => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{function},
+			"s01:server::${target}::${server}::${source}::device::interface::${mac}::bridge"            => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{bridge},
+			"s02:server::${target}::${server}::${source}::device::interface::${mac}::alias"             => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{alias},
+			"s03:server::${target}::${server}::${source}::device::interface::${mac}::target"            => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{target},
+			"s04:server::${target}::${server}::${source}::device::interface::${mac}::model"             => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{model},
+			"s05:server::${target}::${server}::${source}::device::interface::${mac}::link_state"        => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{link_state},
+			"s06:server::${target}::${server}::${source}::device::interface::${mac}::address::bus"      => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{bus},
+			"s07:server::${target}::${server}::${source}::device::interface::${mac}::address::domain"   => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{domain},
+			"s08:server::${target}::${server}::${source}::device::interface::${mac}::address::type"     => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{type},
+			"s09:server::${target}::${server}::${source}::device::interface::${mac}::address::slot"     => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{slot},
+			"s10:server::${target}::${server}::${source}::device::interface::${mac}::address::function" => $anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{address}{function},
 		}});
 	}
 	

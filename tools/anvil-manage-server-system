@@ -1509,7 +1509,7 @@ sub load_job
 		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0350", 
+		message          => "message_0353", 
 	});
 	
 	return(0);
