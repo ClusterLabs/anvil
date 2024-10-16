@@ -126,6 +126,12 @@ Exiting.</key>
 ====
 </key>
 		<key name="scan_server_alert_0024">Regained access to the peer: [#!variable!target!#] hypervisor.</key>
+		<key name="scan_server_alert_0025"><![CDATA[- New interface: [#!variable!server!#] -> [#!variable!model!#/#!variable!mac_address!#] -> [#!variable!vnet_device!#] -(#!variable!link_state!#)-> [#!variable!bridge!#] -> [#!variable!host!#]]]></key>
+		<key name="scan_server_alert_0026"><![CDATA[The server: [#!variable!server!#]'s network interface [#!variable!mac_address!#] link data has change;
+- vnet device: [#!variable!old_vnet_device!#] -> [#!variable!new_vnet_device!#]
+- Link state:  [#!variable!old_link_state!#] -> [#!variable!new_link_state!#]
+]]></key>
+		<key name="scan_server_alert_0027"><![CDATA[- Deleted interface: [#!variable!server!#] -> [#!variable!mac_address!#]]]></key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>
