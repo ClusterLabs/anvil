@@ -217,20 +217,28 @@ sub show_networks
 			{
 				my $mac_address      = $anvil->data->{servers}{server_uuid}{$server_uuid}{bridges}{$bridge}{mac_address};
 				my $model            = $anvil->data->{server}{$host_name}{$server_name}{from_db}{device}{interface}{$mac_address}{model};
-				my $link_state       = $anvil->data->{server}{$host_name}{$server_name}{from_db}{device}{interface}{$mac_address}{link_state};
 				my $ip_address       = $anvil->Network->get_ip_from_mac({mac => $mac_address});
 				my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
 				my $server_host_name = $server_host_uuid ? $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}) : "";
 				my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				my $vnet_device      = "--";
+				my $link_state       = "down";
+				if (($server_state ne "shut off") && ($server_state ne "DELETED"))
+				{
+					$vnet_device = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_vnet_device};
+					$link_state  = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_link_state};
+				}
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:bridge'           => $server_name,
-					's2:mac_address'      => $mac_address, 
-					's3:model'            => $model, 
-					's4:link_state'       => $link_state, 
-					's5:ip_address'       => $ip_address,
-					's6:server_host_uuid' => $server_host_uuid, 
-					's7:server_host_name' => $server_host_name, 
-					's8:server_state'     => $server_state, 
+					's01:bridge'           => $server_name,
+					's02:mac_address'      => $mac_address, 
+					's03:model'            => $model, 
+					's04:link_state'       => $link_state, 
+					's05:ip_address'       => $ip_address,
+					's06:server_host_uuid' => $server_host_uuid, 
+					's07:server_host_name' => $server_host_name, 
+					's08:server_state'     => $server_state, 
+					's09:vnet_device'      => $vnet_device, 
+					's10:link_state'       => $link_state, 
 				}});
 				print "- Bridge: [".$bridge."], MAC: [".$mac_address."], state: [".$link_state."], model: [".$model."], last known IP: [".$ip_address."]\n";
 			}
