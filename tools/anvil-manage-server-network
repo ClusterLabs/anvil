@@ -48,6 +48,7 @@ $anvil->Get->switches({list => [
 	"model", 
 	"plug", 
 	"remove", 
+	"server", 
 	"unplug", 
 	], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
@@ -75,6 +76,21 @@ $anvil->Database->get_hosts({debug => 2});
 $anvil->Database->get_anvils({debug => 2});
 $anvil->Database->get_servers({debug => 2});
 $anvil->Database->get_bridges({debug => 2});
+
+if ($anvil->data->{switches}{server})
+{
+	$anvil->Get->server_from_switch({server => $anvil->data->{switches}{server}});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:switches::server_name' => $anvil->data->{switches}{server_name},
+		's2:switches::server_uuid' => $anvil->data->{switches}{server_uuid},
+	}});
+	
+	if ((not $anvil->data->{switches}{server_name}) or ($anvil->data->{switches}{server_name} eq "!!error!!"))
+	{
+		
+	}
+}
 
 if ($anvil->data->{switches}{add})
 {
