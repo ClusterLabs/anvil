@@ -686,9 +686,10 @@ sub check_incoming
 		{
 			# Push it to all other hosts now.
 			$anvil->Storage->push_file({
-				debug     => 2, 
-				file      => $full_path,
-				file_uuid => $file_uuid, 
+				debug            => 2, 
+				target_directory => $file_directory, 
+				file             => $full_path,
+				file_uuid        => $file_uuid, 
 			});
 			
 			# Call track_files, it'll make sure the file_locations are setup.

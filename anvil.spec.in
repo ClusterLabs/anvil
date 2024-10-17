@@ -174,8 +174,6 @@ Requires:       nmap
 Requires:       nodejs
 Requires:       openssh-askpass
 Requires:       postgresql-server 
-Requires:       syslinux
-Requires:       syslinux-nonlinux
 Requires:       tftp-server
 Requires:       virt-manager
 

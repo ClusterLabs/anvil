@@ -3971,6 +3971,10 @@ Parameters;
 
 This is the source file to copy from locally and push it to all peers' C<< /mnt/shared/files/ >> directory.
 
+=head3 target_directory (optional, default 'path::directories::shared::files', /mnt/shared/files/)
+
+This is the target directory to copy the file to. 
+
 =cut
 sub push_file
 {
@@ -3981,11 +3985,13 @@ sub push_file
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->push_file()" }});
 	
 	# Setup default values
-	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";
-	my $file_uuid = defined $parameter->{file_uuid} ? $parameter->{file_uuid} : "";
+	my $target_directory = defined $parameter->{target_directory} ? $parameter->{target_directory} : "";
+	my $file             = defined $parameter->{file}             ? $parameter->{file}             : "";
+	my $file_uuid        = defined $parameter->{file_uuid}        ? $parameter->{file_uuid}        : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		file      => $file,
-		file_uuid => $file_uuid,
+		file             => $file,
+		file_uuid        => $file_uuid,
+		target_directory => $target_directory, 
 	}});
 	
 	if (not $file)
@@ -3997,6 +4003,25 @@ sub push_file
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0105", variables => { file => $file }});
 		return("!!error!!");
+	}
+	if ($target_directory)
+	{
+		# Make sure it's a directory.
+		if ($target_directory !~ /^\//)
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0016", variables => { target_directory => $target_directory }});
+			return("!!error!!");
+		}
+		elsif ($target_directory !~ /\/$/)
+		{
+			$target_directory .= "/";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_directory => $target_directory }});
+		}
+	}
+	else
+	{
+		$target_directory = $anvil->data->{path}{directories}{shared}{files}."/";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_directory => $target_directory }});
 	}
 	
 	$anvil->Database->get_files({debug => $debug});
@@ -4049,9 +4074,8 @@ sub push_file
 	# Now copy this to our peers. We're going to do this serially so that we don't overwhelm the system,
 	# Any hosts not currently online will have a job registered.
 	$anvil->Database->get_hosts;
-	my $host_uuid        = $anvil->Get->host_uuid();
-	my $host_name        = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
-	my $target_directory = $anvil->data->{path}{directories}{shared}{files}."/";
+	my $host_uuid = $anvil->Get->host_uuid();
+	my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
 	foreach my $do_host_type ("striker", "node", "dr")
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { do_host_type => $do_host_type }});

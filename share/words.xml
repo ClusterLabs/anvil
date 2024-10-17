@@ -57,7 +57,7 @@ If you need any assistance, please feel free to contact #!string!brand_0001!# (h
 		<key name="error_0013"><![CDATA[[ Error ] - Database->insert_or_update_server_networks() was passed 'server_network_link_state': [#!variable!server_network_link_state!#]. This must be 'up' or 'down'.]]></key>
 		<key name="error_0014"><![CDATA[[ Error ] - Database->insert_or_update_server_networks() was passed 'server_network_mac_address': [#!variable!server_network_mac_address!#]. This does not appear to be a valid MAC address.]]></key>
 		<key name="error_0015"><![CDATA[[ Error ] - Database->insert_or_update_server_networks() was passed 'server_network_vnet_device': [#!variable!server_network_vnet_device!#]. This must be 'vnetX' where 'X' is a whole number.]]></key>
-		<key name="error_0016">#!free!#</key>
+		<key name="error_0016">The target directory: [#!variable!target_directory!#] does not appearto be a full directory.</key>
 		<key name="error_0017">#!free!#</key>
 		<key name="error_0018">#!free!#</key>
 		<key name="error_0019">#!free!#</key>
