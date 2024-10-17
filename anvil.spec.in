@@ -127,6 +127,7 @@ Requires:       screen
 Requires:       selinux-policy >= %{_selinux_policy_version}
 Requires:       smartmontools
 Requires:       strace
+Requires:       syslinux
 Requires:       sysstat
 Requires:       tar
 Requires:       tcpdump
