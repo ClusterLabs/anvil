@@ -345,11 +345,11 @@ sub get_screenshots
 		### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
 		if ($state == 1)    { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0041"}); }	# Server is running.
 		elsif ($state == 2) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0042"}); }	# Server is blocked (IO contention?).
-		elsif ($state == 3) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0043"}); }	# Server is paused (migration target?).
-		elsif ($state == 4) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0044"}); }	# Server is shutting down.
-		elsif ($state == 5) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0045"}); }	# Server is shut off.
+		elsif ($state == 3) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0043"}); }	# Server is paused (migration target?).
+		elsif ($state == 4) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0044"}); }	# Server is shutting down.
+		elsif ($state == 5) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0045"}); }	# Server is shut off.
 		elsif ($state == 6) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0046"}); }	# Server is crashed!
-		elsif ($state == 7) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0047"}); }	# Server is suspended.
+		elsif ($state == 7) { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "unit_0047"}); }	# Server is suspended.
 		else                { $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "unit_0048", variables => { 'state' => $state }}); }	# Server is in an unknown state
 		
 		# Only take screenshots of running servers.
