@@ -88,8 +88,34 @@ if ($anvil->data->{switches}{server})
 	
 	if ((not $anvil->data->{switches}{server_name}) or ($anvil->data->{switches}{server_name} eq "!!error!!"))
 	{
-		
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0017", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server => $anvil->data->{switches}{server}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
 	}
+
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+	
+	$anvil->data->{switches}{anvil_uuid} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'switches::anvil_uuid' => $anvil->data->{switches}{anvil_uuid},
+	}});
+	
+}
+else
+{
+	$anvil->data->{switches}{server_name} = "";
+	$anvil->data->{switches}{server_uuid} = "";
+	$anvil->data->{switches}{anvil_uuid}  = "";
 }
 
 if ($anvil->data->{switches}{add})
@@ -100,13 +126,9 @@ elsif ($anvil->data->{switches}{remove})
 {
 	handle_remove($anvil);
 }
-elsif ($anvil->data->{switches}{plug})
+elsif (($anvil->data->{switches}{plug}) or ($anvil->data->{switches}{unplug}))
 {
-	handle_plug($anvil);
-}
-elsif ($anvil->data->{switches}{unplug})
-{
-	handle_unplug($anvil);
+	handle_plug_unplug($anvil);
 }
 else
 {
@@ -128,10 +150,407 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
-sub handle_unplug
+sub handle_plug_unplug
 {
 	my ($anvil) = @_;
 	
+	my $task         = $anvil->data->{switches}{plug} ? "plug" : "unplug";
+	my $host_name    = $anvil->Get->short_host_name();
+	my $server_name  = $anvil->data->{switches}{server_name};
+	my $server_uuid  = $anvil->data->{switches}{server_uuid};
+	my $anvil_uuid   = $anvil->data->{switches}{anvil_uuid};
+	my $mac_address  = $anvil->data->{switches}{mac};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:tast'        => $task,
+		's2:host_name'   => $host_name, 
+		's3:server_name' => $server_name,
+		's4:server_uuid' => $server_uuid, 
+		's5:anvil_uuid'  => $anvil_uuid, 
+		's6:mac_address' => $mac_address, 
+	}});
+	
+	if (not $server_name)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0036" : "error_0018", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if (not $mac_address)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0054" : "error_0019", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = $server_host_uuid ? $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}) : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_name'      => $server_state,
+		's2:server_host_uuid' => $server_host_uuid, 
+		's3:server_host_name' => $server_host_name, 
+	}});
+	
+	# Is the server running?
+	if ($server_state ne "running")
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0074" : "error_0020", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server       => $anvil->data->{switches}{server_name}, 
+				server_state => $server_state, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Lastly, are we the host?
+	if ($server_host_uuid ne $anvil->Get->host_uuid)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0078" : "error_0022", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Get the XML
+	my $server_definition_xml = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_xml => $server_definition_xml }});
+	
+	# This could be delayed from what's actually happening, but we have to take the DB as the source of 
+	# truth.
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
+		host       => $host_name,
+		server     => $server_name, 
+		source     => "from_db",
+		definition => $server_definition_xml, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	if ($problem)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0080" : "error_0021", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server    => $anvil->data->{switches}{server_name}, 
+				host_uuid => $server_host_uuid, 
+				host_name => $server_host_name, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Do we know the MAC?
+	if (not exists $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address})
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0119" : "error_0118", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				mac_address => $mac_address, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Last, is the cable already in the requested state?
+	my $vnet_device         = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_vnet_device};
+	my $link_state          = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_link_state};
+	my $server_network_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{mac_address}{$mac_address}{server_network_uuid}; 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:vnet_device'         => $vnet_device,
+		's2:link_state'          => $link_state, 
+		's3:server_network_uuid' => $server_network_uuid, 
+	}});
+	
+	if (not $vnet_device)
+	{
+		# Can't work without a vnet device
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0121" : "error_0120", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				mac_address => $mac_address, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (($task eq "plug") && ($link_state eq "up"))
+	{
+		# Already plugged in, nothing to do.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "message_0108", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				mac_address => $mac_address, 
+				vnet_device => $vnet_device, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	if (($task eq "unplug") && ($link_state eq "down"))
+	{
+		# Already unplugged, nothing to do.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "message_0109", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				mac_address => $mac_address, 
+				vnet_device => $vnet_device, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# Still alive? Do the things.
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." domif-setlink ".$server_name." --interface ".$vnet_device." ";
+	if ($task eq "plug")
+	{
+		$shell_call .= "up";
+	}
+	else
+	{
+		$shell_call .= "down";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	$anvil->Job->update_progress({
+		progress   => 50,
+		message    => $task eq "plug" ? "message_0112" : "message_0113", 
+		log_level  => 1, 
+		'print'    => 1, 
+		variables  => {
+			server      => $anvil->data->{switches}{server_name}, 
+			mac_address => $mac_address, 
+			vnet_device => $vnet_device, 
+		},
+	});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	if ($return_code)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => $task eq "plug" ? "error_0123" : "error_0122", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				shell_call  => $mac_address, 
+				return_code => $return_code, 
+				output      => $output, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Verify.
+	sleep 2;
+	$shell_call = $anvil->data->{path}{exe}{virsh}." domif-getlink ".$server_name." --interface ".$vnet_device." ";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	if ($output =~ /^$vnet_device (.*)$/)
+	{
+		my $status = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
+		
+		if ($status eq "up")
+		{
+			if ($task eq "plug")
+			{
+				# Success! Update the database.
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "message_0110", 
+					log_level  => 1, 
+					'print'    => 1, 
+					variables  => {
+						server      => $anvil->data->{switches}{server_name}, 
+						mac_address => $mac_address, 
+						vnet_device => $vnet_device, 
+					},
+				});
+				
+				# Update the database.
+				$anvil->Database->insert_or_update_server_networks({
+					debug                      => 2, 
+					server_network_uuid        => $server_network_uuid, 
+					server_network_server_uuid => $server_uuid, 
+					server_network_mac_address => $mac_address, 
+					server_network_vnet_device => $vnet_device, 
+					server_network_link_state  => "up", 
+				});
+				$anvil->nice_exit({exit_code => 0});
+			}
+			else
+			{
+				# Failed
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0124", 
+					job_status => "failed", 
+					log_level  => 1, 
+					'print'    => 1, 
+					priority   => "err",
+					variables  => {
+						server      => $anvil->data->{switches}{server_name}, 
+						mac_address => $mac_address, 
+						vnet_device => $vnet_device, 
+					},
+				});
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		elsif ($status eq "down")
+		{
+			if ($task eq "unplug")
+			{
+				# Success! Update the database.
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "message_0111", 
+					log_level  => 1, 
+					'print'    => 1, 
+					variables  => {
+						server      => $anvil->data->{switches}{server_name}, 
+						mac_address => $mac_address, 
+						vnet_device => $vnet_device, 
+					},
+				});
+				
+				# Update the database.
+				$anvil->Database->insert_or_update_server_networks({
+					debug                      => 2, 
+					server_network_uuid        => $server_network_uuid, 
+					server_network_server_uuid => $server_uuid, 
+					server_network_mac_address => $mac_address, 
+					server_network_vnet_device => $vnet_device, 
+					server_network_link_state  => "down", 
+				});
+				$anvil->nice_exit({exit_code => 0});
+			}
+			else
+			{
+				# Failed
+				$anvil->Job->update_progress({
+					progress   => 100,
+					message    => "error_0125", 
+					job_status => "failed", 
+					log_level  => 1, 
+					'print'    => 1, 
+					priority   => "err",
+					variables  => {
+						server      => $anvil->data->{switches}{server_name}, 
+						mac_address => $mac_address, 
+						vnet_device => $vnet_device, 
+					},
+				});
+				$anvil->nice_exit({exit_code => 1});
+			}
+		}
+		else
+		{
+			# Wat?
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0126", 
+				job_status => "failed", 
+				log_level  => 1, 
+				'print'    => 1, 
+				priority   => "err",
+				variables  => {
+					server      => $anvil->data->{switches}{server_name}, 
+					mac_address => $mac_address, 
+					vnet_device => $vnet_device, 
+					status      => $status, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	else
+	{
+		# Unexpected output.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0130", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				mac_address => $mac_address, 
+				vnet_device => $vnet_device, 
+				return_code => $return_code, 
+				output      => $output, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	return(0);
 }
@@ -179,7 +598,8 @@ sub show_networks
 			's4:node1_host_uuid'   => $node1_host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $node1_host_uuid}).")", 
 			's5:node2_host_uuid'   => $node2_host_uuid." (".$anvil->Get->host_name_from_uuid({host_uuid => $node2_host_uuid}).")", 
 		}});
-		print "Anvil! Node: [".$anvil_name."] - ".$anvil_description."\n";
+		next if (($anvil->data->{switches}{anvil_uuid}) && ($anvil->data->{switches}{anvil_uuid} ne $anvil_uuid));
+		print "-=] Anvil! Node: [".$anvil_name."] - ".$anvil_description."\n";
 		
 		foreach my $bridge_name (sort {$a cmp $b} keys %{$anvil->data->{bridges}{bridge_host_uuid}{$node1_host_uuid}{bridge_name}})
 		{
@@ -191,6 +611,7 @@ sub show_networks
 			}
 			print "- Bridge: [".$bridge_name."]\n";
 		}
+		print "\n-=] Servers on: [".$anvil_name."]\n";
 		
 		# Now show the servers on this Anvil! node and what interfaces they have.
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
@@ -202,6 +623,7 @@ sub show_networks
 				's2:server_uuid'           => $server_uuid, 
 				's3:server_definition_xml' => $server_definition_xml, 
 			}});
+			next if (($anvil->data->{switches}{server_uuid}) && ($server_uuid ne $anvil->data->{switches}{server_uuid}));
 			
 			# This could be delayed from what's actually happening, but we have to take the DB as
 			# the source of truth.

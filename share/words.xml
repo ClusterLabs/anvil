@@ -58,12 +58,12 @@ If you need any assistance, please feel free to contact #!string!brand_0001!# (h
 		<key name="error_0014"><![CDATA[[ Error ] - Database->insert_or_update_server_networks() was passed 'server_network_mac_address': [#!variable!server_network_mac_address!#]. This does not appear to be a valid MAC address.]]></key>
 		<key name="error_0015"><![CDATA[[ Error ] - Database->insert_or_update_server_networks() was passed 'server_network_vnet_device': [#!variable!server_network_vnet_device!#]. This must be 'vnetX' where 'X' is a whole number.]]></key>
 		<key name="error_0016">The target directory: [#!variable!target_directory!#] does not appearto be a full directory.</key>
-		<key name="error_0017">#!free!#</key>
-		<key name="error_0018">#!free!#</key>
-		<key name="error_0019">#!free!#</key>
-		<key name="error_0020">#!free!#</key>
-		<key name="error_0021">#!free!#</key>
-		<key name="error_0022">#!free!#</key>
+		<key name="error_0017">The server: [#!variable!server!#] was not found in the database.</key>
+		<key name="error_0018">Asked to unplug a network interface but the server wasn't specified.</key>
+		<key name="error_0019">Asked to unplug an interface from: [#!variable!server!#] but '--mac' wasn't given.</key>
+		<key name="error_0020">Asked to unplug an interface from: [#!variable!server!#] but the server isn't running. (It's state is: [#!variable!server_state!#]).</key>
+		<key name="error_0021">Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Please run this on that host.</key>
+		<key name="error_0022">Asked to unplug an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0023">There was a problem reading your session details. To be safe, you have been logged out. Please try logging back in.</key>
 		<key name="error_0024">It appears that your session has expired. To be safe, you have been logged out. Please try logging back in.</key>
 		<key name="error_0025"><![CDATA[The user ID passed in to Account->read_details: [#!variable!uuid!#] is not a valid UUID.]]></key>
@@ -82,7 +82,7 @@ The update appears to have not completed successfully. The output was:
 #!variable!output!#
 ====
 		</key>
-		<key name="error_0036">#!free!#</key>
+		<key name="error_0036">Asked to plug in a network interface but the server wasn't specified.</key>
 		<key name="error_0037"><![CDATA[In Words->parse_banged_string(), an infinite loop was detected while processing: [#!variable!message!#].]]></key>
 		<key name="error_0038">The TCP port: [#!variable!port!#] is not a valid.</key>
 		<key name="error_0039"><![CDATA[The password for the host was not provided by '--password-file' or in 'job_data' (as 'password=<secret>').]]></key>
@@ -105,7 +105,7 @@ The update appears to have not completed successfully. The output was:
 		<key name="error_0051">A request to rename the file: [#!variable!file!#] was made, but that file doesn't exist.</key>
 		<key name="error_0052">A request to delete a file was made, but no file name was given.</key>
 		<key name="error_0053">A request to delete the file: [#!variable!file!#] was received, but it is not under '/mnt/shared/'. This program can only work on or under that directory.</key>
-		<key name="error_0054">#!free!#</key>
+		<key name="error_0054">Asked to plug in an interface from: [#!variable!server!#] but '--mac' wasn't given.</key>
 		<key name="error_0055">A request to toggle the script flag was received, but no file name was given.</key>
 		<key name="error_0056">A request to rename the file: [#!variable!file!#] to: [#!variable!to!#], but there is an existing file or directory with that name.</key>
 		<key name="error_0057">
@@ -130,13 +130,13 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0071">Something went wrong trying to write: [#!variable!file!#], unable to proceed.</key>
 		<key name="error_0072">Something went wrong trying to compile the C-program: [#!variable!file!#], unable to proceed.</key>
 		<key name="error_0073">The job UUID was not passed via '--job-uuid' and no unclaimed job was found in the database.</key>
-		<key name="error_0074">#!free!#</key>
+		<key name="error_0074">Asked to plug in an interface from: [#!variable!server!#] but the server isn't running. (It's state is: [#!variable!server_state!#]).</key>
 		<key name="error_0075">There are no databases available. Will check periodically, waiting until one becomes available.</key>
 		<key name="error_0076">There was a problem adding out database to the target's anvil.conf file.</key>
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
-		<key name="error_0078">#!free!#</key>
+		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">#!free!#</key>
+		<key name="error_0080">Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Please run this on that host.</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -183,19 +183,46 @@ The error was:
 		<key name="error_0115">This row's UUID column: [#!variable!uuid_column!#] wasn't the second column returned in query: [#!variable!query!#]</key>
 		<key name="error_0116">This is a CentOS machine, and tried to move the directory: [#!variable!source!#] to: [#!variable!target!#], but that renane failed.</key>
 		<key name="error_0117">The domain name: [#!variable!name!#] does not appear to be valid.</key>
-		<key name="error_0118">#!free!#</key>
-		<key name="error_0119">#!free!#</key>
-		<key name="error_0120">#!free!#</key>
-		<key name="error_0121">#!free!#</key>
-		<key name="error_0122">#!free!#</key>
-		<key name="error_0123">#!free!#</key>
-		<key name="error_0124">#!free!#</key>
-		<key name="error_0125">#!free!#</key>
-		<key name="error_0126">#!free!#</key>
+		<key name="error_0118">Asked to unplug an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], but that MAC wasn't found in this server.</key>
+		<key name="error_0119">Asked to plug in an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], but that MAC wasn't found in this server.</key>
+		<key name="error_0120">Asked to unplug an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], which is a valid interface, not no associated 'vnet' device was found. Is the server actually running?</key>
+		<key name="error_0121">Asked to plug in an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], which is a valid interface, not no associated 'vnet' device was found. Is the server actually running?</key>
+		<key name="error_0122">
+Asked to unplug an interface from: [#!variable!server!#] using the shell call:
+====
+#!variable!shell_call!#
+====
+
+The return code was: [#!variable!return_code!#], but it was expected to be '0'. The error output, if any, was:
+====
+#!variable!output!#
+====
+</key>
+		<key name="error_0123">
+Asked to plug in an interface from: [#!variable!server!#] using the shell call:
+====
+#!variable!shell_call!#
+====
+
+The return code was: [#!variable!return_code!#], but it was expected to be '0'. The error output, if any, was:
+====
+#!variable!output!#
+====
+</key>
+		<key name="error_0124"><![CDATA[Tried to unplug the network interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#], but it seems to still be connected.]]></key>
+		<key name="error_0125"><![CDATA[Tried to plug in the network interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#], but it seems to still be disconnected.]]></key>
+		<key name="error_0126"><![CDATA[Tried to check the plug state of the network interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#], and the returned status was: [#!variable!status!#]. Expected 'up' or 'down'.]]></key>
 		<key name="error_0127">I was asked to delete and entry from: [#!variable!table!#] but neither the name or UUID was passed.</key>
 		<key name="error_0128">The host UUID: [#!variable!uuid!#] was set as the value for: [#!variable!column!#], but that host doesn't appear to exist.</key>
 		<key name="error_0129">Unable to connect to any database, unable to read the job details.</key>
-		<key name="error_0130">#!free!#</key>
+		<key name="error_0130">
+Tried to check the plug state of the network interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#]. but didn't get the expected output. Expected: [#!variable!vnet_device!# up/down].
+
+The return code was: [#!variable!return_code!#]. The output, if any, was:
+====
+#!variable!output!#
+====
+</key>
 		<key name="error_0131">#!free!#</key>
 		<key name="error_0132">Failed to remove the symlink: [#!variable!symlink!#]!</key>
 		<key name="error_0133">Failed to read or parse the CIB! Is pacemaker running?</key>
@@ -670,7 +697,7 @@ The extension of the resource is incomplete, manual intervention is required!
 [ Failed ] - using the command: [#!variable!shell_call!#]
 [ Failed ] - The return code: [#!variable!return_code!#] was received, expected '0'. Output, if any:
 ==========
-print $output!#
+#!variable!output!#
 ==========
 The extension of the resource is incomplete, manual intervention is required!!
 [ Note ] - All backing devices have been grown. Manually resolving the drbd grow
@@ -2851,12 +2878,12 @@ NOTE: Please be patient!
 		<key name="message_0105">#!variable!timestamp!#; The node's Anvil! RPMs are updated, now proceeding with main OS update.</key>
 		<key name="message_0106">Expired 'dnf' cache.</key>
 		<key name="message_0107">There is no bond interface, we will connect the bridge to the device: [#!variable!on_device!#] with the UUID: [#!variable!on_device_uuid!#].</key>
-		<key name="message_0108">#!free!#</key>
-		<key name="message_0109">#!free!#</key>
-		<key name="message_0110">#!free!#</key>
-		<key name="message_0111">#!free!#</key>
-		<key name="message_0112">#!free!#</key>
-		<key name="message_0113">#!free!#</key>
+		<key name="message_0108">Asked to plug in an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], which is using the vnet device: [#!variable!vnet_device!#]. The link is already up, so nothing to do.</key>
+		<key name="message_0109">Asked to unplug an interface from: [#!variable!server!#] with the MAC address: [#!variable!mac_address!#], which is using the vnet device: [#!variable!vnet_device!#]. The link is already down, so nothing to do.</key>
+		<key name="message_0110"><![CDATA[Successfully plugged in the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
+		<key name="message_0111"><![CDATA[Successfully unplugged the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
+		<key name="message_0112"><![CDATA[About to plug in the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
+		<key name="message_0113"><![CDATA[About to unplug the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
 		<key name="message_0114">#!free!#</key>
 		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
 		<key name="message_0115">Striker Dashboard</key>
