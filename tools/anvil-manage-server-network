@@ -150,6 +150,382 @@ $anvil->nice_exit({exit_code => 0});
 # Functions                                                                                                 #
 #############################################################################################################
 
+sub handle_add
+{
+	my ($anvil) = @_;
+	
+	my $host_name   = $anvil->Get->short_host_name();
+	my $server_name = $anvil->data->{switches}{server_name};
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	my $anvil_uuid  = $anvil->data->{switches}{anvil_uuid};
+	my $mac_address = $anvil->data->{switches}{mac};
+	my $model       = $anvil->data->{switches}{model};
+	my $bridge      = $anvil->data->{switches}{bridge};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:host_name'   => $host_name, 
+		's2:server_name' => $server_name,
+		's3:server_uuid' => $server_uuid, 
+		's4:anvil_uuid'  => $anvil_uuid, 
+		's5:mac_address' => $mac_address, 
+		's6:model'       => $model, 
+		's7:bridge'      => $bridge, 
+	}});
+	
+	if (not $server_name)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0131", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $host_uuid       = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:anvil_name'      => $anvil_name,
+		's2:node1_host_uuid' => $node1_host_uuid, 
+		's3:node2_host_uuid' => $node2_host_uuid, 
+		's4:host_uuid'       => $host_uuid, 
+	}});
+	
+	if (not $bridge)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0232", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if ((not exists $anvil->data->{bridges}{bridge_host_uuid}{$node1_host_uuid}{bridge_name}{$bridge}) or
+	    (not exists $anvil->data->{bridges}{bridge_host_uuid}{$node2_host_uuid}{bridge_name}{$bridge}))
+	{
+		# Bridge isn't on both subnodes.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0233", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables => {
+				server => $anvil->data->{switches}{server_name}, 
+				bridge => $bridge, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = $server_host_uuid ? $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid}) : "";
+	my $definition_file  = $anvil->data->{path}{directories}{shared}{definitions}."/".$server_name.".xml";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_name'      => $server_state,
+		's2:server_host_uuid' => $server_host_uuid, 
+		's3:server_host_name' => $server_host_name, 
+		's4:definition_file'  => $definition_file, 
+	}});
+	
+	# If the server is running, add the interface on the host. If it's shut off, we can do it from 
+	# either machine on the host Anvil.
+	if ($server_state eq "migrating")
+	{
+		# Loop until it's not migrating.
+		$anvil->Job->update_progress({
+			progress  => 20,
+			message   => "message_0114", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		
+		while ($server_state eq "migrating")
+		{
+			sleep 5;
+			$anvil->Database->get_servers({debug => 2});
+			
+			$server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_state }});
+			
+			if ($server_state ne "migrating")
+			{
+				$anvil->Job->update_progress({
+					progress  => 40,
+					message   => "message_0131", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						server => $anvil->data->{switches}{server_name}, 
+					},
+				});
+			}
+		}
+	}
+	
+	if ($server_state eq "shut off")
+	{
+		# Stopped, we can update it from either subnode.
+		if (($host_uuid ne $node1_host_uuid) && ($host_uuid ne $node2_host_uuid))
+		{
+			# Can't update
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0216", 
+				job_status => "failed", 
+				log_level  => 1, 
+				'print'    => 1, 
+				priority   => "err",
+				variables  => {
+					server => $anvil->data->{switches}{server_name}, 
+					anvil  => $anvil_name, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Does the definition file exist?
+		if (not -e $definition_file)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0221", 
+				job_status => "failed", 
+				log_level  => 1, 
+				'print'    => 1, 
+				priority   => "err",
+				variables  => {
+					server => $anvil->data->{switches}{server_name}, 
+					file   => $definition_file, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Tell the user we're defining the server
+		$anvil->Job->update_progress({
+			progress   => 50,
+			message    => "message_0132", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				server => $anvil->data->{switches}{server_name}, 
+				file   => $definition_file, 
+			},
+		});
+		
+		# Define the server so we can update using virsh.
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." define ".$definition_file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if ($return_code)
+		{
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0231", 
+				job_status => "failed", 
+				log_level  => 1, 
+				'print'    => 1, 
+				priority   => "err",
+				variables  => {
+					server      => $anvil->data->{switches}{server_name}, 
+					file        => $definition_file, 
+					return_code => $return_code, 
+					output      => $output, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+	}
+	
+	# Do the call to add the interface.
+	$anvil->Job->update_progress({
+		progress   => 60,
+		message    => "message_0133", 
+		log_level  => 1, 
+		'print'    => 1, 
+		variables  => {
+			server => $anvil->data->{switches}{server_name}, 
+		},
+	});
+	
+	### TODO: How does virt-manager implement 'hypervisor default'?
+	# The model is required. If the user didn't specify, match any existing NIC's model. If none are found, emulate e10000e
+	if (not $model)
+	{
+		$anvil->Server->parse_definition({
+			debug      => 3,
+			host       => $host_name,
+			server     => $server_name, 
+			source     => "from_db",
+			definition => $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml}, 
+		});
+		foreach my $mac_address (sort {$a cmp $b} keys %{$anvil->data->{server}{$host_name}{$server_name}{from_db}{device}{interface}})
+		{
+			$model = $anvil->data->{server}{$host_name}{$server_name}{from_db}{device}{interface}{$mac_address}{model};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:mac_address" => $mac_address, 
+				"s2:model"       => $model, 
+			}});
+			last;
+		}
+	}
+	if (not $model)
+	{
+		$model = "e1000e";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { model => $model }});
+	}
+	
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." attach-interface --persistent ".$server_name." bridge ".$bridge." --model ".$model;
+	if ($mac_address)
+	{
+		$shell_call .= " --mac ".$mac_address;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	if ($return_code)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0234", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				bridge      => $bridge, 
+				shell_call  => $shell_call, 
+				return_code => $return_code, 
+				output      => $output, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	$anvil->Job->update_progress({
+		progress   => 70,
+		message    => "message_0136", 
+		log_level  => 1, 
+		'print'    => 1, 
+		variables  => {
+			server => $anvil->data->{switches}{server_name}, 
+		},
+	});
+	
+	# Dump the new config.
+	sleep 2;
+	$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	(my $virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		virsh_definition => $virsh_definition, 
+		return_code      => $return_code,
+	}});
+	if ($return_code)
+	{
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0235", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server      => $anvil->data->{switches}{server_name}, 
+				shell_call  => $shell_call, 
+				return_code => $return_code, 
+				output      => $virsh_definition, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	$anvil->Job->update_progress({
+		progress   => 80,
+		message    => "message_0137", 
+		log_level  => 1, 
+		'print'    => 1, 
+		variables  => {
+			server => $anvil->data->{switches}{server_name}, 
+		},
+	});
+	
+	# Push the new version out.
+	my $problem = $anvil->Server->update_definition({
+		debug              => 2, 
+		server             => $server_uuid,
+		new_definition_xml => $virsh_definition, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		# Failed!
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "error_0266", 
+			job_status => "failed", 
+			log_level  => 1, 
+			'print'    => 1, 
+			priority   => "err",
+			variables  => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Done!
+	$anvil->Job->update_progress({
+		progress   => 100,
+		message    => "message_0139", 
+		log_level  => 1, 
+		'print'    => 1, 
+		variables  => {
+			server => $anvil->data->{switches}{server_name}, 
+			model  => $model,
+			bridge => $bridge, 
+		},
+	});
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
+
+sub handle_remove
+{
+	my ($anvil) = @_;
+	
+	# virsh detach-interface srv01-win11 bridge 52:54:00:34:26:29
+	
+	return(0);
+}
+
 sub handle_plug_unplug
 {
 	my ($anvil) = @_;
@@ -354,7 +730,7 @@ sub handle_plug_unplug
 	}
 	
 	# Still alive? Do the things.
-	my $shell_call = $anvil->data->{path}{exe}{virsh}." domif-setlink ".$server_name." --interface ".$vnet_device." ";
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." domif-setlink ".$server_name." --interface ".$vnet_device." ";
 	if ($task eq "plug")
 	{
 		$shell_call .= "up";
@@ -393,7 +769,7 @@ sub handle_plug_unplug
 			priority   => "err",
 			variables  => {
 				server      => $anvil->data->{switches}{server_name}, 
-				shell_call  => $mac_address, 
+				shell_call  => $shell_call, 
 				return_code => $return_code, 
 				output      => $output, 
 			},
@@ -403,7 +779,7 @@ sub handle_plug_unplug
 	
 	# Verify.
 	sleep 2;
-	$shell_call = $anvil->data->{path}{exe}{virsh}." domif-getlink ".$server_name." --interface ".$vnet_device." ";
+	$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." domif-getlink ".$server_name." --interface ".$vnet_device." ";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
@@ -551,30 +927,6 @@ sub handle_plug_unplug
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
-	
-	return(0);
-}
-
-sub handle_plug
-{
-	my ($anvil) = @_;
-	
-	
-	return(0);
-}
-
-sub handle_add
-{
-	my ($anvil) = @_;
-	
-	
-	return(0);
-}
-
-sub handle_remove
-{
-	my ($anvil) = @_;
-	
 	
 	return(0);
 }
