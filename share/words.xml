@@ -223,7 +223,7 @@ The return code was: [#!variable!return_code!#]. The output, if any, was:
 #!variable!output!#
 ====
 </key>
-		<key name="error_0131">#!free!#</key>
+		<key name="error_0131">Asked to add an interface, but no server was specified.</key>
 		<key name="error_0132">Failed to remove the symlink: [#!variable!symlink!#]!</key>
 		<key name="error_0133">Failed to read or parse the CIB! Is pacemaker running?</key>
 		<key name="error_0134">Failed to start the daemon: [#!variable!daemon!#] on the local system, unable to boot the server.</key>
@@ -330,12 +330,12 @@ Output (if any):
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
 		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
 		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
-		<key name="error_0216">#!free!#</key>
+		<key name="error_0216">The server: [#!variable!server!#] is off, so adding the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though.</key>
 		<key name="error_0217">This host is not an Anvil! node or DR host, unable to delete servers.</key>
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0220">Unable to find a server name to match the server UUID: [#!variable!server_uuid!#].</key>
-		<key name="error_0221">#!free!#</key>
+		<key name="error_0221">The server: [#!variable!server!#]'s definition file: [#!variable!file!#] wasn't found on this subnode.</key>
 		<key name="error_0222">The cluster does not appear to be running, unable to delete a server at this time. We'll sleep for a bit and then exit, and the try again.</key>
 		<key name="error_0223">The server: [#!variable!server_name!#] appears to have failed to stop.</key>
 		<key name="error_0224">Unable to delete the server resource: [#!variable!server_name!#] as the cluster isn't running or there was a problem parsing the cluster CIB.</key>
@@ -345,11 +345,27 @@ Output (if any):
 		<key name="error_0228">Unable to delete the resource: [#!variable!resource!#] because it wasn't found in DRBD's config. This can happen is a previous delete partially completed, in which case this is not a problem.</key>
 		<key name="error_0229">One or more peers need us, and we're not allowed to wait. Deletion aborted.</key>
 		<key name="error_0230">The shell call: [#!variable!shell_call!#] was expected to return '0', but instead the return code: [#!variable!return_code!#] was received. The output, if any, was: [#!variable!output!#].</key>
-		<key name="error_0231">#!free!#</key>
-		<key name="error_0232">#!free!#</key>
-		<key name="error_0233">#!free!#</key>
-		<key name="error_0234">#!free!#</key>
-		<key name="error_0235">#!free!#</key>
+		<key name="error_0231">Failed to define the server: [#!variable!server!#] using the definition file: [#!variable!file!#]. The return code was: [#!variable!return_code!#], expected '0'. The output, if any, was: [#!variable!output!#].</key>
+		<key name="error_0232">I was asked to add a network interface to: [#!variable!server!#], but the bridge to connect it to was not given.</key>
+		<key name="error_0233">I was asked to add a network interface to: [#!variable!server!#], to the bridge: [#!variable!bridge!#], but that bridge isn't on host Anvil! node (and both sub nodes).</key>
+		<key name="error_0234">
+Failed to add a new network interface to: [#!variable!server!#] connected to the bridge: [#!variable!bridge!#].
+Command: ... [#!variable!shell_call!#] 
+Return Code: [#!variable!return_code!#]
+Output (if any):
+====
+#!variable!output!#
+====
+</key>
+		<key name="error_0235">
+Failed to dump the updated definition file for: [#!variable!server!#]].
+Command: ... [#!variable!shell_call!#] 
+Return Code: [#!variable!return_code!#]
+Output (if any):
+====
+#!variable!output!#
+====
+</key>
 		<key name="error_0236">There appears to be no resource data in the database for the host: [#!variable!host_name!#]. Has ScanCore run and, specifically, has 'scan-hardware' run yet? Unable to provide available resources for this Anvil! system.</key>
 		<key name="error_0237">The resource name: [#!variable!resource_name!#] already exists, and 'force_unique' is set. This is likely a name conflict, returning '!!error!!'.</key>
 		<key name="error_0238">This node is not yet fully in the cluster. Sleeping for a bit, then we'll exit. The job will try again shortly after.</key>
@@ -401,7 +417,7 @@ The attempt to start the cluster appears to have failed. The return code '0' was
 		<key name="error_0263"><![CDATA[No server specified to shut down. Please use '--server <name|all>' or '--server-uuid <UUID>.]]></key>
 		<key name="error_0264">This host is not a node or DR, unable to shut down servers.</key>
 		<key name="error_0265">Specifying a server to shutdown using a UUID is not available when there are no DB connections.</key>
-		<key name="error_0266">#!free!#</key>
+		<key name="error_0266">Something went wrong while pushing out the new definition for the server: [#!variable!server!#]. More information should be found in the logs.</key>
 		<key name="error_0267">The server: [#!variable!server!#] failed to boot. The reason why should be in the logs.</key>
 		<key name="error_0268">The server: [#!variable!server!#] failed to shut down. The reason why should be in the logs.</key>
 		<key name="error_0269">The server UUID: [#!variable!server_uuid!#] is not valid.</key>
@@ -2884,7 +2900,7 @@ NOTE: Please be patient!
 		<key name="message_0111"><![CDATA[Successfully unplugged the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
 		<key name="message_0112"><![CDATA[About to plug in the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
 		<key name="message_0113"><![CDATA[About to unplug the interface: [#!variable!vnet_device!#] -> [#!variable!mac_address!#] -> [#!variable!server!#].]]></key>
-		<key name="message_0114">#!free!#</key>
+		<key name="message_0114">The server: [#!variable!server!#] is migrating. We'll hold until the migration is complete.</key>
 		<!-- Above here are strings used in the kickstart scripts. Be sure to test kickstart installation after changing / translation between 'message_0103' and 'message_0114'. -->
 		<key name="message_0115">Striker Dashboard</key>
 		<key name="message_0116">#!string!brand_0002!# Node</key>
@@ -2905,15 +2921,15 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0128">The attempt to enable the 'Install Target' function failed! Please check the logs for details.</key>
 		<key name="message_0129">[ Error ] - The comps.xml file: [#!variable!comps_xml!#] was found, but something failed when we tried to copy it to: [#!variable!target_comps!#].</key>
 		<key name="message_0130">Updated repository data.</key>
-		<key name="message_0131">#!free!#</key>
-		<key name="message_0132">#!free!#</key>
-		<key name="message_0133">#!free!#</key>
+		<key name="message_0131">The server: [#!variable!server!#] is done migrating.</key>
+		<key name="message_0132">About to define the server: [#!variable!server!#] using: [#!variable!file!#] prior to modifying the hardware config.</key>
+		<key name="message_0133">About to add the network interface to the server: [#!variable!server!#].</key>
 		<key name="message_0134">Updating / configuring the firewall.</key>
 		<key name="message_0135">It appears like we need to accept the fingerprint. Will do so now and then try to connect again.</key>
-		<key name="message_0136">#!free!#</key>
-		<key name="message_0137">#!free!#</key>
-		<key name="message_0138">#!free!#</key>
-		<key name="message_0139">#!free!#</key>
+		<key name="message_0136">The network interface appears to have been successfully added to the server: [#!variable!server!#].</key>
+		<key name="message_0137">The updated definition for the server: [#!variable!server!#] is valid.</key>
+		<key name="message_0138">The new definition for the server: [#!variable!server!#] has been pushed out successfully.</key>
+		<key name="message_0139">Finished adding the new interface to: [#!variable!server!#], model: [#!variable!model!#], connecting it to the bridge: [#!variable!bridge!#].</key>
 		<key name="message_0140">#!free!#</key>
 		<key name="message_0141">#!free!#</key>
 		<key name="message_0142">#!free!#</key>
