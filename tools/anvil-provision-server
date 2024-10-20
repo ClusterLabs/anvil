@@ -858,6 +858,7 @@ sub provision_server
 	}});
 
 	$problem = $anvil->Server->parse_definition({
+		debug      => 2,
 		server     => $server, 
 		source     => "from_virsh",
 		definition => $server_definition_xml, 
@@ -909,7 +910,13 @@ sub provision_server
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
 	
 	# Undefine the server
-	(my $output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server});
+	$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server;
+	if ($anvil->data->{server}{$short_host_name}{$server}{from_virsh}{nvram}{data})
+	{
+		$shell_call .= " --nvram";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code,

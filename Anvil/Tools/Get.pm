@@ -1550,7 +1550,7 @@ sub host_name
 
 =head2 host_name_from_uuid
 
-This takes a host UUID and returns the host name (as recorded in the C<< hosts >> table). If the entry is not found, an empty string is returned.
+This takes a host UUID and returns the host name (as recorded in the C<< hosts >> table). If the entry is not found, an empty string is returned. If the C<< host_uuid >> is C<< NULL >>, an empty string is returned.
 
  my $host_name = $anvil->Get->host_name_from_uuid({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
 
@@ -1572,6 +1572,12 @@ sub host_name_from_uuid
 	my $host_name = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
+	if ($host_uuid eq "NULL")
+	{
+		# No UUID.
+		return($host_name);
+	}
 	
 	my $query = "
 SELECT 
