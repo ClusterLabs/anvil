@@ -2074,6 +2074,27 @@ sub parse_definition
 		anvil_uuid => $anvil_uuid, 
 	});
 	
+	# If there's nvram, we need to know so that we can undefine it with the 'virsh undefine --nvram' 
+	# switch.
+	if (exists $server_xml->{os}->[0]->{nvram})
+	{
+		$anvil->data->{server}{$target}{$server}{$source}{nvram}{data}     = $server_xml->{os}->[0]->{nvram}->[0]->{content};
+		$anvil->data->{server}{$target}{$server}{$source}{nvram}{template} = $server_xml->{os}->[0]->{nvram}->[0]->{template};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server::${target}::${server}::${source}::nvram::data"     => $anvil->data->{server}{$target}{$server}{$source}{nvram}{data},
+			"server::${target}::${server}::${source}::nvram::template" => $anvil->data->{server}{$target}{$server}{$source}{nvram}{template},
+		}});
+	}
+	else
+	{
+		$anvil->data->{server}{$target}{$server}{$source}{nvram}{data}     = "";
+		$anvil->data->{server}{$target}{$server}{$source}{nvram}{template} = "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"server::${target}::${server}::${source}::nvram::data"     => $anvil->data->{server}{$target}{$server}{$source}{nvram}{data},
+			"server::${target}::${server}::${source}::nvram::template" => $anvil->data->{server}{$target}{$server}{$source}{nvram}{template},
+		}});
+	}
+	
 	# Pull out some basic server info.
 	$anvil->data->{server}{$target}{$server}{$source}{info}{uuid}         = $server_xml->{uuid}->[0];
 	$anvil->data->{server}{$target}{$server}{$source}{info}{name}         = $server_xml->{name}->[0];

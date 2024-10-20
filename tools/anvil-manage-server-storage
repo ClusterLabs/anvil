@@ -3953,7 +3953,11 @@ sub update_definition
 	elsif ($task eq "undefine")
 	{
 		# Undefine the server.
-		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server_name,
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server_name;
+		if ($anvil->data->{server}{$short_host_name}{$server_name}{from_disk}{nvram}{data})
+		{
+			$shell_call .= " --nvram";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my ($output, $return_code) = $anvil->System->call({

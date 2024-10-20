@@ -579,11 +579,27 @@ sub rename_server
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
+			
+		# Now make sure the DRBD resource is down on all machines.
+		my $short_host_name = $anvil->Get->short_host_name();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
 		
+		# Parse the definition file so we can tell if we need --nvram
+		$problem = $anvil->Server->parse_definition({
+			debug      => 2,
+			server     => $new_server_name, 
+			source     => "from_disk",
+			definition => $new_definition_body, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		
 		# Make a 'virsh undefine <server>' just in case the old name is still defined. We don't care 
 		# if this succeeds or fails as the server should not be defined anyway.
 		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$old_server_name;
+		if ($anvil->data->{server}{$short_host_name}{$new_server_name}{from_disk}{nvram}{data})
+		{
+			$shell_call .= " --nvram";
+		}
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		
 		my $output      = "";
