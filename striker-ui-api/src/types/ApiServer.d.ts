@@ -17,18 +17,85 @@ type ServerDetailParsedQs = {
   vnc: boolean | number | string;
 };
 
+type ServerDetailCpu = {
+  topology: {
+    clusters: number;
+    cores: number;
+    dies: number;
+    sockets: number;
+    threads: number;
+  };
+};
+
+type ServerDetailDisk = {
+  alias: {
+    name: string;
+  };
+  boot: {
+    order: number;
+  };
+  device: string;
+  source: {
+    dev: string;
+    file: string;
+    index: number;
+  };
+  target: {
+    bus: string;
+    dev: string;
+  };
+  type: string;
+};
+
+type ServerDetailInterface = {
+  alias: {
+    name: string;
+  };
+  mac: {
+    address: string;
+  };
+  model: {
+    type: string;
+  };
+  source: {
+    bridge: string;
+  };
+  target: {
+    dev: string;
+  };
+  type: string;
+};
+
+type ServerDetailMemory = {
+  size: string;
+};
+
 type ServerDetail = {
   anvil: {
     description: string;
     name: string;
     uuid: string;
   };
-  name: string;
+  devices: {
+    diskOrderBy: {
+      boot: number[];
+      source: number[];
+    };
+    disks: ServerDetailDisk[];
+    interfaces: ServerDetailInterface[];
+  };
+  cpu: ServerDetailCpu;
   host: {
     name: string;
     short: string;
     type: string;
     uuid: string;
+  };
+  memory: ServerDetailMemory;
+  name: string;
+  start: {
+    after: string;
+    delay: number;
   };
   state: string;
   uuid: string;

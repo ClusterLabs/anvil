@@ -1,5 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
+import { XMLParser } from 'fast-xml-parser';
+import { dSize } from 'format-data-size';
 import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
 
@@ -9,7 +11,7 @@ import { getVncinfo, query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
-import { perr, pout, poutvar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 type ServerSsMeta = {
   name: string;
@@ -43,7 +45,7 @@ export const getServerDetail: RequestHandler<
   const ss = sanitize(rSs, 'boolean');
   const vnc = sanitize(rVnc, 'boolean');
 
-  pout(`serverUUID=[${serverUuid}],isScreenshot=[${ss}]`);
+  poutvar({ serverUuid, ss, vnc }, 'Request variables: ');
 
   try {
     assert(
@@ -123,17 +125,22 @@ export const getServerDetail: RequestHandler<
       SELECT
         a.server_name,
         a.server_state,
+        a.server_start_after_server_uuid,
+        a.server_start_delay,
         b.anvil_uuid,
         b.anvil_name,
         b.anvil_description,
         c.host_uuid,
         c.host_name,
-        c.host_type
+        c.host_type,
+        d.server_definition_xml
       FROM servers AS a
       JOIN anvils AS b
         ON a.server_anvil_uuid = b.anvil_uuid
       JOIN hosts AS c
         ON a.server_host_uuid = c.host_uuid
+      JOIN server_definitions AS d
+        ON a.server_uuid = d.server_definition_server_uuid
       WHERE a.server_uuid = '${serverUuid}';`;
 
     let rows: string[][];
@@ -159,14 +166,142 @@ export const getServerDetail: RequestHandler<
       0: [
         serverName,
         serverState,
+        serverStartAfterServerUuid,
+        serverStartDelay,
         anUuid,
         anName,
         anDescription,
         hostUuid,
         hostName,
         hostType,
+        serverDefinitionXml,
       ],
     } = rows;
+
+    const xmlParser = new XMLParser({
+      ignoreAttributes: false,
+      parseAttributeValue: true,
+    });
+
+    let serverDefinition;
+
+    try {
+      serverDefinition = xmlParser.parse(serverDefinitionXml);
+    } catch (error) {
+      const rserror = new ResponseError(
+        'dbaab5f',
+        `Failed to parse libvirt XML of ${serverUuid}; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    const {
+      domain: {
+        cpu: {
+          topology: {
+            '@_clusters': cpuClusters,
+            '@_cores': cpuCores,
+            '@_dies': cpuDies,
+            '@_sockets': cpuSockets,
+            '@_threads': cpuThreads,
+          },
+        },
+        devices: { disk, interface: iface },
+        memory: { '#text': memoryValue, '@_unit': memoryUnit },
+      },
+    } = serverDefinition;
+
+    const memorySize = dSize(memoryValue, {
+      fromUnit: memoryUnit,
+      toUnit: 'B',
+    });
+
+    let diskArray = [];
+
+    if (Array.isArray(disk)) {
+      diskArray = disk;
+    } else if (disk) {
+      diskArray = [disk];
+    }
+
+    let ifaceArray = [];
+
+    if (Array.isArray(iface)) {
+      ifaceArray = iface;
+    } else if (disk) {
+      ifaceArray = [iface];
+    }
+
+    const diskOrderByBoot: number[] = [];
+    const diskOrderBySource: number[] = [];
+
+    const disks = diskArray.map<ServerDetailDisk>((value, index) => {
+      const {
+        '@_type': diskType,
+        '@_device': diskDevice,
+        alias,
+        boot,
+        source,
+        target,
+      } = value;
+
+      const bootOrder = boot?.['@_order'];
+      const sourceIndex = source?.['@_index'];
+
+      if (bootOrder) {
+        diskOrderByBoot[bootOrder] = index;
+      }
+
+      if (sourceIndex) {
+        diskOrderBySource[sourceIndex] = index;
+      }
+
+      return {
+        alias: {
+          name: alias?.['@_name'],
+        },
+        boot: {
+          order: bootOrder,
+        },
+        device: diskDevice,
+        source: {
+          dev: source?.['@_dev'],
+          file: source?.['@_file'],
+          index: sourceIndex,
+        },
+        target: {
+          bus: target?.['@_bus'],
+          dev: target?.['@_dev'],
+        },
+        type: diskType,
+      };
+    });
+
+    const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
+      const { '@_type': ifaceType, alias, mac, model, source, target } = value;
+
+      return {
+        alias: {
+          name: alias?.['@_name'],
+        },
+        mac: {
+          address: mac?.['@_address'],
+        },
+        model: {
+          type: model?.['@_type'],
+        },
+        source: {
+          bridge: source?.['@_bridge'],
+        },
+        target: {
+          dev: target?.['@_dev'],
+        },
+        type: ifaceType,
+      };
+    });
 
     const rsBody: ServerDetail = {
       anvil: {
@@ -174,12 +309,36 @@ export const getServerDetail: RequestHandler<
         name: anName,
         uuid: anUuid,
       },
-      name: serverName,
+      cpu: {
+        topology: {
+          clusters: cpuClusters,
+          cores: cpuCores,
+          dies: cpuDies,
+          sockets: cpuSockets,
+          threads: cpuThreads,
+        },
+      },
+      devices: {
+        diskOrderBy: {
+          boot: diskOrderByBoot,
+          source: diskOrderBySource,
+        },
+        disks,
+        interfaces,
+      },
       host: {
         name: hostName,
         short: getShortHostName(hostName),
         type: hostType,
         uuid: hostUuid,
+      },
+      memory: {
+        size: memorySize ? memorySize.value : '0',
+      },
+      name: serverName,
+      start: {
+        after: serverStartAfterServerUuid,
+        delay: Number(serverStartDelay),
       },
       state: serverState,
       uuid: serverUuid,
