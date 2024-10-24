@@ -8,6 +8,7 @@ use warnings;
 use Data::Dumper;
 use Scalar::Util qw(weaken isweak);
 use Net::Netmask;
+use Text::Diff;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Network.pm";
@@ -343,10 +344,8 @@ sub check_firewall
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->check_firewall()" }});
 	
-	my $running = 0;
-	return(0);
-	
 	# Make sure firewalld is running.
+	my $running           = 0;
 	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
 	if ($firewalld_running)
@@ -356,7 +355,7 @@ sub check_firewall
 	}
 	else
 	{
-		if ($anvil->data->{sys}{daemons}{restart_firewalld})
+		if ($anvil->data->{sys}{manage}{firewall})
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0127"});
 			my $return_code = $anvil->System->start_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
@@ -3743,28 +3742,26 @@ sub manage_firewall
 		zone        => $zone
 	}});
 	
-	### TODO: Remove when fixed.
-	my $firewalld_running = $anvil->System->check_daemon({daemon => $anvil->data->{sys}{daemon}{firewalld}});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
-	if ($firewalld_running)
+	if (not $anvil->data->{sys}{manage}{firewall})
 	{
-		# Disable and stop.
-		$anvil->System->disable_daemon({
-			now    => 1, 
-			daemon => $anvil->data->{sys}{daemon}{firewalld},
-		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0670"});
+		return(0);
+	}
+
+	# Before we do anything, is the firewall even running?
+	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
+	if (not $firewalld_running)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
+		return(1);
 	}
 	
-	return(0);
-	
-	# Before we do anything, is the firewall even running?
-# 	my $firewalld_running = $anvil->Network->check_firewall({debug => $debug});
-# 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { firewalld_running => $firewalld_running }});
-# 	if (not $firewalld_running)
-# 	{
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "log_0669"});
-# 		return(1);
-# 	}
+	# Set defaults that the user can override in anvil.conf
+	if (not exists $anvil->data->{sys}{firewall}{'default-zone'})
+	{
+		$anvil->data->{sys}{firewall}{'default-zone'} = "";
+	}
 	
 	# What we do next depends on what we're doing. 
 	my $host_type = $anvil->Get->host_type;
@@ -4951,7 +4948,6 @@ sub _check_firewalld_conf
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_check_firewalld_conf()" }});
 	
 	# Read in the firewalld.conf file.
-	my $changes            = 0;
 	my $new_firewalld_conf = "";
 	my $old_firewalld_conf = $anvil->Storage->read_file({
 		debug      => $debug, 
@@ -4960,6 +4956,7 @@ sub _check_firewalld_conf
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_firewalld_conf => $old_firewalld_conf }});
 	
+	### NOTE: This is ignored in EL9+
 	# For now, the only thing we want to change is to disable 'AllowZoneDrifting'
 	# * firewalld[458395]: WARNING: AllowZoneDrifting is enabled. This is considered an insecure configuration option. It will be removed in a future release. Please consider disabling it now.
 	# Possible values; "yes", "no". Defaults to "yes".
@@ -4978,12 +4975,8 @@ sub _check_firewalld_conf
 			if ($old_value ne "no")
 			{
 				# Change needed.
-				$changes            =  1;
 				$new_firewalld_conf .= "AllowZoneDrifting=no\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					changes            => $changes,
-					new_firewalld_conf => $new_firewalld_conf, 
-				}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_firewalld_conf => $new_firewalld_conf }});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0707"});
 				next;
 			}
@@ -4991,14 +4984,10 @@ sub _check_firewalld_conf
 		$new_firewalld_conf .= $line."\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_firewalld_conf => $new_firewalld_conf }});
 	}
-	if (not $allowzonedrifting_seen)
-	{
-		$new_firewalld_conf .= $anvil->Words->string({key => 'message_0292'})."\n";
-		$new_firewalld_conf .= "AllowZoneDrifting=no\n";
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0707"});
-	}
 	
-	if ($changes)
+	my $difference = diff \$old_firewalld_conf, \$new_firewalld_conf, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	if ($difference)
 	{
 		# Write the file out
 		$anvil->Storage->write_file({
@@ -5013,7 +5002,7 @@ sub _check_firewalld_conf
 		});
 	}
 	
-	return($changes);
+	return($difference ? 1 : 0);
 }
 
 sub _get_existing_zone_interfaces

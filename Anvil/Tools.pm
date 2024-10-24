@@ -884,9 +884,6 @@ sub _set_defaults
 			postgresql			=>	"postgresql.service",
 			tftp				=>	"tftp.socket",
 		},
-		daemons				=>	{
-			restart_firewalld		=>	1,
-		},
 		database			=>	{
 			archive				=>	{
 				compress			=>	1,
