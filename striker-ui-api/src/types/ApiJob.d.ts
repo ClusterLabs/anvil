@@ -41,5 +41,6 @@ type JobParamsDictionary = {
 
 type JobRequestQuery = {
   command?: string;
+  name?: string;
   start?: number;
 };
