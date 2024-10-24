@@ -27,16 +27,11 @@ When using \fB\-\-rejoin\fR, this is the subnode role that this host will take.
 .B NOTE:
 The previous subnode that held this position will be purged! All data associated with the previous subnode will be deleted from the Anvil! database.
 .TP
-\fB\-\-auto\-grow\-pv\fR
+\fB\-\-as\-machine\fR
 .TP
-This checks the LVM physical volumes on the host and if any have usable free space after then, the PV is grown to use that free space.
-.TP
+When using \fB\-\-rejoin\fR, this is the subnode role that this host will take. 
 .B NOTE:
-This has the (low) potential to cause boot issues. If this is an in-production system, please consider manually growing any PVs.
-.TP
-\fB\-\-yes\fR
-.TP
-This confirms without prompt that you want to rejoin the detected Anvil! node.
+The previous subnode that held this position will be purged! All data associated with the previous subnode will be deleted from the Anvil! database.
 .TP
 \fB\-\-job\-uuid\fR
 .TP
@@ -46,9 +41,17 @@ This is the job UUID that will be run.
 .TP
 If this is given, then this host will be joined to the manifest. This is required if \fB\-\-rejoin\fR is used.
 .TP
+\fB\-\-no\-auto\-grow\-pv\fR
+.TP
+This disables the check for LVM physical volumes on the host that can be grown.
+.TP
 \fB\-\-rejoin\fR
 .TP
 If this is set, the host will be (re)joined to an existing Anvil! node. This is used to bring this host into an Anvil! subnode, typically after a subnode failure / rebuild.
+.TP
+\fB\-\-yes\fR
+.TP
+This confirms without prompt that you want to rejoin the detected Anvil! node.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

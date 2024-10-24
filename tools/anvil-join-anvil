@@ -40,9 +40,9 @@ my $anvil = Anvil::Tools->new();
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->Get->switches({list => [
 	"as-machine", 
-	"auto-grow-pv", 
 	"join", 
 	"manifest", 
+	"no-auto-grow-pv", 
 	"rejoin", 
 ], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
@@ -70,7 +70,7 @@ if (($anvil->data->{switches}{rejoin}) && (not $anvil->data->{switches}{'job-uui
 load_job($anvil);
 
 # Did the user ask to check for free space?
-if ($anvil->data->{switches}{'auto-grow-pv'})
+if ($anvil->data->{switches}{'no-auto-grow-pv'})
 {
 	print "[ Note ] - Checking for useful free space after any LVM physical volumes.\n";
 	$anvil->Storage->auto_grow_pv({debug => 2});
