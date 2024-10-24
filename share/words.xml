@@ -1972,7 +1972,7 @@ The database connection error was:
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
 		<key name="log_0127">Firewalld was not running, re-enabling it. If you do not want this behaviour, please set 'sys::daemons::restart_firewalld = 0' in: [#!data!path::configs::anvil.conf!#].</key>
-		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
+		<key name="log_0128">Firewalld was not running, and 'sys::manage::firewall' is set to '0'. NOT starting it.</key>
 		<key name="log_0129"><![CDATA[<all>]]></key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!old_uuid!#], but it's connection is gone. SWitching to read from: [#!variable!new_uuid!#].]]></key>
@@ -2558,7 +2558,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0667">#!free!#</key>
 		<key name="log_0668">No password for the database on the host with UUID: [#!variable!uuid!#], skipping it.</key>
 		<key name="log_0669">The firewalld daemon isn't running, skipping firewall setup. Is 'sys::daemon::firewalld' set to '0' in anvil.conf?</key>
-		<key name="log_0670">#!free!#</key>
+		<key name="log_0670">Managing the firewall has been disabled (change 'sys::manage::firewall' to '1' to re-enable).</key>
 		<key name="log_0671">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. Will not boot this host.</key>
 		<key name="log_0672">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. If power and temperature looks good, we'll boot it.</key>
 		<key name="log_0673">The host: [#!variable!host_name!#] has good power and temperature readings. Booting it back up now.</key>

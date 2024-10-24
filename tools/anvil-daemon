@@ -1466,8 +1466,6 @@ sub check_firewall
 {
 	my ($anvil) = @_;
 	
-	return(0);
-	
 	# Don't call this if we're not configured yet.
 	my $configured = $anvil->System->check_if_configured({debug => 3});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});

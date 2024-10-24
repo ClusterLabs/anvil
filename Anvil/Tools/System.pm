@@ -36,7 +36,6 @@ my $THIS_FILE = "System.pm";
 # host_name
 # maintenance_mode
 # manage_authorized_keys
-# manage_firewall
 # pids
 # parse_lshw
 # read_ssh_config

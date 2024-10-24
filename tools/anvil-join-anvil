@@ -76,6 +76,9 @@ if ($anvil->data->{switches}{'auto-grow-pv'})
 	$anvil->Storage->auto_grow_pv({debug => 2});
 }
 
+# Make sure the firewall is setup and ready.
+$anvil->Network->manage_firewall({debug => 2, task => "check"});
+
 # Hold until both subnodes are marked as configured and not in maintenance mode.
 wait_for_subnodes($anvil);
 
