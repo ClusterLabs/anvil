@@ -380,7 +380,6 @@ sub check_firewall
 		}
 	}
 	
-	
 	return($running);
 }
 
@@ -4950,7 +4949,7 @@ sub _check_firewalld_conf
 	# Read in the firewalld.conf file.
 	my $new_firewalld_conf = "";
 	my $old_firewalld_conf = $anvil->Storage->read_file({
-		debug      => $debug, 
+		debug      => 3, 
 		file       => $anvil->data->{path}{configs}{'firewalld.conf'},
 		force_read => 1,
 	});
@@ -4963,7 +4962,7 @@ sub _check_firewalld_conf
 	my $allowzonedrifting_seen = 0;
 	foreach my $line (split/\n/, $old_firewalld_conf)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /^AllowZoneDrifting=(.*)$/)
 		{
 			my $old_value              = $1;
@@ -4982,7 +4981,7 @@ sub _check_firewalld_conf
 			}
 		}
 		$new_firewalld_conf .= $line."\n";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_firewalld_conf => $new_firewalld_conf }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_firewalld_conf => $new_firewalld_conf }});
 	}
 	
 	my $difference = diff \$old_firewalld_conf, \$new_firewalld_conf, { STYLE => 'Unified' };
@@ -5135,7 +5134,7 @@ sub _get_drbd_ports
 		   $full_path =~ s/\/\//\//g;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { full_path => $full_path }});
 		
-		my $file_body = $anvil->Storage->read_file({debug => $debug, file => $full_path});
+		my $file_body = $anvil->Storage->read_file({debug => 3, file => $full_path});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { file_body => $file_body }});
 		
 		foreach my $line (split/\n/, $file_body)
@@ -5151,10 +5150,20 @@ sub _get_drbd_ports
 					"s2:port" => $port, 
 				}});
 				
-				$anvil->data->{firewall}{drbd}{port}{$port} = $ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"firewall::drbd::port::$port" => $anvil->data->{firewall}{drbd}{port}{$port},
-				}});
+				if (not exists $anvil->data->{firewall}{drbd}{port}{$port})
+				{
+					$anvil->data->{firewall}{drbd}{port}{$port} = $ip;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::drbd::port::$port" => $anvil->data->{firewall}{drbd}{port}{$port},
+					}});
+				}
+				else
+				{
+					$anvil->data->{firewall}{drbd}{port}{$port} .= ",".$ip;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::drbd::port::$port" => $anvil->data->{firewall}{drbd}{port}{$port},
+					}});
+				}
 			}
 		}
 	}
@@ -5236,17 +5245,24 @@ sub _manage_port
 		zone     => $zone, 
 	}});
 	
+	my $changed = 0;
 	if ((not $port) or (not $protocol) or (not $task) or (not $zone))
 	{
-		return("!!error!!");
+		$changed = "!!error!!";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		return($changed);
 	}
 	if (($task ne "close") && ($task ne "open"))
 	{
-		return("!!error!!");
+		$changed = "!!error!!";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		return($changed);
 	}
 	if (($protocol ne "tcp") && ($protocol ne "udp"))
 	{
-		return("!!error!!");
+		$changed = "!!error!!";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		return($changed);
 	}
 	if ($port =~ /^(\d+)-(\d+)$/)
 	{
@@ -5260,12 +5276,16 @@ sub _manage_port
 		if (($minimum_port < 1) or ($minimum_port > 66635) or 
 		    ($maximum_port < 1) or ($maximum_port > 66635))
 		{
-			return("!!error!!");
+			$changed = "!!error!!";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			return($changed);
 		}
 	}
 	elsif (($port =~ /\D/) or ($port < 1) or ($port > 65535))
 	{
-		return("!!error!!");
+		$changed = "!!error!!";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		return($changed);
 	}
 	
 	# Do we need to actually do this?
@@ -5276,19 +5296,22 @@ sub _manage_port
 		    (not $anvil->data->{firewalld}{zones}{$zone}{port}{$port}{protocol}{$protocol}{opened}))
 		{
 			# Already closed.
-			return(0);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+			return($changed);
 		}
 	}
 	elsif ($anvil->data->{firewalld}{zones}{$zone}{port}{$port}{protocol}{$protocol}{opened})
 	{
 		# Already opened.
-		return(0);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+		return($changed);
 	}
 	
 	my $shell_call = "";
 	if ($task eq "close")
 	{
 		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --remove-port=".$port."/".$protocol;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		if ($port =~ /-/)
 		{
 			# Range
@@ -5311,6 +5334,7 @@ sub _manage_port
 	else
 	{
 		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --zone=".$zone." --add-port=".$port."/".$protocol;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		if ($port =~ /-/)
 		{
 			# Range
@@ -5337,7 +5361,9 @@ sub _manage_port
 		'return_code' => $return_code, 
 	}});
 	
-	return(1);
+	$changed = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+	return($changed);
 }
 
 # Returns '0' if nothing was done, '1' otherwise.

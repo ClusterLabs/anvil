@@ -63,20 +63,12 @@ if ($anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
-# 	$anvil->Job->update_progress({
-# 		progress         => 1,
-# 		job_picked_up_by => $$, 
-# 		job_picked_up_at => time, 
-# 		message          => "message_0134", 
-# 	});
 	$anvil->Job->update_progress({
-		progress         => 100,
+		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		message          => "message_0134", 
 	});
-	
-	exit(0);
 	
 	if ($anvil->data->{jobs}{job_data} =~ /server=(.*)$/)
 	{
@@ -88,18 +80,26 @@ if ($anvil->data->{switches}{'job-uuid'})
 	}
 
 }
-exit(0);
 
 # If the user has disabled auto-management of the firewall, exit.
 if (not $anvil->data->{sys}{manage}{firewall})
 {
 	# Do nothing.
+	$anvil->Job->update_progress({
+		progress => 100,
+		level    => 2,
+		'print'  => 1,
+		message  => "log_0670", 
+	});
 	$anvil->nice_exit({exit_code => 0});
 }
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
 # This used to do all the work, but that's now moved to the method below. So all we do here now is call it.
-$anvil->Network->manage_firewall();
+$anvil->Network->manage_firewall({
+	debug => 2,
+	task  => "check", 
+});
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->Job->update_progress({
