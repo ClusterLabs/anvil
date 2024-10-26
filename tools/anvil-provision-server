@@ -1331,6 +1331,7 @@ sub get_sn_details
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
 	foreach my $preferred_network ("sn", "mn", "bcn", "ifn")
 	{
+		last if (($anvil->data->{job}{node1_sn_ip}) && ($anvil->data->{job}{node2_sn_ip}));
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
