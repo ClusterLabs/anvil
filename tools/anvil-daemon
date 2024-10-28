@@ -455,8 +455,11 @@ sub handle_periodic_tasks
 	# Time to run once per minute tasks.
 	if ($now_time >= $anvil->data->{timing}{next_minute_check})
 	{
-		# Check the firewall needs to be updated.
+		# Do network checks
 		check_network($anvil);
+		
+		# Check the firewall needs to be updated.
+		check_firewall($anvil);
 		
 		# Check to see if the PXE environment needs to be updated.
 		check_install_target($anvil);
@@ -1127,7 +1130,7 @@ sub run_once
 	my ($anvil) = @_;
 	
 	# Make sure the firewall is configured.
-	$anvil->Network->manage_firewall();
+	check_firewall($anvil);
 	
 	# Check that the database is ready.
 	prep_database($anvil);
@@ -1552,13 +1555,17 @@ sub check_firewall
 	
 	# Don't call this if we're not configured yet.
 	my $configured = $anvil->System->check_if_configured({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 	
 	# Check the firewall needs to be updated.
 	if ($configured)
 	{
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+		$anvil->Network->manage_firewall({
+			debug => 2,
+			task  => "check", 
+		});
+		# my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches});
+		# $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	}
 	
 	return(0);

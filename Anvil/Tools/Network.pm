@@ -5141,6 +5141,35 @@ sub _get_drbd_ports
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 			
+			# Check for proxy ports, which could use any network.
+			if (($line =~ /host\s+.*?address.*?\s(\d.*?):(\d+) via proxy;/) or 
+			    ($line =~ /inside\s+(\d.*?):(\d+);/)                        or
+			    ($line =~ /outside\s+(\d.*?):(\d+);/))
+			{
+				my $ip   = $1;
+				my $port = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:ip"   => $ip,
+					"s2:port" => $port, 
+				}});
+				
+				if (not exists $anvil->data->{firewall}{drbd_proxy}{port}{$port})
+				{
+					$anvil->data->{firewall}{drbd_proxy}{port}{$port} = $ip;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::drbd_proxy::port::$port" => $anvil->data->{firewall}{drbd_proxy}{port}{$port},
+					}});
+				}
+				else
+				{
+					$anvil->data->{firewall}{drbd_proxy}{port}{$port} .= ",".$ip;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::drbd_proxy::port::$port" => $anvil->data->{firewall}{drbd_proxy}{port}{$port},
+					}});
+				}
+			}
+			
+			# Now pull out normal DRBD resources.
 			if ($line =~ /host\s+.*?address.*?\s(\d.*?):(\d+);/)
 			{
 				my $ip   = $1;
@@ -5587,6 +5616,28 @@ sub _manage_dr_firewall
 		}
 	}
 	
+	# Open DRBD proxy ports for all networks.
+	foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd_proxy}{port}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			port => $port,
+			zone => $zone,
+		}});
+		my $chenged = $anvil->Network->_manage_port({
+			debug    => $debug, 
+			port     => $port, 
+			protocol => "tcp", 
+			task     => "open",
+			zone     => $zone,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+		if ($chenged)
+		{
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		}
+	}
+	
 	return($changes);
 }
 
@@ -5762,6 +5813,28 @@ sub _manage_node_firewall
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 		}
 		
+	}
+	
+	# Open DRBD proxy ports for all networks.
+	foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd_proxy}{port}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			port => $port,
+			zone => $zone,
+		}});
+		my $chenged = $anvil->Network->_manage_port({
+			debug    => $debug, 
+			port     => $port, 
+			protocol => "tcp", 
+			task     => "open",
+			zone     => $zone,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+		if ($chenged)
+		{
+			$changes = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+		}
 	}
 	
 	return($changes);
