@@ -1,3 +1,13 @@
+type APIServerState =
+  | 'crashed'
+  | 'idle'
+  | 'in shutdown'
+  | 'migrating'
+  | 'paused'
+  | 'pmsuspended'
+  | 'running'
+  | 'shut off';
+
 type APIServerOverview = {
   anvil: {
     description: string;
@@ -11,7 +21,7 @@ type APIServerOverview = {
     uuid: string;
   };
   name: string;
-  state: string;
+  state: APIServerState;
   uuid: string;
 };
 
