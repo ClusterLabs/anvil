@@ -4246,7 +4246,6 @@ sub pids
 			
 			# Store by PID
 			$anvil->data->{$pid_key}{$pid}{user}                = $user;
-			$anvil->data->{$pid_key}{$pid}{cpu}                 = $cpu;
 			$anvil->data->{$pid_key}{$pid}{memory}              = $memory;
 			$anvil->data->{$pid_key}{$pid}{virtual_memory_size} = $virtual_memory_size;
 			$anvil->data->{$pid_key}{$pid}{resident_set_size}   = $resident_set_size;

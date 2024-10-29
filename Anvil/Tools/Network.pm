@@ -3795,13 +3795,18 @@ sub manage_firewall
 			my $ip_address      = $anvil->data->{network}{$host_name}{interface}{$interface}{ip};
 			my $subnet_mask     = $anvil->data->{network}{$host_name}{interface}{$interface}{subnet_mask};
 			my $default_gateway = $anvil->data->{network}{$host_name}{interface}{$interface}{default_gateway};
-			my $zone            = uc(($interface =~ /^(.*?)_/)[0]);
+			my $zone            = "";
+			if ($interface =~ /^(.*?)_/)
+			{
+				$zone = uc($1);
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				ip_address      => $ip_address,
 				subnet_mask     => $subnet_mask, 
 				default_gateway => $default_gateway, 
 				zone            => $zone,
 			}});
+			next if not $zone;
 			
 			$anvil->data->{firewalld}{zones}{$zone}{needed}            = 1;
 			$anvil->data->{firewalld}{zones}{$zone}{have}              = 0;
