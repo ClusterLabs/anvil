@@ -14,7 +14,10 @@ import OutlinedInputWithLabel, {
 } from './OutlinedInputWithLabel';
 import SelectWithLabel from './SelectWithLabel';
 
-type OutlinedLabeledInputWithSelectOptionalProps = {
+type OutlinedLabeledInputWithSelectOptionalProps = Pick<
+  OutlinedInputWithLabelProps,
+  'onChange' | 'value'
+> & {
   inputWithLabelProps?: Partial<OutlinedInputWithLabelProps>;
   messageBoxProps?: Partial<MessageBoxProps>;
   selectWithLabelProps?: Partial<SelectWithLabelProps>;
@@ -27,22 +30,17 @@ type OutlinedLabeledInputWithSelectProps =
     selectItems: SelectItem[];
   };
 
-const OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS: Required<OutlinedLabeledInputWithSelectOptionalProps> =
-  {
-    inputWithLabelProps: {},
-    messageBoxProps: {},
-    selectWithLabelProps: {},
-  };
-
 const OutlinedLabeledInputWithSelect: FC<
   OutlinedLabeledInputWithSelectProps
 > = ({
   id,
   label,
-  inputWithLabelProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.inputWithLabelProps,
-  messageBoxProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.messageBoxProps,
+  inputWithLabelProps,
+  messageBoxProps,
+  onChange,
   selectItems,
-  selectWithLabelProps = OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS.selectWithLabelProps,
+  selectWithLabelProps,
+  value,
 }) => (
   <Box>
     <Box
@@ -66,7 +64,13 @@ const OutlinedLabeledInputWithSelect: FC<
         },
       }}
     >
-      <OutlinedInputWithLabel id={id} label={label} {...inputWithLabelProps} />
+      <OutlinedInputWithLabel
+        id={id}
+        label={label}
+        onChange={onChange}
+        value={value}
+        {...inputWithLabelProps}
+      />
       <SelectWithLabel
         formControlProps={{ fullWidth: false, sx: { minWidth: 'min-content' } }}
         id={`${id}-nested-select`}
@@ -78,8 +82,11 @@ const OutlinedLabeledInputWithSelect: FC<
   </Box>
 );
 
-OutlinedLabeledInputWithSelect.defaultProps =
-  OUTLINED_LABELED_INPUT_WITH_SELECT_DEFAULT_PROPS;
+OutlinedLabeledInputWithSelect.defaultProps = {
+  inputWithLabelProps: undefined,
+  messageBoxProps: undefined,
+  selectWithLabelProps: undefined,
+};
 
 export type { OutlinedLabeledInputWithSelectProps };
 
