@@ -20,11 +20,13 @@ const DragDataGrid = styled(DataGrid)({
     outline: 'none',
   },
 
-  [`& .${gridClasses.row}.${dragDataGridClasses.draggable}:hover`]: {
-    cursor: 'grab',
+  [`& .${gridClasses.row}`]: {
+    [`&.${dragDataGridClasses.draggable}:hover`]: {
+      cursor: 'grab',
 
-    [`& .${gridClasses.cell} p`]: {
-      cursor: 'auto',
+      [`& .${gridClasses.cell} p`]: {
+        cursor: 'auto',
+      },
     },
   },
 });
