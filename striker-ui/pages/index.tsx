@@ -14,13 +14,13 @@ import IconButton from '../components/IconButton';
 import Link from '../components/Link';
 import OutlinedInput from '../components/OutlinedInput';
 import { Panel, PanelHeader } from '../components/Panels';
-import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from '../components/ProvisionServerDialog';
 import Spinner from '../components/Spinner';
 import { HeaderText } from '../components/Text';
 import { last } from '../lib/time';
+import useFetch from '../hooks/useFetch';
 
-type ServerListItem = ServerOverviewMetadata & {
+type ServerListItem = APIServerOverview & {
   isScreenshotStale?: boolean;
   loading?: boolean;
   screenshot: string;
@@ -36,19 +36,18 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
   >
     {servers.map(
       ({
-        anvilName,
-        anvilUUID,
+        anvil: { name: anvilName, uuid: anvilUuid },
         isScreenshotStale,
         loading,
         screenshot,
-        serverName,
-        serverState,
-        serverUUID,
+        name: serverName,
+        state: serverState,
+        uuid: serverUuid,
         timestamp,
       }) => (
         <Grid
           item
-          key={`${serverUUID}-preview`}
+          key={`${serverUuid}-preview`}
           sx={{
             minWidth: '20em',
 
@@ -65,14 +64,14 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
             externalTimestamp={timestamp}
             headerEndAdornment={[
               <Link
-                href={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}`}
-                key={`server_list_to_server_${serverUUID}`}
+                href={`/server?uuid=${serverUuid}&server_name=${serverName}&server_state=${serverState}`}
+                key={`server_list_to_server_${serverUuid}`}
               >
                 {serverName}
               </Link>,
               <Link
-                href={`/anvil?anvil_uuid=${anvilUUID}`}
-                key={`server_list_server_${serverUUID}_to_anvil_${anvilUUID}`}
+                href={`/anvil?anvil_uuid=${anvilUuid}`}
+                key={`server_list_server_${serverUuid}_to_anvil_${anvilUuid}`}
                 sx={{
                   opacity: 0.7,
                 }}
@@ -80,14 +79,14 @@ const createServerPreviewContainer = (servers: ServerListItem[]) => (
                 {anvilName}
               </Link>,
             ]}
-            hrefPreview={`/server?uuid=${serverUUID}&server_name=${serverName}&server_state=${serverState}&vnc=1`}
+            hrefPreview={`/server?uuid=${serverUuid}&server_name=${serverName}&server_state=${serverState}&vnc=1`}
             isExternalLoading={loading}
             isExternalPreviewStale={isScreenshotStale}
             isFetchPreview={false}
             isShowControls={false}
             isUseInnerPanel
             serverState={serverState}
-            serverUUID={serverUUID}
+            serverUUID={serverUuid}
           />
         </Grid>
       ),
@@ -106,9 +105,9 @@ const filterServers = (allServers: ServerListItem[], searchTerm: string) =>
         include: ServerListItem[];
       }>(
         (reduceContainer, server) => {
-          const { serverName } = server;
+          const { name } = server;
 
-          if (serverName.includes(searchTerm)) {
+          if (name.includes(searchTerm)) {
             reduceContainer.include.push(server);
           } else {
             reduceContainer.exclude.push(server);
@@ -138,59 +137,57 @@ const Dashboard: FC = () => {
     setIncludeServers(include);
   };
 
-  const { isLoading } = periodicFetch<ServerListItem[]>(
-    `${API_BASE_URL}/server`,
-    {
-      onSuccess: (data = []) => {
-        const serverListItems: ServerListItem[] = (
-          data as ServerOverviewMetadata[]
-        ).map((serverOverview) => {
-          const { serverUUID } = serverOverview;
-          const previousScreenshot: string =
-            allServers.find(({ serverUUID: uuid }) => uuid === serverUUID)
-              ?.screenshot || '';
-          const item: ServerListItem = {
-            ...serverOverview,
-            loading: true,
-            screenshot: previousScreenshot,
-            timestamp: 0,
-          };
+  const { loading } = useFetch<APIServerOverviewList>('/server', {
+    onSuccess: (data) => {
+      const values = Object.values(data);
 
-          fetchJSON<{ screenshot: string; timestamp: number }>(
-            `${API_BASE_URL}/server/${serverUUID}?ss=1`,
-          )
-            .then(({ screenshot, timestamp }) => {
-              if (screenshot.length === 0) return;
+      const serverListItems = values.map<ServerListItem>((server) => {
+        const { uuid: serverUuid } = server;
 
-              item.isScreenshotStale = !last(timestamp, 300);
-              item.loading = false;
-              item.screenshot = screenshot;
-              item.timestamp = timestamp;
+        const previousScreenshot: string =
+          allServers.find(({ uuid }) => uuid === serverUuid)?.screenshot || '';
 
-              const allServersWithScreenshots = [...serverListItems];
+        const item: ServerListItem = {
+          ...server,
+          loading: true,
+          screenshot: previousScreenshot,
+          timestamp: 0,
+        };
 
-              setAllServers(allServersWithScreenshots);
-              // Don't update servers to include or exclude here to avoid
-              // updating using an outdated input search term. Remember this
-              // block is async and takes a lot longer to complete compared to
-              // the overview fetch.
-            })
-            .catch(() => {
-              item.isScreenshotStale = true;
-            })
-            .finally(() => {
-              item.loading = false;
-            });
+        fetchJSON<{ screenshot: string; timestamp: number }>(
+          `${API_BASE_URL}/server/${serverUuid}?ss=1`,
+        )
+          .then(({ screenshot, timestamp }) => {
+            if (screenshot.length === 0) return;
 
-          return item;
-        });
+            item.isScreenshotStale = !last(timestamp, 300);
+            item.loading = false;
+            item.screenshot = screenshot;
+            item.timestamp = timestamp;
 
-        setAllServers(serverListItems);
-        updateServerList(serverListItems, inputSearchTerm);
-      },
-      refreshInterval: 60000,
+            const allServersWithScreenshots = [...serverListItems];
+
+            setAllServers(allServersWithScreenshots);
+            // Don't update servers to include or exclude here to avoid
+            // updating using an outdated input search term. Remember this
+            // block is async and takes a lot longer to complete compared to
+            // the overview fetch.
+          })
+          .catch(() => {
+            item.isScreenshotStale = true;
+          })
+          .finally(() => {
+            item.loading = false;
+          });
+
+        return item;
+      });
+
+      setAllServers(serverListItems);
+      updateServerList(serverListItems, inputSearchTerm);
     },
-  );
+    refreshInterval: 60000,
+  });
 
   return (
     <Box>
@@ -199,7 +196,7 @@ const Dashboard: FC = () => {
       </Head>
       <Header />
       <Panel>
-        {isLoading ? (
+        {loading ? (
           <Spinner />
         ) : (
           <>

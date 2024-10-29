@@ -5,7 +5,6 @@ import {
   Divider,
   List,
   ListItem,
-  Menu,
   styled,
   Typography,
 } from '@mui/material';
@@ -30,6 +29,7 @@ import Decorator, { Colours } from './Decorator';
 import handleAPIError from '../lib/handleAPIError';
 import hostsSanitizer from '../lib/sanitizers/hostsSanitizer';
 import IconButton from './IconButton';
+import Menu from './Menu';
 import MenuItem from './MenuItem';
 import { Panel, PanelHeader } from './Panels';
 import periodicFetch from '../lib/fetchers/periodicFetch';
@@ -157,21 +157,26 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const buttonLabels = useRef<ButtonLabels[]>([]);
 
-  const { data: servers = [], isLoading } = periodicFetch<AnvilServers>(
+  const { data: servers } = periodicFetch<APIServerOverviewList>(
     `${API_BASE_URL}/server?anvilUUIDs=${uuid}`,
   );
 
-  const setButtons = (filtered: AnvilServer[]) => {
+  const serverValues = useMemo(
+    () => servers && Object.values(servers),
+    [servers],
+  );
+
+  const setButtons = (filtered: APIServerOverview[]) => {
     buttonLabels.current = [];
     if (
-      filtered.filter((item: AnvilServer) => item.serverState === 'running')
+      filtered.filter((item: APIServerOverview) => item.state === 'running')
         .length
     ) {
       buttonLabels.current.push('off');
     }
 
     if (
-      filtered.filter((item: AnvilServer) => item.serverState === 'shut off')
+      filtered.filter((item: APIServerOverview) => item.state === 'shut off')
         .length
     ) {
       buttonLabels.current.push('on');
@@ -197,13 +202,18 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   };
 
   const handleChange = (server_uuid: string): void => {
+    if (!serverValues) return;
+
     const index = selected.indexOf(server_uuid);
 
-    if (index === -1) selected.push(server_uuid);
-    else selected.splice(index, 1);
+    if (index === -1) {
+      selected.push(server_uuid);
+    } else {
+      selected.splice(index, 1);
+    }
 
-    const filtered = servers.filter(
-      (server: AnvilServer) => selected.indexOf(server.serverUUID) !== -1,
+    const filtered = serverValues.filter(
+      (server: APIServerOverview) => selected.indexOf(server.uuid) !== -1,
     );
     setButtons(filtered);
     setSelected([...selected]);
@@ -278,10 +288,12 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     Power
                   </ContainedButton>
                   <Menu
-                    anchorEl={anchorEl}
-                    keepMounted
+                    muiMenuProps={{
+                      anchorEl,
+                      keepMounted: true,
+                      onClose: () => setAnchorEl(null),
+                    }}
                     open={Boolean(anchorEl)}
-                    onClose={() => setAnchorEl(null)}
                   >
                     {buttonLabels.current.map((label: ButtonLabels) => (
                       <MenuItem onClick={() => handlePower(label)} key={label}>
@@ -303,11 +315,13 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     color="secondary"
                     checked={allSelected}
                     onChange={() => {
+                      if (!serverValues) return;
+
                       if (!allSelected) {
-                        setButtons(servers);
+                        setButtons(serverValues);
                         setSelected(
-                          servers.map(
-                            (server: AnvilServer) => server.serverUUID,
+                          serverValues.map(
+                            (server: APIServerOverview) => server.uuid,
                           ),
                         );
                       } else {
@@ -325,18 +339,18 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
               </Box>
             </>
           )}
-          {!isLoading ? (
+          {serverValues ? (
             <Box className={classes.root}>
               <List component="nav">
-                {servers.map((server: AnvilServer) => (
+                {serverValues.map((server: APIServerOverview) => (
                   <>
                     <ListItem
                       button
                       className={classes.button}
-                      key={server.serverUUID}
+                      key={server.uuid}
                       component={showCheckbox ? 'div' : 'a'}
-                      href={`/server?uuid=${server.serverUUID}&server_name=${server.serverName}&server_state=${server.serverState}`}
-                      onClick={() => handleChange(server.serverUUID)}
+                      href={`/server?uuid=${server.uuid}&server_name=${server.name}&server_state=${server.state}`}
+                      onClick={() => handleChange(server.uuid)}
                     >
                       <Box display="flex" flexDirection="row" width="100%">
                         {showCheckbox && (
@@ -345,30 +359,26 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                               style={{ color: TEXT }}
                               color="secondary"
                               checked={
-                                selected.find(
-                                  (s) => s === server.serverUUID,
-                                ) !== undefined
+                                selected.find((s) => s === server.uuid) !==
+                                undefined
                               }
                             />
                           </Box>
                         )}
                         <Box p={1}>
-                          <Decorator
-                            colour={selectDecorator(server.serverState)}
-                          />
+                          <Decorator colour={selectDecorator(server.state)} />
                         </Box>
                         <Box p={1} flexGrow={1}>
-                          <BodyText text={server.serverName} />
+                          <BodyText text={server.name} />
                           <BodyText
                             text={
-                              serverState.get(server.serverState) ||
-                              'Not Available'
+                              serverState.get(server.state) || 'Not Available'
                             }
                           />
                         </Box>
                         <Box display="flex" className={classes.hostsBox}>
-                          {server.serverState !== 'shut off' &&
-                            server.serverState !== 'crashed' &&
+                          {server.state !== 'shut off' &&
+                            server.state !== 'crashed' &&
                             filteredHosts.map(
                               (
                                 host: AnvilStatusHost,
@@ -383,7 +393,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                     <BodyText
                                       text={host.host_name}
                                       selected={
-                                        server.serverHostUUID === host.host_uuid
+                                        server.host.uuid === host.host_uuid
                                       }
                                     />
                                   </Box>
