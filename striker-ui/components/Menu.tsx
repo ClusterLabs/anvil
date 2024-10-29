@@ -1,10 +1,21 @@
-import { Menu as MuiMenu } from '@mui/material';
+import { menuClasses, Menu as MuiMenu, styled } from '@mui/material';
 import { FC, useMemo } from 'react';
+
+import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import MenuItem from './MenuItem';
 
-const Menu: FC<MenuProps> = (props) => {
+const BaseMenu = styled(MuiMenu)({
+  [`& .${menuClasses.paper}`]: {
+    backgroundColor: GREY,
+  },
+});
+
+const Menu = <Item = unknown,>(
+  ...[props]: Parameters<FC<MenuProps<Item>>>
+): ReturnType<FC<MenuProps<Item>>> => {
   const {
+    children,
     getItemDisabled,
     items = {},
     muiMenuProps: menuProps,
@@ -34,10 +45,10 @@ const Menu: FC<MenuProps> = (props) => {
   );
 
   return (
-    <MuiMenu open={open} {...menuProps}>
-      {itemElements}
-    </MuiMenu>
+    <BaseMenu open={open} {...menuProps}>
+      {children || itemElements}
+    </BaseMenu>
   );
 };
 
-export default Menu as <T>(props: MenuProps<T>) => ReturnType<FC<MenuProps<T>>>;
+export default Menu;
