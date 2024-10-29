@@ -16,8 +16,14 @@ const DragDataGrid = styled(DataGrid)({
     color: 'inherit',
   },
 
-  [`& .${gridClasses.cell}:focus`]: {
-    outline: 'none',
+  [`& .${gridClasses.cell}`]: {
+    '&:focus': {
+      outline: 'none',
+    },
+
+    '&:focus-within': {
+      outline: 'none',
+    },
   },
 
   [`& .${gridClasses.row}`]: {
