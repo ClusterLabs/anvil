@@ -1,11 +1,21 @@
 type ServerOverview = {
-  anvilName: string;
-  anvilUUID: string;
-  serverHostUUID: string;
-  serverName: string;
-  serverState: string;
-  serverUUID: string;
+  anvil: {
+    description: string;
+    name: string;
+    uuid: string;
+  };
+  host: {
+    name: string;
+    short: string;
+    type: string;
+    uuid: string;
+  };
+  name: string;
+  state: string;
+  uuid: string;
 };
+
+type ServerOverviewList = Record<string, ServerOverview>;
 
 type ServerDetailParamsDictionary = {
   serverUUID: string;
