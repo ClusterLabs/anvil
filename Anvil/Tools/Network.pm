@@ -5063,50 +5063,38 @@ sub _get_server_ports
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_get_server_ports()" }});
 	
-	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --name";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	
-	my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		's1:output'      => $output,
-		's2:return_code' => $return_code, 
-	}});
-	
-	my $servers = [];
-	foreach my $server (split/\n/, $output)
+	$anvil->Server->get_server_ports({debug => $debug});
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_ports}})
 	{
-		$server = $anvil->Words->clean_spaces({string => $server});
-		next if not $server;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
-		
-		push @{$servers}, $server;
-	}
-	
-	foreach my $server (sort {$a cmp $b} @{$servers})
-	{
-		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-		
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+		my $short_host_name  = $anvil->data->{server_ports}{$server_name}{host};
+		my $server_state     = $anvil->data->{server_ports}{$server_name}{'state'};
+		my $is_running       = $anvil->data->{server_ports}{$server_name}{running};
+		my $graphics_type    = $anvil->data->{server_ports}{$server_name}{graphics}{type};
+		my $graphics_port    = $anvil->data->{server_ports}{$server_name}{graphics}{port};
+		my $websockify_proxy = $anvil->data->{server_ports}{$server_name}{graphics}{ws_proxy};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
+			"s1:server_name"      => $server_name,
+			"s2:short_host_name"  => $short_host_name, 
+			"s3:server_state"     => $server_state, 
+			"s4:is_running"       => $is_running, 
+			"s5:graphics_type"    => $graphics_type, 
+			"s6:graphics_port"    => $graphics_port, 
+			"s7:websockify_proxy" => $websockify_proxy, 
 		}});
 		
-		foreach my $line (split/\n/, $output)
+		if ($graphics_port)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-			if (($line =~ /<graphics/) && ($line =~ /port='(\d+)'/))
-			{
-				my $port = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
-				
-				$anvil->data->{firewall}{server}{port}{$port} = $server;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"firewall::server::port::$port" => $anvil->data->{firewall}{server}{port}{$port},
-				}});
-				last;
-			}
+			$anvil->data->{firewall}{server}{port}{$graphics_port} = $server_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::server::port::${graphics_port}" => $anvil->data->{firewall}{server}{port}{$graphics_port},
+			}});
+		}
+		if ($websockify_proxy)
+		{
+			$anvil->data->{firewall}{server}{port}{$graphics_port} = $websockify_proxy;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::server::port::${websockify_proxy}" => $anvil->data->{firewall}{server}{port}{$graphics_port},
+			}});
 		}
 	}
 	
