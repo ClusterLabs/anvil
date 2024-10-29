@@ -12,6 +12,7 @@ import {
   svgIconClasses as muiSvgIconClasses,
   styled,
 } from '@mui/material';
+import { merge } from 'lodash';
 import { useMemo } from 'react';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
@@ -72,6 +73,7 @@ const Autocomplete = <
     extendRenderInput,
     getGroupLabel,
     label,
+    ListboxProps,
     messageBoxProps,
     renderGroup,
     renderInput,
@@ -79,28 +81,52 @@ const Autocomplete = <
     ...autocompleteRestProps
   } = autocompleteProps;
 
-  const combinedComponentsProps = useMemo<
-    AutocompleteProps<
-      T,
-      Multiple,
-      DisableClearable,
-      FreeSolo
-    >['componentsProps']
+  const mergedSlotProps = useMemo<
+    AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['slotProps']
   >(
-    () => ({
-      paper: {
-        sx: {
-          backgroundColor: TEXT,
+    () =>
+      merge(
+        {
+          paper: {
+            sx: {
+              backgroundColor: GREY,
 
-          [`& .${muiAutocompleteClasses.groupLabel}`]: {
-            backgroundColor: TEXT,
+              [`& .${muiAutocompleteClasses.groupLabel}`]: {
+                backgroundColor: GREY,
+              },
+            },
           },
         },
-      },
-
-      ...componentsProps,
-    }),
+        componentsProps,
+      ),
     [componentsProps],
+  );
+
+  const mergedListboxProps = useMemo<
+    AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['ListboxProps']
+  >(
+    () =>
+      merge(
+        {
+          sx: {
+            [`& .${muiAutocompleteClasses.option}`]: {
+              [`&[aria-selected="true"]`]: {
+                backgroundColor: TEXT,
+
+                [`&.${muiAutocompleteClasses.focused}`]: {
+                  backgroundColor: TEXT,
+                },
+              },
+
+              [`&.${muiAutocompleteClasses.focused}`]: {
+                backgroundColor: TEXT,
+              },
+            },
+          },
+        },
+        ListboxProps,
+      ),
+    [ListboxProps],
   );
 
   const combinedRenderGroup = useMemo<
@@ -158,21 +184,23 @@ const Autocomplete = <
     [extendRenderInput, label, renderInput],
   );
 
-  const combinedSx = useMemo<
+  const mergedSx = useMemo<
     AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>['sx']
   >(
-    () => ({
-      [`& .${muiOutlinedInputClasses.root} .${muiAutocompleteClasses.endAdornment}`]:
+    () =>
+      merge(
         {
-          right: `7px`,
+          [`& .${muiOutlinedInputClasses.root} .${muiAutocompleteClasses.endAdornment}`]:
+            {
+              right: `7px`,
 
-          [`& .${muiSvgIconClasses.root}`]: {
-            color: GREY,
-          },
+              [`& .${muiSvgIconClasses.root}`]: {
+                color: GREY,
+              },
+            },
         },
-
-      ...sx,
-    }),
+        sx,
+      ),
     [sx],
   );
 
@@ -181,10 +209,11 @@ const Autocomplete = <
       <MUIAutocomplete
         PaperComponent={GrowPaper}
         {...autocompleteRestProps}
-        componentsProps={combinedComponentsProps}
+        ListboxProps={mergedListboxProps}
         renderGroup={combinedRenderGroup}
         renderInput={combinedRenderInput}
-        sx={combinedSx}
+        slotProps={mergedSlotProps}
+        sx={mergedSx}
       />
       <InputMessageBox {...messageBoxProps} />
     </Box>
