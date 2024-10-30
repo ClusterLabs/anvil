@@ -55,11 +55,17 @@ export const getAnvilMemory: RequestHandler<
     return response.status(500).send();
   }
 
+  if (!hostMemoryRows.length) {
+    return response.status(404).send();
+  }
+
   const {
     0: { 1: minTotal },
   } = hostMemoryRows;
 
-  if (minTotal === null) return response.status(404).send();
+  if (minTotal === null) {
+    return response.status(404).send();
+  }
 
   const hosts: AnvilDetailHostMemory[] =
     hostMemoryRows.map<AnvilDetailHostMemory>(
