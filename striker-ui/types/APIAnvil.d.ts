@@ -16,12 +16,14 @@ type AnvilCPU = {
 
 type AnvilMemory = {
   allocated: string;
+  available: string;
   reserved: string;
   total: string;
 };
 
 type AnvilMemoryCalcable = {
   allocated: bigint;
+  available: bigint;
   reserved: bigint;
   total: bigint;
 };
