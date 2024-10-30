@@ -113,8 +113,15 @@ export const getAnvilMemory: RequestHandler<
     );
   }
 
+  const available = String(
+    BigInt(minTotal) -
+      BigInt(allocated) -
+      BigInt(NODE_AND_DR_RESERVED_MEMORY_SIZE),
+  );
+
   return response.status(200).send({
     allocated,
+    available,
     hosts,
     reserved: String(NODE_AND_DR_RESERVED_MEMORY_SIZE),
     total: minTotal,
