@@ -43,10 +43,7 @@ class Access extends EventEmitter {
   constructor({
     eventEmitterOptions = {},
     startOptions = {},
-  }: {
-    eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
-    startOptions?: AccessStartOptions;
-  } = {}) {
+  }: AccessOptions = {}) {
     super(eventEmitterOptions);
 
     const { args: initial = [], ...rest } = startOptions;
@@ -60,11 +57,13 @@ class Access extends EventEmitter {
 
   private start({
     args = [],
-    gid = PGID,
     restartInterval = 10000,
-    stdio = 'pipe',
-    uid = PUID,
-    ...restSpawnOptions
+    spawnOptions: {
+      gid = PGID,
+      stdio = 'pipe',
+      uid = PUID,
+      ...restSpawnOptions
+    } = {},
   }: AccessStartOptions = {}) {
     const options = {
       args,
@@ -192,14 +191,23 @@ class Access extends EventEmitter {
   }
 }
 
-const access = new Access();
+const access = {
+  default: new Access(),
+  root: new Access({
+    startOptions: {
+      spawnOptions: { gid: 0, uid: 0 },
+    },
+  }),
+};
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
+    as = 'default',
     params = [],
     pre = ['Database'],
   }: {
+    as?: keyof typeof access;
     params?: unknown[];
     pre?: string[];
   } = {},
@@ -218,7 +226,7 @@ const subroutine = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await access.interact<{
+  const { sub_results: results } = await access[as].interact<{
     sub_results: T;
   }>('x', chain, ...subParams);
 
@@ -226,13 +234,12 @@ const subroutine = async <T extends unknown[]>(
 };
 
 const query = <T extends QueryResult>(script: string) =>
-  access.interact<T>('r', formatSql(script));
+  access.default.interact<T>('r', formatSql(script));
 
 const write = async (script: string) => {
-  const { write_code: wcode } = await access.interact<{ write_code: number }>(
-    'w',
-    formatSql(script),
-  );
+  const { write_code: wcode } = await access.default.interact<{
+    write_code: number;
+  }>('w', formatSql(script));
 
   return wcode;
 };
@@ -318,7 +325,7 @@ const getData = async <T>(...keys: string[]) => {
 
   const {
     sub_results: [data],
-  } = await access.interact<{ sub_results: [T] }>('x', chain);
+  } = await access.default.interact<{ sub_results: [T] }>('x', chain);
 
   poutvar(data, `${chain} data: `);
 
@@ -336,7 +343,12 @@ const mutateData = async <T>(args: {
 
   const {
     sub_results: [data],
-  } = await access.interact<{ sub_results: [T] }>('x', chain, operator, value);
+  } = await access.default.interact<{ sub_results: [T] }>(
+    'x',
+    chain,
+    operator,
+    value,
+  );
 
   poutvar(data, `${chain} data: `);
 
