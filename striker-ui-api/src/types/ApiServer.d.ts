@@ -70,6 +70,9 @@ type ServerDetailInterface = {
   alias: {
     name: string;
   };
+  link: {
+    state: string;
+  };
   mac: {
     address: string;
   };
@@ -83,6 +86,7 @@ type ServerDetailInterface = {
     dev: string;
   };
   type: string;
+  uuid: string;
 };
 
 type ServerDetailMemory = {
@@ -134,6 +138,15 @@ type ServerDetailVncInfo = {
   port: number;
   protocol: string;
 };
+
+type ServerNetworkInterface = {
+  device: string;
+  mac: string;
+  state: string;
+  uuid: string;
+};
+
+type ServerNetworkInterfaceList = Record<string, ServerNetworkInterface>;
 
 type ServerRenameRequestBody = {
   newName: string;

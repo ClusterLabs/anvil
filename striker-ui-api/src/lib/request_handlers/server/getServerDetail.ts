@@ -222,6 +222,48 @@ export const getServerDetail: RequestHandler<
       {},
     );
 
+    // Get interfaces to include state
+
+    sql = `
+      SELECT
+        server_network_uuid,
+        server_network_mac_address,
+        server_network_vnet_device,
+        server_network_link_state
+      FROM server_networks
+      WHERE server_network_server_uuid = '${serverUuid}';`;
+
+    try {
+      rows = await query(sql);
+
+      assert.ok(rows.length, 'No interfaces found');
+    } catch (error) {
+      const rserror = new ResponseError(
+        '27888e0',
+        `Failed to get interfaces for server details; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
+      (previous, row) => {
+        const [uuid, mac, device, state] = row;
+
+        previous[mac] = {
+          device,
+          mac,
+          state,
+          uuid,
+        };
+
+        return previous;
+      },
+      {},
+    );
+
     const xmlParser = new XMLParser({
       ignoreAttributes: false,
       parseAttributeValue: true,
@@ -325,14 +367,29 @@ export const getServerDetail: RequestHandler<
     });
 
     const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
-      const { '@_type': ifaceType, alias, mac, model, source, target } = value;
+      const {
+        '@_type': ifaceType,
+        alias,
+        link,
+        mac,
+        model,
+        source,
+        target,
+      } = value;
+
+      const macAddress = mac?.['@_address'] ?? '';
+
+      const { [macAddress]: netIface } = netIfaces;
 
       return {
         alias: {
           name: alias?.['@_name'],
         },
+        link: {
+          state: link?.['@_state'] ?? netIface?.state,
+        },
         mac: {
-          address: mac?.['@_address'],
+          address: macAddress,
         },
         model: {
           type: model?.['@_type'],
@@ -344,6 +401,7 @@ export const getServerDetail: RequestHandler<
           dev: target?.['@_dev'],
         },
         type: ifaceType,
+        uuid: netIface?.uuid,
       };
     });
 
