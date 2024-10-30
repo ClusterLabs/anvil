@@ -661,6 +661,15 @@ sub start_server
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		
+		### NOTE: We confirmed the server is running so this should be quick. If we 
+		###       backgrounded it, it would exit when this process exits anyway.
+		# Call a background job to make sure the firewall ports are opened now.
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-firewall'}." --server ".$server.$anvil->Log->switches;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+		
 		# Success!
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0309", variables => { server => $server }});
 		$anvil->nice_exit({exit_code => 0});
@@ -1469,7 +1478,7 @@ sub migrate_server
 	my $migrated = 0;
 	if ($target)
 	{
-		# Can I even connect to the target?
+		# We're pushing. Can I even connect to the target?
 		my ($access) = $anvil->Remote->test_access({debug => 3, target => $target});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 		if (not $access)
@@ -1661,6 +1670,15 @@ sub migrate_server
 			# If it's running, we're succesfully out.
 			if ((($host eq $target) or ($short_host eq $target)) && ($status eq "running"))
 			{
+				### NOTE: We confirmed the server is running so this should be quick. If we 
+				###       backgrounded it, it would exit when this process exits anyway.
+				# Call a background job to make sure the firewall ports are opened now.
+				my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-firewall'}." --server ".$server.$anvil->Log->switches;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				
+				my ($output, $return_code) = $anvil->System->call({timeout => 30, shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output, return_code => $return_code }});
+				
 				# Success!
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0347", variables => { server => $server }});
 				$anvil->nice_exit({exit_code => 0});

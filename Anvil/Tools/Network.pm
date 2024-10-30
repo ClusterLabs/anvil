@@ -3689,7 +3689,7 @@ AND
 
 =head2 manage_firewall
 
-B<< NOTE >>: So far, only C<< check >> is implemented.
+B<< NOTE >>: This method can be called without a database connection.
 
 This method manages a C<< firewalld >> firewall.
 
@@ -5091,7 +5091,7 @@ sub _get_server_ports
 		}
 		if ($websockify_proxy)
 		{
-			$anvil->data->{firewall}{server}{port}{$graphics_port} = $websockify_proxy;
+			$anvil->data->{firewall}{server}{port}{$websockify_proxy} = $server_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				"firewall::server::port::${websockify_proxy}" => $anvil->data->{firewall}{server}{port}{$graphics_port},
 			}});

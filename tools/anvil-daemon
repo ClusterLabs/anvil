@@ -1564,8 +1564,6 @@ sub check_firewall
 			debug => 2,
 			task  => "check", 
 		});
-		# my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches});
-		# $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
 	}
 	
 	return(0);
