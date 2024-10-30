@@ -121,7 +121,7 @@ export const getServerDetail: RequestHandler<
 
     return response.send(rsbody);
   } else {
-    const sql = `
+    let sql = `
       SELECT
         a.server_name,
         a.server_state,
@@ -133,6 +133,7 @@ export const getServerDetail: RequestHandler<
         c.host_uuid,
         c.host_name,
         c.host_type,
+        d.server_definition_uuid,
         d.server_definition_xml
       FROM servers AS a
       JOIN anvils AS b
@@ -174,9 +175,52 @@ export const getServerDetail: RequestHandler<
         hostUuid,
         hostName,
         hostType,
+        serverDefinitionUuid,
         serverDefinitionXml,
       ],
     } = rows;
+
+    // Get bridges separately to avoid passing duplicate definition XMLs
+
+    sql = `
+      SELECT
+        bridge_uuid,
+        bridge_name,
+        bridge_id,
+        bridge_mac_address
+      FROM bridges
+      WHERE bridge_host_uuid = '${hostUuid}';`;
+
+    try {
+      rows = await query(sql);
+
+      assert.ok(rows.length, 'No bridges found');
+    } catch (error) {
+      const rserror = new ResponseError(
+        '9806598',
+        `Failed to get bridges for server details; CAUSE: ${error}`,
+      );
+
+      perr(rserror.toString());
+
+      return response.status(500).send(rserror.body);
+    }
+
+    const hostBridges = rows.reduce<ServerDetailHostBridgeList>(
+      (previous, row) => {
+        const [uuid, name, id, mac] = row;
+
+        previous[uuid] = {
+          id,
+          mac,
+          name,
+          uuid,
+        };
+
+        return previous;
+      },
+      {},
+    );
 
     const xmlParser = new XMLParser({
       ignoreAttributes: false,
@@ -318,6 +362,9 @@ export const getServerDetail: RequestHandler<
           threads: cpuThreads,
         },
       },
+      definition: {
+        uuid: serverDefinitionUuid,
+      },
       devices: {
         diskOrderBy: {
           boot: diskOrderByBoot,
@@ -327,6 +374,7 @@ export const getServerDetail: RequestHandler<
         interfaces,
       },
       host: {
+        bridges: hostBridges,
         name: hostName,
         short: getShortHostName(hostName),
         type: hostType,

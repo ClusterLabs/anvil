@@ -57,6 +57,15 @@ type ServerDetailDisk = {
   type: string;
 };
 
+type ServerDetailHostBridge = {
+  id: string;
+  mac: string;
+  name: string;
+  uuid: string;
+};
+
+type ServerDetailHostBridgeList = Record<string, ServerDetailHostBridge>;
+
 type ServerDetailInterface = {
   alias: {
     name: string;
@@ -86,6 +95,9 @@ type ServerDetail = {
     name: string;
     uuid: string;
   };
+  definition: {
+    uuid: string;
+  };
   devices: {
     diskOrderBy: {
       boot: number[];
@@ -96,6 +108,7 @@ type ServerDetail = {
   };
   cpu: ServerDetailCpu;
   host: {
+    bridges: ServerDetailHostBridgeList;
     name: string;
     short: string;
     type: string;
