@@ -3,8 +3,10 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 
-import { FullSize, Preview } from '../../components/Display';
+import { FullSize } from '../../components/Display';
 import Header from '../../components/Header';
+import { ManageServer } from '../../components/ManageServer';
+import PageBody from '../../components/PageBody';
 
 const PREFIX = 'Server';
 
@@ -34,18 +36,18 @@ const Server = (): JSX.Element => {
   const [previewMode, setPreviewMode] = useState<boolean>(true);
 
   const router = useRouter();
-  const { server_name, server_state, uuid, vnc } = router.query;
 
-  const isConnectVNC: boolean = (vnc?.toString() || '').length > 0;
-  const serverName: string = server_name?.toString() || '';
-  const serverState: string = server_state?.toString() || '';
-  const serverUUID: string = uuid?.toString() || '';
+  const { server_name = '', uuid = '', vnc = '' } = router.query;
+
+  const isConnectVnc: boolean = Boolean(vnc);
+  const serverName: string = String(server_name);
+  const serverUuid: string = String(uuid);
 
   useEffect(() => {
-    if (isConnectVNC) {
+    if (isConnectVnc) {
       setPreviewMode(false);
     }
-  }, [isConnectVNC]);
+  }, [isConnectVnc]);
 
   return (
     <StyledDiv>
@@ -54,23 +56,25 @@ const Server = (): JSX.Element => {
       </Head>
       <Header />
       {previewMode ? (
-        <Box className={classes.preview}>
-          <Preview
-            onClickPreview={() => {
-              setPreviewMode(false);
+        <PageBody>
+          <ManageServer
+            slotProps={{
+              preview: {
+                onClick: () => {
+                  setPreviewMode(false);
+                },
+              },
             }}
-            serverName={serverName}
-            serverState={serverState}
-            serverUUID={serverUUID}
+            serverUuid={serverUuid}
           />
-        </Box>
+        </PageBody>
       ) : (
         <Box className={classes.fullView}>
           <FullSize
             onClickCloseButton={() => {
               setPreviewMode(true);
             }}
-            serverUUID={serverUUID}
+            serverUUID={serverUuid}
             serverName={serverName}
           />
         </Box>
