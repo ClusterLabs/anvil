@@ -7,7 +7,7 @@ import path from 'path';
 
 import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
-import { getVncinfo, query } from '../../accessModule';
+import { getVncinfo, listNicModels, query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { ResponseError } from '../../ResponseError';
 import { sanitize } from '../../sanitize';
@@ -264,6 +264,12 @@ export const getServerDetail: RequestHandler<
       {},
     );
 
+    // Get list of NIC models
+
+    const nicModels = await listNicModels(hostName);
+
+    // Extract necessary values from the libvirt domain XML
+
     const xmlParser = new XMLParser({
       ignoreAttributes: false,
       parseAttributeValue: true,
@@ -437,6 +443,9 @@ export const getServerDetail: RequestHandler<
         short: getShortHostName(hostName),
         type: hostType,
         uuid: hostUuid,
+      },
+      libvirt: {
+        nicModels,
       },
       memory: {
         size: memorySize ? memorySize.value : '0',

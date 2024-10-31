@@ -54,6 +54,9 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'striker-manage-install-target': {},
       'striker-manage-peers': {},
     },
+    libexec: {
+      'qemu-kvm': {},
+    },
   },
   var: { www: { html: {} } },
 };

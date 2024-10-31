@@ -118,6 +118,9 @@ type ServerDetail = {
     type: string;
     uuid: string;
   };
+  libvirt: {
+    nicModels: string[];
+  };
   memory: ServerDetailMemory;
   name: string;
   start: {

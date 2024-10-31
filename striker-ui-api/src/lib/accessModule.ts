@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
@@ -365,11 +366,11 @@ const getDatabaseConfigData = async () => {
   // Empty the existing data->database hash before re-reading updated values.
   await mutateData<string>({ keys: ['database'], operator: '=', value: '{}' });
 
-  const [ecode] = await subroutine<[ecode: string]>('read_config', {
+  const [code] = await subroutine<[string]>('read_config', {
     pre: ['Storage'],
   });
 
-  if (Number(ecode) !== 0) throw new Error(`Failed to read config`);
+  assert(Number(code) === 0, `Subroutine failed with code ${code}`);
 
   return getData<AnvilDataDatabaseHash>('database');
 };
@@ -386,6 +387,34 @@ const getHostData = async () => {
   return getData<AnvilDataHostListHash>('hosts');
 };
 
+const listNicModels = async (target: string) => {
+  let list: string[] = [];
+
+  try {
+    const [stdout, , code] = await subroutine<[string, string, string]>(
+      'call',
+      {
+        as: 'root',
+        params: [
+          {
+            target,
+            shell_call: `${SERVER_PATHS.usr.libexec['qemu-kvm'].self} -net nic,model=help`,
+          },
+        ],
+        pre: ['Remote'],
+      },
+    );
+
+    assert(Number(code) === 0, `Subroutine failed with code ${code}`);
+
+    [, ...list] = stdout.split('\n');
+  } catch (error) {
+    perr(`Failed to list NIC model; CAUSE: ${error}`);
+  }
+
+  return list;
+};
+
 const getLocalHostName = () => {
   let result: string;
 
@@ -393,8 +422,8 @@ const getLocalHostName = () => {
     result = readFileSync(SERVER_PATHS.etc.hostname.self, {
       encoding: 'utf-8',
     }).trim();
-  } catch (subError) {
-    throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
+  } catch (error) {
+    throw new Error(`Failed to get local host name; CAUSE: ${error}`);
   }
 
   pout(`localHostName=${result}`);
@@ -409,8 +438,8 @@ const getLocalHostUuid = () => {
     result = readFileSync(SERVER_PATHS.etc.anvil['host.uuid'].self, {
       encoding: 'utf-8',
     }).trim();
-  } catch (subError) {
-    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
+  } catch (error) {
+    throw new Error(`Failed to get local host UUID; CAUSE: ${error}`);
   }
 
   pout(`localHostUUID=[${result}]`);
@@ -545,6 +574,7 @@ export {
   getPeerData,
   getUpsSpec,
   getVncinfo,
+  listNicModels,
   mutateData,
   query,
   subroutine as sub,
