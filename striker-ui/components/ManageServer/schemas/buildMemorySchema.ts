@@ -1,7 +1,10 @@
 import { dSize, dSizeStr } from 'format-data-size';
 import * as yup from 'yup';
 
-const nMin = BigInt(0);
+// Unit: bytes; 64 KiB
+const nMin = BigInt(65536);
+
+const nds = 'not-data-size';
 
 /* eslint-disable no-template-curly-in-string */
 
@@ -11,31 +14,12 @@ const buildMemorySchema = (memory: AnvilMemoryCalcable) => {
   return yup.object({
     size: yup
       .string()
-      .ensure()
-      .test({
-        exclusive: true,
-        message: '${path} must be greater than or equal to ${min}',
-        name: 'min',
-        params: { min: String(nMin) },
-        test: (value, context) => {
-          let nValue: bigint;
+      .required()
+      .when(['unit'], (values, schema) => {
+        const [unit] = values;
 
-          try {
-            nValue = BigInt(value);
-          } catch (error) {
-            return context.createError({
-              message: '${path} must be a valid integer',
-            });
-          }
-
-          return nValue >= nMin;
-        },
-      })
-      .test({
-        exclusive: true,
-        name: 'max',
-        test: (value, context) => {
-          const { unit } = context.parent;
+        return schema.transform((value) => {
+          if (unit === 'B') return value;
 
           const current = dSize(value, {
             fromUnit: unit,
@@ -43,21 +27,49 @@ const buildMemorySchema = (memory: AnvilMemoryCalcable) => {
             toUnit: 'B',
           });
 
-          if (!current) {
-            return context.createError({
-              message: '${path} is not a valid data size',
+          return current ? current.value : nds;
+        });
+      })
+      .test({
+        exclusive: true,
+        message: '${path} is not a valid data size',
+        name: 'datasize',
+        test: (value) => value !== nds,
+      })
+      .test({
+        exclusive: true,
+        name: 'sequence',
+        test: (value, { createError, parent }) => {
+          let nValue: bigint;
+
+          try {
+            nValue = BigInt(value);
+          } catch (error) {
+            return createError({
+              message: '${path} cannot have decimal bytes',
             });
           }
 
-          const max = dSizeStr(nMax, { toUnit: unit }) ?? 'available memory';
+          if (!(nValue >= nMin)) {
+            return createError({
+              message: '${path} must be greater than or equal to ${min}',
+              params: { min: `${nMin} B` },
+            });
+          }
 
-          return (
-            BigInt(current.value) <= nMax ||
-            context.createError({
+          const max =
+            dSizeStr(nMax, {
+              toUnit: parent.unit,
+            }) ?? 'available memory';
+
+          if (!(nValue <= nMax)) {
+            return createError({
               message: '${path} must be less than or equal to ${max}',
               params: { max },
-            })
-          );
+            });
+          }
+
+          return true;
         },
       }),
     unit: yup.string().required(),

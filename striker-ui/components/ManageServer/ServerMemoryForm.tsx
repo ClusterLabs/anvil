@@ -22,17 +22,15 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
+const DEFAULT_UNIT: DataSizeUnit = 'GiB';
+
 const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
   const { detail, memory } = props;
 
   const formikUtils = useFormikUtils<ServerMemoryFormikValues>({
     initialValues: {
-      size:
-        dSize(detail.memory.size, {
-          fromUnit: 'B',
-          toUnit: 'GiB',
-        })?.value ?? '0',
-      unit: 'GiB',
+      size: dSize(detail.memory.size, { toUnit: DEFAULT_UNIT })?.value ?? '0',
+      unit: DEFAULT_UNIT,
     },
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
@@ -51,7 +49,6 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
 
   const formattedMemory = useMemo(() => {
     const options: FormatDataSizeOptions = {
-      fromUnit: 'B',
       toUnit: formik.values.unit,
     };
 
@@ -115,6 +112,7 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
 
                   const newDataSize = dSize(size, {
                     fromUnit: unit,
+                    precision: newUnit === 'B' ? 0 : undefined,
                     toUnit: newUnit,
                   });
 
