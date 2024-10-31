@@ -8,18 +8,20 @@ type APIServerState =
   | 'running'
   | 'shut off';
 
+type APIServerOverviewHost = {
+  name: string;
+  short: string;
+  type: string;
+  uuid: string;
+};
+
 type APIServerOverview = {
   anvil: {
     description: string;
     name: string;
     uuid: string;
   };
-  host: {
-    name: string;
-    short: string;
-    type: string;
-    uuid: string;
-  };
+  host: APIServerOverviewHost;
   name: string;
   state: APIServerState;
   uuid: string;
@@ -61,6 +63,9 @@ type APIServerDetailInterface = {
   alias: {
     name: string;
   };
+  link: {
+    state: string;
+  };
   mac: {
     address: string;
   };
@@ -74,13 +79,21 @@ type APIServerDetailInterface = {
     dev: string;
   };
   type: string;
+  uuid: string;
 };
 
 type APIServerDetailMemory = {
   size: string;
 };
 
-type APIServerDetail = APIServerOverview & {
+type APIServerDetailHostBridge = {
+  id: string;
+  mac: string;
+  name: string;
+  uuid: string;
+};
+
+type APIServerDetail = Omit<APIServerOverview, 'host'> & {
   cpu: APIServerDetailCpu;
   devices: {
     diskOrderBy: {
@@ -89,6 +102,12 @@ type APIServerDetail = APIServerOverview & {
     };
     disks: APIServerDetailDisk[];
     interfaces: APIServerDetailInterface[];
+  };
+  host: APIServerOverviewHost & {
+    bridges: Record<string, APIServerDetailHostBridge>;
+  };
+  libvirt: {
+    nicModels: string[];
   };
   memory: APIServerDetailMemory;
   start: {

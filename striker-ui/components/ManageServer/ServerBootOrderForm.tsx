@@ -28,10 +28,10 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
 
   const formikUtils = useFormikUtils<ServerBootOrderFormikValues>({
     initialValues: {
-      boot: { order: initialBootOrder },
+      order: initialBootOrder,
     },
     onSubmit: (values, { setSubmitting }) => {
-      values.boot.order.map<string>((diskIndex) => {
+      values.order.map<string>((diskIndex) => {
         const {
           [diskIndex]: {
             target: { dev },
@@ -47,13 +47,12 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
 
   const { disabledSubmit, formik } = formikUtils;
 
-  const chains = useMemo(() => {
-    const base = 'boot';
-
-    return {
-      order: `${base}.order`,
-    };
-  }, []);
+  const chains = useMemo(
+    () => ({
+      order: `order`,
+    }),
+    [],
+  );
 
   /**
    * Position of the selected row ID (or disk index) in the boot order array.
@@ -61,10 +60,8 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
   const selectedRowPosition = useMemo<number>(() => {
     if (selectedRowId === undefined) return -1;
 
-    const { order } = formik.values.boot;
-
-    return order.indexOf(selectedRowId);
-  }, [formik.values.boot, selectedRowId]);
+    return formik.values.order.indexOf(selectedRowId);
+  }, [formik.values.order, selectedRowId]);
 
   const disableUp = useMemo<boolean>(() => {
     const index = selectedRowPosition;
@@ -73,18 +70,16 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
   }, [selectedRowPosition]);
 
   const disableDown = useMemo<boolean>(() => {
-    const { order } = formik.values.boot;
-
     const index = selectedRowPosition;
 
-    const last = order.length - 1;
+    const last = formik.values.order.length - 1;
 
     return index < 0 || index >= last;
-  }, [formik.values.boot, selectedRowPosition]);
+  }, [formik.values.order.length, selectedRowPosition]);
 
   const dataGridRows = useMemo(
     () =>
-      formik.values.boot.order.map<{
+      formik.values.order.map<{
         dev: string;
         index: number;
         name: string;
@@ -105,7 +100,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
           source: sdev || file,
         };
       }),
-    [detail.devices.disks, formik.values.boot.order],
+    [detail.devices.disks, formik.values.order],
   );
 
   const dataGridColumns = useMemo<GridColumns>(
@@ -166,7 +161,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
           <IconButton
             disabled={disableUp}
             onClick={() => {
-              const { order } = formik.values.boot;
+              const { order } = formik.values;
 
               const indexA = selectedRowPosition;
 
@@ -190,7 +185,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
           <IconButton
             disabled={disableDown}
             onClick={() => {
-              const { order } = formik.values.boot;
+              const { order } = formik.values;
 
               const indexA = selectedRowPosition;
 

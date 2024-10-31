@@ -1,38 +1,36 @@
+type ServerInterfaceFormikValues = {
+  bridge: string;
+  mac: string;
+  model: null | string;
+};
+
 type ServerBootOrderFormikValues = {
-  boot: {
-    order: number[];
-  };
+  order: number[];
 };
 
 type ServerCpuFormikValues = {
-  cpu: {
-    clusters: string;
-    cores: string;
-    dies: string;
-    sockets: string;
-    threads: string;
-  };
+  clusters: string;
+  cores: string;
+  dies: string;
+  sockets: string;
+  threads: string;
 };
 
-type ServerNameFormikValues = {
+type ServerRenameFormikValues = {
   name: string;
 };
 
 type ServerMemoryFormikValues = {
-  memory: {
-    size: string;
-    unit: import('format-data-size').DataSizeUnit;
-  };
+  size: string;
+  unit: import('format-data-size').DataSizeUnit;
 };
 
 /**
- * @property start.delay - Unit: seconds
+ * @property delay - Unit: seconds
  */
 type ServerStartDependencyFormikValues = {
-  start: {
-    after: string;
-    delay: number;
-  };
+  after: string;
+  delay: string;
 };
 
 /** ManageServer */
@@ -77,19 +75,35 @@ type ServerMigrateTableProps = ServerFormProps & {
   servers: APIServerOverviewList;
 };
 
+/** ServerAddInterfaceForm */
+
+type ServerAddInterfaceFormProps = {
+  detail: APIServerDetail;
+};
+
 /** ServerBootOrderForm */
 
 type ServerBootOrderFormProps = ServerFormProps;
 
 /** ServerCpuForm */
 
+type BaseServerCpuFormProps = ServerFormProps & {
+  cpu: AnvilCPU;
+};
+
 type ServerCpuFormProps = ServerFormProps;
 
-/** ServerNameForm */
+/** ServerRenameForm */
 
-type ServerNameFormProps = ServerFormProps;
+type ServerRenameFormProps = ServerFormProps & {
+  servers: APIServerOverviewList;
+};
 
 /** ServerMemoryForm */
+
+type BaseServerMemoryFormProps = ServerFormProps & {
+  memory: AnvilMemoryCalcable;
+};
 
 type ServerMemoryFormProps = ServerFormProps;
 

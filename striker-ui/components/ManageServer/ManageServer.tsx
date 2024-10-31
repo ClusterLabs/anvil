@@ -6,9 +6,10 @@ import Divider from '../Divider';
 import { Panel, PanelHeader } from '../Panels';
 import ServerBootOrderForm from './ServerBootOrderForm';
 import ServerCpuForm from './ServerCpuForm';
-import ServerNameForm from './ServerNameForm';
+import ServerInterfaceList from './ServerInterfaceList';
 import ServerMemoryForm from './ServerMemoryForm';
 import ServerMigrationTable from './ServerMigrationTable';
+import ServerRenameForm from './ServerRenameForm';
 import ServerStartDependencyForm from './ServerStartDependencyForm';
 import Spinner from '../Spinner';
 import Tab from '../Tab';
@@ -112,8 +113,8 @@ const ManageServer: FC<ManageServerProps> = (props) => {
   return (
     <>
       <Panel>
-        <Grid columns={{ xs: 1, sm: 4 }} container spacing="1em">
-          <Grid item xs={1}>
+        <Grid container spacing="1em">
+          <Grid item width={{ xs: '100%', sm: '14em', md: '20em' }}>
             <Grid columns={1} container spacing="1em">
               <Grid item width="100%">
                 <Preview
@@ -186,10 +187,11 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               </Grid>
             </Grid>
           </Grid>
-          <Grid item flexShrink={1}>
+          <Grid display={{ xs: 'none', sm: 'initial' }} item>
             <Divider orientation="vertical" />
           </Grid>
-          <Grid item flexGrow={1}>
+          {/* Take the remaining space with xs=true */}
+          <Grid item xs>
             <TabContent changingTabId={tabId} tabId={tabs.general.value}>
               <PanelHeader>
                 <HeaderText>{tabs.general.label}</HeaderText>
@@ -214,6 +216,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <PanelHeader>
                 <HeaderText>{tabs.interfaces.label}</HeaderText>
               </PanelHeader>
+              <ServerInterfaceList detail={detail} tools={formTools} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.memory.value}>
@@ -238,7 +241,11 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <PanelHeader>
                 <HeaderText>{tabs.name.label}</HeaderText>
               </PanelHeader>
-              <ServerNameForm detail={detail} tools={formTools} />
+              <ServerRenameForm
+                detail={detail}
+                tools={formTools}
+                servers={servers}
+              />
             </TabContent>
 
             <TabContent

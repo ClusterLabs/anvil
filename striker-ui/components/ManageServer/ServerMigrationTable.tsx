@@ -27,11 +27,17 @@ const ServerMigrationTable: FC<ServerMigrateTableProps> = (props) => {
 
   const hostValues = useMemo(() => hosts && Object.values(hosts), [hosts]);
 
-  const serverValues = useMemo(() => Object.values(servers), [servers]);
+  const filteredServerValues = useMemo(
+    () =>
+      Object.values(servers).filter(
+        (server) => server.anvil.uuid === detail.anvil.uuid,
+      ),
+    [detail.anvil.uuid, servers],
+  );
 
   const dataGridRows = useMemo(
     () =>
-      serverValues.reduce<
+      filteredServerValues.reduce<
         {
           columns: Record<string, { name: string }>;
           uuid: string;
@@ -58,7 +64,7 @@ const ServerMigrationTable: FC<ServerMigrateTableProps> = (props) => {
 
         return previous;
       }, []),
-    [detail.uuid, serverValues],
+    [detail.uuid, filteredServerValues],
   );
 
   const dataGridColumns = useMemo<GridColumns | undefined>(

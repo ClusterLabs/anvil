@@ -2,23 +2,26 @@ import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import MessageGroup from '../MessageGroup';
+import { buildRenameSchema } from './schemas';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerNameForm: FC<ServerNameFormProps> = (props) => {
-  const { detail } = props;
+const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
+  const { detail, servers } = props;
 
-  const formikUtils = useFormikUtils<ServerNameFormikValues>({
+  const formikUtils = useFormikUtils<ServerRenameFormikValues>({
     initialValues: {
       name: detail.name,
     },
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
     },
+    validationSchema: buildRenameSchema(servers),
   });
-  const { disabledSubmit, formik, handleChange } = formikUtils;
+  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
   const chains = useMemo(
     () => ({
@@ -28,7 +31,7 @@ const ServerNameForm: FC<ServerNameFormProps> = (props) => {
   );
 
   return (
-    <ServerFormGrid<ServerNameFormikValues> formik={formik}>
+    <ServerFormGrid<ServerRenameFormikValues> formik={formik}>
       <Grid item xs={1}>
         <UncontrolledInput
           input={
@@ -44,6 +47,9 @@ const ServerNameForm: FC<ServerNameFormProps> = (props) => {
         />
       </Grid>
       <Grid item width="100%">
+        <MessageGroup count={1} messages={formikErrors} />
+      </Grid>
+      <Grid item width="100%">
         <ServerFormSubmit
           detail={detail}
           formDisabled={disabledSubmit}
@@ -54,4 +60,4 @@ const ServerNameForm: FC<ServerNameFormProps> = (props) => {
   );
 };
 
-export default ServerNameForm;
+export default ServerRenameForm;

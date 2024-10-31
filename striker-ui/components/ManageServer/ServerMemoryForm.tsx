@@ -11,63 +11,54 @@ import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import { toAnvilMemoryCalcable } from '../../lib/api_converters';
 import { MemoryBar } from '../Bars';
+import MessageGroup from '../MessageGroup';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
+import { buildMemorySchema } from './schemas';
 import ServerFormSubmit from './ServerFormSubmit';
 import ServerFormGrid from './ServerFormGrid';
 import Spinner from '../Spinner';
-import UncontrolledInput from '../UncontrolledInput';
-import useFormikUtils from '../../hooks/useFormikUtils';
-import useFetch from '../../hooks/useFetch';
 import { BodyText } from '../Text';
+import UncontrolledInput from '../UncontrolledInput';
+import useFetch from '../../hooks/useFetch';
+import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
-  const { detail } = props;
+const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
+  const { detail, memory } = props;
 
-  const { altData: summary } = useFetch<AnvilMemory, AnvilMemoryCalcable>(
-    `/anvil/${detail.anvil.uuid}/memory`,
-    {
-      mod: toAnvilMemoryCalcable,
+  const formikUtils = useFormikUtils<ServerMemoryFormikValues>({
+    initialValues: {
+      size:
+        dSize(detail.memory.size, {
+          fromUnit: 'B',
+          toUnit: 'GiB',
+        })?.value ?? '0',
+      unit: 'GiB',
     },
+    onSubmit: (values, { setSubmitting }) => {
+      setSubmitting(false);
+    },
+    validationSchema: buildMemorySchema(memory),
+  });
+  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
+
+  const chains = useMemo(
+    () => ({
+      size: `size`,
+      unit: `unit`,
+    }),
+    [],
   );
 
-  const { disabledSubmit, formik, handleChange } =
-    useFormikUtils<ServerMemoryFormikValues>({
-      initialValues: {
-        memory: {
-          size:
-            dSize(detail.memory.size, {
-              fromUnit: 'B',
-              toUnit: 'GiB',
-            })?.value ?? '0',
-          unit: 'GiB',
-        },
-      },
-      onSubmit: (values, { setSubmitting }) => {
-        setSubmitting(false);
-      },
-    });
-
-  const chains = useMemo(() => {
-    const base = 'memory';
-
-    return {
-      size: `${base}.size`,
-      unit: `${base}.unit`,
-    };
-  }, []);
-
-  const formattedSummary = useMemo(() => {
-    if (!summary) return undefined;
-
+  const formattedMemory = useMemo(() => {
     const options: FormatDataSizeOptions = {
       fromUnit: 'B',
-      toUnit: formik.values.memory.unit,
+      toUnit: formik.values.unit,
     };
 
-    const allocated = dSizeStr(summary.allocated, options) ?? '';
-    const available = dSizeStr(summary.available, options) ?? '';
-    const reserved = dSizeStr(summary.reserved, options) ?? '';
-    const total = dSizeStr(summary.total, options) ?? '';
+    const allocated = dSizeStr(memory.allocated, options) ?? '';
+    const available = dSizeStr(memory.available, options) ?? '';
+    const reserved = dSizeStr(memory.reserved, options) ?? '';
+    const total = dSizeStr(memory.total, options) ?? '';
 
     return {
       allocated,
@@ -75,32 +66,33 @@ const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
       reserved,
       total,
     };
-  }, [formik.values.memory.unit, summary]);
-
-  if (!summary || !formattedSummary) {
-    return <Spinner mt={0} />;
-  }
+  }, [
+    formik.values.unit,
+    memory.allocated,
+    memory.available,
+    memory.reserved,
+    memory.total,
+  ]);
 
   return (
     <ServerFormGrid<ServerMemoryFormikValues> formik={formik}>
       <Grid item width="100%">
-        <MemoryBar memory={summary} />
+        <MemoryBar memory={memory} />
         <Grid container>
           <Grid item width="25%">
-            <BodyText>Allocated: {formattedSummary.allocated}</BodyText>
-            <BodyText>Reserved: {formattedSummary.reserved}</BodyText>
+            <BodyText>Allocated: {formattedMemory.allocated}</BodyText>
+            <BodyText>Reserved: {formattedMemory.reserved}</BodyText>
           </Grid>
           <Grid item width="50%" textAlign="center">
             <BodyText fontWeight={400}>
-              Available: {formattedSummary.available}
+              Available: {formattedMemory.available}
             </BodyText>
           </Grid>
           <Grid item width="25%" textAlign="right">
-            <BodyText>Total: {formattedSummary.total}</BodyText>
+            <BodyText>Total: {formattedMemory.total}</BodyText>
           </Grid>
         </Grid>
       </Grid>
-
       <Grid item xs={1}>
         <UncontrolledInput
           input={
@@ -117,28 +109,30 @@ const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
                 id: chains.unit,
                 name: chains.unit,
                 onChange: (event) => {
-                  formik.handleChange(event);
+                  const newUnit = event.target.value as DataSizeUnit;
 
-                  const { value: newUnit } = event.target;
-                  const { size, unit } = formik.values.memory;
+                  const { size, unit } = formik.values;
 
                   const newDataSize = dSize(size, {
                     fromUnit: unit,
-                    toUnit: newUnit as DataSizeUnit,
+                    toUnit: newUnit,
                   });
 
                   if (!newDataSize) return;
 
                   const { value: newSize } = newDataSize;
 
-                  formik.setFieldValue(chains.size, newSize, true);
+                  formik.setValues({ size: newSize, unit: newUnit }, true);
                 },
-                value: formik.values.memory.unit,
+                value: formik.values.unit,
               }}
-              value={formik.values.memory.size}
+              value={formik.values.size}
             />
           }
         />
+      </Grid>
+      <Grid item width="100%">
+        <MessageGroup count={1} messages={formikErrors} />
       </Grid>
       <Grid item width="100%">
         <ServerFormSubmit
@@ -149,6 +143,24 @@ const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
       </Grid>
     </ServerFormGrid>
   );
+};
+
+const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
+  const { detail } = props;
+
+  const { altData: memory } = useFetch<AnvilMemory, AnvilMemoryCalcable>(
+    `/anvil/${detail.anvil.uuid}/memory`,
+    {
+      mod: toAnvilMemoryCalcable,
+      refreshInterval: 5000,
+    },
+  );
+
+  if (!memory) {
+    return <Spinner mt={0} />;
+  }
+
+  return <BaseServerMemoryForm memory={memory} {...props} />;
 };
 
 export default ServerMemoryForm;

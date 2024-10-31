@@ -1,7 +1,9 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
+import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import { startDependencySchema } from './schemas';
 import SelectWithLabel from '../SelectWithLabel';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
@@ -15,31 +17,35 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
 
   const formikUtils = useFormikUtils<ServerStartDependencyFormikValues>({
     initialValues: {
-      start: {
-        after: detail.start.after || '',
-        delay: detail.start.delay,
-      },
+      after: detail.start.after || '',
+      delay: String(detail.start.delay),
     },
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
     },
+    validationSchema: startDependencySchema,
   });
 
-  const { disabledSubmit, formik, handleChange } = formikUtils;
+  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
-  const chains = useMemo(() => {
-    const base = 'start';
+  const chains = useMemo(
+    () => ({
+      after: `after`,
+      delay: `delay`,
+    }),
+    [],
+  );
 
-    return {
-      after: `${base}.after`,
-      delay: `${base}.delay`,
-    };
-  }, []);
-
-  const serverValues = useMemo(() => Object.values(servers), [servers]);
+  const filteredServerValues = useMemo(
+    () =>
+      Object.values(servers).filter(
+        (server) => server.anvil.uuid === detail.anvil.uuid,
+      ),
+    [detail.anvil.uuid, servers],
+  );
 
   const serverOptions = useMemo<SelectItem[]>(() => {
-    const options = serverValues.map<SelectItem>(({ name, uuid }) => ({
+    const options = filteredServerValues.map<SelectItem>(({ name, uuid }) => ({
       displayValue: name,
       value: uuid,
     }));
@@ -50,7 +56,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
     });
 
     return options;
-  }, [serverValues]);
+  }, [filteredServerValues]);
 
   return (
     <ServerFormGrid<ServerStartDependencyFormikValues> formik={formik}>
@@ -66,7 +72,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
               formik.setFieldValue(chains.after, '', true);
             },
           }}
-          value={formik.values.start.after}
+          value={formik.values.after}
         />
       </Grid>
       <Grid item xs={1}>
@@ -77,10 +83,13 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
               label="Delay (seconds)"
               name={chains.delay}
               onChange={handleChange}
-              value={formik.values.start.delay}
+              value={formik.values.delay}
             />
           }
         />
+      </Grid>
+      <Grid item width="100%">
+        <MessageGroup count={1} messages={formikErrors} />
       </Grid>
       <Grid item width="100%">
         <ServerFormSubmit
