@@ -19,7 +19,7 @@ const ServerFormSubmit: FC<ServerFormSubmitProps> = (props) => {
       return true;
     }
 
-    return formDisabled && Object.keys(jobs).length > 0;
+    return formDisabled || Object.keys(jobs).length > 0;
   }, [formDisabled, jobs]);
 
   if (!jobs) {
