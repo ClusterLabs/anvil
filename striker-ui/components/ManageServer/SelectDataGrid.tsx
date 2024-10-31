@@ -7,14 +7,18 @@ import DragDataGrid from '../HostNetInit/DragDataGrid';
 
 const SelectDataGrid = styled(DragDataGrid)({
   [`& .${gridClasses.row}`]: {
-    [`.${gridClasses.cell}:first-child`]: {
-      borderLeft: `thick solid ${GREY}`,
+    '&:hover': {
+      cursor: 'pointer',
     },
 
     [`&.Mui-selected`]: {
       [`.${gridClasses.cell}:first-child`]: {
         borderLeft: `thick solid ${BLUE}`,
       },
+    },
+
+    [`.${gridClasses.cell}:first-child`]: {
+      borderLeft: `thick solid ${GREY}`,
     },
   },
 });
