@@ -7,6 +7,7 @@ import { startDependencySchema } from './schemas';
 import SelectWithLabel from '../SelectWithLabel';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
+import SwitchWithLabel from '../SwitchWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
@@ -17,6 +18,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
 
   const formikUtils = useFormikUtils<ServerStartDependencyFormikValues>({
     initialValues: {
+      active: detail.start.active,
       after: detail.start.after || '',
       delay: String(detail.start.delay),
     },
@@ -30,6 +32,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
 
   const chains = useMemo(
     () => ({
+      active: `active`,
       after: `after`,
       delay: `delay`,
     }),
@@ -44,19 +47,14 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
     [detail.anvil.uuid, servers],
   );
 
-  const serverOptions = useMemo<SelectItem[]>(() => {
-    const options = filteredServerValues.map<SelectItem>(({ name, uuid }) => ({
-      displayValue: name,
-      value: uuid,
-    }));
-
-    options.push({
-      displayValue: 'Stay off',
-      value: 'stay-off',
-    });
-
-    return options;
-  }, [filteredServerValues]);
+  const serverOptions = useMemo<SelectItem[]>(
+    () =>
+      filteredServerValues.map<SelectItem>(({ name, uuid }) => ({
+        displayValue: name,
+        value: uuid,
+      })),
+    [filteredServerValues],
+  );
 
   return (
     <ServerFormGrid<ServerStartDependencyFormikValues> formik={formik}>
@@ -68,6 +66,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
           onChange={formik.handleChange}
           selectItems={serverOptions}
           selectProps={{
+            disabled: !formik.values.active,
             onClearIndicatorClick: () => {
               formik.setFieldValue(chains.after, '', true);
             },
@@ -80,12 +79,26 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
           input={
             <OutlinedInputWithLabel
               id={chains.delay}
+              inputProps={{
+                disabled: !formik.values.active || formik.values.after === '',
+              }}
               label="Delay (seconds)"
               name={chains.delay}
               onChange={handleChange}
               value={formik.values.delay}
             />
           }
+        />
+      </Grid>
+      <Grid item xs={1}>
+        <SwitchWithLabel
+          checked={!formik.values.active}
+          id={chains.active}
+          label="Stay off"
+          name={chains.active}
+          onChange={(event, checked) => {
+            formik.setFieldValue(chains.active, !checked, true);
+          }}
         />
       </Grid>
       <Grid item width="100%">

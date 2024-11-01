@@ -111,6 +111,7 @@ type APIServerDetail = Omit<APIServerOverview, 'host'> & {
   };
   memory: APIServerDetailMemory;
   start: {
+    active: boolean;
     after: null | string;
     delay: number;
   };

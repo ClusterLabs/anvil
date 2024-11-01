@@ -29,6 +29,7 @@ type ServerMemoryFormikValues = {
  * @property delay - Unit: seconds
  */
 type ServerStartDependencyFormikValues = {
+  active: boolean;
   after: string;
   delay: string;
 };
