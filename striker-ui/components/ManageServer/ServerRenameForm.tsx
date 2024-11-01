@@ -19,7 +19,7 @@ const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
     },
-    validationSchema: buildRenameSchema(servers),
+    validationSchema: buildRenameSchema(detail, servers),
   });
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 

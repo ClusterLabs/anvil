@@ -2,7 +2,10 @@ import * as yup from 'yup';
 
 /* eslint-disable no-template-curly-in-string */
 
-const buildRenameSchema = (servers: APIServerOverviewList) =>
+const buildRenameSchema = (
+  detail: APIServerDetail,
+  servers: APIServerOverviewList,
+) =>
   yup.object({
     name: yup
       .string()
@@ -13,7 +16,9 @@ const buildRenameSchema = (servers: APIServerOverviewList) =>
           '${path} can only contain alphanumeric, hyphen, and underscore characters',
       })
       .notOneOf(
-        Object.values(servers).map<string>((server) => server.name),
+        Object.values(servers)
+          .filter((server) => detail.uuid !== server.uuid)
+          .map<string>((server) => server.name),
         '${path} already exists',
       )
       .required(),
