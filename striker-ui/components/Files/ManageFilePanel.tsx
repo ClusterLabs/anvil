@@ -1,12 +1,15 @@
 import { dSizeStr } from 'format-data-size';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import AddFileForm from './AddFileForm';
 import api from '../../lib/api';
-import { toAnvilOverviewList } from '../../lib/api_converters';
+import {
+  toAnvilOverviewList,
+  toFileDetail,
+  toFileOverviewList,
+} from '../../lib/api_converters';
 import ConfirmDialog from '../ConfirmDialog';
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
@@ -15,96 +18,12 @@ import FlexBox from '../FlexBox';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, MonoText } from '../Text';
 import useActiveFetch from '../../hooks/useActiveFetch';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
-
-const toFileOverviewList = (rows: string[][]) =>
-  rows.reduce<APIFileOverviewList>((previous, row) => {
-    const [uuid, name, size, type, checksum] = row;
-
-    previous[uuid] = {
-      checksum,
-      name,
-      size,
-      type: type as FileType,
-      uuid,
-    };
-
-    return previous;
-  }, {});
-
-const toFileDetail = (rows: string[][]) => {
-  const { 0: first } = rows;
-
-  if (!first) return undefined;
-
-  const [uuid, name, size, type, checksum] = first;
-
-  return rows.reduce<APIFileDetail>(
-    (previous, row) => {
-      const {
-        5: locationUuid,
-        6: locationActive,
-        7: anvilUuid,
-        8: anvilName,
-        9: anvilDescription,
-        10: hostUuid,
-        11: hostName,
-        12: hostType,
-      } = row;
-
-      if (!previous.anvils[anvilUuid]) {
-        previous.anvils[anvilUuid] = {
-          description: anvilDescription,
-          locationUuids: [],
-          name: anvilName,
-          uuid: anvilUuid,
-        };
-      }
-
-      if (!previous.hosts[hostUuid]) {
-        previous.hosts[hostUuid] = {
-          locationUuids: [],
-          name: hostName,
-          type: hostType,
-          uuid: hostUuid,
-        };
-      }
-
-      if (hostType === 'dr') {
-        previous.hosts[hostUuid].locationUuids.push(locationUuid);
-      } else {
-        previous.anvils[anvilUuid].locationUuids.push(locationUuid);
-      }
-
-      const active = Number(locationActive) === 1;
-
-      previous.locations[locationUuid] = {
-        anvilUuid,
-        active,
-        hostUuid,
-        uuid: locationUuid,
-      };
-
-      return previous;
-    },
-    {
-      anvils: {},
-      checksum,
-      hosts: {},
-      locations: {},
-      name,
-      size,
-      type: type as FileType,
-      uuid,
-    },
-  );
-};
 
 const ManageFilePanel: FC = () => {
   const addFormDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -115,28 +34,15 @@ const ManageFilePanel: FC = () => {
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [edit, setEdit] = useState<boolean>(false);
   const [file, setFile] = useState<APIFileDetail | undefined>();
-  const [files, setFiles] = useState<APIFileOverviewList | undefined>();
 
-  const { isLoading: loadingFilesPeriodic } = periodicFetch<string[][]>(
-    `${API_BASE_URL}/file`,
-    {
-      onSuccess: (rows) => {
-        setFiles(toFileOverviewList(rows));
-      },
-    },
-  );
-
-  const { fetch: getFiles, loading: loadingFilesActive } = useActiveFetch<
-    string[][]
-  >({
-    onData: (data) => setFiles(toFileOverviewList(data)),
-    url: '/file',
+  const {
+    altData: files,
+    loading: loadingFiles,
+    mutate: getFiles,
+  } = useFetch<string[][], APIFileOverviewList>('/file', {
+    mod: toFileOverviewList,
+    refreshInterval: 5000,
   });
-
-  const loadingFiles = useMemo<boolean>(
-    () => loadingFilesPeriodic || loadingFilesActive,
-    [loadingFilesActive, loadingFilesPeriodic],
-  );
 
   const {
     buildDeleteDialogProps,
@@ -295,14 +201,13 @@ const ManageFilePanel: FC = () => {
   );
 
   const loadingAddForm = useMemo<boolean>(
-    () => loadingFilesPeriodic || loadingAnvils || loadingDrHosts,
-    [loadingAnvils, loadingDrHosts, loadingFilesPeriodic],
+    () => loadingFiles || loadingAnvils || loadingDrHosts,
+    [loadingAnvils, loadingDrHosts, loadingFiles],
   );
 
   const loadingEditForm = useMemo<boolean>(
-    () =>
-      loadingFilesPeriodic || loadingAnvils || loadingDrHosts || loadingFile,
-    [loadingAnvils, loadingDrHosts, loadingFile, loadingFilesPeriodic],
+    () => loadingFiles || loadingAnvils || loadingDrHosts || loadingFile,
+    [loadingAnvils, loadingDrHosts, loadingFile, loadingFiles],
   );
 
   const addForm = useMemo(
