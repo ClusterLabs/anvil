@@ -18,7 +18,7 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
     initialValues: {
       bridge: '',
       mac: '',
-      model: null,
+      model: 'e1000e',
     },
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
@@ -68,6 +68,13 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
           input={
             <OutlinedInputWithLabel
               id={chains.mac}
+              inputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                notched: true,
+                placeholder: 'Auto generated',
+              }}
               label="Mac address"
               name={chains.mac}
               onChange={handleChange}
