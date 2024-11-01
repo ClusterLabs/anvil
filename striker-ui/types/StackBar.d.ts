@@ -1,5 +1,6 @@
 type StackBarValue = {
-  colour?: string | Record<number, string>;
+  barProps?: import('@mui/material').LinearProgressProps;
+  colour?: string | Record<number | string, string>;
   value: number;
 };
 
