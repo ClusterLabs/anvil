@@ -14,6 +14,7 @@
 use strict;
 use warnings;
 use Anvil::Tools;
+use Sys::Virt;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -177,6 +178,48 @@ if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
 		$anvil->Job->update_progress({progress => 100, message => "error_0260"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+}
+
+# Is the server valid and running here?
+my $short_host_name = $anvil->Get->short_host_name;
+$anvil->Server->connect_to_libvirt({debug => 2});
+if ($anvil->data->{switches}{'server'} !~ /all/i)
+{
+	# Make sure the server name is real.
+	my $found   = 0;
+	my @domains = $anvil->data->{libvirtd}{$short_host_name}{connection}->list_all_domains();
+	foreach my $domain_handle (@domains)
+	{
+		my $server_name = $domain_handle->get_name;
+		my $server_uuid = $domain_handle->get_uuid_string();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			domain_handle => $domain_handle, 
+			server_name   => $server_name, 
+			server_uuid   => $server_uuid, 
+		}});
+		if (($server_name eq $anvil->data->{switches}{'server'}) or
+		    ($server_uuid eq $anvil->data->{switches}{'server'}) or 
+		    (($anvil->data->{switches}{'server-uuid'}) && ($server_uuid eq $anvil->data->{switches}{'server-uuid'})))
+		{
+			$found = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
+			last;
+		}
+	}
+	
+	if (not $found)
+	{
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			'print'   => 1, 
+			log_level => 1,
+			message   => "warning_0009",
+			variables => {
+				server => $anvil->data->{switches}{'server'}, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 }
