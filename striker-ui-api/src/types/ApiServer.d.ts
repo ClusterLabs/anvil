@@ -1,15 +1,17 @@
+type ServerOverviewHost = {
+  name: string;
+  short: string;
+  type: string;
+  uuid: string;
+};
+
 type ServerOverview = {
   anvil: {
     description: string;
     name: string;
     uuid: string;
   };
-  host: {
-    name: string;
-    short: string;
-    type: string;
-    uuid: string;
-  };
+  host: ServerOverviewHost;
   name: string;
   state: string;
   uuid: string;
@@ -93,12 +95,14 @@ type ServerDetailMemory = {
   size: string;
 };
 
-type ServerDetail = {
-  anvil: {
-    description: string;
-    name: string;
-    uuid: string;
-  };
+type ServerDetailVariable = {
+  name: string;
+  short: string;
+  uuid: string;
+  value: string;
+};
+
+type ServerDetail = Omit<ServerOverview, 'host'> & {
   definition: {
     uuid: string;
   };
@@ -111,24 +115,19 @@ type ServerDetail = {
     interfaces: ServerDetailInterface[];
   };
   cpu: ServerDetailCpu;
-  host: {
+  host: ServerOverviewHost & {
     bridges: ServerDetailHostBridgeList;
-    name: string;
-    short: string;
-    type: string;
-    uuid: string;
   };
   libvirt: {
     nicModels: string[];
   };
   memory: ServerDetailMemory;
-  name: string;
   start: {
+    active: boolean;
     after: string;
     delay: number;
   };
-  state: string;
-  uuid: string;
+  variables: Record<string, ServerDetailVariable>;
 };
 
 type ServerDetailScreenshot = {

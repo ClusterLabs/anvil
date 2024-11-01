@@ -9,7 +9,7 @@ import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { getVncinfo, listNicModels, query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
-import { ResponseError } from '../../ResponseError';
+import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
 import { perr, poutvar } from '../../shell';
 
@@ -37,6 +37,8 @@ export const getServerDetail: RequestHandler<
   unknown,
   ServerDetailParsedQs
 > = async (request, response) => {
+  const respond = new Responder(response);
+
   const {
     params: { serverUUID: serverUuid },
     query: { ss: rSs, vnc: rVnc },
@@ -149,18 +151,14 @@ export const getServerDetail: RequestHandler<
     try {
       rows = await query(sql);
     } catch (error) {
-      const rserror = new ResponseError(
+      return respond.s500(
         '30f956f',
         `Failed to get server details; CAUSE: ${error}`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(500).send(rserror.body);
     }
 
     if (!rows.length) {
-      return response.status(404).send();
+      return respond.s404();
     }
 
     const {
@@ -196,14 +194,10 @@ export const getServerDetail: RequestHandler<
 
       assert.ok(rows.length, 'No bridges found');
     } catch (error) {
-      const rserror = new ResponseError(
+      return respond.s500(
         '9806598',
         `Failed to get bridges for server details; CAUSE: ${error}`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(500).send(rserror.body);
     }
 
     const hostBridges = rows.reduce<ServerDetailHostBridgeList>(
@@ -238,14 +232,10 @@ export const getServerDetail: RequestHandler<
 
       assert.ok(rows.length, 'No interfaces found');
     } catch (error) {
-      const rserror = new ResponseError(
+      return respond.s500(
         '27888e0',
         `Failed to get interfaces for server details; CAUSE: ${error}`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(500).send(rserror.body);
     }
 
     const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
@@ -264,6 +254,58 @@ export const getServerDetail: RequestHandler<
       {},
     );
 
+    // Get server variables
+
+    sql = `
+      SELECT
+        variable_uuid,
+        variable_name,
+        variable_value
+      FROM variables
+      WHERE variable_name IN (
+        'server::${serverName}::stay-off',
+        'server::${serverUuid}::vncinfo'
+      );`;
+
+    try {
+      rows = await query(sql);
+    } catch (error) {
+      return respond.s500(
+        'c9bd36c',
+        `Failed to get server variables; ${error}`,
+      );
+    }
+
+    const variables: Record<string, ServerDetailVariable> = {};
+
+    let startActive = true;
+
+    if (rows.length) {
+      rows.reduce<
+        Record<
+          string,
+          { name: string; short: string; uuid: string; value: string }
+        >
+      >((previous, row) => {
+        const [uuid, name, value] = row;
+
+        const short = name.split('::').pop() ?? '';
+
+        if (short === 'stay-off') {
+          startActive = value !== '1';
+        }
+
+        previous[uuid] = {
+          name,
+          short,
+          uuid,
+          value,
+        };
+
+        return previous;
+      }, variables);
+    }
+
     // Get list of NIC models
 
     const nicModels = await listNicModels(hostName);
@@ -280,14 +322,10 @@ export const getServerDetail: RequestHandler<
     try {
       serverDefinition = xmlParser.parse(serverDefinitionXml);
     } catch (error) {
-      const rserror = new ResponseError(
+      return respond.s500(
         'dbaab5f',
         `Failed to parse libvirt XML of ${serverUuid}; CAUSE: ${error}`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(500).send(rserror.body);
     }
 
     const {
@@ -452,13 +490,15 @@ export const getServerDetail: RequestHandler<
       },
       name: serverName,
       start: {
+        active: startActive,
         after: serverStartAfterServerUuid,
         delay: Number(serverStartDelay),
       },
       state: serverState,
       uuid: serverUuid,
+      variables,
     };
 
-    response.send(rsBody);
+    return respond.s200(rsBody);
   }
 };
