@@ -70,9 +70,13 @@ type ServerFormSubmitProps = {
 
 type ServerInterfaceListProps = ServerFormProps;
 
-/** ServerMigrateTable */
+/** ServerMigration */
 
-type ServerMigrateTableProps = ServerFormProps & {
+type ServerMigrationProps = ServerFormProps;
+
+/** ServerMigrationTable */
+
+type ServerMigrationTableProps = ServerFormProps & {
   servers: APIServerOverviewList;
 };
 

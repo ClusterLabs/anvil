@@ -6,20 +6,14 @@ import DragDataGrid from '../HostNetInit/DragDataGrid';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
-const ServerMigrationTable: FC<ServerMigrateTableProps> = (props) => {
+const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
   const { detail, servers } = props;
 
   const { altData: hosts } = useFetch<APIHostOverviewList>('/host?types=node', {
     mod: (data) => {
       const values = Object.values(data);
 
-      values.filter((host) => {
-        const { anvil } = host;
-
-        if (!anvil) return false;
-
-        return anvil.uuid === detail.anvil.uuid;
-      });
+      values.filter((host) => host.anvil?.uuid === detail.anvil.uuid);
 
       return data;
     },

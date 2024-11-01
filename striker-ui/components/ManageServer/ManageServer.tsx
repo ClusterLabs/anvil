@@ -8,7 +8,7 @@ import ServerBootOrderForm from './ServerBootOrderForm';
 import ServerCpuForm from './ServerCpuForm';
 import ServerInterfaceList from './ServerInterfaceList';
 import ServerMemoryForm from './ServerMemoryForm';
-import ServerMigrationTable from './ServerMigrationTable';
+import ServerMigration from './ServerMigration';
 import ServerRenameForm from './ServerRenameForm';
 import ServerStartDependencyForm from './ServerStartDependencyForm';
 import Spinner from '../Spinner';
@@ -230,11 +230,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <PanelHeader>
                 <HeaderText>{tabs.migration.label}</HeaderText>
               </PanelHeader>
-              <ServerMigrationTable
-                detail={detail}
-                servers={servers}
-                tools={formTools}
-              />
+              <ServerMigration detail={detail} tools={formTools} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.name.value}>
