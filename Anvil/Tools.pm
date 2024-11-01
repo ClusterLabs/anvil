@@ -884,9 +884,6 @@ sub _set_defaults
 			postgresql			=>	"postgresql.service",
 			tftp				=>	"tftp.socket",
 		},
-		daemons				=>	{
-			restart_firewalld		=>	1,
-		},
 		database			=>	{
 			archive				=>	{
 				compress			=>	1,
@@ -929,6 +926,9 @@ sub _set_defaults
 			hash_count			=>	500000,
 			salt_length			=>	16,
 		},
+		port				=>	{
+			zabbix				=>	"8080",
+		},
 		privacy				=>	{
 			strong				=>	0,
 		},
@@ -951,7 +951,7 @@ sub _set_defaults
 			# This is the list of OSes short in the user's short list of OS types to 
 			# optimize for. The full the list is available by running: 
 			# /usr/bin/osinfo-query os
-			os_short_list			=>	"rhel8.7,rhel9.1,win10,win2k19,win2k22",
+			os_short_list			=>	"rhel9.4,ubuntu24.04,win2k19,win2k22",
 		},
 		striker				=>	{
 			'auto-add'			=>	1,
@@ -1105,6 +1105,7 @@ sub _set_paths
 				'type.striker'			=>	"/etc/anvil/type.striker",
 				'type.dr'			=>	"/etc/anvil/type.dr",
 				'type.node'			=>	"/etc/anvil/type.node",
+				'zabbix_server.conf'		=>	"/etc/zabbix/zabbix_server.conf",
 			},
 			data			=>	{
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",

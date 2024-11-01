@@ -4,8 +4,6 @@
 .SH NAME
 anvil-manage-firewall \- This program manages the firewall rules on the host.
 .TP
-.B Note: 
-This tool is not yet complete.
 .SH SYNOPSIS
 .B anvil-manage-firewall 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
@@ -26,8 +24,10 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 \fB\-\-job\-uuid\fR 
 This is the UUID for a job being run.
 .TP
-\fB\-\-server\fR <name or uuid>
-This opens or closes the VNC and DRBD ports related to a server
+\fB\-\-server\fR <name in virsh>
+This opens or closes the VNC and DRBD ports related to a server.
+.B Note:
+This tool avoids database connections. As such, this variable must be the server's name as seen in virsh.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

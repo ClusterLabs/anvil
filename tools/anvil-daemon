@@ -455,8 +455,11 @@ sub handle_periodic_tasks
 	# Time to run once per minute tasks.
 	if ($now_time >= $anvil->data->{timing}{next_minute_check})
 	{
-		# Check the firewall needs to be updated.
+		# Do network checks
 		check_network($anvil);
+		
+		# Check the firewall needs to be updated.
+		check_firewall($anvil);
 		
 		# Check to see if the PXE environment needs to be updated.
 		check_install_target($anvil);
@@ -523,6 +526,9 @@ sub handle_periodic_tasks
 			
 			# Something is causing broken manifests to be created. Until found, this removes them.
 			check_for_broken_manifests($anvil);
+			
+			# Check to make sure that we don't have conflicts with the Striker WebUI
+			check_for_conflicting_web_ports($anvil);
 			
 			# This can take a while, but it's been optimized to minimize how long it takes to 
 			# run. To be safe, we'll still background it.
@@ -844,6 +850,87 @@ sub handle_periodic_tasks
 	return(0);
 }
 
+# Check to make sure that we don't have conflicts with the Striker WebUI
+sub check_for_conflicting_web_ports
+{
+	my ($anvil) = @_;
+	
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "striker")
+	{
+		# Nothing to do.
+		return(0);
+	}
+	
+	# Make sure the port is sane.
+	if ((not $anvil->data->{sys}{port}{zabbix})     or 
+	    ($anvil->data->{sys}{port}{zabbix} =~ /\D/) or 
+	    ($anvil->data->{sys}{port}{zabbix} < 1)     or
+	    ($anvil->data->{sys}{port}{zabbix} > 65535))
+	{
+		$anvil->data->{sys}{port}{zabbix} = "8080";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 1, list => { host_type => 
+			"sys::port::zabbix" => $anvil->data->{sys}{port}{zabbix},
+		}});
+	}
+	
+	# Is Zabbix installed?
+	if ((-e $anvil->data->{path}{configs}{'zabbix_server.conf'}) && (-e $anvil->data->{path}{configs}{'httpd.conf'}))
+	{
+		# It is, what port is it using?
+		my $new_body = "";
+		my $old_body = $anvil->Storage->read_file({debug => 2, file => $anvil->data->{path}{configs}{'httpd.conf'}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_body => $old_body }});
+		foreach my $line (split/\n/, $old_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+			if ($line =~ /^Listen (\d+)/)
+			{
+				my $current_port = $1;
+				if ($current_port eq $anvil->data->{sys}{port}{zabbix})
+				{
+					# It's fine, we're done.
+					return(0);
+				}
+				else
+				{
+					# Change the port.
+					$new_body .= "Listen ".$anvil->data->{sys}{port}{zabbix}."\n";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_body => $new_body }});
+					next;
+				}
+				$new_body .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_body => $new_body }});
+			}
+		}
+		
+		my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+		if ($difference)
+		{
+			# Write the file out
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0077", variables => { port => $anvil->data->{sys}{port}{zabbix} }});
+			$anvil->Storage->write_file({
+				debug     => 2, 
+				backup    => 1,
+				overwrite => 1, 
+				body      => $new_body, 
+				file      => $anvil->data->{path}{configs}{'httpd.conf'},
+				user      => "root",
+				group     => "root", 
+				mode      => "0644",
+			});
+			
+			# Restart apache.
+			$anvil->System->restart_daemon({debug => 2, daemon => $anvil->data->{sys}{daemon}{httpd}});
+		}
+		
+	}
+	
+	return(0);
+}
+
 ### TODO: Find the source of the problem and fix it properly.
 sub check_for_broken_manifests
 {
@@ -1043,7 +1130,7 @@ sub run_once
 	my ($anvil) = @_;
 	
 	# Make sure the firewall is configured.
-	$anvil->Network->manage_firewall();
+	check_firewall($anvil);
 	
 	# Check that the database is ready.
 	prep_database($anvil);
@@ -1466,17 +1553,17 @@ sub check_firewall
 {
 	my ($anvil) = @_;
 	
-	return(0);
-	
 	# Don't call this if we're not configured yet.
 	my $configured = $anvil->System->check_if_configured({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { configured => $configured }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
 	
 	# Check the firewall needs to be updated.
 	if ($configured)
 	{
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output, return_code => $return_code }});
+		$anvil->Network->manage_firewall({
+			debug => 2,
+			task  => "check", 
+		});
 	}
 	
 	return(0);
@@ -1609,6 +1696,9 @@ AND
 	
 	# Now look for jobs that have a job status of 'anvil_startup'
 	run_jobs($anvil, 1);
+	
+	# Check to make sure that we don't have conflicts with the Striker WebUI
+	check_for_conflicting_web_ports($anvil);
 	
 	# Check the firewall needs to be updated.
 	check_firewall($anvil);

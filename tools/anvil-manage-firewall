@@ -39,6 +39,8 @@ if (($running_directory =~ /^\./) && ($ENV{PWD}))
 
 my $anvil = Anvil::Tools->new();
 
+### NOTE: This is called by ocf:alteeve:server, so we only connect to the database if we've got a job-uuid.
+
 # Read switches
 $anvil->Get->switches({list => [
 	'job-uuid',
@@ -46,37 +48,29 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-$anvil->Database->connect();
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
-if (not $anvil->data->{sys}{database}{connections})
-{
-	# No databases, exit.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
-	$anvil->nice_exit({exit_code => 1});
-}
-
 # Log our start.
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0134"});
 
 # If we've been passed a job UUID, pick up the details.
 if ($anvil->data->{switches}{'job-uuid'})
 {
+	$anvil->Database->connect({sensitive => 2});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
-# 	$anvil->Job->update_progress({
-# 		progress         => 1,
-# 		job_picked_up_by => $$, 
-# 		job_picked_up_at => time, 
-# 		message          => "message_0134", 
-# 	});
 	$anvil->Job->update_progress({
-		progress         => 100,
+		progress         => 1,
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		message          => "message_0134", 
 	});
-	
-	exit(0);
 	
 	if ($anvil->data->{jobs}{job_data} =~ /server=(.*)$/)
 	{
@@ -84,22 +78,34 @@ if ($anvil->data->{switches}{'job-uuid'})
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			'switches::server' => $anvil->data->{switches}{server},
 		}});
-		wait_for_server($anvil);
 	}
 
 }
-exit(0);
 
 # If the user has disabled auto-management of the firewall, exit.
 if (not $anvil->data->{sys}{manage}{firewall})
 {
 	# Do nothing.
+	$anvil->Job->update_progress({
+		progress => 100,
+		level    => 2,
+		'print'  => 1,
+		message  => "log_0670", 
+	});
 	$anvil->nice_exit({exit_code => 0});
 }
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 3, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
 
-# This used to do all the work, but that's now moved to the method below. So all we do here now is call it.
-$anvil->Network->manage_firewall();
+### NOTE: Without the DB, we don't use Get->server_from_switch().
+if ($anvil->data->{switches}{server})
+{
+	wait_for_server($anvil);
+}
+
+# Check that the firewall ports are open.
+$anvil->Network->manage_firewall({
+	debug => 2,
+	task  => "check", 
+});
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	$anvil->Job->update_progress({
@@ -123,35 +129,44 @@ sub wait_for_server
 	
 	$anvil->Job->update_progress({
 		progress => 25,
+		'print'  => 1,
+		level    => 2,
 		message  => "job_0401,!!server!".$anvil->data->{switches}{server}."!!", 
 	});
-	my $wait_until = time + 60;
-	my $waiting    = 1;
+	my $wait_until  = time + 60;
+	my $waiting     = 1;
+	my $server_name = $anvil->data->{switches}{server};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		wait_until => $wait_until,
+		wait_until  => $wait_until,
+		server_name => $server_name, 
 	}});
 	while($waiting)
 	{
-		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --name";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { shell_call => $shell_call }});
+		# See if the server is running locally, and that both the VNC and websockify ports are 
+		# returned.
+		$anvil->Server->get_server_ports({debug => 2});
 		
-		my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			's1:output'      => $output,
-			's2:return_code' => $return_code, 
-		}});
-		
-		foreach my $server (split/\n/, $output)
+		if (exists $anvil->data->{server_ports}{$server_name})
 		{
-			$server = $anvil->Words->clean_spaces({string => $server});
-			next if not $server;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { server => $server }});
-			
-			if ($server eq $anvil->data->{switches}{server})
+			my $server_state     = $anvil->data->{server_ports}{$server_name}{'state'};
+			my $is_running       = $anvil->data->{server_ports}{$server_name}{running};
+			my $graphics_type    = $anvil->data->{server_ports}{$server_name}{graphics}{type};
+			my $graphics_port    = $anvil->data->{server_ports}{$server_name}{graphics}{port};
+			my $websockify_proxy = $anvil->data->{server_ports}{$server_name}{graphics}{ws_proxy};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				server_state     => $server_state,
+				is_running       => $is_running, 
+				graphics_type    => $graphics_type, 
+				graphics_port    => $graphics_port, 
+				websockify_proxy => $websockify_proxy, 
+			}});
+			if (($is_running)    && 
+			    ($graphics_port) && 
+			    ($websockify_proxy))
 			{
-				# Found it.
+				# The server is ready.
 				$waiting = 0;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { waiting => $waiting }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 			}
 		}
 		
@@ -160,10 +175,14 @@ sub wait_for_server
 			if (time > $wait_until)
 			{
 				# timed out 
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "err", key => "job_0402", variables => { server => $anvil->data->{switches}{server} }});
 				$anvil->Job->update_progress({
-					progress => 75,
-					message  => "job_0402,!!server!".$anvil->data->{switches}{server}."!!", 
+					progress  => 75,
+					'print'   => 1, 
+					level     => 2, 
+					message   => "job_0402",
+					variables => {
+						server => $anvil->data->{switches}{server}, 
+					},
 				});
 			}
 			else
@@ -175,8 +194,14 @@ sub wait_for_server
 					time_left => $time_left, 
 				}});
 				$anvil->Job->update_progress({
-					progress => 50,
-					message  => "job_0403,!!server!".$anvil->data->{switches}{server}."!!,!!time_left!".$time_left."!!", 
+					progress  => 50,
+					'print'   => 1, 
+					level     => 2, 
+					message   => "job_0403", 
+					variables => {
+						server    => $anvil->data->{switches}{server},
+						time_left => $time_left, 
+					},
 				});
 			}
 		}

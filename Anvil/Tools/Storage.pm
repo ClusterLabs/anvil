@@ -999,10 +999,10 @@ sub check_files
 		my $file_location_file_uuid = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_file_uuid};
 		my $file_location_active    = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_active};
 		my $file_location_ready     = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
-		my $file_name               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_name};
-		my $file_directory          = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_directory};
-		my $file_size               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_size}; 
-		my $file_md5sum             = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_md5sum};
+		my $file_name               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_name}      // "";
+		my $file_directory          = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_directory} // "";
+		my $file_size               = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_size}      // 0; 
+		my $file_md5sum             = $anvil->data->{files}{file_uuid}{$file_location_file_uuid}{file_md5sum}    // "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:file_location_file_uuid' => $file_location_file_uuid, 
 			's2:file_location_uuid'      => $file_location_uuid, 

@@ -1911,7 +1911,7 @@ The database connection error was:
 		<key name="log_0074">About to run: [#!variable!uuid!#]:[#!variable!query!#]</key>
 		<key name="log_0075"><![CDATA[[ Error ] - Failed to prepare the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
 		<key name="log_0076"><![CDATA[[ Error ] - Failed to execute the database query: [#!variable!query!#] on: [#!variable!server!#]. The error was: [#!variable!db_error!#]. Note that if the query reports '--', the query was listed as containing sensitive data and '$anvil->Log->secure' is not set.]]></key>
-		<key name="log_0077">#!free!#</key>
+		<key name="log_0077">Found that Zabbix and it's using Apache listening on port 80. This conflicts with Striker, so we're updating: [#!data!path::configs::httpd.conf!#] to change the 'Listen' to: [#!variable!port!#].</key>
 		<key name="log_0078"><![CDATA[[ Error ] - The method Database->initialize() was asked to query the database with UUID: [#!variable!uuid!#] but there is no file handle open to the database. Was the connection lost?]]></key>
 		<key name="log_0079"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but a core SQL file to load wasn't passed, and the 'database::#!variable!uuid!#::core_sql' variable isn't set. Unable to initialize without the core SQL file.]]></key>
 		<key name="log_0080"><![CDATA[[ Error ] - The method Database->initialize() was asked to initialize the database: [#!variable!server!#] (id: [#!variable!uuid!#]) but the core SQL file: [#!variable!sql_file!#] doesn't exist.]]></key>
@@ -1972,7 +1972,7 @@ The database connection error was:
 		<key name="log_0125">Entering method: [#!variable!method!#]</key>
 		<key name="log_0126">Exiting method: [#!variable!method!#]</key>
 		<key name="log_0127">Firewalld was not running, re-enabling it. If you do not want this behaviour, please set 'sys::daemons::restart_firewalld = 0' in: [#!data!path::configs::anvil.conf!#].</key>
-		<key name="log_0128">Firewalld was not running, and 'sys::daemons::restart_firewalld = 0' is set. NOT starting it.</key>
+		<key name="log_0128">Firewalld was not running, and 'sys::manage::firewall' is set to '0'. NOT starting it.</key>
 		<key name="log_0129"><![CDATA[<all>]]></key>	<!-- Used when logging DB writes to all DBs -->
 		<key name="log_0130"><![CDATA[[ Error ] - The method: [#!variable!method!#] was called and the parameter: [#!variable!parameter!#] was passed an invalid UUID: [#!variable!uuid!#].]]></key>
 		<key name="log_0131"><![CDATA[[ Error ] - The method Database->query() was asked to query the database with UUID: [#!variable!old_uuid!#], but it's connection is gone. SWitching to read from: [#!variable!new_uuid!#].]]></key>
@@ -2558,7 +2558,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0667">#!free!#</key>
 		<key name="log_0668">No password for the database on the host with UUID: [#!variable!uuid!#], skipping it.</key>
 		<key name="log_0669">The firewalld daemon isn't running, skipping firewall setup. Is 'sys::daemon::firewalld' set to '0' in anvil.conf?</key>
-		<key name="log_0670">#!free!#</key>
+		<key name="log_0670">Managing the firewall has been disabled (change 'sys::manage::firewall' to '1' to re-enable).</key>
 		<key name="log_0671">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. Will not boot this host.</key>
 		<key name="log_0672">The host: [#!variable!host_name!#] was powered off for an unknown reason, and 'feature::scancore::disable::boot-unknown-stop' is set to: [#!data!feature::scancore::disable::boot-unknown-stop!#]. If power and temperature looks good, we'll boot it.</key>
 		<key name="log_0673">The host: [#!variable!host_name!#] has good power and temperature readings. Booting it back up now.</key>
@@ -4004,7 +4004,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0005">The server: [#!variable!server_name!#] can't stop yet. It's waiting for: [#!variable!wait_for_server_name!#] to turn "off", but it's status is: [#!variable!wait_for_server_status!# (#!variable!wait_for_server_role!#)].</key>
 		<key name="warning_0006">Not all servers asked to stop, will check again shortly.</key>
 		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
-		<key name="warning_0008">#!free!#</key>
+		<key name="warning_0008">[ Warning ] - Failed to connect to the local host via Sys::Virt using the URI: [#!variable!uri!#]. The error, if any, was: [#!variable!error!#].</key>
 		<key name="warning_0009">#!free!#</key>
 		<key name="warning_0010">[ Warning ] - The IP address: [#!variable!ip_address!#] is not a valid IPv4 address</key>
 		<key name="warning_0011">#!free!#</key>

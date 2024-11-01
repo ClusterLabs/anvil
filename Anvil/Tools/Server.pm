@@ -22,6 +22,7 @@ my $THIS_FILE = "Server.pm";
 # find_processes
 # get_definition
 # get_runtime
+# get_server_ports
 # get_status
 # locate
 # map_network
@@ -884,6 +885,165 @@ sub get_runtime
 	}
 	
 	return($runtime);
+}
+
+
+=head2 get_server_ports 
+
+This looks at the servers on this host and finds their graphical type (VNC or spice), and the TCP port the connection is listening on. If there's a websockify proxy port (for server access via the Striker WebUI).
+
+Data is stored in the hash:
+ server_ports::<server_name>::host               = The short host name
+ server_ports::<server_name>::state              = The state of the server (as a string)(
+ server_ports::<server_name>::running            = 0 or 1, indicating if the server is running. If not, the values below are meaningless
+ server_ports::<server_name>::graphics::type     = The graphics type, 'vnc' or 'spice'
+ server_ports::<server_name>::graphics::port     = The TCP port used to connect to the server's graphics
+ server_ports::<server_name>::graphics::ws_proxy = If found, this is the websockify proxy TCP port
+
+This method returns C<< 0 >> if successful. If there's a problem, C<< 1 >> is returned.
+
+This method takes no parameters.
+
+=cut
+sub get_server_ports
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->get_status()" }});
+	
+	my $pids = $anvil->System->pids({
+		debug        => $debug,
+		ignore_me    => 1,
+		program_name => "websockify",
+	});
+
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $uri             = "qemu+ssh://".$short_host_name."/system";
+	my $connection      = "";
+	eval { $connection = Sys::Virt->new(uri => $uri); };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"connection" => $connection, 
+		'$@'         => $@,
+	}});
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "warning_0008", variables => { 
+			uri   => $uri, 
+			error => $@,
+		}});
+		return(1);
+	}
+	my $stream  = $connection->new_stream();
+	my @domains = $connection->list_all_domains();
+	foreach my $domain (@domains)
+	{
+		my $server_name       = $domain->get_name;
+		my $server_id         = $domain->get_id == -1 ? "" : $domain->get_id; 
+		my $server_uuid       = $domain->get_uuid_string;
+		my $is_updated        = $domain->is_updated();
+		my $is_persistent     = $domain->is_persistent();
+		my $os_type           = $domain->get_os_type();
+		my $active_definition = $domain->get_xml_description();
+		my ($state, $reason)  = $domain->get_state();
+		my $is_running        = (($state) && ($state != 5)) ? 1 : 0;
+		
+		### Reasons are dependent on the state. 
+		### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
+		my $server_state = "unknown";
+		if ($state == 1)    { $server_state = "running"; }	# Server is running.
+		elsif ($state == 2) { $server_state = "blocked"; }	# Server is blocked (IO contention?).
+		elsif ($state == 3) { $server_state = "paused"; }	# Server is paused (migration target?).
+		elsif ($state == 4) { $server_state = "in shutdown"; }	# Server is shutting down.
+		elsif ($state == 5) { $server_state = "shut off"; }	# Server is shut off.
+		elsif ($state == 6) { $server_state = "crashed"; }	# Server is crashed!
+		elsif ($state == 7) { $server_state = "pmsuspended"; }	# Server is suspended.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			server_name   => $server_name,
+			server_id     => $server_id, 
+			server_uuid   => $server_uuid, 
+			is_updated    => $is_updated, 
+			is_persistent => $is_persistent, 
+			os_type       => $os_type, 
+			server_state  => $server_state, 
+			is_running    => $is_running, 
+			'state'       => $state, 
+			reason        => $reason,
+		}});
+		$anvil->data->{server_ports}{$server_name}{host}    = $short_host_name;
+		$anvil->data->{server_ports}{$server_name}{'state'} = $server_state;
+		$anvil->data->{server_ports}{$server_name}{running} = $is_running;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"s1:server_ports::${server_name}::host"    => $anvil->data->{server_ports}{$server_name}{host},
+			"s2:server_ports::${server_name}::state"   => $anvil->data->{server_ports}{$server_name}{'state'},
+			"s3:server_ports::${server_name}::running" => $anvil->data->{server_ports}{$server_name}{running},
+		}});
+		
+		# Find our TCP ports
+		$anvil->data->{server_ports}{$server_name}{graphics}{type}     = "";
+		$anvil->data->{server_ports}{$server_name}{graphics}{port}     = "";
+		$anvil->data->{server_ports}{$server_name}{graphics}{ws_proxy} = "";
+		my $source = "from_virsh";
+		if ($is_running)
+		{
+			my $problem = $anvil->Server->parse_definition({
+				debug      => 2,
+				server     => $server_name,
+				source     => $source, 
+				definition => $active_definition, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+			if (not $problem)
+			{
+				# Get the VNC port
+				my $port    = $anvil->data->{server}{$short_host_name}{$server_name}{$source}{graphics}{port};
+				my $address = $anvil->data->{server}{$short_host_name}{$server_name}{$source}{graphics}{listening};
+				my $type    = $anvil->data->{server}{$short_host_name}{$server_name}{$source}{graphics}{port_type};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:port"    => $port,
+					"s2:address" => $address, 
+					"s3:type"    => $type,
+				}});
+				$anvil->data->{server_ports}{$server_name}{graphics}{type} = $type;
+				$anvil->data->{server_ports}{$server_name}{graphics}{port} = $port;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:server_ports::${server_name}::graphics::type" => $anvil->data->{server_ports}{$server_name}{graphics}{type},
+					"s2:server_ports::${server_name}::graphics::port" => $anvil->data->{server_ports}{$server_name}{graphics}{port},
+				}});
+				if ($port)
+				{
+					foreach my $pid (sort {$a <=> $b} @{$pids})
+					{
+						my $command = $anvil->data->{pids}{$pid}{command};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:pid"     => $pid,
+							"s2:command" => $command,
+						}});
+						if ($command =~ /anvil-ws-(\d+)-(\d+).log (\d+) :(\d+)$/)
+						{
+							my $from_websockify = $1;
+							my $to_vnc          = $2;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+								"s1:from_websockify" => $from_websockify,
+								"s2:to_vnc"          => $to_vnc,
+							}});
+							if ($to_vnc eq $port) 
+							{
+								$anvil->data->{server_ports}{$server_name}{graphics}{ws_proxy} = $from_websockify;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+									"s1:server_ports::${server_name}::graphics::ws_proxy" => $anvil->data->{server_ports}{$server_name}{graphics}{ws_proxy},
+								}});
+								last;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return(0);
 }
 
 
@@ -2093,6 +2253,28 @@ sub parse_definition
 			"server::${target}::${server}::${source}::nvram::data"     => $anvil->data->{server}{$target}{$server}{$source}{nvram}{data},
 			"server::${target}::${server}::${source}::nvram::template" => $anvil->data->{server}{$target}{$server}{$source}{nvram}{template},
 		}});
+	}
+	
+	$anvil->data->{server}{$target}{$server}{$source}{graphics}{port}      = $server_xml->{devices}->[0]->{graphics}->[0]->{port} // "";
+	$anvil->data->{server}{$target}{$server}{$source}{graphics}{port_type} = $server_xml->{devices}->[0]->{graphics}->[0]->{type} // "";
+	$anvil->data->{server}{$target}{$server}{$source}{graphics}{listening} = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"server::${target}::${server}::${source}::graphics::port"      => $anvil->data->{server}{$target}{$server}{$source}{graphics}{port},
+		"server::${target}::${server}::${source}::graphics::port_type" => $anvil->data->{server}{$target}{$server}{$source}{graphics}{port_type},
+	}});
+	
+	foreach my $ref (@{$server_xml->{devices}->[0]->{graphics}->[0]->{'listen'}})
+	{
+		if ((ref($ref) eq "HASH")      &&
+		    ($ref->{type})              &&
+		    ($ref->{type} eq "address") && 
+		    ($ref->{address}))
+		{
+			$anvil->data->{server}{$target}{$server}{$source}{graphics}{listening} = $ref->{address};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"server::${target}::${server}::${source}::graphics::listening" => $anvil->data->{server}{$target}{$server}{$source}{graphics}{listening},
+			}});
+		}
 	}
 	
 	# Pull out some basic server info.
