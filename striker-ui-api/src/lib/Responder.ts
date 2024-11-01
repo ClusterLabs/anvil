@@ -4,8 +4,8 @@ import { ResponseError } from './ResponseError';
 import { perr } from './shell';
 
 export class Responder<
-  ResBody = unknown,
-  Locals extends Record<string, unknown> = Record<string, unknown>,
+  ResBody = Express.RhResBody,
+  Locals extends Express.RhLocals = Express.RhLocals,
 > {
   private response: Response<ResBody, Locals>;
 
