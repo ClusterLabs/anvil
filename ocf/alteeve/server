@@ -397,7 +397,7 @@ sub check_daemons
 	my ($anvil, $task) = @_;
 	
 	my $problem = $anvil->Cluster->parse_cib({debug => 3});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { problem => $problem }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	if ($problem)
 	{
 		# Pacemaker isn't running, or some other problem. Someone must have called this script 
@@ -409,7 +409,7 @@ sub check_daemons
 	# Is the peer running? We'll use this to know whether to try and start daemons on the peer.
 	my $peer_name  = $anvil->data->{cib}{parsed}{peer}{name};
 	my $peer_ready = $anvil->data->{cib}{parsed}{peer}{ready};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		peer_name  => $peer_name,
 		peer_ready => $peer_ready, 
 	}});
@@ -921,6 +921,8 @@ sub start_drbd_resource
 	#}
 	
 	# Start DRBD on the peer(s), if we can.
+	my $peer_name = $anvil->data->{cib}{parsed}{peer}{name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_name => $peer_name }});
 	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{server}{$local_host}{$server}{resource}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource => $resource }});
@@ -931,6 +933,7 @@ sub start_drbd_resource
 				's1:host'     => $host,
 				's2:is_local' => $is_local, 
 			}});
+			next if (($peer_name) && ($peer_name ne $host));
 			
 			my $connection_state = $anvil->data->{drbd}{status}{$local_host}{resource}{$resource}{connection}{$host}{'connection-state'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { connection_state => $connection_state }});
@@ -943,10 +946,11 @@ sub start_drbd_resource
 					resource         => $resource,
 					connection_state => $connection_state, 
 				}});
-				my ($access) = $anvil->Remote->test_access({target => $host});
+				my ($access) = $anvil->Remote->test_access({debug => 2, target => $host});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
 				if ($access)
 				{
+					
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0695", variables => { 
 						host     => $host,
 						resource => $resource,
