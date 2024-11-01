@@ -1,4 +1,5 @@
 import { Grid, Switch } from '@mui/material';
+import { capitalize } from 'lodash';
 import { FC, useMemo, useRef } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
@@ -7,7 +8,7 @@ import FlexBox from '../FlexBox';
 import IconButton from '../IconButton';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
-import { MonoText } from '../Text';
+import { MonoText, SmallText } from '../Text';
 
 const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
   const { detail } = props;
@@ -49,6 +50,9 @@ const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
               return (
                 <Grid container columnGap="1em">
                   <Grid item alignSelf="center">
+                    <SmallText monospaced textAlign="center">
+                      {capitalize(state)}
+                    </SmallText>
                     <Switch checked={active} />
                   </Grid>
                   <Grid item flexGrow={1}>
