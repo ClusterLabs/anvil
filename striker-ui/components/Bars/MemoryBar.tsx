@@ -14,23 +14,38 @@ const MemoryBar: FC<
 > = (props) => {
   const { memory, value, ...restProps } = props;
 
+  const { allocated, reserved, total } = memory;
+
+  const allocatedColour = useMemo(() => {
+    const usable: bigint = total - reserved;
+
+    const max = Number((usable * N_100) / total);
+
+    const colour = {
+      0: BLUE,
+      [String(max * 0.7)]: PURPLE,
+      [String(max * 0.9)]: RED,
+    };
+
+    return colour;
+  }, [reserved, total]);
+
   const mergedValue = useMemo(
     () =>
       merge(
         {
           reserved: {
-            value: Number((memory.reserved * N_100) / memory.total),
+            barProps: { sx: { rotate: '180deg' } },
+            value: Number((reserved * N_100) / total),
           },
           allocated: {
-            value: Number(
-              ((memory.reserved + memory.allocated) * N_100) / memory.total,
-            ),
-            colour: { 0: BLUE, 70: PURPLE, 90: RED },
+            value: Number((allocated * N_100) / total),
+            colour: allocatedColour,
           },
         },
         value,
       ),
-    [memory.allocated, memory.reserved, memory.total, value],
+    [allocated, allocatedColour, reserved, total, value],
   );
 
   return <StackBar {...restProps} value={mergedValue} />;

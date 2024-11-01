@@ -78,7 +78,6 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
         <Grid container>
           <Grid item width="25%">
             <BodyText>Allocated: {formattedMemory.allocated}</BodyText>
-            <BodyText>Reserved: {formattedMemory.reserved}</BodyText>
           </Grid>
           <Grid item width="50%" textAlign="center">
             <BodyText fontWeight={400}>
@@ -86,6 +85,7 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
             </BodyText>
           </Grid>
           <Grid item width="25%" textAlign="right">
+            <BodyText>System reserved: {formattedMemory.reserved}</BodyText>
             <BodyText>Total: {formattedMemory.total}</BodyText>
           </Grid>
         </Grid>
