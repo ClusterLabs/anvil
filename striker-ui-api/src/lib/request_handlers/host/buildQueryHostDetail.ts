@@ -17,6 +17,13 @@ const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
       : [camel(head, ...rest)];
   },
   'install-target': () => ['installTarget'],
+  system: ([part1]) => {
+    if (part1 === 'configured') {
+      return ['hostConfigured'];
+    }
+
+    return [];
+  },
 };
 
 const setCvar = (
@@ -53,41 +60,53 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       a.host_status,
       a.host_type,
       a.host_uuid,
-      b.variable_name,
-      b.variable_value,
+      b.anvil_uuid,
+      b.anvil_name,
+      c.variable_name,
+      c.variable_value,
       SUBSTRING(
-        b.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
+        c.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
       ) as cvar_name,
       SUBSTRING(
-        b.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
+        c.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
       ) AS network_type,
       SUBSTRING(
-        b.variable_name, '${CVAR_PREFIX_PATTERN}[a-z]{2,3}\\d+_(link\\d+)'
+        c.variable_name, '${CVAR_PREFIX_PATTERN}[a-z]{2,3}\\d+_(link\\d+)'
       ) AS network_link,
-      c.network_interface_uuid
+      d.network_interface_uuid
     FROM hosts AS a
-    LEFT JOIN variables AS b
-      ON b.variable_source_uuid = a.host_uuid
+    LEFT JOIN anvils AS b
+      ON a.host_uuid IN (
+        b.anvil_node1_host_uuid,
+        b.anvil_node2_host_uuid,
+        b.anvil_dr1_host_uuid
+      )
+    LEFT JOIN variables AS c
+      ON c.variable_source_uuid = a.host_uuid
         AND (
-          b.variable_name LIKE '${CVAR_PREFIX}%'
-          OR b.variable_name = 'install-target::enabled'
+          c.variable_name LIKE '${CVAR_PREFIX}%'
+          OR c.variable_name IN (
+            'install-target::enabled',
+            'system::configured'
+          )
         )
-    LEFT JOIN network_interfaces AS c
-      ON b.variable_name LIKE '%link%_mac%'
-        AND b.variable_value = c.network_interface_mac_address
-        AND a.host_uuid = c.network_interface_host_uuid
+    LEFT JOIN network_interfaces AS d
+      ON c.variable_name LIKE '%link%_mac%'
+        AND c.variable_value = d.network_interface_mac_address
+        AND a.host_uuid = d.network_interface_host_uuid
     ${condHostUUIDs}
     ORDER BY a.host_name ASC,
       cvar_name ASC,
-      b.variable_name ASC;`;
+      c.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
       if (output.length === 0) return {};
 
       const {
-        0: [hostIpmi, hostName, hostStatus, hostType, hostUUID],
+        0: [hostIpmi, hostName, hostStatus, hostType, hostUUID, anUuid, anName],
       } = output;
+
       const shortHostName = getShortHostName(hostName);
 
       /**
@@ -105,15 +124,17 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         username: hostIpmi.replace(/^.*--username\s+(\w+).*$/, '$1'),
       };
 
-      return output.reduce<HostDetail>(
+      const partial = output.reduce<
+        Omit<HostDetail, 'anvil' | 'hostConfigured'>
+      >(
         (previous, row) => {
-          const {
-            5: variableName,
-            6: variableValue,
-            8: networkType,
-            9: networkLink,
-            10: networkInterfaceUuid,
-          } = row;
+          const [
+            variableName,
+            variableValue,
+            networkType,
+            networkLink,
+            networkInterfaceUuid,
+          ] = row.slice(7);
 
           if (!variableName) return previous;
 
@@ -144,6 +165,19 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
           shortHostName,
         },
       );
+
+      let anvil: HostOverview['anvil'];
+
+      if (anUuid) {
+        anvil = { name: anName, uuid: anUuid };
+      }
+
+      const misfit: Pick<HostDetail, 'anvil' | 'hostConfigured'> = {
+        anvil,
+        hostConfigured: partial.hostConfigured === '1',
+      };
+
+      return { ...partial, ...misfit };
     });
 
   return { query, afterQueryReturn };

@@ -54,8 +54,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
           hostStatus,
           hostType,
           hostUUID,
-          anvilUuid,
-          anvilName,
+          anUuid,
+          anName,
           hostConfigured,
         ] = row;
 
@@ -63,11 +63,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
         let anvil: HostOverview['anvil'];
 
-        if (anvilUuid) {
-          anvil = {
-            name: anvilName,
-            uuid: anvilUuid,
-          };
+        if (anUuid) {
+          anvil = { name: anName, uuid: anUuid };
         }
 
         previous[key] = {
