@@ -6,6 +6,7 @@ import Divider from '../Divider';
 import { Panel, PanelHeader } from '../Panels';
 import ServerBootOrderForm from './ServerBootOrderForm';
 import ServerCpuForm from './ServerCpuForm';
+import ServerDiskList from './ServerDiskList';
 import ServerInterfaceList from './ServerInterfaceList';
 import ServerMemoryForm from './ServerMemoryForm';
 import ServerMigration from './ServerMigration';
@@ -165,6 +166,8 @@ const ManageServer: FC<ManageServerProps> = (props) => {
 
                   <Tab label={tabs.cpu.label} value={tabs.cpu.value} />
 
+                  <Tab label={tabs.disks.label} value={tabs.disks.value} />
+
                   <Tab
                     label={tabs.interfaces.label}
                     value={tabs.interfaces.value}
@@ -210,6 +213,13 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                 <HeaderText>{tabs.cpu.label}</HeaderText>
               </PanelHeader>
               <ServerCpuForm detail={detail} tools={formTools} />
+            </TabContent>
+
+            <TabContent changingTabId={tabId} tabId={tabs.disks.value}>
+              <PanelHeader>
+                <HeaderText>{tabs.disks.label}</HeaderText>
+              </PanelHeader>
+              <ServerDiskList detail={detail} tools={formTools} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.interfaces.value}>

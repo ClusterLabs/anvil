@@ -16,6 +16,10 @@ type ServerCpuFormikValues = {
   threads: string;
 };
 
+type ServerChangeIsoFormikValues = {
+  file: null | string;
+};
+
 type ServerRenameFormikValues = {
   name: string;
 };
@@ -66,6 +70,10 @@ type ServerFormSubmitProps = {
   label: React.ReactNode;
 };
 
+/** ServerDiskList */
+
+type ServerDiskListProps = ServerFormProps;
+
 /** ServerInterfaceList */
 
 type ServerInterfaceListProps = ServerFormProps;
@@ -89,6 +97,16 @@ type ServerAddInterfaceFormProps = {
 /** ServerBootOrderForm */
 
 type ServerBootOrderFormProps = ServerFormProps;
+
+/** ServerChangeIsoForm */
+
+type ServerIsoSummaryProps = {
+  fileUuid: string;
+};
+
+type ServerChangeIsoFormProps = ServerFormProps & {
+  device: string;
+};
 
 /** ServerCpuForm */
 
