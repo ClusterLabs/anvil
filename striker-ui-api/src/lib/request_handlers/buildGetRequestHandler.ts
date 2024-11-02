@@ -55,7 +55,9 @@ const buildGetRequestHandler =
 
     poutvar(result, `Query stdout post-hooks (type=[${typeof result}]): `);
 
-    return respond.s200(responseBody);
+    return responseBody === undefined
+      ? respond.s404()
+      : respond.s200(responseBody);
   };
 
 export default buildGetRequestHandler;
