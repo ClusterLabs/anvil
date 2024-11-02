@@ -4005,7 +4005,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0006">Not all servers asked to stop, will check again shortly.</key>
 		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="warning_0008">[ Warning ] - Failed to connect to the local host via Sys::Virt using the URI: [#!variable!uri!#]. The error, if any, was: [#!variable!error!#].</key>
-		<key name="warning_0009">#!free!#</key>
+		<key name="warning_0009">The server: [#!variable!server!#] was not found to be running on this host. Nothing to do, exiting.</key>
 		<key name="warning_0010">[ Warning ] - The IP address: [#!variable!ip_address!#] is not a valid IPv4 address</key>
 		<key name="warning_0011">#!free!#</key>
 		<key name="warning_0012">#!free!#</key>
