@@ -41,6 +41,10 @@ type FileDetail = Omit<FileOverview, 'anvils'> & {
       uuid: string;
     };
   };
+  path: {
+    directory: string;
+    full: string;
+  };
 };
 
 type FileOverviewListReqQuery = {

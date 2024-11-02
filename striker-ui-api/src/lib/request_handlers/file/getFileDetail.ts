@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express';
+import path from 'path';
 
 import { DELETED } from '../../consts';
 
@@ -21,6 +22,7 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
         a.file_size,
         a.file_type,
         a.file_md5sum,
+        a.file_directory,
         b.file_location_uuid,
         b.file_location_active,
         b.file_location_ready,
@@ -51,7 +53,7 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
 
         if (!first) return undefined;
 
-        const [uuid, name, size, type, checksum] = first;
+        const [uuid, name, size, type, checksum, directory] = first;
 
         return rows.reduce<FileDetail>(
           (previous, row) => {
@@ -65,7 +67,7 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
               hostUuid,
               hostName,
               hostType,
-            ] = row.slice(5);
+            ] = row.slice(6);
 
             if (!previous.anvils[anvilUuid]) {
               previous.anvils[anvilUuid] = {
@@ -107,6 +109,10 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
             hosts: {},
             locations: {},
             name,
+            path: {
+              directory: directory,
+              full: path.join(directory, name),
+            },
             size,
             type,
             uuid,
