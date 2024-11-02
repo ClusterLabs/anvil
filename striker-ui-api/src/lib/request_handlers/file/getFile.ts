@@ -13,10 +13,13 @@ export const getFile: RequestHandler<
   FileOverviewListReqQuery
 > = buildGetRequestHandler((request, hooks) => {
   const {
-    query: { anvilUuid: rAnvilUuid },
+    query: { anvil_uuid: rAnvilUuid, type: rFileType },
   } = request;
 
   const anvilUuid = sanitize(rAnvilUuid, 'string', {
+    modifierType: 'sql',
+  });
+  const fileType = sanitize(rFileType, 'string', {
     modifierType: 'sql',
   });
 
@@ -24,6 +27,10 @@ export const getFile: RequestHandler<
 
   if (anvilUuid) {
     conditions += ` AND c.anvil_uuid = '${anvilUuid}'`;
+  }
+
+  if (fileType) {
+    conditions += ` AND a.file_type = '${fileType}'`;
   }
 
   const query = `

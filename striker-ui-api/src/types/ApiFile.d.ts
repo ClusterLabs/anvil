@@ -44,5 +44,6 @@ type FileDetail = Omit<FileOverview, 'anvils'> & {
 };
 
 type FileOverviewListReqQuery = {
-  anvilUuid: string;
+  anvil_uuid: string;
+  type: string;
 };
