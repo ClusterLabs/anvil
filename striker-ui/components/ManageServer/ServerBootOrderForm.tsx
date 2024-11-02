@@ -88,7 +88,10 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
         const {
           [diskIndex]: {
             device,
-            source: { dev: sdev = '', file = '' },
+            source: {
+              dev: sdev = '',
+              file: { path: fpath = '' },
+            },
             target: { dev },
           },
         } = detail.devices.disks;
@@ -97,7 +100,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
           dev,
           index: diskIndex,
           name: device,
-          source: sdev || file,
+          source: sdev || fpath,
         };
       }),
     [detail.devices.disks, formik.values.order],

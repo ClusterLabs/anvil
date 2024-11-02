@@ -49,7 +49,10 @@ type APIServerDetailDisk = {
   device: string;
   source: {
     dev?: string;
-    file?: string;
+    file: {
+      path?: string;
+      uuid?: string;
+    };
     index: number;
   };
   target: {

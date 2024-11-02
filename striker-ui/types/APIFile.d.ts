@@ -39,6 +39,10 @@ type APIFileDetail = APIFileOverview & {
       uuid: string;
     };
   };
+  path: {
+    directory: string;
+    full: string;
+  };
 };
 
 type APIFileOverviewList = Record<string, APIFileOverview>;
