@@ -1,3 +1,4 @@
+import { Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
@@ -5,11 +6,8 @@ import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import AddFileForm from './AddFileForm';
 import api from '../../lib/api';
-import {
-  toAnvilOverviewList,
-  toFileDetail,
-  toFileOverviewList,
-} from '../../lib/api_converters';
+import { toAnvilOverviewList } from '../../lib/api_converters';
+import CircularProgress from '../CircularProgress';
 import ConfirmDialog from '../ConfirmDialog';
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
@@ -36,11 +34,10 @@ const ManageFilePanel: FC = () => {
   const [file, setFile] = useState<APIFileDetail | undefined>();
 
   const {
-    altData: files,
+    data: files,
     loading: loadingFiles,
     mutate: getFiles,
-  } = useFetch<string[][], APIFileOverviewList>('/file', {
-    mod: toFileOverviewList,
+  } = useFetch<APIFileOverviewList>('/file', {
     refreshInterval: 5000,
   });
 
@@ -64,16 +61,17 @@ const ManageFilePanel: FC = () => {
     [],
   );
 
-  const { fetch: getFile, loading: loadingFile } = useActiveFetch<string[][]>({
-    onData: (data) => setFile(toFileDetail(data)),
-    onError: ({ children: previous, ...rest }) => {
-      setApiMessage({
-        children: <>Failed to get file detail. {previous}</>,
-        ...rest,
-      });
-    },
-    url: '/file/',
-  });
+  const { fetch: getFile, loading: loadingFile } =
+    useActiveFetch<APIFileDetail>({
+      onData: (data) => setFile(data),
+      onError: ({ children: previous, ...rest }) => {
+        setApiMessage({
+          children: <>Failed to get file detail. {previous}</>,
+          ...rest,
+        });
+      },
+      url: '/file/',
+    });
 
   const { data: rawAnvils, loading: loadingAnvils } =
     useFetch<APIAnvilOverviewArray>('/anvil', {
@@ -155,19 +153,41 @@ const ManageFilePanel: FC = () => {
           editFormDialogRef.current?.setOpen(true);
           getFile(uuid);
         }}
-        renderListItem={(uuid, { checksum, name, size, type }) => (
-          <FlexBox columnSpacing={0} fullWidth md="row" xs="column">
-            <FlexBox spacing={0} flexGrow={1}>
-              <FlexBox row spacing=".5em">
-                <MonoText>{name}</MonoText>
-                <Divider flexItem orientation="vertical" />
-                <BodyText>{UPLOAD_FILE_TYPES.get(type)?.[1]}</BodyText>
-              </FlexBox>
-              <BodyText>{dSizeStr(size, { toUnit: 'ibyte' })}</BodyText>
-            </FlexBox>
-            <MonoText>{checksum}</MonoText>
-          </FlexBox>
-        )}
+        renderListItem={(
+          uuid,
+          { anvils: locations, checksum, name, size, type },
+        ) => {
+          const syncing = Object.values(locations).some(({ ready }) => !ready);
+
+          return (
+            <Grid container columnGap="1em">
+              {syncing && (
+                <Grid alignSelf="center" item>
+                  <CircularProgress size="1.5em" variant="indeterminate" />
+                </Grid>
+              )}
+              <Grid item xs>
+                <FlexBox
+                  columnSpacing={0}
+                  rowSpacing=".5em"
+                  sm="row"
+                  xs="column"
+                >
+                  <MonoText noWrap>{name}</MonoText>
+                  <Divider flexItem orientation="vertical" />
+                  <BodyText>{UPLOAD_FILE_TYPES.get(type)?.[1]}</BodyText>
+                </FlexBox>
+                <FlexBox row spacing=".5em">
+                  {syncing && <BodyText>Syncing...</BodyText>}
+                  <BodyText>{dSizeStr(size, { toUnit: 'ibyte' })}</BodyText>
+                </FlexBox>
+              </Grid>
+              <Grid alignSelf="center" item width={{ xs: '100%', md: 'auto' }}>
+                <MonoText noWrap>{checksum}</MonoText>
+              </Grid>
+            </Grid>
+          );
+        }}
       />
     ),
     [
