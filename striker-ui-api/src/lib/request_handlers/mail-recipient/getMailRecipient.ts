@@ -6,7 +6,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
 export const getMailRecipient: RequestHandler = buildGetRequestHandler(
-  (request, options) => {
+  (request, hooks) => {
     const query = `
       SELECT
         a.recipient_uuid,
@@ -25,9 +25,7 @@ export const getMailRecipient: RequestHandler = buildGetRequestHandler(
         {},
       );
 
-    if (options) {
-      options.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

@@ -4,15 +4,14 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toHostUUID } from '../../convertHostUUID';
 
-export const getNetworkInterface = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
-    const {
-      params: { hostUUID: rHostUuid = LOCAL },
-    } = request;
+export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
+  const {
+    params: { hostUUID: rHostUuid = LOCAL },
+  } = request;
 
-    const hostUuid = toHostUUID(rHostUuid);
+  const hostUuid = toHostUUID(rHostUuid);
 
-    const query = `
+  const query = `
       SELECT
         a.network_interface_uuid,
         a.network_interface_mac_address,
@@ -36,42 +35,38 @@ export const getNetworkInterface = buildGetRequestHandler(
         AND a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
         AND a.network_interface_host_uuid = '${hostUuid}';`;
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn =
-        buildQueryResultReducer<NetworkInterfaceOverviewList>(
-          (previous, row) => {
-            const [
-              uuid,
-              mac,
-              name,
-              state,
-              speed,
-              order,
-              ip,
-              subnetMask,
-              gateway,
-              dns,
-            ] = row;
+  const afterQueryReturn: QueryResultModifierFunction =
+    buildQueryResultReducer<NetworkInterfaceOverviewList>((previous, row) => {
+      const [
+        uuid,
+        mac,
+        name,
+        state,
+        speed,
+        order,
+        ip,
+        subnetMask,
+        gateway,
+        dns,
+      ] = row;
 
-            previous[uuid] = {
-              dns,
-              gateway,
-              ip,
-              mac,
-              name,
-              order: Number(order),
-              speed: Number(speed),
-              state,
-              subnetMask,
-              uuid,
-            };
+      previous[uuid] = {
+        dns,
+        gateway,
+        ip,
+        mac,
+        name,
+        order: Number(order),
+        speed: Number(speed),
+        state,
+        subnetMask,
+        uuid,
+      };
 
-            return previous;
-          },
-          {},
-        );
-    }
+      return previous;
+    }, {});
 
-    return query;
-  },
-);
+  hooks.afterQueryReturn = afterQueryReturn;
+
+  return query;
+});

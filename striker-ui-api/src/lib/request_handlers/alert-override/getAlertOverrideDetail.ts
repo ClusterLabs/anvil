@@ -8,7 +8,7 @@ import { getShortHostName } from '../../disassembleHostName';
 import { sanitize } from '../../sanitize';
 
 export const getAlertOverrideDetail: RequestHandler<AlertOverrideReqParams> =
-  buildGetRequestHandler((request, options) => {
+  buildGetRequestHandler((request, hooks) => {
     const {
       params: { uuid: rUuid },
     } = request;
@@ -75,9 +75,7 @@ export const getAlertOverrideDetail: RequestHandler<AlertOverrideReqParams> =
         };
       });
 
-    if (options) {
-      options.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   });

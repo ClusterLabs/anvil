@@ -7,7 +7,7 @@ import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { poutvar } from '../../shell';
 
 export const getFence: RequestHandler = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
+  (request, hooks) => {
     const query = `
       SELECT
         fence_uuid,
@@ -18,8 +18,10 @@ export const getFence: RequestHandler = buildGetRequestHandler(
       WHERE fence_arguments != '${DELETED}'
       ORDER BY fence_name ASC;`;
 
-    const afterQueryReturn: QueryResultModifierFunction | undefined =
-      buildQueryResultReducer<{ [fenceUUID: string]: FenceOverview }>(
+    const afterQueryReturn: QueryResultModifierFunction =
+      buildQueryResultReducer<{
+        [fenceUUID: string]: FenceOverview;
+      }>(
         (
           previous,
           [fenceUUID, fenceName, fenceAgent, fenceParametersString],
@@ -65,9 +67,7 @@ export const getFence: RequestHandler = buildGetRequestHandler(
         {},
       );
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

@@ -3,7 +3,7 @@ import { DELETED } from '../../consts';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
-export const getUser = buildGetRequestHandler((request, buildQueryOptions) => {
+export const getUser = buildGetRequestHandler((request, hooks) => {
   const { user: { name: sessionUserName, uuid: sessionUserUuid } = {} } =
     request;
 
@@ -21,23 +21,20 @@ export const getUser = buildGetRequestHandler((request, buildQueryOptions) => {
     WHERE a.user_algorithm != '${DELETED}'
     ${condLimitRegular};`;
 
-  const afterQueryReturn: QueryResultModifierFunction | undefined =
-    buildQueryResultReducer<
-      Record<string, { userName: string; userUUID: string }>
-    >((previous, [userName, userUuid]) => {
-      const key = userUuid === sessionUserUuid ? 'current' : userUuid;
+  const afterQueryReturn: QueryResultModifierFunction = buildQueryResultReducer<
+    Record<string, { userName: string; userUUID: string }>
+  >((previous, [userName, userUuid]) => {
+    const key = userUuid === sessionUserUuid ? 'current' : userUuid;
 
-      previous[key] = {
-        userName,
-        userUUID: userUuid,
-      };
+    previous[key] = {
+      userName,
+      userUUID: userUuid,
+    };
 
-      return previous;
-    }, {});
+    return previous;
+  }, {});
 
-  if (buildQueryOptions) {
-    buildQueryOptions.afterQueryReturn = afterQueryReturn;
-  }
+  hooks.afterQueryReturn = afterQueryReturn;
 
   return query;
 });

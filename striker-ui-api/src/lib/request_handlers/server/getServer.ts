@@ -7,56 +7,55 @@ import join from '../../join';
 import { sanitize } from '../../sanitize';
 import { poutvar } from '../../shell';
 
-export const getServer = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
-    const { anvilUUIDs } = request.query;
+export const getServer = buildGetRequestHandler((request, hooks) => {
+  const { anvilUUIDs } = request.query;
 
-    const condAnvilUUIDs = join(sanitize(anvilUUIDs, 'string[]'), {
-      beforeReturn: (toReturn) =>
-        toReturn ? `AND a.server_anvil_uuid IN (${toReturn})` : '',
-      elementWrapper: "'",
-      separator: ', ',
-    });
+  const condAnvilUUIDs = join(sanitize(anvilUUIDs, 'string[]'), {
+    beforeReturn: (toReturn) =>
+      toReturn ? `AND a.server_anvil_uuid IN (${toReturn})` : '',
+    elementWrapper: "'",
+    separator: ', ',
+  });
 
-    poutvar({ condAnvilUUIDs });
+  poutvar({ condAnvilUUIDs });
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn =
-        buildQueryResultReducer<ServerOverviewList>((previous, row) => {
-          const [
-            serverUuid,
-            serverName,
-            serverState,
-            anUuid,
-            anName,
-            anDescription,
-            hostUuid,
-            hostName,
-            hostType,
-          ] = row;
+  hooks.afterQueryReturn = buildQueryResultReducer<ServerOverviewList>(
+    (previous, row) => {
+      const [
+        serverUuid,
+        serverName,
+        serverState,
+        anUuid,
+        anName,
+        anDescription,
+        hostUuid,
+        hostName,
+        hostType,
+      ] = row;
 
-          previous[serverUuid] = {
-            anvil: {
-              description: anDescription,
-              name: anName,
-              uuid: anUuid,
-            },
-            host: {
-              name: hostName,
-              short: getShortHostName(hostName),
-              type: hostType,
-              uuid: hostUuid,
-            },
-            name: serverName,
-            state: serverState,
-            uuid: serverUuid,
-          };
+      previous[serverUuid] = {
+        anvil: {
+          description: anDescription,
+          name: anName,
+          uuid: anUuid,
+        },
+        host: {
+          name: hostName,
+          short: getShortHostName(hostName),
+          type: hostType,
+          uuid: hostUuid,
+        },
+        name: serverName,
+        state: serverState,
+        uuid: serverUuid,
+      };
 
-          return previous;
-        }, {});
-    }
+      return previous;
+    },
+    {},
+  );
 
-    return `
+  return `
       SELECT
         a.server_uuid,
         a.server_name,
@@ -75,5 +74,4 @@ export const getServer = buildGetRequestHandler(
       WHERE a.server_state != '${DELETED}'
         ${condAnvilUUIDs}
       ORDER BY a.server_name;`;
-  },
-);
+});

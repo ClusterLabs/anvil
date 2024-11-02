@@ -6,7 +6,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
 export const getMailServer: RequestHandler = buildGetRequestHandler(
-  (request, options) => {
+  (request, hooks) => {
     const query = `
       SELECT
         a.mail_server_uuid,
@@ -30,9 +30,7 @@ export const getMailServer: RequestHandler = buildGetRequestHandler(
         {},
       );
 
-    if (options) {
-      options.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

@@ -23,17 +23,17 @@ const buildGetRequestHandler =
 
     pout('Calling CLI script to get data.');
 
-    const buildQueryOptions: BuildQueryOptions = {};
+    const buildQueryHooks: BuildQueryHooks = {};
 
     let result: unknown;
 
     try {
-      const sqlscript: string =
+      const sql: string =
         typeof scriptOrCallback === 'function'
-          ? await scriptOrCallback(request, buildQueryOptions)
+          ? await scriptOrCallback(request, buildQueryHooks)
           : scriptOrCallback;
 
-      result = await query(sqlscript);
+      result = await query(sql);
     } catch (error) {
       // Don't return, let the hooks handle fallback
       respond.s500('d7348a0', `Failed to execute query; CAUSE: ${error}`);
@@ -41,7 +41,7 @@ const buildGetRequestHandler =
 
     poutvar(result, `Query stdout pre-hooks (type=[${typeof result}]): `);
 
-    const { afterQueryReturn } = buildQueryOptions;
+    const { afterQueryReturn } = buildQueryHooks;
 
     let responseBody = call<ResBody>(afterQueryReturn, {
       parameters: [result],
