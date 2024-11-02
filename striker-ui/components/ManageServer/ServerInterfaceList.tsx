@@ -1,5 +1,4 @@
 import { Grid, Switch } from '@mui/material';
-import { capitalize } from 'lodash';
 import { FC, useMemo, useRef } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
@@ -9,6 +8,11 @@ import IconButton from '../IconButton';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
 import { MonoText, SmallText } from '../Text';
+
+const STATE_LABEL: Record<string, string> = {
+  down: 'Unplugged',
+  up: 'Plugged-in',
+};
 
 const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
   const { detail } = props;
@@ -48,16 +52,20 @@ const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
               const active = state === 'up';
 
               return (
-                <Grid container columnGap="1em">
-                  <Grid item alignSelf="center">
-                    <SmallText monospaced textAlign="center">
-                      {capitalize(state)}
-                    </SmallText>
+                <Grid alignItems="center" columnGap="1em" container>
+                  <Grid
+                    alignItems="center"
+                    display="flex"
+                    flexDirection="column"
+                    item
+                    minWidth="5em"
+                  >
+                    <SmallText noWrap>{STATE_LABEL[state]}</SmallText>
                     <Switch checked={active} />
                   </Grid>
-                  <Grid item flexGrow={1}>
+                  <Grid item xs>
                     <FlexBox xs="column" sm="row" columnSpacing={0}>
-                      <MonoText>
+                      <MonoText noWrap>
                         {dev} ({type})
                       </MonoText>
                       <Divider flexItem orientation="vertical" />
@@ -65,7 +73,7 @@ const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
                     </FlexBox>
                     <MonoText>{bridge}</MonoText>
                   </Grid>
-                  <Grid item alignSelf="center">
+                  <Grid item>
                     <IconButton
                       mapPreset="delete"
                       size="small"
