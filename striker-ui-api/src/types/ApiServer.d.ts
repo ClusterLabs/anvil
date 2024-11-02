@@ -48,8 +48,11 @@ type ServerDetailDisk = {
   };
   device: string;
   source: {
-    dev: string;
-    file: string;
+    dev?: string;
+    file: {
+      path?: string;
+      uuid?: string;
+    };
     index: number;
   };
   target: {

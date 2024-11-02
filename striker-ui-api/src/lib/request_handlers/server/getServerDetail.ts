@@ -167,9 +167,9 @@ export const getServerDetail: RequestHandler<
         serverState,
         serverStartAfterServerUuid,
         serverStartDelay,
-        anUuid,
-        anName,
-        anDescription,
+        anvilUuid,
+        anvilName,
+        anvilDescription,
         hostUuid,
         hostName,
         hostType,
@@ -368,47 +368,77 @@ export const getServerDetail: RequestHandler<
     const diskOrderByBoot: number[] = [];
     const diskOrderBySource: number[] = [];
 
-    const disks = diskArray.map<ServerDetailDisk>((value, index) => {
-      const {
-        '@_type': diskType,
-        '@_device': diskDevice,
-        alias,
-        boot,
-        source,
-        target,
-      } = value;
+    const disks = await Promise.all(
+      diskArray.map<Promise<ServerDetailDisk>>(async (value, index) => {
+        const {
+          '@_type': diskType,
+          '@_device': diskDevice,
+          alias,
+          boot,
+          source,
+          target,
+        } = value;
 
-      const bootOrder = boot?.['@_order'];
-      const sourceIndex = source?.['@_index'];
+        const bootOrder = boot?.['@_order'];
+        const sourceIndex = source?.['@_index'];
 
-      if (bootOrder) {
-        diskOrderByBoot[bootOrder] = index;
-      }
+        if (bootOrder) {
+          diskOrderByBoot[bootOrder] = index;
+        }
 
-      if (sourceIndex) {
-        diskOrderBySource[sourceIndex] = index;
-      }
+        if (sourceIndex) {
+          diskOrderBySource[sourceIndex] = index;
+        }
 
-      return {
-        alias: {
-          name: alias?.['@_name'],
-        },
-        boot: {
-          order: bootOrder,
-        },
-        device: diskDevice,
-        source: {
-          dev: source?.['@_dev'],
-          file: source?.['@_file'],
-          index: sourceIndex,
-        },
-        target: {
-          bus: target?.['@_bus'],
-          dev: target?.['@_dev'],
-        },
-        type: diskType,
-      };
-    });
+        const sourceFile = source?.['@_file'];
+
+        let fileUuid: string | undefined;
+
+        if (sourceFile) {
+          const dir = path.dirname(sourceFile);
+          const name = path.basename(sourceFile);
+
+          try {
+            const rows = await query<[[string]]>(`
+              SELECT file_uuid
+              FROM files
+              WHERE file_directory = '${dir}'
+                AND file_name = '${name}';`);
+
+            assert.ok(rows.length);
+
+            ({
+              0: [fileUuid],
+            } = rows);
+          } catch (error) {
+            // Let the field be blank
+          }
+        }
+
+        return {
+          alias: {
+            name: alias?.['@_name'],
+          },
+          boot: {
+            order: bootOrder,
+          },
+          device: diskDevice,
+          source: {
+            dev: source?.['@_dev'],
+            file: {
+              path: sourceFile,
+              uuid: fileUuid,
+            },
+            index: sourceIndex,
+          },
+          target: {
+            bus: target?.['@_bus'],
+            dev: target?.['@_dev'],
+          },
+          type: diskType,
+        };
+      }),
+    );
 
     const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
       const {
@@ -451,9 +481,9 @@ export const getServerDetail: RequestHandler<
 
     const rsBody: ServerDetail = {
       anvil: {
-        description: anDescription,
-        name: anName,
-        uuid: anUuid,
+        description: anvilDescription,
+        name: anvilName,
+        uuid: anvilUuid,
       },
       cpu: {
         topology: {
