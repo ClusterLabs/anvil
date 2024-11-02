@@ -7,8 +7,8 @@ import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { sanitize } from '../../sanitize';
 
 export const getFileDetail: RequestHandler = buildGetRequestHandler(
-  (response, hooks) => {
-    const { fileUUID: rFileUuid } = response.params;
+  (request, hooks) => {
+    const { fileUUID: rFileUuid } = request.params;
 
     const fileUuid = sanitize(rFileUuid, 'string', {
       modifierType: 'sql',
@@ -16,33 +16,34 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
 
     const query = `
       SELECT
-        fil.file_uuid,
-        fil.file_name,
-        fil.file_size,
-        fil.file_type,
-        fil.file_md5sum,
-        fil_loc.file_location_uuid,
-        fil_loc.file_location_active,
-        anv.anvil_uuid,
-        anv.anvil_name,
-        anv.anvil_description,
-        hos.host_uuid,
-        hos.host_name,
-        hos.host_type
-      FROM files AS fil
-      JOIN file_locations AS fil_loc
-        ON fil.file_uuid = fil_loc.file_location_file_uuid
-      JOIN anvils AS anv
-        ON fil_loc.file_location_host_uuid IN (
-          anv.anvil_node1_host_uuid,
-          anv.anvil_node2_host_uuid,
-          anv.anvil_dr1_host_uuid
+        a.file_uuid,
+        a.file_name,
+        a.file_size,
+        a.file_type,
+        a.file_md5sum,
+        b.file_location_uuid,
+        b.file_location_active,
+        b.file_location_ready,
+        c.anvil_uuid,
+        c.anvil_name,
+        c.anvil_description,
+        d.host_uuid,
+        d.host_name,
+        d.host_type
+      FROM files AS a
+      JOIN file_locations AS b
+        ON a.file_uuid = b.file_location_file_uuid
+      JOIN anvils AS c
+        ON b.file_location_host_uuid IN (
+          c.anvil_node1_host_uuid,
+          c.anvil_node2_host_uuid,
+          c.anvil_dr1_host_uuid
         )
-      JOIN hosts AS hos
-        ON fil_loc.file_location_host_uuid = hos.host_uuid
-      WHERE fil.file_type != '${DELETED}'
-        AND fil.file_uuid = '${fileUuid}'
-      ORDER BY fil.file_name ASC;`;
+      JOIN hosts AS d
+        ON b.file_location_host_uuid = d.host_uuid
+      WHERE a.file_type != '${DELETED}'
+        AND a.file_uuid = '${fileUuid}'
+      ORDER BY a.file_name ASC;`;
 
     const afterQueryReturn = buildQueryResultModifier<FileDetail | undefined>(
       (rows: string[][]) => {
@@ -57,6 +58,7 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
             const [
               locationUuid,
               locationActive,
+              locationReady,
               anvilUuid,
               anvilName,
               anvilDescription,
@@ -89,12 +91,11 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
               previous.anvils[anvilUuid].locationUuids.push(locationUuid);
             }
 
-            const active = Number(locationActive) === 1;
-
             previous.locations[locationUuid] = {
               anvilUuid,
-              active,
+              active: Boolean(locationActive),
               hostUuid,
+              ready: Boolean(locationReady),
               uuid: locationUuid,
             };
 

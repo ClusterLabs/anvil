@@ -1,4 +1,11 @@
 type FileOverview = {
+  anvils: Record<
+    string,
+    {
+      active: boolean;
+      ready: boolean;
+    }
+  >;
   checksum: string;
   name: string;
   size: string;
@@ -8,7 +15,7 @@ type FileOverview = {
 
 type FileOverviewList = Record<string, FileOverview>;
 
-type FileDetail = FileOverview & {
+type FileDetail = Omit<FileOverview, 'anvils'> & {
   anvils: {
     [uuid: string]: {
       description: string;
@@ -30,7 +37,12 @@ type FileDetail = FileOverview & {
       active: boolean;
       anvilUuid: string;
       hostUuid: string;
+      ready: boolean;
       uuid: string;
     };
   };
+};
+
+type FileOverviewListReqQuery = {
+  anvilUuid: string;
 };

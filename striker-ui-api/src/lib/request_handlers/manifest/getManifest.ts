@@ -4,7 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
 export const getManifest: RequestHandler = buildGetRequestHandler(
-  (response, hooks) => {
+  (request, hooks) => {
     const query = `
       SELECT
         manifest_uuid,
