@@ -4,7 +4,7 @@ import { DELETED } from '../../consts';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
-import { sanitize } from '../../sanitize';
+import { buildUnknownIDCondition } from '../../buildCondition';
 
 export const getFile: RequestHandler<
   unknown,
@@ -16,21 +16,23 @@ export const getFile: RequestHandler<
     query: { anvil_uuid: rAnvilUuid, type: rFileType },
   } = request;
 
-  const anvilUuid = sanitize(rAnvilUuid, 'string', {
-    modifierType: 'sql',
-  });
-  const fileType = sanitize(rFileType, 'string', {
-    modifierType: 'sql',
-  });
+  const { after: condAnvilUuid } = buildUnknownIDCondition(
+    rAnvilUuid,
+    'c.anvil_uuid',
+  );
+  const { after: condFileType } = buildUnknownIDCondition(
+    rFileType,
+    'a.file_type',
+  );
 
   let conditions = `a.file_type != '${DELETED}'`;
 
-  if (anvilUuid) {
-    conditions += ` AND c.anvil_uuid = '${anvilUuid}'`;
+  if (condAnvilUuid) {
+    conditions += ` AND ${condAnvilUuid}`;
   }
 
-  if (fileType) {
-    conditions += ` AND a.file_type = '${fileType}'`;
+  if (condFileType) {
+    conditions += ` AND ${condFileType}`;
   }
 
   const query = `
