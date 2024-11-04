@@ -2,7 +2,7 @@ import * as yup from 'yup';
 
 import { REP_UUID } from '../../lib/consts/REG_EXP_PATTERNS';
 
-import { yupIpv4 } from '../../lib/yupMatches';
+import { yupIpv4 } from '../../lib/yupCommons';
 
 const hostNetSchema = yup.object({
   interfaces: yup

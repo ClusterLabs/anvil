@@ -1,6 +1,6 @@
 import * as yup from 'yup';
 
-import { yupIpv4, yupLaxUuid } from '../../lib/yupMatches';
+import { yupIpv4, yupLaxUuid } from '../../lib/yupCommons';
 
 const schema = yup.object().shape(
   {

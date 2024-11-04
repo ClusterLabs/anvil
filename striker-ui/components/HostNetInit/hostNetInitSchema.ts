@@ -4,7 +4,7 @@ import { REP_IPV4_CSV } from '../../lib/consts/REG_EXP_PATTERNS';
 
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
 import hostNetSchema from './hostNetSchema';
-import { yupIpv4 } from '../../lib/yupMatches';
+import { yupIpv4 } from '../../lib/yupCommons';
 
 const hostNetInitSchema = yup.object({
   dns: yup

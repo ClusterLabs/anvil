@@ -1,6 +1,6 @@
 import * as yup from 'yup';
 
-import { yupLaxMac, yupLaxUuid } from '../../../lib/yupMatches';
+import { yupLaxMac, yupLaxUuid } from '../../../lib/yupCommons';
 
 /* eslint-disable no-template-curly-in-string */
 

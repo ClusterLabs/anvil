@@ -29,8 +29,11 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
 
   const formikUtils = useFormikUtils<ServerMemoryFormikValues>({
     initialValues: {
-      size: dSize(detail.memory.size, { toUnit: DEFAULT_UNIT })?.value ?? '0',
-      unit: DEFAULT_UNIT,
+      size: {
+        unit: DEFAULT_UNIT,
+        value:
+          dSize(detail.memory.size, { toUnit: DEFAULT_UNIT })?.value ?? '0',
+      },
     },
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
@@ -39,17 +42,18 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
   });
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
-  const chains = useMemo(
-    () => ({
-      size: `size`,
-      unit: `unit`,
-    }),
-    [],
-  );
+  const chains = useMemo(() => {
+    const base = `size`;
+
+    return {
+      unit: `${base}.unit`,
+      value: `${base}.value`,
+    };
+  }, []);
 
   const formattedMemory = useMemo(() => {
     const options: FormatDataSizeOptions = {
-      toUnit: formik.values.unit,
+      toUnit: formik.values.size.unit,
     };
 
     const allocated = dSizeStr(memory.allocated, options) ?? '';
@@ -64,7 +68,7 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
       total,
     };
   }, [
-    formik.values.unit,
+    formik.values.size.unit,
     memory.allocated,
     memory.available,
     memory.reserved,
@@ -97,8 +101,8 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
               id="server-memory-input"
               label="Memory"
               inputWithLabelProps={{
-                id: chains.size,
-                name: chains.size,
+                id: chains.value,
+                name: chains.value,
               }}
               onChange={handleChange}
               selectItems={DSIZE_SELECT_ITEMS}
@@ -108,9 +112,9 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
                 onChange: (event) => {
                   const newUnit = event.target.value as DataSizeUnit;
 
-                  const { size, unit } = formik.values;
+                  const { value, unit } = formik.values.size;
 
-                  const newDataSize = dSize(size, {
+                  const newDataSize = dSize(value, {
                     fromUnit: unit,
                     precision: newUnit === 'B' ? 0 : undefined,
                     toUnit: newUnit,
@@ -120,11 +124,19 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
 
                   const { value: newSize } = newDataSize;
 
-                  formik.setValues({ size: newSize, unit: newUnit }, true);
+                  formik.setValues(
+                    {
+                      size: {
+                        value: newSize,
+                        unit: newUnit,
+                      },
+                    },
+                    true,
+                  );
                 },
-                value: formik.values.unit,
+                value: formik.values.size.unit,
               }}
-              value={formik.values.size}
+              value={formik.values.size.value}
             />
           }
         />

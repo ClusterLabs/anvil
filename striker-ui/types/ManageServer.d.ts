@@ -25,8 +25,10 @@ type ServerRenameFormikValues = {
 };
 
 type ServerMemoryFormikValues = {
-  size: string;
-  unit: import('format-data-size').DataSizeUnit;
+  size: {
+    unit: import('format-data-size').DataSizeUnit;
+    value: string;
+  };
 };
 
 /**
