@@ -48,11 +48,19 @@ type APIServerDetailDisk = {
   };
   device: string;
   source: {
-    dev?: string;
-    file: {
+    dev: {
+      lv: Partial<{
+        name: string;
+        size: string;
+        uuid: string;
+      }>;
+      path?: string;
+      sg?: string;
+    };
+    file: Partial<{
       path?: string;
       uuid?: string;
-    };
+    }>;
     index: number;
   };
   target: {

@@ -46,6 +46,7 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
     const base = `size`;
 
     return {
+      size: base,
       unit: `${base}.unit`,
       value: `${base}.value`,
     };
@@ -56,10 +57,10 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
       toUnit: formik.values.size.unit,
     };
 
-    const allocated = dSizeStr(memory.allocated, options) ?? '';
-    const available = dSizeStr(memory.available, options) ?? '';
-    const reserved = dSizeStr(memory.reserved, options) ?? '';
-    const total = dSizeStr(memory.total, options) ?? '';
+    const allocated = dSizeStr(memory.allocated, options);
+    const available = dSizeStr(memory.available, options);
+    const reserved = dSizeStr(memory.reserved, options);
+    const total = dSizeStr(memory.total, options);
 
     return {
       allocated,
@@ -80,15 +81,15 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
       <Grid item width="100%">
         <MemoryBar memory={memory} />
         <Grid container>
-          <Grid item width="25%">
+          <Grid item>
             <BodyText>Allocated: {formattedMemory.allocated}</BodyText>
           </Grid>
-          <Grid item width="50%" textAlign="center">
+          <Grid item textAlign="center" xs>
             <BodyText fontWeight={400}>
               Available: {formattedMemory.available}
             </BodyText>
           </Grid>
-          <Grid item width="25%" textAlign="right">
+          <Grid item textAlign="right">
             <BodyText>System reserved: {formattedMemory.reserved}</BodyText>
             <BodyText>Total: {formattedMemory.total}</BodyText>
           </Grid>
@@ -122,14 +123,13 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
 
                   if (!newDataSize) return;
 
-                  const { value: newSize } = newDataSize;
+                  const { value: newValue } = newDataSize;
 
-                  formik.setValues(
+                  formik.setFieldValue(
+                    chains.size,
                     {
-                      size: {
-                        value: newSize,
-                        unit: newUnit,
-                      },
+                      value: newValue,
+                      unit: newUnit,
                     },
                     true,
                   );

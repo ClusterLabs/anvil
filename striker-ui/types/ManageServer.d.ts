@@ -1,3 +1,11 @@
+type ServerAddDiskFormikValues = {
+  size: {
+    unit: string;
+    value: string;
+  };
+  storage: string;
+};
+
 type ServerInterfaceFormikValues = {
   bridge: string;
   mac: string;
@@ -88,6 +96,12 @@ type ServerMigrationProps = ServerFormProps;
 
 type ServerMigrationTableProps = ServerFormProps & {
   servers: APIServerOverviewList;
+};
+
+/** ServerAddDiskForm */
+
+type ServerAddDiskFormProps = ServerFormProps & {
+  device?: string;
 };
 
 /** ServerAddInterfaceForm */

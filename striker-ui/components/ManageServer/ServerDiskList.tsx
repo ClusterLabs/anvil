@@ -7,13 +7,17 @@ import { DialogWithHeader } from '../Dialog';
 import FlexBox from '../FlexBox';
 import IconButton from '../IconButton';
 import List from '../List';
+import ServerAddDiskForm from './ServerAddDiskForm';
 import ServerChangeIsoForm from './ServerChangeIsoForm';
 import { BodyText, MonoText } from '../Text';
 
 const ServerDiskList: FC<ServerDiskListProps> = (props) => {
   const { detail } = props;
 
-  const opticalSourceDialogRef = useRef<DialogForwardedRefContent>(null);
+  const addDiskDialogRef = useRef<DialogForwardedRefContent>(null);
+  const growDiskDialogRef = useRef<DialogForwardedRefContent>(null);
+
+  const changeIsoDialogRef = useRef<DialogForwardedRefContent>(null);
 
   const [target, setTarget] = useState<string | undefined>();
 
@@ -37,11 +41,16 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
         header
         listEmpty="No disk(s) found."
         listItems={disks}
+        onAdd={() => {
+          setTarget(undefined);
+
+          addDiskDialogRef.current?.setOpen(true);
+        }}
         renderListItem={(targetDev, disk) => {
           const {
             device,
             source: {
-              dev: sdev = '',
+              dev: { path: sdev = '' },
               file: { path: fpath = '' },
             },
             target: { dev: tdev },
@@ -68,7 +77,7 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
                     onClick={() => {
                       setTarget(tdev);
 
-                      opticalSourceDialogRef.current?.setOpen(true);
+                      changeIsoDialogRef.current?.setOpen(true);
                     }}
                     size="small"
                   >
@@ -78,7 +87,14 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
               )}
               {category === 'disk' && (
                 <Grid item>
-                  <IconButton size="small">
+                  <IconButton
+                    onClick={() => {
+                      setTarget(tdev);
+
+                      growDiskDialogRef.current?.setOpen(true);
+                    }}
+                    size="small"
+                  >
                     <ExpandIcon sx={{ rotate: '90deg' }} />
                   </IconButton>
                 </Grid>
@@ -87,9 +103,20 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
           );
         }}
       />
+      <DialogWithHeader header="Add disk" ref={addDiskDialogRef} showClose wide>
+        <ServerAddDiskForm {...props} />
+      </DialogWithHeader>
       <DialogWithHeader
-        header="Optical: insert or eject"
-        ref={opticalSourceDialogRef}
+        header={`${target}: grow disk`}
+        ref={growDiskDialogRef}
+        showClose
+        wide
+      >
+        {target && <ServerAddDiskForm device={target} {...props} />}
+      </DialogWithHeader>
+      <DialogWithHeader
+        header={`${target}: insert or eject ISO`}
+        ref={changeIsoDialogRef}
         showClose
         wide
       >
