@@ -48,11 +48,19 @@ type ServerDetailDisk = {
   };
   device: string;
   source: {
-    dev?: string;
-    file: {
+    dev: {
+      lv: Partial<{
+        name: string;
+        size: string;
+        uuid: string;
+      }>;
       path?: string;
-      uuid?: string;
+      sg?: string;
     };
+    file: Partial<{
+      path: string;
+      uuid: string;
+    }>;
     index: number;
   };
   target: {

@@ -7,7 +7,12 @@ import path from 'path';
 
 import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
-import { getVncinfo, listNicModels, query } from '../../accessModule';
+import {
+  getLvmData,
+  getVncinfo,
+  listNicModels,
+  query,
+} from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
@@ -178,6 +183,8 @@ export const getServerDetail: RequestHandler<
       ],
     } = rows;
 
+    const shortHostName = getShortHostName(hostName);
+
     // Get bridges separately to avoid passing duplicate definition XMLs
 
     sql = `
@@ -306,6 +313,25 @@ export const getServerDetail: RequestHandler<
       }, variables);
     }
 
+    // Get LVM info
+
+    let hostLvm: AnvilDataLvmHost;
+
+    try {
+      const lvm = await getLvmData();
+
+      const host = lvm.host_name?.[shortHostName];
+
+      assert.ok(host);
+
+      hostLvm = host;
+    } catch (error) {
+      return respond.s500(
+        'dd8a119',
+        `Failed to get storage (LVM) data; CAUSE: ${error}`,
+      );
+    }
+
     // Get list of NIC models
 
     const nicModels = await listNicModels(hostName);
@@ -390,7 +416,29 @@ export const getServerDetail: RequestHandler<
           diskOrderBySource[sourceIndex] = index;
         }
 
+        const sourceDev = source?.['@_dev'];
         const sourceFile = source?.['@_file'];
+
+        const lv: ServerDetailDisk['source']['dev']['lv'] = {};
+
+        let sgUuid: string | undefined;
+
+        if (sourceDev) {
+          const drbdResourceIndex = path.basename(sourceDev);
+          const lvName = `${serverName}_${drbdResourceIndex}`;
+
+          const hostLv = hostLvm.lv?.[lvName];
+
+          if (hostLv) {
+            lv.name = lvName;
+            lv.size = hostLv.scan_lvm_lv_size;
+            lv.uuid = hostLv.scan_lvm_lv_uuid;
+
+            const { scan_lvm_lv_on_vg: vgName } = hostLv;
+
+            ({ storage_group_uuid: sgUuid } = hostLvm.vg[vgName]);
+          }
+        }
 
         let fileUuid: string | undefined;
 
@@ -424,7 +472,11 @@ export const getServerDetail: RequestHandler<
           },
           device: diskDevice,
           source: {
-            dev: source?.['@_dev'],
+            dev: {
+              lv,
+              path: sourceDev,
+              sg: sgUuid,
+            },
             file: {
               path: sourceFile,
               uuid: fileUuid,
@@ -508,7 +560,7 @@ export const getServerDetail: RequestHandler<
       host: {
         bridges: hostBridges,
         name: hostName,
-        short: getShortHostName(hostName),
+        short: shortHostName,
         type: hostType,
         uuid: hostUuid,
       },

@@ -133,6 +133,46 @@ type AnvilDataHostNetworkPrimaryLink = AnvilDataHostNetworkLink & {
   subnet_mask: string;
 };
 
+type AnvilDataLvmHostLv = {
+  scan_lvm_lv_uuid: string;
+  scan_lvm_lv_attributes: string;
+  scan_lvm_lv_path: string;
+  scan_lvm_lv_size: string;
+  scan_lvm_lv_on_vg: string;
+  scan_lvm_lv_internal_uuid: string;
+  scan_lvm_lv_on_pvs: string;
+};
+
+type AnvilDataLvmHostPv = {
+  scan_lvm_pv_sector_size: string;
+  scan_lvm_pv_used_by_vg: string;
+  scan_lvm_pv_internal_uuid: string;
+  scan_lvm_pv_free: string;
+  scan_lvm_pv_attributes: string;
+  scan_lvm_pv_uuid: string;
+  scan_lvm_pv_size: string;
+};
+
+type AnvilDataLvmHostVg = {
+  storage_group_uuid: string;
+  scan_lvm_vg_internal_uuid: string;
+  scan_lvm_vg_extent_size: string;
+  scan_lvm_vg_size: string;
+  scan_lvm_vg_free: string;
+  scan_lvm_vg_attributes: string;
+  scan_lvm_vg_uuid: string;
+};
+
+type AnvilDataLvmHost = {
+  lv: Record<string, AnvilDataLvmHostLv>;
+  pv: Record<string, AnvilDataLvmHostPv>;
+  vg: Record<string, AnvilDataLvmHostVg>;
+};
+
+type AnvilDataLvm = {
+  host_name: Record<string, AnvilDataLvmHost>;
+};
+
 type AnvilDataStrikerNetworkPrimaryLink = Omit<
   AnvilDataHostNetworkPrimaryLink,
   | 'bond_name'

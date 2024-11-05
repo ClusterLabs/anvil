@@ -447,6 +447,12 @@ const getLocalHostUuid = () => {
   return result;
 };
 
+const getLvmData = async () => {
+  await subroutine('get_lvm_data');
+
+  return getData<AnvilDataLvm>('lvm');
+};
+
 const getManifestData = async (manifestUuid?: string) => {
   await subroutine('load_manifest', {
     params: [{ manifest_uuid: manifestUuid }],
@@ -569,6 +575,7 @@ export {
   getHostData,
   getLocalHostName,
   getLocalHostUuid as getLocalHostUUID,
+  getLvmData,
   getManifestData,
   getNetworkData,
   getPeerData,
