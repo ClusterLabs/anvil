@@ -156,6 +156,7 @@ type APIAnvilStorageGroupCalcable = {
   free: bigint;
   name: string;
   size: bigint;
+  used: bigint;
   uuid: string;
 };
 
@@ -165,4 +166,5 @@ type APIAnvilSharedStorageOverview = {
   };
   totalFree: bigint;
   totalSize: bigint;
+  totalUsed: bigint;
 };
