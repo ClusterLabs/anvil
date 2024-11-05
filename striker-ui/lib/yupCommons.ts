@@ -83,54 +83,93 @@ export const yupDataSize = (options: {
   return yup.object({
     value: yup
       .string()
-      .required()
+      .ensure()
       .when(['unit'], (values, schema) => {
         const [unit] = values;
 
-        return schema.transform((value) => {
-          if (unit === baseUnit) return value;
+        if (/percent/.test(unit)) {
+          return schema.test({
+            exclusive: true,
+            name: 'percent',
+            test: (value, context) => {
+              const { createError } = context;
 
-          const current = dSize(value, {
-            fromUnit: unit,
-            precision: 0,
-            toUnit: baseUnit,
+              const n = Number(value);
+
+              if (!Number.isSafeInteger(n)) {
+                return createError({
+                  message: '${path} (%) must be a valid integer',
+                });
+              }
+
+              const max = 100;
+              const min = 0;
+
+              if (!(n <= max)) {
+                return createError({
+                  message: '${path} (%) must be less than or equal to ${max}%',
+                  params: { max },
+                });
+              }
+
+              if (!(n >= min)) {
+                return createError({
+                  message:
+                    '${path} (%) must be greater than or equal to ${min}%',
+                  params: { min },
+                });
+              }
+
+              return true;
+            },
           });
+        }
 
-          return current ? current.value : nds;
-        });
-      })
-      .test({
-        exclusive: true,
-        message: '${path} is not a valid data size',
-        name: 'datasize',
-        test: (value) => value !== nds,
-      })
-      .test({
-        exclusive: true,
-        name: 'sequence',
-        test: (value, context) => {
-          const { createError } = context;
+        return schema
+          .transform((value) => {
+            if (unit === baseUnit) return value;
 
-          let nValue: bigint;
-
-          try {
-            nValue = BigInt(value);
-          } catch (error) {
-            return createError({
-              message: '${path} cannot have decimal bytes',
+            const current = dSize(value, {
+              fromUnit: unit,
+              precision: 0,
+              toUnit: baseUnit,
             });
-          }
 
-          try {
-            testMin?.call(context, nValue, context);
-            testMax?.call(context, nValue, context);
-          } catch (error) {
-            return error as yup.ValidationError;
-          }
+            return current ? current.value : nds;
+          })
+          .test({
+            exclusive: true,
+            message: '${path} is not a valid data size',
+            name: 'datasize',
+            test: (value) => value !== nds,
+          })
+          .test({
+            exclusive: true,
+            name: 'sequence',
+            test: (value, context) => {
+              const { createError } = context;
 
-          return true;
-        },
+              let nValue: bigint;
+
+              try {
+                nValue = BigInt(value);
+              } catch (error) {
+                return createError({
+                  message: '${path} cannot have decimal bytes',
+                });
+              }
+
+              try {
+                testMin?.call(context, nValue, context);
+                testMax?.call(context, nValue, context);
+              } catch (error) {
+                return error as yup.ValidationError;
+              }
+
+              return true;
+            },
+          });
       }),
-    unit: yup.string().required(),
+    unit: yup.string(),
   });
 };

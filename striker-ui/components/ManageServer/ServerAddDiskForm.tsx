@@ -85,17 +85,19 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
     [sgs],
   );
 
-  const formattedSg = useMemo(() => {
+  const sg = useMemo(() => {
     if (!sgs) return undefined;
 
-    const { size, storage } = formik.values;
-    const { [storage]: sg } = sgs.storageGroups;
+    return sgs.storageGroups[formik.values.storage];
+  }, [formik.values, sgs]);
 
+  const formattedSg = useMemo(() => {
     if (!sg) return undefined;
 
+    const { unit } = formik.values.size;
+
     const options: FormatDataSizeOptions = {
-      toUnit:
-        size.unit === 'percent' ? DEFAULT_UNIT : (size.unit as DataSizeUnit),
+      toUnit: unit === 'percent' ? DEFAULT_UNIT : (unit as DataSizeUnit),
     };
 
     return {
@@ -103,14 +105,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
       size: dSizeStr(sg.size, options),
       used: dSizeStr(sg.used, options),
     };
-  }, [formik.values, sgs]);
-
-  const disableStorageGroup = useMemo(() => Boolean(device), [device]);
-
-  const disableDiskSize = useMemo(
-    () => !formik.values.storage,
-    [formik.values.storage],
-  );
+  }, [formik.values.size, sg]);
 
   if (!sgs || !sgValues) {
     return <Spinner mt={0} />;
@@ -142,7 +137,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
           onChange={formik.handleChange}
           selectItems={sgValues}
           selectProps={{
-            disabled: disableStorageGroup,
+            disabled: Boolean(device),
           }}
           value={formik.values.storage}
         />
@@ -156,7 +151,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
               inputWithLabelProps={{
                 id: chains.value,
                 inputProps: {
-                  disabled: disableDiskSize,
+                  disabled: !formik.values.storage,
                 },
                 name: chains.value,
               }}
@@ -168,13 +163,18 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
                 onChange: (event) => {
                   const newUnit = event.target.value;
 
-                  if (newUnit === 'percent') {
-                    return;
-                  }
-
                   const { unit, value } = formik.values.size;
 
-                  if (unit === 'percent') {
+                  if ([newUnit, unit].includes('percent')) {
+                    formik.setFieldValue(
+                      chains.size,
+                      {
+                        unit: newUnit,
+                        value: '0',
+                      },
+                      true,
+                    );
+
                     return;
                   }
 
@@ -198,7 +198,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
                   );
                 },
                 selectProps: {
-                  disabled: disableDiskSize,
+                  disabled: !formik.values.storage,
                 },
                 value: formik.values.size.unit,
               }}
