@@ -30,10 +30,12 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
         b.ip_address_dns
       FROM network_interfaces AS a
       LEFT JOIN ip_addresses AS b
-        ON b.ip_address_on_uuid = a.network_interface_uuid
+        ON b.ip_address_note != '${DELETED}'
+          AND b.ip_address_on_uuid = a.network_interface_uuid
       WHERE a.network_interface_operational != '${DELETED}'
         AND a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
-        AND a.network_interface_host_uuid = '${hostUuid}';`;
+        AND a.network_interface_host_uuid = '${hostUuid}'
+      ORDER BY a.network_interface_name;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultReducer<NetworkInterfaceOverviewList>((previous, row) => {
