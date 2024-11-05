@@ -32,17 +32,13 @@ const MAP_TO_HOST_STATE_COLOUR: Record<string, string> = {
 const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   const { anvilUuid, refreshInterval = 5000 } = props;
 
-  const { data: rAnvil, loading: loadingAnvil } = useFetch<AnvilListItem>(
-    `/anvil/${anvilUuid}`,
-    {
-      refreshInterval,
-    },
-  );
-
-  const anvil = useMemo<APIAnvilDetail | undefined>(
-    () => rAnvil && toAnvilDetail(rAnvil),
-    [rAnvil],
-  );
+  const { altData: anvil, loading: loadingAnvil } = useFetch<
+    AnvilListItem,
+    APIAnvilDetail
+  >(`/anvil/${anvilUuid}`, {
+    mod: toAnvilDetail,
+    refreshInterval,
+  });
 
   const { data: cpu, loading: loadingCpu } = useFetch<AnvilCPU>(
     `/anvil/${anvilUuid}/cpu`,
@@ -56,27 +52,21 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     [cpu],
   );
 
-  const { data: rMemory, loading: loadingMemory } = useFetch<AnvilMemory>(
-    `/anvil/${anvilUuid}/memory`,
-    {
-      refreshInterval,
-    },
-  );
+  const { altData: memory, loading: loadingMemory } = useFetch<
+    AnvilMemory,
+    AnvilMemoryCalcable
+  >(`/anvil/${anvilUuid}/memory`, {
+    mod: toAnvilMemoryCalcable,
+    refreshInterval,
+  });
 
-  const memory = useMemo<AnvilMemoryCalcable | undefined>(
-    () => rMemory && toAnvilMemoryCalcable(rMemory),
-    [rMemory],
-  );
-
-  const { data: rStorages, loading: loadingStorages } =
-    useFetch<AnvilSharedStorage>(`/anvil/${anvilUuid}/store`, {
-      refreshInterval,
-    });
-
-  const storages = useMemo<APIAnvilSharedStorageOverview | undefined>(
-    () => rStorages && toAnvilSharedStorageOverview(rStorages),
-    [rStorages],
-  );
+  const { altData: storages, loading: loadingStorages } = useFetch<
+    AnvilSharedStorage,
+    APIAnvilSharedStorageOverview
+  >(`/anvil/${anvilUuid}/store`, {
+    mod: toAnvilSharedStorageOverview,
+    refreshInterval,
+  });
 
   const loading = useMemo<boolean>(
     () =>
