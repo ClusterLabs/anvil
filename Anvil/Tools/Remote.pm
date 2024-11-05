@@ -1312,8 +1312,8 @@ sub _call_ssh_keyscan
 	# Does the known_hosts file actually exist?
 	if (not -f $known_hosts)
 	{
+		# No, but it'll get created.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0163", variables => { file => $known_hosts }});
-		return("");
 	}
 	
 	# Redirect STDERR to STDOUT and grep off the comments.
