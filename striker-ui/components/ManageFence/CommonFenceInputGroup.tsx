@@ -251,17 +251,21 @@ const CommonFenceInputGroup = <M extends Record<string, string>>({
                 {
                   content_type: parameterType,
                   default: parameterDefault,
-                  deprecated: rawParameterDeprecated,
+                  deprecated: parameterDeprecated,
                   description: parameterDescription,
                   options: parameterSelectOptions,
-                  required: rawParameterRequired,
+                  replacement: parameterReplacement,
+                  required: parameterRequired,
                 },
               ],
             ) => {
-              const isParameterDeprecated =
-                String(rawParameterDeprecated) === '1';
+              const isParameterDeprecated = Number(parameterDeprecated) === 1;
 
-              if (isParameterDeprecated) return previous;
+              if (
+                [isParameterDeprecated, parameterReplacement].some((v) => v)
+              ) {
+                return previous;
+              }
 
               const { optional, required } = previous;
               const buildInput =
@@ -272,7 +276,9 @@ const CommonFenceInputGroup = <M extends Record<string, string>>({
               const initialValue =
                 mapToPreviousFenceParameterValues[fenceJoinParameterId] ??
                 parameterDefault;
-              const isParameterRequired = String(rawParameterRequired) === '1';
+              const isParameterRequired = /plug|port/i.test(parameterId)
+                ? false
+                : Number(parameterRequired) === 1;
               const isParameterSensitive = REP_LABEL_PASSW.test(parameterId);
 
               const parameterInput = buildInput({
@@ -334,6 +340,7 @@ const CommonFenceInputGroup = <M extends Record<string, string>>({
                 key={`${inputIdFenceName}-wrapper`}
                 input={
                   <OutlinedInputWithLabel
+                    disableAutofill
                     id={inputIdFenceName}
                     label={inputLabelFenceName}
                     name={inputIdFenceName}
