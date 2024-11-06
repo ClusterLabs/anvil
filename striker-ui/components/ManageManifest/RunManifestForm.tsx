@@ -404,7 +404,7 @@ const RunManifestForm: FC<RunManifestFormProps> = (props) => {
 
         rows.push(
           <Grid item key={`${fenceId}-header`} xs={1}>
-            <BodyText>Port on {fenceName}</BodyText>
+            <BodyText>Plug on {fenceName}</BodyText>
           </Grid>,
           ...ports,
         );

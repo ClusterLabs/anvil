@@ -28,7 +28,7 @@ type APIFenceTemplate = {
         default?: string;
         deprecated: number;
         description: string;
-        obsoletes: number;
+        obsoletes: 0 | string;
         options?: string[];
         replacement: string;
         required: '0' | '1';

@@ -174,7 +174,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
           const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${fenceId}-port`;
 
           const inputId = buildInputIdAHFencePort(hostId, fenceId);
-          const inputLabel = `Port on ${fenceName}`;
+          const inputLabel = `Plug on ${fenceName}`;
 
           previous[cellId] = {
             children: (
@@ -348,7 +348,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
               'fence-message': {
                 children: (
                   <MessageBox>
-                    It is recommended to provide 2 fence device ports.
+                    It is recommended to provide at least 1 fence device plug.
                   </MessageBox>
                 ),
                 width: '100%',
