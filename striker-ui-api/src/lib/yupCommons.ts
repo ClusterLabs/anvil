@@ -1,6 +1,11 @@
 import * as yup from 'yup';
 
-import { REP_IPV4, REP_UUID } from './consts';
+import { REP_IPV4, REP_MAC, REP_UUID } from './consts';
+
+export const yupLaxMac = () =>
+  yup.string().matches(REP_MAC, {
+    message: '${path} must be a valid MAC address',
+  });
 
 export const yupLaxUuid = () =>
   yup.string().matches(REP_UUID, {

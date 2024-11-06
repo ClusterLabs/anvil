@@ -15,6 +15,8 @@ export const REP_IPV4 = new RegExp(`^${P_IPV4}$`);
 
 export const REP_IPV4_CSV = new RegExp(`(?:${P_IPV4},)*${P_IPV4}`);
 
+export const REP_MAC = new RegExp(`^${P_HEX}{2}(?::${P_HEX}{2}){5}$`);
+
 // Peaceful string is temporarily defined as a string without single-quote, double-quote, slash (/), backslash (\\), angle brackets (< >), and curly brackets ({ }).
 export const REP_PEACEFUL_STRING = /^[^'"/\\><}{]+$/;
 
