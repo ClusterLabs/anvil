@@ -9,17 +9,16 @@ import useFetch from '../../hooks/useFetch';
 const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
   const { detail, servers } = props;
 
-  const { altData: hosts } = useFetch<APIHostOverviewList>('/host?types=node', {
+  const { altData: hostValues } = useFetch<
+    APIHostOverviewList,
+    APIHostOverview[]
+  >('/host?types=node', {
     mod: (data) => {
       const values = Object.values(data);
 
-      values.filter((host) => host.anvil?.uuid === detail.anvil.uuid);
-
-      return data;
+      return values.filter((host) => host.anvil?.uuid === detail.anvil.uuid);
     },
   });
-
-  const hostValues = useMemo(() => hosts && Object.values(hosts), [hosts]);
 
   const filteredServerValues = useMemo(
     () =>
