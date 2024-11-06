@@ -1,12 +1,10 @@
-type FormEntry = boolean | null | number | string;
-
 type FormEntries = {
-  [key: string]: FormEntries | FormEntry;
+  [key: string]: FormEntries | unknown;
 };
 
 type CommonFormEntryHandlerArgs = {
   depth: number;
-  entry: FormEntry;
+  entry: unknown;
   hasPassword: boolean;
   key: string;
 };
@@ -23,9 +21,9 @@ type GetFormEntryPropsFunction = (
   args: CommonFormEntryHandlerArgs,
 ) => import('@mui/material').ListItemProps;
 
-type GetFormEntriesPropsFunction = (args: {
+type GetFormEntriesPropsFunction<T extends FormEntries> = (args: {
   depth: number;
-  entries: FormEntries;
+  entries: T;
   key?: string;
 }) => import('@mui/material').ListProps;
 
@@ -46,9 +44,9 @@ type RenderFormEntryFunction = (
 
 type SkipFormEntryFunction = (args: CommonFormEntryHandlerArgs) => boolean;
 
-type FormSummaryOptionalProps = {
+type FormSummaryOptionalProps<T extends FormEntries> = {
   getEntryLabel?: GetFormEntryLabelFunction;
-  getListProps?: GetFormEntriesPropsFunction;
+  getListProps?: GetFormEntriesPropsFunction<T>;
   getListItemProps?: GetFormEntryPropsFunction;
   hasPassword?: boolean;
   maxDepth?: number;
@@ -63,6 +61,6 @@ type FormSummaryOptionalProps = {
   ) => ReturnType<SkipFormEntryFunction>;
 };
 
-type FormSummaryProps<T extends FormEntries> = FormSummaryOptionalProps & {
+type FormSummaryProps<T extends FormEntries> = FormSummaryOptionalProps<T> & {
   entries: T;
 };
