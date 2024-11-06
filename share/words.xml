@@ -1800,6 +1800,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 [ Note ] - The host name was updated. The hostname is cached in several places, and it is important all are updated during the cluster config.
 [ Note ]   *** the system will now reboot. ***
 [ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
+		<key name="job_0489">Change server properties with [#!variable!tool!#]</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
