@@ -520,7 +520,9 @@ const getUpsSpec = async () => {
 
 const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   const rows: [[string]] = await query(
-    `SELECT variable_value FROM variables WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
+    `SELECT variable_value
+      FROM variables
+      WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
   );
 
   if (!rows.length) {

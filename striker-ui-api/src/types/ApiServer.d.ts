@@ -161,8 +161,67 @@ type ServerNetworkInterface = {
 
 type ServerNetworkInterfaceList = Record<string, ServerNetworkInterface>;
 
+type ServerAddDiskRequestBody = {
+  anvil?: string;
+  size: string;
+  storage: string;
+};
+
+type ServerAddIfaceRequestBody = {
+  bridge: string;
+  mac?: string;
+  model?: string;
+};
+
+type ServerChangeIsoRequestBody = {
+  anvil?: string;
+  device: string;
+  iso?: string;
+};
+
+type ServerDeleteIfaceRequestBody = {
+  mac: string;
+};
+
+type ServerGrowDiskRequestBody = {
+  anvil?: string;
+  device: string;
+  size: string;
+};
+
 type ServerRenameRequestBody = {
-  newName: string;
+  name: string;
+};
+
+/**
+ * @param target DRBD resource, which should be short host name
+ */
+type ServerMigrateRequestBody = {
+  target: string;
+};
+
+type ServerSetBootOrderRequestBody = {
+  order: string[];
+};
+
+type ServerSetCpuRequestBody = {
+  cores: number;
+  sockets: number;
+};
+
+type ServerSetIfaceStateRequestBody = {
+  active: boolean;
+  mac: string;
+};
+
+type ServerSetMemoryRequestBody = {
+  size: string;
+};
+
+type ServerSetStartDependencyRequestBody = {
+  active?: boolean;
+  after?: string;
+  delay: number;
 };
 
 type ServerUpdateParamsDictionary = {
