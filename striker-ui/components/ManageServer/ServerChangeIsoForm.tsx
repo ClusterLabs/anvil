@@ -5,6 +5,7 @@ import { FC, useMemo } from 'react';
 
 import Autocomplete from '../Autocomplete';
 import handleFormSubmit from './handleFormSubmit';
+import IconButton from '../IconButton';
 import MessageGroup from '../MessageGroup';
 import { changeIsoSchema } from './schemas';
 import ServerFormGrid from './ServerFormGrid';
@@ -29,7 +30,7 @@ const ServerIsoSummary: FC<ServerIsoSummaryProps> = (props) => {
     <Box>
       <MonoText>{path.full}</MonoText>
       <MonoText>{dSizeStr(size, { toUnit: 'ibyte' })}</MonoText>
-      <MonoText>{checksum}</MonoText>
+      <MonoText>md5: {checksum}</MonoText>
     </Box>
   );
 };
@@ -94,13 +95,13 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
   const isoValues = useMemo(() => isos && Object.values(isos), [isos]);
 
   const fieldValue = useMemo(() => {
-    if (!isos) return null;
+    if (!isos) return undefined;
 
     const { file } = formik.values;
 
-    if (!file) return null;
+    if (!file) return undefined;
 
-    return isos[file] ?? null;
+    return isos[file];
   }, [formik.values, isos]);
 
   if (!isoValues) {
@@ -109,14 +110,13 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
 
   return (
     <ServerFormGrid<ServerChangeIsoFormikValues> formik={formik}>
-      <Grid item width="100%">
+      <Grid item xs>
         <Autocomplete
           autoHighlight
-          clearIcon={<EjectIcon />}
-          clearText="Eject ISO"
+          disableClearable
           getOptionLabel={(option) => option.name}
           id={chains.file}
-          isOptionEqualToValue={(option, value) => option.uuid === value.uuid}
+          isOptionEqualToValue={(option, value) => option.uuid === value?.uuid}
           label="ISO (optical disk)"
           noOptionsText="No matching ISO"
           onChange={(event, value) => {
@@ -135,6 +135,16 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
           }}
           value={fieldValue}
         />
+      </Grid>
+      <Grid item alignSelf="center">
+        <IconButton
+          onClick={() => {
+            formik.setFieldValue(chains.file, null, true);
+          }}
+          size="small"
+        >
+          <EjectIcon />
+        </IconButton>
       </Grid>
       {formik.values.file && (
         <Grid item width="100%">
