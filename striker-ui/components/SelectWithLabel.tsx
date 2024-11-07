@@ -33,6 +33,7 @@ const SelectWithLabel = <
     isReadOnly = false,
     messageBoxProps = {},
     name,
+    noOptionsText = 'No options',
     onBlur,
     onChange,
     onFocus,
@@ -106,27 +107,29 @@ const SelectWithLabel = <
       ),
     [inputLabelProps, isRequired, label, selectId],
   );
-  const menuItemElements = useMemo(
-    () =>
-      selectItems.map((item) => {
-        /**
-         * Cases:
-         * 1. item is string
-         * 2. item is SelectItem with only value
-         * 3. item is SelectItem with both value, and displayValue
-         */
+  const menuItemElements = useMemo(() => {
+    if (!selectItems.length) {
+      return <MenuItem disabled>{noOptionsText}</MenuItem>;
+    }
 
-        if (typeof item === 'string') return createMenuItem(item, item);
+    return selectItems.map((item) => {
+      /**
+       * Cases:
+       * 1. item is string
+       * 2. item is SelectItem with only value
+       * 3. item is SelectItem with both value, and displayValue
+       */
 
-        const {
-          value,
-          displayValue = String(value),
-        }: SelectItem<Value, Display> = item;
+      if (typeof item === 'string') return createMenuItem(item, item);
 
-        return createMenuItem(value, displayValue);
-      }),
-    [createMenuItem, selectItems],
-  );
+      const {
+        value,
+        displayValue = String(value),
+      }: SelectItem<Value, Display> = item;
+
+      return createMenuItem(value, displayValue);
+    });
+  }, [createMenuItem, noOptionsText, selectItems]);
 
   const mergedSelectMenuProps = useMemo(
     () =>
