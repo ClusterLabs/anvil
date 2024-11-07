@@ -221,7 +221,7 @@ type ServerSetMemoryRequestBody = {
 type ServerSetStartDependencyRequestBody = {
   active?: boolean;
   after?: string;
-  delay: number;
+  delay?: number;
 };
 
 type ServerUpdateParamsDictionary = {
