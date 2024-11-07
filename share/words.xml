@@ -3988,6 +3988,17 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 		<key name="unit_0048">- Server is in an unknown state (int: [#!variable!state!#]).</key>
 		<key name="unit_0049"><![CDATA[<ejected>]]></key>
 		
+		<!-- These are special. These are used to describe the UPSes that ScanCore supports. These 
+		     are used when adding UPSes to the system for use in Install Manifests.
+		     NOTE: These are recorded here instead of the database to simplify localization and 
+		           expansion of the list. Please do NOT remove any entries as they are linked by the 
+		           database. When translating, DO NOT CHANGE 'name' or 'agent'! The 'brand' key can
+		           be changed just fine though. -->
+		<key name="ups_0001" agent="scan-apc-ups" brand="APC"><![CDATA[APC (by Schneider) Networked UPS - <a href="https://www.apc.com/shop/ca/en/categories/power/uninterruptible-power-supply-ups-/network-and-server/N-15e4jmd" target="_new">Link</a>.]]></key>
+		<key name="ups_0002" agent="scan-eaton-ups" brand="Eaton"><![CDATA[Eaton Networked UPS - <a href="https://powerquality.eaton.com/Products-services/Backup-Power-UPS/default.asp" target="_new">Link</a>.]]></key>
+		<key name="ups_0003" agent="scan-tripplite-ups" brand="TrippLite"><![CDATA[TrippLite Networked UPS - <a href="https://www.tripplite.com/products/ups-battery-backup~11" target="_new">Link</a>.]]></key>
+		<key name="ups_0004" agent="scan-cyberpower-ups" brand="Cyberpower"><![CDATA[Cyberpower Networked UPS - <a href="https://www.cyberpowersystems.com/products/ups/" target="_new">Link</a>.]]></key>
+		
 		<!-- Warnings --> 
 		<key name="warning_0001">[ Warning ] - There was a duplicate IP address found in the database for the host: [#!variable!host_uuid!#] with the IP: [#!variable!ip_address!#/#!variable!subnet_mask!#]. It was last seen on the interface type: [#!variable!on_type!#] with UUID: [#!variable!on_uuid!#]. It had the 'ip_address_uuid': [#!variable!ip_address_uuid!#]! of. Deleting it now!</key>
 		<key name="warning_0002">[ Warning ] - Failed to update the file: [#!variable!file!#]. The new body wasn't written, or it wasn't written accurately. The difference was:
