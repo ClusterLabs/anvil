@@ -48,7 +48,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
           buildRequestBody: (v) => {
             const { active, after, delay } = v;
 
-            if (active) {
+            if (active && after) {
               return {
                 after,
                 delay: Number(delay),
