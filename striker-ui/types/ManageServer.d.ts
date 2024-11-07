@@ -106,9 +106,7 @@ type ServerAddDiskFormProps = ServerFormProps & {
 
 /** ServerAddInterfaceForm */
 
-type ServerAddInterfaceFormProps = {
-  detail: APIServerDetail;
-};
+type ServerAddInterfaceFormProps = ServerFormProps;
 
 /** ServerBootOrderForm */
 

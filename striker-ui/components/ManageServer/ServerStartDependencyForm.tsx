@@ -1,6 +1,7 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { startDependencySchema } from './schemas';
@@ -14,7 +15,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
   props,
 ) => {
-  const { detail, servers } = props;
+  const { detail, servers, tools } = props;
 
   const formikUtils = useFormikUtils<ServerStartDependencyFormikValues>({
     initialValues: {
@@ -22,8 +23,42 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
       after: detail.start.after || '',
       delay: String(detail.start.delay),
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/set-start-dependency`,
+        () => `Set start dependency?`,
+        {
+          buildSummary: (v) => {
+            const { active, after, delay } = v;
+
+            if (!active) {
+              return {
+                'stay-off': true,
+              };
+            }
+
+            return {
+              after: servers[after]?.name,
+              delay: `${delay} second(s)`,
+            };
+          },
+          buildRequestBody: (v) => {
+            const { active, after, delay } = v;
+
+            if (active) {
+              return {
+                after,
+                delay: Number(delay),
+              };
+            }
+
+            return { active };
+          },
+        },
+      );
     },
     validationSchema: startDependencySchema,
   });
@@ -42,9 +77,11 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
   const filteredServerValues = useMemo(
     () =>
       Object.values(servers).filter(
-        (server) => server.anvil.uuid === detail.anvil.uuid,
+        (server) =>
+          server.anvil.uuid === detail.anvil.uuid &&
+          server.uuid !== detail.uuid,
       ),
-    [detail.anvil.uuid, servers],
+    [detail.anvil.uuid, detail.uuid, servers],
   );
 
   const serverOptions = useMemo<SelectItem[]>(

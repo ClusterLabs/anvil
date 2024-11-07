@@ -1,8 +1,9 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
-import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
+import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { buildRenameSchema } from './schemas';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
@@ -10,14 +11,20 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
-  const { detail, servers } = props;
+  const { detail, servers, tools } = props;
 
   const formikUtils = useFormikUtils<ServerRenameFormikValues>({
     initialValues: {
       name: detail.name,
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/rename`,
+        () => `Rename ${detail.name}?`,
+      );
     },
     validationSchema: buildRenameSchema(detail, servers),
   });

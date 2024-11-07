@@ -11,6 +11,7 @@ import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
 import { StorageBar } from '../Bars';
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import { buildAddDiskSchema } from './schemas';
@@ -34,7 +35,7 @@ const UNIT_OPTIONS: SelectItem<DataSizeUnit | 'percent'>[] = [
 ];
 
 const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
-  const { device, detail } = props;
+  const { device, detail, tools } = props;
 
   const working = useMemo(
     () => detail.devices.disks.find((disk) => disk.target.dev === device),
@@ -57,8 +58,41 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
       },
       storage: working?.source.dev.sg ?? '',
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/${device ? 'grow-disk' : 'add-disk'}`,
+        () => `Add disk on ${sgs?.storageGroups[values.storage].name}?`,
+        {
+          buildSummary: (v) => {
+            const { size, storage } = v;
+            const { unit: option, value } = size;
+
+            const unit = /percent/i.test(option) ? '%' : option;
+
+            if (device) {
+              return {
+                device,
+                size: `${value}${unit}`,
+              };
+            }
+
+            return {
+              size: `${value}${unit}`,
+              storage: sgs?.storageGroups[storage].name,
+            };
+          },
+          buildRequestBody: (v, s) => {
+            if (s?.storage) {
+              s.storage = v.storage;
+            }
+
+            return s;
+          },
+        },
+      );
     },
     validationSchema: buildAddDiskSchema(sgs),
   });

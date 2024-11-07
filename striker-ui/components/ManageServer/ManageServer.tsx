@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { FC, useRef, useState } from 'react';
 
 import { Preview } from '../Display';
 import Divider from '../Divider';
@@ -84,24 +84,16 @@ const ManageServer: FC<ManageServerProps> = (props) => {
     },
   });
 
-  const formTools = useMemo<CrudListFormTools>(
-    () => ({
-      add: { open: () => null },
-      confirm: {
-        finish: finishConfirm,
-        loading: setConfirmDialogLoading,
-        open: (v = true) => setConfirmDialogOpen(v),
-        prepare: setConfirmDialogProps,
-      },
-      edit: { open: () => null },
-    }),
-    [
-      finishConfirm,
-      setConfirmDialogLoading,
-      setConfirmDialogOpen,
-      setConfirmDialogProps,
-    ],
-  );
+  const formTools = useRef<CrudListFormTools>({
+    add: { open: () => null },
+    confirm: {
+      finish: finishConfirm,
+      loading: setConfirmDialogLoading,
+      open: (v = true) => setConfirmDialogOpen(v),
+      prepare: setConfirmDialogProps,
+    },
+    edit: { open: () => null },
+  });
 
   if (!detail || !servers) {
     return (
@@ -205,42 +197,42 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <PanelHeader>
                 <HeaderText>{tabs.bootOrder.label}</HeaderText>
               </PanelHeader>
-              <ServerBootOrderForm detail={detail} tools={formTools} />
+              <ServerBootOrderForm detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.cpu.value}>
               <PanelHeader>
                 <HeaderText>{tabs.cpu.label}</HeaderText>
               </PanelHeader>
-              <ServerCpuForm detail={detail} tools={formTools} />
+              <ServerCpuForm detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.disks.value}>
               <PanelHeader>
                 <HeaderText>{tabs.disks.label}</HeaderText>
               </PanelHeader>
-              <ServerDiskList detail={detail} tools={formTools} />
+              <ServerDiskList detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.interfaces.value}>
               <PanelHeader>
                 <HeaderText>{tabs.interfaces.label}</HeaderText>
               </PanelHeader>
-              <ServerInterfaceList detail={detail} tools={formTools} />
+              <ServerInterfaceList detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.memory.value}>
               <PanelHeader>
                 <HeaderText>{tabs.memory.label}</HeaderText>
               </PanelHeader>
-              <ServerMemoryForm detail={detail} tools={formTools} />
+              <ServerMemoryForm detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.migration.value}>
               <PanelHeader>
                 <HeaderText>{tabs.migration.label}</HeaderText>
               </PanelHeader>
-              <ServerMigration detail={detail} tools={formTools} />
+              <ServerMigration detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.name.value}>
@@ -249,7 +241,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               </PanelHeader>
               <ServerRenameForm
                 detail={detail}
-                tools={formTools}
+                tools={formTools.current}
                 servers={servers}
               />
             </TabContent>
@@ -264,7 +256,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <ServerStartDependencyForm
                 detail={detail}
                 servers={servers}
-                tools={formTools}
+                tools={formTools.current}
               />
             </TabContent>
           </Grid>

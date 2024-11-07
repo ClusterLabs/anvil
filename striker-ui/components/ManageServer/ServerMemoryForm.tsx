@@ -11,6 +11,7 @@ import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import { toAnvilMemoryCalcable } from '../../lib/api_converters';
 import { MemoryBar } from '../Bars';
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import { buildMemorySchema } from './schemas';
@@ -25,7 +26,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const DEFAULT_UNIT: DataSizeUnit = 'GiB';
 
 const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
-  const { detail, memory } = props;
+  const { detail, memory, tools } = props;
 
   const formikUtils = useFormikUtils<ServerMemoryFormikValues>({
     initialValues: {
@@ -35,8 +36,21 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
           dSize(detail.memory.size, { toUnit: DEFAULT_UNIT })?.value ?? '0',
       },
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/set-memory`,
+        () => `Set memory?`,
+        {
+          buildSummary: (v) => {
+            const { unit, value } = v.size;
+
+            return { size: `${value}${unit}` };
+          },
+        },
+      );
     },
     validationSchema: buildMemorySchema(memory),
   });

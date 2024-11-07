@@ -2,6 +2,7 @@ import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
 import Autocomplete from '../Autocomplete';
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { buildAddInterfaceSchema } from './schemas';
@@ -11,17 +12,58 @@ import ServerFormSubmit from './ServerFormSubmit';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
+const defaults = {
+  mac: 'auto',
+  model: 'e1000e',
+};
+
 const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
-  const { detail } = props;
+  const { detail, tools } = props;
 
   const formikUtils = useFormikUtils<ServerInterfaceFormikValues>({
     initialValues: {
       bridge: '',
       mac: '',
-      model: 'e1000e',
+      model: defaults.model,
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/add-interface`,
+        () => `Add interface?`,
+        {
+          buildSummary: (v) => {
+            const clone = { ...v };
+
+            clone.bridge = detail.host.bridges[v.bridge].name;
+
+            if (!clone.mac) {
+              clone.mac = defaults.mac;
+            }
+
+            return clone;
+          },
+          buildRequestBody: (v, s) => {
+            const result: Record<string, string> = {};
+
+            if (s?.bridge) {
+              result.bridge = s.bridge;
+            }
+
+            if (s?.mac && s.mac !== defaults.mac) {
+              result.mac = s.mac;
+            }
+
+            if (s?.model && s.model !== defaults.model) {
+              result.model = s.model;
+            }
+
+            return result;
+          },
+        },
+      );
     },
     validationSchema: buildAddInterfaceSchema(detail),
   });

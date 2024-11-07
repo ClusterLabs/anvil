@@ -8,6 +8,7 @@ import { capitalize } from 'lodash';
 import { FC, useMemo, useState } from 'react';
 
 import FlexBox from '../FlexBox';
+import handleFormSubmit from './handleFormSubmit';
 import IconButton from '../IconButton';
 import SelectDataGrid from './SelectDataGrid';
 import ServerFormGrid from './ServerFormGrid';
@@ -16,7 +17,7 @@ import { MonoText } from '../Text';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
-  const { detail } = props;
+  const { detail, tools } = props;
 
   const [selectedRowId, setSelectedRowId] = useState<number | undefined>();
 
@@ -30,18 +31,29 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
     initialValues: {
       order: initialBootOrder,
     },
-    onSubmit: (values, { setSubmitting }) => {
-      values.order.map<string>((diskIndex) => {
-        const {
-          [diskIndex]: {
-            target: { dev },
+    onSubmit: (values, helpers) => {
+      handleFormSubmit(
+        values,
+        helpers,
+        tools,
+        () => `/server/${detail.uuid}/set-boot-order`,
+        () => `Set boot order?`,
+        {
+          buildSummary: (v) => {
+            const order = v.order.map<string>((diskIndex) => {
+              const {
+                [diskIndex]: {
+                  target: { dev },
+                },
+              } = detail.devices.disks;
+
+              return dev;
+            });
+
+            return { order };
           },
-        } = detail.devices.disks;
-
-        return dev;
-      });
-
-      setSubmitting(false);
+        },
+      );
     },
   });
 
@@ -89,7 +101,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
           [diskIndex]: {
             device,
             source: {
-              dev: sdev = '',
+              dev: { path: sdev = '' },
               file: { path: fpath = '' },
             },
             target: { dev },

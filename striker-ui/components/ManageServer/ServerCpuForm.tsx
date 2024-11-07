@@ -1,6 +1,7 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
+import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { cpuSchema } from './schemas';
@@ -13,7 +14,7 @@ import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
 const BaseServerCpuForm: FC<BaseServerCpuFormProps> = (props) => {
-  const { cpu, detail } = props;
+  const { cpu, detail, tools } = props;
 
   const { topology: cpuTopology } = detail.cpu;
 
@@ -25,8 +26,20 @@ const BaseServerCpuForm: FC<BaseServerCpuFormProps> = (props) => {
       sockets: String(cpuTopology.sockets),
       threads: String(cpuTopology.threads),
     },
-    onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+    onSubmit: (values, helper) => {
+      handleFormSubmit(
+        values,
+        helper,
+        tools,
+        () => `/server/${detail.uuid}/set-cpu`,
+        () => `Set CPU?`,
+        {
+          buildSummary: (v) => ({
+            cores: Number(v.cores),
+            sockets: Number(v.sockets),
+          }),
+        },
+      );
     },
     validationSchema: cpuSchema,
   });

@@ -12,7 +12,7 @@ import ServerChangeIsoForm from './ServerChangeIsoForm';
 import { BodyText, MonoText } from '../Text';
 
 const ServerDiskList: FC<ServerDiskListProps> = (props) => {
-  const { detail } = props;
+  const { detail, tools } = props;
 
   const addDiskDialogRef = useRef<DialogForwardedRefContent>(null);
   const growDiskDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -44,7 +44,11 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
         onAdd={() => {
           setTarget(undefined);
 
-          addDiskDialogRef.current?.setOpen(true);
+          tools.add = {
+            open: (value = false) => addDiskDialogRef.current?.setOpen(value),
+          };
+
+          tools.add.open(true);
         }}
         renderListItem={(targetDev, disk) => {
           const {
@@ -77,7 +81,12 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
                     onClick={() => {
                       setTarget(tdev);
 
-                      changeIsoDialogRef.current?.setOpen(true);
+                      tools.edit = {
+                        open: (value = false) =>
+                          changeIsoDialogRef.current?.setOpen(value),
+                      };
+
+                      tools.edit.open(true);
                     }}
                     size="small"
                   >
@@ -91,7 +100,12 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
                     onClick={() => {
                       setTarget(tdev);
 
-                      growDiskDialogRef.current?.setOpen(true);
+                      tools.edit = {
+                        open: (value = false) =>
+                          growDiskDialogRef.current?.setOpen(value),
+                      };
+
+                      tools.edit.open(true);
                     }}
                     size="small"
                   >
