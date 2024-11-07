@@ -1,3 +1,4 @@
+import { Add as AddIcon } from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 import {
@@ -7,6 +8,7 @@ import {
   FormatDataSizeOptions,
 } from 'format-data-size';
 
+import { GREY } from '../../lib/consts/DEFAULT_THEME';
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
@@ -19,7 +21,7 @@ import SelectWithLabel from '../SelectWithLabel';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import Spinner from '../Spinner';
-import { BodyText } from '../Text';
+import { BodyText, InlineMonoText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
@@ -125,13 +127,21 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
     return sgs.storageGroups[formik.values.storage];
   }, [formik.values, sgs]);
 
+  const formatUnit = useMemo(() => {
+    const { unit } = formik.values.size;
+
+    if (unit === 'percent') {
+      return DEFAULT_UNIT;
+    }
+
+    return unit as DataSizeUnit;
+  }, [formik.values.size]);
+
   const formattedSg = useMemo(() => {
     if (!sg) return undefined;
 
-    const { unit } = formik.values.size;
-
     const options: FormatDataSizeOptions = {
-      toUnit: unit === 'percent' ? DEFAULT_UNIT : (unit as DataSizeUnit),
+      toUnit: formatUnit,
     };
 
     return {
@@ -139,16 +149,49 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
       size: dSizeStr(sg.size, options),
       used: dSizeStr(sg.used, options),
     };
-  }, [formik.values.size, sg]);
+  }, [formatUnit, sg]);
+
+  const formattedWorking = useMemo(() => {
+    if (!working) return undefined;
+
+    const { name, size } = working.source.dev.lv;
+
+    if (!size) return undefined;
+
+    const options: FormatDataSizeOptions = {
+      toUnit: formatUnit,
+    };
+
+    return {
+      name,
+      size: dSizeStr(size, options),
+    };
+  }, [formatUnit, working]);
+
+  const growBySymbol = useMemo(
+    () =>
+      device && (
+        <Grid item textAlign="center" width={{ xs: '100%', sm: 'fit-content' }}>
+          <AddIcon sx={{ color: GREY }} />
+        </Grid>
+      ),
+    [device],
+  );
 
   if (!sgs || !sgValues) {
     return <Spinner mt={0} />;
   }
 
   return (
-    <ServerFormGrid<ServerAddDiskFormikValues> formik={formik}>
+    <ServerFormGrid<ServerAddDiskFormikValues>
+      alignItems="center"
+      formik={formik}
+    >
       {formattedSg && (
         <Grid item width="100%">
+          <BodyText>
+            Storage group: <InlineMonoText noWrap>{sg?.name}</InlineMonoText>
+          </BodyText>
           <StorageBar storages={sgs} target={formik.values.storage} />
           <Grid container>
             <Grid item>
@@ -164,18 +207,39 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
         </Grid>
       )}
       <Grid item sm xs={1}>
-        <SelectWithLabel
-          id={chains.storage}
-          label="Storage group"
-          name={chains.storage}
-          onChange={formik.handleChange}
-          selectItems={sgValues}
-          selectProps={{
-            disabled: Boolean(device),
-          }}
-          value={formik.values.storage}
-        />
+        {device ? (
+          <Grid alignItems="center" container>
+            <Grid item xs>
+              <BodyText>
+                Disk: <InlineMonoText noWrap>{device}</InlineMonoText>
+              </BodyText>
+              <BodyText>
+                (
+                <InlineMonoText>volume={formattedWorking?.name}</InlineMonoText>
+                )
+              </BodyText>
+            </Grid>
+            <Grid item>
+              <BodyText fontWeight={400} noWrap>
+                {formattedWorking?.size}
+              </BodyText>
+            </Grid>
+          </Grid>
+        ) : (
+          <SelectWithLabel
+            id={chains.storage}
+            label="Storage group"
+            name={chains.storage}
+            onChange={formik.handleChange}
+            selectItems={sgValues}
+            selectProps={{
+              disabled: Boolean(device),
+            }}
+            value={formik.values.storage}
+          />
+        )}
       </Grid>
+      {growBySymbol}
       <Grid item sm xs={1}>
         <UncontrolledInput
           input={
