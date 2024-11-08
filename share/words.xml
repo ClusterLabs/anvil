@@ -1800,7 +1800,36 @@ Note: This is a permanent action! If you protect this server again later, a full
 [ Note ] - The host name was updated. The hostname is cached in several places, and it is important all are updated during the cluster config.
 [ Note ]   *** the system will now reboot. ***
 [ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
-		<key name="job_0489">Change server properties with [#!variable!tool!#]</key>
+		<!-- Job keys for tool anvil-manage-server -->
+		<key name="job_0489">Set server start dependency</key>
+		<key name="job_0490">Controls the order in which to start the server or prevents the server from starting.</key>
+		<!-- Job keys for tool anvil-manage-server-system -->
+		<key name="job_0491">Set server boot order</key>
+		<key name="job_0492">Controls the boot order of the server's possibly bootable devices.</key>
+		<key name="job_0493">Set server CPU</key>
+		<key name="job_0494">Controls the numerical CPU properties available to the server.</key>
+		<key name="job_0495">Set server memory</key>
+		<key name="job_0496">Controls the memory available for the server to use.</key>
+		<!-- Job keys for tool anvil-manage-server-storage -->
+		<key name="job_0497">Add server disk</key>
+		<key name="job_0498">Creates and attaches a new disk to the server by allocating space from a storage group.</key>
+		<key name="job_0499">Grow server disk</key>
+		<key name="job_0500">Extends the server's disk by allocating the specified remaining space from the storage group.</key>
+		<key name="job_0501">Change server ISO</key>
+		<key name="job_0502">Inserts or ejects ISO from the server's optical device.</key>
+		<!-- Job keys for tool anvil-manage-server-network -->
+		<key name="job_0503">Add server network interface</key>
+		<key name="job_0504">Creates and attaches a network interface to the server.</key>
+		<key name="job_0505">Plug or unplug server network interface</key>
+		<key name="job_0506">Changes the state (plugged-in or unplugged) of the server network interface.</key>
+		<key name="job_0507">Delete server network interface</key>
+		<key name="job_0508">Detaches and removes a network interface from the server.</key>
+		<!-- Job keys for tool anvil-rename-server -->
+		<key name="job_0509">Rename server</key>
+		<key name="job_0510">Changes the name of the server and its resources.</key>
+		<!-- Job keys for tool anvil-migrate-server -->
+		<key name="job_0511">Migrate server</key>
+		<key name="job_0512">Changes the host of the server.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

@@ -26,10 +26,10 @@ export const addServerIface =
 
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} --add --bridge ${bridge} ${macFlag} ${modelFlag}`,
-        job_description: ``,
+        job_description: `job_0504`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::add_interface`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0503`,
       };
     },
   );

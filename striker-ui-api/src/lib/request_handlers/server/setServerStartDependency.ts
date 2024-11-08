@@ -28,10 +28,10 @@ export const setServerStartDependency =
 
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} ${bootAfterFlag} ${delayFlag}`,
-        job_description: ``,
+        job_description: `job_0490`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::set_start_dependency`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0489`,
       };
     },
   );

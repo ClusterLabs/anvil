@@ -16,10 +16,10 @@ export const setServerBootOrder =
         job_command: `${
           sbin[tool].self
         } --server ${serverUuid} --boot-order ${order.join(',')}`,
-        job_description: ``,
+        job_description: `job_0492`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::set_boot_order`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0491`,
       };
     },
   );

@@ -19,10 +19,10 @@ export const renameServer = buildServerUpdateHandler<ServerRenameRequestBody>(
         'new-name': newName,
         'server-uuid': serverUuid,
       }),
-      job_description: ``,
+      job_description: `job_0510`,
       job_host_uuid: hostUuid,
       job_name: `server::${serverUuid}::rename`,
-      job_title: `job_0489,!!tool!${tool}!!`,
+      job_title: `job_0509`,
     };
   },
 );

@@ -19,10 +19,10 @@ export const addServerDisk = buildServerUpdateHandler<ServerAddDiskRequestBody>(
 
     return {
       job_command: `${sbin[tool].self} ${anvilFlag} --server ${serverUuid} --add ${size} --storage-group ${storage}`,
-      job_description: ``,
+      job_description: `job_0498`,
       job_host_uuid: hostUuid,
       job_name: `server::${serverUuid}::add_disk`,
-      job_title: `job_0489,!!tool!${tool}!!`,
+      job_title: `job_0497`,
     };
   },
 );

@@ -14,10 +14,10 @@ export const setServerMemory =
 
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} --ram ${size}`,
-        job_description: ``,
+        job_description: `job_0496`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::set_memory`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0495`,
       };
     },
   );

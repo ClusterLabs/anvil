@@ -14,10 +14,10 @@ export const deleteServerIface =
 
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} --mac ${mac} --remove`,
-        job_description: ``,
+        job_description: `job_0508`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::delete_interface`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0507`,
       };
     },
   );

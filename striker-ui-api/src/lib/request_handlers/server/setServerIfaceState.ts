@@ -20,10 +20,10 @@ export const setServerIfaceState =
 
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} --mac ${mac} ${stateFlag}`,
-        job_description: ``,
+        job_description: `job_0506`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::set_interface_state`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0505`,
       };
     },
   );

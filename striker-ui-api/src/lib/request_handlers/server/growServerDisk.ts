@@ -20,10 +20,10 @@ export const growServerDisk =
 
       return {
         job_command: `${sbin[tool].self} ${anvilFlag} --server ${serverUuid} --disk ${device} --grow ${size}`,
-        job_description: ``,
+        job_description: `job_0500`,
         job_host_uuid: hostUuid,
         job_name: `server::${serverUuid}::grow_disk`,
-        job_title: `job_0489,!!tool!${tool}!!`,
+        job_title: `job_0499`,
       };
     },
   );

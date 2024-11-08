@@ -13,10 +13,10 @@ export const migrateServer = buildServerUpdateHandler<ServerMigrateRequestBody>(
 
     return {
       job_command: `${sbin[tool].self} --server-uuid ${serverUuid} --target ${target}`,
-      job_description: ``,
+      job_description: `job_0512`,
       job_host_uuid: hostUuid,
       job_name: `server::${serverUuid}::migrate`,
-      job_title: `job_0489,!!tool!${tool}!!`,
+      job_title: `job_0511`,
     };
   },
 );
