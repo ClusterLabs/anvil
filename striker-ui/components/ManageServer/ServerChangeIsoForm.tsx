@@ -114,6 +114,20 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
         <Autocomplete
           autoHighlight
           disableClearable
+          extendRenderInput={(inputProps) => {
+            inputProps.inputLabelProps = {
+              ...inputProps.inputLabelProps,
+
+              shrink: true,
+            };
+
+            inputProps.inputProps = {
+              ...inputProps.inputProps,
+
+              notched: true,
+              placeholder: 'Empty slot',
+            };
+          }}
           getOptionLabel={(option) => option.name}
           id={chains.file}
           isOptionEqualToValue={(option, value) => option.uuid === value?.uuid}
