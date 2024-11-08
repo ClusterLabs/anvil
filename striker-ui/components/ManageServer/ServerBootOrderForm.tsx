@@ -89,34 +89,34 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
     return index < 0 || index >= last;
   }, [formik.values.order.length, selectedRowPosition]);
 
-  const dataGridRows = useMemo(
-    () =>
-      formik.values.order.map<{
-        dev: string;
-        index: number;
-        name: string;
-        source: string;
-      }>((diskIndex) => {
-        const {
-          [diskIndex]: {
-            device,
-            source: {
-              dev: { path: sdev = '' },
-              file: { path: fpath = '' },
-            },
-            target: { dev },
-          },
-        } = detail.devices.disks;
+  const dataGridRows = useMemo(() => {
+    const ls: number[] = formik.values.order;
 
-        return {
-          dev,
-          index: diskIndex,
-          name: device,
-          source: sdev || fpath,
-        };
-      }),
-    [detail.devices.disks, formik.values.order],
-  );
+    return ls.map<{
+      dev: string;
+      index: number;
+      name: string;
+      source: string;
+    }>((diskIndex) => {
+      const {
+        [diskIndex]: {
+          device,
+          source: {
+            dev: { path: sdev = '' },
+            file: { path: fpath = '' },
+          },
+          target: { dev },
+        },
+      } = detail.devices.disks;
+
+      return {
+        dev,
+        index: diskIndex,
+        name: device,
+        source: sdev || fpath,
+      };
+    });
+  }, [detail.devices.disks, formik.values.order]);
 
   const dataGridColumns = useMemo<GridColumns>(
     () => [
