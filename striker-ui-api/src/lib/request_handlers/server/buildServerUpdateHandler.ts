@@ -11,6 +11,13 @@ import { perr } from '../../shell';
 type P = ServerUpdateParamsDictionary;
 type ResBody = ServerUpdateResponseBody | ResponseErrorBody;
 
+type S = {
+  host: {
+    uuid: string;
+  };
+  name: string;
+};
+
 export const buildServerUpdateHandler =
   <
     ReqBody = Express.RhReqBody,
@@ -22,7 +29,7 @@ export const buildServerUpdateHandler =
     ) => Promise<void>,
     buildJobParams: (
       request: Request<P, ResBody, ReqBody, ReqQuery, Locals>,
-      host: { uuid: string },
+      server: S,
       sbin: Readonly<FilledServerPath>,
     ) => Promise<Omit<JobParams, 'file'>>,
   ): RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> =>
@@ -41,7 +48,12 @@ export const buildServerUpdateHandler =
 
     const { uuid: serverUuid } = params;
 
-    const host = { uuid: '' };
+    const server = {
+      host: {
+        uuid: '',
+      },
+      name: '',
+    };
 
     try {
       const rows = await query<[[string, string]]>(
@@ -54,7 +66,7 @@ export const buildServerUpdateHandler =
 
       assert.ok(rows.length, 'No record found');
 
-      [[host.uuid]] = rows;
+      [[server.name, server.host.uuid]] = rows;
     } catch (error) {
       perr(`Failed to get server host; CAUSE: ${error}`);
     }
@@ -62,7 +74,7 @@ export const buildServerUpdateHandler =
     const jobParams: JobParams = {
       file: __filename,
 
-      ...(await buildJobParams(request, host, SERVER_PATHS.usr.sbin)),
+      ...(await buildJobParams(request, server, SERVER_PATHS.usr.sbin)),
     };
 
     let jobUuid: string;

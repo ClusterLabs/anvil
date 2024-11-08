@@ -6,7 +6,7 @@ export const setServerStartDependency =
     async ({ body }) => {
       serverSetStartDependencyRequestBodySchema.validateSync(body);
     },
-    async ({ body, params }, { uuid: hostUuid }, sbin) => {
+    async ({ body, params }, { host }, sbin) => {
       const { uuid: serverUuid } = params;
       const { active, after, delay } = body;
 
@@ -29,7 +29,7 @@ export const setServerStartDependency =
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} ${bootAfterFlag} ${delayFlag}`,
         job_description: `job_0490`,
-        job_host_uuid: hostUuid,
+        job_host_uuid: host.uuid,
         job_name: `server::${serverUuid}::set_start_dependency`,
         job_title: `job_0489`,
       };

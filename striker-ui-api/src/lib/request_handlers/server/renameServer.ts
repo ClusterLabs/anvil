@@ -6,7 +6,7 @@ export const renameServer = buildServerUpdateHandler<ServerRenameRequestBody>(
   async ({ body }) => {
     serverRenameRequestBodySchema.validateSync(body);
   },
-  async ({ body, params }, { uuid: hostUuid }, sbin) => {
+  async ({ body, params }, { host }, sbin) => {
     const { uuid: serverUuid } = params;
     const { name: newName } = body;
 
@@ -20,7 +20,7 @@ export const renameServer = buildServerUpdateHandler<ServerRenameRequestBody>(
         'server-uuid': serverUuid,
       }),
       job_description: `job_0510`,
-      job_host_uuid: hostUuid,
+      job_host_uuid: host.uuid,
       job_name: `server::${serverUuid}::rename`,
       job_title: `job_0509`,
     };

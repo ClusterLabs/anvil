@@ -6,7 +6,7 @@ export const setServerIfaceState =
     async ({ body }) => {
       serverSetIfaceStateRequestBodySchema.validateSync(body);
     },
-    async ({ body, params }, { uuid: hostUuid }, sbin) => {
+    async ({ body, params }, { host }, sbin) => {
       const { uuid: serverUuid } = params;
       const { active, mac } = body;
 
@@ -21,7 +21,7 @@ export const setServerIfaceState =
       return {
         job_command: `${sbin[tool].self} --server ${serverUuid} --mac ${mac} ${stateFlag}`,
         job_description: `job_0506`,
-        job_host_uuid: hostUuid,
+        job_host_uuid: host.uuid,
         job_name: `server::${serverUuid}::set_interface_state`,
         job_title: `job_0505`,
       };

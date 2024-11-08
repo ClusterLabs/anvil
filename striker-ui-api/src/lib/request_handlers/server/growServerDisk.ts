@@ -6,7 +6,7 @@ export const growServerDisk =
     async ({ body }) => {
       serverGrowDiskRequestBodySchema.validateSync(body);
     },
-    async ({ body, params }, { uuid: hostUuid }, sbin) => {
+    async ({ body, params }, { host }, sbin) => {
       const { uuid: serverUuid } = params;
       const { anvil, device, size } = body;
 
@@ -21,7 +21,7 @@ export const growServerDisk =
       return {
         job_command: `${sbin[tool].self} ${anvilFlag} --server ${serverUuid} --disk ${device} --grow ${size}`,
         job_description: `job_0500`,
-        job_host_uuid: hostUuid,
+        job_host_uuid: host.uuid,
         job_name: `server::${serverUuid}::grow_disk`,
         job_title: `job_0499`,
       };

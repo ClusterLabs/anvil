@@ -5,7 +5,7 @@ export const addServerDisk = buildServerUpdateHandler<ServerAddDiskRequestBody>(
   async ({ body }) => {
     serverAddDiskRequestBodySchema.validateSync(body);
   },
-  async ({ body, params }, { uuid: hostUuid }, sbin) => {
+  async ({ body, params }, { host }, sbin) => {
     const { uuid: serverUuid } = params;
     const { anvil, size, storage } = body;
 
@@ -20,7 +20,7 @@ export const addServerDisk = buildServerUpdateHandler<ServerAddDiskRequestBody>(
     return {
       job_command: `${sbin[tool].self} ${anvilFlag} --server ${serverUuid} --add ${size} --storage-group ${storage}`,
       job_description: `job_0498`,
-      job_host_uuid: hostUuid,
+      job_host_uuid: host.uuid,
       job_name: `server::${serverUuid}::add_disk`,
       job_title: `job_0497`,
     };
