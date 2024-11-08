@@ -36,7 +36,7 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
 
             if (!active) {
               return {
-                'stay-off': true,
+                'stay-off': 'yes',
               };
             }
 
