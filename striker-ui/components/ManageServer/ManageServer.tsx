@@ -16,7 +16,7 @@ import Spinner from '../Spinner';
 import Tab from '../Tab';
 import TabContent from '../TabContent';
 import Tabs from '../Tabs';
-import { HeaderText } from '../Text';
+import { BodyText, HeaderText, MonoText } from '../Text';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
@@ -191,6 +191,37 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <PanelHeader>
                 <HeaderText>{tabs.general.label}</HeaderText>
               </PanelHeader>
+              <Grid container rowSpacing="0.4em">
+                {[
+                  {
+                    header: 'UUID',
+                    value: detail.uuid,
+                  },
+                  {
+                    header: 'State',
+                    value: detail.state,
+                  },
+                  {
+                    header: 'On node',
+                    value: `${detail.anvil.name}: ${detail.anvil.description}`,
+                  },
+                  {
+                    header: 'On host',
+                    value: `${detail.host.name} (${detail.host.short})`,
+                  },
+                ].map(({ header, value }) => (
+                  <Grid key={`general-${header}`} item width="100%">
+                    <Grid columnSpacing="1em" container>
+                      <Grid item width="10em">
+                        <BodyText>{header}</BodyText>
+                      </Grid>
+                      <Grid item xs>
+                        <MonoText>{value}</MonoText>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                ))}
+              </Grid>
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.bootOrder.value}>
