@@ -71,11 +71,20 @@ export const buildServerUpdateHandler =
       perr(`Failed to get server host; CAUSE: ${error}`);
     }
 
-    const jobParams: JobParams = {
-      file: __filename,
+    let jobParams: JobParams;
 
-      ...(await buildJobParams(request, server, SERVER_PATHS.usr.sbin)),
-    };
+    try {
+      jobParams = {
+        file: __filename,
+
+        ...(await buildJobParams(request, server, SERVER_PATHS.usr.sbin)),
+      };
+    } catch (error) {
+      return respond.s500(
+        '3028429',
+        `Failed to build job params; CAUSE: ${error}`,
+      );
+    }
 
     let jobUuid: string;
 

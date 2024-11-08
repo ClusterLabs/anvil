@@ -1,3 +1,6 @@
+import path from 'path';
+
+import { query } from '../../accessModule';
 import { buildServerUpdateHandler } from './buildServerUpdateHandler';
 import { serverChangeIsoRequestBodySchema } from './schemas';
 
@@ -8,7 +11,7 @@ export const changeServerIso =
     },
     async ({ body, params }, { host }, sbin) => {
       const { uuid: serverUuid } = params;
-      const { anvil, device, iso } = body;
+      const { anvil, device, iso: fileUuid } = body;
 
       const tool = 'anvil-manage-server-storage';
 
@@ -20,8 +23,13 @@ export const changeServerIso =
 
       let isoFlag = '--eject';
 
-      if (iso) {
-        isoFlag = `--insert ${iso}`;
+      if (fileUuid) {
+        const [[filePath]] = await query(`
+          SELECT CONCAT(file_directory, '${path.sep}', file_name)
+          FROM files
+          WHERE file_uuid = '${fileUuid}';`);
+
+        isoFlag = `--insert ${filePath}`;
       }
 
       return {

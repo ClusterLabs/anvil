@@ -5,5 +5,5 @@ import { yupLaxUuid } from '../../../yupCommons';
 export const serverChangeIsoRequestBodySchema = yup.object({
   anvil: yupLaxUuid(),
   device: yup.string().required(),
-  iso: yup.string(),
+  iso: yupLaxUuid(),
 });
