@@ -14,6 +14,7 @@ import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
 import { StorageBar } from '../Bars';
 import handleFormSubmit from './handleFormSubmit';
+import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import { buildAddDiskSchema } from './schemas';
@@ -98,7 +99,12 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
     },
     validationSchema: buildAddDiskSchema(sgs),
   });
-  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
+  const {
+    disabledSubmit: formikDisabledSubmit,
+    formik,
+    formikErrors,
+    handleChange,
+  } = formikUtils;
 
   const chains = useMemo(() => {
     const base = 'size';
@@ -154,7 +160,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
   const formattedWorking = useMemo(() => {
     if (!working) return undefined;
 
-    const { name, size } = working.source.dev.lv;
+    const { name = '', size } = working.source.dev.lv;
 
     if (!size) return undefined;
 
@@ -165,29 +171,34 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
     return {
       name,
       size: dSizeStr(size, options),
+      zero: /_0$/.test(name),
     };
   }, [formatUnit, working]);
 
-  const growBySymbol = useMemo(
+  const disabledSubmit = useMemo(
     () =>
-      device && (
-        <Grid item textAlign="center" width={{ xs: '100%', sm: 'fit-content' }}>
-          <AddIcon sx={{ color: GREY }} />
-        </Grid>
-      ),
-    [device],
+      (detail.state !== 'shut off' && formattedWorking?.zero) ||
+      formikDisabledSubmit,
+    [detail.state, formattedWorking?.zero, formikDisabledSubmit],
   );
 
-  if (!sgs || !sgValues) {
-    return <Spinner mt={0} />;
-  }
+  const growMsg = useMemo(() => {
+    if (detail.state !== 'shut off' && !formattedWorking?.zero)
+      return undefined;
 
-  return (
-    <ServerFormGrid<ServerAddDiskFormikValues>
-      alignItems="center"
-      formik={formik}
-    >
-      {formattedSg && (
+    return (
+      <Grid item width="100%">
+        <MessageBox>
+          A server must be shut off in order to grow its disk 0.
+        </MessageBox>
+      </Grid>
+    );
+  }, [detail.state, formattedWorking?.zero]);
+
+  const graph = useMemo(
+    () =>
+      formattedSg &&
+      sgs && (
         <Grid item width="100%">
           <BodyText>
             Storage group: <InlineMonoText noWrap>{sg?.name}</InlineMonoText>
@@ -205,7 +216,31 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
             </Grid>
           </Grid>
         </Grid>
-      )}
+      ),
+    [formattedSg, formik.values.storage, sg?.name, sgs],
+  );
+
+  const growBySymbol = useMemo(
+    () =>
+      device && (
+        <Grid item textAlign="center" width={{ xs: '100%', sm: 'fit-content' }}>
+          <AddIcon sx={{ color: GREY }} />
+        </Grid>
+      ),
+    [device],
+  );
+
+  if (!sgValues) {
+    return <Spinner mt={0} />;
+  }
+
+  return (
+    <ServerFormGrid<ServerAddDiskFormikValues>
+      alignItems="center"
+      formik={formik}
+    >
+      {growMsg}
+      {graph}
       <Grid item sm xs={1}>
         {device ? (
           <Grid alignItems="center" container>

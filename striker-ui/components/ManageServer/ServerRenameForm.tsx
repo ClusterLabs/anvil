@@ -2,6 +2,7 @@ import { Grid } from '@mui/material';
 import { FC, useMemo } from 'react';
 
 import handleFormSubmit from './handleFormSubmit';
+import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { buildRenameSchema } from './schemas';
@@ -28,7 +29,12 @@ const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
     },
     validationSchema: buildRenameSchema(detail, servers),
   });
-  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
+  const {
+    disabledSubmit: formikDisabledSubmit,
+    formik,
+    formikErrors,
+    handleChange,
+  } = formikUtils;
 
   const chains = useMemo(
     () => ({
@@ -37,8 +43,20 @@ const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
     [],
   );
 
+  const disabledSubmit = useMemo(
+    () => detail.state !== 'shut off' || formikDisabledSubmit,
+    [detail.state, formikDisabledSubmit],
+  );
+
   return (
     <ServerFormGrid<ServerRenameFormikValues> formik={formik}>
+      {detail.state !== 'shut off' && (
+        <Grid item width="100%">
+          <MessageBox>
+            A server can only be renamed when it&apos;s shut off.
+          </MessageBox>
+        </Grid>
+      )}
       <Grid item xs={1}>
         <UncontrolledInput
           input={
