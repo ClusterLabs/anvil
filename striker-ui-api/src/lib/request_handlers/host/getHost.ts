@@ -7,7 +7,7 @@ import { toLocal } from '../../convertHostUUID';
 import { getShortHostName } from '../../disassembleHostName';
 import { sanitize } from '../../sanitize';
 
-export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
+export const getHost = buildGetRequestHandler((request, hooks) => {
   const { hostUUIDs, types: hostTypes } = request.query;
 
   const localHostUUID: string = getLocalHostUUID();
@@ -54,8 +54,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
           hostStatus,
           hostType,
           hostUUID,
-          anvilUuid,
-          anvilName,
+          anUuid,
+          anName,
           hostConfigured,
         ] = row;
 
@@ -63,11 +63,8 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
 
         let anvil: HostOverview['anvil'];
 
-        if (anvilUuid) {
-          anvil = {
-            name: anvilName,
-            uuid: anvilUuid,
-          };
+        if (anUuid) {
+          anvil = { name: anName, uuid: anUuid };
         }
 
         previous[key] = {
@@ -96,9 +93,7 @@ export const getHost = buildGetRequestHandler((request, buildQueryOptions) => {
     }));
   }
 
-  if (buildQueryOptions) {
-    buildQueryOptions.afterQueryReturn = afterQueryReturn;
-  }
+  hooks.afterQueryReturn = afterQueryReturn;
 
   return query;
 });

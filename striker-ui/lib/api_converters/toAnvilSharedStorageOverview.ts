@@ -18,11 +18,22 @@ const toAnvilSharedStorageOverview = (
       const free = BigInt(rFree);
       const size = BigInt(rSize);
 
-      previous.storageGroups[uuid] = { free, name, size, uuid };
+      previous.storageGroups[uuid] = {
+        free,
+        name,
+        size,
+        used: size - free,
+        uuid,
+      };
 
       return previous;
     },
-    { storageGroups: {}, totalFree, totalSize },
+    {
+      storageGroups: {},
+      totalFree,
+      totalSize,
+      totalUsed: totalSize - totalFree,
+    },
   );
 };
 

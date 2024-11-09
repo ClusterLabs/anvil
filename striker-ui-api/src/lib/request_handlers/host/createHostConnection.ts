@@ -166,10 +166,8 @@ export const createHostConnection: RequestHandler<
       file: __filename,
       job_command: jobCommand,
       job_data: buildJobDataFromObject({
-        obj: {
-          password: commonPassword,
-          peer_job_command: peerJobCommand,
-        },
+        password: commonPassword,
+        peer_job_command: peerJobCommand,
       }),
       job_description: 'job_0012',
       job_name: 'striker-peer::add',

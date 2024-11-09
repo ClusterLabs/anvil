@@ -2,6 +2,32 @@ import { AxiosError, AxiosResponse } from 'axios';
 
 import { Message } from '../components/MessageBox';
 
+const getResonseError = <T>(data: T) => {
+  const error = {
+    code: '',
+    message: '',
+    name: '',
+  };
+
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  if ('code' in data) {
+    error.code = String(data.code);
+  }
+
+  if ('message' in data) {
+    error.message = String(data.message);
+  }
+
+  if ('name' in data) {
+    error.name = String(data.name);
+  }
+
+  return error;
+};
+
 const handleAPIError = <RequestDataType, ResponseDataType>(
   error: AxiosError<ResponseDataType, RequestDataType>,
   {
@@ -16,22 +42,35 @@ const handleAPIError = <RequestDataType, ResponseDataType>(
     }),
     // Following options rely on other values.
     onResponseError = (response) => {
-      const { status, statusText } = response;
+      const { data, status, statusText } = response;
 
-      let result: Message;
+      let msg: Message = {};
 
-      if (status === 500) {
-        result = {
-          children: `The API encountered a problem: ${status} (${statusText})! Please check its systemd service logs.`,
-          type: 'error',
-        };
-      } else {
-        result = onResponseErrorAppend?.call(null, response) ?? {
-          children: `API responded with ${status} (${statusText}).`,
-          type: 'warning',
+      const resError = getResonseError(data);
+
+      if (resError) {
+        msg = {
+          children: `${resError.name}(${resError.code}): ${resError.message}`,
         };
       }
-      return result;
+
+      if (status >= 500) {
+        msg.type = 'error';
+
+        if (!msg.children) {
+          msg.children = `API responded with ${status} (${statusText})! Please check its systemd service logs.`;
+        }
+
+        return msg;
+      }
+
+      msg.type = 'warning';
+
+      if (!msg.children) {
+        msg.children = `API responded with ${status} (${statusText}).`;
+      }
+
+      return onResponseErrorAppend?.call(null, response) ?? msg;
     },
   }: {
     onRequestError?: (request: unknown) => Message;

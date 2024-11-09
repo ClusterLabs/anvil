@@ -1,8 +1,14 @@
-type BuildQueryOptions = {
+type BuildQueryHooks = {
   afterQueryReturn?: QueryResultModifierFunction;
 };
 
-type BuildQueryFunction = (
-  request: import('express').Request,
-  options?: BuildQueryOptions,
+type BuildQueryFunction<
+  P,
+  ResBody,
+  ReqBody,
+  ReqQuery,
+  Locals extends Express.RhLocals,
+> = (
+  request: import('express').Request<P, ResBody, ReqBody, ReqQuery, Locals>,
+  hooks: BuildQueryHooks,
 ) => string | Promise<string>;

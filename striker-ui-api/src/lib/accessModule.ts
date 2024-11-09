@@ -1,3 +1,4 @@
+import assert from 'assert';
 import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
 import { readFileSync } from 'fs';
@@ -43,10 +44,7 @@ class Access extends EventEmitter {
   constructor({
     eventEmitterOptions = {},
     startOptions = {},
-  }: {
-    eventEmitterOptions?: ConstructorParameters<typeof EventEmitter>[0];
-    startOptions?: AccessStartOptions;
-  } = {}) {
+  }: AccessOptions = {}) {
     super(eventEmitterOptions);
 
     const { args: initial = [], ...rest } = startOptions;
@@ -60,11 +58,13 @@ class Access extends EventEmitter {
 
   private start({
     args = [],
-    gid = PGID,
     restartInterval = 10000,
-    stdio = 'pipe',
-    uid = PUID,
-    ...restSpawnOptions
+    spawnOptions: {
+      gid = PGID,
+      stdio = 'pipe',
+      uid = PUID,
+      ...restSpawnOptions
+    } = {},
   }: AccessStartOptions = {}) {
     const options = {
       args,
@@ -192,14 +192,23 @@ class Access extends EventEmitter {
   }
 }
 
-const access = new Access();
+const access = {
+  default: new Access(),
+  root: new Access({
+    startOptions: {
+      spawnOptions: { gid: 0, uid: 0 },
+    },
+  }),
+};
 
 const subroutine = async <T extends unknown[]>(
   subroutine: string,
   {
+    as = 'default',
     params = [],
     pre = ['Database'],
   }: {
+    as?: keyof typeof access;
     params?: unknown[];
     pre?: string[];
   } = {},
@@ -218,7 +227,7 @@ const subroutine = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await access.interact<{
+  const { sub_results: results } = await access[as].interact<{
     sub_results: T;
   }>('x', chain, ...subParams);
 
@@ -226,13 +235,12 @@ const subroutine = async <T extends unknown[]>(
 };
 
 const query = <T extends QueryResult>(script: string) =>
-  access.interact<T>('r', formatSql(script));
+  access.default.interact<T>('r', formatSql(script));
 
 const write = async (script: string) => {
-  const { write_code: wcode } = await access.interact<{ write_code: number }>(
-    'w',
-    formatSql(script),
-  );
+  const { write_code: wcode } = await access.default.interact<{
+    write_code: number;
+  }>('w', formatSql(script));
 
   return wcode;
 };
@@ -318,7 +326,7 @@ const getData = async <T>(...keys: string[]) => {
 
   const {
     sub_results: [data],
-  } = await access.interact<{ sub_results: [T] }>('x', chain);
+  } = await access.default.interact<{ sub_results: [T] }>('x', chain);
 
   poutvar(data, `${chain} data: `);
 
@@ -336,7 +344,12 @@ const mutateData = async <T>(args: {
 
   const {
     sub_results: [data],
-  } = await access.interact<{ sub_results: [T] }>('x', chain, operator, value);
+  } = await access.default.interact<{ sub_results: [T] }>(
+    'x',
+    chain,
+    operator,
+    value,
+  );
 
   poutvar(data, `${chain} data: `);
 
@@ -353,11 +366,11 @@ const getDatabaseConfigData = async () => {
   // Empty the existing data->database hash before re-reading updated values.
   await mutateData<string>({ keys: ['database'], operator: '=', value: '{}' });
 
-  const [ecode] = await subroutine<[ecode: string]>('read_config', {
+  const [code] = await subroutine<[string]>('read_config', {
     pre: ['Storage'],
   });
 
-  if (Number(ecode) !== 0) throw new Error(`Failed to read config`);
+  assert(Number(code) === 0, `Subroutine failed with code ${code}`);
 
   return getData<AnvilDataDatabaseHash>('database');
 };
@@ -374,6 +387,34 @@ const getHostData = async () => {
   return getData<AnvilDataHostListHash>('hosts');
 };
 
+const listNicModels = async (target: string) => {
+  let list: string[] = [];
+
+  try {
+    const [stdout, , code] = await subroutine<[string, string, string]>(
+      'call',
+      {
+        as: 'root',
+        params: [
+          {
+            target,
+            shell_call: `${SERVER_PATHS.usr.libexec['qemu-kvm'].self} -net nic,model=help`,
+          },
+        ],
+        pre: ['Remote'],
+      },
+    );
+
+    assert(Number(code) === 0, `Subroutine failed with code ${code}`);
+
+    [, ...list] = stdout.split('\n');
+  } catch (error) {
+    perr(`Failed to list NIC model; CAUSE: ${error}`);
+  }
+
+  return list;
+};
+
 const getLocalHostName = () => {
   let result: string;
 
@@ -381,8 +422,8 @@ const getLocalHostName = () => {
     result = readFileSync(SERVER_PATHS.etc.hostname.self, {
       encoding: 'utf-8',
     }).trim();
-  } catch (subError) {
-    throw new Error(`Failed to get local host name; CAUSE: ${subError}`);
+  } catch (error) {
+    throw new Error(`Failed to get local host name; CAUSE: ${error}`);
   }
 
   pout(`localHostName=${result}`);
@@ -397,13 +438,19 @@ const getLocalHostUuid = () => {
     result = readFileSync(SERVER_PATHS.etc.anvil['host.uuid'].self, {
       encoding: 'utf-8',
     }).trim();
-  } catch (subError) {
-    throw new Error(`Failed to get local host UUID; CAUSE: ${subError}`);
+  } catch (error) {
+    throw new Error(`Failed to get local host UUID; CAUSE: ${error}`);
   }
 
   pout(`localHostUUID=[${result}]`);
 
   return result;
+};
+
+const getLvmData = async () => {
+  await subroutine('get_lvm_data');
+
+  return getData<AnvilDataLvm>('lvm');
 };
 
 const getManifestData = async (manifestUuid?: string) => {
@@ -473,7 +520,9 @@ const getUpsSpec = async () => {
 
 const getVncinfo = async (serverUuid: string): Promise<ServerDetailVncInfo> => {
   const rows: [[string]] = await query(
-    `SELECT variable_value FROM variables WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
+    `SELECT variable_value
+      FROM variables
+      WHERE variable_name = 'server::${serverUuid}::vncinfo';`,
   );
 
   if (!rows.length) {
@@ -528,11 +577,13 @@ export {
   getHostData,
   getLocalHostName,
   getLocalHostUuid as getLocalHostUUID,
+  getLvmData,
   getManifestData,
   getNetworkData,
   getPeerData,
   getUpsSpec,
   getVncinfo,
+  listNicModels,
   mutateData,
   query,
   subroutine as sub,

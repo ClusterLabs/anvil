@@ -41,7 +41,8 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   );
 
   const getFieldIsDiff = useCallback(
-    (field: string) => isEqualIn(formik.values, field, formik.initialValues),
+    (field: string): boolean =>
+      isEqualIn(formik.values, field, formik.initialValues),
     [formik.initialValues, formik.values],
   );
 
@@ -91,9 +92,9 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   const formikErrors = useMemo<Messages>(
     () =>
       getFormikErrorMessages(formik.errors, {
-        skip: (field) => !getFieldIsDiff(field),
+        skip: (field) => !getFieldChanged(field),
       }),
-    [formik.errors, getFieldIsDiff],
+    [formik.errors, getFieldChanged],
   );
 
   return {
@@ -101,6 +102,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     formik,
     formikErrors,
     getFieldChanged,
+    getFieldIsDiff,
     handleChange: debounceHandleChange,
   };
 };

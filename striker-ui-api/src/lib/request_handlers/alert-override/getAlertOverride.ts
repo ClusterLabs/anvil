@@ -12,7 +12,7 @@ export const getAlertOverride: RequestHandler<
   undefined,
   undefined,
   AlertOverrideReqQuery
-> = buildGetRequestHandler((request, options) => {
+> = buildGetRequestHandler((request, hooks) => {
   const {
     query: { 'mail-recipient': mailRecipient },
   } = request;
@@ -83,9 +83,7 @@ export const getAlertOverride: RequestHandler<
       {},
     );
 
-  if (options) {
-    options.afterQueryReturn = afterQueryReturn;
-  }
+  hooks.afterQueryReturn = afterQueryReturn;
 
   return query;
 });

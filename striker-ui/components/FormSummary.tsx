@@ -68,9 +68,9 @@ const buildEntryList = <T extends FormEntries>({
   skip,
 }: {
   depth?: number;
-  entries: FormEntries;
+  entries: T;
   getEntryLabel: GetFormEntryLabelFunction;
-  getListProps?: GetFormEntriesPropsFunction;
+  getListProps?: GetFormEntriesPropsFunction<T>;
   getListItemProps?: GetFormEntryPropsFunction;
   listKey?: string;
 } & Required<
@@ -119,7 +119,7 @@ const buildEntryList = <T extends FormEntries>({
       result.push(
         buildEntryList<T>({
           depth: depth + 1,
-          entries: entry,
+          entries: entry as T,
           getEntryLabel,
           hasPassword,
           listKey: itemKey,

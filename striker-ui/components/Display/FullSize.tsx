@@ -4,13 +4,14 @@ import {
   Fullscreen as FullscreenIcon,
   Keyboard as KeyboardIcon,
 } from '@mui/icons-material';
-import { Box, Menu, styled, Typography } from '@mui/material';
+import { Box, styled, Typography } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
 
 import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
+import Menu from '../Menu';
 import MenuItem from '../MenuItem';
 import { Panel, PanelHeader } from '../Panels';
 import ServerMenu from '../ServerMenu';
@@ -235,10 +236,12 @@ const FullSize: FC<FullSizeProps> = ({
           <KeyboardIcon />
         </IconButton>
         <Menu
-          anchorEl={anchorEl}
-          keepMounted
+          muiMenuProps={{
+            anchorEl,
+            keepMounted: true,
+            onClose: () => setAnchorEl(null),
+          }}
           open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
         >
           {keyCombinations.map(({ keys, scans }) => (
             <MenuItem key={keys} onClick={() => handleSendKeys(scans)}>

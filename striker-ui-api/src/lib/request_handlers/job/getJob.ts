@@ -13,13 +13,18 @@ export const getJob: RequestHandler<
   JobRequestQuery
 > = async (request, response) => {
   const {
-    query: { start: rStart, command: rCommand },
+    query: { command: rCommand, name: rName, start: rStart },
   } = request;
 
   // Expects EPOCH in seconds
   const start = rStart === undefined ? -1 : sanitize(rStart, 'number');
 
-  const jcmd = sanitize(rCommand, 'string', { modifierType: 'sql' });
+  const jobCommand = sanitize(rCommand, 'string', {
+    modifierType: 'sql',
+  });
+  const jobName = sanitize(rName, 'string', {
+    modifierType: 'sql',
+  });
 
   // Start with boundless value and replace when needed.
   let conditions = 'TRUE';
@@ -52,8 +57,12 @@ export const getJob: RequestHandler<
       )`;
   }
 
-  if (jcmd) {
-    conditions = `${conditions} AND a.job_command LIKE '%${jcmd}%'`;
+  if (jobCommand) {
+    conditions = `${conditions} AND a.job_command LIKE '%${jobCommand}%'`;
+  }
+
+  if (jobName) {
+    conditions = `${conditions} AND a.job_name LIKE '%${jobName}%'`;
   }
 
   const sql = `

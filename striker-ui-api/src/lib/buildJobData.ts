@@ -13,8 +13,7 @@ export const buildJobData = <T extends [string, unknown][]>({
     }, '')
     .trim();
 
-export const buildJobDataFromObject = <T extends Record<string, unknown>>({
-  obj,
-  ...rest
-}: Omit<Parameters<typeof buildJobData>[0], 'entries'> & { obj: T }) =>
-  buildJobData({ entries: Object.entries(obj), ...rest });
+export const buildJobDataFromObject = <T extends Record<string, unknown>>(
+  obj: T,
+  options?: Omit<Parameters<typeof buildJobData>[0], 'entries'>,
+) => buildJobData({ entries: Object.entries(obj), ...options });

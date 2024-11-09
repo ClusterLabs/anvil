@@ -1,7 +1,7 @@
 import * as yup from 'yup';
 
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
-import { yupLaxUuid } from '../../lib/yupMatches';
+import { yupLaxUuid } from '../../lib/yupCommons';
 
 const hostAnvilSchema = yup.object({
   name: yup.string().required(),

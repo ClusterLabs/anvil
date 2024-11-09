@@ -1,4 +1,11 @@
 type APIFileOverview = {
+  anvils: Record<
+    string,
+    {
+      active: boolean;
+      ready: boolean;
+    }
+  >;
   checksum: string;
   name: string;
   size: string;
@@ -28,14 +35,17 @@ type APIFileDetail = APIFileOverview & {
       active: boolean;
       anvilUuid: string;
       hostUuid: string;
+      ready: boolean;
       uuid: string;
     };
   };
+  path: {
+    directory: string;
+    full: string;
+  };
 };
 
-type APIFileOverviewList = {
-  [uuid: string]: APIFileOverview;
-};
+type APIFileOverviewList = Record<string, APIFileOverview>;
 
 type APIEditFileRequestBody = {
   fileName: string;

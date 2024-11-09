@@ -17,7 +17,7 @@ const MAP_TO_FORM_AUTH: Record<string, string> = {
 };
 
 export const getMailServerDetail: RequestHandler<MailServerParamsDictionary> =
-  buildGetRequestHandler((request, options) => {
+  buildGetRequestHandler((request, hooks) => {
     const {
       params: { uuid: rUuid },
     } = request;
@@ -74,9 +74,7 @@ export const getMailServerDetail: RequestHandler<MailServerParamsDictionary> =
         };
       });
 
-    if (options) {
-      options.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   });

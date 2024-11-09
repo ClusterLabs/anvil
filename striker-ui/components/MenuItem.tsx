@@ -1,51 +1,35 @@
 import {
-  MenuItem as MUIMenuItem,
+  MenuItem as MuiMenuItem,
   menuItemClasses as muiMenuItemClasses,
-  MenuItemProps as MUIMenuItemProps,
+  styled,
 } from '@mui/material';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
-const MenuItem = (menuItemProps: MUIMenuItemProps): JSX.Element => {
-  const { children, sx } = menuItemProps;
-  const combinedSx = {
+const MenuItem = styled(MuiMenuItem)({
+  backgroundColor: GREY,
+  paddingRight: '3em',
+
+  [`&.${muiMenuItemClasses.selected}`]: {
     backgroundColor: TEXT,
-    paddingRight: '3em',
-
-    [`&.${muiMenuItemClasses.selected}`]: {
-      backgroundColor: GREY,
-      fontWeight: 400,
-
-      [`&.${muiMenuItemClasses.focusVisible}`]: {
-        backgroundColor: GREY,
-      },
-
-      '&:hover': {
-        backgroundColor: GREY,
-      },
-    },
+    fontWeight: 400,
 
     [`&.${muiMenuItemClasses.focusVisible}`]: {
-      backgroundColor: GREY,
+      backgroundColor: TEXT,
     },
 
     '&:hover': {
-      backgroundColor: GREY,
+      backgroundColor: TEXT,
     },
+  },
 
-    ...sx,
-  };
+  [`&.${muiMenuItemClasses.focusVisible}`]: {
+    backgroundColor: TEXT,
+  },
 
-  return (
-    <MUIMenuItem
-      {...{
-        ...menuItemProps,
-        sx: combinedSx,
-      }}
-    >
-      {children}
-    </MUIMenuItem>
-  );
-};
+  '&:hover': {
+    backgroundColor: TEXT,
+  },
+});
 
 export default MenuItem;

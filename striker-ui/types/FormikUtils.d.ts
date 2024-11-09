@@ -16,5 +16,6 @@ type FormikUtils<Values extends FormikValues> = {
   formik: Formik<Values>;
   formikErrors: Messages;
   getFieldChanged: (field: string) => boolean;
+  getFieldIsDiff: (field: string) => boolean;
   handleChange: FormikChangeHandler<Values>;
 };

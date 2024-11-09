@@ -4,15 +4,13 @@ import { toHostUUID } from '../../convertHostUUID';
 import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
 export const getHostDetail = buildGetRequestHandler(
-  ({ params: { hostUUID: rawHostUUID } }, buildQueryOptions) => {
+  ({ params: { hostUUID: rawHostUUID } }, hooks) => {
     const hostUUID = toHostUUID(rawHostUUID);
     const { afterQueryReturn, query } = buildQueryHostDetail({
       keys: [sanitizeSQLParam(hostUUID)],
     });
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

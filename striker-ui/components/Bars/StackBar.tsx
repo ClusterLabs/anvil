@@ -1,4 +1,5 @@
 import { Box, linearProgressClasses, styled } from '@mui/material';
+import { merge } from 'lodash';
 import { FC, ReactElement, createElement, useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
@@ -15,9 +16,7 @@ const ThinUnderline = styled(Underline)({
 });
 
 const StackBar: FC<StackBarProps> = (props) => {
-  const { barProps = {}, thin, underlineProps, value } = props;
-
-  const { sx: barSx, ...restBarProps } = barProps;
+  const { barProps: commonBarProps, thin, underlineProps, value } = props;
 
   const values = useMemo<Record<string, StackBarValue>>(
     () => ('value' in value ? { default: value as StackBarValue } : value),
@@ -41,45 +40,51 @@ const StackBar: FC<StackBarProps> = (props) => {
 
   const bars = useMemo<ReactElement[]>(
     () =>
-      entries.map<ReactElement>(
-        ([id, { colour = GREY, value: val }], index) => {
-          const backgroundColor =
-            typeof colour === 'string'
-              ? colour
-              : Object.entries(colour)
-                  .reverse()
-                  .find(([mark]) => val >= Number(mark))?.[1] ?? GREY;
+      entries.map<ReactElement>(([id, barOptions], index) => {
+        const { barProps, colour = GREY, value: val } = barOptions;
 
-          let position: 'absolute' | 'relative' = 'relative';
-          let top: 0 | undefined;
-          let width: string | undefined;
+        const backgroundColor =
+          typeof colour === 'string'
+            ? colour
+            : Object.entries(colour)
+                .reverse()
+                .find(([mark]) => val >= Number(mark))?.[1] ?? GREY;
 
-          if (index) {
-            position = 'absolute';
-            top = 0;
-            width = '100%';
-          }
+        let position: 'absolute' | 'relative' = 'relative';
+        let top: 0 | undefined;
+        let width: string | undefined;
 
-          return createElement(creatableBar, {
-            key: `stack-bar-${id}`,
-            sx: {
-              position,
-              top,
-              width,
+        if (index) {
+          position = 'absolute';
+          top = 0;
+          width = '100%';
+        }
 
-              [`& .${linearProgressClasses.bar}`]: {
-                backgroundColor,
+        // Props should override in order default->common->bar-specific
+
+        return createElement(
+          creatableBar,
+          merge(
+            {
+              key: `stack-bar-${id}`,
+              sx: {
+                position,
+                top,
+                width,
+
+                [`& .${linearProgressClasses.bar}`]: {
+                  backgroundColor,
+                },
               },
-
-              ...barSx,
+              variant: 'determinate',
+              value: val,
             },
-            variant: 'determinate',
-            value: val,
-            ...restBarProps,
-          });
-        },
-      ),
-    [barSx, entries, creatableBar, restBarProps],
+            commonBarProps,
+            barProps,
+          ),
+        );
+      }),
+    [commonBarProps, creatableBar, entries],
   );
 
   return (

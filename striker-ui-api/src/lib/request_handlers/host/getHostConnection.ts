@@ -51,7 +51,7 @@ const buildHostConnections = (
   );
 
 export const getHostConnection = buildGetRequestHandler(
-  async (request, buildQueryOptions) => {
+  async (request, hooks) => {
     const { hostUUIDs: rawHostUUIDs } = request.query;
 
     let rawDatabaseData: AnvilDataDatabaseHash;
@@ -88,32 +88,27 @@ export const getHostConnection = buildGetRequestHandler(
 
     poutvar(connections, 'connections=');
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = buildQueryResultReducer(
-        (previous, row) => {
-          const [ipUuid, hostUuid, ip, ifaceId] = row;
+    hooks.afterQueryReturn = buildQueryResultReducer((previous, row) => {
+      const [ipUuid, hostUuid, ip, ifaceId] = row;
 
-          const [, networkType, rNetworkNumber, rNetworkLinkNumber] = match(
-            ifaceId,
-            /^(.*n)(\d+)_link(\d+)$/,
-          );
-          const connectionKey = getConnectionKey(hostUuid);
-
-          connections[connectionKey].inbound.ipAddress[ip] = {
-            hostUUID: hostUuid,
-            ifaceId,
-            ipAddress: ip,
-            ipAddressUUID: ipUuid,
-            networkLinkNumber: Number(rNetworkLinkNumber),
-            networkNumber: Number(rNetworkNumber),
-            networkType,
-          };
-
-          return previous;
-        },
-        connections,
+      const [, networkType, rNetworkNumber, rNetworkLinkNumber] = match(
+        ifaceId,
+        /^(.*n)(\d+)_link(\d+)$/,
       );
-    }
+      const connectionKey = getConnectionKey(hostUuid);
+
+      connections[connectionKey].inbound.ipAddress[ip] = {
+        hostUUID: hostUuid,
+        ifaceId,
+        ipAddress: ip,
+        ipAddressUUID: ipUuid,
+        networkLinkNumber: Number(rNetworkLinkNumber),
+        networkNumber: Number(rNetworkNumber),
+        networkType,
+      };
+
+      return previous;
+    }, connections);
 
     return `SELECT
               a.ip_address_uuid,

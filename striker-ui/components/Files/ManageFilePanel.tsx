@@ -1,12 +1,13 @@
+import { Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { FC, useCallback, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
 import AddFileForm from './AddFileForm';
 import api from '../../lib/api';
 import { toAnvilOverviewList } from '../../lib/api_converters';
+import CircularProgress from '../CircularProgress';
 import ConfirmDialog from '../ConfirmDialog';
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
@@ -15,96 +16,12 @@ import FlexBox from '../FlexBox';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, MonoText } from '../Text';
 import useActiveFetch from '../../hooks/useActiveFetch';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
-
-const toFileOverviewList = (rows: string[][]) =>
-  rows.reduce<APIFileOverviewList>((previous, row) => {
-    const [uuid, name, size, type, checksum] = row;
-
-    previous[uuid] = {
-      checksum,
-      name,
-      size,
-      type: type as FileType,
-      uuid,
-    };
-
-    return previous;
-  }, {});
-
-const toFileDetail = (rows: string[][]) => {
-  const { 0: first } = rows;
-
-  if (!first) return undefined;
-
-  const [uuid, name, size, type, checksum] = first;
-
-  return rows.reduce<APIFileDetail>(
-    (previous, row) => {
-      const {
-        5: locationUuid,
-        6: locationActive,
-        7: anvilUuid,
-        8: anvilName,
-        9: anvilDescription,
-        10: hostUuid,
-        11: hostName,
-        12: hostType,
-      } = row;
-
-      if (!previous.anvils[anvilUuid]) {
-        previous.anvils[anvilUuid] = {
-          description: anvilDescription,
-          locationUuids: [],
-          name: anvilName,
-          uuid: anvilUuid,
-        };
-      }
-
-      if (!previous.hosts[hostUuid]) {
-        previous.hosts[hostUuid] = {
-          locationUuids: [],
-          name: hostName,
-          type: hostType,
-          uuid: hostUuid,
-        };
-      }
-
-      if (hostType === 'dr') {
-        previous.hosts[hostUuid].locationUuids.push(locationUuid);
-      } else {
-        previous.anvils[anvilUuid].locationUuids.push(locationUuid);
-      }
-
-      const active = Number(locationActive) === 1;
-
-      previous.locations[locationUuid] = {
-        anvilUuid,
-        active,
-        hostUuid,
-        uuid: locationUuid,
-      };
-
-      return previous;
-    },
-    {
-      anvils: {},
-      checksum,
-      hosts: {},
-      locations: {},
-      name,
-      size,
-      type: type as FileType,
-      uuid,
-    },
-  );
-};
 
 const ManageFilePanel: FC = () => {
   const addFormDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -115,28 +32,14 @@ const ManageFilePanel: FC = () => {
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
   const [edit, setEdit] = useState<boolean>(false);
   const [file, setFile] = useState<APIFileDetail | undefined>();
-  const [files, setFiles] = useState<APIFileOverviewList | undefined>();
 
-  const { isLoading: loadingFilesPeriodic } = periodicFetch<string[][]>(
-    `${API_BASE_URL}/file`,
-    {
-      onSuccess: (rows) => {
-        setFiles(toFileOverviewList(rows));
-      },
-    },
-  );
-
-  const { fetch: getFiles, loading: loadingFilesActive } = useActiveFetch<
-    string[][]
-  >({
-    onData: (data) => setFiles(toFileOverviewList(data)),
-    url: '/file',
+  const {
+    data: files,
+    loading: loadingFiles,
+    mutate: getFiles,
+  } = useFetch<APIFileOverviewList>('/file', {
+    refreshInterval: 5000,
   });
-
-  const loadingFiles = useMemo<boolean>(
-    () => loadingFilesPeriodic || loadingFilesActive,
-    [loadingFilesActive, loadingFilesPeriodic],
-  );
 
   const {
     buildDeleteDialogProps,
@@ -158,16 +61,17 @@ const ManageFilePanel: FC = () => {
     [],
   );
 
-  const { fetch: getFile, loading: loadingFile } = useActiveFetch<string[][]>({
-    onData: (data) => setFile(toFileDetail(data)),
-    onError: ({ children: previous, ...rest }) => {
-      setApiMessage({
-        children: <>Failed to get file detail. {previous}</>,
-        ...rest,
-      });
-    },
-    url: '/file/',
-  });
+  const { fetch: getFile, loading: loadingFile } =
+    useActiveFetch<APIFileDetail>({
+      onData: (data) => setFile(data),
+      onError: ({ children: previous, ...rest }) => {
+        setApiMessage({
+          children: <>Failed to get file detail. {previous}</>,
+          ...rest,
+        });
+      },
+      url: '/file/',
+    });
 
   const { data: rawAnvils, loading: loadingAnvils } =
     useFetch<APIAnvilOverviewArray>('/anvil', {
@@ -249,19 +153,41 @@ const ManageFilePanel: FC = () => {
           editFormDialogRef.current?.setOpen(true);
           getFile(uuid);
         }}
-        renderListItem={(uuid, { checksum, name, size, type }) => (
-          <FlexBox columnSpacing={0} fullWidth md="row" xs="column">
-            <FlexBox spacing={0} flexGrow={1}>
-              <FlexBox row spacing=".5em">
-                <MonoText>{name}</MonoText>
-                <Divider flexItem orientation="vertical" />
-                <BodyText>{UPLOAD_FILE_TYPES.get(type)?.[1]}</BodyText>
-              </FlexBox>
-              <BodyText>{dSizeStr(size, { toUnit: 'ibyte' })}</BodyText>
-            </FlexBox>
-            <MonoText>{checksum}</MonoText>
-          </FlexBox>
-        )}
+        renderListItem={(
+          uuid,
+          { anvils: locations, checksum, name, size, type },
+        ) => {
+          const syncing = Object.values(locations).some(({ ready }) => !ready);
+
+          return (
+            <Grid container columnGap="1em">
+              {syncing && (
+                <Grid alignSelf="center" item>
+                  <CircularProgress size="1.5em" variant="indeterminate" />
+                </Grid>
+              )}
+              <Grid item xs>
+                <FlexBox
+                  columnSpacing={0}
+                  rowSpacing=".5em"
+                  sm="row"
+                  xs="column"
+                >
+                  <MonoText noWrap>{name}</MonoText>
+                  <Divider flexItem orientation="vertical" />
+                  <BodyText>{UPLOAD_FILE_TYPES.get(type)?.[1]}</BodyText>
+                </FlexBox>
+                <FlexBox row spacing=".5em">
+                  {syncing && <BodyText>Syncing...</BodyText>}
+                  <BodyText>{dSizeStr(size, { toUnit: 'ibyte' })}</BodyText>
+                </FlexBox>
+              </Grid>
+              <Grid alignSelf="center" item width={{ xs: '100%', md: 'auto' }}>
+                <MonoText noWrap>{checksum}</MonoText>
+              </Grid>
+            </Grid>
+          );
+        }}
       />
     ),
     [
@@ -295,14 +221,13 @@ const ManageFilePanel: FC = () => {
   );
 
   const loadingAddForm = useMemo<boolean>(
-    () => loadingFilesPeriodic || loadingAnvils || loadingDrHosts,
-    [loadingAnvils, loadingDrHosts, loadingFilesPeriodic],
+    () => loadingFiles || loadingAnvils || loadingDrHosts,
+    [loadingAnvils, loadingDrHosts, loadingFiles],
   );
 
   const loadingEditForm = useMemo<boolean>(
-    () =>
-      loadingFilesPeriodic || loadingAnvils || loadingDrHosts || loadingFile,
-    [loadingAnvils, loadingDrHosts, loadingFile, loadingFilesPeriodic],
+    () => loadingFiles || loadingAnvils || loadingDrHosts || loadingFile,
+    [loadingAnvils, loadingDrHosts, loadingFile, loadingFiles],
   );
 
   const addForm = useMemo(

@@ -13,6 +13,7 @@ import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
+import { DSIZE_SELECT_ITEMS } from '../lib/consts/DSIZES';
 
 import api from '../lib/api';
 import Autocomplete from './Autocomplete';
@@ -197,14 +198,6 @@ type UpdateLimitsFunction = (options?: {
 };
 
 const BIGINT_ZERO = BigInt(0);
-
-const DATA_SIZE_UNIT_SELECT_ITEMS: SelectItem<DataSizeUnit>[] = [
-  { value: 'B' },
-  { value: 'KiB' },
-  { value: 'MiB' },
-  { value: 'GiB' },
-  { value: 'TiB' },
-];
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
 
@@ -752,7 +745,7 @@ const createVirtualDiskForm = (
               isNotifyRequired: get('sizes') === BIGINT_ZERO,
             },
           }}
-          selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+          selectItems={DSIZE_SELECT_ITEMS}
           selectWithLabelProps={{
             selectProps: {
               onChange: ({ target: { value } }) => {
@@ -1714,7 +1707,7 @@ const ProvisionServerDialog = ({
                   isNotifyRequired: memory === BIGINT_ZERO,
                 },
               }}
-              selectItems={DATA_SIZE_UNIT_SELECT_ITEMS}
+              selectItems={DSIZE_SELECT_ITEMS}
               selectWithLabelProps={{
                 selectProps: {
                   onChange: ({ target: { value } }) => {

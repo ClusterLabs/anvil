@@ -6,11 +6,10 @@ import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { match } from '../../match';
 
-export const getSSHKeyConflict = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
-    const localHostUUID: string = getLocalHostUUID();
+export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
+  const localHostUUID: string = getLocalHostUUID();
 
-    const query = `
+  const query = `
       SELECT
         hos.host_name,
         hos.host_uuid,
@@ -21,37 +20,35 @@ export const getSSHKeyConflict = buildGetRequestHandler(
       JOIN hosts AS hos
         ON sta.state_host_uuid = hos.host_uuid
       WHERE sta.state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%';`;
-    const afterQueryReturn = buildQueryResultReducer<{
-      [hostUUID: string]: SshKeyConflict;
-    }>((previous, [hostName, hostUUID, stateName, stateNote, stateUUID]) => {
-      const hostUUIDKey = toLocal(hostUUID, localHostUUID);
 
-      if (previous[hostUUIDKey] === undefined) {
-        previous[hostUUIDKey] = {};
-      }
+  const afterQueryReturn = buildQueryResultReducer<{
+    [hostUUID: string]: SshKeyConflict;
+  }>((previous, [hostName, hostUUID, stateName, stateNote, stateUUID]) => {
+    const hostUUIDKey = toLocal(hostUUID, localHostUUID);
 
-      const ipAddress = stateName.slice(HOST_KEY_CHANGED_PREFIX.length);
-      const [, badFile, badLine = '0'] = match(
-        stateNote,
-        /file=([^\s]+),line=(\d+)/,
-      );
-
-      previous[hostUUIDKey][stateUUID] = {
-        badFile,
-        badLine: Number(badLine),
-        hostName,
-        hostUUID,
-        ipAddress,
-        stateUUID,
-      };
-
-      return previous;
-    }, {});
-
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = afterQueryReturn;
+    if (previous[hostUUIDKey] === undefined) {
+      previous[hostUUIDKey] = {};
     }
 
-    return query;
-  },
-);
+    const ipAddress = stateName.slice(HOST_KEY_CHANGED_PREFIX.length);
+    const [, badFile, badLine = '0'] = match(
+      stateNote,
+      /file=([^\s]+),line=(\d+)/,
+    );
+
+    previous[hostUUIDKey][stateUUID] = {
+      badFile,
+      badLine: Number(badLine),
+      hostName,
+      hostUUID,
+      ipAddress,
+      stateUUID,
+    };
+
+    return previous;
+  }, {});
+
+  hooks.afterQueryReturn = afterQueryReturn;
+
+  return query;
+});

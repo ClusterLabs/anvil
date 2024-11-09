@@ -20,6 +20,7 @@ type SelectWithLabelOptionalProps<Value = string> = {
   >;
   label?: string;
   messageBoxProps?: Partial<import('../components/MessageBox').MessageBoxProps>;
+  noOptionsText?: React.ReactNode;
   required?: boolean;
   selectProps?: Partial<SelectProps<Value>>;
 };

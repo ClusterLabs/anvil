@@ -2,10 +2,11 @@ import { RequestHandler } from 'express';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryAnvilDetail from './buildQueryAnvilDetail';
+import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { sanitize } from '../../sanitize';
 
 export const getAnvil: RequestHandler = buildGetRequestHandler(
-  (request, buildQueryOptions) => {
+  (request, hooks) => {
     const { anvilUUIDs, isForProvisionServer } = request.query;
 
     let query = `
@@ -25,71 +26,57 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
         )
       ORDER BY anv.anvil_uuid;`;
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = (queryStdout) => {
-        let results = queryStdout;
+    let afterQueryReturn: QueryResultModifierFunction | undefined =
+      buildQueryResultModifier<AnvilOverview[]>((queryStdout) => {
+        let rowStage: AnvilOverview | undefined;
 
-        if (queryStdout instanceof Array) {
-          let rowStage: AnvilOverview | undefined;
+        return queryStdout.reduce<AnvilOverview[]>(
+          (
+            reducedRows,
+            [
+              anvilName,
+              anvilUUID,
+              anvilDescription,
+              hostName,
+              hostUUID,
+              hostType,
+            ],
+          ) => {
+            if (!rowStage || anvilUUID !== rowStage.anvilUUID) {
+              {
+                rowStage = {
+                  anvilDescription,
+                  anvilName,
+                  anvilUUID,
+                  hosts: [],
+                };
 
-          results = queryStdout.reduce<AnvilOverview[]>(
-            (
-              reducedRows,
-              [
-                anvilName,
-                anvilUUID,
-                anvilDescription,
-                hostName,
-                hostUUID,
-                hostType,
-              ],
-            ) => {
-              if (!rowStage || anvilUUID !== rowStage.anvilUUID) {
-                {
-                  rowStage = {
-                    anvilDescription,
-                    anvilName,
-                    anvilUUID,
-                    hosts: [],
-                  };
-
-                  reducedRows.push(rowStage);
-                }
+                reducedRows.push(rowStage);
               }
+            }
 
-              rowStage.hosts.push({
-                hostName,
-                hostType,
-                hostUUID,
-              });
+            rowStage.hosts.push({
+              hostName,
+              hostType,
+              hostUUID,
+            });
 
-              return reducedRows;
-            },
-            [],
-          );
-        }
-
-        return results;
-      };
-    }
+            return reducedRows;
+          },
+          [],
+        );
+      });
 
     if (anvilUUIDs) {
-      const {
-        query: anvilDetailQuery,
-        afterQueryReturn: anvilDetailAfterQueryReturn,
-      } = buildQueryAnvilDetail({
+      ({ query, afterQueryReturn } = buildQueryAnvilDetail({
         anvilUUIDs: sanitize(anvilUUIDs, 'string[]', {
           modifierType: 'sql',
         }),
         isForProvisionServer: sanitize(isForProvisionServer, 'boolean'),
-      });
-
-      query = anvilDetailQuery;
-
-      if (buildQueryOptions) {
-        buildQueryOptions.afterQueryReturn = anvilDetailAfterQueryReturn;
-      }
+      }));
     }
+
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

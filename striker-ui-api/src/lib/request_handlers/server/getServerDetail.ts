@@ -1,13 +1,22 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
+import { XMLParser } from 'fast-xml-parser';
+import { dSize } from 'format-data-size';
 import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
 
 import { P_UUID, REP_UUID, SERVER_PATHS } from '../../consts';
 
-import { getVncinfo } from '../../accessModule';
+import {
+  getLvmData,
+  getVncinfo,
+  listNicModels,
+  query,
+} from '../../accessModule';
+import { getShortHostName } from '../../disassembleHostName';
+import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
-import { perr, pout, poutvar } from '../../shell';
+import { perr, poutvar } from '../../shell';
 
 type ServerSsMeta = {
   name: string;
@@ -33,6 +42,8 @@ export const getServerDetail: RequestHandler<
   unknown,
   ServerDetailParsedQs
 > = async (request, response) => {
+  const respond = new Responder(response);
+
   const {
     params: { serverUUID: serverUuid },
     query: { ss: rSs, vnc: rVnc },
@@ -41,7 +52,7 @@ export const getServerDetail: RequestHandler<
   const ss = sanitize(rSs, 'boolean');
   const vnc = sanitize(rVnc, 'boolean');
 
-  pout(`serverUUID=[${serverUuid}],isScreenshot=[${ss}]`);
+  poutvar({ serverUuid, ss, vnc }, 'Request variables: ');
 
   try {
     assert(
@@ -117,8 +128,459 @@ export const getServerDetail: RequestHandler<
 
     return response.send(rsbody);
   } else {
-    // For getting sever detail data.
+    let sql = `
+      SELECT
+        a.server_name,
+        a.server_state,
+        a.server_start_after_server_uuid,
+        a.server_start_delay,
+        b.anvil_uuid,
+        b.anvil_name,
+        b.anvil_description,
+        c.host_uuid,
+        c.host_name,
+        c.host_type,
+        d.server_definition_uuid,
+        d.server_definition_xml
+      FROM servers AS a
+      JOIN anvils AS b
+        ON a.server_anvil_uuid = b.anvil_uuid
+      JOIN hosts AS c
+        ON a.server_host_uuid = c.host_uuid
+      JOIN server_definitions AS d
+        ON a.server_uuid = d.server_definition_server_uuid
+      WHERE a.server_uuid = '${serverUuid}';`;
 
-    response.send();
+    let rows: string[][];
+
+    try {
+      rows = await query(sql);
+    } catch (error) {
+      return respond.s500(
+        '30f956f',
+        `Failed to get server details; CAUSE: ${error}`,
+      );
+    }
+
+    if (!rows.length) {
+      return respond.s404();
+    }
+
+    const {
+      0: [
+        serverName,
+        serverState,
+        serverStartAfterServerUuid,
+        serverStartDelay,
+        anvilUuid,
+        anvilName,
+        anvilDescription,
+        hostUuid,
+        hostName,
+        hostType,
+        serverDefinitionUuid,
+        serverDefinitionXml,
+      ],
+    } = rows;
+
+    const shortHostName = getShortHostName(hostName);
+
+    // Get bridges separately to avoid passing duplicate definition XMLs
+
+    sql = `
+      SELECT
+        bridge_uuid,
+        bridge_name,
+        bridge_id,
+        bridge_mac_address
+      FROM bridges
+      WHERE bridge_host_uuid = '${hostUuid}';`;
+
+    try {
+      rows = await query(sql);
+
+      assert.ok(rows.length, 'No bridges found');
+    } catch (error) {
+      return respond.s500(
+        '9806598',
+        `Failed to get bridges for server details; CAUSE: ${error}`,
+      );
+    }
+
+    const hostBridges = rows.reduce<ServerDetailHostBridgeList>(
+      (previous, row) => {
+        const [uuid, name, id, mac] = row;
+
+        previous[uuid] = {
+          id,
+          mac,
+          name,
+          uuid,
+        };
+
+        return previous;
+      },
+      {},
+    );
+
+    // Get interfaces to include state
+
+    sql = `
+      SELECT
+        server_network_uuid,
+        server_network_mac_address,
+        server_network_vnet_device,
+        server_network_link_state
+      FROM server_networks
+      WHERE server_network_server_uuid = '${serverUuid}';`;
+
+    try {
+      rows = await query(sql);
+
+      assert.ok(rows.length, 'No interfaces found');
+    } catch (error) {
+      return respond.s500(
+        '27888e0',
+        `Failed to get interfaces for server details; CAUSE: ${error}`,
+      );
+    }
+
+    const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
+      (previous, row) => {
+        const [uuid, mac, device, state] = row;
+
+        previous[mac] = {
+          device,
+          mac,
+          state,
+          uuid,
+        };
+
+        return previous;
+      },
+      {},
+    );
+
+    // Get server variables
+
+    sql = `
+      SELECT
+        variable_uuid,
+        variable_name,
+        variable_value
+      FROM variables
+      WHERE variable_name IN (
+        'server::${serverName}::stay-off',
+        'server::${serverUuid}::vncinfo'
+      );`;
+
+    try {
+      rows = await query(sql);
+    } catch (error) {
+      return respond.s500(
+        'c9bd36c',
+        `Failed to get server variables; ${error}`,
+      );
+    }
+
+    const variables: Record<string, ServerDetailVariable> = {};
+
+    let startActive = true;
+
+    if (rows.length) {
+      rows.reduce<
+        Record<
+          string,
+          { name: string; short: string; uuid: string; value: string }
+        >
+      >((previous, row) => {
+        const [uuid, name, value] = row;
+
+        const short = name.split('::').pop() ?? '';
+
+        if (short === 'stay-off') {
+          startActive = value !== '1';
+        }
+
+        previous[uuid] = {
+          name,
+          short,
+          uuid,
+          value,
+        };
+
+        return previous;
+      }, variables);
+    }
+
+    // Get LVM info
+
+    let hostLvm: AnvilDataLvmHost;
+
+    try {
+      const lvm = await getLvmData();
+
+      const host = lvm.host_name?.[shortHostName];
+
+      assert.ok(host);
+
+      hostLvm = host;
+    } catch (error) {
+      return respond.s500(
+        'dd8a119',
+        `Failed to get storage (LVM) data; CAUSE: ${error}`,
+      );
+    }
+
+    // Get list of NIC models
+
+    const nicModels = await listNicModels(hostName);
+
+    // Extract necessary values from the libvirt domain XML
+
+    const xmlParser = new XMLParser({
+      ignoreAttributes: false,
+      parseAttributeValue: true,
+    });
+
+    let serverDefinition;
+
+    try {
+      serverDefinition = xmlParser.parse(serverDefinitionXml);
+    } catch (error) {
+      return respond.s500(
+        'dbaab5f',
+        `Failed to parse libvirt XML of ${serverUuid}; CAUSE: ${error}`,
+      );
+    }
+
+    const {
+      domain: {
+        cpu: {
+          topology: {
+            '@_clusters': cpuClusters,
+            '@_cores': cpuCores,
+            '@_dies': cpuDies,
+            '@_sockets': cpuSockets,
+            '@_threads': cpuThreads,
+          },
+        },
+        devices: { disk, interface: iface },
+        memory: { '#text': memoryValue, '@_unit': memoryUnit },
+      },
+    } = serverDefinition;
+
+    const memorySize = dSize(memoryValue, {
+      fromUnit: memoryUnit,
+      toUnit: 'B',
+    });
+
+    let diskArray = [];
+
+    if (Array.isArray(disk)) {
+      diskArray = disk;
+    } else if (disk) {
+      diskArray = [disk];
+    }
+
+    let ifaceArray = [];
+
+    if (Array.isArray(iface)) {
+      ifaceArray = iface;
+    } else if (disk) {
+      ifaceArray = [iface];
+    }
+
+    const diskOrderByBoot: number[] = [];
+    const diskOrderBySource: number[] = [];
+
+    const disks = await Promise.all(
+      diskArray.map<Promise<ServerDetailDisk>>(async (value, index) => {
+        const {
+          '@_type': diskType,
+          '@_device': diskDevice,
+          alias,
+          boot,
+          source,
+          target,
+        } = value;
+
+        const bootOrder = boot?.['@_order'];
+        const sourceIndex = source?.['@_index'];
+
+        if (bootOrder) {
+          diskOrderByBoot[bootOrder] = index;
+        }
+
+        if (sourceIndex) {
+          diskOrderBySource[sourceIndex] = index;
+        }
+
+        const sourceDev = source?.['@_dev'];
+        const sourceFile = source?.['@_file'];
+
+        const lv: ServerDetailDisk['source']['dev']['lv'] = {};
+
+        let sgUuid: string | undefined;
+
+        if (sourceDev) {
+          const drbdResourceIndex = path.basename(sourceDev);
+          const lvName = `${serverName}_${drbdResourceIndex}`;
+
+          const hostLv = hostLvm.lv?.[lvName];
+
+          if (hostLv) {
+            lv.name = lvName;
+            lv.size = hostLv.scan_lvm_lv_size;
+            lv.uuid = hostLv.scan_lvm_lv_uuid;
+
+            const { scan_lvm_lv_on_vg: vgName } = hostLv;
+
+            ({ storage_group_uuid: sgUuid } = hostLvm.vg[vgName]);
+          }
+        }
+
+        let fileUuid: string | undefined;
+
+        if (sourceFile) {
+          const dir = path.dirname(sourceFile);
+          const name = path.basename(sourceFile);
+
+          try {
+            const rows = await query<[[string]]>(`
+              SELECT file_uuid
+              FROM files
+              WHERE file_directory = '${dir}'
+                AND file_name = '${name}';`);
+
+            assert.ok(rows.length);
+
+            ({
+              0: [fileUuid],
+            } = rows);
+          } catch (error) {
+            // Let the field be blank
+          }
+        }
+
+        return {
+          alias: {
+            name: alias?.['@_name'],
+          },
+          boot: {
+            order: bootOrder,
+          },
+          device: diskDevice,
+          source: {
+            dev: {
+              lv,
+              path: sourceDev,
+              sg: sgUuid,
+            },
+            file: {
+              path: sourceFile,
+              uuid: fileUuid,
+            },
+            index: sourceIndex,
+          },
+          target: {
+            bus: target?.['@_bus'],
+            dev: target?.['@_dev'],
+          },
+          type: diskType,
+        };
+      }),
+    );
+
+    const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
+      const {
+        '@_type': ifaceType,
+        alias,
+        link,
+        mac,
+        model,
+        source,
+        target,
+      } = value;
+
+      const macAddress = mac?.['@_address'] ?? '';
+
+      const { [macAddress]: netIface } = netIfaces;
+
+      return {
+        alias: {
+          name: alias?.['@_name'],
+        },
+        link: {
+          state: link?.['@_state'] ?? netIface?.state,
+        },
+        mac: {
+          address: macAddress,
+        },
+        model: {
+          type: model?.['@_type'],
+        },
+        source: {
+          bridge: source?.['@_bridge'],
+        },
+        target: {
+          dev: target?.['@_dev'],
+        },
+        type: ifaceType,
+        uuid: netIface?.uuid,
+      };
+    });
+
+    const rsBody: ServerDetail = {
+      anvil: {
+        description: anvilDescription,
+        name: anvilName,
+        uuid: anvilUuid,
+      },
+      cpu: {
+        topology: {
+          clusters: cpuClusters,
+          cores: cpuCores,
+          dies: cpuDies,
+          sockets: cpuSockets,
+          threads: cpuThreads,
+        },
+      },
+      definition: {
+        uuid: serverDefinitionUuid,
+      },
+      devices: {
+        diskOrderBy: {
+          boot: diskOrderByBoot,
+          source: diskOrderBySource,
+        },
+        disks,
+        interfaces,
+      },
+      host: {
+        bridges: hostBridges,
+        name: hostName,
+        short: shortHostName,
+        type: hostType,
+        uuid: hostUuid,
+      },
+      libvirt: {
+        nicModels,
+      },
+      memory: {
+        size: memorySize ? memorySize.value : '0',
+      },
+      name: serverName,
+      start: {
+        active: startActive,
+        after: serverStartAfterServerUuid,
+        delay: Number(serverStartDelay),
+      },
+      state: serverState,
+      uuid: serverUuid,
+      variables,
+    };
+
+    return respond.s200(rsBody);
   }
 };

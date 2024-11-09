@@ -1,9 +1,13 @@
 import {
-  Checkbox as MUICheckbox,
-  FormControl as MUIFormControl,
+  Checkbox as MuiCheckbox,
+  FormControl as MuiFormControl,
+  menuClasses as muiMenuClasses,
   selectClasses as muiSelectClasses,
 } from '@mui/material';
+import { merge } from 'lodash';
 import { FC, useCallback, useMemo } from 'react';
+
+import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import InputMessageBox from './InputMessageBox';
 import MenuItem from './MenuItem';
@@ -29,11 +33,13 @@ const SelectWithLabel = <
     isReadOnly = false,
     messageBoxProps = {},
     name,
+    noOptionsText = 'No options',
     onBlur,
     onChange,
     onFocus,
     required: isRequired,
     selectProps: {
+      MenuProps: selectMenuProps,
       multiple: selectMultiple,
       sx: selectSx,
       ...restSelectProps
@@ -43,16 +49,17 @@ const SelectWithLabel = <
     isCheckableItems = selectMultiple,
   } = props;
 
-  const combinedSx = useMemo(
+  const mergedSx = useMemo(
     () =>
       isReadOnly
-        ? {
-            [`& .${muiSelectClasses.icon}`]: {
-              visibility: 'hidden',
+        ? merge(
+            {
+              [`& .${muiSelectClasses.icon}`]: {
+                visibility: 'hidden',
+              },
             },
-
-            ...selectSx,
-          }
+            selectSx,
+          )
         : selectSx,
     [isReadOnly, selectSx],
   );
@@ -60,7 +67,7 @@ const SelectWithLabel = <
   const createCheckbox = useCallback(
     (value) =>
       isCheckableItems && (
-        <MUICheckbox checked={checkItem?.call(null, value)} />
+        <MuiCheckbox checked={checkItem?.call(null, value)} />
       ),
     [checkItem, isCheckableItems],
   );
@@ -100,34 +107,52 @@ const SelectWithLabel = <
       ),
     [inputLabelProps, isRequired, label, selectId],
   );
-  const menuItemElements = useMemo(
+  const menuItemElements = useMemo(() => {
+    if (!selectItems.length) {
+      return <MenuItem disabled>{noOptionsText}</MenuItem>;
+    }
+
+    return selectItems.map((item) => {
+      /**
+       * Cases:
+       * 1. item is string
+       * 2. item is SelectItem with only value
+       * 3. item is SelectItem with both value, and displayValue
+       */
+
+      if (typeof item === 'string') return createMenuItem(item, item);
+
+      const {
+        value,
+        displayValue = String(value),
+      }: SelectItem<Value, Display> = item;
+
+      return createMenuItem(value, displayValue);
+    });
+  }, [createMenuItem, noOptionsText, selectItems]);
+
+  const mergedSelectMenuProps = useMemo(
     () =>
-      selectItems.map((item) => {
-        /**
-         * Cases:
-         * 1. item is string
-         * 2. item is SelectItem with only value
-         * 3. item is SelectItem with both value, and displayValue
-         */
-
-        if (typeof item === 'string') return createMenuItem(item, item);
-
-        const {
-          value,
-          displayValue = String(value),
-        }: SelectItem<Value, Display> = item;
-
-        return createMenuItem(value, displayValue);
-      }),
-    [createMenuItem, selectItems],
+      merge(
+        {
+          sx: {
+            [`& .${muiMenuClasses.paper}`]: {
+              backgroundColor: GREY,
+            },
+          },
+        },
+        selectMenuProps,
+      ),
+    [selectMenuProps],
   );
 
   return (
-    <MUIFormControl fullWidth {...formControlProps}>
+    <MuiFormControl fullWidth {...formControlProps}>
       {labelElement}
       <Select<Value>
         id={selectId}
         input={inputElement}
+        MenuProps={mergedSelectMenuProps}
         multiple={selectMultiple}
         name={name}
         onBlur={onBlur}
@@ -136,12 +161,12 @@ const SelectWithLabel = <
         readOnly={isReadOnly}
         value={selectValue}
         {...restSelectProps}
-        sx={combinedSx}
+        sx={mergedSx}
       >
         {menuItemElements}
       </Select>
       <InputMessageBox {...messageBoxProps} />
-    </MUIFormControl>
+    </MuiFormControl>
   );
 };
 

@@ -7,7 +7,7 @@ import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { sanitize } from '../../sanitize';
 
 export const getMailRecipientDetail: RequestHandler<MailRecipientParamsDictionary> =
-  buildGetRequestHandler((request, options) => {
+  buildGetRequestHandler((request, hooks) => {
     const {
       params: { uuid: rUuid },
     } = request;
@@ -45,9 +45,7 @@ export const getMailRecipientDetail: RequestHandler<MailRecipientParamsDictionar
         };
       });
 
-    if (options) {
-      options.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   });

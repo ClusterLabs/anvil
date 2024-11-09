@@ -16,12 +16,14 @@ type AnvilCPU = {
 
 type AnvilMemory = {
   allocated: string;
+  available: string;
   reserved: string;
   total: string;
 };
 
 type AnvilMemoryCalcable = {
   allocated: bigint;
+  available: bigint;
   reserved: bigint;
   total: bigint;
 };
@@ -154,6 +156,7 @@ type APIAnvilStorageGroupCalcable = {
   free: bigint;
   name: string;
   size: bigint;
+  used: bigint;
   uuid: string;
 };
 
@@ -163,4 +166,5 @@ type APIAnvilSharedStorageOverview = {
   };
   totalFree: bigint;
   totalSize: bigint;
+  totalUsed: bigint;
 };

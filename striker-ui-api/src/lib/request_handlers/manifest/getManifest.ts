@@ -4,7 +4,7 @@ import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 
 export const getManifest: RequestHandler = buildGetRequestHandler(
-  (response, buildQueryOptions) => {
+  (request, hooks) => {
     const query = `
       SELECT
         manifest_uuid,
@@ -12,6 +12,7 @@ export const getManifest: RequestHandler = buildGetRequestHandler(
       FROM manifests
       WHERE manifest_note != 'DELETED'
       ORDER BY manifest_name ASC;`;
+
     const afterQueryReturn: QueryResultModifierFunction | undefined =
       buildQueryResultReducer<{ [manifestUUID: string]: ManifestOverview }>(
         (previous, [manifestUUID, manifestName]) => {
@@ -25,9 +26,7 @@ export const getManifest: RequestHandler = buildGetRequestHandler(
         {},
       );
 
-    if (buildQueryOptions) {
-      buildQueryOptions.afterQueryReturn = afterQueryReturn;
-    }
+    hooks.afterQueryReturn = afterQueryReturn;
 
     return query;
   },

@@ -14,7 +14,7 @@ import { perr, pout } from './lib/shell';
  *   the main bundle. Webpack defaults to put such modules in separate files to
  *   reduce the amount of loading.
  */
-access.once('active', async () => {
+access.default.once('active', async () => {
   const { default: app } = await import(/* webpackMode: "eager" */ './app');
   const { proxyServerVncUpgrade } = await import(
     /* webpackMode: "eager" */ './middlewares'
