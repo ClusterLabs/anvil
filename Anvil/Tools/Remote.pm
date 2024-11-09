@@ -1217,6 +1217,225 @@ sub test_access
 	{
 		$access = 1;
 	}
+	elsif ((not $password) && ($error =~ / master process exited unexpectedly/s))
+	{
+		# Possible thta passwordless ssh wasn't setup yet, such as after a machine is rebuilt.
+		# Can we access the host using one of the password we know?
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0093", variables => { target => $target }});
+		foreach my $db_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})
+		{
+			my $this_password = $anvil->data->{database}{$db_host_uuid}{password};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				db_host_uuid  => $db_host_uuid, 
+				this_password => $anvil->Log->is_secure($this_password), 
+			}});
+			
+			$anvil->data->{test_password}{$this_password} = 1;
+		}
+		
+		# If we had a DB connection, pull in the Anvil! passwords 
+		if ($anvil->data->{sys}{database}{connections})
+		{
+			$anvil->Database->get_anvils({debug => $debug});
+			foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+			{
+				my $this_password = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_password};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					anvil_name    => $anvil_name, 
+					this_password => $anvil->Log->is_secure($this_password), 
+				}});
+				
+				$anvil->data->{test_password}{$this_password} = 1;
+			}
+		}
+		
+		my $pw_count = keys %{$anvil->data->{test_password}};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0143", variables => { 
+			target   => $target,
+			pw_count => $pw_count, 
+		}});
+		
+		foreach my $this_password (sort {$a cmp $b} keys %{$anvil->data->{test_password}})
+		{
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0144", variables => { 
+				target   => $target,
+				password => $anvil->Log->is_secure($this_password), 
+			}});
+			
+			my $access = $anvil->Remote->test_access({
+				debug    => $debug, 
+				'close'  => $close,
+				password => $this_password, 
+				port     => $port, 
+				target   => $target,
+				user     => $user,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+			
+			# Did we get access?
+			if ($access)
+			{
+				# Yes! Setup passwordless SSH.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0148", variables => { 
+					target   => $target,
+					password => $anvil->Log->is_secure($this_password), 
+				}});
+				
+				# Read my ~/.ssh/id_rsa.pub file
+				my $user_home       = $anvil->Get->users_home({user => $user});
+				my $public_key_file = $user_home."/.ssh/id_rsa.pub";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					user_home       => $user_home,
+					public_key_file => $public_key_file, 
+				}});
+				if (not -e $public_key_file)
+				{
+					# Create our key.
+					$anvil->System->check_ssh_keys({debug => $debug});
+					
+					# The RSA file should exist now.
+					if (not -e $public_key_file)
+					{
+						# Huh, nope. Even though we connected with a password, we 
+						# didn't connect as the user requested (without) so return 0.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0155", variables => { 
+							target   => $target,
+							password => $anvil->Log->is_secure($this_password), 
+							file     => $public_key_file,
+						}});
+						return(0);
+					}
+				}
+				
+				# Read the RSA public key.
+				my $rsa_key = $anvil->Storage->read_file({
+					debug      => $debug, 
+					file       => $public_key_file,
+					force_read => 1,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { rsa_key => $rsa_key }});
+				
+				# Is it valid?
+				if ($rsa_key !~ /^ssh-rsa /)
+				{
+					# Doesn't look valid.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0193", variables => { 
+						file => $public_key_file,
+						key  => $rsa_key, 
+					}});
+					return(0);
+				}
+				
+				# Read the target's authorized_keys file.
+				my $target_authorized_keys_file = "/root/.ssh/authorized_keys";
+				if ($user ne "root")
+				{
+					$target_authorized_keys_file = "/home/".$user."/.ssh/authorized_keys";
+				}
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_authorized_keys_file => $target_authorized_keys_file }});
+				
+				my $old_authorized_keys_body = $anvil->Storage->read_file({
+					debug       => $debug, 
+					file        => $target_authorized_keys_file,
+					force_read  => 1,
+					port        => $port, 
+					password    => $this_password, 
+					remote_user => $user, 
+					target      => $target,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_authorized_keys_body => $old_authorized_keys_body }});
+				if ($old_authorized_keys_body eq "!!error!!")
+				{
+					# Failed to read.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0176", variables => { 
+						target   => $target,
+						password => $anvil->Log->is_secure($this_password), 
+						file     => $public_key_file,
+					}});
+					return(0);
+				}
+				
+				# Look for our key
+				my $key_found                = 0;
+				my $new_authorized_keys_body = "";
+				foreach my $line (split/\n/, $old_authorized_keys_body)
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+					if ($line eq $rsa_key)
+					{
+						$key_found = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_found => $key_found }});
+						last;
+					}
+					$new_authorized_keys_body .= $line."\n";
+				}
+				
+				if (not $key_found)
+				{
+					# Append our key.
+					$new_authorized_keys_body .= $rsa_key."\n";
+					
+					# Write out the new file.
+					my $problem = $anvil->Storage->write_file({
+						debug       => $debug, 
+						backup      => 1, 
+						file        => $target_authorized_keys_file,
+						body        => $new_authorized_keys_body, 
+						group       => $user, 
+						mode        => "0644",
+						overwrite   => 1,
+						port        => $port, 
+						password    => $this_password, 
+						target      => $target,
+						user        => $user,
+						remote_user => $user, 
+					});
+					if ($problem)
+					{
+						# Failed.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0194", variables => { 
+							target => $target,
+							file   => $target_authorized_keys_file,
+						}});
+						return(0);
+					}
+					
+					# Try to connect again, without a password this time.
+					my $access = $anvil->Remote->test_access({
+						debug    => $debug, 
+						'close'  => $close,
+						password => "", 
+						port     => $port, 
+						target   => $target,
+						user     => $user,
+					});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+					
+					# Did we get access?
+					if ($access)
+					{
+						# Success!
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0195", variables => { target => $target }});
+						return($access);
+					}
+					else
+					{
+						# Welp, we tried.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0196", variables => { target => $target }});
+						return($access);
+					}
+				}
+			}
+			else
+			{
+				# No buenno
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0149", variables => { 
+					target   => $target,
+					password => $anvil->Log->is_secure($this_password), 
+				}});
+			}
+		}
+	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
 	return($access);
