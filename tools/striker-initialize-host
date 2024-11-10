@@ -31,7 +31,15 @@ $| = 1;
 my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
-$anvil->Get->switches({list => ["enterprise-uuid", "host-ip-address", "password", "rh-password", "rh-user", "ssh-port", "target", "type"], man => $THIS_FILE});
+$anvil->Get->switches({list => [
+	"enterprise-uuid", 
+	"host-ip-address", 
+	"password", 
+	"rh-password", 
+	"rh-user", 
+	"ssh-port", 
+	"target", 
+	"type"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
@@ -913,17 +921,21 @@ sub wait_for_access
 {
 	my ($anvil) = @_;
 	
-	### TODO: If the keys changed, the user may have been prompted to fix the keys for the admin user, 
-	###       but not the 'root' user. This, we may fail to access the node as this runs as 'root'. Tell
-	###       the user to check for bad keys and clear them if/when access fails.
+	### NOTE: If the machine is being rebuilt, the host key is likely to have changed. If we fail to 
+	###       connect because of a bad host key, ignore the host key and see if we can connect using the
+	###       given password. If so, update the key.
+	### TODO: How secure is this? In theory, a user can't request to initialize a host without already
+	###       having access, so an attacker shouldn't be able to call this without already being 
+	###       authenticated.
 	# Test access
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0023", variables => { target => $anvil->data->{data}{say_target} }});
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0023,!!target!".$anvil->data->{data}{say_target}."!!");
 	$anvil->data->{job}{progress} += 5;
-	my $waiting = 1;
-	my $access  = 0;
-	my $timeout = time + 600;
+	my $waiting    = 1;
+	my $access     = 0;
+	my $timeout    = time + 600;
+	my $check_keys = 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { timeout => $timeout, 'time' => time }});
 	while ($waiting)
 	{
@@ -953,6 +965,65 @@ sub wait_for_access
 			}
 			else
 			{
+				if ($check_keys)
+				{
+					my $bad_key = "";
+					my $query   = "
+SELECT 
+    state_uuid, 
+    state_note 
+FROM 
+    states 
+WHERE 
+    state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    state_name      = ".$anvil->Database->quote("host_key_changed::".$anvil->data->{data}{host_ip_address})."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+					my $count   = @{$results};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						results => $results, 
+						count   => $count, 
+					}});
+					foreach my $row (@{$results})
+					{
+						my $state_uuid = $row->[0];
+						my $state_note = $row->[1];
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							state_uuid => $state_uuid, 
+							state_note => $state_note, 
+						}});
+						
+						if ($state_note =~ /key=(.*?)$/)
+						{
+							$bad_key = $1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
+						}
+					}
+					
+					if ($bad_key)
+					{
+						# Delete they key.
+						my $job_uuid = $anvil->Database->insert_or_update_jobs({
+							debug           => 2,
+							file            => $THIS_FILE, 
+							line            => __LINE__, 
+							job_title       => "job_0056",
+							job_description => "job_0057",
+							job_host_uuid   => $anvil->Get->host_uuid, 
+							job_data        => "bad_key=".$bad_key,
+							job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+							job_name        => "manage::broken_keys", 
+							job_progress    => 0,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+					}
+					
+					$check_keys = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_keys => $check_keys }});
+				}
+				
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0025", variables => {
 					target  => $anvil->data->{data}{say_target},
 					timeout => $time_left, 

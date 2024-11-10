@@ -11,8 +11,6 @@
 # 2 = Job not found.
 # 3 = No offending keys found.
 # 
-# TODO: Add '--test' that called 'Remote->test_access' for all hosts in ~/.ssh/known_hosts
-# 
 
 use strict;
 use warnings;
