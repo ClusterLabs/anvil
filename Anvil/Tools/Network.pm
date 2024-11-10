@@ -874,11 +874,15 @@ sub collect_data
 		### Get some data from sysfs.
 		$anvil->data->{nmcli}{uuid}{$uuid}{name}        = $connection_id;
 		$anvil->data->{nmcli}{uuid}{$uuid}{device}      = $device;
-		$anvil->data->{nmcli}{uuid}{$uuid}{mac_address} = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{type}        = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{mtu}         = 0;
+		$anvil->data->{nmcli}{uuid}{$uuid}{mac_address} = "" if not $anvil->data->{nmcli}{uuid}{$uuid}{mac_address};
+		$anvil->data->{nmcli}{uuid}{$uuid}{type}        = "" if not $anvil->data->{nmcli}{uuid}{$uuid}{type};
+		$anvil->data->{nmcli}{uuid}{$uuid}{mtu}         = 0  if not $anvil->data->{nmcli}{uuid}{$uuid}{mtu};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::uuid::${uuid}::device" => $anvil->data->{nmcli}{uuid}{$uuid}{device},
+			"s1:nmcli::uuid::${uuid}::name"        => $anvil->data->{nmcli}{uuid}{$uuid}{name},
+			"s2:nmcli::uuid::${uuid}::device"      => $anvil->data->{nmcli}{uuid}{$uuid}{device},
+			"s3:nmcli::uuid::${uuid}::mac_address" => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
+			"s4:nmcli::uuid::${uuid}::type"        => $anvil->data->{nmcli}{uuid}{$uuid}{type},
+			"s5:nmcli::uuid::${uuid}::mtu"         => $anvil->data->{nmcli}{uuid}{$uuid}{mtu},
 		}});
 		
 		# The 'connection.timestamp' seems to be where the 'connected' (as in, have an IP) 
