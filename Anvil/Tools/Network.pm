@@ -604,7 +604,7 @@ sub collect_data
 			my $type    = $2;
 			my $active  = $3;
 			my $state   = $4;
-			my $nm_name = $4;	# biosdevname
+			my $nm_name = $5;	# biosdevname
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				uuid    => $uuid, 
 				type    => $type,
