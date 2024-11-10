@@ -4570,9 +4570,18 @@ sub read_nmcli
 				
 				if (not $device)
 				{
-					# Odd. Well, pull the device off the file name.
-					$device = ($filename =~ /\/ifcfg-(.*)$/)[0];
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					if ($name)
+					{
+						# The interface is probably down, just copy the name.
+						$device = $name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					}
+					elsif (($filename =~ /\/ifcfg-(.*)$/) or ($filename =~ /\/(.*?).nmconnection$/))
+					{
+						# Odd. Well, pull the device off the file name.
+						$device = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					}
 				}
 			}
 			
