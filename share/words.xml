@@ -2972,8 +2972,8 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0141">The MAC address: [#!variable!mac_address!#] was found on the server: [#!variable!server!#] connected to the bridge: [#!variable!bridge!#]. Proceeding with removal.</key>
 		<key name="message_0142">The network interface appears to have been successfully removed from the server: [#!variable!server!#].</key>
 		<key name="message_0143">Finished removing the new interface with MAC address: [#!variable!mac!#], from the server: [#!variable!server!#].</key>
-		<key name="message_0144">#!free!#</key>
-		<key name="message_0145">#!free!#</key>
+		<key name="message_0144">- The current gateway is: [#!variable!current_gateway!#], but this is not the gateway interface. Will remove it.</key>
+		<key name="message_0145">- This is the gateway interface, but there is no gateway yet. Will configure it as: [#!variable!new_gateway!#].</key>
 		<key name="message_0146">#!free!#</key>
 		<key name="message_0147">#!free!#</key>
 		<key name="message_0148">#!free!#</key>
@@ -3376,8 +3376,8 @@ proceeding.
 		<key name="message_0408"> - Disabling DHCP on the device: [#!variable!device!#] (#!variable!device_uuid!#).</key>
 		<key name="message_0409"> - Connecting it now.</key>
 		<key name="message_0410">- The current subnet mask is: [#!variable!current_subnet_mask!#], will update.</key>
-		<key name="message_0411">- The current gateway is: [#!variable!current_gateway!#], will update.</key>
-		<key name="message_0412">- The current DNS is: [#!variable!current_dns!#], will update.</key>
+		<key name="message_0411">- The current gateway is: [#!variable!current_gateway!#], will update to: [#!variable!new_gateway!#].</key>
+		<key name="message_0412">- The current DNS is: [#!variable!current_dns!#], will update it to: [#!variable!new_dns!#].</key>
 		<key name="message_0413">- No update is needed.</key>
 		<key name="message_0414">- The IP address needs to be assigned.</key>
 		<key name="message_0415">[ Note ] - Reconfiguring the network will break connections. Disconnecting from the database before starting. It might take a bit before this system reconnects and progress can be seen.</key>

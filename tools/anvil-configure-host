@@ -1697,9 +1697,11 @@ sub reconfigure_ip_addresses
 			
 			my $ip_address  = $anvil->data->{config}{$ip_key};
 			my $subnet_mask = $anvil->data->{config}{$subnet_key};
+			my $changes     = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				ip_address  => $ip_address, 
 				subnet_mask => $subnet_mask, 
+				changes     => $changes, 
 			}});
 			
 			if (($subnet_mask !~ /^\d+$/) or ($subnet_mask < 1) or ($subnet_mask > 32))
@@ -1794,7 +1796,7 @@ sub reconfigure_ip_addresses
 					device      => $on_device,
 				},
 			});
-			my $clear_ip_from  = "";
+			my $clear_ip_from = "";
 			if (exists $anvil->data->{nmcli}{ipv4}{$ip_address})
 			{
 				my $ip_uuid             =  $anvil->data->{nmcli}{ipv4}{$ip_address}{on_uuid};
@@ -1854,7 +1856,11 @@ sub reconfigure_ip_addresses
 						variables => { device => $current_device },
 					});
 					$clear_ip_from = $current_device;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { clear_ip_from => $clear_ip_from }});
+					$changes       = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						clear_ip_from => $clear_ip_from,
+						changes       => $changes, 
+					}});
 				}
 				elsif ($subnet_mask ne $current_subnet_mask)
 				{
@@ -1869,20 +1875,66 @@ sub reconfigure_ip_addresses
 						line      => __LINE__,
 						variables => { current_subnet_mask => $current_subnet_mask },
 					});
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				}
 				elsif ($gateway ne $current_gateway)
 				{
-					# The current gateway is different, will update.
-					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 1}), 
-						message   => "message_0411", 
-						log_level => 1,
-						'print'   => 1, 
-						job_uuid  => $anvil->data->{job}{uuid},
-						file      => $THIS_FILE, 
-						line      => __LINE__,
-						variables => { current_gateway => $current_gateway },
-					});
+					# Is this the gateway interface?
+					if ((not $is_gateway) && ($current_gateway))
+					{
+						# No, remove it
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
+							message   => "message_0144", 
+							log_level => 1,
+							'print'   => 1, 
+							job_uuid  => $anvil->data->{job}{uuid},
+							file      => $THIS_FILE, 
+							line      => __LINE__,
+							variables => { current_gateway => $current_gateway },
+						});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					elsif (($is_gateway) && (not $current_gateway))
+					{
+						# Tell them we're adding the gateway
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
+							message   => "message_0145", 
+							log_level => 1,
+							'print'   => 1, 
+							job_uuid  => $anvil->data->{job}{uuid},
+							file      => $THIS_FILE, 
+							line      => __LINE__,
+							variables => { 
+								new_gateway => $gateway,
+							},
+						});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
+					elsif ($is_gateway)
+					{
+						# This is the default gateway interface but the gateway needs
+						# to change.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}), 
+							message   => "message_0411", 
+							log_level => 1,
+							'print'   => 1, 
+							job_uuid  => $anvil->data->{job}{uuid},
+							file      => $THIS_FILE, 
+							line      => __LINE__,
+							variables => { 
+								current_gateway => $current_gateway,
+								new_gateway     => $gateway,
+							},
+						});
+						$changes = 1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+					}
 				}
 				elsif ($dns ne $current_dns)
 				{
@@ -1895,23 +1947,13 @@ sub reconfigure_ip_addresses
 						job_uuid  => $anvil->data->{job}{uuid},
 						file      => $THIS_FILE, 
 						line      => __LINE__,
-						variables => { current_dns => $current_dns },
+						variables => { 
+							current_dns => $current_dns,
+							new_dns     => $dns, 
+						},
 					});
-				}
-				else
-				{
-					# No update is needed.
-					$anvil->Job->update_progress({
-						progress  => $anvil->Job->bump_progress({steps => 1}), 
-						message   => "message_0413", 
-						log_level => 1,
-						'print'   => 1, 
-						job_uuid  => $anvil->data->{job}{uuid},
-						file      => $THIS_FILE, 
-						line      => __LINE__,
-						variables => { },
-					});
-					next;
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
 				}
 			}
 			else
@@ -1927,6 +1969,25 @@ sub reconfigure_ip_addresses
 					line      => __LINE__,
 					variables => { },
 				});
+				$changes = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changes => $changes }});
+			}
+			
+			# End this iteration here if there were not changes to make.
+			if (not $changes)
+			{
+				# No update is needed.
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}), 
+					message   => "message_0413", 
+					log_level => 1,
+					'print'   => 1, 
+					job_uuid  => $anvil->data->{job}{uuid},
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					variables => { },
+				});
+				next;
 			}
 			
 			if ($clear_ip_from)
@@ -2010,7 +2071,7 @@ sub reconfigure_ip_addresses
 						output      => $output, 
 					},
 				});
-				$anvil->nice_exit({exit_code => 5});
+				$anvil->nice_exit({exit_code => 9});
 			}
 			
 			# NM seems to have a race issue, so we sleep a second after nmcli calls.
@@ -2800,12 +2861,6 @@ AND
 		}
 	}
 	
-	# Make sure the DNS values are cleaned up. Otherwise a space can cause an unnecessary reconfigure.
-	$anvil->data->{config}{dns} =~ s/\s+//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"config::dns" => $anvil->data->{config}{dns}, 
-	}});
-	
 	### TODO: Remove this when no longer needed.
 	# Convert old variables to new ones.
 	foreach my $config_step (sort {$a cmp $b} keys %{$anvil->data->{variables}{form}})
@@ -2824,6 +2879,12 @@ AND
 			}
 		}
 	}
+	
+	# Make sure the DNS values are cleaned up. Otherwise a space can cause an unnecessary reconfigure.
+	$anvil->data->{config}{dns} =~ s/\s+//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"config::dns" => $anvil->data->{config}{dns}, 
+	}});
 
 	# Clear previous data
 	$anvil->Job->update_progress({
