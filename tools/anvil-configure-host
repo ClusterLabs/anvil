@@ -12,6 +12,7 @@
 # 6 = The job-uuid was not found.
 # 7 = The host is an active cluster member.
 # 8 = Duplicate NICs assigned to the same MAC address
+# 9 = nmcli call failed.
 # 
 # TODO: 
 # - Add MTU support
@@ -427,7 +428,7 @@ sub reconfigure_network
 	
 	my $gateway           = $anvil->data->{config}{gateway};
 	my $gateway_interface = $anvil->data->{config}{gateway_interface};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		gateway           => $gateway, 
 		gateway_interface => $gateway_interface, 
 	}});
@@ -547,7 +548,7 @@ ORDER BY
 	# Configure the network using Network Manager
 	reconfigure_interfaces($anvil);
 	
-	### NOTE: If we're not a striker, the update the job to say we're disconnecting to 
+	### NOTE: If we're not a striker, then update the job to say we're disconnecting to 
 	###       reconfigure the network.
 	my $host_type = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
@@ -1796,12 +1797,13 @@ sub reconfigure_ip_addresses
 			my $clear_ip_from  = "";
 			if (exists $anvil->data->{nmcli}{ipv4}{$ip_address})
 			{
-				my $ip_uuid             = $anvil->data->{nmcli}{ipv4}{$ip_address}{on_uuid};
-				my $current_device      = $anvil->data->{nmcli}{uuid}{$ip_uuid}{device};
-				my $ip_sequence         = $anvil->data->{nmcli}{ipv4}{$ip_address}{sequence};
-				my $current_subnet_mask = $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{ip}{$ip_sequence}{subnet_mask};
-				my $current_gateway     = $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{gateway};
-				my $current_dns         = $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{dns};
+				my $ip_uuid             =  $anvil->data->{nmcli}{ipv4}{$ip_address}{on_uuid};
+				my $current_device      =  $anvil->data->{nmcli}{uuid}{$ip_uuid}{device};
+				my $ip_sequence         =  $anvil->data->{nmcli}{ipv4}{$ip_address}{sequence};
+				my $current_subnet_mask =  $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{ip}{$ip_sequence}{subnet_mask};
+				my $current_gateway     =  $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{gateway};
+				my $current_dns         =  $anvil->data->{nmcli}{uuid}{$ip_uuid}{ipv4}{dns};
+				   $current_dns         =~ s/\s+//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:ip_uuid'             => $ip_uuid, 
 					's2:current_device'      => $current_device, 
@@ -1978,7 +1980,8 @@ sub reconfigure_ip_addresses
 				}
 				if ($dns)
 				{
-					$shell_call .= " ipv4.dns ".$dns;
+					# DNS needs to be quoted to be safe
+					$shell_call .= " ipv4.dns \"".$dns."\"";
 				}
 			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1988,6 +1991,27 @@ sub reconfigure_ip_addresses
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			
+			if ($return_code)
+			{
+				# Something went wrong, abort lest we leave the system inaccessible.
+				$anvil->Job->update_progress({
+					progress   => 100, 
+					message    => "error_0316", 
+					log_level  => 1,
+					'print'    => 1, 
+					job_uuid   => $anvil->data->{job}{uuid},
+					job_status => "failed", 
+					file       => $THIS_FILE, 
+					line       => __LINE__,
+					variables  => { 
+						shell_call  => $shell_call,
+						return_code => $return_code, 
+						output      => $output, 
+					},
+				});
+				$anvil->nice_exit({exit_code => 5});
+			}
 			
 			# NM seems to have a race issue, so we sleep a second after nmcli calls.
 			$anvil->data->{sys}{restart_nm} = 1;
@@ -2775,6 +2799,12 @@ AND
 			}});
 		}
 	}
+	
+	# Make sure the DNS values are cleaned up. Otherwise a space can cause an unnecessary reconfigure.
+	$anvil->data->{config}{dns} =~ s/\s+//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"config::dns" => $anvil->data->{config}{dns}, 
+	}});
 	
 	### TODO: Remove this when no longer needed.
 	# Convert old variables to new ones.

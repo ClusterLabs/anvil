@@ -481,7 +481,7 @@ Output (if any):
 #!variable!output!#
 ====
 </key>
-		<key name="error_0316">#!free!#</key>
+		<key name="error_0316">There appears to have been a problem calling: [#!variable!shell_call!#]. The return code was: [#!variable!return_code!#] (expected '0'). The output, if any, was: [#!variable!error!#]. Aborting the network configuration to prevent to loss of access to the server. Please manually check the network configuration!</key>
 		<key name="error_0317">#!free!#</key>
 		<key name="error_0318">#!free!#</key>
 		<key name="error_0319">#!free!#</key>
