@@ -1140,22 +1140,6 @@ sub test_access
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	### NOTE: This caused problems that are currently unsolved.
-=cut
-	# If the call is to ourselves, switch to a local system call.
-	if ($anvil->Network->is_local({host => $target}))
-	{
-		# Use a local system call.
-		my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			output      => $output,
-			return_code => $return_code,
-		}});
-		
-		return($output, "local", $return_code);
-	}
-=cut
-
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Remote->test_access()" }});
 	
 	my $close    = defined $parameter->{'close'}  ? $parameter->{'close'}  : 1;
