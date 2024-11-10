@@ -620,20 +620,43 @@ sub check_if_configured
 		thorough => $thorough, 
 	}});
 	
-	my ($configured, $variable_uuid, $modified_date) = $anvil->Database->read_variable({
-		debug                 => $debug,
-		variable_name         => "system::configured", 
-		variable_source_uuid  => $anvil->Get->host_uuid, 
-		variable_source_table => "hosts", 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		configured    => $configured, 
-		variable_uuid => $variable_uuid, 
-		modified_date => $modified_date, 
-	}});
-	
-	$configured = 0 if not defined $configured;
-	$configured = 0 if $configured eq "";
+	my $configured    = 0;
+	my $variable_uuid = "";
+	if ($anvil->data->{sys}{database}{connections})
+	{
+		($configured, $variable_uuid, my $modified_date) = $anvil->Database->read_variable({
+			debug                 => $debug,
+			variable_name         => "system::configured", 
+			variable_source_uuid  => $anvil->Get->host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			configured    => $configured, 
+			variable_uuid => $variable_uuid, 
+			modified_date => $modified_date, 
+		}});
+		
+		$configured = 0 if not defined $configured;
+		$configured = 0 if $configured eq "";
+	}
+	elsif ($anvil->data->{path}{data}{host_configured})
+	{
+		# Is there a file?
+		my $body = $anvil->Storage->read_file({debug => $debug, file => $anvil->data->{path}{data}{host_configured}});
+		foreach my $line (split/\n/, $body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+			if ($line =~ /^system::configured\s.*?=\s.*?(\d)$/)
+			{
+				$configured = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+				last;
+			}
+		}
+		
+		# Nothing more we can do.
+		return($configured);
+	}
 	
 	if ((not $configured) && (-f $anvil->data->{path}{data}{host_configured}))
 	{
@@ -651,7 +674,7 @@ sub check_if_configured
 					value    => $value,
 				}});
 				
-				if (($variable eq "system::configured") && ($value eq "1"))
+				if (($variable eq "system::configured") && ($value eq "1") && ($anvil->data->{sys}{database}{connections}))
 				{
 					# Write the database entry.
 					$variable_uuid = $anvil->Database->insert_or_update_variables({
@@ -688,7 +711,7 @@ sub check_if_configured
 			}});
 			$anvil->Network->get_ips({debug => $debug, target => $short_host_name});
 			$anvil->Network->collect_data({debug => $debug});
-			$anvil->Database->get_variables({debug => $debug});
+			$anvil->Database->get_variables({debug => $debug}) if $anvil->data->{sys}{database}{connections};
 			my $reconfigure = 0;
 			if (not exists $anvil->data->{variables}{source_table}{hosts}{source_uuid}{$host_uuid})
 			{
@@ -766,7 +789,7 @@ sub check_if_configured
 				}
 			}
 			
-			if ($reconfigure)
+			if (($reconfigure) && ($anvil->data->{sys}{database}{connections}))
 			{
 				$configured = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
