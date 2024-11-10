@@ -1060,6 +1060,11 @@ sub collect_data
 			my $mac_address_file = "/sys/class/net/".$device."/address";
 			my $type_file        = "/sys/class/net/".$device."/type";
 			my $mtu_file         = "/sys/class/net/".$device."/mtu";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:mac_address_file" => $mac_address_file,
+				"s2:type_file"        => $type_file,
+				"s3:mtu_file"         => $mtu_file, 
+			}});
 			if (-e $mac_address_file)
 			{
 				### NOTE: This will always be the active link's MAC in a bond, so tis gets 
@@ -1080,17 +1085,11 @@ sub collect_data
 			}
 			if (-e $type_file)
 			{
-				my $type = $anvil->Storage->read_file({file => $type_file});
-					$type =~ s/\n$//;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
-				
-				if (($type) && ($type ne "!!error!!"))
-				{
-					$anvil->data->{nmcli}{uuid}{$uuid}{type} = $type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::type" => $anvil->data->{nmcli}{uuid}{$uuid}{type},
-					}});
-				}
+				# NOTE: This is always 1, and so not actually useful. Can probably be 
+				#        completely removed later.
+				#my $type = $anvil->Storage->read_file({file => $type_file});
+				#   $type =~ s/\n$//;
+				#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
 			}
 			if (-e $mtu_file)
 			{
