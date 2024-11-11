@@ -417,7 +417,7 @@ sub check_network
 	}
 	
 	# Check that there's at least one entry in 'network_interfaces' and, if not, call scan-network.
-	if (1)
+	if ($anvil->data->{sys}{database}{connections})
 	{
 		my $query = "SELECT COUNT(*) FROM network_interfaces WHERE network_interface_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
