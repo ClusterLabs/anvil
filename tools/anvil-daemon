@@ -110,6 +110,10 @@ if (not $anvil->data->{sys}{database}{connections})
 		# Striker can't initialize us unless it can ssh into us, so make sure root login is enabled.
 		chech_sshd($anvil);
 		
+		# On freshly installed / unconfigured machines, check if not-yet-bonded NICs have IPs on the 
+		# same subnet.
+		$anvil->Network->remove_duplicate_ips({debug => 2});
+		
 		# Wait until we have one.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "error_0075"});
 		
