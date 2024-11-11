@@ -17936,6 +17936,15 @@ sub query
 	my $used_read_uuid = 0;
 	if (not $uuid)
 	{
+		if (not $anvil->data->{sys}{database}{read_uuid})
+		{
+			# We can't do a query at all.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0012", variables => { 
+				query => (not $secure) ? $query : $anvil->Log->is_secure($query),
+			}});
+			return([]);
+		}
+		
 		$uuid           = $anvil->data->{sys}{database}{read_uuid};
 		$used_read_uuid = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
