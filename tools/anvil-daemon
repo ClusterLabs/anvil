@@ -54,8 +54,6 @@ $( = $);
 # NOTE: Setting 'log_level' and 'log_secure' here will get overridden in the main lopp. Use the Log methods 
 #       in the loop as well to override defaults in code.
 my $anvil = Anvil::Tools->new();
-$anvil->Log->level({set => 2});
-$anvil->Log->secure({set => 1});
 
 # Make sure we're running as 'root'
 # $< == real UID, $> == effective UID
