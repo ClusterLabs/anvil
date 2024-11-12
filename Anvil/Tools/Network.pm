@@ -599,6 +599,13 @@ sub collect_data
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /Restarting NetworkManager is advised/i)
+		{
+			# Network Manager throws this after an update. 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0733", variables => { daemon => "NetworkManager.service" }});
+			$anvil->System->restart_daemon({debug => $debug, daemon => "NetworkManager.service"});
+			next;
+		}
 		if ($line =~ /^(.*?):(.*?):(.*?):(.*?):(.*?)$/)
 		{
 			my $uuid    = $1;
