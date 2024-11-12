@@ -1335,6 +1335,7 @@ sub get_sn_details
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
 			next if $network_name !~ /^$preferred_network/;
 			
 			# Network and link speed
@@ -2090,6 +2091,7 @@ sub check_anvil
 {
 	my ($anvil) = @_;
 	
+	$anvil->data->{new_server}{anvil_uuid} = "" if not defined $anvil->data->{new_server}{anvil_uuid};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"new_server::anvil_uuid" => $anvil->data->{new_server}{anvil_uuid},
 	}});

@@ -359,7 +359,7 @@ sub reconfigure_network
 		
 		### NOTE: We check the current host 
 		# Update the hostname, if needed.
-		my $environment_hostname = $ENV{HOSTNAME}; 
+		my $environment_hostname = $ENV{HOSTNAME} // ""; 
 		my $system_hostname      = $anvil->Get->host_name({refresh => 1});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:new_host_name"        => $new_host_name, 
@@ -367,7 +367,7 @@ sub reconfigure_network
 			"s3:system_hostname"      => $system_hostname, 
 		}});
 		
-		if (($new_host_name ne $system_hostname) or ($new_host_name ne $environment_hostname))
+		if (($new_host_name ne $system_hostname) or (($environment_hostname) && ($new_host_name ne $environment_hostname)))
 		{
 			# Update the hostname and mark a reboot required. We must have all cached hostnames 
 			# updated before joining pacemaker, and the safest option to ensure that is a reboot.
@@ -2425,6 +2425,20 @@ sub rename_interface
 				});
 				$anvil->Storage->backup({file => $file});
 				unlink $file;
+				sleep 1;
+				if (-f $file)
+				{
+					# Um, what?
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "error_0284", variables => { 
+						file => $file,
+						error => $@, 
+					}});;
+				}
+				else
+				{
+					# It's gone.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0616", variables => { file_path => $file }});;
+				}
 			}
 		}
 	}
