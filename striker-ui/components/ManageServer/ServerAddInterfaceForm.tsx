@@ -127,7 +127,6 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
       </Grid>
       <Grid item xs={1}>
         <Autocomplete
-          autoHighlight
           id={chains.model}
           label="Model"
           noOptionsText="No matching model"

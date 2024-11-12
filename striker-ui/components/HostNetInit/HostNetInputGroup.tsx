@@ -136,7 +136,6 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               }}
             >
               <Autocomplete
-                autoHighlight
                 getOptionDisabled={(option) =>
                   appliedIfaces[option.uuid] &&
                   option.uuid !==
@@ -187,7 +186,6 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               }}
             >
               <Autocomplete
-                autoHighlight
                 getOptionDisabled={(option) =>
                   appliedIfaces[option.uuid] &&
                   option.uuid !==
