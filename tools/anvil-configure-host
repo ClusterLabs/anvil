@@ -2368,7 +2368,7 @@ sub rename_interface
 	my $old_device  = $anvil->data->{nmcli}{uuid}{$nm_uuid}{device};
 	my $name        = $anvil->data->{nmcli}{uuid}{$nm_uuid}{'connection.id'};
 	my $mac_address = $anvil->data->{nmcli}{uuid}{$nm_uuid}{mac_address};
-	my $type        = $anvil->data->{nmcli}{uuid}{$nm_uuid}{type};
+	my $type        = $anvil->data->{nmcli}{uuid}{$nm_uuid}{type_id} // "1";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:wanted_link_name' => $wanted_link_name,
 		's2:nm_uuid'          => $nm_uuid, 

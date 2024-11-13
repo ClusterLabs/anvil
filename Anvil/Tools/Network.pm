@@ -1092,9 +1092,16 @@ sub collect_data
 			{
 				# NOTE: This is always 1, and so not actually useful. Can probably be 
 				#        completely removed later.
-				#my $type = $anvil->Storage->read_file({file => $type_file});
-				#   $type =~ s/\n$//;
-				#$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+				my $type = $anvil->Storage->read_file({file => $type_file});
+				   $type =~ s/\n$//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
+				if (($type) && ($type ne "!!error!!"))
+				{
+					$anvil->data->{nmcli}{uuid}{$uuid}{type_id} = $type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+						"nmcli::uuid::${uuid}::type_id" => $anvil->data->{nmcli}{uuid}{$uuid}{type_id},
+					}});
+				}
 			}
 			if (-e $mtu_file)
 			{
