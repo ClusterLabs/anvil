@@ -35,6 +35,7 @@ my $THIS_FILE = "Network.pm";
 # modify_connection
 # ping
 # read_nmcli
+# remove_duplicate_ips
 # reset_connection
 # wait_for_network
 # wait_on_nm_online
@@ -598,13 +599,20 @@ sub collect_data
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /Restarting NetworkManager is advised/i)
+		{
+			# Network Manager throws this after an update. 
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0733", variables => { daemon => "NetworkManager.service" }});
+			$anvil->System->restart_daemon({debug => $debug, daemon => "NetworkManager.service"});
+			next;
+		}
 		if ($line =~ /^(.*?):(.*?):(.*?):(.*?):(.*?)$/)
 		{
 			my $uuid    = $1;
 			my $type    = $2;
 			my $active  = $3;
 			my $state   = $4;
-			my $nm_name = $4;	# biosdevname
+			my $nm_name = $5;	# biosdevname
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				uuid    => $uuid, 
 				type    => $type,
@@ -874,11 +882,15 @@ sub collect_data
 		### Get some data from sysfs.
 		$anvil->data->{nmcli}{uuid}{$uuid}{name}        = $connection_id;
 		$anvil->data->{nmcli}{uuid}{$uuid}{device}      = $device;
-		$anvil->data->{nmcli}{uuid}{$uuid}{mac_address} = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{type}        = "";
-		$anvil->data->{nmcli}{uuid}{$uuid}{mtu}         = 0;
+		$anvil->data->{nmcli}{uuid}{$uuid}{mac_address} = "" if not $anvil->data->{nmcli}{uuid}{$uuid}{mac_address};
+		$anvil->data->{nmcli}{uuid}{$uuid}{type}        = "" if not $anvil->data->{nmcli}{uuid}{$uuid}{type};
+		$anvil->data->{nmcli}{uuid}{$uuid}{mtu}         = 0  if not $anvil->data->{nmcli}{uuid}{$uuid}{mtu};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"nmcli::uuid::${uuid}::device" => $anvil->data->{nmcli}{uuid}{$uuid}{device},
+			"s1:nmcli::uuid::${uuid}::name"        => $anvil->data->{nmcli}{uuid}{$uuid}{name},
+			"s2:nmcli::uuid::${uuid}::device"      => $anvil->data->{nmcli}{uuid}{$uuid}{device},
+			"s3:nmcli::uuid::${uuid}::mac_address" => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
+			"s4:nmcli::uuid::${uuid}::type"        => $anvil->data->{nmcli}{uuid}{$uuid}{type},
+			"s5:nmcli::uuid::${uuid}::mtu"         => $anvil->data->{nmcli}{uuid}{$uuid}{mtu},
 		}});
 		
 		# The 'connection.timestamp' seems to be where the 'connected' (as in, have an IP) 
@@ -1053,6 +1065,11 @@ sub collect_data
 			my $mac_address_file = "/sys/class/net/".$device."/address";
 			my $type_file        = "/sys/class/net/".$device."/type";
 			my $mtu_file         = "/sys/class/net/".$device."/mtu";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:mac_address_file" => $mac_address_file,
+				"s2:type_file"        => $type_file,
+				"s3:mtu_file"         => $mtu_file, 
+			}});
 			if (-e $mac_address_file)
 			{
 				### NOTE: This will always be the active link's MAC in a bond, so tis gets 
@@ -1073,15 +1090,16 @@ sub collect_data
 			}
 			if (-e $type_file)
 			{
+				# NOTE: This is always 1, and so not actually useful. Can probably be 
+				#        completely removed later.
 				my $type = $anvil->Storage->read_file({file => $type_file});
-					$type =~ s/\n$//;
+				   $type =~ s/\n$//;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { type => $type }});
-				
 				if (($type) && ($type ne "!!error!!"))
 				{
-					$anvil->data->{nmcli}{uuid}{$uuid}{type} = $type;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"nmcli::uuid::${uuid}::type" => $anvil->data->{nmcli}{uuid}{$uuid}{type},
+					$anvil->data->{nmcli}{uuid}{$uuid}{type_id} = $type;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+						"nmcli::uuid::${uuid}::type_id" => $anvil->data->{nmcli}{uuid}{$uuid}{type_id},
 					}});
 				}
 			}
@@ -1121,6 +1139,72 @@ sub collect_data
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				"s1:nmcli::uuid::${uuid}::mac_address"             => $anvil->data->{nmcli}{uuid}{$uuid}{mac_address},
 				"s2:nmcli::mac_address::${perm_mac_address}::uuid" => $anvil->data->{nmcli}{mac_address}{$perm_mac_address}{uuid},
+			}});
+		}
+	}
+	
+	# Collect route data
+	$shell_call = $anvil->data->{path}{exe}{ip}." route show";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	foreach my $line (split/\n/, $output)
+	{
+		$line = $anvil->Words->clean_spaces({string => $line});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /default via (.*?) dev (.*?) proto (.*?) .*?metric (\d+)$/)
+		{
+			my $router    = $1;
+			my $interface = $2;
+			my $protocol  = $3; 
+			my $metric    = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:router"    => $router,
+				"s2:interface" => $interface,
+				"s3:protocol"  => $protocol, 
+				"s4:metric"    => $metric, 
+			}});
+			
+			$anvil->data->{nmcli}{route}{metric}{$metric}{router}       = $router;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{interface}    = $interface;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{protocol}     = $protocol;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{'default'}    = 1;
+			$anvil->data->{nmcli}{route}{interface}{$interface}{metric} = $metric;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:nmcli::route::metric::${metric}::router"       => $anvil->data->{nmcli}{route}{metric}{$metric}{router},
+				"s2:nmcli::route::metric::${metric}::interface"    => $anvil->data->{nmcli}{route}{metric}{$metric}{interface},
+				"s3:nmcli::route::metric::${metric}::protocol"     => $anvil->data->{nmcli}{route}{metric}{$metric}{protocol},
+				"s4:nmcli::route::metric::${metric}::default"      => $anvil->data->{nmcli}{route}{metric}{$metric}{'default'},
+				"s5:nmcli::route::interface::${interface}::metric" => $anvil->data->{nmcli}{route}{interface}{$interface}{metric}, 
+			}});
+		}
+		if ($line =~ /^(.*?) dev (.*?) proto .*? src (.*?) metric (\d+)$/)
+		{
+			my $network   = $1;
+			my $interface = $2; 
+			my $source_ip = $3;
+			my $metric    = $4;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:network"   => $network,
+				"s2:interface" => $interface,
+				"s3:source_ip" => $source_ip, 
+				"s4:metric"    => $metric, 
+			}});
+			
+			$anvil->data->{nmcli}{route}{metric}{$metric}{network}      = $network;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{interface}    = $interface;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{source_ip}    = $source_ip;
+			$anvil->data->{nmcli}{route}{interface}{$interface}{metric} = $metric;
+			$anvil->data->{nmcli}{route}{metric}{$metric}{'default'}    = 0 if not $anvil->data->{nmcli}{route}{metric}{$metric}{'default'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:nmcli::route::metric::${metric}::network"      => $anvil->data->{nmcli}{route}{metric}{$metric}{network},
+				"s2:nmcli::route::metric::${metric}::interface"    => $anvil->data->{nmcli}{route}{metric}{$metric}{interface},
+				"s3:nmcli::route::metric::${metric}::source_ip"    => $anvil->data->{nmcli}{route}{metric}{$metric}{source_ip},
+				"s4:nmcli::route::metric::${metric}::default"      => $anvil->data->{nmcli}{route}{metric}{$metric}{'default'},
+				"s5:nmcli::route::interface::${interface}::metric" => $anvil->data->{nmcli}{route}{interface}{$interface}{metric}, 
 			}});
 		}
 	}
@@ -4570,9 +4654,18 @@ sub read_nmcli
 				
 				if (not $device)
 				{
-					# Odd. Well, pull the device off the file name.
-					$device = ($filename =~ /\/ifcfg-(.*)$/)[0];
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					if ($name)
+					{
+						# The interface is probably down, just copy the name.
+						$device = $name;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					}
+					elsif (($filename =~ /\/ifcfg-(.*)$/) or ($filename =~ /\/(.*?).nmconnection$/))
+					{
+						# Odd. Well, pull the device off the file name.
+						$device = $1;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { device => $device }});
+					}
 				}
 			}
 			
@@ -4605,6 +4698,187 @@ sub read_nmcli
 				"nmcli::${host}::uuid::${uuid}::filename" => $anvil->data->{nmcli}{$host}{uuid}{$uuid}{filename}, 
 			}});
 		}
+	}
+	
+	return(0);
+}
+
+
+=head2 remove_duplicate_ips
+
+B<< Note >>: This method only runs on unconfigured systems. 
+
+It is meant to deal with cases where two interfaces on the same VLAN get IPs from DHCP on the same subnet. This is a common issue when initially setting up subnodes and DR hosts before the interfaces are linked to a bond. This can cause routing and access issues.
+
+It looks for IP addresses on network interfaces, and looks for cases where two or more IPs are in the same subnet. When two or mores in the same subnet are found, one interface is left up and the others are reconfigured to remove their IPs (by setting their ipv4.method to 'disabled'). 
+
+This is how the interface to keep up is selected
+
+* Interfaces with static IPs configured get highest preference
+* Interfaces with the lowest route metric are preferred. 
+
+So;
+
+* If only one interface has a static IP, it is kept.
+* If two or more interfaces have static IPs, the one with the lowest metric is kept.
+* If no interfaces are statically configured, the one with the lowest metric is kept.
+
+This method takes no parameters.
+
+=cut
+sub remove_duplicate_ips
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->remove_duplicate_ips()" }});
+	
+	my $configured = $anvil->System->check_if_configured({debug => 3});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { configured => $configured }});
+	if ($configured)
+	{
+		# Don't run if configured.
+		return(0);
+	}
+	
+	# Find any duplicate NICs on the same subnet.
+	$anvil->Network->collect_data({debug => $debug});
+	
+	my $restart_nm = 0;
+	foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{nmcli}{device}})
+	{
+		my $nm_uuid = $anvil->data->{nmcli}{device}{$device}{uuid};
+		my $type    = $anvil->data->{nmcli}{uuid}{$nm_uuid}{type};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:device'  => $device, 
+			's2:nm_uuid' => $nm_uuid, 
+			's3:type'    => $type, 
+		}});
+		next if $type ne "interface";
+		
+		my $ip_count = keys %{$anvil->data->{nmcli}{uuid}{$nm_uuid}{ipv4}{ip}};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip_count => $ip_count }});
+		next if not $ip_count;
+		
+		my $ipv4_gateway = $anvil->data->{nmcli}{uuid}{$nm_uuid}{ipv4}{gateway}     // "";
+		my $metric       = $anvil->data->{nmcli}{route}{interface}{$device}{metric} // 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:ipv4_gateway' => $ipv4_gateway, 
+			's2:metric'       => $metric, 
+		}});
+		foreach my $sequence (sort {$a <=> $b} keys %{$anvil->data->{nmcli}{uuid}{$nm_uuid}{ipv4}{ip}})
+		{
+			my $ip_address  = $anvil->data->{nmcli}{uuid}{$nm_uuid}{ipv4}{ip}{$sequence}{ip_address};
+			my $subnet_mask = $anvil->data->{nmcli}{uuid}{$nm_uuid}{ipv4}{ip}{$sequence}{subnet_mask};
+			my $block       = Net::Netmask->new($ip_address."/".$subnet_mask);
+			my $network     = $block->base();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:sequence"    => $sequence, 
+				"s2:ip_address"  => $ip_address, 
+				"s3:subnet_mask" => $subnet_mask, 
+				"s4:network"     => $network,
+			}});
+			
+			$anvil->data->{duplicates}{network}{$network}{interface}{$device}{metric} = $metric;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"duplicates::network::${network}::interface::${device}::metric" => $anvil->data->{duplicates}{network}{$network}{interface}{$device}{metric},
+			}});
+		}
+		
+		foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{duplicates}{network}})
+		{
+			my $device_count = keys %{$anvil->data->{duplicates}{network}{$network}{interface}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"s1:network"      => $network, 
+				"s2:device_count" => $device_count,
+			}});
+			next if $device_count == 1;
+			
+			# The device to keep up will either be the one with the static IP or, if both are 
+			# DHCP, the one with the lowest metric.
+			my $static_device = "";
+			my $static_metric = 999999;
+			my $dhcp_device   = "";
+			my $dhcp_metric   = 999999;
+			foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{duplicates}{network}{$network}{interface}})
+			{
+				### NOTE: I believe metrics are unique, regardless on networks. If this is 
+				###       wrong, we'll need to rework this (and Network->collect_date()) to
+				###       track metrics by networks.
+				my $metric   = $anvil->data->{duplicates}{network}{$network}{interface}{$device}{metric};
+				my $protocol = $anvil->data->{nmcli}{route}{metric}{$metric}{protocol};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:device"   => $device, 
+					"s2:metric"   => $metric, 
+					"s3:protocol" => $protocol,
+				}});
+				if ($protocol eq "static")
+				{
+					# Do we already have a static IP and, if so, is this one's metric 
+					# lower?
+					if ($metric < $static_metric)
+					{
+						$static_device = $device;
+						$static_metric = $metric;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:static_device" => $static_device, 
+							"s2:static_metric" => $static_metric,
+						}});
+					}
+				}
+				elsif ($protocol eq "dhcp")
+				{
+					# Do we already have a static IP and, if so, is this one's metric 
+					# lower?
+					if ($metric < $dhcp_metric)
+					{
+						$dhcp_device = $device;
+						$dhcp_metric = $metric;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+							"s1:dhcp_device" => $dhcp_device, 
+							"s2:dhcp_metric" => $dhcp_metric,
+						}});
+					}
+				}
+			}
+			
+			my $keep_device = $static_device ? $static_device : $dhcp_device;
+			   $restart_nm  = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				keep_device => $keep_device,
+				restart_nm  => $restart_nm, 
+			}});
+			
+			# Tell the user which interface we're keeping.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0199", variables => { 
+				devices     => $device_count,
+				network     => $network, 
+				keep_device => $keep_device, 
+			}});
+			foreach my $device (sort {$a cmp $b} keys %{$anvil->data->{duplicates}{network}{$network}{interface}})
+			{
+				next if $device eq $keep_device;
+				
+				# Warn the user that we're dropping this interfance
+				my $nm_uuid = $anvil->data->{nmcli}{device}{$device}{uuid};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0011", variables => { 
+					device => $device,
+					uuid   => $nm_uuid, 
+				}});
+				my ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $nm_uuid, variable => "ipv4.method", value => "disabled"});
+				   ($output, $return_code) = $anvil->Network->modify_connection({debug => 2, uuid => $nm_uuid, variable => "ipv6.method", value => "disabled"});
+				   ($output, $return_code) = $anvil->Network->reset_connection({debug => 2, uuid => $nm_uuid});
+			}
+		}
+	}
+	
+	if ($restart_nm)
+	{
+		# Restart NetworkManager to be safe.
+		my $daemon = "NetworkManager.service";
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0733", variables => { daemon => $daemon }});
+		$anvil->System->restart_daemon({debug => 2, daemon => $daemon});
 	}
 	
 	return(0);

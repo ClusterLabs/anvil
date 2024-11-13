@@ -552,7 +552,14 @@ sub load_job_data
 				if ($anvil->Validate->uuid({uuid => $state_uuid}))
 				{
 					# Get the state_note.
-					my $query = "SELECT state_note FROM states WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+					my $query = "
+SELECT 
+    state_note, 
+    state_name 
+FROM 
+    states 
+WHERE 
+    state_uuid = ".$anvil->Database->quote($state_uuid).";";
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 
 					foreach my $uuid (keys %{$anvil->data->{cache}{database_handle}})
@@ -567,7 +574,13 @@ sub load_job_data
 						{
 							# Create a new job with the new bad_key job data, one per state_uuid.
 							my $state_note = $results->[0]->[0];
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_note => $state_note }});
+							my $state_name = $results->[0]->[1];
+							my $target     = ($state_name =~ /host_key_changed::(.*)$/)[0] // "";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								state_note => $state_note,
+								state_name => $state_name, 
+								target     => $target, 
+							}});
 							
 							my $bad_key = "";
 							if ($state_note =~ /key=(.*?)$/)
@@ -624,7 +637,10 @@ sub load_job_data
 							if (not exists $anvil->data->{reported_jobs}{$job_uuid})
 							{
 								# Tell the user we've created a new job.
-								my $target = $anvil->{ssh_key}{$hash_key}{host} ? $anvil->{ssh_key}{$hash_key}{host} : "--";
+								if ((not $target) && ($anvil->{ssh_key}{$hash_key}{host}))
+								{
+									$target = $anvil->{ssh_key}{$hash_key}{host};
+								}
 								$anvil->data->{job}{progress} += 5;
 								update_progress($anvil, $anvil->data->{job}{progress}, "job_0007,!!job_uuid!".$job_uuid."!!,!!target!".$target."!!");
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0007", variables => {
@@ -636,6 +652,56 @@ sub load_job_data
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0007", variables => {
 									"reported_jobs::${job_uuid}" => $anvil->data->{reported_jobs}{$job_uuid}, 
 								}});
+							}
+							
+							# If there's a target, see if there are other bad keys with the same target.
+							if (($target) && ($known_hosts) && (exists $anvil->{ssh_keys}{$known_hosts}{host}{$target}))
+							{
+								# Are there any other keys? 
+								foreach my $algo (sort {$a cmp $b} keys %{$anvil->{ssh_keys}{$known_hosts}{host}{$target}})
+								{
+									my $bad_key     = $anvil->{ssh_keys}{$known_hosts}{host}{$target}{$algo}{key};
+									my $line_number = $anvil->{ssh_keys}{$known_hosts}{host}{$target}{$algo}{line};
+									$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0007", variables => {
+										"s1:algo"        => $algo, 
+										"s2:bad_key"     => $bad_key, 
+										"s3:line_number" => $line_number, 
+									}});
+									
+									my $job_uuid = $anvil->Database->insert_or_update_jobs({
+										debug           => 2,
+										file            => $THIS_FILE, 
+										line            => __LINE__, 
+										job_title       => "job_0056",
+										job_description => "job_0057",
+										job_host_uuid   => $anvil->Get->host_uuid, 
+										job_data        => "bad_key=".$bad_key,
+										job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+										job_name        => "manage::broken_keys", 
+										job_progress    => 0,
+									});
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+									
+									if (not exists $anvil->data->{reported_jobs}{$job_uuid})
+									{
+										# Tell the user we've created a new job.
+										if ((not $target) && ($anvil->{ssh_key}{$hash_key}{host}))
+										{
+											$target = $anvil->{ssh_key}{$hash_key}{host};
+										}
+										$anvil->data->{job}{progress} += 5;
+										update_progress($anvil, $anvil->data->{job}{progress}, "job_0007,!!job_uuid!".$job_uuid."!!,!!target!".$target."!!");
+										$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0007", variables => {
+											job_uuid => $job_uuid, 
+											target   => $target, 
+										}});
+										
+										$anvil->data->{reported_jobs}{$job_uuid} = 1;
+										$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "job_0007", variables => {
+											"reported_jobs::${job_uuid}" => $anvil->data->{reported_jobs}{$job_uuid}, 
+										}});
+									}
+								}
 							}
 						}
 					}
