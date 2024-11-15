@@ -10,6 +10,7 @@ type FetchHookResponse<D, E extends Error = Error> = {
   error?: E;
   mutate: KeyedMutator<D>;
   loading: boolean;
+  validating: boolean;
 };
 
 const useFetch = <Data, Alt = Data>(
@@ -27,11 +28,12 @@ const useFetch = <Data, Alt = Data>(
     ...config
   } = options;
 
-  const { data, error, mutate } = useSWR<Data>(
-    `${baseUrl}${url}`,
-    fetcher,
-    config,
-  );
+  const {
+    data,
+    error,
+    isValidating: validating,
+    mutate,
+  } = useSWR<Data>(`${baseUrl}${url}`, fetcher, config);
 
   const altData = useMemo<Alt | undefined>(
     () => mod && data && mod(data),
@@ -40,7 +42,7 @@ const useFetch = <Data, Alt = Data>(
 
   const loading = !error && !data;
 
-  return { altData, data, error, mutate, loading };
+  return { altData, data, error, mutate, loading, validating };
 };
 
 export default useFetch;
