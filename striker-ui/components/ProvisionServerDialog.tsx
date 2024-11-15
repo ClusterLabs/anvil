@@ -1,18 +1,15 @@
+import { Box, Dialog, DialogProps, Grid } from '@mui/material';
+import { DataSizeUnit } from 'format-data-size';
 import {
   Dispatch,
   ReactNode,
   SetStateAction,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-import { Box, Dialog, DialogProps, Grid } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
-import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 import { DSIZE_SELECT_ITEMS } from '../lib/consts/DSIZES';
 
 import api from '../lib/api';
@@ -28,6 +25,7 @@ import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
 import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
+import SyncIndicator from './SyncIndicator';
 import {
   testInput as baseTestInput,
   testMax,
@@ -35,6 +33,7 @@ import {
   testRange,
 } from '../lib/test_input';
 import { BodyText, HeaderText, InlineMonoText } from './Text';
+import useFetch from '../hooks/useFetch';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
@@ -100,6 +99,11 @@ type AnvilDetailMetadataForProvisionServer = {
   servers: Array<ServerMetadataForProvisionServer>;
   storageGroups: Array<StorageGroupMetadataForProvisionServer>;
   files: Array<FileMetadataForProvisionServer>;
+};
+
+type AnvilDetailForProvisionServer = {
+  anvils: AnvilDetailMetadataForProvisionServer[];
+  oses: Record<string, string>;
 };
 
 type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
@@ -197,6 +201,20 @@ type UpdateLimitsFunction = (options?: {
   formattedMaxVDSizes: string[];
 };
 
+type ProvisionServerStructures = {
+  anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
+  anvilSelectItems: SelectItem[];
+  anvilUUIDMapToData: AnvilUUIDMapToData;
+  files: FileMetadataForProvisionServer[];
+  fileSelectItems: SelectItem[];
+  fileUUIDMapToData: FileUUIDMapToData;
+  osAutocompleteOptions: OSAutoCompleteOption[];
+  serverNameMapToData: ServerNameMapToData;
+  storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
+  storageGroupSelectItems: SelectItem[];
+  storageGroupUUIDMapToData: StorageGroupUUIDMapToData;
+};
+
 const BIGINT_ZERO = BigInt(0);
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
@@ -206,15 +224,6 @@ const CPU_CORES_MIN = 1;
 const MEMORY_MIN = BigInt(65536);
 // Unit: bytes; 100 MiB
 const VIRTUAL_DISK_SIZE_MIN = BigInt(104857600);
-
-const PROVISION_BUTTON_STYLES = {
-  backgroundColor: BLUE,
-  color: TEXT,
-
-  '&:hover': {
-    backgroundColor: BLUE,
-  },
-};
 
 const createMaxValueButton = (
   maxValue: string,
@@ -263,6 +272,7 @@ const createSelectItemDisplay = ({
 
 const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
   const allFiles: Record<string, FileMetadataForProvisionServer> = {};
+
   const result = data.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilSelectItems: SelectItem[];
@@ -631,9 +641,6 @@ const filterAnvils: FilterAnvilsFunction = (
   return result;
 };
 
-// const convertSelectValueToArray = (value: unknown) =>
-//   typeof value === 'string' ? value.split(',') : (value as string[]);
-
 const createVirtualDiskForm = (
   virtualDisks: VirtualDiskStates,
   vdIndex: number,
@@ -871,6 +878,7 @@ const getDisplayDsizeOptions = (
   precision: 0,
   toUnit: 'ibyte',
 });
+
 let displayMemoryMin: string;
 let displayVirtualDiskSizeMin: string;
 
@@ -1485,130 +1493,119 @@ const ProvisionServerDialog = ({
     [anvilUUIDMapToData, fileUUIDMapToData, storageGroupUUIDMapToData],
   );
 
-  useEffect(() => {
-    api
-      .get('/anvil', {
-        params: {
-          anvilUUIDs: 'all',
-          isForProvisionServer: true,
-        },
-      })
-      .then(({ data }) => {
+  const { validating } = useFetch<
+    AnvilDetailForProvisionServer,
+    ProvisionServerStructures
+  >(`/anvil?anvilUUIDs=all&isForProvisionServer=1`, {
+    onSuccess: (data) => {
+      const {
+        anvils: ueAllAnvils,
+        anvilSelectItems: ueAnvilSelectItems,
+        anvilUUIDMapToData: ueAnvilUUIDMapToData,
+        fileSelectItems: ueFileSelectItems,
+        fileUUIDMapToData: ueFileUUIDMapToData,
+        serverNameMapToData: ueServerNameMapToData,
+        storageGroupSelectItems: ueStorageGroupSelectItems,
+        storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
+      } = organizeAnvils(data.anvils);
+
+      setAllAnvils(ueAllAnvils);
+      setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
+      setFileUUIDMapToData(ueFileUUIDMapToData);
+      setServerNameMapToData(ueServerNameMapToData);
+      setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
+
+      setAnvilSelectItems(ueAnvilSelectItems);
+      setFileSelectItems(ueFileSelectItems);
+      setStorageGroupSelectItems(ueStorageGroupSelectItems);
+
+      const limits: Parameters<UpdateLimitsFunction>[0] = {
+        allAnvils: ueAllAnvils,
+        storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
+      };
+
+      // Auto-select the only option when there's only 1.
+      // Reminder to update the form limits after changing any value.
+
+      if (ueAnvilSelectItems.length === 1) {
         const {
-          anvils: ueAllAnvils,
-          anvilSelectItems: ueAnvilSelectItems,
-          anvilUUIDMapToData: ueAnvilUUIDMapToData,
-          fileSelectItems: ueFileSelectItems,
-          fileUUIDMapToData: ueFileUUIDMapToData,
-          serverNameMapToData: ueServerNameMapToData,
-          storageGroupSelectItems: ueStorageGroupSelectItems,
-          storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        } = organizeAnvils(data.anvils);
+          0: { value: uuid },
+        } = ueAnvilSelectItems;
 
-        setAllAnvils(ueAllAnvils);
-        setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
-        setFileUUIDMapToData(ueFileUUIDMapToData);
-        setServerNameMapToData(ueServerNameMapToData);
-        setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
+        setInputAnvilValue(uuid);
 
-        setAnvilSelectItems(ueAnvilSelectItems);
-        setFileSelectItems(ueFileSelectItems);
-        setStorageGroupSelectItems(ueStorageGroupSelectItems);
+        limits.includeAnvilUUIDs = [uuid];
+      }
 
-        const limits: Parameters<UpdateLimitsFunction>[0] = {
-          allAnvils: ueAllAnvils,
-          storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        };
+      if (ueFileSelectItems.length === 1) {
+        const {
+          0: { value: uuid },
+        } = ueFileSelectItems;
 
-        // Auto-select the only option when there's only 1.
-        // Reminder to update the form limits after changing any value.
+        setInputInstallISOFileUUID(uuid);
 
-        if (ueAnvilSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueAnvilSelectItems;
+        limits.fileUUIDs = [uuid, ''];
+      }
 
-          setInputAnvilValue(uuid);
+      if (ueStorageGroupSelectItems.length === 1) {
+        const {
+          0: { value: uuid },
+        } = ueStorageGroupSelectItems;
 
-          limits.includeAnvilUUIDs = [uuid];
-        }
+        setVirtualDisks((previous) => {
+          const current = { ...previous };
 
-        if (ueFileSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueFileSelectItems;
+          current.inputStorageGroupUUIDs[0] = uuid;
 
-          setInputInstallISOFileUUID(uuid);
+          limits.virtualDisks = current;
 
-          limits.fileUUIDs = [uuid, ''];
-        }
+          return current;
+        });
+      }
 
-        if (ueStorageGroupSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueStorageGroupSelectItems;
+      initLimits(limits);
 
-          setVirtualDisks((previous) => {
-            const current = { ...previous };
+      setOSAutocompleteOptions(
+        Object.entries(data.oses).map(([key, label]) => ({
+          key,
+          label,
+        })),
+      );
 
-            current.inputStorageGroupUUIDs[0] = uuid;
-
-            limits.virtualDisks = current;
-
-            return current;
-          });
-        }
-
-        initLimits(limits);
-
-        setOSAutocompleteOptions(
-          Object.entries(data.oses as Record<string, string>).map(
-            ([key, label]) => ({
-              key,
-              label,
-            }),
-          ),
-        );
-
-        setIsProvisionServerDataReady(true);
-      })
-      .catch(() => {
-        // Ignore for now; the 'no resources' message would trigger.
-      });
-  }, [initLimits]);
+      setIsProvisionServerDataReady(true);
+    },
+    refreshInterval: 5000,
+  });
 
   return (
     <>
       <Dialog
-        {...{
-          fullWidth: true,
-          maxWidth: 'sm',
-          open,
-          PaperComponent: Panel,
-          PaperProps: { sx: { overflow: 'visible' } },
+        fullWidth
+        maxWidth="sm"
+        open={open}
+        PaperComponent={Panel}
+        PaperProps={{
+          sx: {
+            overflow: 'visible',
+          },
         }}
       >
         <PanelHeader>
-          <HeaderText text="Provision a Server" />
+          <HeaderText>Provision a server</HeaderText>
+          <SyncIndicator syncing={validating} />
           <IconButton
+            mapPreset="close"
             onClick={onCloseProvisionServerDialog}
-            sx={{
-              backgroundColor: RED,
-              color: TEXT,
-
-              '&:hover': { backgroundColor: RED },
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+            size="small"
+          />
         </PanelHeader>
         <FlexBox spacing=".6em">
           {Object.entries(hasResource).map(
             ([resource, has]) =>
               !has && (
                 <MessageBox type="warning">
-                  No {resource} available yet. Try refreshing after the resource
-                  gets created.
+                  No {resource} available yet. It will appear shortly after
+                  creation.
                 </MessageBox>
               ),
           )}
@@ -1851,11 +1848,11 @@ const ProvisionServerDialog = ({
               }}
             >
               <ContainedButton
+                background="blue"
                 disabled={!testInput({ isIgnoreOnCallbacks: true })}
                 onClick={() => {
                   setIsOpenProvisionConfirmDialog(true);
                 }}
-                sx={PROVISION_BUTTON_STYLES}
               >
                 Provision
               </ContainedButton>
@@ -1895,7 +1892,6 @@ const ProvisionServerDialog = ({
 
             setIsOpenProvisionConfirmDialog(false);
           }}
-          proceedButtonProps={{ sx: PROVISION_BUTTON_STYLES }}
           titleText={`Provision ${inputServerNameValue}?`}
         />
       )}
