@@ -44,6 +44,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"add", 
 	"bridge", 
+	"confirm", 
 	"mac", 
 	"model", 
 	"plug", 
