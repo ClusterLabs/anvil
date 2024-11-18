@@ -55,6 +55,10 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
+# These will be set once we process the 'server' switch.
+$anvil->data->{switches}{server_uuid} = "" if not defined $anvil->data->{switches}{server_uuid};
+$anvil->data->{switches}{server_name} = "" if not defined $anvil->data->{switches}{server_name};
+
 # Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
 # is to setup the database server.
 $anvil->Database->connect();
@@ -1392,6 +1396,7 @@ sub load_job
 		job_uuid => $anvil->data->{switches}{'job-uuid'}, 
 	});
 	
+	# Job data comes as command line switches for now.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'jobs::job_data' => $anvil->data->{jobs}{job_data}, 
 	}});
@@ -1409,6 +1414,19 @@ sub load_job
 		$anvil->data->{switches}{$variable} = $value;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"switches::${variable}" => $anvil->data->{switches}{$variable}, 
+		}});
+	}
+	
+	# Convert the 'server' to 'server_name' and 'server_uuid'.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::server" => $anvil->data->{switches}{server}, 
+	}});
+	if ($anvil->data->{switches}{server})
+	{
+		$anvil->Get->server_from_switch({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::server_name" => $anvil->data->{switches}{server_name},
+			"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
 		}});
 	}
 	
