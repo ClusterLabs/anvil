@@ -46,7 +46,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         formik.values.networkInit.networks,
       ).reduce<Record<string, boolean>>((applied, network) => {
         network.interfaces.forEach((uuid) => {
-          if (uuid.length > 0) applied[uuid] = true;
+          if (!uuid) return;
+
+          applied[uuid] = true;
         });
 
         return applied;
