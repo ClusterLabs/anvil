@@ -65,9 +65,6 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       c.variable_name,
       c.variable_value,
       SUBSTRING(
-        c.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
-      ) as cvar_name,
-      SUBSTRING(
         c.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
       ) AS network_type,
       SUBSTRING(
