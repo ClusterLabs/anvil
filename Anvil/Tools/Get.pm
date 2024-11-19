@@ -2551,7 +2551,7 @@ sub server_from_switch
 	if (exists $anvil->data->{servers}{server_uuid}{$server_string})
 	{
 		# Found it by UUID.
-		$anvil->data->{switches}{server_name} = $anvil->data->{anvils}{server_uuid}{$server_string}{server_name};
+		$anvil->data->{switches}{server_name} = $anvil->data->{servers}{server_uuid}{$server_string}{server_name};
 		$anvil->data->{switches}{server_uuid} = $server_string;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"switches::server_name" => $anvil->data->{switches}{server_name},
