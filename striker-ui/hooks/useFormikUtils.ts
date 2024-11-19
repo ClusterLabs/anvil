@@ -35,17 +35,6 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
 
   const formik = useFormik<Values>({ ...formikConfig });
 
-  const getFieldChanged = useCallback(
-    (field: string): boolean => getIn(changed, field),
-    [changed],
-  );
-
-  const getFieldIsDiff = useCallback(
-    (field: string): boolean =>
-      isEqualIn(formik.values, field, formik.initialValues),
-    [formik.initialValues, formik.values],
-  );
-
   const debounceHandleChange = useMemo(() => {
     const base = debounce((...args: Parameters<typeof formik.handleChange>) => {
       formik.handleChange(...args);
@@ -72,6 +61,24 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     //
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.handleChange]);
+
+  const getFieldChanged = useCallback(
+    (field: string): boolean => getIn(changed, field),
+    [changed],
+  );
+
+  const getFieldIsDiff = useCallback(
+    (field: string): boolean =>
+      isEqualIn(formik.values, field, formik.initialValues),
+    [formik.initialValues, formik.values],
+  );
+
+  const setFieldChanged = useCallback(
+    (field: string, value: boolean = false): void => {
+      setChanged((prev) => setIn(prev, field, value));
+    },
+    [],
+  );
 
   const disabledSubmit = useMemo(
     () =>
@@ -104,6 +111,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     getFieldChanged,
     getFieldIsDiff,
     handleChange: debounceHandleChange,
+    setFieldChanged,
   };
 };
 
