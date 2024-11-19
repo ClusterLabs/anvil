@@ -1,1 +1,2 @@
-export { getNetworkInterface } from './getNetworkInterface';
+export * from './getNetworkInterface';
+export * from './sqls';
