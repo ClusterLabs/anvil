@@ -31,7 +31,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
     netId,
   } = props;
 
-  const { formik, handleChange } = formikUtils;
+  const { formik, handleChange, setFieldChanged } = formikUtils;
 
   const netTypeOptions = useMemo<SelectItem[]>(() => {
     let base: string[] = NETOPS[host.type];
@@ -163,6 +163,13 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                     <BodyText inheritColour>{option.name}</BodyText>
                   </li>
                 )}
+                slotProps={{
+                  clearIndicator: {
+                    onClick: () => {
+                      setFieldChanged(chains.link1, true);
+                    },
+                  },
+                }}
                 value={
                   ifaces[
                     formik.values.networkInit.networks[netId].interfaces[0]
@@ -207,6 +214,13 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                     <BodyText inheritColour>{option.name}</BodyText>
                   </li>
                 )}
+                slotProps={{
+                  clearIndicator: {
+                    onClick: () => {
+                      setFieldChanged(chains.link2, true);
+                    },
+                  },
+                }}
                 value={
                   ifaces[
                     formik.values.networkInit.networks[netId].interfaces[1]
