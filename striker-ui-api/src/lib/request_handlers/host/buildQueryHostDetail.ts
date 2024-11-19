@@ -2,7 +2,7 @@ import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
-import { selectIfaceAlias } from '../network-interface';
+import { ifaceAliasReps, selectIfaceAlias } from '../network-interface';
 import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
@@ -12,7 +12,9 @@ const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
     const [rHead, ...rest] = part2.split('_');
     const head = rHead.toLowerCase();
 
-    return /^[a-z]+n[0-9]+/.test(head)
+    const netRep = new RegExp(`^${ifaceAliasReps.id}`);
+
+    return netRep.test(head)
       ? ['networks', head, camel(...rest)]
       : [camel(head, ...rest)];
   },
@@ -64,13 +66,13 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       b.anvil_name,
       c.network_interface_uuid,
       SUBSTRING(
-        d.network_interface_alias, '([a-z]+n)'
+        d.network_interface_alias, '${ifaceAliasReps.xType}'
       ) AS network_type,
       SUBSTRING(
-        d.network_interface_alias, '[a-z]+n(\\d+)'
+        d.network_interface_alias, '${ifaceAliasReps.xNum}'
       ) AS network_number,
       SUBSTRING(
-        d.network_interface_alias, '_(link\\d+)'
+        d.network_interface_alias, '${ifaceAliasReps.xLink}'
       ) AS network_link,
       c.network_interface_mac_address,
       e.ip_address_address,
@@ -79,7 +81,8 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       e.ip_address_default_gateway,
       e.ip_address_dns,
       f.variable_name,
-      f.variable_value
+      f.variable_value,
+      g.network_interface_uuid
     FROM hosts AS a
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
@@ -109,6 +112,8 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
             ]
           )
         )
+    LEFT JOIN network_interfaces AS g
+      ON g.network_interface_mac_address = f.variable_value
     ${condHostUUIDs}
     ORDER BY
       a.host_name ASC,
@@ -167,6 +172,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
             dns,
             variableName,
             variableValue,
+            variableNicUuid,
           ] = row.slice(7);
 
           if (variableName) {
@@ -176,6 +182,20 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
               MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
             setCvar(keychain, variableValue, previous);
+
+            // Also set the NIC's UUID when we see a MAC variable
+            if (/mac_to_set/.test(variableName)) {
+              const parents = keychain.slice(0, -1);
+
+              const key = keychain[keychain.length - 1].replace(
+                'MacToSet',
+                'Uuid',
+              );
+
+              parents.push(key);
+
+              setCvar(parents, variableNicUuid, previous);
+            }
           }
 
           if (networkType && networkNumber && networkLink) {
