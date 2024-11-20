@@ -267,7 +267,7 @@ sub add_server
 	   $resource_command .= "name=\"".$server_name."\" log_level=".$anvil->Log->level." log_secure=".$anvil->Log->secure." ";
 	   $resource_command .= "meta allow-migrate=\"true\" target-role=\"".$target_role."\" ";
 	   $resource_command .= "op monitor interval=\"60\" timeout=\"60\" ";
-	   $resource_command .= "start timeout=\"60\" on-fail=\"block\" ";
+	   $resource_command .= "start timeout=\"300\" on-fail=\"block\" ";
 	   $resource_command .= "stop timeout=\"300\" on-fail=\"block\" ";
 	   $resource_command .= "migrate_to timeout=\"600\" on-fail=\"block\" ";
 	   $resource_command .= "migrate_from timeout=\"600\" on-fail=\"block\"";
