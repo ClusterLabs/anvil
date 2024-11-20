@@ -245,7 +245,9 @@ sub process_key
 	}
 	
 	# Delete old state_uuids now.
-	my $query = "
+	my $state_note =  $anvil->Database->quote($anvil->data->{bad_key});
+	   $state_note =~ s/^'(.*?)'$/'%$1%'/;
+	my $query      =  "
 SELECT 
     state_uuid, 
     state_name, 
@@ -255,7 +257,7 @@ FROM
 WHERE 
     state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 AND 
-    state_name LIKE 'host_key_changed::%'
+    state_note LIKE ".$state_note."
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
@@ -281,33 +283,16 @@ AND
 					's4:state_note' => $state_note, 
 				}});
 				
-				# Does this state match the one we're clearing up?
-				my $host = ($state_name =~ /host_key_changed::(.*)$/)[0];
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
-				
-				foreach my $known_hosts (sort {$a cmp $b} keys %{$anvil->{ssh_keys}})
-				{
-					if (exists $anvil->{ssh_keys}{$known_hosts}{host}{$host})
-					{
-						foreach my $algo (sort {$a cmp $b} keys %{$anvil->{ssh_keys}{$known_hosts}{host}{$host}})
-						{
-							my $this_key = $anvil->{ssh_keys}{$known_hosts}{host}{$host}{$algo}{key};
-							my $bad_key  = $anvil->data->{bad_key};
-							if ($this_key eq $bad_key)
-							{
-								# Delete this key.
-								$anvil->data->{job}{progress} += 5;
-								update_progress($anvil, $anvil->data->{job}{progress}, "job_0004,!!state_uuid!".$state_uuid."!!,!!host!".$host."!!,!!db_uuid!".$uuid."!!");
-								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0004", variables => {
-									state_uuid => $state_uuid, 
-									db_uuid    => $uuid,
-									host       => $host,
-								}});
-								delete_state($anvil, $state_uuid);
-							}
-						}
-					}
-				}
+				# Delete this key.
+				$anvil->data->{job}{progress} += 5;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0004,!!state_uuid!".$state_uuid."!!,!!bad_key!".$anvil->data->{bad_key}."!!,!!db_uuid!".$uuid."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0004", variables => {
+					state_uuid => $state_uuid, 
+					db_uuid    => $uuid,
+					bad_key    => $anvil->data->{bad_key},
+				}});
+				my $query = "DELETE FROM states	WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
+				$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 			}
 		}
 	}
@@ -331,11 +316,8 @@ sub process_file
 	}});
 	
 	$anvil->data->{job}{progress} += 5;
-	update_progress($anvil, $anvil->data->{job}{progress}, "job_0049,!!file!".$file."!!,!!target!".$target."!!");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => {
-		file   => $file, 
-		target => $target, 
-	}});
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0049,!!bad_key!".$bad_key."!!");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => { bad_key => $bad_key }});
 	
 	# Read in the file, if it exists.
 	if (not -e $file)
@@ -381,11 +363,10 @@ sub process_file
 	}
 	
 	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0003", variables => { 
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0003", variables => { 
 		file       => $file, 
 		difference => $difference,
 	}});
-	
 	if ($difference)
 	{
 		# Write the file out.
@@ -948,21 +929,6 @@ AND
 		
 		# Done looking for keys
 		$anvil->nice_exit({exit_code => 0});
-	}
-	
-	return(0);
-}
-
-# This deletes a state entry.
-sub delete_state
-{
-	my ($anvil, $state_uuid) = @_;
-	
-	# Delete it so long as we have a UUID.
-	if ($state_uuid)
-	{
-		my $query = "DELETE FROM states	WHERE state_uuid = ".$anvil->Database->quote($state_uuid).";";
-		$anvil->Database->write({debug => 3, query => $query, source => $THIS_FILE, line => __LINE__});
 	}
 	
 	return(0);

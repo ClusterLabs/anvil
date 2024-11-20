@@ -1255,7 +1255,7 @@ resource "#!variable!server!#" {
 		<key name="job_0001">Configure Network</key>
 		<key name="job_0002">Created a job to delete the SSH key for the target machine: [#!variable!target!#] on the host: [#!variable!host_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0003">Converted all old-style jobs to the new style. The new jobs will run shortly. Exiting now.</key>
-		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!host!#] has been removed.</key>
+		<key name="job_0004">Deleting the state entry: [#!variable!state_uuid!#] on the DB: [#!variable!db_uuid!#] now that the old key for the host: [#!variable!bad_key!#] has been removed.</key>
 		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">The new-style job to remove bad keys for the target: [#!variable!target!#] has been created with the job UUID: [#!variable!job_uuid!#].</key>
@@ -1304,7 +1304,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0046">Adding our database connection information to the target's anvil.conf file.</key>
 		<key name="job_0047">Finished! The target should be ready for initial configuration shortly. If it isn't, please check that the 'anvil-daemon' daemon is running.</key>
 		<key name="job_0048">Removing bad machine keys.</key>
-		<key name="job_0049">Removing existing entries for the target machine: [#!variable!target!#] from: [#!variable!file!#].</key>
+		<key name="job_0049">Removing existing entries for the old key: [#!variable!bad_key!#].</key>
 		<key name="job_0050">[ Error ] - The known_hosts file: [#!variable!file!#] was not found. Skipping it.</key>
 		<key name="job_0051">Finished.</key>
 		<key name="job_0052">[ Error ] - There was a problem reading the known_hosts file: [#!variable!file!#]. Skipping it.</key>
