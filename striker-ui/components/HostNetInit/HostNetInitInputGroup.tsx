@@ -46,7 +46,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         formik.values.networkInit.networks,
       ).reduce<Record<string, boolean>>((applied, network) => {
         network.interfaces.forEach((uuid) => {
-          if (uuid.length > 0) applied[uuid] = true;
+          if (!uuid) return;
+
+          applied[uuid] = true;
         });
 
         return applied;
@@ -90,7 +92,8 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
   );
 
   const hostNets = useMemo(
-    () => Object.entries(formik.values.networkInit.networks),
+    () =>
+      Object.entries<HostNetFormikValues>(formik.values.networkInit.networks),
     [formik.values.networkInit.networks],
   );
 
@@ -118,6 +121,19 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       onMouseUp: () => setIfaceHeld(undefined),
     };
   }, [ifaceHeld]);
+
+  const disableAddNet = useMemo(() => {
+    if (!ifaceValues?.length) return true;
+
+    const allocated = Object.keys(appliedIfaces).length;
+    const available = ifaceValues.length - allocated;
+
+    const slots = hostNets.filter(
+      ([, hostNet]) => !hostNet.interfaces[0],
+    ).length;
+
+    return available <= slots;
+  }, [appliedIfaces, hostNets, ifaceValues?.length]);
 
   if (!ifaces || !ifaceValues) {
     return <Spinner />;
@@ -326,7 +342,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       </Grid>
       <Grid alignSelf="center" item xs={1} sm="auto">
         <IconButton
-          disabled={hostNets.length >= ifaceValues.length}
+          disabled={disableAddNet}
           mapPreset="add"
           onClick={() => {
             const key = uuidv4();

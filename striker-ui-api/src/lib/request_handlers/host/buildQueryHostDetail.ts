@@ -2,17 +2,19 @@ import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
+import { ifaceAliasReps, selectIfaceAlias } from '../network-interface';
 import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
-const CVAR_PREFIX_PATTERN = `^${CVAR_PREFIX}\\d+::`;
 
 const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
   form: ([, part2]) => {
     const [rHead, ...rest] = part2.split('_');
     const head = rHead.toLowerCase();
 
-    return /^[a-z]+n[0-9]+/.test(head)
+    const netRep = new RegExp(`^${ifaceAliasReps.id}`);
+
+    return netRep.test(head)
       ? ['networks', head, camel(...rest)]
       : [camel(head, ...rest)];
   },
@@ -28,7 +30,7 @@ const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
 
 const setCvar = (
   keychain: string[],
-  value: string,
+  value: string | Tree,
   parent: Tree = {},
 ): Tree | string => {
   const { 0: key, length } = keychain;
@@ -62,18 +64,25 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       a.host_uuid,
       b.anvil_uuid,
       b.anvil_name,
-      c.variable_name,
-      c.variable_value,
+      c.network_interface_uuid,
       SUBSTRING(
-        c.variable_name, '${CVAR_PREFIX_PATTERN}([^:]+)'
-      ) as cvar_name,
-      SUBSTRING(
-        c.variable_name, '${CVAR_PREFIX_PATTERN}([a-z]{2,3})\\d+'
+        d.network_interface_alias, '${ifaceAliasReps.xType}'
       ) AS network_type,
       SUBSTRING(
-        c.variable_name, '${CVAR_PREFIX_PATTERN}[a-z]{2,3}\\d+_(link\\d+)'
+        d.network_interface_alias, '${ifaceAliasReps.xNum}'
+      ) AS network_number,
+      SUBSTRING(
+        d.network_interface_alias, '${ifaceAliasReps.xLink}'
       ) AS network_link,
-      d.network_interface_uuid
+      c.network_interface_mac_address,
+      e.ip_address_address,
+      e.ip_address_subnet_mask,
+      e.ip_address_gateway,
+      e.ip_address_default_gateway,
+      e.ip_address_dns,
+      f.variable_name,
+      f.variable_value,
+      g.network_interface_uuid
     FROM hosts AS a
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
@@ -81,30 +90,50 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         b.anvil_node2_host_uuid,
         b.anvil_dr1_host_uuid
       )
-    LEFT JOIN variables AS c
-      ON c.variable_source_uuid = a.host_uuid
+    LEFT JOIN network_interfaces AS c
+      ON c.network_interface_host_uuid = a.host_uuid
+    LEFT JOIN (${selectIfaceAlias()}) AS d
+      ON d.network_interface_uuid = c.network_interface_uuid
+    LEFT JOIN ip_addresses as e
+      ON e.ip_address_on_uuid
+        IN (
+          c.network_interface_uuid,
+          c.network_interface_bond_uuid,
+          c.network_interface_bridge_uuid
+        )
+    LEFT JOIN variables AS f
+      ON f.variable_source_uuid = a.host_uuid
         AND (
-          c.variable_name LIKE '${CVAR_PREFIX}%'
-          OR c.variable_name IN (
-            'install-target::enabled',
-            'system::configured'
+          f.variable_name LIKE ANY (
+            ARRAY[
+              '${CVAR_PREFIX}%',
+              'install-target::enabled',
+              'system::configured'
+            ]
           )
         )
-    LEFT JOIN network_interfaces AS d
-      ON c.variable_name LIKE '%link%_mac%'
-        AND c.variable_value = d.network_interface_mac_address
-        AND a.host_uuid = d.network_interface_host_uuid
+    LEFT JOIN network_interfaces AS g
+      ON g.network_interface_mac_address = f.variable_value
     ${condHostUUIDs}
-    ORDER BY a.host_name ASC,
-      cvar_name ASC,
-      c.variable_name ASC;`;
+    ORDER BY
+      a.host_name ASC,
+      d.network_interface_alias ASC,
+      f.variable_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier((output) => {
       if (output.length === 0) return {};
 
       const {
-        0: [hostIpmi, hostName, hostStatus, hostType, hostUUID, anUuid, anName],
+        0: [
+          hostIpmi,
+          hostName,
+          hostStatus,
+          hostType,
+          hostUUID,
+          anvilUuid,
+          anvilName,
+        ],
       } = output;
 
       const shortHostName = getShortHostName(hostName);
@@ -124,34 +153,81 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         username: hostIpmi.replace(/^.*--username\s+(\w+).*$/, '$1'),
       };
 
+      const counts: Record<string, number> = {};
+
       const partial = output.reduce<
         Omit<HostDetail, 'anvil' | 'hostConfigured'>
       >(
         (previous, row) => {
           const [
+            networkInterfaceUuid,
+            networkType,
+            networkNumber,
+            networkLink,
+            mac,
+            ip,
+            subnetMask,
+            gateway,
+            defaultGateway,
+            dns,
             variableName,
             variableValue,
-            networkType,
-            networkLink,
-            networkInterfaceUuid,
+            variableNicUuid,
           ] = row.slice(7);
 
-          if (!variableName) return previous;
+          if (variableName) {
+            const [variablePrefix, ...restVariableParts] =
+              variableName.split('::');
+            const keychain =
+              MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
-          const [variablePrefix, ...restVariableParts] =
-            variableName.split('::');
-          const keychain = MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
+            setCvar(keychain, variableValue, previous);
 
-          setCvar(keychain, variableValue, previous);
+            // Also set the NIC's UUID when we see a MAC variable
+            if (/mac_to_set/.test(variableName)) {
+              const parents = keychain.slice(0, -1);
 
-          if (networkLink) {
-            keychain[keychain.length - 1] = `${networkLink}Uuid`;
+              const key = keychain[keychain.length - 1].replace(
+                'MacToSet',
+                'Uuid',
+              );
 
-            setCvar(keychain, networkInterfaceUuid, previous);
-          } else if (networkType) {
-            keychain[keychain.length - 1] = 'type';
+              parents.push(key);
 
-            setCvar(keychain, networkType, previous);
+              setCvar(parents, variableNicUuid, previous);
+            }
+          }
+
+          if (networkType && networkNumber && networkLink) {
+            // 1st, set the network's values
+            const networkAlias = `${networkType}${networkNumber}`;
+
+            const values = {
+              ip,
+              [`${networkLink}MacToSet`]: mac,
+              [`${networkLink}Uuid`]: networkInterfaceUuid,
+              sequence: networkNumber,
+              subnetMask,
+              type: networkType,
+            };
+
+            Object.entries(values).forEach(([key, value]) => {
+              if (!value) return;
+
+              setCvar(['networks', networkAlias, key], value, previous);
+            });
+
+            // 2nd, accumulate the network count
+            const { [networkType]: count = 0 } = counts;
+
+            counts[networkType] = Math.max(count, Number(networkNumber));
+
+            // 3rd, set the host's gateway
+            if (defaultGateway === '1') {
+              previous.dns = dns;
+              previous.gateway = gateway;
+              previous.gatewayInterface = networkAlias;
+            }
           }
 
           return previous;
@@ -162,14 +238,19 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
           hostType,
           hostUUID,
           ipmi,
+          networks: {},
           shortHostName,
         },
       );
 
+      Object.entries(counts).forEach(([key, count]) => {
+        partial[`${key}Count`] = String(count);
+      });
+
       let anvil: HostOverview['anvil'];
 
-      if (anUuid) {
-        anvil = { name: anName, uuid: anUuid };
+      if (anvilUuid) {
+        anvil = { name: anvilName, uuid: anvilUuid };
       }
 
       const misfit: Pick<HostDetail, 'anvil' | 'hostConfigured'> = {
