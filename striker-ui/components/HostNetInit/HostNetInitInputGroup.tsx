@@ -121,6 +121,19 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     };
   }, [ifaceHeld]);
 
+  const disableAddNet = useMemo(() => {
+    if (!ifaceValues?.length) return true;
+
+    const allocated = Object.keys(appliedIfaces).length;
+    const available = ifaceValues.length - allocated;
+
+    const slots = hostNets.filter(
+      ([, hostNet]) => !hostNet.interfaces[0],
+    ).length;
+
+    return available <= slots;
+  }, [appliedIfaces, hostNets, ifaceValues?.length]);
+
   if (!ifaces || !ifaceValues) {
     return <Spinner />;
   }
@@ -328,7 +341,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       </Grid>
       <Grid alignSelf="center" item xs={1} sm="auto">
         <IconButton
-          disabled={hostNets.length >= ifaceValues.length}
+          disabled={disableAddNet}
           mapPreset="add"
           onClick={() => {
             const key = uuidv4();
