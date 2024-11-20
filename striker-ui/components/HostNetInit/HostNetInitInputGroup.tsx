@@ -92,7 +92,8 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
   );
 
   const hostNets = useMemo(
-    () => Object.entries(formik.values.networkInit.networks),
+    () =>
+      Object.entries<HostNetFormikValues>(formik.values.networkInit.networks),
     [formik.values.networkInit.networks],
   );
 
