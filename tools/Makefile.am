@@ -34,6 +34,7 @@ dist_sbin_SCRIPTS	= \
 			  anvil-parse-fence-agents \
 			  anvil-pcs-wrapper \
 			  anvil-provision-server \
+			  anvil-pull-pid-logs \
 			  anvil-rename-server \
 			  anvil-report-usage \
 			  anvil-safe-start \

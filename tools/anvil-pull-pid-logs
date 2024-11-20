@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+# 
+use strict;
+use warnings;
+use Data::Dumper;
+
+my $pid  = $ARGV[0];
+my $file = $ARGV[1];
+if ((not $pid)     or 
+    ($pid =~ /\D/) or 
+    (not $file)    or 
+    (not -f $file))
+{
+	print "Program to find log entries for a specific PID.\n";
+	print "Usage: ".$0." <pid> /path/to/anvil.log\n";
+	exit(0);
+}
+
+my $in_line = 0;
+open (my $file_handle, "<", $file) or die "Failed to read: [".$file."], error: [".$!."]\n";
+while(<$file_handle>)
+{
+	my $line = $_;
+	if ($line =~ /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}:\[(\d+)\]:/)
+	{
+		my $this_pid = $1;
+		if ($pid eq $this_pid)
+		{
+			$in_line = 1;
+			print $line;
+		}
+		else
+		{
+			$in_line = 0;
+		}
+	}
+	elsif ($in_line)
+	{
+		print $line;
+	}
+}
+close $file_handle;
+
