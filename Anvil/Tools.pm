@@ -1391,7 +1391,7 @@ sub _set_paths
 			urls			=>	{
 				skins				=>	"/skins",
 				oui_file			=>	"https://standards-oui.ieee.org/oui/oui.txt",
-				alteeve_repo			=>	"https://www.alteeve.com/an-repo/m3/anvil-release-latest.noarch.rpm",
+				alteeve_repo			=>	"https://alteeve.com/an-repo/m3/alteeve-release-latest.noarch.rpm",
 			},
 			words			=>	{
 				'words.xml'			=>	"/usr/share/anvil/words.xml",
