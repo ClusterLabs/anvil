@@ -70,9 +70,9 @@ if (($anvil->data->{switches}{rejoin}) && (not $anvil->data->{switches}{'job-uui
 load_job($anvil);
 
 # Did the user ask to check for free space?
-if ($anvil->data->{switches}{'no-auto-grow-pv'})
+if (not $anvil->data->{switches}{'no-auto-grow-pv'})
 {
-	print "[ Note ] - Checking for useful free space after any LVM physical volumes.\n";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0200", variables => { daemon => "anvil-safe-start.service" }});
 	$anvil->Storage->auto_grow_pv({debug => 2});
 }
 

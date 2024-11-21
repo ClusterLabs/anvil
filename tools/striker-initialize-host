@@ -57,6 +57,7 @@ $anvil->data->{job}{progress} = 0;
 get_job_details($anvil);
 wait_for_access($anvil);
 set_host_name($anvil);
+get_os_type($anvil);
 add_repos($anvil);
 configure_lvm($anvil);
 add_databases($anvil);
@@ -69,6 +70,25 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Get the 
+sub get_os_type
+{
+	my ($anvil) = @_;
+	
+	($anvil->data->{data}{os_type}, $anvil->data->{data}{os_arch}) = $anvil->Get->os_type({
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"data::os_type" => $anvil->data->{data}{os_type}, 
+		"data::os_arch" => $anvil->data->{data}{os_arch},
+	}});
+	
+	return(0);
+}
 
 # This configures filtering on LVM
 sub configure_lvm
@@ -377,8 +397,6 @@ sub add_repos
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0028");
 	
-	### TODO: Rework this, add $anvil->data->{data}{enterprise_uuid}
-	
 	# Add the local repo.
 	my $repo = $anvil->Striker->get_local_repo({debug => 2});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { repo => $repo }});
@@ -541,43 +559,38 @@ EOF
 		{
 			# We're going to need these repos when it's all said and done. The first two are 
 			# enabled by default.
-			$anvil->data->{repos}{'rhel-8-for-x86_64-baseos-rpms'}            = 0;
-			$anvil->data->{repos}{'rhel-8-for-x86_64-appstream-rpms'}         = 0;
-			$anvil->data->{repos}{'codeready-builder-for-rhel-8-x86_64-rpms'} = 0;
-			
-			# Both target types need 'codeready-builder-for-rhel-8-x86_64-rpms', but only nodes 
-			# need 'rhel-8-for-x86_64-highavailability-rpms'
-			# We blindly subscribe, then we'll check that they're actually subscribed.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'codeready-builder-for-rhel-8-x86_64-rpms' }});
-			$anvil->data->{job}{progress} += 5;
-			update_progress($anvil, $anvil->data->{job}{progress}, "job_0036,!!repo!codeready-builder-for-rhel-8-x86_64-rpms!!");
-			
-			my $shell_call = $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable codeready-builder-for-rhel-8-x86_64-rpms";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-			my ($output, $error, $return_code) = $anvil->Remote->call({
-				debug       => 3,
-				shell_call  => $shell_call,
-				password    => $anvil->data->{data}{password}, 
-				port        => $anvil->data->{data}{ssh_port}, 
-				target      => $anvil->data->{data}{host_ip_address},
-				remote_user => "root", 
-				timeout     => 300,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				output      => $output, 
-				error       => $error, 
-				return_code => $return_code,
-			}});
-			
-			# If this 
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'data::type' => $anvil->data->{data}{type} }});
-			if ($anvil->data->{data}{type} eq "node")
+			if ($anvil->data->{data}{os_type} eq "rhel9")
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => 'rhel-8-for-x86_64-highavailability-rpms' }});
+				$anvil->data->{repos}{'rhel-9-for-x86_64-baseos-rpms'}            = 0;
+				$anvil->data->{repos}{'rhel-9-for-x86_64-appstream-rpms'}         = 0;
+				$anvil->data->{repos}{'codeready-builder-for-rhel-9-x86_64-rpms'} = 0;
+				$anvil->data->{repos}{'rhel-9-for-x86_64-highavailability-rpms'}  = 0;
+			}
+			elsif ($anvil->data->{data}{os_type} eq "rhel9")
+			{
+				$anvil->data->{repos}{'rhel-8-for-x86_64-baseos-rpms'}            = 0;
+				$anvil->data->{repos}{'rhel-8-for-x86_64-appstream-rpms'}         = 0;
+				$anvil->data->{repos}{'codeready-builder-for-rhel-8-x86_64-rpms'} = 0;
+				$anvil->data->{repos}{'rhel-8-for-x86_64-highavailability-rpms'}  = 0;
+			}
+			
+			foreach my $repo (sort {$a cmp $b} keys %{$anvil->data->{repos}})
+			{
+				# Both target types need 'codeready-builder', but only nodes need 'highavailability-rpms'
+				# We blindly subscribe, then we'll check that they're actually subscribed.
+				if (($repo =~ /highavailability-rpms/) && ($anvil->data->{data}{type} ne "node"))
+				{
+					$anvil->data->{repos}{$repo} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"repos::${repo}" => $anvil->data->{repos}{$repo},
+					}});
+					next;
+				}
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0036", variables => { repo => $repo }});
 				$anvil->data->{job}{progress} += 5;
-				update_progress($anvil, $anvil->data->{job}{progress}, "job_0036,!!repo!rhel-8-for-x86_64-highavailability-rpms!!");
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0036,!!repo!codeready-builder-for-rhel-8-x86_64-rpms!!");
 				
-				my $shell_call = $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable rhel-8-for-x86_64-highavailability-rpms";
+				my $shell_call = $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable ".$repo;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				my ($output, $error, $return_code) = $anvil->Remote->call({
 					debug       => 3,
@@ -593,9 +606,6 @@ EOF
 					error       => $error, 
 					return_code => $return_code,
 				}});
-				
-				# Add this to the needed list.
-				$anvil->data->{repos}{'rhel-8-for-x86_64-highavailability-rpms'} = 0;
 			}
 			
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0037"});
@@ -646,18 +656,7 @@ EOF
 			}
 		}
 	}
-	
-	# If this is a CentOS Stream OS, enable the HA repo.
-	my ($os_type, $os_arch) = $anvil->Get->os_type({
-		password => $anvil->data->{data}{password}, 
-		port     => $anvil->data->{data}{ssh_port}, 
-		target   => $anvil->data->{data}{host_ip_address},
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		os_type => $os_type, 
-		os_arch => $os_arch, 
-	}});
-	if ($os_type =~ /centos-stream/)
+	if ($anvil->data->{data}{os_type} !~ /rhel/)
 	{
 		# Enable the HA repo
 		my $shell_call = $anvil->data->{path}{exe}{yum}." config-manager --set-enabled ha";
@@ -708,30 +707,33 @@ EOF
 		return_code => $return_code,
 	}});
 	
-	# Now remove biosdevname
-	$anvil->data->{job}{progress} += 5;
-	update_progress($anvil, $anvil->data->{job}{progress}, "job_0041");
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0041"});
-	undef $output;
-	undef $error;
-	undef $return_code;
-	undef $shell_call;
-	$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y remove biosdevname";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	($output, $error, $return_code) = $anvil->Remote->call({
-		debug       => 3,
-		shell_call  => $shell_call,
-		password    => $anvil->data->{data}{password}, 
-		port        => $anvil->data->{data}{ssh_port}, 
-		target      => $anvil->data->{data}{host_ip_address},
-		remote_user => "root", 
-		timeout     => 300,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output, 
-		error       => $error, 
-		return_code => $return_code,
-	}});
+	# Now remove biosdevname, if this is an EL8 machine
+	if ($anvil->data->{data}{os_type} =~ /8$/)
+	{
+		$anvil->data->{job}{progress} += 5;
+		update_progress($anvil, $anvil->data->{job}{progress}, "job_0041");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0041"});
+		undef $output;
+		undef $error;
+		undef $return_code;
+		undef $shell_call;
+		$shell_call = $anvil->data->{path}{exe}{'dnf'}." -y remove biosdevname";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => 3,
+			shell_call  => $shell_call,
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root", 
+			timeout     => 300,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			error       => $error, 
+			return_code => $return_code,
+		}});
+	}
 	
 	# In the CI, we'll have custom repos installed. So here we're looking to see if 'anvil-X' is already 
 	# installed. If so, we won't add our repo.
@@ -1073,26 +1075,12 @@ sub get_job_details
 		}
 	}
 	
-	# It's now possible to run without a job_uuid
-# 	if (not $anvil->data->{switches}{'job-uuid'})
-# 	{
-# 		# No job UUID.
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0073"});
-# 		$anvil->nice_exit({exit_code => 2});
-# 	}
-	
 	my $return = 0;
 	if ($anvil->data->{switches}{'job-uuid'})
 	{
 		$return = $anvil->Database->get_job_details({debug => 3, job_uuid => $anvil->data->{switches}{'job-uuid'}});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
 	}
-# 	if (not $return)
-# 	{
-# 		# No job details
-# 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0034", variables => { job_uuid => $anvil->data->{switches}{'job-uuid'} }});
-# 		$anvil->nice_exit({exit_code => 3});
-# 	}
 
 	# If the user used '--target', but not '--host-ip-address', set it.
 	if ((not $anvil->data->{switches}{'host-ip-address'}) && ($anvil->data->{switches}{'target'}))
