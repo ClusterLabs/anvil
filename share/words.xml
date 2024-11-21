@@ -2076,7 +2076,7 @@ The database connection error was:
 		<key name="log_0199">
 There are: [#!variable!devices!#] interfaces with IPs in the: [#!variable!network!#] network.
 [ Note ] - The interface: [#!variable!keep_device!#] will be kept up, any others will be set to no IP and reset.</key>
-		<key name="log_0200">#!free!#</key>
+		<key name="log_0200">[ Note ] - Checking for useful free space after any LVM physical volumes.</key>
 		<key name="log_0201">Unable to connect to any database. Will try to initialize the local system and then try again.</key>
 		<key name="log_0202">Failed to connect to any databases. Skipping the loop of the daemon.</key>
 		<key name="log_0203">Disconnected from all databases. Will reconnect when entering the main loop.</key>
