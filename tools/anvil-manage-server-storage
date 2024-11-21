@@ -4022,8 +4022,7 @@ sub show_server_list
 		{
 			if ($anvil->data->{switches}{machine})
 			{
-				$anvil->data->{xml}{body} .= "\t\t<server_count=\"0\" />\n";
-				print "server_count=\"0\"\n";
+				$anvil->data->{xml}{body} .= "\t\t<server count=\"0\" />\n";
 			}
 			else
 			{
@@ -4035,7 +4034,7 @@ sub show_server_list
 			if ($anvil->data->{switches}{machine})
 			{
 				my $server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
-				$anvil->data->{xml}{body} .= "\t\t<server_count=\"".$server_count."\" />\n";
+				$anvil->data->{xml}{body} .= "\t\t<server count=\"".$server_count."\" />\n";
 			}
 			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 			{
