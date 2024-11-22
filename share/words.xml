@@ -2096,7 +2096,7 @@ There are: [#!variable!devices!#] interfaces with IPs in the: [#!variable!networ
 		<key name="log_0217">The variable with variable_uuid: [#!variable!variable_uuid!#], variable_source_table: [#!variable!variable_source_table!#] and variable_source_uuid: [#!variable!variable_source_uuid!#] was not found in the database, so unable to update.</key>
 		<key name="log_0218">The variable: [#!variable!name!#] was expected to be an array reference, but it wasn't. It contained (if anything): [#!variable!value!#].</key>
 		<key name="log_0219">The table: [#!variable!table!#] (and possibly others) in the database on: [#!variable!host!#] (UUID: [#!variable!uuid!#]) is missing: [#!variable!missing!#] row(s). A database resync will be requested.</key>
-		<key name="log_0220">#!free!#</key>
+		<key name="log_0220">Managing IPMI has been disabled via 'sys::manage::ipmi = 0' in anvil.conf. We will NOT configure the IPMI BMC.</key>
 		<key name="log_0221">Writing: [#!variable!to_write!#] record(s) to resync the table: [#!variable!table!#] in database on: [#!variable!host_name!#].</key>
 		<key name="log_0222">The connection to the database on: [#!variable!host!#] isn't established, trying again...</key>
 		<key name="log_0223">The connection to the database on: [#!variable!host!#] has been successfully established.</key>

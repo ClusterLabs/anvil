@@ -917,6 +917,7 @@ sub _set_defaults
 		},
 		manage				=>	{
 			firewall			=>	1,
+			ipmi				=>	1,
 		},
 		net				=>	{
 			always_reconnect		=>	0,
