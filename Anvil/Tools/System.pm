@@ -2208,6 +2208,8 @@ If a BMC is found and configured, the C<< fence_ipmilan >> call used to check th
 
 B<< NOTE >>: The password used to set the IPMI BMC access is included both in the database table and the returned string.
 
+B<< NOTE >>: If C<< sys::manage::ipmi >> is set to C<< 0 >>, this method will do nothing. 
+
 Parameters;
 
 =head3 dr (Optional, default 0)
@@ -2235,6 +2237,14 @@ sub configure_ipmi
 		dr            => $dr,
 		manifest_uuid => $manifest_uuid,
 	}});
+	
+	# Don't do anything if managing IPMI is disabled by the user. 
+	if ($anvil->data->{sys}{manage}{ipmi} eq "0")
+	{
+		# Don't configure. 
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0220", variables => { method => "System->configure_ipmi()" }});
+		return(0);
+	}
 	
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
