@@ -24,6 +24,7 @@ my $THIS_FILE = "Get.pm";
 # available_resources
 # bridges
 # cgi
+# cpu_flags
 # date_and_time
 # domain_name
 # free_memory
@@ -1264,6 +1265,74 @@ sub cgi
 	
 	return(0);
 }
+
+
+=head2 cpu_flags
+
+This parses C<< scan_hardware_cpu_flags >> and stores it by host. The flags are stored in the hash;
+
+* cpu_flags::<host_uuid>::flag::<flag> = 1
+
+This method takes no parameters.
+
+=cut
+sub cpu_flags
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->cpu_flags()" }});
+	
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
+	if (exists $anvil->data->{cpu_flags})
+	{
+		delete $anvil->data->{cpu_flags};
+	}
+	
+	my $query = "
+SELECT 
+    scan_hardware_host_uuid, 
+    scan_hardware_cpu_flags 
+FROM 
+    scan_hardware
+ORDER BY 
+    scan_hardware_host_uuid ASC
+;
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_hardware_host_uuid = $row->[0];
+		my $scan_hardware_cpu_flags = $row->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_hardware_host_uuid => $scan_hardware_host_uuid, 
+			scan_hardware_cpu_flags => $scan_hardware_cpu_flags, 
+		}});
+		
+		foreach my $flag (split/\s+/, $scan_hardware_cpu_flags)
+		{
+			next if not $flag;
+			$anvil->data->{cpu_flags}{$scan_hardware_host_uuid}{flag}{$flag} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"cpu_flags::${scan_hardware_host_uuid}::flag::${flag}" => $anvil->data->{cpu_flags}{$scan_hardware_host_uuid}{flag}{$flag}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 date_and_time
 
