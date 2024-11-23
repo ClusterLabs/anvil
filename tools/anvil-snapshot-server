@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+# 
+# This program makes a snapshot of a server. 
+# 
+# NOTE: This does NOT quiesce the RAM of the server! It is up to the user to insure that the server's cache 
+#       is flushed before triggering the snapshot to guarantee the snapshot can be used in a recovery.
+# 
+# Exit codes;
+# 0 = Normal exit.
+# 1 = No database connection.
+# 
+# TODO: 
+# - Update the target_ip search to use the new Network->find_target_ip().
+
+use strict;
+use warnings;
+use Anvil::Tools;
+require POSIX;
+use Text::Diff;
+use Data::Dumper;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [
+	"confirm",
+	"destination", 
+	"server", 
+	"size", 
+	], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Connect to the database(s). If we have no connections, we'll proceed anyway as one of the 'run_once' tasks
+# is to setup the database server.
+$anvil->Database->connect();
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 3, secure => 0, key => "log_0132"});
+if (not $anvil->data->{sys}{database}{connections})
+{
+	# No databases, update the job, sleep for a bit and then exit. The daemon will pick it up and try 
+	# again after we exit.
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0305"});
+	sleep 10;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+### Steps;
+# 1. Determine that there's enough space for the snapshots of all drives to be created.
+# 2. Decide which host we'll create the snapshot on. If the host's peer is UpToDate, and we're not that peer, move the job to that host.
+# 3. Verify that the destination directory exists.
+# 4. Create all snapshots, then print 'SNAPSHOT READY' on a single line (to STDOUT and as a line in the 'job_status'.
+# 5. Serially, dd each backing LV piped through bzip2. Delete each snapshot as they're images are created.
+
+
+
+$anvil->nice_exit({exit_code => 0});
+
+
+#############################################################################################################
+# Functions                                                                                                 #
+#############################################################################################################
