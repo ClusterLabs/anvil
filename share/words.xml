@@ -1259,15 +1259,15 @@ resource "#!variable!server!#" {
 		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">The new-style job to remove bad keys for the target: [#!variable!target!#] has been created with the job UUID: [#!variable!job_uuid!#].</key>
-		<key name="job_0008">#!free!#</key>
+		<key name="job_0008">-=] Server Relocation Menu</key>
 		<key name="job_0009">Reboot...</key>
-		<key name="job_0010">#!free!#</key>
+		<key name="job_0010">- Which server do you want to relocate? [#!variable!server!#]</key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		<key name="job_0013">Remove a Striker Peer</key>
 		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
 		<key name="job_0015">Manager Install Target.</key>
-		<key name="job_0016">#!free!#</key>
+		<key name="job_0016">Please enter the a valid server name, server UUID or the index number of the server you want to relocate.</key>
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">#!free!#</key>
 		<key name="job_0019">#!free!#</key>
@@ -2140,9 +2140,9 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0253">The database user is not 'admin'. Changing table and function ownerships to: [#!variable!database_user!#].</key>
 		<key name="log_0254">[ Warning ] - The Storage->make_directory() method failed to create the directory: [#!variable!directory!#].</key>
 		<key name="log_0255">[ Note ] - Created the directory: [#!variable!directory!#].</key>
-		<key name="log_0256">#!free!#</key>
-		<key name="log_0257">#!free!#</key>
-		<key name="log_0258">#!free!#</key>
+		<key name="log_0256">No server was specified to reloate.</key>
+		<key name="log_0257">The server: [#!variable!server!#] was not found.</key>
+		<key name="log_0258">This is not a subnode. This job has nothing to do on this host. Was the job assigned improperly?</key>
 		<key name="log_0259">#!free!#</key>
 		<key name="log_0260">#!free!#</key>
 		<key name="log_0261">#!free!#</key>
@@ -2976,7 +2976,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0143">Finished removing the new interface with MAC address: [#!variable!mac!#], from the server: [#!variable!server!#].</key>
 		<key name="message_0144">- The current gateway is: [#!variable!current_gateway!#], but this is not the gateway interface. Will remove it.</key>
 		<key name="message_0145">- This is the gateway interface, but there is no gateway yet. Will configure it as: [#!variable!new_gateway!#].</key>
-		<key name="message_0146">#!free!#</key>
+		<key name="message_0146">Preparing to relocate the server.</key>
 		<key name="message_0147">#!free!#</key>
 		<key name="message_0148">#!free!#</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
