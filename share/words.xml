@@ -4053,7 +4053,15 @@ The duplicate will be removed.</key>
 		<key name="warning_0011">[ Warning ] - Setting the device: [#!variable!device!#] (NM uuid: [#!variable!uuid!#] to not have an IP address.</key>
 		<key name="warning_0012">[ Warning ] - I was asked to run the query: [#!variable!query!#], but there are no databases available to read from.</key>
 		<key name="warning_0013">[ Warning ] - </key>
-		<key name="warning_0014">#!free!#</key>
+		<key name="warning_0014">[ Warning ] - Failed to parse the 'virsh capabilities'. The XML read was:
+========
+#!variable!xml!#
+========
+The error was:
+========
+#!variable!error!#
+========
+</key>
 		<key name="warning_0015">#!free!#</key>
 		<key name="warning_0016">#!free!#</key>
 		<key name="warning_0017">#!free!#</key>

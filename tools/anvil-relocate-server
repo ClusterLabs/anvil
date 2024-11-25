@@ -196,6 +196,7 @@ sub ask_target_anvil
 	my ($anvil, $terminal) = @_;
 	
 	$anvil->Database->get_drbd_data({debug => 2});
+	$anvil->Get->cpu_flags({debug => 2});
 	#$anvil->Database->get_storage_group_data({debug => 2});
 	my $server_uuid       = $anvil->data->{relocate}{server_uuid};
 	my $server_name       = $anvil->data->{relocate}{server_name};
@@ -307,14 +308,23 @@ sub ask_target_anvil
 			anvil_uuid => $anvil_uuid, 
 		});
 		
-		my $sufficient_cpu  = 0;
-		my $sufficient_ram  = 0;
-		my $sufficient_disk = 0;
-		my $available_cores = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available}; 
-		my $available_ram   = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}; 
+		my $sufficient_cpu     = 0;
+		my $sufficient_ram     = 0;
+		my $sufficient_disk    = 0;
+		my $cpu_flags_ok       = 1;
+		my $available_cores    = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available}; 
+		my $available_ram      = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}; 
+		my $subnode1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $subnode1_host_name = $anvil->data->{hosts}{host_uuid}{$subnode1_host_uuid}{short_host_name};
+		my $subnode2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $subnode2_host_name = $anvil->data->{hosts}{host_uuid}{$subnode2_host_uuid}{short_host_name};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			available_cores => $available_cores, 
-			available_ram   => $available_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram}).")", 
+			"s1:available_cores"    => $available_cores, 
+			"s2:available_ram"      => $available_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram}).")", 
+			"s3:subnode1_host_uuid" => $subnode1_host_uuid, 
+			"s4:subnode1_host_name" => $subnode1_host_name, 
+			"s5:subnode2_host_uuid" => $subnode2_host_uuid, 
+			"s6:subnode2_host_name" => $subnode2_host_name, 
 		}});
 		$anvil->data->{relocate}{anvil_name}{$anvil_name}{available_cores} = $available_cores;
 		$anvil->data->{relocate}{anvil_name}{$anvil_name}{available_ram}   = $available_ram;
@@ -322,6 +332,21 @@ sub ask_target_anvil
 			"relocate::anvil_name::${anvil_name}:available_cores" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{available_cores}, 
 			"relocate::anvil_name::${anvil_name}:available_ram"   => $anvil->data->{relocate}{anvil_name}{$anvil_name}{available_ram}, 
 		}});
+		
+		foreach my $flag (sort {$a cmp $b} keys %{$anvil->data->{relocate}{cpu_flag}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flag => $flag }});
+			if (not $anvil->data->{cpu_flags}{$subnode1_host_uuid}{flag}{$flag})
+			{
+				$cpu_flags_ok = 0;
+				print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode1_host_name."]\n";
+			}
+			elsif (not $anvil->data->{cpu_flags}{$subnode2_host_uuid}{flag}{$flag})
+			{
+				$cpu_flags_ok = 0;
+				print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode2_host_name."]\n";
+			}
+		}
 		
 		#print "- Anvil: [".$anvil_name."], Description: [".$anvil_description."]\n";
 		#print " |- Available cores: [".$available_cores."], RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram})."]\n";
@@ -355,7 +380,7 @@ sub ask_target_anvil
 				$sufficient_disk = 1;
 			}
 		}
-		if (($sufficient_cpu) && ($sufficient_ram) && ($sufficient_disk))
+		if (($sufficient_cpu) && ($sufficient_ram) && ($sufficient_disk) && ($cpu_flags_ok))
 		{
 			#print " \\- This node can host the server.\n";
 			$anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate} = 1;
