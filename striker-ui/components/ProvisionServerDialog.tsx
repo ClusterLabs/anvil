@@ -726,79 +726,75 @@ const createVirtualDiskForm = (
         },
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <OutlinedLabeledInputWithSelect
-          id={`ps-virtual-disk-size-${vdIndex}`}
-          label="Disk size"
-          messageBoxProps={get('inputSizeMessages')}
-          inputWithLabelProps={{
-            inputProps: {
-              endAdornment: createMaxValueButton(
-                `${get('inputMaxes')} ${get('inputUnits')}`,
-                {
-                  onButtonClick: () => {
-                    set('inputSizes', get('inputMaxes'));
-                    changeVDSize(get('maxes'));
-                  },
+      <OutlinedLabeledInputWithSelect
+        id={`ps-virtual-disk-size-${vdIndex}`}
+        label="Disk size"
+        messageBoxProps={get('inputSizeMessages')}
+        inputWithLabelProps={{
+          inputProps: {
+            endAdornment: createMaxValueButton(
+              `${get('inputMaxes')} ${get('inputUnits')}`,
+              {
+                onButtonClick: () => {
+                  set('inputSizes', get('inputMaxes'));
+                  changeVDSize(get('maxes'));
                 },
-              ),
-              onChange: ({ target: { value } }) => {
-                handleVDSizeChange({ value });
               },
-              type: 'number',
-              value: get('inputSizes'),
-            },
-            inputLabelProps: {
-              isNotifyRequired: get('sizes') === BIGINT_ZERO,
-            },
-          }}
-          selectItems={DSIZE_SELECT_ITEMS}
-          selectWithLabelProps={{
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const selectedUnit = value as DataSizeUnit;
-
-                handleVDSizeChange({ unit: selectedUnit });
-              },
-              value: get('inputUnits'),
-            },
-          }}
-        />
-      </Box>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <SelectWithLabel
-          id={`ps-storage-group-${vdIndex}`}
-          label="Storage group"
-          disableItem={(value) =>
-            !(
-              includeStorageGroupUUIDs.includes(value) &&
-              get('sizes') <= storageGroupUUIDMapToData[value].storageGroupFree
-            )
-          }
-          inputLabelProps={{
-            isNotifyRequired: get('inputStorageGroupUUIDs').length === 0,
-          }}
-          messageBoxProps={get('inputStorageGroupUUIDMessages')}
-          selectItems={storageGroupSelectItems}
-          selectProps={{
+            ),
             onChange: ({ target: { value } }) => {
-              const selectedStorageGroupUUID = value as string;
-
-              handleVDStorageGroupChange(selectedStorageGroupUUID);
+              handleVDSizeChange({ value });
             },
-            onClearIndicatorClick: () => handleVDStorageGroupChange(''),
-            renderValue: (value) => {
-              const {
-                anvilName: rvAnvilName = '?',
-                storageGroupName: rvStorageGroupName = `Unknown (${value})`,
-              } = storageGroupUUIDMapToData[value as string] ?? {};
+            type: 'number',
+            value: get('inputSizes'),
+          },
+          inputLabelProps: {
+            isNotifyRequired: get('sizes') === BIGINT_ZERO,
+          },
+        }}
+        selectItems={DSIZE_SELECT_ITEMS}
+        selectWithLabelProps={{
+          selectProps: {
+            onChange: ({ target: { value } }) => {
+              const selectedUnit = value as DataSizeUnit;
 
-              return `${rvStorageGroupName} (${rvAnvilName})`;
+              handleVDSizeChange({ unit: selectedUnit });
             },
-            value: get('inputStorageGroupUUIDs'),
-          }}
-        />
-      </Box>
+            value: get('inputUnits'),
+          },
+        }}
+      />
+      <SelectWithLabel
+        id={`ps-storage-group-${vdIndex}`}
+        label="Storage group"
+        disableItem={(value) =>
+          !(
+            includeStorageGroupUUIDs.includes(value) &&
+            get('sizes') <= storageGroupUUIDMapToData[value].storageGroupFree
+          )
+        }
+        inputLabelProps={{
+          isNotifyRequired: get('inputStorageGroupUUIDs').length === 0,
+        }}
+        messageBoxProps={get('inputStorageGroupUUIDMessages')}
+        selectItems={storageGroupSelectItems}
+        selectProps={{
+          onChange: ({ target: { value } }) => {
+            const selectedStorageGroupUUID = value as string;
+
+            handleVDStorageGroupChange(selectedStorageGroupUUID);
+          },
+          onClearIndicatorClick: () => handleVDStorageGroupChange(''),
+          renderValue: (value) => {
+            const {
+              anvilName: rvAnvilName = '?',
+              storageGroupName: rvStorageGroupName = `Unknown (${value})`,
+            } = storageGroupUUIDMapToData[value as string] ?? {};
+
+            return `${rvStorageGroupName} (${rvAnvilName})`;
+          },
+          value: get('inputStorageGroupUUIDs'),
+        }}
+      />
     </Box>
   );
 };
@@ -1624,24 +1620,22 @@ const ProvisionServerDialog = ({
               },
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <OutlinedInputWithLabel
-                id="ps-server-name"
-                label="Server name"
-                inputProps={{
-                  onChange: ({ target: { value } }) => {
-                    setInputServerNameValue(value);
+            <OutlinedInputWithLabel
+              id="ps-server-name"
+              label="Server name"
+              inputProps={{
+                onChange: ({ target: { value } }) => {
+                  setInputServerNameValue(value);
 
-                    testInput({ inputs: { serverName: { value } } });
-                  },
-                  value: inputServerNameValue,
-                }}
-                inputLabelProps={{
-                  isNotifyRequired: inputServerNameValue.length === 0,
-                }}
-                messageBoxProps={inputServerNameMessage}
-              />
-            </Box>
+                  testInput({ inputs: { serverName: { value } } });
+                },
+                value: inputServerNameValue,
+              }}
+              inputLabelProps={{
+                isNotifyRequired: inputServerNameValue.length === 0,
+              }}
+              messageBoxProps={inputServerNameMessage}
+            />
             <Autocomplete
               id="ps-cpu-cores"
               disableClearable
@@ -1818,7 +1812,6 @@ const ProvisionServerDialog = ({
         ) : (
           <Spinner />
         )}
-
         <Box
           sx={{
             display: 'flex',
