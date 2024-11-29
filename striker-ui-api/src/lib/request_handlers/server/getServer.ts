@@ -19,59 +19,137 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
 
   poutvar({ condAnvilUUIDs });
 
+  const sql = `
+    SELECT
+      a.server_uuid,
+      a.server_name,
+      a.server_state,
+      a.anvil_uuid,
+      a.anvil_name,
+      a.anvil_description,
+      a.host_uuid,
+      a.host_name,
+      a.host_type,
+      d.job_uuid,
+      d.job_progress,
+      d.server_name,
+      d.host_uuid,
+      d.host_name,
+      d.host_type,
+      d.anvil_uuid,
+      d.anvil_name,
+      d.anvil_description
+    FROM (
+        SELECT
+          a1.server_uuid,
+          a1.server_name,
+          a1.server_state,
+          a2.anvil_uuid,
+          a2.anvil_name,
+          a2.anvil_description,
+          a3.host_uuid,
+          a3.host_name,
+          a3.host_type
+        FROM servers AS a1
+        JOIN anvils AS a2
+          ON a2.anvil_uuid = a1.server_anvil_uuid
+        JOIN hosts AS a3
+          ON a3.host_uuid = a1.server_host_uuid
+        WHERE a1.server_state != '${DELETED}'
+          ${condAnvilUUIDs}
+        ORDER BY a1.server_name ASC
+      ) AS a
+    FULL JOIN (
+        SELECT
+          d1.job_uuid,
+          d1.job_progress,
+          SUBSTRING(d1.job_data, 'server_name=([^\\n]*)') AS server_name,
+          d2.host_uuid,
+          d2.host_name,
+          d2.host_type,
+          d3.anvil_uuid,
+          d3.anvil_name,
+          d3.anvil_description
+        FROM jobs AS d1
+        JOIN hosts AS d2
+          ON d2.host_uuid = d1.job_host_uuid
+        JOIN anvils AS d3
+          ON d2.host_uuid IN (
+            d3.anvil_node1_host_uuid,
+            d3.anvil_node2_host_uuid
+          )
+        WHERE d1.job_command LIKE '%anvil-provision-server%'
+          AND d1.job_data NOT LIKE '%peer_mode=true%'
+          ${condAnvilUUIDs}
+        ORDER BY server_name ASC
+      ) AS d
+      ON d.server_name = a.server_name
+    ;`;
+
   hooks.afterQueryReturn = buildQueryResultReducer<ServerOverviewList>(
     (previous, row) => {
       const [
         serverUuid,
         serverName,
         serverState,
-        anUuid,
-        anName,
-        anDescription,
+        anvilUuid,
+        anvilName,
+        anvilDescription,
         hostUuid,
         hostName,
         hostType,
+        jobUuid,
+        jobProgress,
+        pendingServerName,
+        pendingHostUuid,
+        pendingHostName,
+        pendingHostType,
+        pendingAnvilUuid,
+        pendingAnvilName,
+        pendingAnvilDescription,
       ] = row;
 
-      previous[serverUuid] = {
-        anvil: {
-          description: anDescription,
-          name: anName,
-          uuid: anUuid,
-        },
-        host: {
-          name: hostName,
-          short: getShortHostName(hostName),
-          type: hostType,
-          uuid: hostUuid,
-        },
-        name: serverName,
-        state: serverState,
-        uuid: serverUuid,
-      };
+      if (serverUuid) {
+        previous[serverUuid] = {
+          anvil: {
+            description: anvilDescription,
+            name: anvilName,
+            uuid: anvilUuid,
+          },
+          host: {
+            name: hostName,
+            short: getShortHostName(hostName),
+            type: hostType,
+            uuid: hostUuid,
+          },
+          name: serverName,
+          state: serverState,
+          uuid: serverUuid,
+        };
+      } else if (jobUuid) {
+        previous[jobUuid] = {
+          anvil: {
+            description: pendingAnvilDescription,
+            name: pendingAnvilName,
+            uuid: pendingAnvilUuid,
+          },
+          host: {
+            name: pendingHostName,
+            short: getShortHostName(pendingHostName),
+            type: pendingHostType,
+            uuid: pendingHostUuid,
+          },
+          job: { progress: Number(jobProgress), uuid: jobUuid },
+          name: pendingServerName,
+          state: 'pending',
+          uuid: jobUuid,
+        };
+      }
 
       return previous;
     },
     {},
   );
 
-  return `
-      SELECT
-        a.server_uuid,
-        a.server_name,
-        a.server_state,
-        b.anvil_uuid,
-        b.anvil_name,
-        b.anvil_description,
-        c.host_uuid,
-        c.host_name,
-        c.host_type
-      FROM servers AS a
-      JOIN anvils AS b
-        ON a.server_anvil_uuid = b.anvil_uuid
-      JOIN hosts AS c
-        ON a.server_host_uuid = c.host_uuid
-      WHERE a.server_state != '${DELETED}'
-        ${condAnvilUUIDs}
-      ORDER BY a.server_name;`;
+  return sql;
 });

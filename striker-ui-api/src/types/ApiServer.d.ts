@@ -12,6 +12,10 @@ type ServerOverview = {
     uuid: string;
   };
   host: ServerOverviewHost;
+  job?: {
+    progress: number;
+    uuid: string;
+  };
   name: string;
   state: string;
   uuid: string;
