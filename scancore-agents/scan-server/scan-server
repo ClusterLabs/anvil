@@ -172,7 +172,7 @@ sub connect_to_virsh
 				set_by      => $THIS_FILE, 
 			});
 		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => { $variables }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => $message_key, variables => $variables });
 		
 		if ($is_local)
 		{

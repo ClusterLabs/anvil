@@ -36,6 +36,10 @@ By default, if the server is \fBnot\fR running, the server will be booted when t
 .TP
 By default, and as a safety step, the source is snapshotted before the migration runs. This can take a while, so this switch and bypass this stage. Of course, be sure you have a good backup.
 .TP
+\fB\-\-update\-cpu\fR
+.TP
+If the server being relocated is offline, then this switch can be used to update the server's definition on the target node to \fBhost\-copy\fR. This allows the relocation to proceed even if the target doesn't have some CPU features the old host had. It also allows the server to access new features the new host's CPUs may have.
+.TP
 \fB\-\-server\fR <server name or uuid>
 .TP
 This is the server name or UUID that will be relocated. 
