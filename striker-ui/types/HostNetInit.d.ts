@@ -1,6 +1,7 @@
 type HostNetFormikValues = {
   interfaces: [string, string];
   ip: string;
+  required?: boolean;
   sequence: string;
   subnetMask: string;
   type: string;

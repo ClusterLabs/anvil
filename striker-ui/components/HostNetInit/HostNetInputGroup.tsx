@@ -13,7 +13,7 @@ import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 
 const NETOPS: Record<string, string[]> = {
-  dr: ['bcn', 'ifn', 'sn'],
+  dr: ['bcn', 'ifn', 'mn', 'sn'],
   striker: ['bcn', 'ifn'],
   subnode: ['bcn', 'ifn', 'sn'],
 };
@@ -41,7 +41,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
     const nets = formik.values.networkInit.networks;
 
     if (
-      ['dr', 'subnode'].includes(host.type) &&
+      host.type === 'subnode' &&
       ifaceValues.length >= 8 &&
       (nets[netId].type === 'mn' ||
         Object.values<HostNetFormikValues>(nets).every(
@@ -107,7 +107,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
             />
           </Grid>
         </Grid>
-        {!/^default/.test(netId) && (
+        {!formik.values.networkInit.networks[netId].required && (
           <IconButton
             mapPreset="delete"
             onClick={() => {

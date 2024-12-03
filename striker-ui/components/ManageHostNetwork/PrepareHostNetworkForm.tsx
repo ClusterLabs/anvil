@@ -24,6 +24,7 @@ const buildFormikInitialValues = (
     defaultbcn: {
       interfaces: ['', ''],
       ip: '',
+      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'bcn',
@@ -34,6 +35,7 @@ const buildFormikInitialValues = (
     networks.defaultifn = {
       interfaces: ['', ''],
       ip: '',
+      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'ifn',
@@ -42,9 +44,34 @@ const buildFormikInitialValues = (
     networks.defaultsn = {
       interfaces: ['', ''],
       ip: '',
+      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'sn',
+    };
+  } else if (detail.hostType === 'dr') {
+    networks.ifn = {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'ifn',
+    };
+
+    networks.sn = {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'sn',
+    };
+
+    networks.mn = {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'mn',
     };
   }
 

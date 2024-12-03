@@ -7,11 +7,20 @@ const toHostNetList = (networks: APIHostNetworkList) =>
 
       const sequence = nid.replace(/^.*(\d+)$/, '$1');
 
-      const key = sequence === '1' ? `default${type}` : uuidv4();
+      let key: string;
+      let required: boolean | undefined;
+
+      if (sequence === '1') {
+        key = `default${type}`;
+        required = true;
+      } else {
+        key = uuidv4();
+      }
 
       previous[key] = {
         interfaces: [link1Uuid, link2Uuid],
         ip,
+        required,
         sequence,
         subnetMask,
         type,
