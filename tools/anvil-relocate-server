@@ -31,10 +31,13 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches
 $anvil->Get->switches({list => [
-	"confirm", 
 	"anvil", 
+	"confirm", 
+	"no-boot", 
+	"no-snapshot", 
 	"server", 
 	"storage-group", 
+	"update-cpu", 
 	], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -242,6 +245,8 @@ sub ask_target_anvil
 			flag        => $flag, 
 			is_required => $is_required,
 		}});
+		# I think we can ignore vmx flags.
+		next if $flag =~ /^vmx/;
 		if ($is_required eq "require")
 		{
 			$anvil->data->{relocate}{cpu_flag}{$flag} = 1;
@@ -342,12 +347,12 @@ sub ask_target_anvil
 			if (not $anvil->data->{cpu_flags}{$subnode1_host_uuid}{flag}{$flag})
 			{
 				$cpu_flags_ok = 0;
-				print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode1_host_name."]\n";
+				#print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode1_host_name."]\n";
 			}
 			elsif (not $anvil->data->{cpu_flags}{$subnode2_host_uuid}{flag}{$flag})
 			{
 				$cpu_flags_ok = 0;
-				print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode2_host_name."]\n";
+				#print "- The required CPU flag: [".$flag."] not on subnode: [".$subnode2_host_name."]\n";
 			}
 		}
 		
