@@ -58,6 +58,14 @@ type HostNetInitInputGroupProps<Values extends HostNetInitFormikExtension> =
     host: HostNetInitHost;
   };
 
+/** HostNetSummary */
+
+type HostNetSummaryProps<Values extends HostNetInitFormikExtension> = {
+  gatewayIface: string;
+  ifaces: APINetworkInterfaceOverviewList;
+  values: Values;
+};
+
 /** SimpleIface */
 
 type SimpleIfaceOptionalProps = {

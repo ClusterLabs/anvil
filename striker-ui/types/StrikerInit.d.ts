@@ -28,8 +28,4 @@ type StrikerInitProgressProps = {
 
 /** StrikerInitSummary */
 
-type StrikerInitSummaryProps = {
-  gatewayIface: string;
-  ifaces: APINetworkInterfaceOverviewList;
-  values: StrikerInitFormikValues;
-};
+type StrikerInitSummaryProps = HostNetSummaryProps<StrikerInitFormikValues>;
