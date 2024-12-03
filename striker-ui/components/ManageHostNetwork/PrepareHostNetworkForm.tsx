@@ -132,7 +132,10 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
   );
 
   const { parentSequence, sequence } = useMemo(() => {
-    const numbers = detail.shortHostName.replace(/^.*a(\d+).*n(\d+)$/, '$1,$2');
+    const numbers = detail.shortHostName.replace(
+      /^.*a(\d+).*(?:n|dr)(\d+)$/,
+      '$1,$2',
+    );
 
     const [parentSeq, seq] = numbers.split(',', 2);
 

@@ -3,18 +3,20 @@ import { v4 as uuidv4 } from 'uuid';
 
 const guessHostNets = <F extends HostNetInitFormikExtension>({
   appliedIfaces,
+  autoAddMn,
   chains,
   data,
-  host,
-  autoAddMn,
   formikUtils,
+  host,
+  subnodeCount = 2,
 }: {
   appliedIfaces: Record<string, boolean>;
+  autoAddMn: React.MutableRefObject<boolean>;
   chains: Record<'dns' | 'gateway' | 'networkInit' | 'networks', string>;
   data: APINetworkInterfaceOverviewList;
-  host: HostNetInitHost;
-  autoAddMn: React.MutableRefObject<boolean>;
   formikUtils: FormikUtils<F>;
+  host: HostNetInitHost;
+  subnodeCount?: number;
 }) => {
   const { formik, getFieldChanged } = formikUtils;
 
@@ -113,7 +115,7 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
       if (host.type === 'striker') {
         ipo3 = '4';
       } else if (host.parentSequence > 0) {
-        ipo3 = String(10 + 2 * (host.parentSequence - 1));
+        ipo3 = String(10 + subnodeCount * (host.parentSequence - 1));
       }
 
       // eslint-disable-next-line complexity
@@ -134,7 +136,13 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
               ? 199
               : ipo2Prefixes[slotType] + Number(slot.sequence);
 
-          const ip = `10.${ipo2}.${ipo3}.${host.sequence}`;
+          let ipo4 = host.sequence;
+
+          if (host.type === 'dr') {
+            ipo4 += subnodeCount;
+          }
+
+          const ip = `10.${ipo2}.${ipo3}.${ipo4}`;
 
           slot.ip = ip;
         }
