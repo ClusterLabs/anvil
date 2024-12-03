@@ -13,6 +13,7 @@ import DragArea, { dragAreaClasses } from './DragArea';
 import DragDataGrid, { dragDataGridClasses } from './DragDataGrid';
 import FlexBox from '../FlexBox';
 import guessHostNets from './guessHostNets';
+import HostNetBox from './HostNetBox';
 import HostNetInputGroup from './HostNetInputGroup';
 import IfaceDragHandle, { ifaceDragHandleClasses } from './IfaceDragHandle';
 import IconButton from '../IconButton';
@@ -308,45 +309,25 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
             }}
             rows={ifaceValues}
           />
-          <Box
-            sx={{
-              display: 'grid',
-              gridAutoColumns: {
-                xs: '100%',
-                sm: '50%',
-                md: 'calc(100% / 3)',
-                lg: '25%',
-              },
-              gridAutoFlow: 'column',
-              overflowX: 'scroll',
-              scrollSnapType: 'x',
-
-              '& > div': {
-                scrollSnapAlign: 'start',
-              },
-
-              '& > :not(div:first-child)': {
-                marginLeft: '1em',
-              },
-            }}
-          >
+          <HostNetBox>
             {hostNets.map((entry) => {
               const [key] = entry;
 
               return (
-                <HostNetInputGroup<Values>
-                  appliedIfaces={appliedIfaces}
-                  formikUtils={formikUtils}
-                  host={host}
-                  ifaceHeld={ifaceHeld}
-                  ifaces={ifaces}
-                  ifaceValues={ifaceValues}
-                  key={`hostnet-${key}`}
-                  netId={key}
-                />
+                <Box key={`hostnet-${key}`}>
+                  <HostNetInputGroup<Values>
+                    appliedIfaces={appliedIfaces}
+                    formikUtils={formikUtils}
+                    host={host}
+                    ifaceHeld={ifaceHeld}
+                    ifaces={ifaces}
+                    ifaceValues={ifaceValues}
+                    netId={key}
+                  />
+                </Box>
               );
             })}
-          </Box>
+          </HostNetBox>
         </DragArea>
       </Grid>
       <Grid alignSelf="center" item xs={1} sm="auto">
@@ -370,7 +351,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           }}
         />
       </Grid>
-      <Grid item xs={1}>
+      <Grid item xs={1} sm md="auto">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
@@ -384,7 +365,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           }
         />
       </Grid>
-      <Grid item xs={1}>
+      <Grid item xs={1} sm md="auto">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel

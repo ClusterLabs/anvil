@@ -5,6 +5,7 @@ import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
 import Autocomplete from '../Autocomplete';
 import DropArea from '../DropArea';
+import { deleteButtonOffset } from './HostNetBox';
 import IconButton from '../IconButton';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
@@ -17,6 +18,8 @@ const NETOPS: Record<string, string[]> = {
   striker: ['bcn', 'ifn'],
   subnode: ['bcn', 'ifn', 'sn'],
 };
+
+const netSeqInputWidth = '3.4em';
 
 const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   ...[props]: Parameters<FC<HostNetInputGroupProps<Values>>>
@@ -80,8 +83,11 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   return (
     <InnerPanel>
       <InnerPanelHeader>
-        <Grid columns={{ xs: 1, sm: 2, md: 4 }} container spacing="0.1em">
-          <Grid item xs={1} md={3}>
+        <Grid container spacing="0.1em">
+          <Grid
+            item
+            width={{ xs: '100%', sm: `calc(100% - ${netSeqInputWidth})` }}
+          >
             <SelectWithLabel
               id={chains.type}
               label="Network type"
@@ -92,7 +98,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               value={formik.values.networkInit.networks[netId].type}
             />
           </Grid>
-          <Grid item xs={1} md={1}>
+          <Grid item width={{ xs: '100%', sm: netSeqInputWidth }}>
             <UncontrolledInput
               input={
                 <OutlinedInputWithLabel
@@ -119,8 +125,8 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
             sx={{
               padding: '.2em',
               position: 'absolute',
-              right: '-9px',
-              top: '-4px',
+              right: `-${deleteButtonOffset}`,
+              top: '-.2em',
             }}
           />
         )}
