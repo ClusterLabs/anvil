@@ -16,7 +16,7 @@ import UncontrolledInput from '../UncontrolledInput';
 const NETOPS: Record<string, string[]> = {
   dr: ['bcn', 'ifn', 'mn', 'sn'],
   striker: ['bcn', 'ifn'],
-  subnode: ['bcn', 'ifn', 'sn'],
+  subnode: ['bcn', 'ifn', 'mn', 'sn'],
 };
 
 const netSeqInputWidth = '3.4em';
@@ -37,33 +37,15 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   const { formik, handleChange, setFieldChanged } = formikUtils;
 
   const netTypeOptions = useMemo<SelectItem[]>(() => {
-    let base: string[] = NETOPS[host.type];
+    const base: string[] = NETOPS[host.type];
 
     if (!base) return [];
-
-    const nets = formik.values.networkInit.networks;
-
-    if (
-      host.type === 'subnode' &&
-      ifaceValues.length >= 8 &&
-      (nets[netId].type === 'mn' ||
-        Object.values<HostNetFormikValues>(nets).every(
-          (net) => net.type !== 'mn',
-        ))
-    ) {
-      base = [...base, 'mn'].sort();
-    }
 
     return base.map((type) => ({
       displayValue: NETWORK_TYPES[type] ?? 'Unknown network',
       value: type,
     }));
-  }, [
-    formik.values.networkInit.networks,
-    host.type,
-    ifaceValues.length,
-    netId,
-  ]);
+  }, [host.type]);
 
   const chains = useMemo(() => {
     const ns = 'networkInit.networks';

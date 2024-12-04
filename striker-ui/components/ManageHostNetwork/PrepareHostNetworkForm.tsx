@@ -24,56 +24,32 @@ const buildFormikInitialValues = (
     defaultbcn: {
       interfaces: ['', ''],
       ip: '',
-      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'bcn',
     },
-  };
-
-  if (detail.hostType === 'node') {
-    networks.defaultifn = {
-      interfaces: ['', ''],
-      ip: '',
-      required: true,
-      sequence: '1',
-      subnetMask: '',
-      type: 'ifn',
-    };
-
-    networks.defaultsn = {
-      interfaces: ['', ''],
-      ip: '',
-      required: true,
-      sequence: '1',
-      subnetMask: '',
-      type: 'sn',
-    };
-  } else if (detail.hostType === 'dr') {
-    networks.ifn = {
+    defaultifn: {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'ifn',
-    };
-
-    networks.sn = {
+    },
+    defaultsn: {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'sn',
-    };
-
-    networks.mn = {
+    },
+    defaultmn: {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'mn',
-    };
-  }
+    },
+  };
 
   if (nets) {
     networks = toHostNetList(nets);

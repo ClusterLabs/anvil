@@ -31,7 +31,6 @@ const buildFormikInitialValues = (
     defaultbcn: {
       interfaces: ['', ''],
       ip: '',
-      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'bcn',
@@ -39,7 +38,6 @@ const buildFormikInitialValues = (
     defaultifn: {
       interfaces: ['', ''],
       ip: '',
-      required: true,
       sequence: '1',
       subnetMask: '',
       type: 'ifn',
