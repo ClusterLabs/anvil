@@ -8,6 +8,12 @@ type APIServerState =
   | 'running'
   | 'shut off';
 
+type APIServerOverviewAnvil = {
+  description: string;
+  name: string;
+  uuid: string;
+};
+
 type APIServerOverviewHost = {
   name: string;
   short: string;
@@ -15,13 +21,15 @@ type APIServerOverviewHost = {
   uuid: string;
 };
 
+type APIServerOverviewJob = {
+  progress: number;
+  uuid: string;
+};
+
 type APIServerOverview = {
-  anvil: {
-    description: string;
-    name: string;
-    uuid: string;
-  };
-  host: APIServerOverviewHost;
+  anvil: APIServerOverviewAnvil;
+  host?: APIServerOverviewHost;
+  job?: APIServerOverviewJob;
   name: string;
   state: APIServerState;
   uuid: string;
@@ -104,7 +112,8 @@ type APIServerDetailHostBridge = {
   uuid: string;
 };
 
-type APIServerDetail = Omit<APIServerOverview, 'host'> & {
+type APIServerDetail = APIServerOverview & {
+  bridges: Record<string, APIServerDetailHostBridge>;
   cpu: APIServerDetailCpu;
   devices: {
     diskOrderBy: {
@@ -113,9 +122,6 @@ type APIServerDetail = Omit<APIServerOverview, 'host'> & {
     };
     disks: APIServerDetailDisk[];
     interfaces: APIServerDetailInterface[];
-  };
-  host: APIServerOverviewHost & {
-    bridges: Record<string, APIServerDetailHostBridge>;
   };
   libvirt: {
     nicModels: string[];
