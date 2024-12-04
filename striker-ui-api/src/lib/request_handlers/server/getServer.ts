@@ -53,7 +53,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
         FROM servers AS a1
         JOIN anvils AS a2
           ON a2.anvil_uuid = a1.server_anvil_uuid
-        JOIN hosts AS a3
+        LEFT JOIN hosts AS a3
           ON a3.host_uuid = a1.server_host_uuid
         WHERE a1.server_state != '${DELETED}'
           ${condAnvilUUIDs}
@@ -110,18 +110,24 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
       ] = row;
 
       if (serverUuid) {
+        let host: ServerOverviewHost | undefined;
+
+        if (hostUuid) {
+          host = {
+            name: hostName,
+            short: getShortHostName(hostName),
+            type: hostType,
+            uuid: hostUuid,
+          };
+        }
+
         previous[serverUuid] = {
           anvil: {
             description: anvilDescription,
             name: anvilName,
             uuid: anvilUuid,
           },
-          host: {
-            name: hostName,
-            short: getShortHostName(hostName),
-            type: hostType,
-            uuid: hostUuid,
-          },
+          host,
           name: serverName,
           state: serverState,
           uuid: serverUuid,
