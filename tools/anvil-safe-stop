@@ -135,7 +135,7 @@ if (not $anvil->data->{switches}{'stop-reason'})
 	}});
 }
 
-if (($host_type eq "node") or ($host_type or "dr"))
+if (($host_type eq "node") or ($host_type eq "dr"))
 {
 	# Migrate or stop the servers, if any servers are running here.
 	process_servers($anvil);
