@@ -66,9 +66,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 		job_picked_up_at => time, 
 		message          => "message_0251", 
 	});
-	
-	# Job data will be in $anvil->data->{jobs}{job_data}
-	run_jobs($anvil);
 }
 
 if ($anvil->data->{switches}{resync})

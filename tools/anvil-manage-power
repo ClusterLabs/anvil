@@ -319,6 +319,16 @@ sub do_poweroff
 		});
 	}
 	
+	# If we're powering off, set the status now
+	if ($task eq "poweroff")
+	{
+		$anvil->Database->update_host_status({
+			debug       => 2,
+			host_uuid   => $anvil->Get->host_uuid,
+			host_status => "powered off",
+		});
+	}
+	
 	# Now do the deed.
 	my $shell_call = $anvil->data->{path}{exe}{systemctl}." ".$task;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
