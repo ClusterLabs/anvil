@@ -2140,9 +2140,9 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0253">The database user is not 'admin'. Changing table and function ownerships to: [#!variable!database_user!#].</key>
 		<key name="log_0254">[ Warning ] - The Storage->make_directory() method failed to create the directory: [#!variable!directory!#].</key>
 		<key name="log_0255">[ Note ] - Created the directory: [#!variable!directory!#].</key>
-		<key name="log_0256">#!free!#</key>
-		<key name="log_0257">#!free!#</key>
-		<key name="log_0258">#!free!#</key>
+		<key name="log_0256">### POWER OFF REQUESTED ### - [#!variable!reason!#]</key>
+		<key name="log_0257">Stopping Anvil! daemons.</key>
+		<key name="log_0258">Syncing the file systems.</key>
 		<key name="log_0259">#!free!#</key>
 		<key name="log_0260">#!free!#</key>
 		<key name="log_0261">#!free!#</key>

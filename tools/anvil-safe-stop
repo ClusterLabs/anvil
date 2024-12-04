@@ -125,12 +125,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 # Make sure we're a subnode or DR host
 my $host_type = $anvil->Get->host_type();
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-if (($host_type ne "node") && ($host_type ne "dr"))
-{
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
-	$anvil->Job->update_progress({progress => 100, message => "error_0260"}) if $anvil->data->{switches}{'job-uuid'};
-	$anvil->nice_exit({exit_code => 1});
-}
 
 # If no stop-reason was set, set it to 'user'
 if (not $anvil->data->{switches}{'stop-reason'})
@@ -141,14 +135,20 @@ if (not $anvil->data->{switches}{'stop-reason'})
 	}});
 }
 
-# Migrate or stop the servers, if any servers are running here.
-process_servers($anvil);
+if (($host_type eq "node") or ($host_type or "dr"))
+{
+	# Migrate or stop the servers, if any servers are running here.
+	process_servers($anvil);
 
-# This waits on DRBD if we're SyncSource
-wait_on_drbd($anvil);
+	# This waits on DRBD if we're SyncSource
+	wait_on_drbd($anvil);
+}
 
-# This stops pacemaker
-stop_cluster($anvil);
+if ($host_type eq "node")
+{
+	# This stops pacemaker
+	stop_cluster($anvil);
+}
 
 # Are we powering off?
 if ($anvil->data->{switches}{'power-off'})
@@ -160,9 +160,16 @@ if ($anvil->data->{switches}{'power-off'})
 		host_status => "stopping",
 	});
 	
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0687", variables => { reason => "#!string!log_0692!#" }});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0325"});
-	$anvil->Job->update_progress({progress => 100, message => "job_0325"}) if $anvil->data->{switches}{'job-uuid'};
+	# Tell the user we're shutting down.
+	$anvil->Job->update_progress({
+		progress  => 85, 
+		log_level => 1, 
+		'print'   => 1, 
+		message   => "log_0256",
+		variables => { 
+			reason => $anvil->data->{switches}{'stop-reason'},
+		}
+	});
 	
 	# Set the stop reason.
 	if ($anvil->data->{switches}{'stop-reason'})
@@ -183,9 +190,53 @@ if ($anvil->data->{switches}{'power-off'})
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{systemctl}." poweroff";
+	# Stop scancore and anvil-daemon.
+	$anvil->Job->update_progress({
+		progress  => 90, 
+		log_level => 1, 
+		'print'   => 1, 
+		message   => "log_0257",
+	});
+	my $anvil_daemon_return_code = $anvil->System->stop_daemon({daemon => "anvil-daemon.service"});
+	my $scancore_return_code     = $anvil->System->stop_daemon({daemon => "scancore.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_daemon_return_code => $anvil_daemon_return_code,
+		scancore_return_code     => $scancore_return_code, 
+	}});
+	
+	# Sync the file systems
+	$anvil->Job->update_progress({
+		progress  => 95, 
+		log_level => 1, 
+		'print'   => 1, 
+		message   => "log_0258",
+	});
+	my $shell_call = $anvil->data->{path}{exe}{sync};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# Mark that we're actually off.
+	$anvil->Database->update_host_status({
+		debug       => 2,
+		host_uuid   => $anvil->Get->host_uuid,
+		host_status => "powered off",
+	});
+	
+	# Mark that we're now powered off
+	$anvil->Job->update_progress({
+		progress => 100, 
+		log_level => 1, 
+		'print'   => 1, 
+		message => "job_0325",
+	});
+	
+	$shell_call = $anvil->data->{path}{exe}{systemctl}." poweroff";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
 	
 	# Unlikely we're still alive, but 'poweroff' does return once enqueued, so...
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
