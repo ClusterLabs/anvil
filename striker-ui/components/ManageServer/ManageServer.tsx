@@ -207,9 +207,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                   },
                   {
                     header: 'On host',
-                    value: detail.host
-                      ? `${detail.host.name} (${detail.host.short})`
-                      : 'None',
+                    value: detail.host ? detail.host.short : 'None',
                   },
                 ].map(({ header, value }) => (
                   <Grid key={`general-${header}`} item width="100%">
