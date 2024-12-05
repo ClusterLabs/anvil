@@ -13,7 +13,7 @@ type APIFileOverview = {
   uuid: string;
 };
 
-type APIFileDetail = APIFileOverview & {
+type APIFileDetail = Omit<APIFileOverview, 'anvils'> & {
   anvils: {
     [uuid: string]: {
       description: string;
