@@ -212,7 +212,7 @@ export const getServerDetail: RequestHandler<
           b.anvil_node1_host_uuid,
           b.anvil_node2_host_uuid
         )
-      WHERE a.anvil_uuid = '${anvilUuid}';`;
+      WHERE b.anvil_uuid = '${anvilUuid}';`;
 
     try {
       rows = await query(sql);
