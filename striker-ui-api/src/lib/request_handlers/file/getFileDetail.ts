@@ -70,13 +70,17 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
 
             const { anvils, hosts, locations } = previous;
 
-            if (!anvils[anvilUuid]) {
-              anvils[anvilUuid] = {
-                description: anvilDescription,
-                locationUuids: [],
-                name: anvilName,
-                uuid: anvilUuid,
-              };
+            if (anvilUuid) {
+              if (!anvils[anvilUuid]) {
+                anvils[anvilUuid] = {
+                  description: anvilDescription,
+                  locationUuids: [],
+                  name: anvilName,
+                  uuid: anvilUuid,
+                };
+              }
+
+              anvils[anvilUuid].locationUuids.push(locationUuid);
             }
 
             if (!hosts[hostUuid]) {
@@ -86,10 +90,6 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
                 type: hostType,
                 uuid: hostUuid,
               };
-            }
-
-            if (anvilUuid) {
-              anvils[anvilUuid].locationUuids.push(locationUuid);
             }
 
             hosts[hostUuid].locationUuids.push(locationUuid);
