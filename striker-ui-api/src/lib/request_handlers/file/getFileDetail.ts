@@ -35,11 +35,10 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
       FROM files AS a
       JOIN file_locations AS b
         ON a.file_uuid = b.file_location_file_uuid
-      JOIN anvils AS c
+      LEFT JOIN anvils AS c
         ON b.file_location_host_uuid IN (
           c.anvil_node1_host_uuid,
-          c.anvil_node2_host_uuid,
-          c.anvil_dr1_host_uuid
+          c.anvil_node2_host_uuid
         )
       JOIN hosts AS d
         ON b.file_location_host_uuid = d.host_uuid
@@ -69,8 +68,10 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
               hostType,
             ] = row.slice(6);
 
-            if (!previous.anvils[anvilUuid]) {
-              previous.anvils[anvilUuid] = {
+            const { anvils, hosts, locations } = previous;
+
+            if (!anvils[anvilUuid]) {
+              anvils[anvilUuid] = {
                 description: anvilDescription,
                 locationUuids: [],
                 name: anvilName,
@@ -78,8 +79,8 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
               };
             }
 
-            if (!previous.hosts[hostUuid]) {
-              previous.hosts[hostUuid] = {
+            if (!hosts[hostUuid]) {
+              hosts[hostUuid] = {
                 locationUuids: [],
                 name: hostName,
                 type: hostType,
@@ -87,13 +88,13 @@ export const getFileDetail: RequestHandler = buildGetRequestHandler(
               };
             }
 
-            if (hostType === 'dr') {
-              previous.hosts[hostUuid].locationUuids.push(locationUuid);
-            } else {
-              previous.anvils[anvilUuid].locationUuids.push(locationUuid);
+            if (anvilUuid) {
+              anvils[anvilUuid].locationUuids.push(locationUuid);
             }
 
-            previous.locations[locationUuid] = {
+            hosts[hostUuid].locationUuids.push(locationUuid);
+
+            locations[locationUuid] = {
               anvilUuid,
               active: Boolean(locationActive),
               hostUuid,
