@@ -398,7 +398,7 @@ const listNicModels = async (target: string) => {
         params: [
           {
             target,
-            shell_call: `${SERVER_PATHS.usr.libexec['qemu-kvm'].self} -net nic,model=help`,
+            shell_call: `${SERVER_PATHS.usr.libexec['qemu-kvm'].self} -nic model=help`,
           },
         ],
         pre: ['Remote'],
