@@ -33,7 +33,7 @@ type APIFileDetail = Omit<APIFileOverview, 'anvils'> & {
   locations: {
     [uuid: string]: {
       active: boolean;
-      anvilUuid: string;
+      anvilUuid: null | string;
       hostUuid: string;
       ready: boolean;
       uuid: string;
