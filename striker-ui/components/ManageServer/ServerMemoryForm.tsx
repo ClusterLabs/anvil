@@ -104,12 +104,12 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
             </BodyText>
           </Grid>
           <Grid item textAlign="right">
-            <BodyText>System reserved: {formattedMemory.reserved}</BodyText>
+            <BodyText>System: {formattedMemory.reserved}</BodyText>
             <BodyText>Total: {formattedMemory.total}</BodyText>
           </Grid>
         </Grid>
       </Grid>
-      <Grid item xs={1}>
+      <Grid item sm="auto" xs={1}>
         <UncontrolledInput
           input={
             <OutlinedLabeledInputWithSelect
