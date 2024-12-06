@@ -5,6 +5,13 @@ type ServerOverviewHost = {
   uuid: string;
 };
 
+type ServerOverviewJob = {
+  host: ServerOverviewHost;
+  peer?: boolean;
+  progress: number;
+  uuid: string;
+};
+
 type ServerOverview = {
   anvil: {
     description: string;
@@ -12,10 +19,7 @@ type ServerOverview = {
     uuid: string;
   };
   host?: ServerOverviewHost;
-  job?: {
-    progress: number;
-    uuid: string;
-  };
+  jobs?: Record<string, ServerOverviewJob>;
   name: string;
   state: string;
   uuid: string;

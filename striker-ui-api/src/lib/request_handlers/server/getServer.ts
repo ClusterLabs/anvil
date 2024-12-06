@@ -63,6 +63,11 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
         SELECT
           d1.job_uuid,
           d1.job_progress,
+          CASE
+            WHEN d1.job_data LIKE '%peer_mode=true%'
+              THEN 1
+            ELSE 0
+          END AS on_peer,
           SUBSTRING(d1.job_data, 'server_name=([^\\n]*)') AS server_name,
           d2.host_uuid,
           d2.host_name,
@@ -79,7 +84,6 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
             d3.anvil_node2_host_uuid
           )
         WHERE d1.job_command LIKE '%anvil-provision-server%'
-          AND d1.job_data NOT LIKE '%peer_mode=true%'
           ${condAnvilUUIDs}
         ORDER BY server_name ASC
       ) AS d
@@ -100,13 +104,14 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
         hostType,
         jobUuid,
         jobProgress,
-        pendingServerName,
-        pendingHostUuid,
-        pendingHostName,
-        pendingHostType,
-        pendingAnvilUuid,
-        pendingAnvilName,
-        pendingAnvilDescription,
+        jobOnPeer,
+        jobServerName,
+        jobHostUuid,
+        jobHostName,
+        jobHostType,
+        jobAnvilUuid,
+        jobAnvilName,
+        jobAnvilDescription,
       ] = row;
 
       if (serverUuid) {
@@ -133,21 +138,40 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           uuid: serverUuid,
         };
       } else if (jobUuid) {
-        previous[jobUuid] = {
-          anvil: {
-            description: pendingAnvilDescription,
-            name: pendingAnvilName,
-            uuid: pendingAnvilUuid,
-          },
+        if (!previous[jobUuid]) {
+          previous[jobUuid] = {
+            anvil: {
+              description: jobAnvilDescription,
+              name: jobAnvilName,
+              uuid: jobAnvilUuid,
+            },
+            host: {
+              name: jobHostName,
+              short: getShortHostName(jobHostName),
+              type: jobHostType,
+              uuid: jobHostUuid,
+            },
+            name: jobServerName,
+            state: 'pending',
+            uuid: jobUuid,
+          };
+        }
+
+        const { [jobUuid]: server } = previous;
+
+        if (!server.jobs) {
+          server.jobs = {};
+        }
+
+        server.jobs[jobUuid] = {
           host: {
-            name: pendingHostName,
-            short: getShortHostName(pendingHostName),
-            type: pendingHostType,
-            uuid: pendingHostUuid,
+            name: jobHostName,
+            short: getShortHostName(jobHostName),
+            type: jobHostType,
+            uuid: jobHostUuid,
           },
-          job: { progress: Number(jobProgress), uuid: jobUuid },
-          name: pendingServerName,
-          state: 'pending',
+          peer: Number(jobOnPeer) === 1,
+          progress: Number(jobProgress),
           uuid: jobUuid,
         };
       }
