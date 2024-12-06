@@ -4662,7 +4662,8 @@ sub load_job
 		progress         => $anvil->Job->bump_progress({set => 1}),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0350", 
+		message          => "message_0146", 
+		log_level        => 1,
 	});
 	
 	return(0);

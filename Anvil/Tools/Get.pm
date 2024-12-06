@@ -1,6 +1,6 @@
 package Anvil::Tools::Get;
 # 
-# This module contains methods used to handle access to frequently used data.
+# This module contains methods used to handle access to frequently used data. 
 # 
 
 use strict;

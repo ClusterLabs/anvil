@@ -2832,6 +2832,8 @@ WHERE
 		results => $results, 
 		count   => $count, 
 	}});
+	
+	my $longest_anvil_name = 0;
 	foreach my $row (@{$results})
 	{
 		my $anvil_uuid            =         $row->[0];
@@ -2934,7 +2936,18 @@ WHERE
 				}});
 			}
 		}
+		
+		if (length($anvil_name) > $longest_anvil_name)
+		{
+			$longest_anvil_name = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { longest_anvil_name => $longest_anvil_name }});
+		}
 	}
+	
+	$anvil->data->{anvils}{longest_anvil_name} = $longest_anvil_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvils::longest_anvil_name" => $anvil->data->{anvils}{longest_anvil_name},
+	}});
 
 	return(0);
 }
@@ -6094,6 +6107,7 @@ WHERE
 		count   => $count, 
 	}});
 	
+	my $longest_server_name = 0;
 	foreach my $row (@{$results})
 	{
 		my $server_uuid                     =         $row->[0];
@@ -6237,7 +6251,19 @@ WHERE
 			"servers::anvil_uuid::${server_anvil_uuid}::server_name::${server_name}::server_uuid" => $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid}, 
 			"servers::server_name::${server_name}::server_uuid"                                   => $anvil->data->{servers}{server_name}{$server_name}{server_uuid}, 
 		}});
+		
+		# This makes it easier for TUI interfaces to align menus.
+		if (length($server_name) > $longest_server_name)
+		{
+			$longest_server_name = length($server_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { longest_server_name => $longest_server_name }});
+		}
 	}
+	
+	$anvil->data->{servers}{longest_server_name} = $longest_server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"servers::longest_server_name" => $anvil->data->{servers}{longest_server_name},
+	}});
 	
 	return(0);
 }

@@ -15,6 +15,7 @@ use Anvil::Tools;
 require POSIX;
 use Text::Diff;
 use Data::Dumper;
+use Term::Cap;
 
 my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
 my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
@@ -65,14 +66,106 @@ if (not $anvil->data->{sys}{database}{connections})
 #  5. Copy the XML definition file to the target
 #  6. Create the DRBD resource on the target.
 #  7. Make a snapshot of the source.
-#  8.1. Stopped;
-#  8.2. Use dd directly from the source to the destination DRBD resource.
-#  9.1. Running;
-#  9.2. Use; virsh migrate --undefinesource --p2p --live --persistent --verbose --copy-storage-all <server_name> qemu+ssh://10.201.12.1/system
-# 10. Verify the source is undefined on the old host
-# 4. Mark the server status as 'relocating'.
+#  8. Remove the DR, if applicable
+#  9.1. Stopped;
+#  9.2. Use dd directly from the source to the destination DRBD resource.
+# 10.1. Running;
+# 10.2. Use; virsh migrate --undefinesource --p2p --live --persistent --verbose --copy-storage-all <server_name> qemu+ssh://10.201.12.1/system
+# 11. Verify the source is undefined on the old host
+# 12. Remove the server from the old host. 
+# 13. If needed and possible, recreate the DR 
+# 14. Mark the server status as 'relocating'.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	load_job($anvil);
+}
 
+# Is the server valid and running here?
+$anvil->Database->get_hosts({debug => 2});
+$anvil->Database->get_servers({debug => 2});
 
+# Convert the server to a name and UUID.
+if ($anvil->data->{switches}{server})
+{
+	$anvil->Get->server_from_switch({
+		debug  => 2,
+		server => $anvil->data->{switches}{server}, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::server_name" => $anvil->data->{switches}{server_name},
+		"switches::server_uuid" => $anvil->data->{switches}{server_uuid}, 
+	}});
+}
+else
+{
+	$anvil->data->{switches}{server_name} = "" if not defined $anvil->data->{switches}{server_name};
+	$anvil->data->{switches}{server_uuid} = "" if not defined $anvil->data->{switches}{server_uuid};
+}
+
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	if ((not $anvil->data->{switches}{server_name}) or (not $anvil->data->{switches}{server_uuid}))
+	{
+		$anvil->Job->update_progress({
+			file       => $THIS_FILE, 
+			line       => __LINE__, 
+			log_level  => 1, 
+			'print'    => 1, 
+			progress   => 100,
+			message    => "log_0260", 
+			job_status => "failed", 
+			variables  => {
+				server => $anvil->data->{switches}{server}, 
+			}
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Is the server on this host? 
+	my $host_type = $anvil->Get->host_type({debug => 2});
+	my $host_uuid = $anvil->Get->host_uuid({debug => 2});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type => $host_type,
+		host_uuid => $host_uuid, 
+	}});
+	if ($host_type ne "node")
+	{
+		$anvil->Job->update_progress({
+			file       => $THIS_FILE, 
+			line       => __LINE__, 
+			log_level  => 1, 
+			'print'    => 1, 
+			progress   => 100,
+			message    => "log_0261", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	if (not $anvil->data->{switches}{server})
+	{
+		$anvil->Job->update_progress({
+			file       => $THIS_FILE, 
+			line       => __LINE__, 
+			log_level  => 1, 
+			'print'    => 1, 
+			progress   => 100,
+			message    => "log_0259", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	
+	
+	### TODO: ...
+	# Is the server on this node?
+}
+else
+{
+	# Interactive mode.
+	interactive_question($anvil);
+}
 
 $anvil->nice_exit({exit_code => 0});
 
@@ -80,3 +173,430 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub interactive_question
+{
+	my ($anvil) = @_;
+	
+	my $termios = new POSIX::Termios;
+	$termios->getattr;
+	my $ospeed = $termios->getospeed;
+	
+	my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	$terminal->Trequire(qw/ce ku kd/);
+	
+	ask_which_server($anvil, $terminal);
+	ask_target_anvil($anvil, $terminal);
+	
+	return(0);
+}
+
+sub ask_target_anvil
+{
+	my ($anvil, $terminal) = @_;
+	
+	$anvil->Database->get_drbd_data({debug => 2});
+	#$anvil->Database->get_storage_group_data({debug => 2});
+	my $server_uuid       = $anvil->data->{relocate}{server_uuid};
+	my $server_name       = $anvil->data->{relocate}{server_name};
+	my $server_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+	my $short_host_name   = $anvil->Get->short_host_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_uuid       => $server_uuid, 
+		server_name       => $server_name, 
+		server_anvil_uuid => $server_anvil_uuid, 
+		short_host_name   => $short_host_name, 
+	}});
+	
+	# How much disk space, RAM and CPU does the server have, and which targets have enough space?
+	my $server_definition = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_definition_xml};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition => $server_definition }});
+	
+	my $problem = $anvil->Server->parse_definition({
+		debug      => 2,
+		server     => $server_name,
+		source     => "from_db", 
+		definition => $server_definition, 
+		anvil_uuid => $server_anvil_uuid,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	print $terminal->Tputs('cl');
+	print "We will relocate: [".$anvil->data->{relocate}{server_name}."] (".$anvil->data->{relocate}{server_uuid}.")\n";
+	$anvil->data->{relocate}{cpu_cores_needed} = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{total_cores};
+	$anvil->data->{relocate}{ram_needed}       = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram} > $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use} ? $anvil->data->{servers}{server_uuid}{$server_uuid}{server_configured_ram} : $anvil->data->{servers}{server_uuid}{$server_uuid}{server_ram_in_use};
+	$anvil->data->{relocate}{needed_storage}   = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"relocate::cpu_cores_needed" => $anvil->data->{relocate}{cpu_cores_needed}, 
+		"relocate::ram_needed"       => $anvil->data->{relocate}{ram_needed}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{ram_needed}}).")", 
+	}});
+	print "Server: [".$server_name."] needs: [".$anvil->data->{relocate}{cpu_cores_needed}."] CPU Cores and: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{ram_needed}})."] of RAM.\n";
+	foreach my $flag (sort {$a cmp $b} keys %{$anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{feature}})
+	{
+		my $is_required = $anvil->data->{server}{$short_host_name}{$server_name}{from_db}{cpu}{feature}{$flag};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+			flag        => $flag, 
+			is_required => $is_required,
+		}});
+		if ($is_required eq "require")
+		{
+			$anvil->data->{relocate}{cpu_flag}{$flag} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"relocate::cpu_flag::${flag}" => $anvil->data->{relocate}{cpu_flag}{$flag},
+			}});
+		}
+	}
+	my $say_needed_flags    = "";
+	my $required_flag_count = keys %{$anvil->data->{relocate}{cpu_flag}};
+	foreach my $flag (sort {$a cmp $b} keys %{$anvil->data->{relocate}{cpu_flag}})
+	{
+		$say_needed_flags .= $flag." ";
+	}
+	$say_needed_flags =~ s/ $//;
+	#print "The target Anvil! must offer the CPU flags: [".$say_needed_flags."]\n";
+	print "- The target Anvil! must offer: [".$required_flag_count."] CPU flags\n";
+	foreach my $volume (sort {$a <=> $b} keys %{$anvil->data->{drbd}{config}{$short_host_name}{resource}{$server_name}{volume}})
+	{
+		my $disk = $anvil->data->{drbd}{config}{$short_host_name}{resource}{$server_name}{volume}{$volume}{drbd_path_by_res};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:volume" => $volume, 
+			"s2:disk"   => $disk, 
+		}});
+		
+		$anvil->data->{relocate}{volume}{$volume}{needed_storage} = 0;
+		foreach my $host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{host_name}})
+		{
+			next if not exists $anvil->data->{drbd}{host_name}{$host}{resource_name}{$server_name};
+			my $volume_size = $anvil->data->{drbd}{host_name}{$host}{resource_name}{$server_name}{volume}{$volume}{volume_size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				host        => $host, 
+				volume_size => $volume_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $volume_size}).")", 
+			}});
+			if ($volume_size > $anvil->data->{relocate}{volume}{$volume}{needed_storage})
+			{
+				$anvil->data->{relocate}{volume}{$volume}{needed_storage} = $volume_size;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"relocate::volume::${volume}::needed_storage" => $anvil->data->{relocate}{volume}{$volume}{needed_storage}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{volume}{$volume}{needed_storage}}).")", 
+				}});
+			}
+		}
+		
+		$anvil->data->{relocate}{needed_storage} += $anvil->data->{relocate}{volume}{$volume}{needed_storage};
+		print "- Volume: [".$volume."] needs: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{volume}{$volume}{needed_storage}})."]\n";
+	}
+	print "- Total storage needed: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{needed_storage}})."]\n";
+	
+	# Now find candidate subnodes.
+	print "\n";
+	my $candidate_count = 0;
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name" => $anvil_name,
+			"s2:anvil_uuid" => $anvil_uuid,  
+		}});
+		next if $anvil_uuid eq $server_anvil_uuid;
+		$anvil->data->{relocate}{anvil_name}{$anvil_name}{anvil_uuid} = $anvil_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"relocate::anvil_name::${anvil_name}:anvil_uuid" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{anvil_uuid}, 
+		}});
+		
+		$anvil->Get->available_resources({
+			debug      => 2, 
+			anvil_uuid => $anvil_uuid, 
+		});
+		
+		my $sufficient_cpu  = 0;
+		my $sufficient_ram  = 0;
+		my $sufficient_disk = 0;
+		my $available_cores = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available}; 
+		my $available_ram   = $anvil->data->{anvil_resources}{$anvil_uuid}{ram}{available}; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			available_cores => $available_cores, 
+			available_ram   => $available_ram." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram}).")", 
+		}});
+		$anvil->data->{relocate}{anvil_name}{$anvil_name}{available_cores} = $available_cores;
+		$anvil->data->{relocate}{anvil_name}{$anvil_name}{available_ram}   = $available_ram;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"relocate::anvil_name::${anvil_name}:available_cores" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{available_cores}, 
+			"relocate::anvil_name::${anvil_name}:available_ram"   => $anvil->data->{relocate}{anvil_name}{$anvil_name}{available_ram}, 
+		}});
+		
+		#print "- Anvil: [".$anvil_name."], Description: [".$anvil_description."]\n";
+		#print " |- Available cores: [".$available_cores."], RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $available_ram})."]\n";
+		if ($available_cores > $anvil->data->{relocate}{cpu_cores_needed})
+		{
+			$sufficient_cpu = 1;
+		}
+		if ($available_ram > $anvil->data->{relocate}{ram_needed})
+		{
+			$sufficient_ram = 1;
+		}
+		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+		{
+			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			my $free_size          = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{free_size};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:storage_group_name" => $storage_group_name,
+				"s2:storage_group_uuid" => $storage_group_uuid, 
+				"s3:free_size"          => $free_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size}).")", 
+			}});
+			
+			$anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+			$anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{free_size}          = $free_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:relocate::anvil_name::${anvil_name}:storage_group::${storage_group_name}::storage_group_uuid" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{storage_group_uuid}, 
+				"s2:relocate::anvil_name::${anvil_name}:storage_group::${storage_group_name}::free_size"          => $anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{free_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{free_size}}).")", 
+			}});
+			#print " |- Storage group: [".$storage_group_name."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
+			if ($free_size > $anvil->data->{relocate}{needed_storage})
+			{
+				$sufficient_disk = 1;
+			}
+		}
+		if (($sufficient_cpu) && ($sufficient_ram) && ($sufficient_disk))
+		{
+			#print " \\- This node can host the server.\n";
+			$anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate} = 1;
+			$candidate_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"relocate::anvil_name::${anvil_name}:candidate" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate}, 
+				candidate_count                           => $candidate_count, 
+			}});
+		}
+		else
+		{
+			#print " \\- [ Note ] - This node can NOT host this server!\n";
+			$anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate} = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"relocate::anvil_name::${anvil_name}:candidate" => $anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate}, 
+			}});
+		}
+	}
+	
+	if (not $candidate_count)
+	{
+		print "[ Error ] - There are no other Anvil! nodes with sufficient resources to run this node!\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	my $index = 1;
+	print "Target Anvil! nodes:\n";
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{relocate}{anvil_name}})
+	{
+		my $anvil_uuid        = $anvil->data->{relocate}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_description = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
+		my $candidate         = $anvil->data->{relocate}{anvil_name}{$anvil_name}{candidate};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"        => $anvil_name, 
+			"s2:anvil_uuid"        => $anvil_uuid, 
+			"s3:anvil_description" => $anvil_description, 
+			"s4:candidate"         => $candidate, 
+		}});
+		if ($candidate)
+		{
+			print $index." - ".$anvil_name." - ".$anvil_description."\n";
+			print " |- CPU Cores: [".$anvil->data->{relocate}{anvil_name}{$anvil_name}{available_cores}."], free RAM: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{relocate}{anvil_name}{$anvil_name}{available_ram}})."]\n";
+			foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}})
+			{
+				my $free_size = $anvil->data->{relocate}{anvil_name}{$anvil_name}{storage_group}{$storage_group_name}{free_size};
+				if ($free_size > $anvil->data->{relocate}{needed_storage})
+				{
+					print " |- Candidate storage group: [".$storage_group_name."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
+				}
+				else
+				{
+					print " |- Insufficient space on storage group: [".$storage_group_name."], free space: [".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_size})."]\n";
+				}
+			}
+			$index++;
+		}
+		else
+		{
+			print "X - ".$anvil_name." - ".$anvil_description."\n";
+			print " |- Insufficient resources.\n";
+		}
+	}
+	
+	return(0);
+}
+
+sub ask_which_server
+{
+	my ($anvil, $terminal) = @_;
+	
+	my $retry = 0;
+	while(1)
+	{
+		print $terminal->Tputs('cl');
+		$anvil->Database->get_anvils({debug => 2});
+		$anvil->Database->get_servers({debug => 2});
+		my $default_server_uuid = $anvil->data->{switches}{server_uuid};
+		my $server_count        = keys %{$anvil->data->{servers}{server_name}};
+		my $count_length        = length($server_count);
+		my $server_array        = [];
+		my $longest_server_name = $anvil->data->{anvils}{longest_anvil_name};
+		my $longest_anvil_name  = $anvil->data->{anvils}{longest_anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			default_server_uuid => $default_server_uuid,
+			server_count        => $server_count, 
+			count_length        => $count_length, 
+			longest_server_name => $longest_server_name, 
+			longest_anvil_name  => $longest_anvil_name, 
+		}});
+		
+		my $index = 0;
+		print $anvil->Words->string({key => "job_0008"})."\n";
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{server_name}})
+		{
+			my $server_uuid = $anvil->data->{servers}{server_name}{$server_name}{server_uuid};
+			my $anvil_uuid  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+			my $anvil_name  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+			my $say_number  = sprintf("%-${count_length}s", ($index + 1));
+			my $dash        = $server_uuid eq $default_server_uuid ? "=" : "-";
+			print " ".$dash." ".$say_number." ".sprintf("%-${longest_server_name}s", $server_name)." (uuid: [".$server_uuid."] on: [".$anvil_name."]\n";
+			$server_array->[$index] = $server_uuid;
+			$index++;
+		}
+		
+		if ($retry)
+		{
+			print $anvil->Words->string({key => "job_0016"})."\n";
+		}
+		my $default_server = $default_server_uuid ? $anvil->data->{servers}{server_uuid}{$default_server_uuid}{server_name} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			default_server_uuid => $default_server_uuid,
+			default_server      => $default_server, 
+		}});
+		print $anvil->Words->string({key => "job_0010", variables => { server => $default_server }})."\n\n";
+		
+		my $question_line = $retry ? $index + 3 : $index + 2;
+		print $terminal->Tgoto('cm', 0, $question_line)."? ";
+		my $answer = <STDIN>;
+		chomp $answer;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { answer => $answer }});
+		
+		# If the answer was a number, verify it matches
+		$anvil->data->{relocate}{server_uuid} = "" if not defined $anvil->data->{relocate}{server_uuid};
+		$anvil->data->{relocate}{server_name} = "" if not defined $anvil->data->{relocate}{server_name};
+		if (not $answer)
+		{
+			if ($default_server_uuid)
+			{
+				$anvil->data->{relocate}{server_uuid} = $default_server_uuid;
+				$anvil->data->{relocate}{server_name} = $anvil->data->{servers}{server_uuid}{$default_server_uuid}{server_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"relocate::server_uuid" => $anvil->data->{relocate}{server_uuid},
+					"relocate::server_name" => $anvil->data->{relocate}{server_name},
+				}});
+			}
+			else
+			{
+				$retry = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { retry => $retry }});
+				next;
+			}
+		}
+		elsif ($answer =~ /^\d$/)
+		{
+			if (exists $server_array->[($answer - 1)])
+			{
+				my $server_uuid = $server_array->[($answer - 1)];
+				$anvil->data->{relocate}{server_uuid} = $server_uuid;
+				$anvil->data->{relocate}{server_name} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"relocate::server_uuid" => $anvil->data->{relocate}{server_uuid},
+					"relocate::server_name" => $anvil->data->{relocate}{server_name},
+				}});
+			}
+			else
+			{
+				$retry = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { retry => $retry }});
+				next;
+			}
+		}
+		elsif ($anvil->Validate->uuid({uuid => $answer}))
+		{
+			my $server_uuid = $answer;
+			if (exists $anvil->data->{servers}{server_uuid}{$server_uuid})
+			{
+				$anvil->data->{relocate}{server_uuid} = $server_uuid;
+				$anvil->data->{relocate}{server_name} = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"relocate::server_uuid" => $anvil->data->{relocate}{server_uuid},
+					"relocate::server_name" => $anvil->data->{relocate}{server_name},
+				}});
+			}
+			else
+			{
+				$retry = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { retry => $retry }});
+				next;
+			}
+		}
+		elsif (exists $anvil->data->{servers}{server_name}{$answer})
+		{
+			$anvil->data->{relocate}{server_uuid} = $anvil->data->{servers}{server_name}{$answer}{server_uuid};
+			$anvil->data->{relocate}{server_name} = $answer;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"relocate::server_uuid" => $anvil->data->{relocate}{server_uuid},
+				"relocate::server_name" => $anvil->data->{relocate}{server_name},
+			}});
+		}
+		else
+		{
+			$retry = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { retry => $retry }});
+			next;
+		}
+		last if $anvil->data->{relocate}{server_name};
+	}
+	
+	return(0);
+}
+
+sub load_job
+{
+	my ($anvil) = @_;
+	
+	$anvil->Job->clear({
+		debug    => 2,
+		job_uuid => $anvil->data->{switches}{'job-uuid'}, 
+	});
+	$anvil->Job->get_job_details({
+		debug    => 2,
+		job_uuid => $anvil->data->{switches}{'job-uuid'}, 
+	});
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		'jobs::job_data' => $anvil->data->{jobs}{job_data}, 
+	}});
+	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
+	{
+		my ($variable, $value) =  ($line =~ /^(.*)=(.*)$/);
+		   $value              =~ s/^"(.*)\"/$1/;
+		   $value              =~ s/^'(.*)\'/$1/;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:line'     => $line, 
+			's2:variable' => $variable, 
+			's3:value'    => $value, 
+		}});
+		
+		$anvil->data->{switches}{$variable} = $value;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"switches::${variable}" => $anvil->data->{switches}{$variable}, 
+		}});
+	}
+	
+	$anvil->Job->update_progress({
+		progress         => 1,
+		job_picked_up_by => $$, 
+		job_picked_up_at => time, 
+		message          => "message_0350", 
+		log_level        => 2, 
+		'print'          => 1,
+	});
+	
+	return(0);
+}
