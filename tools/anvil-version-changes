@@ -105,6 +105,9 @@ sub striker_checks
 	
 	# Make sure the server_networks table exists.
 	update_server_network($anvil);
+
+	# This adds notes to storage_group_members
+	update_host_variables($anvil);
 	
 	return(0);
 }
@@ -778,6 +781,84 @@ CREATE TRIGGER trigger_audits
 		}
 	}
 	
+	return(0);
+}
+
+sub update_host_variables
+{
+	my ($anvil) = @_;
+
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'host_variable';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+
+		my $count = $anvil->Database->query({uuid => $uuid, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+
+		if ($count)
+		{
+			my $queries = [];
+			push @{$queries}, "DROP FUNCTION history_host_variable() CASCADE;";
+			push @{$queries}, "DROP TABLE history.host_variable;";
+			push @{$queries}, "DROP TABLE public.host_variable;";
+			push @{$queries}, q|CREATE TABLE host_variables (
+    host_variable_uuid         uuid                        not null    primary key,
+    host_variable_host_uuid    uuid                        not null,
+    host_variable_name         text                        not null,
+    host_variable_value        text                        not null,
+    modified_date              timestamp with time zone    not null, 
+    
+    FOREIGN KEY(host_variable_host_uuid) REFERENCES hosts(host_uuid)
+);
+ALTER TABLE host_variables OWNER TO admin;
+
+CREATE TABLE history.host_variables (
+    history_id                 bigserial,
+    host_variable_uuid         uuid,
+    host_variable_host_uuid    uuid,
+    host_variable_name         text,
+    host_variable_value        text,
+    modified_date              timestamp with time zone    not null
+);
+ALTER TABLE history.host_variables OWNER TO admin;
+
+CREATE FUNCTION history_host_variables() RETURNS trigger
+AS $$
+DECLARE
+    history_host_variables RECORD;
+BEGIN
+    SELECT INTO history_host_variables * FROM host_variables WHERE host_variable_uuid = new.host_variable_uuid;
+    INSERT INTO history.host_variables
+        (host_variable_uuid, 
+         host_variable_host_uuid, 
+         host_variable_name, 
+         host_variable_value, 
+         modified_date) 
+    VALUES
+        (history_host_variables.host_variable_uuid, 
+         history_host_variables.host_variable_host_uuid, 
+         history_host_variables.host_variable_name, 
+         history_host_variables.host_variable_value, 
+         history_host_variables.modified_date); 
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_host_variables() OWNER TO admin;
+
+CREATE TRIGGER trigger_host_variables
+    AFTER INSERT OR UPDATE ON host_variables
+    FOR EACH ROW EXECUTE PROCEDURE history_host_variables();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+
 	return(0);
 }
 

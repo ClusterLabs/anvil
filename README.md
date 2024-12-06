@@ -1,8 +1,8 @@
-# This will be the repository for the third generation of the Anvil! Intelligent Availability® platform.
+# This is the repository for the third generation of the Anvil! Intelligent Availability® platform.
 
 Major components;
 
-* The "ScanCore" decision engine and scan agents.
+* The "ScanCore" decision engine and scan agents providing the "Intelligent Availability" capabilities.
 * The "Striker" Web interface
 * Tools for Striker dashboards, Anvil! nodes and DR targets
 
