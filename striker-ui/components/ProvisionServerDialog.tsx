@@ -14,11 +14,11 @@ import { DSIZE_SELECT_ITEMS } from '../lib/consts/DSIZES';
 
 import api from '../lib/api';
 import Autocomplete from './Autocomplete';
-import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
-import IconButton, { IconButtonProps } from './IconButton';
+import handleAPIError from '../lib/handleAPIError';
+import IconButton from './IconButton';
 import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
@@ -33,13 +33,14 @@ import {
   testRange,
 } from '../lib/test_input';
 import { BodyText, HeaderText, InlineMonoText } from './Text';
+import useConfirmDialog from '../hooks/useConfirmDialog';
 import useFetch from '../hooks/useFetch';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
-  onClose: IconButtonProps['onClick'];
+  onClose?: () => void;
 };
 
 type HostMetadataForProvisionServerHost = {
@@ -892,10 +893,12 @@ dsize(
   }),
 );
 
-const ProvisionServerDialog = ({
-  dialogProps: { open },
-  onClose: onCloseProvisionServerDialog,
-}: ProvisionServerDialogProps): JSX.Element => {
+const ProvisionServerDialog: React.FC<ProvisionServerDialogProps> = (props) => {
+  const {
+    dialogProps: { open },
+    onClose: handleClose,
+  } = props;
+
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
@@ -974,13 +977,14 @@ const ProvisionServerDialog = ({
 
   const [isProvisionServerDataReady, setIsProvisionServerDataReady] =
     useState<boolean>(false);
-  const [isOpenProvisionConfirmDialog, setIsOpenProvisionConfirmDialog] =
-    useState<boolean>(false);
-  const [isProvisionRequestInProgress, setIsProvisionRequestInProgress] =
-    useState<boolean>(false);
 
-  const [successfulProvisionCount, setSuccessfulProvisionCount] =
-    useState<number>(0);
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog();
 
   const inputCpuCoresOptions = useMemo(() => {
     const result: number[] = [];
@@ -1589,11 +1593,7 @@ const ProvisionServerDialog = ({
         <PanelHeader>
           <HeaderText>Provision a server</HeaderText>
           <SyncIndicator syncing={validating} />
-          <IconButton
-            mapPreset="close"
-            onClick={onCloseProvisionServerDialog}
-            size="small"
-          />
+          <IconButton mapPreset="close" onClick={handleClose} size="small" />
         </PanelHeader>
         <FlexBox spacing=".6em">
           {Object.entries(hasResource).map(
@@ -1823,73 +1823,85 @@ const ProvisionServerDialog = ({
             },
           }}
         >
-          {successfulProvisionCount > 0 && (
-            <MessageBox
-              isAllowClose
-              text="Provision server job registered. You can provision another server, or exit; it won't affect the registered job."
-            />
-          )}
-          {isProvisionRequestInProgress ? (
-            <Spinner mt={0} />
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'flex-end',
-                width: '100%',
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <ContainedButton
+              background="blue"
+              disabled={!testInput({ isIgnoreOnCallbacks: true })}
+              onClick={() => {
+                setConfirmDialogProps({
+                  actionProceedText: 'Provision',
+                  content: createConfirmDialogContent(),
+                  onProceedAppend: () => {
+                    setConfirmDialogLoading(true);
+
+                    const requestBody = {
+                      serverName: inputServerNameValue,
+                      cpuCores: inputCPUCoresValue,
+                      memory: memory.toString(),
+                      virtualDisks: virtualDisks.stateIds.map(
+                        (vdStateId, vdIndex) => ({
+                          storageSize: virtualDisks.sizes[vdIndex].toString(),
+                          storageGroupUUID:
+                            virtualDisks.inputStorageGroupUUIDs[vdIndex],
+                        }),
+                      ),
+                      installISOFileUUID: inputInstallISOFileUUID,
+                      driverISOFileUUID: inputDriverISOFileUUID,
+                      anvilUUID: inputAnvilValue,
+                      optimizeForOS: inputOptimizeForOSValue?.key,
+                    };
+
+                    api
+                      .post('/server', requestBody)
+                      .then(() => {
+                        handleClose?.call(null);
+
+                        // Only remove the server name because the rest might
+                        // be reusable
+                        setInputServerNameValue('');
+
+                        finishConfirm('Success', {
+                          children: <>Provision server job registered.</>,
+                        });
+                      })
+                      .catch((error) => {
+                        const emsg = handleAPIError(error);
+
+                        emsg.children = (
+                          <>
+                            Failed to start provision server job.{' '}
+                            {emsg.children}
+                          </>
+                        );
+
+                        finishConfirm('Error', emsg);
+                      });
+                  },
+                  titleText: `Provision ${inputServerNameValue}?`,
+                });
+
+                setConfirmDialogOpen(true);
               }}
             >
-              <ContainedButton
-                background="blue"
-                disabled={!testInput({ isIgnoreOnCallbacks: true })}
-                onClick={() => {
-                  setIsOpenProvisionConfirmDialog(true);
-                }}
-              >
-                Provision
-              </ContainedButton>
-            </Box>
-          )}
+              Provision
+            </ContainedButton>
+          </Box>
         </Box>
       </Dialog>
-      {isOpenProvisionConfirmDialog && (
-        <ConfirmDialog
-          actionProceedText="Provision"
-          content={createConfirmDialogContent()}
-          dialogProps={{ open: isOpenProvisionConfirmDialog }}
-          onCancelAppend={() => {
-            setIsOpenProvisionConfirmDialog(false);
-          }}
-          onProceedAppend={() => {
-            const requestBody = {
-              serverName: inputServerNameValue,
-              cpuCores: inputCPUCoresValue,
-              memory: memory.toString(),
-              virtualDisks: virtualDisks.stateIds.map((vdStateId, vdIndex) => ({
-                storageSize: virtualDisks.sizes[vdIndex].toString(),
-                storageGroupUUID: virtualDisks.inputStorageGroupUUIDs[vdIndex],
-              })),
-              installISOFileUUID: inputInstallISOFileUUID,
-              driverISOFileUUID: inputDriverISOFileUUID,
-              anvilUUID: inputAnvilValue,
-              optimizeForOS: inputOptimizeForOSValue?.key,
-            };
-
-            setIsProvisionRequestInProgress(true);
-
-            api.post('/server', requestBody).then(() => {
-              setIsProvisionRequestInProgress(false);
-              setSuccessfulProvisionCount(successfulProvisionCount + 1);
-            });
-
-            setIsOpenProvisionConfirmDialog(false);
-          }}
-          titleText={`Provision ${inputServerNameValue}?`}
-        />
-      )}
+      {confirmDialog}
     </>
   );
+};
+
+ProvisionServerDialog.defaultProps = {
+  onClose: undefined,
 };
 
 export default ProvisionServerDialog;
