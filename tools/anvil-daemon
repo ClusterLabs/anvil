@@ -32,6 +32,7 @@ use Anvil::Tools;
 use Proc::Simple;
 #use Time::HiRes qw ( time sleep );
 use JSON;
+use XML::LibXML;
 use HTML::Strip;
 use HTML::FromText;
 use Data::Dumper;
@@ -547,6 +548,9 @@ sub handle_periodic_tasks
 				output      => $output,
 				return_code => $return_code, 
 			}});
+			
+			# Update our cache, if needed.
+			update_qemu_cache($anvil);
 		}
 	}
 	
@@ -842,6 +846,11 @@ sub handle_periodic_tasks
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 			}
 		}
+		else
+		{
+			# Collect the KVM/qemu data.
+			update_qemu_data($anvil);
+		}
 		
 		# Update the next check time.
 		$anvil->data->{timing}{next_daily_check} = $now_time + $anvil->data->{timing}{daily_checks};
@@ -852,6 +861,255 @@ sub handle_periodic_tasks
 	}
 	
 	return(0);
+}
+
+sub update_qemu_cache
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts();
+	my $new_xml = '<?xml version="1.0" encoding="UTF-8"?>
+<qemu>
+';
+
+	my $query = "
+SELECT 
+    host_variable_host_uuid, 
+    host_variable_value 
+FROM 
+    host_variables 
+WHERE
+    host_variable_name = 'qemu::drivers::xml' 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $host_variable_host_uuid = $row->[0];
+		my $host_variable_value     = $row->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_variable_host_uuid => $host_variable_host_uuid, 
+			host_variable_value     => $host_variable_value, 
+		}});
+		foreach my $line (split/\n/, $host_variable_value)
+		{
+			$new_xml .= "\t".$line."\n";
+		}
+	}
+	$new_xml .= "</qemu>\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_xml => $new_xml }});
+	
+	# Does the XML validate?
+	local $@;
+	my $qemu_test = eval { XML::LibXML->load_xml(string => $new_xml); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "warning_0066", variables => { 
+			xml   => $new_xml,
+			error => $@,
+		}});
+		
+		return(1);
+	}
+	
+	# Does the old cache file exist?
+	my $old_xml    = "";
+	my $difference = 0;
+	if (-e $anvil->data->{path}{data}{qemu_host_capabilities})
+	{
+		$old_xml    = $anvil->Storage->read_file({debug => 2, file => $anvil->data->{path}{data}{qemu_host_capabilities}});
+		$difference = diff \$old_xml, \$new_xml, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+	}
+	
+	# Is there a difference? 
+	if ((not $old_xml) or ($difference))
+	{
+		# Write out the config.
+		$anvil->Storage->write_file({
+			debug     => 2, 
+			backup    => 0,
+			overwrite => 1, 
+			body      => $new_xml, 
+			file      => $anvil->data->{path}{data}{qemu_host_capabilities},
+			user      => "striker-ui-api",
+			group     => "striker-ui-api", 
+			mode      => "0666",
+		});
+	}
+	
+	return(0);
+}
+
+sub update_qemu_data
+{
+	my ($anvil) = @_;
+	
+	my $host_uuid       = $anvil->Get->host_uuid();
+	my $host_name       = $anvil->Get->host_name();
+	my $short_host_name = $anvil->Get->short_host_name();
+	my $xml             = "<host uuid=\"".$host_uuid."\" short_host_name=\"".$short_host_name."\">\n";
+
+	my $output = call_qemu($anvil, "-version");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /version (\d+\.\d+\.\d+)\s/)
+		{
+			my $version = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { version => $version }});
+			$xml .= "\t<qemu_version>".$version."</qemu_version>\n";
+		}
+	}
+
+	$output = call_qemu($anvil, "-machine help");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$xml .= "\t<machines>\n";
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /(\w.*?)\s+(\w.*?)\s+(\(.*\))/)
+		{
+			my $id         =  $1;
+			my $name       =  $2;
+			my $notes      =  $anvil->Words->clean_spaces({string => $3});
+			my $deprecated =  $notes =~ /deprecated/o ? 1 : 0;
+			   $notes      =~ s/ \(deprecated\)//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:id"         => $id,
+				"s2:name"       => $name, 
+				"s3:notes"      => $notes,
+				"s4:deprecated" => $deprecated, 
+			}});
+			$xml .= "\t\t<machine id=\"".$id."\" name=\"".$name."\" deprecated=\"".$deprecated."\"><![CDATA[".$notes."]]></machine>\n";
+		}
+	}
+	$xml .= "\t</machines>\n";
+
+	my $machine  = "q35";
+	my $cpu_type = "host";
+	$output = call_qemu($anvil, "-machine ".$machine." -cpu ".$cpu_type." -nic model=help");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$xml .= "\t<nics machine=\"".$machine."\" cpu=\"".$cpu_type."\">\n";
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		next if $line =~ / /;
+		$xml .= "\t\t<nic_model>".$line."</nic_model>\n";
+	}
+	$xml .= "\t</nics>\n";
+
+	my $in_cpus  = 0;
+	my $in_flags = 0;
+	   $output   = call_qemu($anvil, "-cpu help");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$xml .= "\t<cpus>\n";
+	foreach my $line (split/\n/, $output)
+	{
+		next if not $line;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		if ($line =~ /Available CPUs/i)
+		{
+			$in_cpus  = 1;
+			$in_flags = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				in_cpus  => $in_cpus,
+				in_flags => $in_flags, 
+			}});
+		}
+		elsif ($line =~ /Recognized CPUID flags/i)
+		{
+			$in_cpus  = 0;
+			$in_flags = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				in_cpus  => $in_cpus,
+				in_flags => $in_flags, 
+			}});
+		}
+		elsif (($in_cpus) && ($line =~ /(\w.*?)\s+(\w.*?)\s+(.*)/))
+		{
+			my $arch       =  $1;
+			my $id         =  $2;
+			my $notes      =  $anvil->Words->clean_spaces({string => $3});
+			my $deprecated =  $notes =~ /deprecated/o ? 1 : 0;
+			   $notes      =~ s/ \(deprecated\)//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:arch"       => $arch, 
+				"s2:id"         => $id,
+				"s3:notes"      => $notes,
+				"s4:deprecated" => $deprecated, 
+			}});
+			$xml .= "\t\t<cpu id=\"".$id."\" arch=\"".$arch."\" deprecated=\"".$deprecated."\"><![CDATA[".$notes."]]></cpu>\n";
+		}
+		elsif ($in_flags)
+		{
+			my $flags = $anvil->Words->clean_spaces({string => $line});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+			foreach my $flag (split/\s/, $flags)
+			{
+				$anvil->data->{flags}{$flag} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"flags::${flag}" => $anvil->data->{flags}{$flag},
+				}});
+			}
+		}
+	}
+	my $flags = "";
+	foreach my $flag (sort {$a cmp $b} keys %{$anvil->data->{flags}})
+	{
+		$flags .= $flag." ";
+	}
+	$flags =~ s/ $//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+	$xml .= "\t\t<flags>".$flags."</flags>\n";
+	$xml .= "\t</cpus>\n";
+
+	$output = call_qemu($anvil, "-audio driver=help");
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$xml .= "\t<audio>\n";
+	foreach my $line (split/\n/, $output)
+	{
+		$anvil->Words->clean_spaces({string => $line});
+		next if not $line;
+		next if $line =~ / /;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$xml .= "\t\t<model>".$line."</model>\n";
+	}
+	$xml .= "\t</audio>\n";
+	$xml .= "</host>\n";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { xml => $xml }});
+	
+	my $host_variable_uuid = $anvil->Database->insert_or_update_host_variables({
+		debug                   => 2, 
+		host_variable_host_uuid => $host_uuid,
+		host_variable_name      => "qemu::drivers::xml", 
+		host_variable_value     => $xml, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_variable_uuid => $host_variable_uuid }});
+	
+	return(0);
+}
+
+sub call_qemu
+{
+	my ($anvil, $options) = @_;
+	
+	my $shell_call = $anvil->data->{path}{exe}{'qemu-kvm'}." ".$options;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	return($output);
 }
 
 # Check to make sure that we don't have conflicts with the Striker WebUI

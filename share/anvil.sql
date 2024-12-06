@@ -237,7 +237,7 @@ CREATE TRIGGER trigger_users
 
 
 -- This stores special variables for a given host that programs may want to record.
-CREATE TABLE host_variable (
+CREATE TABLE host_variables (
     host_variable_uuid         uuid                        not null    primary key,
     host_variable_host_uuid    uuid                        not null,
     host_variable_name         text                        not null,
@@ -246,9 +246,9 @@ CREATE TABLE host_variable (
     
     FOREIGN KEY(host_variable_host_uuid) REFERENCES hosts(host_uuid)
 );
-ALTER TABLE host_variable OWNER TO admin;
+ALTER TABLE host_variables OWNER TO admin;
 
-CREATE TABLE history.host_variable (
+CREATE TABLE history.host_variables (
     history_id                 bigserial,
     host_variable_uuid         uuid,
     host_variable_host_uuid    uuid,
@@ -256,35 +256,35 @@ CREATE TABLE history.host_variable (
     host_variable_value        text,
     modified_date              timestamp with time zone    not null
 );
-ALTER TABLE history.host_variable OWNER TO admin;
+ALTER TABLE history.host_variables OWNER TO admin;
 
-CREATE FUNCTION history_host_variable() RETURNS trigger
+CREATE FUNCTION history_host_variables() RETURNS trigger
 AS $$
 DECLARE
-    history_host_variable RECORD;
+    history_host_variables RECORD;
 BEGIN
-    SELECT INTO history_host_variable * FROM host_variable WHERE host_uuid = new.host_uuid;
-    INSERT INTO history.host_variable
-        (host_variable_uuid,
+    SELECT INTO history_host_variables * FROM host_variables WHERE host_variable_uuid = new.host_variable_uuid;
+    INSERT INTO history.host_variables
+        (host_variable_uuid, 
          host_variable_host_uuid, 
          host_variable_name, 
          host_variable_value, 
-         modified_date)
+         modified_date) 
     VALUES
-        (history_host_variable.host_variable_uuid,
-         history_host_variable.host_variable_host_uuid, 
-         history_host_variable.host_variable_name, 
-         history_host_variable.host_variable_value,
-         history_host_variable.modified_date);
+        (history_host_variables.host_variable_uuid, 
+         history_host_variables.host_variable_host_uuid, 
+         history_host_variables.host_variable_name, 
+         history_host_variables.host_variable_value, 
+         history_host_variables.modified_date); 
     RETURN NULL;
 END;
 $$
 LANGUAGE plpgsql;
-ALTER FUNCTION history_host_variable() OWNER TO admin;
+ALTER FUNCTION history_host_variables() OWNER TO admin;
 
-CREATE TRIGGER trigger_host_variable
-    AFTER INSERT OR UPDATE ON host_variable
-    FOR EACH ROW EXECUTE PROCEDURE history_host_variable();
+CREATE TRIGGER trigger_host_variables
+    AFTER INSERT OR UPDATE ON host_variables
+    FOR EACH ROW EXECUTE PROCEDURE history_host_variables();
 
 
 -- This stores user session information on a per-dashboard basis.

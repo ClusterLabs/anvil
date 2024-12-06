@@ -68,6 +68,7 @@ my $THIS_FILE = "Database.pm";
 # insert_or_update_files
 # insert_or_update_health
 # insert_or_update_hosts
+# insert_or_update_host_variable
 # insert_or_update_ip_addresses
 # insert_or_update_jobs
 # insert_or_update_mail_servers
@@ -10294,6 +10295,191 @@ WHERE
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	return($host_uuid);
+}
+
+
+=head2 insert_or_update_host_variables
+
+This updates (or inserts) a record in the 'host_variabless' table. The C<< host_variable_host_uuid >> UUID will be returned.
+
+If there is an error, an empty string is returned.
+
+Parameters;
+
+=head3 host_variable_uuid (optional)
+
+If this is specified, this will be the record updated. If this is not passed, a check will be made to see if there's an existing C<< host_variable_host_uuid >> and C<< host_variable_name >>. If matches are found, the record is updated. If not, a new entry is made. 
+
+=head3 host_variable_host_uuid (required, default Get->host_uuid)
+
+This is the C<< host_uuid >> that the variable is being stored for. 
+
+=head3 host_variable_name (required)
+
+This is the name of the variable. 
+
+=head3 host_variable_value (optional)
+
+This is the value of the variable. 
+
+=cut
+sub insert_or_update_host_variables
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->insert_or_update_host_variables()" }});
+	
+	my $uuid                    = defined $parameter->{uuid}                    ? $parameter->{uuid}                    : "";
+	my $file                    = defined $parameter->{file}                    ? $parameter->{file}                    : "";
+	my $line                    = defined $parameter->{line}                    ? $parameter->{line}                    : "";
+	my $host_variable_uuid      = defined $parameter->{host_variable_uuid}      ? $parameter->{host_variable_uuid}      : "";
+	my $host_variable_host_uuid = defined $parameter->{host_variable_host_uuid} ? $parameter->{host_variable_host_uuid} : "";
+	my $host_variable_name      = defined $parameter->{host_variable_name}      ? $parameter->{host_variable_name}      : "";
+	my $host_variable_value     = defined $parameter->{host_variable_value}     ? $parameter->{host_variable_value}     : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		uuid                    => $uuid, 
+		file                    => $file, 
+		line                    => $line, 
+		host_variable_uuid      => $host_variable_uuid, 
+		host_variable_host_uuid => $host_variable_host_uuid,
+		host_variable_name      => $host_variable_name, 
+		host_variable_value     => $host_variable_value, 
+	}});
+	
+	# Do we have what we need?
+	if (not $host_variable_host_uuid)
+	{
+		$host_variable_host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_variable_host_uuid => $host_variable_host_uuid }});
+	}
+	if (not $host_variable_name)
+	{
+		# Throw an error and exit.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Database->insert_or_update_host_variables()", parameter => "host_variable_name" }});
+		return("");
+	}
+	
+	if (not $host_variable_uuid)
+	{
+		# We'll try to find the existing interface a couple ways. First we'll look up using 
+		# '_on_uuid' as that's as specific as it gets.
+		my $query = "
+SELECT 
+    host_variable_uuid 
+FROM 
+    host_variables 
+WHERE 
+    host_variable_host_uuid = ".$anvil->Database->quote($host_variable_host_uuid)." 
+AND 
+    host_variable_name      = ".$anvil->Database->quote($host_variable_name)."
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			$host_variable_uuid = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_variable_uuid => $host_variable_uuid }});
+		}
+	}
+	
+	# INSERT or UPDATE?
+	if (not $host_variable_uuid)
+	{
+		# INSERT
+		$host_variable_uuid = $anvil->Get->uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_variable_uuid => $host_variable_uuid }});
+		
+		my $query = "
+INSERT INTO 
+    host_variables 
+(
+    host_variable_uuid, 
+    host_variable_host_uuid, 
+    host_variable_name, 
+    host_variable_value, 
+    modified_date 
+) VALUES (
+    ".$anvil->Database->quote($host_variable_uuid).", 
+    ".$anvil->Database->quote($host_variable_host_uuid).", 
+    ".$anvil->Database->quote($host_variable_name).", 
+    ".$anvil->Database->quote($host_variable_value).", 
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+);
+";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+	}
+	else
+	{
+		# Query the rest of the values and see if anything changed.
+		my $query = "
+SELECT 
+    host_variable_host_uuid, 
+    host_variable_name, 
+    host_variable_value 
+FROM 
+    host_variables  
+WHERE 
+    host_variable_uuid = ".$anvil->Database->quote($host_variable_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		
+		my $results = $anvil->Database->query({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if (not $count)
+		{
+			# I have a host_variable_uuid but no matching record. Probably an error.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0216", variables => { uuid_name => "host_variable_uuid", uuid => $host_variable_uuid }});
+			return("");
+		}
+		foreach my $row (@{$results})
+		{
+			my $old_host_variable_host_uuid = $row->[0];
+			my $old_host_variable_name      = $row->[1];
+			my $old_host_variable_value     = $row->[2];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				old_host_variable_host_uuid => $old_host_variable_host_uuid, 
+				old_host_variable_name      => $old_host_variable_name, 
+				old_host_variable_value     => $old_host_variable_value, 
+			}});
+			
+			# Anything change?
+			if (($old_host_variable_host_uuid ne $host_variable_host_uuid) or 
+			    ($old_host_variable_name      ne $host_variable_name)      or 
+			    ($old_host_variable_value     ne $host_variable_value))
+			{
+				# Something changed, save.
+				my $query = "
+UPDATE 
+    host_variables 
+SET 
+    host_variable_host_uuid = ".$anvil->Database->quote($host_variable_host_uuid).",  
+    host_variable_name      = ".$anvil->Database->quote($host_variable_name).",  
+    host_variable_value     = ".$anvil->Database->quote($host_variable_value).", 
+    modified_date           = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    host_variable_uuid      = ".$anvil->Database->quote($host_variable_uuid)." 
+";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+				$anvil->Database->write({uuid => $uuid, query => $query, source => $file ? $file." -> ".$THIS_FILE : $THIS_FILE, line => $line ? $line." -> ".__LINE__ : __LINE__});
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_variable_host_uuid => $host_variable_host_uuid }});
+	return($host_variable_host_uuid);
 }
 
 

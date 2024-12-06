@@ -1122,6 +1122,7 @@ sub _set_paths
 				reboot_cache			=>	"/tmp/anvil.reboot-needed",
 				'redhat-release'		=>	"/etc/redhat-release",
 				fences_unified_metadata		=>	"/var/www/html/fences_unified_metadata.xml",
+				qemu_host_capabilities		=>	"/opt/alteeve/qemu-cache.xml",
 			},
 			devices			=>	{
 				stdout				=>	"/dev/stdout",
@@ -1308,6 +1309,7 @@ sub _set_paths
 				pvresize			=>	"/usr/sbin/pvresize",
 				pvs				=>	"/usr/sbin/pvs",
 				pvscan				=>	"/usr/sbin/pvscan",
+				'qemu-kvm'			=>	"/usr/libexec/qemu-kvm",
 				rm				=>	"/usr/bin/rm",
 				rpm				=>	"/usr/bin/rpm",
 				rsync				=>	"/usr/bin/rsync",
