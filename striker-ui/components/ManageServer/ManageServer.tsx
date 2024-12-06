@@ -1,7 +1,11 @@
-import { Grid } from '@mui/material';
+import { Breakpoint, Grid, styled } from '@mui/material';
 import { FC, useRef, useState } from 'react';
 
-import { Preview } from '../Display';
+import {
+  Preview,
+  PreviewBox as BasePreviewBox,
+  PreviewFrame,
+} from '../Display';
 import Divider from '../Divider';
 import { Panel, PanelHeader } from '../Panels';
 import ServerBootOrderForm from './ServerBootOrderForm';
@@ -59,6 +63,33 @@ const tabs = {
   },
 };
 
+const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
+  const widths: Partial<Record<Breakpoint, string>> = {
+    xs: 'calc(100vw - 4.88em)',
+    sm: 'calc(8em)',
+    md: 'calc(12em)',
+  };
+
+  const getHeight = (width = '0') => `calc(${width} * 0.8)`;
+
+  return {
+    [theme.breakpoints.up('xs')]: {
+      height: getHeight(widths.xs),
+      width: widths.xs,
+    },
+
+    [theme.breakpoints.up('sm')]: {
+      height: getHeight(widths.sm),
+      width: widths.sm,
+    },
+
+    [theme.breakpoints.up('md')]: {
+      height: getHeight(widths.md),
+      width: widths.md,
+    },
+  };
+});
+
 const ManageServer: FC<ManageServerProps> = (props) => {
   const { slotProps = {}, serverUuid } = props;
 
@@ -110,16 +141,15 @@ const ManageServer: FC<ManageServerProps> = (props) => {
           <Grid item width={{ xs: '100%', sm: '14em', md: '20em' }}>
             <Grid columns={1} container spacing="1em">
               <Grid item width="100%">
-                <Preview
-                  isUseInnerPanel
-                  onClickPreview={slotProps.preview?.onClick}
-                  serverName={detail.name}
-                  serverState={detail.state}
-                  serverUUID={detail.uuid}
-                  slotProps={{
-                    innerPanel: { mb: 0, mt: 0 },
-                  }}
-                />
+                <PreviewFrame server={detail}>
+                  <Preview
+                    onClick={slotProps.preview?.onClick}
+                    server={detail}
+                    slots={{
+                      screenshotBox: <PreviewBox />,
+                    }}
+                  />
+                </PreviewFrame>
               </Grid>
               <Grid item width="100%">
                 <Tabs

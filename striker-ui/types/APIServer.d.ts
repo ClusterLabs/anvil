@@ -134,6 +134,14 @@ type APIServerDetail = APIServerOverview & {
   };
 };
 
+/**
+ * @prop timestamp - unit: seconds
+ */
+type APIServerDetailScreenshot = {
+  screenshot: string;
+  timestamp: number;
+};
+
 type APIServerRenameRequestBody = {
   newName: string;
 };

@@ -1,12 +1,16 @@
 import { Box, styled } from '@mui/material';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { FullSize } from '../../components/Display';
 import Header from '../../components/Header';
 import { ManageServer } from '../../components/ManageServer';
+import MessageBox from '../../components/MessageBox';
 import PageBody from '../../components/PageBody';
+import { Panel } from '../../components/Panels';
+import Spinner from '../../components/Spinner';
+import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'Server';
 
@@ -33,51 +37,142 @@ const StyledDiv = styled('div')(({ theme }) => ({
 }));
 
 const Server = (): JSX.Element => {
-  const [previewMode, setPreviewMode] = useState<boolean>(true);
-
   const router = useRouter();
 
-  const { server_name = '', uuid = '', vnc = '' } = router.query;
+  const {
+    data: servers,
+    error: fetchError,
+    loading: loadingServers,
+  } = useFetch<APIServerOverviewList, APIServerOverview | undefined>('/server');
 
-  const isConnectVnc: boolean = Boolean(vnc);
-  const serverName: string = String(server_name);
-  const serverUuid: string = String(uuid);
+  const setQueryParam = useCallback(
+    (
+      previous: typeof router.query,
+      key: string,
+      value?: string,
+    ): typeof router.query => {
+      let query;
 
-  useEffect(() => {
-    if (isConnectVnc) {
-      setPreviewMode(false);
+      // No value means removing the param
+      if (value === undefined) {
+        const { [key]: rm, ...rest } = previous;
+
+        query = rest;
+      } else {
+        query = { ...previous, [key]: value };
+      }
+
+      return query;
+    },
+    [router],
+  );
+
+  const server = useMemo(() => {
+    if (!servers || !router.isReady) {
+      return undefined;
     }
-  }, [isConnectVnc]);
+
+    let result: APIServerOverview | undefined;
+
+    const { name, uuid } = router.query;
+
+    if (name) {
+      result = Object.values(servers).find((value) => value.name === name);
+    } else if (uuid) {
+      const key = typeof uuid === 'string' ? uuid : uuid[0];
+
+      result = servers[key];
+    }
+
+    return result;
+  }, [router.isReady, router.query, servers]);
+
+  const view = useMemo<string>(() => {
+    if (!router.isReady) {
+      return '';
+    }
+
+    const { view: value } = router.query;
+
+    if (!value) {
+      return '';
+    }
+
+    return typeof value === 'string' ? value : value[0];
+  }, [router.isReady, router.query]);
+
+  if (loadingServers) {
+    return (
+      <div>
+        <Head>
+          <title>Loading...</title>
+        </Head>
+        <Header />
+        <PageBody>
+          <Panel>
+            <Spinner mt={0} />
+          </Panel>
+        </PageBody>
+      </div>
+    );
+  }
+
+  if (!server) {
+    return (
+      <div>
+        <Head>
+          <title>Server?</title>
+        </Head>
+        <Header />
+        <PageBody>
+          <Panel>
+            <MessageBox>
+              Couldn&apos;t find server {router.query.name || router.query.uuid}
+              . {fetchError}
+            </MessageBox>
+          </Panel>
+        </PageBody>
+      </div>
+    );
+  }
+
+  const views: Record<string, React.ReactNode> = {
+    vnc: (
+      <Box className={classes.fullView}>
+        <FullSize
+          onClickCloseButton={() => {
+            const query = setQueryParam(router.query, 'view');
+
+            router.push({ query });
+          }}
+          serverUUID={server.uuid}
+          serverName={server.name}
+        />
+      </Box>
+    ),
+  };
 
   return (
     <StyledDiv>
       <Head>
-        <title>{serverName}</title>
+        <title>{server.name}</title>
       </Head>
       <Header />
-      {previewMode ? (
+      {views[view] ?? (
         <PageBody>
           <ManageServer
+            serverUuid={server.uuid}
             slotProps={{
               preview: {
                 onClick: () => {
-                  setPreviewMode(false);
+                  const query = setQueryParam(router.query, 'view', 'vnc');
+
+                  router.push({ query });
                 },
               },
             }}
-            serverUuid={serverUuid}
           />
         </PageBody>
-      ) : (
-        <Box className={classes.fullView}>
-          <FullSize
-            onClickCloseButton={() => {
-              setPreviewMode(true);
-            }}
-            serverUUID={serverUuid}
-            serverName={serverName}
-          />
-        </Box>
       )}
     </StyledDiv>
   );
