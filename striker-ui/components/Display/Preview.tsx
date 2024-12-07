@@ -39,7 +39,13 @@ type PreviewProps<Server extends ServerCore> = PreviewOptionalProps & {
 const Preview = <Server extends ServerCore>(
   ...[props]: Parameters<React.FC<PreviewProps<Server>>>
 ): ReturnType<React.FC<PreviewProps<Server>>> => {
-  const { href, onClick: handleClickPreview, server, slotProps, slots } = props;
+  const {
+    href: previewHref,
+    onClick: handleClickPreview,
+    server,
+    slotProps,
+    slots,
+  } = props;
 
   const { data, loading: loadingPreview } = useFetch<APIServerDetailScreenshot>(
     `/server/${server.uuid}?ss=1`,
@@ -75,7 +81,7 @@ const Preview = <Server extends ServerCore>(
         wrapper,
         wrapperProps,
         <>
-          <BodyText>Provisioning</BodyText>
+          <BodyText>Provisioning...</BodyText>
           {Object.values(server.jobs).map((job, index) => {
             const { peer, progress, uuid } = job;
 
@@ -183,7 +189,7 @@ const Preview = <Server extends ServerCore>(
       IconButton,
       {
         disabled,
-        href,
+        href: previewHref,
         onClick: handleClickPreview,
         sx: {
           padding: 0,
@@ -192,7 +198,7 @@ const Preview = <Server extends ServerCore>(
       },
       content,
     );
-  }, [content, handleClickPreview, href, preview, slotProps?.button]);
+  }, [content, handleClickPreview, preview, previewHref, slotProps?.button]);
 
   return button;
 };

@@ -7,6 +7,7 @@ import {
 } from '../Display';
 import Divider from '../Divider';
 import Link from '../Link';
+import { BodyText } from '../Text';
 
 const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
   const widths: Partial<Record<Breakpoint, string>> = {
@@ -45,11 +46,15 @@ const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
 const buildPreview = (server: APIServerOverview): React.ReactNode => (
   <Grid item>
     <PreviewFrame<APIServerOverview>
-      getHeader={({ anvil, name }) => (
+      getHeader={({ anvil, jobs, name }) => (
         <>
-          <Link href={`/server?name=${name}`} noWrap>
-            {name}
-          </Link>
+          {jobs ? (
+            <BodyText noWrap>{name}</BodyText>
+          ) : (
+            <Link href={`/server?name=${name}`} noWrap>
+              {name}
+            </Link>
+          )}
           <Link
             href={`/anvil?anvil_uuid=${anvil.uuid}`}
             noWrap
@@ -61,6 +66,7 @@ const buildPreview = (server: APIServerOverview): React.ReactNode => (
       )}
       key={`${server.uuid}-preview`}
       server={server}
+      showControls={!server.jobs}
     >
       <Preview
         href={`/server?name=${server.name}&view=vnc`}
