@@ -928,7 +928,7 @@ const ProvisionServerDialog: React.FC<ProvisionServerDialogProps> = (props) => {
     InputMessage | undefined
   >();
 
-  const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
+  const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(2);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
   const [inputCPUCoresMessage, setInputCPUCoresMessage] = useState<
     InputMessage | undefined
