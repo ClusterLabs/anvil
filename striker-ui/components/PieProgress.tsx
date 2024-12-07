@@ -1,7 +1,12 @@
-import { CircularProgress, CircularProgressProps, styled } from '@mui/material';
-import { FC, useMemo } from 'react';
+import {
+  Box as MuiBox,
+  CircularProgress as MuiCircularProgress,
+  CircularProgressProps as MuiCircularProgressProps,
+  styled,
+} from '@mui/material';
+import { useMemo } from 'react';
 
-import { BLUE, PURPLE } from '../lib/consts/DEFAULT_THEME';
+import { BLUE, DISABLED, PURPLE } from '../lib/consts/DEFAULT_THEME';
 
 const PREFIX = 'PieProgress';
 
@@ -10,7 +15,7 @@ const classes = {
   inProgress: `${PREFIX}-in-progress`,
 };
 
-const BasePieProgress = styled(CircularProgress)({
+const BasePieProgress = styled(MuiCircularProgress)({
   [`&.${classes.complete}`]: {
     color: BLUE,
   },
@@ -20,23 +25,63 @@ const BasePieProgress = styled(CircularProgress)({
   },
 });
 
-const PieProgress: FC<CircularProgressProps> = (props) => {
-  const { value, ...restProps } = props;
+const Underline = styled(MuiCircularProgress)({
+  color: DISABLED,
+});
 
-  const rootClasses = useMemo<string>(
-    () => (value && value === 100 ? classes.complete : classes.inProgress),
-    [value],
+const PieProgress: React.FC<PieProgressProps> = (props) => {
+  const { slotProps } = props;
+
+  const pieProps = slotProps?.pie;
+
+  const { value: pieValue = pieProps?.value } = props;
+
+  const pieSize = pieProps?.size ?? '1.6em';
+
+  const pieRootClasses = useMemo<string>(
+    () =>
+      pieValue && pieValue === 100 ? classes.complete : classes.inProgress,
+    [pieValue],
   );
 
+  const underlineProps = useMemo<MuiCircularProgressProps>(() => {
+    const ulProps = slotProps?.underline;
+
+    const thickness = ulProps?.thickness ?? 6;
+    const offsetMultiplier = ulProps?.offset?.multiplier ?? 1;
+
+    const offset = thickness * offsetMultiplier;
+    const offsetUnit = ulProps?.offset?.unit ?? 'px';
+    const halfOffset = offset * 0.5;
+
+    const size = `calc(${pieSize} + ${offset}${offsetUnit})`;
+
+    return {
+      size,
+      sx: {
+        position: 'absolute',
+        top: `-${halfOffset}${offsetUnit}`,
+        left: `-${halfOffset}${offsetUnit}`,
+      },
+      thickness,
+      value: 100,
+      variant: 'determinate',
+      ...slotProps?.underline,
+    };
+  }, [pieSize, slotProps?.underline]);
+
   return (
-    <BasePieProgress
-      classes={{ root: rootClasses }}
-      size="1.6em"
-      thickness={22}
-      value={value}
-      variant="determinate"
-      {...restProps}
-    />
+    <MuiBox sx={{ position: 'relative' }} {...slotProps?.box}>
+      <Underline {...underlineProps} />
+      <BasePieProgress
+        classes={{ root: pieRootClasses }}
+        size={pieSize}
+        thickness={22}
+        value={pieValue}
+        variant="determinate"
+        {...pieProps}
+      />
+    </MuiBox>
   );
 };
 
