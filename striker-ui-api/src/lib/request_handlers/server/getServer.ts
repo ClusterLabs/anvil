@@ -32,6 +32,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
       a.host_type,
       d.job_uuid,
       d.job_progress,
+      d.job_on_peer,
       d.server_name,
       d.host_uuid,
       d.host_name,
@@ -67,7 +68,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
             WHEN d1.job_data LIKE '%peer_mode=true%'
               THEN 1
             ELSE 0
-          END AS on_peer,
+          END AS job_on_peer,
           SUBSTRING(d1.job_data, 'server_name=([^\\n]*)') AS server_name,
           d2.host_uuid,
           d2.host_name,
