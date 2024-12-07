@@ -13,19 +13,21 @@ import {
   PanelHeader,
 } from '../Panels';
 import Spinner from '../Spinner';
+import SyncIndicator from '../SyncIndicator';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
-  const { refreshInterval = 5000 } = props;
+  const { refreshInterval = 4000 } = props;
 
-  const { data: rawAnvils, loading: loadingAnvils } =
-    useFetch<APIAnvilOverviewArray>('/anvil', { refreshInterval });
-
-  const anvils = useMemo<APIAnvilOverviewList | undefined>(
-    () => rawAnvils && toAnvilOverviewList(rawAnvils),
-    [rawAnvils],
-  );
+  const {
+    altData: anvils,
+    loading,
+    validating,
+  } = useFetch<APIAnvilOverviewArray, APIAnvilOverviewList>('/anvil', {
+    mod: toAnvilOverviewList,
+    refreshInterval,
+  });
 
   const grid = useMemo<ReactNode>(
     () =>
@@ -84,8 +86,9 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
     <Panel>
       <PanelHeader>
         <HeaderText>Nodes</HeaderText>
+        <SyncIndicator syncing={validating} />
       </PanelHeader>
-      {loadingAnvils ? <Spinner /> : grid}
+      {loading ? <Spinner /> : grid}
     </Panel>
   );
 };
