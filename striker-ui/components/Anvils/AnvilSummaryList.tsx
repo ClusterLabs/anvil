@@ -4,6 +4,7 @@ import { FC, ReactNode, useMemo } from 'react';
 import AnvilSummary from './AnvilSummary';
 import { toAnvilOverviewList } from '../../lib/api_converters';
 import Grid from '../Grid';
+import Link from '../Link';
 import {
   InnerPanel,
   InnerPanelBody,
@@ -46,7 +47,10 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                         textOverflow="ellipsis"
                         whiteSpace="nowrap"
                       >
-                        {name}: {description}
+                        <Link href={`/anvil?anvil_uuid=${uuid}`} noWrap>
+                          {name}
+                        </Link>
+                        : {description}
                       </BodyText>
                     </InnerPanelHeader>
                     <InnerPanelBody>
