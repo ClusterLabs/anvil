@@ -138,8 +138,8 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           uuid: serverUuid,
         };
       } else if (jobUuid) {
-        if (!previous[jobUuid]) {
-          previous[jobUuid] = {
+        if (!previous[jobServerName]) {
+          previous[jobServerName] = {
             anvil: {
               description: jobAnvilDescription,
               name: jobAnvilName,
@@ -157,7 +157,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           };
         }
 
-        const { [jobUuid]: server } = previous;
+        const { [jobServerName]: server } = previous;
 
         if (!server.jobs) {
           server.jobs = {};
