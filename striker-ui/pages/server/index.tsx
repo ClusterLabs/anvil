@@ -143,7 +143,7 @@ const Server = (): JSX.Element => {
           onClickCloseButton={() => {
             const query = setQueryParam(router.query, 'view');
 
-            router.push({ query });
+            router.replace({ query }, undefined, { shallow: true });
           }}
           serverUUID={server.uuid}
           serverName={server.name}
@@ -167,7 +167,7 @@ const Server = (): JSX.Element => {
                 onClick: () => {
                   const query = setQueryParam(router.query, 'view', 'vnc');
 
-                  router.push({ query });
+                  router.replace({ query }, undefined, { shallow: true });
                 },
               },
             }}
