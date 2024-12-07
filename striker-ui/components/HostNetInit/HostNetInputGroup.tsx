@@ -5,6 +5,7 @@ import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
 import Autocomplete from '../Autocomplete';
 import DropArea from '../DropArea';
+import { deleteButtonOffset } from './HostNetBox';
 import IconButton from '../IconButton';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
@@ -13,10 +14,12 @@ import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 
 const NETOPS: Record<string, string[]> = {
-  dr: ['bcn', 'ifn', 'sn'],
+  dr: ['bcn', 'ifn', 'mn', 'sn'],
   striker: ['bcn', 'ifn'],
-  subnode: ['bcn', 'ifn', 'sn'],
+  subnode: ['bcn', 'ifn', 'mn', 'sn'],
 };
+
+const netSeqInputWidth = '3.4em';
 
 const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   ...[props]: Parameters<FC<HostNetInputGroupProps<Values>>>
@@ -34,33 +37,15 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   const { formik, handleChange, setFieldChanged } = formikUtils;
 
   const netTypeOptions = useMemo<SelectItem[]>(() => {
-    let base: string[] = NETOPS[host.type];
+    const base: string[] = NETOPS[host.type];
 
     if (!base) return [];
-
-    const nets = formik.values.networkInit.networks;
-
-    if (
-      ['dr', 'subnode'].includes(host.type) &&
-      ifaceValues.length >= 8 &&
-      (nets[netId].type === 'mn' ||
-        Object.values<HostNetFormikValues>(nets).every(
-          (net) => net.type !== 'mn',
-        ))
-    ) {
-      base = [...base, 'mn'].sort();
-    }
 
     return base.map((type) => ({
       displayValue: NETWORK_TYPES[type] ?? 'Unknown network',
       value: type,
     }));
-  }, [
-    formik.values.networkInit.networks,
-    host.type,
-    ifaceValues.length,
-    netId,
-  ]);
+  }, [host.type]);
 
   const chains = useMemo(() => {
     const ns = 'networkInit.networks';
@@ -80,8 +65,11 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
   return (
     <InnerPanel>
       <InnerPanelHeader>
-        <Grid columns={{ xs: 1, sm: 2, md: 4 }} container spacing="0.1em">
-          <Grid item xs={1} md={3}>
+        <Grid container spacing="0.1em">
+          <Grid
+            item
+            width={{ xs: '100%', sm: `calc(100% - ${netSeqInputWidth})` }}
+          >
             <SelectWithLabel
               id={chains.type}
               label="Network type"
@@ -92,7 +80,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               value={formik.values.networkInit.networks[netId].type}
             />
           </Grid>
-          <Grid item xs={1} md={1}>
+          <Grid item width={{ xs: '100%', sm: netSeqInputWidth }}>
             <UncontrolledInput
               input={
                 <OutlinedInputWithLabel
@@ -107,7 +95,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
             />
           </Grid>
         </Grid>
-        {!/^default/.test(netId) && (
+        {!formik.values.networkInit.networks[netId].required && (
           <IconButton
             mapPreset="delete"
             onClick={() => {
@@ -119,8 +107,8 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
             sx={{
               padding: '.2em',
               position: 'absolute',
-              right: '-9px',
-              top: '-4px',
+              right: `-${deleteButtonOffset}`,
+              top: '-.2em',
             }}
           />
         )}
@@ -136,7 +124,6 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               }}
             >
               <Autocomplete
-                autoHighlight
                 getOptionDisabled={(option) =>
                   appliedIfaces[option.uuid] &&
                   option.uuid !==
@@ -187,7 +174,6 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               }}
             >
               <Autocomplete
-                autoHighlight
                 getOptionDisabled={(option) =>
                   appliedIfaces[option.uuid] &&
                   option.uuid !==

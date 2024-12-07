@@ -1,6 +1,7 @@
 type HostNetFormikValues = {
   interfaces: [string, string];
   ip: string;
+  required?: boolean;
   sequence: string;
   subnetMask: string;
   type: string;
@@ -56,6 +57,14 @@ type HostNetInitInputGroupProps<Values extends HostNetInitFormikExtension> =
     formikUtils: FormikUtils<Values>;
     host: HostNetInitHost;
   };
+
+/** HostNetSummary */
+
+type HostNetSummaryProps<Values extends HostNetInitFormikExtension> = {
+  gatewayIface: string;
+  ifaces: APINetworkInterfaceOverviewList;
+  values: Values;
+};
 
 /** SimpleIface */
 

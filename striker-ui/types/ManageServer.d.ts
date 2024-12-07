@@ -52,7 +52,9 @@ type ServerStartDependencyFormikValues = {
 
 type ManageServerOptionalProps = {
   slotProps?: {
-    preview?: Pick<import('@mui/material').IconButtonProps, 'onClick'>;
+    preview?: {
+      onClick?: React.MouseEventHandler<HTMLButtonElement>;
+    };
   };
 };
 

@@ -5,13 +5,21 @@ type ServerOverviewHost = {
   uuid: string;
 };
 
+type ServerOverviewJob = {
+  host: ServerOverviewHost;
+  peer?: boolean;
+  progress: number;
+  uuid: string;
+};
+
 type ServerOverview = {
   anvil: {
     description: string;
     name: string;
     uuid: string;
   };
-  host: ServerOverviewHost;
+  host?: ServerOverviewHost;
+  jobs?: Record<string, ServerOverviewJob>;
   name: string;
   state: string;
   uuid: string;
@@ -113,7 +121,8 @@ type ServerDetailVariable = {
   value: string;
 };
 
-type ServerDetail = Omit<ServerOverview, 'host'> & {
+type ServerDetail = ServerOverview & {
+  bridges: ServerDetailHostBridgeList;
   definition: {
     uuid: string;
   };
@@ -126,9 +135,6 @@ type ServerDetail = Omit<ServerOverview, 'host'> & {
     interfaces: ServerDetailInterface[];
   };
   cpu: ServerDetailCpu;
-  host: ServerOverviewHost & {
-    bridges: ServerDetailHostBridgeList;
-  };
   libvirt: {
     nicModels: string[];
   };

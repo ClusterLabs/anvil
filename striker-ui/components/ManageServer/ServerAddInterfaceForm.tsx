@@ -37,8 +37,6 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
           buildSummary: (v) => {
             const clone = { ...v };
 
-            clone.bridge = detail.host.bridges[v.bridge].name;
-
             if (!clone.mac) {
               clone.mac = defaults.mac;
             }
@@ -80,17 +78,23 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
   );
 
   const bridgeOptions = useMemo(() => {
-    const bridges = Object.values(detail.host.bridges);
+    const bridges = Object.values(detail.bridges);
 
-    return bridges.map<SelectItem>((bridge) => {
-      const { name, uuid } = bridge;
+    const unique = bridges.reduce<Record<string, SelectItem>>(
+      (previous, bridge) => {
+        const { name } = bridge;
 
-      return {
-        displayValue: name,
-        value: uuid,
-      };
-    });
-  }, [detail.host.bridges]);
+        if (!(name in previous)) {
+          previous[name] = { value: name };
+        }
+
+        return previous;
+      },
+      {},
+    );
+
+    return Object.values(unique);
+  }, [detail.bridges]);
 
   return (
     <ServerFormGrid<ServerInterfaceFormikValues> formik={formik}>
@@ -127,7 +131,6 @@ const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
       </Grid>
       <Grid item xs={1}>
         <Autocomplete
-          autoHighlight
           id={chains.model}
           label="Model"
           noOptionsText="No matching model"

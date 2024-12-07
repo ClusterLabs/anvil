@@ -125,7 +125,16 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
               return (
                 <FlexBox fullWidth spacing=".2em">
                   <FlexBox row spacing=".5em">
-                    <PieProgress sx={{ flexShrink: 0 }} value={progress} />
+                    <PieProgress
+                      slotProps={{
+                        pie: {
+                          sx: {
+                            flexShrink: 0,
+                          },
+                        },
+                      }}
+                      value={progress}
+                    />
                     <BodyText
                       sx={{
                         overflowX: 'hidden',

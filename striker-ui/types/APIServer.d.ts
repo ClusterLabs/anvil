@@ -8,6 +8,12 @@ type APIServerState =
   | 'running'
   | 'shut off';
 
+type APIServerOverviewAnvil = {
+  description: string;
+  name: string;
+  uuid: string;
+};
+
 type APIServerOverviewHost = {
   name: string;
   short: string;
@@ -15,13 +21,17 @@ type APIServerOverviewHost = {
   uuid: string;
 };
 
-type APIServerOverview = {
-  anvil: {
-    description: string;
-    name: string;
-    uuid: string;
-  };
+type APIServerOverviewJob = {
   host: APIServerOverviewHost;
+  peer?: boolean;
+  progress: number;
+  uuid: string;
+};
+
+type APIServerOverview = {
+  anvil: APIServerOverviewAnvil;
+  host?: APIServerOverviewHost;
+  jobs?: Record<string, APIServerOverviewJob>;
   name: string;
   state: APIServerState;
   uuid: string;
@@ -104,7 +114,8 @@ type APIServerDetailHostBridge = {
   uuid: string;
 };
 
-type APIServerDetail = Omit<APIServerOverview, 'host'> & {
+type APIServerDetail = APIServerOverview & {
+  bridges: Record<string, APIServerDetailHostBridge>;
   cpu: APIServerDetailCpu;
   devices: {
     diskOrderBy: {
@@ -113,9 +124,6 @@ type APIServerDetail = Omit<APIServerOverview, 'host'> & {
     };
     disks: APIServerDetailDisk[];
     interfaces: APIServerDetailInterface[];
-  };
-  host: APIServerOverviewHost & {
-    bridges: Record<string, APIServerDetailHostBridge>;
   };
   libvirt: {
     nicModels: string[];
@@ -126,6 +134,14 @@ type APIServerDetail = Omit<APIServerOverview, 'host'> & {
     after: null | string;
     delay: number;
   };
+};
+
+/**
+ * @prop timestamp - unit: seconds
+ */
+type APIServerDetailScreenshot = {
+  screenshot: string;
+  timestamp: number;
 };
 
 type APIServerRenameRequestBody = {

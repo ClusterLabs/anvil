@@ -36,11 +36,12 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
           uuid: string;
         }[]
       >((previous, server) => {
-        const {
-          host: { uuid: hostUuid },
-          name,
-          uuid,
-        } = server;
+        const { host, name, uuid } = server;
+
+        // Don't include shut off hosts into the table
+        if (!host) return previous;
+
+        const { uuid: hostUuid } = host;
 
         const row = {
           columns: {

@@ -3,6 +3,7 @@ import { FC } from 'react';
 
 import ContainedButton from '../ContainedButton';
 import handleAction from './handleAction';
+import MessageBox from '../MessageBox';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 import useFetch from '../../hooks/useFetch';
@@ -20,13 +21,17 @@ const ServerMigration: FC<ServerMigrationProps> = (props) => {
       return values.find(
         (host) =>
           host.anvil?.uuid === detail.anvil.uuid &&
-          host.shortHostName !== detail.host.short,
+          host.shortHostName !== detail.host?.short,
       );
     },
   });
 
   if (!peer) {
     return <Spinner mt={0} />;
+  }
+
+  if (!detail.host) {
+    return <MessageBox>Cannot migrate a shut off server.</MessageBox>;
   }
 
   return (

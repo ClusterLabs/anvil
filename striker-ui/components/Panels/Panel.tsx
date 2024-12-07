@@ -21,9 +21,8 @@ const StyledBox = styled(Box)(() => ({
   position: 'relative',
 
   [`& .${panelClasses.paper}`]: {
-    backgroundColor: PANEL_BACKGROUND,
+    backgroundColor: `${PANEL_BACKGROUND}CC`,
     height: '100%',
-    opacity: 0.8,
     padding: '2.1em',
     position: 'relative',
     width: '100%',

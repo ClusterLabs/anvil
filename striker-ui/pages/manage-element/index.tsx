@@ -3,13 +3,13 @@ import { useRouter } from 'next/router';
 import { FC, useEffect, useState } from 'react';
 
 import getQueryParam from '../../lib/getQueryParam';
-import Grid from '../../components/Grid';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
 import { ManageHost } from '../../components/ManageHost';
 import { ManageHostNetwork } from '../../components/ManageHostNetwork';
 import ManageManifestPanel from '../../components/ManageManifest';
 import ManageUpsPanel from '../../components/ManageUps';
+import PageBody from '../../components/PageBody';
 import { Panel, PanelHeader } from '../../components/Panels';
 import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
@@ -30,79 +30,40 @@ const MAP_TO_PAGE_TITLE: Record<string, string> = {
   [TAB_ID_MANAGE_MANIFEST]: 'Manage Manifests',
 };
 const PAGE_TITLE_LOADING = 'Loading';
-const STEP_CONTENT_GRID_COLUMNS = { md: 8, xs: 1 };
-const STEP_CONTENT_GRID_CENTER_COLUMN = { md: 6, xs: 1 };
 
 const PrepareHostTabContent: FC = () => (
-  <Grid
-    columns={STEP_CONTENT_GRID_COLUMNS}
-    layout={{
-      'preparehost-left-column': {},
-      'preparehost-center-column': {
-        children: (
-          <Panel>
-            <PanelHeader>
-              <HeaderText>Hosts</HeaderText>
-            </PanelHeader>
-            <ManageHost />
-          </Panel>
-        ),
-        ...STEP_CONTENT_GRID_CENTER_COLUMN,
-      },
-    }}
-  />
+  <PageBody>
+    <Panel>
+      <PanelHeader>
+        <HeaderText>Hosts</HeaderText>
+      </PanelHeader>
+      <ManageHost />
+    </Panel>
+  </PageBody>
 );
 
 const PrepareNetworkTabContent: FC = () => (
-  <Grid
-    columns={STEP_CONTENT_GRID_COLUMNS}
-    layout={{
-      'preparenetwork-left-column': {},
-      'preparenetwork-center-column': {
-        children: <ManageHostNetwork />,
-        ...STEP_CONTENT_GRID_CENTER_COLUMN,
-      },
-    }}
-  />
+  <PageBody>
+    <ManageHostNetwork />
+  </PageBody>
 );
 
 const ManageFenceTabContent: FC = () => (
-  <Grid
-    columns={STEP_CONTENT_GRID_COLUMNS}
-    layout={{
-      'managefence-left-column': {},
-      'managefence-center-column': {
-        children: <ManageFencePanel />,
-        ...STEP_CONTENT_GRID_CENTER_COLUMN,
-      },
-    }}
-  />
+  <PageBody>
+    <ManageFencePanel />
+  </PageBody>
 );
 
 const ManageUpsTabContent: FC = () => (
-  <Grid
-    columns={STEP_CONTENT_GRID_COLUMNS}
-    layout={{
-      'manageups-left-column': {},
-      'manageups-center-column': {
-        children: <ManageUpsPanel />,
-        ...STEP_CONTENT_GRID_CENTER_COLUMN,
-      },
-    }}
-  />
+  <PageBody>
+    <ManageUpsPanel />
+  </PageBody>
 );
 
 const ManageManifestContent: FC = () => (
-  <Grid
-    columns={STEP_CONTENT_GRID_COLUMNS}
-    layout={{
-      'managemanifest-left-column': {},
-      'managemanifest-center-column': {
-        children: <ManageManifestPanel />,
-        ...STEP_CONTENT_GRID_CENTER_COLUMN,
-      },
-    }}
-  />
+  <PageBody>
+    <ManageManifestPanel />
+  </PageBody>
 );
 
 const ManageElement: FC = () => {

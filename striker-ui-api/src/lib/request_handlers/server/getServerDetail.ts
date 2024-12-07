@@ -145,7 +145,7 @@ export const getServerDetail: RequestHandler<
       FROM servers AS a
       JOIN anvils AS b
         ON a.server_anvil_uuid = b.anvil_uuid
-      JOIN hosts AS c
+      LEFT JOIN hosts AS c
         ON a.server_host_uuid = c.host_uuid
       JOIN server_definitions AS d
         ON a.server_uuid = d.server_definition_server_uuid
@@ -183,18 +183,36 @@ export const getServerDetail: RequestHandler<
       ],
     } = rows;
 
-    const shortHostName = getShortHostName(hostName);
+    let shortHostName: string | undefined;
+
+    let host: ServerOverviewHost | undefined;
+
+    if (hostUuid) {
+      shortHostName = getShortHostName(hostName);
+
+      host = {
+        name: hostName,
+        short: shortHostName,
+        type: hostType,
+        uuid: hostUuid,
+      };
+    }
 
     // Get bridges separately to avoid passing duplicate definition XMLs
 
     sql = `
       SELECT
-        bridge_uuid,
-        bridge_name,
-        bridge_id,
-        bridge_mac_address
-      FROM bridges
-      WHERE bridge_host_uuid = '${hostUuid}';`;
+        a.bridge_uuid,
+        a.bridge_name,
+        a.bridge_id,
+        a.bridge_mac_address
+      FROM bridges as a
+      JOIN anvils as b
+        ON a.bridge_host_uuid IN (
+          b.anvil_node1_host_uuid,
+          b.anvil_node2_host_uuid
+        )
+      WHERE b.anvil_uuid = '${anvilUuid}';`;
 
     try {
       rows = await query(sql);
@@ -207,21 +225,18 @@ export const getServerDetail: RequestHandler<
       );
     }
 
-    const hostBridges = rows.reduce<ServerDetailHostBridgeList>(
-      (previous, row) => {
-        const [uuid, name, id, mac] = row;
+    const bridges = rows.reduce<ServerDetailHostBridgeList>((previous, row) => {
+      const [uuid, name, id, mac] = row;
 
-        previous[uuid] = {
-          id,
-          mac,
-          name,
-          uuid,
-        };
+      previous[uuid] = {
+        id,
+        mac,
+        name,
+        uuid,
+      };
 
-        return previous;
-      },
-      {},
-    );
+      return previous;
+    }, {});
 
     // Get interfaces to include state
 
@@ -320,11 +335,15 @@ export const getServerDetail: RequestHandler<
     try {
       const lvm = await getLvmData();
 
-      const host = lvm.host_name?.[shortHostName];
+      if (!shortHostName) {
+        // All subnodes should have the exact same storage setup,
+        // pick the first one if we don't already have any.
+        [shortHostName = ''] = Object.keys(lvm.host_name);
+      }
 
-      assert.ok(host);
+      hostLvm = lvm.host_name?.[shortHostName];
 
-      hostLvm = host;
+      assert.ok(hostLvm);
     } catch (error) {
       return respond.s500(
         'dd8a119',
@@ -537,6 +556,7 @@ export const getServerDetail: RequestHandler<
         name: anvilName,
         uuid: anvilUuid,
       },
+      bridges,
       cpu: {
         topology: {
           clusters: cpuClusters,
@@ -557,13 +577,7 @@ export const getServerDetail: RequestHandler<
         disks,
         interfaces,
       },
-      host: {
-        bridges: hostBridges,
-        name: hostName,
-        short: shortHostName,
-        type: hostType,
-        uuid: hostUuid,
-      },
+      host,
       libvirt: {
         nicModels,
       },

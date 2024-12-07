@@ -62,6 +62,7 @@ type APIHostNetwork = {
   link1Uuid: string;
   link2MacToSet?: string;
   link2Uuid?: string;
+  sequence: string;
   subnetMask: string;
   type: NetworkType;
 };

@@ -57,7 +57,7 @@ const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
           </MessageBox>
         </Grid>
       )}
-      <Grid item xs={1}>
+      <Grid item sm="auto" xs={1}>
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel

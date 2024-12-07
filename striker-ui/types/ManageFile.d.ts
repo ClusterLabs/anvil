@@ -36,7 +36,7 @@ type FileInputGroupProps = FileInputGroupOptionalProps & {
   anvils: APIAnvilOverviewList;
   drHosts: APIHostOverviewList;
   fileUuid: string;
-  formik: ReturnType<typeof import('formik').useFormik<FileFormikValues>>;
+  formik: Formik<FileFormikValues>;
 };
 
 /** AddFileForm */

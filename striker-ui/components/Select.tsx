@@ -44,18 +44,17 @@ const Select = <Value = string,>(
     [selectSx],
   );
 
-  const clearIndicatorElement = useMemo(
-    () =>
-      String(value).length > 0 &&
-      onClearIndicatorClick && (
-        <MUIInputAdornment position="end">
-          <MUIIconButton onClick={onClearIndicatorClick}>
-            <CloseIcon fontSize="small" />
-          </MUIIconButton>
-        </MUIInputAdornment>
-      ),
-    [onClearIndicatorClick, value],
-  );
+  const clearIndicatorElement = useMemo<React.ReactNode>(() => {
+    if (!value || !onClearIndicatorClick) return undefined;
+
+    return (
+      <MUIInputAdornment position="end">
+        <MUIIconButton onClick={onClearIndicatorClick} tabIndex={-1}>
+          <CloseIcon fontSize="small" />
+        </MUIIconButton>
+      </MUIInputAdornment>
+    );
+  }, [onClearIndicatorClick, value]);
 
   return (
     <MUISelect<Value>

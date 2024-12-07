@@ -112,7 +112,6 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
     <ServerFormGrid<ServerChangeIsoFormikValues> formik={formik}>
       <Grid item xs>
         <Autocomplete
-          autoHighlight
           disableClearable
           extendRenderInput={(inputProps) => {
             inputProps.inputLabelProps = {

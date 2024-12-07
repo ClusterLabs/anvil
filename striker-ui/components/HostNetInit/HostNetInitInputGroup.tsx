@@ -3,6 +3,7 @@ import {
   DragHandle as MuiDragHandleIcon,
 } from '@mui/icons-material';
 import { Box, BoxProps, Grid } from '@mui/material';
+import { GridColumns } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';
 import { FC, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,12 +13,14 @@ import DragArea, { dragAreaClasses } from './DragArea';
 import DragDataGrid, { dragDataGridClasses } from './DragDataGrid';
 import FlexBox from '../FlexBox';
 import guessHostNets from './guessHostNets';
+import HostNetBox from './HostNetBox';
 import HostNetInputGroup from './HostNetInputGroup';
 import IfaceDragHandle, { ifaceDragHandleClasses } from './IfaceDragHandle';
 import IconButton from '../IconButton';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { FloatingIface } from './SimpleIface';
 import Spinner from '../Spinner';
+import SyncIndicator from '../SyncIndicator';
 import { MonoText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
@@ -28,6 +31,17 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
   const { formikUtils, host, onFetchSuccess } = props;
 
   const { formik, handleChange } = formikUtils;
+
+  const chains = useMemo(() => {
+    const base = 'networkInit';
+
+    return {
+      dns: `${base}.dns`,
+      gateway: `${base}.gateway`,
+      networkInit: base,
+      networks: `${base}.networks`,
+    };
+  }, []);
 
   const autoAddMn = useRef<boolean>(true);
 
@@ -56,40 +70,30 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     [formik.values.networkInit.networks],
   );
 
-  const chains = useMemo(() => {
-    const base = 'networkInit';
+  const { data: ifaces, validating: validatingIfaces } =
+    useFetch<APINetworkInterfaceOverviewList>(
+      `/init/network-interface/${host.uuid}`,
+      {
+        onError: () => {
+          setLostConnection(true);
+        },
+        onSuccess: (data) => {
+          setLostConnection(false);
 
-    return {
-      dns: `${base}.dns`,
-      gateway: `${base}.gateway`,
-      networkInit: base,
-      networks: `${base}.networks`,
-    };
-  }, []);
+          guessHostNets({
+            appliedIfaces,
+            chains,
+            data,
+            host,
+            autoAddMn,
+            formikUtils,
+          });
 
-  const { data: ifaces } = useFetch<APINetworkInterfaceOverviewList>(
-    `/init/network-interface/${host.uuid}`,
-    {
-      onError: () => {
-        setLostConnection(true);
+          onFetchSuccess?.call(null, data);
+        },
+        refreshInterval: 2000,
       },
-      onSuccess: (data) => {
-        setLostConnection(false);
-
-        guessHostNets({
-          appliedIfaces,
-          chains,
-          data,
-          host,
-          autoAddMn,
-          formikUtils,
-        });
-
-        onFetchSuccess?.call(null, data);
-      },
-      refreshInterval: 2000,
-    },
-  );
+    );
 
   const hostNets = useMemo(
     () =>
@@ -135,6 +139,109 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     return available <= slots;
   }, [appliedIfaces, hostNets, ifaceValues?.length]);
 
+  const dataColumns = useMemo<GridColumns>(
+    (): GridColumns<APINetworkInterfaceOverview> => [
+      {
+        align: 'center',
+        field: '',
+        renderCell: (cell) => {
+          const { row } = cell;
+
+          let className;
+          let handleMouseDown:
+            | React.MouseEventHandler<HTMLDivElement>
+            | undefined = () => {
+            setIfaceHeld(row.uuid);
+          };
+          let icon = <MuiDragHandleIcon />;
+
+          if (appliedIfaces[row.uuid]) {
+            className = ifaceDragHandleClasses.applied;
+            handleMouseDown = undefined;
+            icon = <MuiCheckIcon />;
+          }
+
+          return (
+            <IfaceDragHandle
+              className={className}
+              onMouseDown={handleMouseDown}
+            >
+              {icon}
+            </IfaceDragHandle>
+          );
+        },
+        renderHeader: () => <SyncIndicator syncing={validatingIfaces} />,
+        sortable: false,
+        width: 1,
+      },
+      {
+        field: 'name',
+        flex: 1,
+        headerName: 'Name',
+        renderCell: (cell) => {
+          const { row, value } = cell;
+          const { state } = row;
+
+          let colour: Colours;
+
+          if (lostConnection || state === 'down') {
+            colour = 'warning';
+          } else if (state === 'up') {
+            colour = 'ok';
+          } else {
+            colour = 'error';
+          }
+
+          return (
+            <FlexBox row>
+              <Decorator
+                colour={colour}
+                sx={{ alignSelf: 'stretch', height: 'auto' }}
+              />
+              <MonoText>{value}</MonoText>
+            </FlexBox>
+          );
+        },
+      },
+      {
+        field: 'mac',
+        flex: 1,
+        headerName: 'MAC',
+        renderCell: (cell) => {
+          const { value } = cell;
+
+          return <MonoText>{value}</MonoText>;
+        },
+      },
+      {
+        field: 'state',
+        flex: 1,
+        headerName: 'State',
+        renderCell: (cell) => {
+          const { value } = cell;
+
+          return lostConnection ? 'Lost' : capitalize(value);
+        },
+      },
+      {
+        field: 'speed',
+        flex: 1,
+        headerName: 'Speed',
+        renderCell: (cell) => {
+          const { value } = cell;
+
+          return `${value} Mbps`;
+        },
+      },
+      {
+        field: 'order',
+        flex: 1,
+        headerName: 'Order',
+      },
+    ],
+    [appliedIfaces, lostConnection, validatingIfaces],
+  );
+
   if (!ifaces || !ifaceValues) {
     return <Spinner />;
   }
@@ -166,104 +273,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           )}
           <DragDataGrid
             autoHeight
-            columns={[
-              {
-                align: 'center',
-                field: '',
-                renderCell: (cell) => {
-                  const { row } = cell;
-
-                  let className;
-                  let handleMouseDown:
-                    | React.MouseEventHandler<HTMLDivElement>
-                    | undefined = () => {
-                    setIfaceHeld(row.uuid);
-                  };
-                  let icon = <MuiDragHandleIcon />;
-
-                  if (appliedIfaces[row.uuid]) {
-                    className = ifaceDragHandleClasses.applied;
-                    handleMouseDown = undefined;
-                    icon = <MuiCheckIcon />;
-                  }
-
-                  return (
-                    <IfaceDragHandle
-                      className={className}
-                      onMouseDown={handleMouseDown}
-                    >
-                      {icon}
-                    </IfaceDragHandle>
-                  );
-                },
-                sortable: false,
-                width: 1,
-              },
-              {
-                field: 'name',
-                flex: 1,
-                headerName: 'Name',
-                renderCell: (cell) => {
-                  const { row, value } = cell;
-                  const { state } = row;
-
-                  let colour: Colours;
-
-                  if (lostConnection || state === 'down') {
-                    colour = 'warning';
-                  } else if (state === 'up') {
-                    colour = 'ok';
-                  } else {
-                    colour = 'error';
-                  }
-
-                  return (
-                    <FlexBox row>
-                      <Decorator
-                        colour={colour}
-                        sx={{ alignSelf: 'stretch', height: 'auto' }}
-                      />
-                      <MonoText>{value}</MonoText>
-                    </FlexBox>
-                  );
-                },
-              },
-              {
-                field: 'mac',
-                flex: 1,
-                headerName: 'MAC',
-                renderCell: (cell) => {
-                  const { value } = cell;
-
-                  return <MonoText>{value}</MonoText>;
-                },
-              },
-              {
-                field: 'state',
-                flex: 1,
-                headerName: 'State',
-                renderCell: (cell) => {
-                  const { value } = cell;
-
-                  return lostConnection ? 'Lost' : capitalize(value);
-                },
-              },
-              {
-                field: 'speed',
-                flex: 1,
-                headerName: 'Speed',
-                renderCell: (cell) => {
-                  const { value } = cell;
-
-                  return `${value} Mbps`;
-                },
-              },
-              {
-                field: 'order',
-                flex: 1,
-                headerName: 'Order',
-              },
-            ]}
+            columns={dataColumns}
             componentsProps={{
               row: {
                 onMouseDown: (
@@ -299,45 +309,25 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
             }}
             rows={ifaceValues}
           />
-          <Box
-            sx={{
-              display: 'grid',
-              gridAutoColumns: {
-                xs: '100%',
-                sm: '50%',
-                md: 'calc(100% / 3)',
-                lg: '25%',
-              },
-              gridAutoFlow: 'column',
-              overflowX: 'scroll',
-              scrollSnapType: 'x',
-
-              '& > div': {
-                scrollSnapAlign: 'start',
-              },
-
-              '& > :not(div:first-child)': {
-                marginLeft: '1em',
-              },
-            }}
-          >
+          <HostNetBox>
             {hostNets.map((entry) => {
               const [key] = entry;
 
               return (
-                <HostNetInputGroup<Values>
-                  appliedIfaces={appliedIfaces}
-                  formikUtils={formikUtils}
-                  host={host}
-                  ifaceHeld={ifaceHeld}
-                  ifaces={ifaces}
-                  ifaceValues={ifaceValues}
-                  key={`hostnet-${key}`}
-                  netId={key}
-                />
+                <Box key={`hostnet-${key}`}>
+                  <HostNetInputGroup<Values>
+                    appliedIfaces={appliedIfaces}
+                    formikUtils={formikUtils}
+                    host={host}
+                    ifaceHeld={ifaceHeld}
+                    ifaces={ifaces}
+                    ifaceValues={ifaceValues}
+                    netId={key}
+                  />
+                </Box>
               );
             })}
-          </Box>
+          </HostNetBox>
         </DragArea>
       </Grid>
       <Grid alignSelf="center" item xs={1} sm="auto">
@@ -361,7 +351,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           }}
         />
       </Grid>
-      <Grid item xs={1}>
+      <Grid item xs={1} sm md="auto">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
@@ -375,7 +365,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           }
         />
       </Grid>
-      <Grid item xs={1}>
+      <Grid item xs={1} sm md="auto">
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel

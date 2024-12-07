@@ -104,7 +104,7 @@ const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
                     />
                   </Grid>
                   <Grid item xs>
-                    <FlexBox xs="column" sm="row" columnSpacing={0}>
+                    <FlexBox xs="column" md="row" columnSpacing={0}>
                       <MonoText noWrap>
                         {dev} ({type})
                       </MonoText>

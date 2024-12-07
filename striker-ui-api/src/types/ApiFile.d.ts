@@ -35,7 +35,7 @@ type FileDetail = Omit<FileOverview, 'anvils'> & {
   locations: {
     [uuid: string]: {
       active: boolean;
-      anvilUuid: string;
+      anvilUuid: null | string;
       hostUuid: string;
       ready: boolean;
       uuid: string;

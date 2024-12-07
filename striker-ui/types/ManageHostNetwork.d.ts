@@ -27,8 +27,5 @@ type PrepareHostNetworkFormProps = {
 
 /** PrepareHostNetworkSummary */
 
-type PrepareHostNetworkSummaryProps = {
-  gatewayIface: string;
-  ifaces: APINetworkInterfaceOverviewList;
-  values: PrepareHostNetworkFormikValues;
-};
+type PrepareHostNetworkSummaryProps =
+  HostNetSummaryProps<PrepareHostNetworkFormikValues>;
