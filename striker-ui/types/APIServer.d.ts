@@ -22,6 +22,8 @@ type APIServerOverviewHost = {
 };
 
 type APIServerOverviewJob = {
+  host: APIServerOverviewHost;
+  peer?: boolean;
   progress: number;
   uuid: string;
 };
@@ -29,7 +31,7 @@ type APIServerOverviewJob = {
 type APIServerOverview = {
   anvil: APIServerOverviewAnvil;
   host?: APIServerOverviewHost;
-  job?: APIServerOverviewJob;
+  jobs?: Record<string, APIServerOverviewJob>;
   name: string;
   state: APIServerState;
   uuid: string;

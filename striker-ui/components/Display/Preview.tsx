@@ -1,16 +1,23 @@
 import { PowerSettingsNewOutlined as PowerSettingsNewOutlinedIcon } from '@mui/icons-material';
-import { Box, BoxProps, IconButton, IconButtonProps } from '@mui/material';
+import {
+  Box,
+  BoxProps,
+  circularProgressClasses,
+  IconButton,
+  IconButtonProps,
+} from '@mui/material';
 import { cloneElement, createElement, useMemo } from 'react';
 
 import { GREY, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
+import PieProgress from '../PieProgress';
 import PreviewBox from './PreviewBox';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 import { elapsed, last, now } from '../../lib/time';
 import useFetch from '../../hooks/useFetch';
 
-type ServerCore = Pick<APIServerOverview, 'name' | 'state' | 'uuid'>;
+type ServerCore = Pick<APIServerOverview, 'jobs' | 'name' | 'state' | 'uuid'>;
 
 type PreviewOptionalProps = {
   href?: string;
@@ -52,9 +59,59 @@ const Preview = <Server extends ServerCore>(
     return !last(timestamp, 300);
   }, [timestamp]);
 
+  const wrapper = useMemo(
+    () => slots?.screenshotBox ?? <PreviewBox />,
+    [slots?.screenshotBox],
+  );
+
+  const wrapperProps = useMemo(
+    () => ({ ...slotProps?.screenshotBox }),
+    [slotProps?.screenshotBox],
+  );
+
   const content = useMemo(() => {
-    const wrapper = slots?.screenshotBox || <PreviewBox />;
-    const wrapperProps = { ...slotProps?.screenshotBox };
+    if (server.jobs) {
+      return cloneElement(
+        wrapper,
+        wrapperProps,
+        <>
+          <BodyText>Provisioning</BodyText>
+          {Object.values(server.jobs).map((job, index) => {
+            const { peer, progress, uuid } = job;
+
+            const size = `calc(7em - ${1.5 * index}em)`;
+
+            return (
+              <PieProgress
+                key={`${uuid}-progress`}
+                slotProps={{
+                  box: {
+                    sx: {
+                      position: 'absolute',
+                    },
+                  },
+                  pie: {
+                    size,
+                    sx: {
+                      opacity: peer ? 0.6 : undefined,
+
+                      [`& .${circularProgressClasses.circle}`]: {
+                        strokeLinecap: 'round',
+                      },
+                    },
+                    thickness: 3,
+                  },
+                  underline: {
+                    thickness: 0,
+                  },
+                }}
+                value={progress}
+              />
+            );
+          })}
+        </>,
+      );
+    }
 
     if (loadingPreview) {
       return cloneElement(wrapper, wrapperProps, <Spinner mt={0} />);
@@ -110,12 +167,13 @@ const Preview = <Server extends ServerCore>(
     loadingPreview,
     nao,
     preview,
+    server.jobs,
     server.state,
     slotProps?.screenshot,
-    slotProps?.screenshotBox,
-    slots?.screenshotBox,
     stale,
     timestamp,
+    wrapper,
+    wrapperProps,
   ]);
 
   const button = useMemo(() => {
