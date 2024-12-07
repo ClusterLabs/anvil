@@ -69,7 +69,6 @@ const buildPreview = (server: APIServerOverview): React.ReactNode => (
       showControls={!server.jobs}
     >
       <Preview
-        href={`/server?name=${server.name}&view=vnc`}
         server={server}
         slots={{
           screenshotBox: <PreviewBox />,

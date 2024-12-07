@@ -39,13 +39,9 @@ type PreviewProps<Server extends ServerCore> = PreviewOptionalProps & {
 const Preview = <Server extends ServerCore>(
   ...[props]: Parameters<React.FC<PreviewProps<Server>>>
 ): ReturnType<React.FC<PreviewProps<Server>>> => {
-  const {
-    href: previewHref,
-    onClick: handleClickPreview,
-    server,
-    slotProps,
-    slots,
-  } = props;
+  const { onClick: handleClickPreview, server, slotProps, slots } = props;
+
+  const { href: previewHref = `/server?name=${server.name}&view=vnc` } = props;
 
   const { data, loading: loadingPreview } = useFetch<APIServerDetailScreenshot>(
     `/server/${server.uuid}?ss=1`,
@@ -75,6 +71,7 @@ const Preview = <Server extends ServerCore>(
     [slotProps?.screenshotBox],
   );
 
+  // eslint-disable-next-line complexity
   const content = useMemo(() => {
     if (server.jobs) {
       return cloneElement(
@@ -161,7 +158,7 @@ const Preview = <Server extends ServerCore>(
         src={`data:image;base64,${preview}`}
         sx={{
           color: GREY,
-          height: '100%',
+          height: preview ? '100%' : 'auto',
           opacity,
           width: 'auto',
         }}
@@ -183,7 +180,7 @@ const Preview = <Server extends ServerCore>(
   ]);
 
   const button = useMemo(() => {
-    const disabled = !preview;
+    const disabled = server.state !== 'running' || Boolean(server.jobs);
 
     return createElement(
       IconButton,
@@ -198,7 +195,14 @@ const Preview = <Server extends ServerCore>(
       },
       content,
     );
-  }, [content, handleClickPreview, preview, previewHref, slotProps?.button]);
+  }, [
+    content,
+    handleClickPreview,
+    previewHref,
+    server.jobs,
+    server.state,
+    slotProps?.button,
+  ]);
 
   return button;
 };

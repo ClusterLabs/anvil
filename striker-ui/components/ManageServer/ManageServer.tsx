@@ -91,7 +91,7 @@ const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
 });
 
 const ManageServer: FC<ManageServerProps> = (props) => {
-  const { slotProps = {}, serverUuid } = props;
+  const { slotProps, serverUuid } = props;
 
   const [tabId, setTabId] = useState<string>(tabs.general.value);
 
@@ -143,11 +143,11 @@ const ManageServer: FC<ManageServerProps> = (props) => {
               <Grid item width="100%">
                 <PreviewFrame server={detail}>
                   <Preview
-                    onClick={slotProps.preview?.onClick}
                     server={detail}
                     slots={{
                       screenshotBox: <PreviewBox />,
                     }}
+                    {...slotProps?.preview}
                   />
                 </PreviewFrame>
               </Grid>
