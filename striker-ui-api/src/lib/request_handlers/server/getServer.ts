@@ -5,19 +5,23 @@ import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
 import { sanitize } from '../../sanitize';
-import { poutvar } from '../../shell';
 
 export const getServer = buildGetRequestHandler((request, hooks) => {
   const { anvilUUIDs } = request.query;
 
-  const condAnvilUUIDs = join(sanitize(anvilUUIDs, 'string[]'), {
-    beforeReturn: (toReturn) =>
-      toReturn ? `AND a.server_anvil_uuid IN (${toReturn})` : '',
+  const condAnvil = join(sanitize(anvilUUIDs, 'string[]'), {
+    beforeReturn: (toReturn) => (toReturn ? `anvil_uuid IN (${toReturn})` : ''),
     elementWrapper: "'",
     separator: ', ',
   });
 
-  poutvar({ condAnvilUUIDs });
+  let condServerAnvil = '';
+  let condJobAnvil = '';
+
+  if (condAnvil) {
+    condServerAnvil = `AND a1.server_${condAnvil}`;
+    condJobAnvil = `AND d3.${condAnvil}`;
+  }
 
   const sql = `
     SELECT
@@ -57,7 +61,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
         LEFT JOIN hosts AS a3
           ON a3.host_uuid = a1.server_host_uuid
         WHERE a1.server_state != '${DELETED}'
-          ${condAnvilUUIDs}
+          ${condServerAnvil}
         ORDER BY a1.server_name ASC
       ) AS a
     FULL JOIN (
@@ -85,7 +89,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
             d3.anvil_node2_host_uuid
           )
         WHERE d1.job_command LIKE '%anvil-provision-server%'
-          ${condAnvilUUIDs}
+          ${condJobAnvil}
         ORDER BY
           server_name ASC,
           job_on_peer ASC
