@@ -86,7 +86,9 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           )
         WHERE d1.job_command LIKE '%anvil-provision-server%'
           ${condAnvilUUIDs}
-        ORDER BY server_name ASC
+        ORDER BY
+          server_name ASC,
+          job_on_peer ASC
       ) AS d
       ON d.server_name = a.server_name
     ;`;
