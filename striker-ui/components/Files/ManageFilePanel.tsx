@@ -73,20 +73,18 @@ const ManageFilePanel: FC = () => {
       url: '/file/',
     });
 
-  const { data: rawAnvils, loading: loadingAnvils } =
-    useFetch<APIAnvilOverviewArray>('/anvil', {
-      onError: (error) => {
-        setApiMessage({
-          children: <>Failed to get node list. {error}</>,
-          type: 'warning',
-        });
-      },
-    });
-
-  const anvils = useMemo(
-    () => rawAnvils && toAnvilOverviewList(rawAnvils),
-    [rawAnvils],
-  );
+  const { altData: anvils, loading: loadingAnvils } = useFetch<
+    APIAnvilOverviewArray,
+    APIAnvilOverviewList
+  >('/anvil', {
+    mod: toAnvilOverviewList,
+    onError: (error) => {
+      setApiMessage({
+        children: <>Failed to get node list. {error}</>,
+        type: 'warning',
+      });
+    },
+  });
 
   const { data: drHosts, loading: loadingDrHosts } =
     useFetch<APIHostOverviewList>('/host?types=dr', {

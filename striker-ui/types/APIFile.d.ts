@@ -13,7 +13,7 @@ type APIFileOverview = {
   uuid: string;
 };
 
-type APIFileDetail = APIFileOverview & {
+type APIFileDetail = Omit<APIFileOverview, 'anvils'> & {
   anvils: {
     [uuid: string]: {
       description: string;
@@ -33,7 +33,7 @@ type APIFileDetail = APIFileOverview & {
   locations: {
     [uuid: string]: {
       active: boolean;
-      anvilUuid: string;
+      anvilUuid: null | string;
       hostUuid: string;
       ready: boolean;
       uuid: string;

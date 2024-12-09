@@ -238,7 +238,6 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
           hostType,
           hostUUID,
           ipmi,
-          networks: {},
           shortHostName,
         },
       );

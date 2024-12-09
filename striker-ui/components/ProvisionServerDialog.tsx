@@ -1,33 +1,31 @@
+import { Box, Dialog, DialogProps, Grid } from '@mui/material';
+import { DataSizeUnit } from 'format-data-size';
 import {
   Dispatch,
   ReactNode,
   SetStateAction,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from 'react';
-import { Box, Dialog, DialogProps, Grid } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
-import { DataSizeUnit } from 'format-data-size';
 import { v4 as uuidv4 } from 'uuid';
 
-import { BLUE, RED, TEXT } from '../lib/consts/DEFAULT_THEME';
 import { DSIZE_SELECT_ITEMS } from '../lib/consts/DSIZES';
 
 import api from '../lib/api';
 import Autocomplete from './Autocomplete';
-import ConfirmDialog from './ConfirmDialog';
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
 import { dsize, dsizeToByte } from '../lib/format_data_size_wrappers';
-import IconButton, { IconButtonProps } from './IconButton';
+import handleAPIError from '../lib/handleAPIError';
+import IconButton from './IconButton';
 import MessageBox, { MessageBoxProps } from './MessageBox';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from './OutlinedLabeledInputWithSelect';
 import { Panel, PanelHeader } from './Panels';
 import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
+import SyncIndicator from './SyncIndicator';
 import {
   testInput as baseTestInput,
   testMax,
@@ -35,12 +33,14 @@ import {
   testRange,
 } from '../lib/test_input';
 import { BodyText, HeaderText, InlineMonoText } from './Text';
+import useConfirmDialog from '../hooks/useConfirmDialog';
+import useFetch from '../hooks/useFetch';
 
 type InputMessage = Partial<Pick<MessageBoxProps, 'type' | 'text'>>;
 
 type ProvisionServerDialogProps = {
   dialogProps: DialogProps;
-  onClose: IconButtonProps['onClick'];
+  onClose?: () => void;
 };
 
 type HostMetadataForProvisionServerHost = {
@@ -100,6 +100,11 @@ type AnvilDetailMetadataForProvisionServer = {
   servers: Array<ServerMetadataForProvisionServer>;
   storageGroups: Array<StorageGroupMetadataForProvisionServer>;
   files: Array<FileMetadataForProvisionServer>;
+};
+
+type AnvilDetailForProvisionServer = {
+  anvils: AnvilDetailMetadataForProvisionServer[];
+  oses: Record<string, string>;
 };
 
 type OrganizedAnvilDetailMetadataForProvisionServer = Omit<
@@ -197,6 +202,20 @@ type UpdateLimitsFunction = (options?: {
   formattedMaxVDSizes: string[];
 };
 
+type ProvisionServerStructures = {
+  anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
+  anvilSelectItems: SelectItem[];
+  anvilUUIDMapToData: AnvilUUIDMapToData;
+  files: FileMetadataForProvisionServer[];
+  fileSelectItems: SelectItem[];
+  fileUUIDMapToData: FileUUIDMapToData;
+  osAutocompleteOptions: OSAutoCompleteOption[];
+  serverNameMapToData: ServerNameMapToData;
+  storageGroups: OrganizedStorageGroupMetadataForProvisionServer[];
+  storageGroupSelectItems: SelectItem[];
+  storageGroupUUIDMapToData: StorageGroupUUIDMapToData;
+};
+
 const BIGINT_ZERO = BigInt(0);
 
 const INITIAL_DATA_SIZE_UNIT: DataSizeUnit = 'GiB';
@@ -206,15 +225,6 @@ const CPU_CORES_MIN = 1;
 const MEMORY_MIN = BigInt(65536);
 // Unit: bytes; 100 MiB
 const VIRTUAL_DISK_SIZE_MIN = BigInt(104857600);
-
-const PROVISION_BUTTON_STYLES = {
-  backgroundColor: BLUE,
-  color: TEXT,
-
-  '&:hover': {
-    backgroundColor: BLUE,
-  },
-};
 
 const createMaxValueButton = (
   maxValue: string,
@@ -263,6 +273,7 @@ const createSelectItemDisplay = ({
 
 const organizeAnvils = (data: AnvilDetailMetadataForProvisionServer[]) => {
   const allFiles: Record<string, FileMetadataForProvisionServer> = {};
+
   const result = data.reduce<{
     anvils: OrganizedAnvilDetailMetadataForProvisionServer[];
     anvilSelectItems: SelectItem[];
@@ -631,9 +642,6 @@ const filterAnvils: FilterAnvilsFunction = (
   return result;
 };
 
-// const convertSelectValueToArray = (value: unknown) =>
-//   typeof value === 'string' ? value.split(',') : (value as string[]);
-
 const createVirtualDiskForm = (
   virtualDisks: VirtualDiskStates,
   vdIndex: number,
@@ -719,79 +727,75 @@ const createVirtualDiskForm = (
         },
       }}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <OutlinedLabeledInputWithSelect
-          id={`ps-virtual-disk-size-${vdIndex}`}
-          label="Disk size"
-          messageBoxProps={get('inputSizeMessages')}
-          inputWithLabelProps={{
-            inputProps: {
-              endAdornment: createMaxValueButton(
-                `${get('inputMaxes')} ${get('inputUnits')}`,
-                {
-                  onButtonClick: () => {
-                    set('inputSizes', get('inputMaxes'));
-                    changeVDSize(get('maxes'));
-                  },
+      <OutlinedLabeledInputWithSelect
+        id={`ps-virtual-disk-size-${vdIndex}`}
+        label="Disk size"
+        messageBoxProps={get('inputSizeMessages')}
+        inputWithLabelProps={{
+          inputProps: {
+            endAdornment: createMaxValueButton(
+              `${get('inputMaxes')} ${get('inputUnits')}`,
+              {
+                onButtonClick: () => {
+                  set('inputSizes', get('inputMaxes'));
+                  changeVDSize(get('maxes'));
                 },
-              ),
-              onChange: ({ target: { value } }) => {
-                handleVDSizeChange({ value });
               },
-              type: 'number',
-              value: get('inputSizes'),
-            },
-            inputLabelProps: {
-              isNotifyRequired: get('sizes') === BIGINT_ZERO,
-            },
-          }}
-          selectItems={DSIZE_SELECT_ITEMS}
-          selectWithLabelProps={{
-            selectProps: {
-              onChange: ({ target: { value } }) => {
-                const selectedUnit = value as DataSizeUnit;
-
-                handleVDSizeChange({ unit: selectedUnit });
-              },
-              value: get('inputUnits'),
-            },
-          }}
-        />
-      </Box>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <SelectWithLabel
-          id={`ps-storage-group-${vdIndex}`}
-          label="Storage group"
-          disableItem={(value) =>
-            !(
-              includeStorageGroupUUIDs.includes(value) &&
-              get('sizes') <= storageGroupUUIDMapToData[value].storageGroupFree
-            )
-          }
-          inputLabelProps={{
-            isNotifyRequired: get('inputStorageGroupUUIDs').length === 0,
-          }}
-          messageBoxProps={get('inputStorageGroupUUIDMessages')}
-          selectItems={storageGroupSelectItems}
-          selectProps={{
+            ),
             onChange: ({ target: { value } }) => {
-              const selectedStorageGroupUUID = value as string;
-
-              handleVDStorageGroupChange(selectedStorageGroupUUID);
+              handleVDSizeChange({ value });
             },
-            onClearIndicatorClick: () => handleVDStorageGroupChange(''),
-            renderValue: (value) => {
-              const {
-                anvilName: rvAnvilName = '?',
-                storageGroupName: rvStorageGroupName = `Unknown (${value})`,
-              } = storageGroupUUIDMapToData[value as string] ?? {};
+            type: 'number',
+            value: get('inputSizes'),
+          },
+          inputLabelProps: {
+            isNotifyRequired: get('sizes') === BIGINT_ZERO,
+          },
+        }}
+        selectItems={DSIZE_SELECT_ITEMS}
+        selectWithLabelProps={{
+          selectProps: {
+            onChange: ({ target: { value } }) => {
+              const selectedUnit = value as DataSizeUnit;
 
-              return `${rvStorageGroupName} (${rvAnvilName})`;
+              handleVDSizeChange({ unit: selectedUnit });
             },
-            value: get('inputStorageGroupUUIDs'),
-          }}
-        />
-      </Box>
+            value: get('inputUnits'),
+          },
+        }}
+      />
+      <SelectWithLabel
+        id={`ps-storage-group-${vdIndex}`}
+        label="Storage group"
+        disableItem={(value) =>
+          !(
+            includeStorageGroupUUIDs.includes(value) &&
+            get('sizes') <= storageGroupUUIDMapToData[value].storageGroupFree
+          )
+        }
+        inputLabelProps={{
+          isNotifyRequired: get('inputStorageGroupUUIDs').length === 0,
+        }}
+        messageBoxProps={get('inputStorageGroupUUIDMessages')}
+        selectItems={storageGroupSelectItems}
+        selectProps={{
+          onChange: ({ target: { value } }) => {
+            const selectedStorageGroupUUID = value as string;
+
+            handleVDStorageGroupChange(selectedStorageGroupUUID);
+          },
+          onClearIndicatorClick: () => handleVDStorageGroupChange(''),
+          renderValue: (value) => {
+            const {
+              anvilName: rvAnvilName = '?',
+              storageGroupName: rvStorageGroupName = `Unknown (${value})`,
+            } = storageGroupUUIDMapToData[value as string] ?? {};
+
+            return `${rvStorageGroupName} (${rvAnvilName})`;
+          },
+          value: get('inputStorageGroupUUIDs'),
+        }}
+      />
     </Box>
   );
 };
@@ -871,6 +875,7 @@ const getDisplayDsizeOptions = (
   precision: 0,
   toUnit: 'ibyte',
 });
+
 let displayMemoryMin: string;
 let displayVirtualDiskSizeMin: string;
 
@@ -888,10 +893,12 @@ dsize(
   }),
 );
 
-const ProvisionServerDialog = ({
-  dialogProps: { open },
-  onClose: onCloseProvisionServerDialog,
-}: ProvisionServerDialogProps): JSX.Element => {
+const ProvisionServerDialog: React.FC<ProvisionServerDialogProps> = (props) => {
+  const {
+    dialogProps: { open },
+    onClose: handleClose,
+  } = props;
+
   const [allAnvils, setAllAnvils] = useState<
     OrganizedAnvilDetailMetadataForProvisionServer[]
   >([]);
@@ -921,7 +928,7 @@ const ProvisionServerDialog = ({
     InputMessage | undefined
   >();
 
-  const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(1);
+  const [inputCPUCoresValue, setInputCPUCoresValue] = useState<number>(2);
   const [inputCPUCoresMax, setInputCPUCoresMax] = useState<number>(0);
   const [inputCPUCoresMessage, setInputCPUCoresMessage] = useState<
     InputMessage | undefined
@@ -970,13 +977,14 @@ const ProvisionServerDialog = ({
 
   const [isProvisionServerDataReady, setIsProvisionServerDataReady] =
     useState<boolean>(false);
-  const [isOpenProvisionConfirmDialog, setIsOpenProvisionConfirmDialog] =
-    useState<boolean>(false);
-  const [isProvisionRequestInProgress, setIsProvisionRequestInProgress] =
-    useState<boolean>(false);
 
-  const [successfulProvisionCount, setSuccessfulProvisionCount] =
-    useState<number>(0);
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog();
 
   const inputCpuCoresOptions = useMemo(() => {
     const result: number[] = [];
@@ -1485,130 +1493,115 @@ const ProvisionServerDialog = ({
     [anvilUUIDMapToData, fileUUIDMapToData, storageGroupUUIDMapToData],
   );
 
-  useEffect(() => {
-    api
-      .get('/anvil', {
-        params: {
-          anvilUUIDs: 'all',
-          isForProvisionServer: true,
-        },
-      })
-      .then(({ data }) => {
+  const { validating } = useFetch<
+    AnvilDetailForProvisionServer,
+    ProvisionServerStructures
+  >(`/anvil?anvilUUIDs=all&isForProvisionServer=1`, {
+    onSuccess: (data) => {
+      const {
+        anvils: ueAllAnvils,
+        anvilSelectItems: ueAnvilSelectItems,
+        anvilUUIDMapToData: ueAnvilUUIDMapToData,
+        fileSelectItems: ueFileSelectItems,
+        fileUUIDMapToData: ueFileUUIDMapToData,
+        serverNameMapToData: ueServerNameMapToData,
+        storageGroupSelectItems: ueStorageGroupSelectItems,
+        storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
+      } = organizeAnvils(data.anvils);
+
+      setAllAnvils(ueAllAnvils);
+      setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
+      setFileUUIDMapToData(ueFileUUIDMapToData);
+      setServerNameMapToData(ueServerNameMapToData);
+      setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
+
+      setAnvilSelectItems(ueAnvilSelectItems);
+      setFileSelectItems(ueFileSelectItems);
+      setStorageGroupSelectItems(ueStorageGroupSelectItems);
+
+      const limits: Parameters<UpdateLimitsFunction>[0] = {
+        allAnvils: ueAllAnvils,
+        storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
+      };
+
+      // Auto-select the only option when there's only 1.
+      // Reminder to update the form limits after changing any value.
+
+      if (ueAnvilSelectItems.length === 1) {
         const {
-          anvils: ueAllAnvils,
-          anvilSelectItems: ueAnvilSelectItems,
-          anvilUUIDMapToData: ueAnvilUUIDMapToData,
-          fileSelectItems: ueFileSelectItems,
-          fileUUIDMapToData: ueFileUUIDMapToData,
-          serverNameMapToData: ueServerNameMapToData,
-          storageGroupSelectItems: ueStorageGroupSelectItems,
-          storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        } = organizeAnvils(data.anvils);
+          0: { value: uuid },
+        } = ueAnvilSelectItems;
 
-        setAllAnvils(ueAllAnvils);
-        setAnvilUUIDMapToData(ueAnvilUUIDMapToData);
-        setFileUUIDMapToData(ueFileUUIDMapToData);
-        setServerNameMapToData(ueServerNameMapToData);
-        setStorageGroupUUIDMapToData(ueStorageGroupUUIDMapToData);
+        setInputAnvilValue(uuid);
 
-        setAnvilSelectItems(ueAnvilSelectItems);
-        setFileSelectItems(ueFileSelectItems);
-        setStorageGroupSelectItems(ueStorageGroupSelectItems);
+        limits.includeAnvilUUIDs = [uuid];
+      }
 
-        const limits: Parameters<UpdateLimitsFunction>[0] = {
-          allAnvils: ueAllAnvils,
-          storageGroupUUIDMapToData: ueStorageGroupUUIDMapToData,
-        };
+      if (ueFileSelectItems.length === 1) {
+        const {
+          0: { value: uuid },
+        } = ueFileSelectItems;
 
-        // Auto-select the only option when there's only 1.
-        // Reminder to update the form limits after changing any value.
+        setInputInstallISOFileUUID(uuid);
 
-        if (ueAnvilSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueAnvilSelectItems;
+        limits.fileUUIDs = [uuid, ''];
+      }
 
-          setInputAnvilValue(uuid);
+      if (ueStorageGroupSelectItems.length === 1) {
+        const {
+          0: { value: uuid },
+        } = ueStorageGroupSelectItems;
 
-          limits.includeAnvilUUIDs = [uuid];
-        }
+        setVirtualDisks((previous) => {
+          const current = { ...previous };
 
-        if (ueFileSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueFileSelectItems;
+          current.inputStorageGroupUUIDs[0] = uuid;
 
-          setInputInstallISOFileUUID(uuid);
+          limits.virtualDisks = current;
 
-          limits.fileUUIDs = [uuid, ''];
-        }
+          return current;
+        });
+      }
 
-        if (ueStorageGroupSelectItems.length === 1) {
-          const {
-            0: { value: uuid },
-          } = ueStorageGroupSelectItems;
+      initLimits(limits);
 
-          setVirtualDisks((previous) => {
-            const current = { ...previous };
+      setOSAutocompleteOptions(
+        Object.entries(data.oses).map(([key, label]) => ({
+          key,
+          label,
+        })),
+      );
 
-            current.inputStorageGroupUUIDs[0] = uuid;
-
-            limits.virtualDisks = current;
-
-            return current;
-          });
-        }
-
-        initLimits(limits);
-
-        setOSAutocompleteOptions(
-          Object.entries(data.oses as Record<string, string>).map(
-            ([key, label]) => ({
-              key,
-              label,
-            }),
-          ),
-        );
-
-        setIsProvisionServerDataReady(true);
-      })
-      .catch(() => {
-        // Ignore for now; the 'no resources' message would trigger.
-      });
-  }, [initLimits]);
+      setIsProvisionServerDataReady(true);
+    },
+    refreshInterval: 5000,
+  });
 
   return (
     <>
       <Dialog
-        {...{
-          fullWidth: true,
-          maxWidth: 'sm',
-          open,
-          PaperComponent: Panel,
-          PaperProps: { sx: { overflow: 'visible' } },
+        fullWidth
+        maxWidth="sm"
+        open={open}
+        PaperComponent={Panel}
+        PaperProps={{
+          sx: {
+            overflow: 'visible',
+          },
         }}
       >
         <PanelHeader>
-          <HeaderText text="Provision a Server" />
-          <IconButton
-            onClick={onCloseProvisionServerDialog}
-            sx={{
-              backgroundColor: RED,
-              color: TEXT,
-
-              '&:hover': { backgroundColor: RED },
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+          <HeaderText>Provision a server</HeaderText>
+          <SyncIndicator syncing={validating} />
+          <IconButton mapPreset="close" onClick={handleClose} size="small" />
         </PanelHeader>
         <FlexBox spacing=".6em">
           {Object.entries(hasResource).map(
             ([resource, has]) =>
               !has && (
                 <MessageBox type="warning">
-                  No {resource} available yet. Try refreshing after the resource
-                  gets created.
+                  No {resource} available yet. It will appear shortly after
+                  creation.
                 </MessageBox>
               ),
           )}
@@ -1627,24 +1620,22 @@ const ProvisionServerDialog = ({
               },
             }}
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <OutlinedInputWithLabel
-                id="ps-server-name"
-                label="Server name"
-                inputProps={{
-                  onChange: ({ target: { value } }) => {
-                    setInputServerNameValue(value);
+            <OutlinedInputWithLabel
+              id="ps-server-name"
+              label="Server name"
+              inputProps={{
+                onChange: ({ target: { value } }) => {
+                  setInputServerNameValue(value);
 
-                    testInput({ inputs: { serverName: { value } } });
-                  },
-                  value: inputServerNameValue,
-                }}
-                inputLabelProps={{
-                  isNotifyRequired: inputServerNameValue.length === 0,
-                }}
-                messageBoxProps={inputServerNameMessage}
-              />
-            </Box>
+                  testInput({ inputs: { serverName: { value } } });
+                },
+                value: inputServerNameValue,
+              }}
+              inputLabelProps={{
+                isNotifyRequired: inputServerNameValue.length === 0,
+              }}
+              messageBoxProps={inputServerNameMessage}
+            />
             <Autocomplete
               id="ps-cpu-cores"
               disableClearable
@@ -1821,7 +1812,6 @@ const ProvisionServerDialog = ({
         ) : (
           <Spinner />
         )}
-
         <Box
           sx={{
             display: 'flex',
@@ -1833,74 +1823,85 @@ const ProvisionServerDialog = ({
             },
           }}
         >
-          {successfulProvisionCount > 0 && (
-            <MessageBox
-              isAllowClose
-              text="Provision server job registered. You can provision another server, or exit; it won't affect the registered job."
-            />
-          )}
-          {isProvisionRequestInProgress ? (
-            <Spinner mt={0} />
-          ) : (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'flex-end',
-                width: '100%',
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <ContainedButton
+              background="blue"
+              disabled={!testInput({ isIgnoreOnCallbacks: true })}
+              onClick={() => {
+                setConfirmDialogProps({
+                  actionProceedText: 'Provision',
+                  content: createConfirmDialogContent(),
+                  onProceedAppend: () => {
+                    setConfirmDialogLoading(true);
+
+                    const requestBody = {
+                      serverName: inputServerNameValue,
+                      cpuCores: inputCPUCoresValue,
+                      memory: memory.toString(),
+                      virtualDisks: virtualDisks.stateIds.map(
+                        (vdStateId, vdIndex) => ({
+                          storageSize: virtualDisks.sizes[vdIndex].toString(),
+                          storageGroupUUID:
+                            virtualDisks.inputStorageGroupUUIDs[vdIndex],
+                        }),
+                      ),
+                      installISOFileUUID: inputInstallISOFileUUID,
+                      driverISOFileUUID: inputDriverISOFileUUID,
+                      anvilUUID: inputAnvilValue,
+                      optimizeForOS: inputOptimizeForOSValue?.key,
+                    };
+
+                    api
+                      .post('/server', requestBody)
+                      .then(() => {
+                        handleClose?.call(null);
+
+                        // Only remove the server name because the rest might
+                        // be reusable
+                        setInputServerNameValue('');
+
+                        finishConfirm('Success', {
+                          children: <>Provision server job registered.</>,
+                        });
+                      })
+                      .catch((error) => {
+                        const emsg = handleAPIError(error);
+
+                        emsg.children = (
+                          <>
+                            Failed to start provision server job.{' '}
+                            {emsg.children}
+                          </>
+                        );
+
+                        finishConfirm('Error', emsg);
+                      });
+                  },
+                  titleText: `Provision ${inputServerNameValue}?`,
+                });
+
+                setConfirmDialogOpen(true);
               }}
             >
-              <ContainedButton
-                disabled={!testInput({ isIgnoreOnCallbacks: true })}
-                onClick={() => {
-                  setIsOpenProvisionConfirmDialog(true);
-                }}
-                sx={PROVISION_BUTTON_STYLES}
-              >
-                Provision
-              </ContainedButton>
-            </Box>
-          )}
+              Provision
+            </ContainedButton>
+          </Box>
         </Box>
       </Dialog>
-      {isOpenProvisionConfirmDialog && (
-        <ConfirmDialog
-          actionProceedText="Provision"
-          content={createConfirmDialogContent()}
-          dialogProps={{ open: isOpenProvisionConfirmDialog }}
-          onCancelAppend={() => {
-            setIsOpenProvisionConfirmDialog(false);
-          }}
-          onProceedAppend={() => {
-            const requestBody = {
-              serverName: inputServerNameValue,
-              cpuCores: inputCPUCoresValue,
-              memory: memory.toString(),
-              virtualDisks: virtualDisks.stateIds.map((vdStateId, vdIndex) => ({
-                storageSize: virtualDisks.sizes[vdIndex].toString(),
-                storageGroupUUID: virtualDisks.inputStorageGroupUUIDs[vdIndex],
-              })),
-              installISOFileUUID: inputInstallISOFileUUID,
-              driverISOFileUUID: inputDriverISOFileUUID,
-              anvilUUID: inputAnvilValue,
-              optimizeForOS: inputOptimizeForOSValue?.key,
-            };
-
-            setIsProvisionRequestInProgress(true);
-
-            api.post('/server', requestBody).then(() => {
-              setIsProvisionRequestInProgress(false);
-              setSuccessfulProvisionCount(successfulProvisionCount + 1);
-            });
-
-            setIsOpenProvisionConfirmDialog(false);
-          }}
-          proceedButtonProps={{ sx: PROVISION_BUTTON_STYLES }}
-          titleText={`Provision ${inputServerNameValue}?`}
-        />
-      )}
+      {confirmDialog}
     </>
   );
+};
+
+ProvisionServerDialog.defaultProps = {
+  onClose: undefined,
 };
 
 export default ProvisionServerDialog;

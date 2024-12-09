@@ -28,25 +28,28 @@ const buildFormikInitialValues = (
       subnetMask: '',
       type: 'bcn',
     },
-  };
-
-  if (detail.hostType === 'node') {
-    networks.defaultifn = {
+    defaultifn: {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'ifn',
-    };
-
-    networks.defaultsn = {
+    },
+    defaultsn: {
       interfaces: ['', ''],
       ip: '',
       sequence: '1',
       subnetMask: '',
       type: 'sn',
-    };
-  }
+    },
+    defaultmn: {
+      interfaces: ['', ''],
+      ip: '',
+      sequence: '1',
+      subnetMask: '',
+      type: 'mn',
+    },
+  };
 
   if (nets) {
     networks = toHostNetList(nets);
@@ -132,7 +135,10 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
   );
 
   const { parentSequence, sequence } = useMemo(() => {
-    const numbers = detail.shortHostName.replace(/^.*a(\d+).*n(\d+)$/, '$1,$2');
+    const numbers = detail.shortHostName.replace(
+      /^.*a(\d+).*(?:n|dr)(\d+)$/,
+      '$1,$2',
+    );
 
     const [parentSeq, seq] = numbers.split(',', 2);
 

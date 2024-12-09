@@ -77,32 +77,37 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
   );
 
   const formikInitialValues = useMemo<FileFormikValues>(() => {
-    const { locations, name, type, uuid } = file;
+    const { name, type, uuid } = file;
+
+    const locations: FileFormikLocations = { anvils: {}, drHosts: {} };
+
+    Object.values(anvils).forEach((anvil) => {
+      const active = file.anvils[anvil.uuid].locationUuids.every(
+        (locationUuid) => file.locations[locationUuid].active,
+      );
+
+      locations.anvils[anvil.uuid] = { active };
+    });
+
+    const locationValues = Object.values(file.locations);
+
+    Object.values(drHosts).forEach((dr) => {
+      const found = locationValues.find(
+        (value) => value.hostUuid === dr.hostUUID,
+      );
+
+      locations.drHosts[dr.hostUUID] = { active: found ? found.active : false };
+    });
 
     return {
       [uuid]: {
-        locations: Object.values(locations).reduce<FileFormikLocations>(
-          (previous, { active, anvilUuid, hostUuid }) => {
-            let category: keyof FileFormikLocations = 'anvils';
-            let id = anvilUuid;
-
-            if (hostUuid in drHosts) {
-              category = 'drHosts';
-              id = hostUuid;
-            }
-
-            previous[category][id] = { active };
-
-            return previous;
-          },
-          { anvils: {}, drHosts: {} },
-        ),
+        locations,
         name,
         type,
         uuid,
       },
     };
-  }, [drHosts, file]);
+  }, [anvils, drHosts, file]);
 
   const formik = useFormik<FileFormikValues>({
     initialValues: formikInitialValues,

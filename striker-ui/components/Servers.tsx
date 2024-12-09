@@ -393,7 +393,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                     <BodyText
                                       text={host.host_name}
                                       selected={
-                                        server.host.uuid === host.host_uuid
+                                        server.host?.uuid === host.host_uuid
                                       }
                                     />
                                   </Box>

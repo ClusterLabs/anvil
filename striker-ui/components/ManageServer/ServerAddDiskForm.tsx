@@ -183,8 +183,13 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
   );
 
   const growMsg = useMemo(() => {
-    if (detail.state !== 'shut off' && !formattedWorking?.zero)
+    if (detail.state === 'shut off') {
       return undefined;
+    }
+
+    if (!formattedWorking?.zero) {
+      return undefined;
+    }
 
     return (
       <Grid item width="100%">

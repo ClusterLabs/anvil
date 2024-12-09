@@ -29,11 +29,11 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
     [handleChange],
   );
 
-  const { nameChain, locationsChain, typeChain } = useMemo(
+  const chains = useMemo(
     () => ({
-      nameChain: `${fuuid}.name`,
-      locationsChain: `${fuuid}.locations`,
-      typeChain: `${fuuid}.type`,
+      locations: `${fuuid}.locations`,
+      name: `${fuuid}.name`,
+      type: `${fuuid}.type`,
     }),
     [fuuid],
   );
@@ -76,7 +76,7 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
 
   const getLocationCheckboxProps = useCallback(
     (type: keyof FileFormikLocations, uuid: string): CheckboxProps => {
-      const gridChain = `${locationsChain}.${type}.${uuid}`;
+      const gridChain = `${chains.locations}.${type}.${uuid}`;
       const activeChain = `${gridChain}.active`;
 
       return {
@@ -87,7 +87,7 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
         onChange: handleChange,
       };
     },
-    [formik.values, fuuid, handleBlur, handleChange, locationsChain],
+    [chains.locations, formik.values, fuuid, handleBlur, handleChange],
   );
 
   const enableCheckAllLocations = useCallback(
@@ -104,9 +104,9 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
       <UncontrolledInput
         input={
           <OutlinedInputWithLabel
-            id={nameChain}
+            id={chains.name}
             label="File name"
-            name={nameChain}
+            name={chains.name}
             onBlur={handleBlur}
             onChange={debounceChangeEventHandler}
             value={formik.values[fuuid].name}
@@ -114,7 +114,7 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
         }
       />
     ),
-    [debounceChangeEventHandler, formik.values, fuuid, handleBlur, nameChain],
+    [chains.name, debounceChangeEventHandler, formik.values, fuuid, handleBlur],
   );
 
   const syncNodeInputGroup = useMemo(
@@ -187,9 +187,9 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
     () =>
       showTypeInput && (
         <SelectWithLabel
-          id={typeChain}
+          id={chains.type}
           label="File type"
-          name={typeChain}
+          name={chains.type}
           onBlur={handleBlur}
           onChange={handleChange}
           selectItems={UPLOAD_FILE_TYPES_ARRAY.map(
@@ -201,7 +201,14 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
           value={formik.values[fuuid].type}
         />
       ),
-    [formik.values, fuuid, handleBlur, handleChange, showTypeInput, typeChain],
+    [
+      chains.type,
+      formik.values,
+      fuuid,
+      handleBlur,
+      handleChange,
+      showTypeInput,
+    ],
   );
 
   return (

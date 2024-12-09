@@ -1,5 +1,7 @@
 import { Netmask } from 'netmask';
 
+import { REP_UUID } from './consts/REG_EXP_PATTERNS';
+
 const buildInitRequestBody = <Values extends HostNetInitFormikExtension>(
   values: Values,
   ifaces: APINetworkInterfaceOverviewList | null,
@@ -29,10 +31,24 @@ const buildInitRequestBody = <Values extends HostNetInitFormikExtension>(
 
       return previous;
     }, ''),
-    networks: ns.map((n) => {
+    networks: ns.reduce<
+      {
+        interfaces: ({
+          mac: string | undefined;
+        } | null)[];
+        ipAddress: string;
+        sequence: string;
+        subnetMask: string;
+        type: string;
+      }[]
+    >((previous, n) => {
       const { interfaces, ip, sequence, subnetMask, type } = n;
 
-      return {
+      if (!interfaces.some((value) => REP_UUID.test(value))) {
+        return previous;
+      }
+
+      previous.push({
         interfaces: interfaces.map((ifUuid) =>
           ifUuid
             ? {
@@ -44,8 +60,10 @@ const buildInitRequestBody = <Values extends HostNetInitFormikExtension>(
         sequence,
         subnetMask,
         type,
-      };
-    }),
+      });
+
+      return previous;
+    }, []),
   };
 
   return requestBody;
