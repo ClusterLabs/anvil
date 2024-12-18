@@ -134,13 +134,41 @@ type AnvilDetailStoreSummary = {
   total_size: string;
 };
 
+/**
+ * @prop replication.state - also known as local disk state in the tables
+ * @prop connection.estimatedTimeToSync - unit: seconds
+ */
+type AnvilOverviewHostDrbdResource = {
+  connection: {
+    state: string;
+  };
+  name: string;
+  replication: {
+    estimatedTimeToSync: number;
+    state: string;
+  };
+  uuid: string;
+};
+
+type AnvilOverviewHost = {
+  hostClusterMembership: string;
+  hostDrbdResources: Record<string, AnvilOverviewHostDrbdResource>;
+  hostName: string;
+  hostStatus: string;
+  hostType: string;
+  hostUUID: string;
+};
+
 type AnvilOverview = {
   anvilDescription: string;
   anvilName: string;
+  anvilStatus: {
+    drbd: {
+      status: string;
+      maxEstimatedTimeToSync: number;
+    };
+    system: string;
+  };
   anvilUUID: string;
-  hosts: Array<{
-    hostName: string;
-    hostType: string;
-    hostUUID: string;
-  }>;
+  hosts: AnvilOverviewHost[];
 };
