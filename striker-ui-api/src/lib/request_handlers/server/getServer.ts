@@ -89,6 +89,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
             d3.anvil_node2_host_uuid
           )
         WHERE d1.job_command LIKE '%anvil-provision-server%'
+          AND d1.modified_date > current_timestamp - interval '5 minutes'
           ${condJobAnvil}
         ORDER BY
           server_name ASC,
