@@ -1,3 +1,27 @@
+/**
+ * @prop replication.state - also known as local disk state in the tables
+ * @prop connection.estimatedTimeToSync - unit: seconds
+ */
+type AnvilHostDrbdResource = {
+  connection: {
+    state: string;
+  };
+  name: string;
+  replication: {
+    estimatedTimeToSync: number;
+    state: string;
+  };
+  uuid: string;
+};
+
+type AnvilStatus = {
+  drbd: {
+    status: string;
+    maxEstimatedTimeToSync: number;
+  };
+  system: string;
+};
+
 type AnvilDetailCpuHost = {
   cores: number;
   model: string;
@@ -83,6 +107,7 @@ type AnvilDetailSubnodeNetwork = {
 // Types below are for typing request handlers:
 
 type AnvilDetailHostSummary = {
+  hostDrbdResources: Record<string, AnvilHostDrbdResource>;
   host_name: string;
   host_uuid: string;
   maintenance_mode: boolean;
@@ -93,6 +118,7 @@ type AnvilDetailHostSummary = {
 };
 
 type AnvilDetailSummary = {
+  anvilStatus: AnvilStatus;
   anvil_name: string;
   anvil_state: string;
   anvil_uuid: string;
@@ -134,25 +160,9 @@ type AnvilDetailStoreSummary = {
   total_size: string;
 };
 
-/**
- * @prop replication.state - also known as local disk state in the tables
- * @prop connection.estimatedTimeToSync - unit: seconds
- */
-type AnvilOverviewHostDrbdResource = {
-  connection: {
-    state: string;
-  };
-  name: string;
-  replication: {
-    estimatedTimeToSync: number;
-    state: string;
-  };
-  uuid: string;
-};
-
 type AnvilOverviewHost = {
   hostClusterMembership: string;
-  hostDrbdResources: Record<string, AnvilOverviewHostDrbdResource>;
+  hostDrbdResources: Record<string, AnvilHostDrbdResource>;
   hostName: string;
   hostStatus: string;
   hostType: string;
@@ -162,13 +172,7 @@ type AnvilOverviewHost = {
 type AnvilOverview = {
   anvilDescription: string;
   anvilName: string;
-  anvilStatus: {
-    drbd: {
-      status: string;
-      maxEstimatedTimeToSync: number;
-    };
-    system: string;
-  };
+  anvilStatus: AnvilStatus;
   anvilUUID: string;
   hosts: AnvilOverviewHost[];
 };
