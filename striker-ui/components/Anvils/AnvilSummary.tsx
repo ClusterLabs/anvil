@@ -14,11 +14,12 @@ import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
 import StackBar from '../Bars/StackBar';
 import { BodyText, InlineMonoText, MonoText } from '../Text';
+import { ago } from '../../lib/time';
 import useFetch from '../../hooks/useFetch';
 
 const N_100 = BigInt(100);
 
-const MAP_TO_ANVIL_STATE_COLOUR = {
+const MAP_TO_ANVIL_STATE_COLOUR: Record<string, string> = {
   degraded: RED,
   not_ready: PURPLE,
   optimal: BLUE,
@@ -76,15 +77,40 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     [loadingAnvil, loadingCpu, loadingMemory, loadingStorages],
   );
 
-  const anvilSummary = useMemo(
-    () =>
-      anvil && (
-        <MonoText inheritColour color={MAP_TO_ANVIL_STATE_COLOUR[anvil.state]}>
-          {anvil.state}
-        </MonoText>
-      ),
-    [anvil],
-  );
+  const anvilSummary = useMemo(() => {
+    if (!anvil) {
+      return undefined;
+    }
+
+    const colour = MAP_TO_ANVIL_STATE_COLOUR[anvil.status.system] ?? PURPLE;
+
+    return (
+      <MonoText inheritColour color={colour}>
+        {anvil.status.system}
+      </MonoText>
+    );
+  }, [anvil]);
+
+  const anvilDrbdSummary = useMemo(() => {
+    if (!anvil) {
+      return undefined;
+    }
+
+    const { drbd } = anvil.status;
+
+    let etts: string | undefined;
+
+    if (drbd.estimatedTimeToSync) {
+      etts = ago(drbd.estimatedTimeToSync);
+    }
+
+    return (
+      <MonoText inheritColour color={GREY}>
+        {anvil.status.drbd.status}
+        {etts && `(needs ~${etts})`}
+      </MonoText>
+    );
+  }, [anvil]);
 
   const hostsSummary = useMemo(
     () =>
@@ -261,6 +287,12 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       </Grid>
       <Grid item xs={3}>
         {anvilSummary}
+      </Grid>
+      <Grid item xs={1}>
+        <BodyText>Replication</BodyText>
+      </Grid>
+      <Grid item xs={3}>
+        {anvilDrbdSummary}
       </Grid>
       <Grid item xs={1}>
         <BodyText>Subnodes</BodyText>

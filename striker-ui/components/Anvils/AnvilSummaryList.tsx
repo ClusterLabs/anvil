@@ -44,15 +44,16 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                 children: (
                   <InnerPanel height="100%" mv={0}>
                     <InnerPanelHeader>
+                      <Link href={`/anvil?anvil_uuid=${uuid}`} noWrap>
+                        {name}
+                      </Link>
                       <BodyText
+                        flexGrow={10}
                         overflow="hidden"
                         textOverflow="ellipsis"
                         whiteSpace="nowrap"
                       >
-                        <Link href={`/anvil?anvil_uuid=${uuid}`} noWrap>
-                          {name}
-                        </Link>
-                        : {description}
+                        {description}
                       </BodyText>
                     </InnerPanelHeader>
                     <InnerPanelBody>
