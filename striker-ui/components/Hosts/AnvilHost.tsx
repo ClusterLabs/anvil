@@ -1,14 +1,16 @@
 import { Box, styled, Switch } from '@mui/material';
+import { capitalize } from 'lodash';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 import HOST_STATUS from '../../lib/consts/HOST_STATUS';
 
+import api from '../../lib/api';
 import { ProgressBar } from '../Bars';
 import Decorator, { Colours } from '../Decorator';
+import handleAPIError from '../../lib/handleAPIError';
 import { InnerPanel, InnerPanelHeader } from '../Panels';
-import putFetch from '../../lib/fetchers/putFetch';
 import { BodyText } from '../Text';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 
 const PREFIX = 'AnvilHost';
 
@@ -68,102 +70,178 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilHost = ({
-  hosts,
-}: {
-  hosts: Array<AnvilStatusHost>;
-}): JSX.Element => {
+const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): JSX.Element => {
   const stateRegex = /^[a-zA-Z]/;
   const messageRegex = /^(message_[0-9]+)/;
 
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog();
+
   return (
-    <StyledBox>
-      {hosts &&
-        hosts.map(
-          (host): JSX.Element =>
-            // Temporary fix: avoid crash when encounter undefined host entry by returning a blank element.
-            // TODO: figure out why there are undefined host entries.
-            host ? (
-              <InnerPanel key={host.host_uuid}>
-                <InnerPanelHeader>
-                  <Box flexGrow={1}>
-                    <BodyText text={host.host_name} />
-                  </Box>
-                  <Box className={classes.decoratorBox}>
-                    <Decorator colour={selectDecorator(host.state)} />
-                  </Box>
-                  <Box>
-                    <BodyText
-                      text={
-                        host?.state?.replace(stateRegex, (c) =>
-                          c.toUpperCase(),
-                        ) || 'Not Available'
-                      }
-                    />
-                  </Box>
-                </InnerPanelHeader>
-                <Box display="flex" className={classes.state}>
-                  <Box className={classes.label}>
-                    <BodyText text="Power: " />
-                  </Box>
-                  <Box flexGrow={1}>
-                    <Switch
-                      checked={host.state === 'online'}
-                      onChange={() =>
-                        putFetch(
-                          `${API_BASE_URL}/command/${
-                            host.state === 'online'
-                              ? 'stop-subnode'
-                              : 'start-subnode'
-                          }/${host.host_uuid}`,
-                          {},
-                        )
-                      }
-                    />
-                  </Box>
-                  <Box className={classes.label}>
-                    <BodyText text="Member: " />
-                  </Box>
-                  <Box>
-                    <Switch
-                      checked={host.state === 'online'}
-                      disabled={!(host.state === 'online')}
-                      onChange={() =>
-                        putFetch(
-                          `${API_BASE_URL}/command/${
-                            host.state === 'online' ? 'leave-an' : 'join-an'
-                          }/${host.host_uuid}`,
-                          {},
-                        )
-                      }
-                    />
-                  </Box>
-                </Box>
-                {host.state !== 'online' && host.state !== 'offline' && (
-                  <>
-                    <Box display="flex" width="100%" className={classes.state}>
-                      <Box>
-                        <BodyText
-                          text={selectStateMessage(
-                            messageRegex,
-                            host.state_message,
-                          )}
-                        />
-                      </Box>
+    <>
+      <StyledBox>
+        {hosts &&
+          hosts.map(
+            (host): JSX.Element =>
+              // Temporary fix: avoid crash when encounter undefined host entry by returning a blank element.
+              // TODO: figure out why there are undefined host entries.
+              host ? (
+                <InnerPanel key={host.host_uuid}>
+                  <InnerPanelHeader>
+                    <Box flexGrow={1}>
+                      <BodyText text={host.host_name} />
                     </Box>
-                    <Box display="flex" width="100%" className={classes.bar}>
-                      <Box flexGrow={1}>
-                        <ProgressBar progressPercentage={host.state_percent} />
-                      </Box>
+                    <Box className={classes.decoratorBox}>
+                      <Decorator colour={selectDecorator(host.state)} />
                     </Box>
-                  </>
-                )}
-              </InnerPanel>
-            ) : (
-              <></>
-            ),
-        )}
-    </StyledBox>
+                    <Box>
+                      <BodyText
+                        text={
+                          host?.state?.replace(stateRegex, (c) =>
+                            c.toUpperCase(),
+                          ) || 'Not Available'
+                        }
+                      />
+                    </Box>
+                  </InnerPanelHeader>
+                  <Box display="flex" className={classes.state}>
+                    <Box className={classes.label}>
+                      <BodyText text="Power: " />
+                    </Box>
+                    <Box flexGrow={1}>
+                      <Switch
+                        checked={host.state === 'online'}
+                        onChange={() => {
+                          const action =
+                            host.state === 'online' ? 'stop' : 'start';
+                          const command = `${action}-subnode`;
+
+                          const capped = capitalize(action);
+
+                          setConfirmDialogProps({
+                            actionProceedText: capped,
+                            onProceedAppend: () => {
+                              setConfirmDialogLoading(true);
+
+                              api
+                                .put(`/command/${command}/${host.host_uuid}`)
+                                .then(() => {
+                                  finishConfirm('Success', {
+                                    children: (
+                                      <>Successfully registered power job.</>
+                                    ),
+                                  });
+                                })
+                                .catch((error) => {
+                                  const emsg = handleAPIError(error);
+
+                                  emsg.children = (
+                                    <>
+                                      Failed to register power job.{' '}
+                                      {emsg.children}
+                                    </>
+                                  );
+
+                                  finishConfirm('Error', emsg);
+                                });
+                            },
+                            titleText: `${capped} ${host.host_name}?`,
+                          });
+
+                          setConfirmDialogOpen(true);
+                        }}
+                      />
+                    </Box>
+                    <Box className={classes.label}>
+                      <BodyText text="Member: " />
+                    </Box>
+                    <Box>
+                      <Switch
+                        checked={host.state === 'online'}
+                        disabled={!(host.state === 'online')}
+                        onChange={() => {
+                          const action =
+                            host.state === 'online' ? 'leave' : 'join';
+                          const command = `${action}-an`;
+
+                          const capped = capitalize(action);
+
+                          setConfirmDialogProps({
+                            actionProceedText: capped,
+                            onProceedAppend: () => {
+                              setConfirmDialogLoading(true);
+
+                              api
+                                .put(`/command/${command}/${host.host_uuid}`)
+                                .then(() => {
+                                  finishConfirm('Success', {
+                                    children: (
+                                      <>
+                                        Successfully registered cluster
+                                        membership job.
+                                      </>
+                                    ),
+                                  });
+                                })
+                                .catch((error) => {
+                                  const emsg = handleAPIError(error);
+
+                                  emsg.children = (
+                                    <>
+                                      Failed to register cluster memebership
+                                      job. {emsg.children}
+                                    </>
+                                  );
+
+                                  finishConfirm('Error', emsg);
+                                });
+                            },
+                            titleText: `${capped} cluster on ${host.host_name}?`,
+                          });
+
+                          setConfirmDialogOpen(true);
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                  {host.state !== 'online' && host.state !== 'offline' && (
+                    <>
+                      <Box
+                        display="flex"
+                        width="100%"
+                        className={classes.state}
+                      >
+                        <Box>
+                          <BodyText
+                            text={selectStateMessage(
+                              messageRegex,
+                              host.state_message,
+                            )}
+                          />
+                        </Box>
+                      </Box>
+                      <Box display="flex" width="100%" className={classes.bar}>
+                        <Box flexGrow={1}>
+                          <ProgressBar
+                            progressPercentage={host.state_percent}
+                          />
+                        </Box>
+                      </Box>
+                    </>
+                  )}
+                </InnerPanel>
+              ) : (
+                <></>
+              ),
+          )}
+      </StyledBox>
+      {confirmDialog}
+    </>
   );
 };
 
