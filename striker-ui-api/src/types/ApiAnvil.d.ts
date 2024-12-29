@@ -120,7 +120,6 @@ type AnvilDetailHostSummary = {
 type AnvilDetailSummary = {
   anvilStatus: AnvilStatus;
   anvil_name: string;
-  anvil_state: string;
   anvil_uuid: string;
   hosts: AnvilDetailHostSummary[];
 };

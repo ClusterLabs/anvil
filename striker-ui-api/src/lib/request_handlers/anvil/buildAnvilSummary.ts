@@ -38,7 +38,6 @@ export const buildAnvilSummary = async ({
       system: '',
     },
     anvil_name: anvilName,
-    anvil_state: 'optimal',
     anvil_uuid: anvilUuid,
     hosts: [],
   };
