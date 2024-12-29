@@ -31,12 +31,10 @@ const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'optimal':
       return 'ok';
-    case 'not_ready':
-      return 'warning';
     case 'degraded':
-      return 'error';
+      return 'warning';
     default:
-      return 'error';
+      return 'off';
   }
 };
 
@@ -68,13 +66,16 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
         {uuid !== '' && (
           <>
             <Box p={1}>
-              <Decorator colour={selectDecorator(list[index].anvil_state)} />
+              <Decorator
+                colour={selectDecorator(list[index].anvilStatus.system)}
+              />
             </Box>
             <Box p={1} flexGrow={1} className={classes.anvilName}>
               <HeaderText text={list[index].anvil_name} />
               <HeaderText
                 text={
-                  anvilState.get(list[index].anvil_state) || 'State unavailable'
+                  anvilState.get(list[index].anvilStatus.system) ??
+                  'State unavailable'
                 }
               />
             </Box>

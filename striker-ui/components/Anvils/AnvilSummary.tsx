@@ -20,8 +20,7 @@ import useFetch from '../../hooks/useFetch';
 const N_100 = BigInt(100);
 
 const MAP_TO_ANVIL_STATE_COLOUR: Record<string, string> = {
-  degraded: RED,
-  not_ready: PURPLE,
+  degraded: PURPLE,
   optimal: BLUE,
 };
 
@@ -124,7 +123,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             let stateValue: string = state;
 
             if (!['offline', 'online'].includes(state)) {
-              stateValue = `${stateProgress}%`;
+              stateValue = `${state} (${stateProgress}%)`;
             }
 
             return (

@@ -102,7 +102,6 @@ type AnvilStatus = {
     };
     system: string;
   };
-  anvil_state: 'optimal' | 'not_ready' | 'degraded';
   hosts: AnvilStatusHost[];
 };
 
