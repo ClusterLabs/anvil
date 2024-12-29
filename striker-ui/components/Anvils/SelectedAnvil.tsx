@@ -1,13 +1,15 @@
 import { Box, styled, Switch } from '@mui/material';
+import { capitalize } from 'lodash';
 import { useContext } from 'react';
 
 import anvilState from '../../lib/consts/ANVILS';
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 
+import api from '../../lib/api';
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
-import putFetch from '../../lib/fetchers/putFetch';
+import handleAPIError from '../../lib/handleAPIError';
 import { HeaderText } from '../Text';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 
 const PREFIX = 'SelectedAnvil';
 
@@ -52,40 +54,87 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
     (anvil: AnvilListItem) => anvil.anvil_uuid === uuid,
   );
 
-  return (
-    <StyledBox>
-      {uuid !== '' && (
-        <>
-          <Box p={1}>
-            <Decorator colour={selectDecorator(list[index].anvil_state)} />
-          </Box>
-          <Box p={1} flexGrow={1} className={classes.anvilName}>
-            <HeaderText text={list[index].anvil_name} />
-            <HeaderText
-              text={
-                anvilState.get(list[index].anvil_state) || 'State unavailable'
-              }
-            />
-          </Box>
-          <Box p={1}>
-            <Switch
-              checked={isAnvilOn(list[index])}
-              onChange={() => {
-                const { [index]: litem } = list;
-                const { anvil_uuid: auuid } = litem;
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog();
 
-                putFetch(
-                  `${API_BASE_URL}/command/${
-                    isAnvilOn(litem) ? 'stop-an' : 'start-an'
-                  }/${auuid}`,
-                  {},
-                );
-              }}
-            />
-          </Box>
-        </>
-      )}
-    </StyledBox>
+  return (
+    <>
+      <StyledBox>
+        {uuid !== '' && (
+          <>
+            <Box p={1}>
+              <Decorator colour={selectDecorator(list[index].anvil_state)} />
+            </Box>
+            <Box p={1} flexGrow={1} className={classes.anvilName}>
+              <HeaderText text={list[index].anvil_name} />
+              <HeaderText
+                text={
+                  anvilState.get(list[index].anvil_state) || 'State unavailable'
+                }
+              />
+            </Box>
+            <Box p={1}>
+              <Switch
+                checked={isAnvilOn(list[index])}
+                onChange={() => {
+                  const { [index]: litem } = list;
+                  const { anvil_name: anvilName, anvil_uuid: anvilUuid } =
+                    litem;
+
+                  let action: 'start' | 'stop' = 'start';
+                  let content: React.ReactNode;
+                  let proceedColour: 'blue' | 'red' = 'blue';
+
+                  if (isAnvilOn(litem)) {
+                    action = 'stop';
+                    content = 'Servers hosted on this node will be shut down!';
+                    proceedColour = 'red';
+                  }
+
+                  const command = `${action}-an`;
+                  const capped = capitalize(action);
+
+                  setConfirmDialogProps({
+                    actionProceedText: capped,
+                    content,
+                    onProceedAppend: () => {
+                      setConfirmDialogLoading(true);
+
+                      api
+                        .put(`/command/${command}/${anvilUuid}`)
+                        .then(() => {
+                          finishConfirm('Success', {
+                            children: <>Successfully registered power job.</>,
+                          });
+                        })
+                        .catch((error) => {
+                          const emsg = handleAPIError(error);
+
+                          emsg.children = (
+                            <>Failed to register power job. {emsg.children}</>
+                          );
+
+                          finishConfirm('Error', emsg);
+                        });
+                    },
+                    proceedColour,
+                    titleText: `${capped} ${anvilName}?`,
+                  });
+
+                  setConfirmDialogOpen(true);
+                }}
+              />
+            </Box>
+          </>
+        )}
+      </StyledBox>
+      {confirmDialog}
+    </>
   );
 };
 
