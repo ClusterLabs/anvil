@@ -1,4 +1,10 @@
-type CookieJar = Record<string, unknown>;
+type PreferencesCookie = {
+  dashboard: {
+    servers: {
+      view: 'list' | 'previews';
+    };
+  };
+};
 
 type SessionCookieUser = {
   name: string;

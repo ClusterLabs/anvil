@@ -8,6 +8,7 @@ import { Box, styled, Typography } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
+import { useCookies } from 'react-cookie';
 
 import IconButton from '../IconButton';
 import keyCombinations from './keyCombinations';
@@ -17,7 +18,6 @@ import { Panel, PanelHeader } from '../Panels';
 import ServerMenu from '../ServerMenu';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
-import useCookieJar from '../../hooks/useCookieJar';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 const PREFIX = 'FullSize';
@@ -57,11 +57,12 @@ const buildServerVncUrl = (host: string, serverUuid: string) =>
 
 const FullSize: FC<FullSizeProps> = ({
   onClickCloseButton,
-  serverUUID,
+  serverUuid,
   serverName,
   vncReconnectTimerStart = DEFAULT_VNC_RECONNECT_TIMER_START,
 }): JSX.Element => {
-  const { buildCookieJar } = useCookieJar();
+  const [cookies] = useCookies([`suiapi.vncerror.${serverUuid}`]);
+
   const isFirstRender = useIsFirstRender();
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -114,9 +115,9 @@ const FullSize: FC<FullSizeProps> = ({
     setVncError(false);
 
     setRfbConnectArgs({
-      url: buildServerVncUrl(window.location.host, serverUUID),
+      url: buildServerVncUrl(window.location.host, serverUuid),
     });
-  }, [serverUUID]);
+  }, [serverUuid]);
 
   const disconnectServerVnc = useCallback(() => {
     if (rfb?.current) {
@@ -192,9 +193,8 @@ const FullSize: FC<FullSizeProps> = ({
 
       setVncWsErrorMessage(wsmsg);
 
-      const vncerror = buildCookieJar()[
-        `suiapi.vncerror.${serverUUID}`
-      ] as APIError;
+      const vncerror: APIError | undefined =
+        cookies[`suiapi.vncerror.${serverUuid}`];
 
       if (!vncerror) {
         setVncApiErrorMessage(undefined);
@@ -206,7 +206,7 @@ const FullSize: FC<FullSizeProps> = ({
 
       setVncApiErrorMessage(`api: ${apicode}, ${message}`);
     },
-    [buildCookieJar, serverUUID],
+    [cookies, serverUuid],
   );
 
   const showScreen = useMemo(
@@ -298,7 +298,7 @@ const FullSize: FC<FullSizeProps> = ({
           <ServerMenu
             serverName={serverName}
             serverState="running"
-            serverUuid={serverUUID}
+            serverUuid={serverUuid}
           />
           {returnHomeElement}
           {vncDisconnectElement}
@@ -309,7 +309,7 @@ const FullSize: FC<FullSizeProps> = ({
       keyboardMenuElement,
       returnHomeElement,
       serverName,
-      serverUUID,
+      serverUuid,
       showScreen,
       vncDisconnectElement,
     ],
