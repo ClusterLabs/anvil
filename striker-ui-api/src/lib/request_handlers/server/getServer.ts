@@ -160,7 +160,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
               uuid: jobHostUuid,
             },
             name: jobServerName,
-            state: 'pending',
+            state: 'provisioning',
             uuid: jobUuid,
           };
         }
