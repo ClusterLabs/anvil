@@ -110,6 +110,22 @@ const JobDetail: FC<JobDetailProps> = (props) => {
 
   const modifiedAgo = useMemo(() => job && ago(nao - job.modified), [job, nao]);
 
+  const started = useMemo(() => {
+    if (!job) {
+      return undefined;
+    }
+
+    if (!job.started) {
+      return <>Not started</>;
+    }
+
+    return (
+      <>
+        ~{startedAgo} ago{breakpointSmall && ` (${startedReadable})`}
+      </>
+    );
+  }, [breakpointSmall, job, startedAgo, startedReadable]);
+
   const content = job ? (
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
@@ -144,7 +160,7 @@ const JobDetail: FC<JobDetailProps> = (props) => {
           </Grid>
           <Grid item xs={1}>
             <BodyText noWrap textAlign="end">
-              ~{startedAgo} ago{breakpointSmall && ` (${startedReadable})`}
+              {started}
             </BodyText>
           </Grid>
           <Grid item xs={1}>
