@@ -145,7 +145,7 @@ const Server = (): JSX.Element => {
 
             router.replace({ query }, undefined, { shallow: true });
           }}
-          serverUUID={server.uuid}
+          serverUuid={server.uuid}
           serverName={server.name}
         />
       </Box>
