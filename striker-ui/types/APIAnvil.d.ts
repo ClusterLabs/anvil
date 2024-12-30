@@ -122,6 +122,7 @@ type APIAnvilOverviewArray = Array<{
     hostName: string;
     hostType: string;
     hostUUID: string;
+    shortHostName: string;
   }>;
 }>;
 
@@ -130,6 +131,7 @@ type APIAnvilOverview = {
   hosts: {
     [uuid: string]: {
       name: string;
+      short: string;
       type: string;
       uuid: string;
     };
