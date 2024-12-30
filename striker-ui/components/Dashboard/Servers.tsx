@@ -1,17 +1,25 @@
-import { Search as SearchIcon } from '@mui/icons-material';
+import {
+  MoreVert as MoreVertIcon,
+  Search as SearchIcon,
+} from '@mui/icons-material';
+import { Box, boxClasses } from '@mui/material';
 import { debounce } from 'lodash';
 import { useMemo, useState } from 'react';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
+import ContainedButton from '../ContainedButton';
 import IconButton from '../IconButton';
+import Menu from '../Menu';
+import MenuItem from '../MenuItem';
 import MessageBox from '../MessageBox';
 import OutlinedInput from '../OutlinedInput';
 import { Panel, PanelHeader } from '../Panels';
 import ProvisionServerDialog from '../ProvisionServerDialog';
+import ServerLists from './ServerLists';
 import ServerPanels from './ServerPanels';
 import Spinner from '../Spinner';
-import { HeaderText } from '../Text';
+import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const group = (
@@ -56,11 +64,10 @@ const group = (
 };
 
 const Servers: React.FC = () => {
-  const [searchString, setSearchString] = useState<string>('');
-
+  const [viewAnchor, setViewAnchor] = useState<HTMLElement | null>(null);
   const [groups, setGroups] = useState<ServerGroups | undefined>();
-
   const [provision, setProvision] = useState<boolean>(false);
+  const [searchString, setSearchString] = useState<string>('');
 
   const {
     data: servers,
@@ -99,11 +106,66 @@ const Servers: React.FC = () => {
     );
   }
 
+  let view: React.ReactNode;
+
+  const viewKey = 'preferences.servers.view';
+  const viewType = localStorage.getItem(viewKey);
+
+  if (viewType === 'list') {
+    view = <ServerLists groups={groups} servers={servers} />;
+  } else {
+    view = <ServerPanels groups={groups} servers={servers} />;
+  }
+
   return (
     <>
       <Panel>
         <PanelHeader>
           <HeaderText>Servers</HeaderText>
+          <Box
+            sx={{
+              [`&.${boxClasses.root}`]: {
+                marginRight: '.5em',
+              },
+            }}
+          >
+            <ContainedButton
+              onClick={(event) => {
+                setViewAnchor(event.currentTarget);
+              }}
+              startIcon={<MoreVertIcon />}
+              sx={{
+                lineHeight: 2,
+              }}
+            >
+              View
+            </ContainedButton>
+            <Menu
+              muiMenuProps={{
+                anchorEl: viewAnchor,
+                keepMounted: true,
+                onClose: () => setViewAnchor(null),
+              }}
+              open={Boolean(viewAnchor)}
+            >
+              <MenuItem
+                onClick={() => {
+                  localStorage.setItem(viewKey, 'previews');
+                  setViewAnchor(null);
+                }}
+              >
+                <BodyText inheritColour>Previews</BodyText>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  localStorage.setItem(viewKey, 'list');
+                  setViewAnchor(null);
+                }}
+              >
+                <BodyText inheritColour>List</BodyText>
+              </MenuItem>
+            </Menu>
+          </Box>
           <IconButton
             mapPreset="add"
             onClick={() => {
@@ -125,7 +187,7 @@ const Servers: React.FC = () => {
             value={searchString}
           />
         </PanelHeader>
-        <ServerPanels groups={groups} servers={servers} />
+        {view}
       </Panel>
       <ProvisionServerDialog
         dialogProps={{ open: provision }}
