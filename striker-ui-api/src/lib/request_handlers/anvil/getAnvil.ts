@@ -5,6 +5,7 @@ import { DELETED } from '../../consts';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import buildQueryAnvilDetail from './buildQueryAnvilDetail';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
+import { getShortHostName } from '../../disassembleHostName';
 import { sanitize } from '../../sanitize';
 
 export const getAnvil: RequestHandler = buildGetRequestHandler(
@@ -111,6 +112,7 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
                 hostStatus,
                 hostType,
                 hostUUID,
+                shortHostName: getShortHostName(hostName),
               };
 
               anvilStage.hosts.push(hostsStage[hostUUID]);
