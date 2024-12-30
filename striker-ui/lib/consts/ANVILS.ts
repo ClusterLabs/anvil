@@ -1,6 +1,7 @@
 const anvilState: ReadonlyMap<string, string> = new Map([
-  ['optimal', 'Optimal'],
   ['degraded', 'Degraded'],
+  ['optimal', 'Optimal'],
+  ['offline', 'Offline'],
 ]);
 
 export default anvilState;
