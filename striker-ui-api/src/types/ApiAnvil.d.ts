@@ -166,6 +166,7 @@ type AnvilOverviewHost = {
   hostStatus: string;
   hostType: string;
   hostUUID: string;
+  shortHostName: string;
 };
 
 type AnvilOverview = {
