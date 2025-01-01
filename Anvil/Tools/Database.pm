@@ -1436,6 +1436,9 @@ sub connect
 	}
 	
 	$anvil->data->{switches}{'resync-db'} = "" if not defined $anvil->data->{switches}{'resync-db'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'switches::resync-db' => $anvil->data->{switches}{'resync-db'},
+	}});
 	if ($anvil->data->{switches}{'resync-db'})
 	{
 		$check_for_resync = 1;
