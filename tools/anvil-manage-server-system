@@ -37,22 +37,14 @@ my $anvil = Anvil::Tools->new();
 
 # Read switches (target ([user@]host[:port]) and the file with the target's password.
 $anvil->Get->switches({list => [
-	"add", 
 	"anvil", 
-	"boot", 
 	"boot-menu", 
 	"boot-order", 
 	"confirm", 
 	"cpu", 
-	"disk", 
-	"eject", 
 	"job-uuid", 
-	"grow", 
-	"insert", 
-	"optical", 
 	"ram", 
 	"server", 
-	"storage-group", 
 	], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
