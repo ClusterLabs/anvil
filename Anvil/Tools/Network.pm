@@ -1977,7 +1977,7 @@ sub find_target_ip
 	if (not $networks)
 	{
 		$networks = "bcn,mn,sn,ifn,any";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { networks => $networks }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { networks => $networks }});
 	}
 	
 	my $target_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
@@ -1992,27 +1992,27 @@ sub find_target_ip
 		debug  => $debug,
 		target => $target_host_name, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { matches => $matches }});
 	
 	foreach my $preferred_network (split/,/, $networks)
 	{
 		last if $target_ip;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_name => $network_name }});
 			if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
 			{
 				next;
 			}
 			
 			my $this_target_ip = $anvil->data->{network_access}{$network_name}{target_ip_address};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_target_ip => $this_target_ip }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_target_ip => $this_target_ip }});
 			
 			if ($test_access)
 			{
 				my $access = $anvil->Remote->test_access({target => $this_target_ip});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:network_name'   => $network_name, 
 					's2:this_target_ip' => $this_target_ip, 
 					's3:access'         => $access, 
@@ -2022,7 +2022,7 @@ sub find_target_ip
 				{
 					# We can use this one.
 					$target_ip = $this_target_ip;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
 					last;
 				}
 			}
@@ -2030,7 +2030,7 @@ sub find_target_ip
 			{
 				# We're done.
 				$target_ip = $this_target_ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
 			}
 		}
 	}
@@ -3423,7 +3423,7 @@ sub load_ips
 	if (($clear) && (exists $anvil->data->{network}{$host}))
 	{
 		delete $anvil->data->{network}{$host};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0700", variables => { hash => "network::${host}" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0700", variables => { hash => "network::${host}" }});
 	}
 	
 	# Read in all IPs, so that we know which to remove.
