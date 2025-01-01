@@ -5353,7 +5353,7 @@ sub update_config
 	
 	# Read in the config file.
 	my $body = $anvil->Storage->read_file({
-		debug       => $debug,
+		debug       => 3,
 		file        => $anvil->data->{path}{configs}{'anvil.conf'}, 
 		password    => $password, 
 		port        => $port, 
@@ -5366,6 +5366,7 @@ sub update_config
 		my $original_line =  $line;
 		   $line          =~ s/#.*$//;
 		   $line          =~ s/^\s+//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		   
 		if ($line =~ /^(.*?)=(.*)$/)
 		{
@@ -5387,9 +5388,9 @@ sub update_config
 					$update =  1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
 					
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { ">> original_line" => $original_line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $is_secure, list => { ">> original_line" => $original_line }});
 					$original_line =~ s/$this_value/$value/;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { "<< original_line" => $original_line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $is_secure, list => { "<< original_line" => $original_line }});
 				}
 			}
 		}
