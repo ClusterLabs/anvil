@@ -2833,11 +2833,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="message_0026">Updating the database user: [#!variable!user!#] password... </key>
 		<key name="message_0027">Updating the local config file: [#!variable!file!#] database password... </key>
 		<key name="message_0028">Updating the shell user: [#!variable!user!#] password... </key>
-		<key name="message_0029">Finished! 
-
-NOTE: You must update the password of any other system using this host's 
-      database manually!
-		</key>
+		<key name="message_0029">Finished!</key>
 		<key name="message_0030">Failed to write the new password to the temporary file: [#!variable!file!#]. Please check the logs for details.</key>
 		<key name="message_0031">Beginning configuration of local system.</key>
 		<key name="message_0032">Peer: [#!variable!peer!#], database: [#!variable!name!#], UUID: [#!variable!uuid!#]</key>
