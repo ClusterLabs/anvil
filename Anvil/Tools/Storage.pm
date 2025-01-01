@@ -5366,6 +5366,7 @@ sub update_config
 		my $original_line =  $line;
 		   $line          =~ s/#.*$//;
 		   $line          =~ s/^\s+//;
+		next if not $line;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
 		   
 		if ($line =~ /^(.*?)=(.*)$/)
@@ -5376,8 +5377,9 @@ sub update_config
 			   $this_value    =~ s/^\s+//;
 			my $is_secure     =  $this_variable =~ /passw/i ? 1 : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-				this_variable => $this_variable,
-				this_value    => not $is_secure ? $this_value : $anvil->Log->is_secure($this_value),
+				's1:is_secure'     => $is_secure, 
+				's2:this_variable' => $this_variable,
+				's3:this_value'    => $is_secure ? $anvil->Log->is_secure($this_value) : $this_value,
 			}});
 			if ($this_variable eq $variable)
 			{
