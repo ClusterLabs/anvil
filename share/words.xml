@@ -482,9 +482,15 @@ Output (if any):
 ====
 </key>
 		<key name="error_0316">There appears to have been a problem calling: [#!variable!shell_call!#]. The return code was: [#!variable!return_code!#] (expected '0'). The output, if any, was: [#!variable!error!#]. Aborting the network configuration to prevent to loss of access to the server. Please manually check the network configuration!</key>
-		<key name="error_0317">#!free!#</key>
-		<key name="error_0318">#!free!#</key>
-		<key name="error_0319">#!free!#</key>
+		<key name="error_0317">[ Error ] - This must be run on a Striker dashboard (unless used with '--local').</key>
+		<key name="error_0318">[ Error ] - The attempt to update the password on: [#!variable!host_name!#]!
+[ Error ] - The output from the call was:
+====
+#!variable!output!#
+====
+[ Error ] - Please correct the source of the failure and then re-run the password update.
+</key>
+		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
 		<key name="error_0320">#!free!#</key>
 		<key name="error_0321">#!free!#</key>
 		<key name="error_0322">#!free!#</key>
@@ -2143,9 +2149,9 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0256">### POWER OFF REQUESTED ### - [#!variable!reason!#]</key>
 		<key name="log_0257">Stopping Anvil! daemons.</key>
 		<key name="log_0258">Syncing the file systems.</key>
-		<key name="log_0259">#!free!#</key>
-		<key name="log_0260">#!free!#</key>
-		<key name="log_0261">#!free!#</key>
+		<key name="log_0259">[ Note ] - Updating passwords on this host only.</key>
+		<key name="log_0260">No Anvil! nodes found, updates not required.</key>
+		<key name="log_0261">Updating the Anvil! node passwords.</key>
 		<key name="log_0262">[ Error ] - Storage->scan_directory() was asked to scan: [#!variable!directory!#], but it doesn't exist or isn't actually a directory.</key>
 		<key name="log_0263">Now deleting the file: [#!variable!file!#].</key>
 		<key name="log_0264">Checking: [#!data!path::directories::shared::incoming!#] for new files.</key>
@@ -2178,7 +2184,7 @@ The fingerprint of: [#!variable!machine!#] has changed! Updating its entry in kn
 - Wanted; size: [#!variable!say_file_size!# (#!variable!file_size!# bytes)]
 - Found;  size: [#!variable!say_remote_size!# (#!variable!remote_size!# bytes)]
 We will keep looking.</key>
-		<key name="log_0282">#!free!#</key>
+		<key name="log_0282">- Checking node: [#!variable!name!#] - [#!variable!description!#]</key>
 		<key name="log_0283">Done.</key>
 		<key name="log_0284">[ Error ] - Failed to remove the file: [#!variable!file!#]! Please check the permissions or for SELinux denials.</key>
 		<key name="log_0285">The file: [#!variable!file!#] is marked as not synced to this Anvil!, removing it now.</key>
@@ -2187,9 +2193,10 @@ We will keep looking.</key>
 		<key name="log_0288">[ Error ] - The requested URL: [#!variable!url!#] does not resolve to a known domain.</key>
 		<key name="log_0289">[ Error ] - The requested URL: [#!variable!url!#] failed because the remote host refused the connection.</key>
 		<key name="log_0290">[ Error ] - The requested URL: [#!variable!url!#] failed because there is no route to that host.</key>
-		<key name="log_0291">#!free!#</key>
+		<key name="log_0291">- The password needs to be updated.
+[ Note ] - The IPMI BMC password will soon be updated on the subnodes, if applicable.</key>
 		<key name="log_0292">[ Error ] - The requested URL: [#!variable!url!#] failed because the network is unreachable.</key>
-		<key name="log_0293">#!free!#</key>
+		<key name="log_0293">- The password has not changed, no update is needed.</key>
 		<key name="log_0294"><![CDATA[[ Error ] - The method Convert->time() was passed the 'time' of: [#!variable!time!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0295"><![CDATA[[ Error ] - The method Remote->call() was passed the 'timeout' of: [#!variable!timeout!#] which does not appear to be a whole number.]]></key>
 		<key name="log_0296">We have a connection open already to: [#!variable!connection!#], skipping connect stage.</key>
@@ -2200,15 +2207,18 @@ We will keep looking.</key>
 		<key name="log_0301">We were asked to notify, but this is not a promotable (we're stateless) agent. Ignoring.</key>
 		<key name="log_0302">We were invoked with an unexpected (or no) command. Environment variables and arguments have been logged.</key>
 		<key name="log_0303">We've been asked to start the server: [#!variable!server!#].</key>
-		<key name="log_0304">#!free!#</key>
-		<key name="log_0305">#!free!#</key>
-		<key name="log_0306">#!free!#</key>
-		<key name="log_0307">#!free!#</key>
-		<key name="log_0308">#!free!#</key>
+		<key name="log_0304">[ Note ] - If your new password was long or had special characters, the IPMI password may be simplified.
+[ Note ] - This simplification is required as most IPMI BMCs have restricrive password limitations.
+[ Note ] - You can see the simplified password in the Striker UI in the node menu.</key>
+		<key name="log_0305">Updating the passwords on all other hosts now.</key>
+		<key name="log_0306">- Updating the passwords on the striker peer: [#!variable!host_name!#].
+[ Note ] - Please be patient! This could take a bit to complete.</key>
+		<key name="log_0307">- Updating the passwords on the subnode: [#!variable!host_name!#]</key>
+		<key name="log_0308">- Updating the passwords on the DR host: [#!variable!host_name!#]</key>
 		<key name="log_0309">The server: [#!variable!server!#] has started successfully.</key>
 		<key name="log_0310">The server: [#!variable!server!#] should have been started, but it's state is: [#!variable!state!#]. Human intervention is required!</key>
 		<key name="log_0311">The server: [#!variable!server!#] should have been started, but it wasn't found in the list of running servers.</key>
-		<key name="log_0312">#!free!#</key>
+		<key name="log_0312">[ Note ] - To minimize the chance of interruption, we will now wait for any running jobs to finish.</key>
 		<key name="log_0313">The server: [#!variable!server!#] has been asked to shut down. If it is actually running, we will ask it to shut down now.</key>
 		<key name="log_0314">The server: [#!variable!server!#] is paused. Resuming it now so that it can react to the shutdown request.</key>
 		<key name="log_0315">The attempt to resume the server: [#!variable!server!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
@@ -2217,28 +2227,30 @@ We will keep looking.</key>
 		<key name="log_0318">The attempt to wake the server: [#!variable!server!#] returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0319">Pausing for half a minute to give the server time to wake up.</key>
 		<key name="log_0320">The server: [#!variable!server!#] is already shutting down. We'll monitor it until it actually shuts off.</key>
-		<key name="log_0321">#!free!#</key>
+		<key name="log_0321">- Waiting for job(s) to finish.</key>
 		<key name="log_0322">The server: [#!variable!server!#] is hung. Its state is: [#!variable!state!#]. We will force it off now.</key>
-		<key name="log_0323">#!free!#</key>
+		<key name="log_0323">- No running jobs, proceeding.</key>
 		<key name="log_0324">The server: [#!variable!server!#] is not running on this machine.</key>
 		<key name="log_0325">The server: [#!variable!server!#] is running, but it is in an unexpected state: [#!variable!state!#]. Human intervention is required!</key>
-		<key name="log_0326">#!free!#</key>
-		<key name="log_0327">#!free!#</key>
-		<key name="log_0328">#!free!#</key>
-		<key name="log_0329">#!free!#</key>
-		<key name="log_0330">#!free!#</key>
+		<key name="log_0326">[#!variable!time_stamp!#] - The host: [#!variable!host_name!#] is running a job; Progress: [#!variable!progress!#%] complete, command: [#!variable!command!#]</key>
+		<key name="log_0327">[ Note ] - We're a Striker, so we need to update other host's anvil.conf, so checking for access to all hosts.</key>
+		<key name="log_0328">[ Note ] - Verifying access to all hosts.</key>
+		<key name="log_0329">-=] Checking that Strikers are online.</key>
+		<key name="log_0330">-=] Checking that sub-nodes are online.</key>
 		<key name="log_0331">The environment variable 'OCF_RESKEY_CRM_meta_timeout' was not set, so setting it to: [#!variable!timeout!#].</key>
-		<key name="log_0332">#!free!#</key>
-		<key name="log_0333">#!free!#</key>
-		<key name="log_0334">#!free!#</key>
-		<key name="log_0335">#!free!#</key>
-		<key name="log_0336">#!free!#</key>
-		<key name="log_0337">#!free!#</key>
-		<key name="log_0338">#!free!#</key>
-		<key name="log_0339">#!free!#</key>
-		<key name="log_0340">#!free!#</key>
-		<key name="log_0341">#!free!#</key>
-		<key name="log_0342">#!free!#</key>
+		<key name="log_0332">-=] Checking that sub-nodes are online.</key>
+		<key name="log_0333">- Testing access to: [#!variable!host_name!#] via: [#!variable!target_ip!#]...</key>
+		<key name="log_0334">- OK.</key>
+		<key name="log_0335"> - Failed!
+Will now try with: [#!variable!count!#] known password(s).</key>
+		<key name="log_0336">- Testing access to: [#!variable!host_name!#] via: [#!variable!target_ip!#] with password: [#!variable!i!#]...</key>
+		<key name="log_0337"> - Success!</key>
+		<key name="log_0338"> - Failed with this password.</key>
+		<key name="log_0339">- All known passwords failed, unable to connect to: [#!variable!host_name!#]</key>
+		<key name="log_0340">All hosts are accessible! Password update can proceed.</key>
+		<key name="log_0341">[ Warning ] - Not all hosts are online, but '--force' was used!
+[ Warning ] - You will need to manually update the passwords using this tool with '--local' later.</key>
+		<key name="log_0342">Updating the VNC user: [#!variable!vncuser!#] password.</key>
 		<key name="log_0343">#!free!#</key>
 		<key name="log_0344">The server: [#!variable!server!#] wasn't found on this machine.</key>
 		<key name="log_0345">#!free!#</key>
@@ -4055,7 +4067,7 @@ The duplicate will be removed.</key>
 #!variable!line!#
 ====
 </key>
-		<key name="warning_0015">#!free!#</key>
+		<key name="warning_0015">[ Warning ] - Updating passwords on all systems, please do NOT interrupt this process!</key>
 		<key name="warning_0016">#!free!#</key>
 		<key name="warning_0017">#!free!#</key>
 		<key name="warning_0018">#!free!#</key>
