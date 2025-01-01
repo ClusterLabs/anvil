@@ -2976,7 +2976,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0143">Finished removing the new interface with MAC address: [#!variable!mac!#], from the server: [#!variable!server!#].</key>
 		<key name="message_0144">- The current gateway is: [#!variable!current_gateway!#], but this is not the gateway interface. Will remove it.</key>
 		<key name="message_0145">- This is the gateway interface, but there is no gateway yet. Will configure it as: [#!variable!new_gateway!#].</key>
-		<key name="message_0146">#!free!#</key>
+		<key name="message_0146">Updating out password in the config file: [#!variable!file!#] on the host: [#!variable!host_name!#] now... </key>
 		<key name="message_0147">#!free!#</key>
 		<key name="message_0148">#!free!#</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
@@ -4053,7 +4053,12 @@ The duplicate will be removed.</key>
 		<key name="warning_0011">[ Warning ] - Setting the device: [#!variable!device!#] (NM uuid: [#!variable!uuid!#] to not have an IP address.</key>
 		<key name="warning_0012">[ Warning ] - I was asked to run the query: [#!variable!query!#], but there are no databases available to read from.</key>
 		<key name="warning_0013">[ Warning ] - </key>
-		<key name="warning_0014">#!free!#</key>
+		<key name="warning_0014">Failed!
+[ Warning ] - Failed to update the config! Please manually update the target's: [#!variable!file!#] to update/add the line:
+====
+#!variable!line!#
+====
+</key>
 		<key name="warning_0015">#!free!#</key>
 		<key name="warning_0016">#!free!#</key>
 		<key name="warning_0017">#!free!#</key>

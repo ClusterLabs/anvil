@@ -1361,6 +1361,7 @@ sub _set_paths
 				wipefs				=>	"/usr/sbin/wipefs", 
 				vgs				=>	"/usr/sbin/vgs",
 				vgscan				=>	"/usr/sbin/vgscan",
+				vncpasswd			=>	"/usr/bin/vncpasswd",
 				wc				=>	"/usr/bin/wc",
 				wget				=>	"/usr/bin/wget",
 				yum				=>	"/usr/bin/yum",
