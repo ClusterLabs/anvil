@@ -5,6 +5,7 @@ type APIServerState =
   | 'migrating'
   | 'paused'
   | 'pmsuspended'
+  | 'provisioning'
   | 'running'
   | 'shut off';
 
