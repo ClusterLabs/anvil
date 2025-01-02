@@ -105,7 +105,7 @@ const Preview = <Server extends ServerCore>(
                     thickness: 3,
                   },
                   underline: {
-                    thickness: 0,
+                    thickness: progress ? 0 : 1,
                   },
                 }}
                 value={progress}
