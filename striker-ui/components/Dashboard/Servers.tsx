@@ -19,6 +19,7 @@ import ProvisionServerDialog from '../ProvisionServerDialog';
 import ServerLists from './ServerLists';
 import ServerPanels from './ServerPanels';
 import Spinner from '../Spinner';
+import SyncIndicator from '../SyncIndicator';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
@@ -73,6 +74,7 @@ const Servers: React.FC = () => {
     data: servers,
     loading,
     error: fetchError,
+    validating,
   } = useFetch<APIServerOverviewList>('/server', {
     refreshInterval: 4000,
     onSuccess: (data) => {
@@ -122,6 +124,7 @@ const Servers: React.FC = () => {
       <Panel>
         <PanelHeader>
           <HeaderText>Servers</HeaderText>
+          <SyncIndicator syncing={validating} />
           <Box
             sx={{
               [`&.${boxClasses.root}`]: {
