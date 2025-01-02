@@ -744,7 +744,7 @@ The extension of the resource is incomplete, manual intervention is required!!
 		<key name="error_0451"><![CDATA[The server: [#!variable!server!#] was not found on the Anvil! node: [#!variable!anvil!#]. Valid servers are above.]]></key>
 		<key name="error_0452"><![CDATA[The server: [#!variable!server!#] was not found. Valid servers are above.]]></key>
 		<key name="error_0453"><![CDATA[The server: [#!variable!server!#] has been deleted.]]></key>
-		<key name="error_0454"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], please run this on that host.]]></key>
+		<key name="error_0454"><![CDATA[The server: [#!variable!server!#] is marked as running, but the host is invalid.]]></key>
 		<key name="error_0455"><![CDATA[[ Error ] - Failed to find an on disk or from virsh definition for the server: [#!variable!server!#]. Unable to proceed.]]></key>
 		<key name="error_0456"><![CDATA[Please specify which server you want to modify using '--server <name or uuid>'.]]></key>
 		<key name="error_0457"><![CDATA[[ Error ] - Please indicate the disk drive to work with using '--disk --drive <target_device>'.]]></key>
@@ -1267,7 +1267,7 @@ resource "#!variable!server!#" {
 		<key name="job_0007">The new-style job to remove bad keys for the target: [#!variable!target!#] has been created with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0008">Job Complete.</key>
 		<key name="job_0009">Reboot...</key>
-		<key name="job_0010">#!free!#</key>
+		<key name="job_0010"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		<key name="job_0013">Remove a Striker Peer</key>

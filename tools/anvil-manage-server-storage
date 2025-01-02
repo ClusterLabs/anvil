@@ -187,16 +187,25 @@ sub manage_disk
 {
 	my ($anvil) = @_;
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
 	if (not $anvil->data->{switches}{disk})
 	{
 		# If there's only one disk drive, select it automatically
@@ -229,17 +238,35 @@ sub manage_disk
 		}
 	}
 	
+	$anvil->Database->get_dr_links();
 	my $drbd_resource = load_storage($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid))
+			{
+				# Skip it.
+				next;
+			}
+			elsif (($host_type eq "dr") && (not $dr_link_uuid))
+			{
+				# Is this DR host linked to this Anvil! node?
+				next;
+			}
+			
 			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 			{
 				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
@@ -495,16 +522,24 @@ sub manage_disk_add
 	my ($anvil, $drbd_resource) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 	
 	# Are they asking for an available amount of space?
 	my $say_up   = $anvil->Words->string({key => 'message_0331'});
@@ -2265,16 +2300,24 @@ sub manage_disk_grow
 		's3:max_free_space' => $max_free_space, 
 	}});
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 	
 	# Are they asking for an available amount of space?
 	my $add_size =  $anvil->data->{switches}{grow};
@@ -3501,8 +3544,21 @@ sub show_volume
 {
 	my ($anvil, $drbd_resource, $host_type) = @_;
 	
-	my $anvil_uuid = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	my $anvil_uuid  = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
+	my $server_name = $anvil->data->{switches}{server_name};
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid  => $anvil_uuid, 
+		server_name => $server_name, 
+		server_uuid => $server_uuid, 
+	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
 	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 	{
 		my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
@@ -3738,17 +3794,81 @@ sub validate_server
 				short     => 1,
 				host_uuid => $server_host_uuid,
 			});
-			$anvil->Job->update_progress({
-				progress  => 100,
-				message   => "error_0454", 
-				log_level => 1, 
-				'print'   => 1, 
-				priority  => "err",
-				variables => {
-					server    => $server_name, 
-					host_name => $server_host_name,
-				}, 
-			});
+			
+			# Reassign the job to the host.
+			if ($server_host_uuid)
+			{
+				# What kind of job is it? Default to 'grow'
+				my $job_title       = "job_0499";
+				my $job_description = "job_0500";
+				my $job_name        = "server::".$anvil->data->{switches}{server_uuid}."::grow_disk";
+				if ($anvil->data->{switches}{add})
+				{
+					# Adding a disk
+					$job_title       = "job_0497";
+					$job_description = "job_0498";
+					$job_name        = "server::".$anvil->data->{switches}{server_uuid}."::add_disk";
+				}
+				elsif ($anvil->data->{switches}{optical})
+				{
+					# Changing an optical disc
+					$job_title       = "job_0501";
+					$job_description = "job_0502";
+					$job_name        = "server::".$anvil->data->{switches}{server_uuid}."::change_iso";
+				}
+				# Reassign the job.
+				my $job_data   =  "add=".$anvil->data->{switches}{add}."\n";
+				   $job_data   .= "anvil=".$anvil->data->{switches}{add}."\n";
+				   $job_data   .= "confirm=true\n";
+				   $job_data   .= "disk=".$anvil->data->{switches}{disk}."\n";
+				   $job_data   .= "eject=".$anvil->data->{switches}{eject}."\n";
+				   $job_data   .= "grow=".$anvil->data->{switches}{grow}."\n";
+				   $job_data   .= "insert=".$anvil->data->{switches}{insert}."\n";
+				   $job_data   .= "machine=".$anvil->data->{switches}{machine}."\n";
+				   $job_data   .= "optical=".$anvil->data->{switches}{optical}."\n";
+				   $job_data   .= "server=".$anvil->data->{switches}{server}."\n";
+				   $job_data   .= "storage-group=".$anvil->data->{switches}{'storage-group'}."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					debug           => 2,
+					job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,
+					job_data        => $job_data, 
+					job_host_uuid   => $server_host_uuid, 
+					job_progress    => 0, 
+					job_name        => $job_name, 
+					job_title       => $job_title, 
+					job_description => $job_description, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+				
+				# Close this job.
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "job_0010", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						server    => $server_name, 
+						host_name => $server_host_name,
+						job_uuid  => $job_uuid, 
+					}, 
+				});
+			}
+			else
+			{
+				# Invalid host?! 
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "error_0454", 
+					log_level => 1, 
+					'print'   => 1, 
+					priority  => "err",
+					variables => {
+						server    => $server_name, 
+						host_name => $server_host_name,
+					}, 
+				});
+			}
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
