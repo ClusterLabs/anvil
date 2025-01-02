@@ -1,10 +1,13 @@
-import { Grid } from '@mui/material';
+import { Box, circularProgressClasses, Grid, styled } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useMemo } from 'react';
 
+import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
+
 import Decorator, { Colours } from '../Decorator';
-import Divider from '../Divider';
+import { Preview, PreviewBox as BasePreviewBox } from '../Display';
 import Link from '../Link';
+import PieProgress from '../PieProgress';
 import ServerMenu from '../ServerMenu';
 import { BodyText } from '../Text';
 
@@ -14,68 +17,146 @@ const MAP_TO_DECORATOR_COLOUR: Record<string, Colours> = {
   crashed: 'error',
 };
 
+const PreviewBox = styled(BasePreviewBox)(() => {
+  const width = '2.5em';
+
+  return {
+    borderRadius: BORDER_RADIUS,
+    height: `calc(${width} * 0.8)`,
+    width,
+  };
+});
+
+const ProvisionProgressBox = styled(BasePreviewBox)(() => {
+  const width = '3.2em';
+
+  return {
+    height: width,
+    margin: 0,
+    width,
+  };
+});
+
 const getDecoratorColour = (state: string): Colours =>
   MAP_TO_DECORATOR_COLOUR[state] ?? 'warning';
 
 const ServerSummary: React.FC<ServerListItemProps> = (props) => {
-  const { anvils, servers, uuid: serverUuid } = props;
+  const { servers, uuid: serverUuid } = props;
 
   const server = servers[serverUuid];
-  const anvil = anvils[server.anvil.uuid];
 
-  const hostValues = useMemo(() => Object.values(anvil.hosts), [anvil.hosts]);
+  const provisioning = useMemo(
+    () => server.state === 'provisioning',
+    [server.state],
+  );
 
-  return (
-    <Grid container spacing="1em">
+  const provisionProgress = useMemo(() => {
+    const { jobs } = server;
+
+    if (!jobs) {
+      return undefined;
+    }
+
+    return (
+      <ProvisionProgressBox>
+        {...Object.values(jobs).map((job, index) => {
+          const { peer, progress, uuid } = job;
+
+          const size = `calc(2.8em - ${1.5 * index}em)`;
+
+          return (
+            <PieProgress
+              key={`${uuid}-progress`}
+              slotProps={{
+                box: {
+                  sx: {
+                    position: 'absolute',
+                  },
+                },
+                pie: {
+                  size,
+                  sx: {
+                    opacity: peer ? 0.6 : undefined,
+
+                    [`& .${circularProgressClasses.circle}`]: {
+                      strokeLinecap: 'round',
+                    },
+                  },
+                  thickness: 6,
+                },
+                underline: {
+                  thickness: progress ? 0 : 1,
+                },
+              }}
+              value={progress}
+            />
+          );
+        })}
+      </ProvisionProgressBox>
+    );
+  }, [server]);
+
+  let decorator: React.ReactNode;
+  let preview: React.ReactNode;
+  let serverName: React.ReactNode;
+  let serverState: React.ReactNode;
+
+  if (provisioning) {
+    decorator = (
+      <Grid alignSelf="center" item>
+        {provisionProgress}
+      </Grid>
+    );
+
+    serverName = <BodyText noWrap>{server.name}</BodyText>;
+
+    serverState = <BodyText noWrap>{capitalize(server.state)}...</BodyText>;
+  } else {
+    decorator = (
       <Grid item>
         <Decorator colour={getDecoratorColour(server.state)} />
       </Grid>
-      <Grid item>
-        <Grid container width="14em">
+    );
+
+    preview = (
+      <Preview
+        server={server}
+        slots={{
+          screenshotBox: <PreviewBox />,
+        }}
+      />
+    );
+
+    serverName = (
+      <Link href={`/server?name=${server.name}`} noWrap>
+        {server.name}
+      </Link>
+    );
+
+    serverState = <BodyText noWrap>{capitalize(server.state)}</BodyText>;
+  }
+
+  return (
+    <Grid container spacing="0.5em">
+      {decorator}
+      <Grid item>{preview}</Grid>
+      <Grid item xs>
+        <Grid container>
           <Grid item width="100%">
-            <Link href={`/server?name=${server.name}`}>{server.name}</Link>
+            {serverName}
           </Grid>
           <Grid item width="100%">
-            <BodyText>{capitalize(server.state)}</BodyText>
+            {serverState}
           </Grid>
         </Grid>
       </Grid>
       <Grid item xs>
-        <Grid container>
-          <Grid item width="100%">
-            <Link href={`/anvil?anvil_uuid=${server.anvil.uuid}`} noWrap>
-              {server.anvil.name}
-            </Link>
-          </Grid>
-          <Grid item width="100%">
-            <Grid container columnSpacing="0.5em">
-              {...hostValues.reduce<React.ReactNode[]>(
-                (previous, host, index, array) => {
-                  const on = host.uuid === server.host?.uuid;
-
-                  previous.push(
-                    <Grid item key={`${host.uuid}`}>
-                      <BodyText noWrap selected={on}>
-                        {host.short}
-                      </BodyText>
-                    </Grid>,
-                  );
-
-                  if (index + 1 < array.length) {
-                    previous.push(
-                      <Grid item key={`${host.uuid}-end`}>
-                        <Divider orientation="vertical" />
-                      </Grid>,
-                    );
-                  }
-
-                  return previous;
-                },
-                [],
-              )}
-            </Grid>
-          </Grid>
-        </Grid>
+        <Box>
+          <Link href={`/anvil?anvil_uuid=${server.anvil.uuid}`} noWrap>
+            {server.anvil.name}
+          </Link>
+          {server.host && <BodyText noWrap>{server.host.short}</BodyText>}
+        </Box>
       </Grid>
       <Grid alignSelf="center" item>
         <ServerMenu

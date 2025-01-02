@@ -2,10 +2,11 @@ import { Grid } from '@mui/material';
 import { useMemo } from 'react';
 
 import { toAnvilOverviewList } from '../../lib/api_converters';
-import List from '../List';
+import Divider from '../Divider';
 import ServerSummary from './ServerSummary';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
+import { BodyText } from '../Text';
 
 const ServerLists: React.FC<ServerListProps> = (props) => {
   const { groups, servers } = props;
@@ -22,29 +23,32 @@ const ServerLists: React.FC<ServerListProps> = (props) => {
     const groupEntries = Object.entries(groups);
 
     return groupEntries.reduce<React.ReactNode[]>(
-      (elements, [groupName, group]) => {
-        if (!group.length) return elements;
-
-        const groupUuids = group.reduce<Record<string, string>>(
-          (previous, uuid) => {
-            previous[uuid] = uuid;
-
-            return previous;
-          },
-          {},
-        );
-
-        elements.push(
-          <Grid key={`${groupName}`} item width="100%">
-            <List
-              header
-              listItems={groupUuids}
-              renderListItem={(uuid) => (
+      (elements, [groupName, group], groupIndex, array) => {
+        if (group.length) {
+          group.forEach((uuid) => {
+            elements.push(
+              <Grid key={`${uuid}-summary`} item xs={1}>
                 <ServerSummary anvils={anvils} servers={servers} uuid={uuid} />
-              )}
-            />
-          </Grid>,
-        );
+              </Grid>,
+            );
+          });
+        } else {
+          elements.push(
+            <Grid key={`${groupName}-empty`} item width="100%">
+              <BodyText noWrap>No {groupName}</BodyText>
+            </Grid>,
+          );
+        }
+
+        const last = groupIndex + 1 === array.length;
+
+        if (!last) {
+          elements.push(
+            <Grid key={`${groupName}-end`} item width="100%">
+              <Divider orientation="horizontal" />
+            </Grid>,
+          );
+        }
 
         return elements;
       },
@@ -61,7 +65,16 @@ const ServerLists: React.FC<ServerListProps> = (props) => {
   }
 
   return (
-    <Grid container spacing="1em">
+    <Grid
+      columns={{
+        xs: 1,
+        md: 2,
+        lg: 3,
+        xl: 4,
+      }}
+      container
+      spacing="1em"
+    >
       {...lists}
     </Grid>
   );
