@@ -3364,12 +3364,11 @@ sub check_drbd_peer_access
 	
 	# Report that we're going to test access and that this could take some time.
 	$anvil->Job->update_progress({
-		progress  => $anvil->Job->bump_progress({steps => 2}),
+		progress  => $anvil->Job->bump_progress({steps => 1}),
 		message   => "job_0016", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
-	$anvil->nice_exit({exit_code => 1});
 	
 	my $all_online = 1;
 	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
@@ -3382,6 +3381,16 @@ sub check_drbd_peer_access
 			's3:short_host_name' => $short_host_name, 
 		}});
 		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			message   => "job_0018", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name => $short_host_name, 
+			},
+		});
 		
 		# This is used to store the IP we used to access the peer. If no access is available, this 
 		# shows which hosts are not available.
@@ -3411,11 +3420,32 @@ sub check_drbd_peer_access
 				"s2:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
 				"s3:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
 			}});
+			
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				message   => "job_0019", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					host_name => $short_host_name, 
+					target_ip => $target_ip, 
+					network   => $target_network,
+				},
+			});
 		}
 		else
 		{
 			$all_online = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				message   => "job_0058", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					host_name => $short_host_name, 
+				},
+			});
 		}
 	}
 	

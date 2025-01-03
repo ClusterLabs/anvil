@@ -1275,8 +1275,8 @@ resource "#!variable!server!#" {
 		<key name="job_0015">Manager Install Target.</key>
 		<key name="job_0016">Testing access to peer(s). Please be patient.</key>
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
-		<key name="job_0018">#!free!#</key>
-		<key name="job_0019">#!free!#</key>
+		<key name="job_0018">- Testing access to: [#!variable!host_name!#].</key>
+		<key name="job_0019">[ OK ] - Successfully connected to: [#!variable!host_name!#] via the network: [#!variable!network!#] and IP: [#!variable!target_ip!#].</key>
 		<key name="job_0020">Initialize a new #!string!brand_0002!# Node</key>
 		<key name="job_0021">Initialize a new DR Host</key>
 		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
@@ -1319,7 +1319,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
 		<key name="job_0057">Scans for or removes selected old/bad ssh host key(s) from the target user's known_hosts file.</key>
-		<key name="job_0058">#!free!#</key>
+		<key name="job_0058">[ Warning ] - No working connection to: [#!variable!host_name!#] was found!</key>
 		<key name="job_0059">[ Error ] - There was a problem writing the file: [#!variable!file!#]. Details will be found in the logs.</key>
 		<key name="job_0060">Success! The file: [#!variable!file!#] has been updated.</key>
 		<key name="job_0061">Setting the host name to: [#!variable!host_name!#]...</key>
