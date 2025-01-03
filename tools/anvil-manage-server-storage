@@ -77,6 +77,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 $anvil->Database->get_servers();
+$anvil->Database->get_dr_links();
 
 if ($anvil->data->{switches}{anvil})
 {
@@ -275,7 +276,6 @@ sub manage_disk
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	$anvil->Database->get_dr_links();
 	my $drbd_resource = load_storage($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	foreach my $host_type ("node", "dr")
@@ -293,16 +293,8 @@ sub manage_disk
 			}});
 			
 			# If this host is from another node or unrelated DR host, skip it. 
-			if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid))
-			{
-				# Skip it.
-				next;
-			}
-			elsif (($host_type eq "dr") && (not $dr_link_uuid))
-			{
-				# Is this DR host linked to this Anvil! node?
-				next;
-			}
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
 			
 			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 			{
@@ -901,20 +893,31 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid        = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
 			my $vg_name          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
 			my $vg_internal_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
 			my $new_lv_name      = $server_name."_".$next_drbd_volume;
 			my $backing_disk     = "/dev/".$vg_name."/".$new_lv_name;
 			my $shell_call       = "if [ -e '".$backing_disk."' ]; then echo 'LV: [".$backing_disk."] already exists.'; else ".$anvil->data->{path}{exe}{lvcreate}." ".$add_size." -n ".$new_lv_name." ".$vg_name."; fi;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:short_host_name'  => $short_host_name,
-				's2:host_uuid'        => $host_uuid, 
-				's3:vg_name'          => $vg_name, 
-				's4:vg_internal_uuid' => $vg_internal_uuid, 
-				's5:new_lv_name'      => $new_lv_name, 
-				's6:backing_disk'     => $backing_disk, 
-				's7:shell_call'       => $shell_call, 
+				's1:vg_name'          => $vg_name, 
+				's2:vg_internal_uuid' => $vg_internal_uuid, 
+				's3:new_lv_name'      => $new_lv_name, 
+				's4:backing_disk'     => $backing_disk, 
+				's5:shell_call'       => $shell_call, 
 			}});
 			
 			# Record this for updating the DRBD resource.
@@ -1199,8 +1202,20 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
 			next if $host_uuid eq $anvil->Get->host_uuid;
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
 			
 			my $use_ip      =  $anvil->data->{peer}{$short_host_name}{access}{ip};
 			my $destination =  "root\@".$use_ip.":".$anvil->data->{path}{directories}{drbd_resources}."/";
@@ -1254,13 +1269,22 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$drbd_resource."/".$next_drbd_volume;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$drbd_resource."/".$next_drbd_volume;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			# Create the metadata, but don't exit on failure in case the metadata was created in
 			# a previous pass.
@@ -1381,14 +1405,23 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
 			next if $host_uuid eq $anvil->Get->host_uuid;
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				debug           => 2, 
@@ -1767,13 +1800,22 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
@@ -2557,14 +2599,25 @@ sub manage_disk_grow
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid    = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$drbd_volume}{backing_disk};
-			my $shell_call   = $anvil->data->{path}{exe}{lvextend}." ".$add_size." ".$backing_disk;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:backing_disk'    => $backing_disk, 
-				's4:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$drbd_volume}{backing_disk};
+			my $shell_call   = $anvil->data->{path}{exe}{lvextend}." ".$add_size." ".$backing_disk;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:backing_disk' => $backing_disk, 
+				's2:shell_call'   => $shell_call, 
 			}});
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
@@ -2736,11 +2789,20 @@ sub manage_disk_grow
 		{
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 			{
-				my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+				my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+				my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+				my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:short_host_name' => $short_host_name,
 					's2:host_uuid'       => $host_uuid, 
+					's3:this_anvil_uuid' => $this_anvil_uuid, 
+					's4:dr_link_uuid'    => $dr_link_uuid, 
 				}});
+				
+				# If this host is from another node or unrelated DR host, skip it. 
+				next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+				next if (($host_type eq "dr") && (not $dr_link_uuid));
+				
 				if ($host_uuid eq $anvil->Get->host_uuid)
 				{
 					$anvil->Job->update_progress({
