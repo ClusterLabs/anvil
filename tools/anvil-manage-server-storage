@@ -7,9 +7,6 @@
 # 0 = Normal exit.
 # 1 = No database connection.
 # 
-# TODO: 
-# - Update the target_ip search to use the new Network->find_target_ip().
-# 
 # USAGE:
 # - Show
 #   - anvil-manage-server-storage --server srv01-fs37
@@ -237,6 +234,48 @@ sub manage_disk
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
+	
+	# Are they asking for an available amount of space?
+	my $say_up   = $anvil->Words->string({key => 'message_0331'});
+	my $say_down = $anvil->Words->string({key => 'message_0332'});
+	
+	### TODO: Make this work without the peer node being online.
+	# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
+	# needs to be online.
+	my $all_online = check_drbd_peer_access($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+	
+	if (not $all_online)
+	{
+		# Adding a new disk requires all peers to be online. We'll exit with the progress under 100,
+		# so anvil-daemon will kick it back off in a minute.
+		$anvil->Job->update_progress({
+			progress => $anvil->Job->bump_progress({steps => 10}),
+			message  => "error_0427", 
+			log_level => 1, 
+			'print'   => 1, 
+			priority  => "err",
+		});
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+		{
+			# Record the access
+			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 10}),
+				message   => "error_0428", 
+				log_level => 1, 
+				'print'   => 1, 
+				priority  => "err",
+				variables => {
+					host_name => $short_host_name,
+					access    => $say_access,
+				},
+			});
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	die;
 	
 	$anvil->Database->get_dr_links();
 	my $drbd_resource = load_storage($anvil);
@@ -541,48 +580,6 @@ sub manage_disk_add
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 	}
 	
-	# Are they asking for an available amount of space?
-	my $say_up   = $anvil->Words->string({key => 'message_0331'});
-	my $say_down = $anvil->Words->string({key => 'message_0332'});
-	
-	### TODO: Make this work without the peer node being online.
-	# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
-	# needs to be online.
-	my $all_online = check_drbd_peer_access($anvil);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
-	
-	if (not $all_online)
-	{
-		# Adding a new disk requires all peers to be online. We'll exit with the progress under 100,
-		# so anvil-daemon will kick it back off in a minute.
-		$anvil->Job->update_progress({
-			progress => $anvil->Job->bump_progress({steps => 10}),
-			message  => "error_0427", 
-			log_level => 1, 
-			'print'   => 1, 
-			priority  => "err",
-		});
-		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
-		{
-			# Record the access
-			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
-			$anvil->Job->update_progress({
-				progress  => $anvil->Job->bump_progress({steps => 10}),
-				message   => "error_0428", 
-				log_level => 1, 
-				'print'   => 1, 
-				priority  => "err",
-				variables => {
-					host_name => $short_host_name,
-					access    => $say_access,
-				},
-			});
-		}
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	die;
-	
 	# Do we have a storage group?
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'switches::storage-group' => $anvil->data->{switches}{'storage-group'}, 
@@ -599,6 +596,10 @@ sub manage_disk_add
 		show_storage_groups($anvil);
 		$anvil->nice_exit({exit_code => 1});
 	}
+	
+	# Are they asking for an available amount of space?
+	my $say_up   = $anvil->Words->string({key => 'message_0331'});
+	my $say_down = $anvil->Words->string({key => 'message_0332'});
 	
 	# Make sure that the passed
 	my $storage_group_switch = $anvil->data->{switches}{'storage-group'};
@@ -3388,19 +3389,23 @@ sub check_drbd_peer_access
 		$anvil->data->{peer}{$short_host_name}{access_network} = "";
 		
 		my $access    = 0;
-		my $target_ip = $anvil->Network->find_target_ip({
-			host_uuid   => $host_uuid,
-			networks    => "bcn,mn,ifn,sn,any"
+		my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
+			host_uuid   => $host_uuid, 
+			networks    => "bcn,mn,ifn,sn,any", 
 			ping        => 1,
 			test_access => 1, 
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			target_ip      => $target_ip,
+			target_network => $target_network,
+		}});
 		
 		if ($target_ip)
 		{
 			# We're good.
 			$access                                                 = 1;
 			$anvil->data->{peer}{$short_host_name}{access}{ip}      = $target_ip;
-			$anvil->data->{peer}{$short_host_name}{access}{network} = $network_name;
+			$anvil->data->{peer}{$short_host_name}{access}{network} = $target_network;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:access'                                    => $access, 
 				"s2:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 

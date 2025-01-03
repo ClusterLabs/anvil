@@ -1920,7 +1920,7 @@ sub find_matches
 
 This uses the IP information for the local machine and a target host UUID, and returns an IP address that can be used to contact it. If no match is found, an empty string is returned.
 
- my $target_ip = $anvil->Network->find_target_ip({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
+ my ($target_ip, $target_network) = $anvil->Network->find_target_ip({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
 
 Parameters;
 
@@ -1993,7 +1993,8 @@ sub find_target_ip
 		short_host_name  => $short_host_name, 
 	}});
 	
-	my $target_ip = "";
+	my $target_ip      = "";
+	my $target_network = "";
 	my $matches   = $anvil->Network->find_access({
 		debug  => $debug,
 		target => $target_host_name, 
@@ -2039,21 +2040,29 @@ sub find_target_ip
 				if ($access)
 				{
 					# We can use this one.
-					$target_ip = $this_target_ip;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+					$target_ip      = $this_target_ip;
+					$target_network = $network_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						target_ip      => $target_ip,
+						target_network => $target_network, 
+					}});
 					last;
 				}
 			}
 			else
 			{
 				# We're done.
-				$target_ip = $this_target_ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+				$target_ip      = $this_target_ip;
+				$target_network = $network_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					target_ip      => $target_ip,
+					target_network => $target_network, 
+				}});
 			}
 		}
 	}
 	
-	return($target_ip);
+	return($target_ip, $target_network);
 }
 
 
