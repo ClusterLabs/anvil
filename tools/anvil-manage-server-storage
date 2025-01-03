@@ -275,8 +275,6 @@ sub manage_disk
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
-	die;
-	
 	$anvil->Database->get_dr_links();
 	my $drbd_resource = load_storage($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
