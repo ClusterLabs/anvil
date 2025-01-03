@@ -1938,6 +1938,10 @@ This is the comma-separated list of networks to search for access over. The orde
 * ifn (Internet-Facing Network)
 * any (Any other interface)
 
+=head3 ping (optional, defaukt '0')
+
+When used with C<< test_access >>, a ping is attempted before the actual SSH connection is attempted. 
+
 =head3 test_access (optional, default '0')
 
 If set to C<< 1 >>, any matched IP will be tested. If this is set and the target can't be reached using that IP, it is skipped. If this is not set, the first match is returned.
@@ -1953,10 +1957,12 @@ sub find_target_ip
 	
 	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : "";
 	my $networks    = defined $parameter->{networks}    ? $parameter->{networks}    : "";
+	my $ping        = defined $parameter->{ping}        ? $parameter->{ping}        : 0;
 	my $test_access = defined $parameter->{test_access} ? $parameter->{test_access} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_uuid   => $host_uuid, 
 		networks    => $networks, 
+		ping        => $ping, 
 		test_access => $test_access, 
 	}});
 	
@@ -2011,6 +2017,18 @@ sub find_target_ip
 			
 			if ($test_access)
 			{
+				# Can I even ping the target?
+				if ($ping)
+				{
+					my ($pinged, $average_time) = $anvil->Network->ping({ping  => $this_target_ip});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:pinged'       => $pinged, 
+						's2:average_time' => $average_time, 
+					}});
+					next if not $pinged;
+				}
+				
+				# Yes, can we log in?
 				my $access = $anvil->Remote->test_access({target => $this_target_ip});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:network_name'   => $network_name, 

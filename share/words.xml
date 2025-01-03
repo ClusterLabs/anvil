@@ -1273,7 +1273,7 @@ resource "#!variable!server!#" {
 		<key name="job_0013">Remove a Striker Peer</key>
 		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
 		<key name="job_0015">Manager Install Target.</key>
-		<key name="job_0016">#!free!#</key>
+		<key name="job_0016">Testing access to peer(s). Please be patient.</key>
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">#!free!#</key>
 		<key name="job_0019">#!free!#</key>
