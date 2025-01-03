@@ -1314,7 +1314,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0050">[ Error ] - The known_hosts file: [#!variable!file!#] was not found. Skipping it.</key>
 		<key name="job_0051">Finished.</key>
 		<key name="job_0052">[ Error ] - There was a problem reading the known_hosts file: [#!variable!file!#]. Skipping it.</key>
-		<key name="job_0053">#!free!#</key>
+		<key name="job_0053">[ Warning ] - We need to connect the DRBD resource on: [#!variable!host_name!#]. We'll disconnect it when we're done.</key>
 		<key name="job_0054">Found an entry matching the key being removed at line: [#!variable!line!#], removing it.</key>
 		<key name="job_0055">Rewriting: [#!variable!file!#].</key>
 		<key name="job_0056">Manage Keys</key>
@@ -1353,7 +1353,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0089">Adding NTP (network time protocol) servers, if needed.</key>
 		<key name="job_0090">Adding the NTP server: [#!variable!server!#].</key>
 		<key name="job_0091">Restarting the daemon: [#!variable!daemon!#].</key>
-		<key name="job_0092">#!free!#</key>
+		<key name="job_0092">[ Note ] - We had to connect the DRBD resource on: [#!variable!host_name!#]. We'll now disconnect it.</key>
 		<key name="job_0093">Updated the password for the: [#!variable!user!#] user.</key>
 		<key name="job_0094">Enabled and started the daemon: [#!variable!daemon!#].</key>
 		<key name="job_0095">Disable and stop the daemon: [#!variable!daemon!#].</key>
@@ -1371,8 +1371,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0107">Corosync is not yet configured, waiting. It will be created when node 1 initializes the cluster.</key>
 		<key name="job_0108">Corosync is configured. Will wait for the cluster to start. If it hasn't started in two minutes, we'll try to join it.</key>
 		<key name="job_0109">We will now wait for the cluster to start.</key>
-		<key name="job_0110">#!free!#</key>
-		<key name="job_0111">#!free!#</key>
+		<key name="job_0110">Updating our view of DRBD resources via scan-drbd.</key>
+		<key name="job_0111">Updating the view of DRBD on our peer: [#!variable!host_name!#] via: [#!variable!use_ip!# (#!variable!use_network!#)].</key>
 		<key name="job_0112">#!free!#</key>
 		<key name="job_0113">Checking the SSH configuration.</key>
 		<key name="job_0114">Configuring the IPMI BMC. Please be patient, this could take a minute.</key>

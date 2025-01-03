@@ -121,6 +121,43 @@ else
 	show_server_details($anvil, 1);
 }
 
+# If we connected a peer, take it down.
+if (exists $anvil->data->{connected_resource})
+{
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{connected_resource}})
+	{
+		# We need to connect the DRBD resource
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			message   => "job_0092", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name => $peer_name, 
+			},
+		});
+		
+		my $target_ip   = $anvil->data->{peer}{$peer_name}{access}{ip};
+		my $shell_call  = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." down ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name' => $server_name, 
+			's2:target_ip'   => $target_ip, 
+			's3:shell_call'  => $shell_call,
+		}});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $target_ip, 
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+}
+
 $anvil->Job->update_progress({
 	progress => 100,
 	message  => "job_0281", 
@@ -1470,6 +1507,56 @@ sub manage_disk_add
 		return_code => $return_code, 
 	}});
 	
+	sleep 5;
+	# Update our view of the DRBD resources on all hosts.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "job_0110", 
+		log_level => 1, 
+		'print'   => 1, 
+	});
+	my $peer_count     = 0;
+	my $scan_drbd_call = $anvil->data->{path}{directories}{'scan_agents'}."/scan-drbd".$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
+	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+	foreach my $host_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+	{
+		my $access_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
+		my $access_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+		my $host_uuid      = $anvil->data->{peer}{$short_host_name}{host_uuid};
+		   $peer_count++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:access_ip"      => $access_ip, 
+			"s2:access_network" => $access_network, 
+			"s3:host_uuid"      => $host_uuid, 
+			"s4:peer_count"     => $peer_count,
+		}});
+	
+		# The resource is primary on the peer, force Primary over there.
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "job_0111", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name   => $short_host_name, 
+				use_ip      => $use_ip, 
+				use_network => $use_network, 
+			},
+		});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			shell_call => $shell_call, 
+			target     => $use_ip,
+		});
+	}
+	
+	# Update our view of DRBD resources.
+	$anvil->DRBD->get_status({debug => 2});
+	
 	# Find which node is currently Primary and use that host to force primary to start sync. If none, 
 	# force here.
 	$anvil->Job->update_progress({
@@ -1483,12 +1570,11 @@ sub manage_disk_add
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
 	while ($waiting)
 	{
-		$anvil->DRBD->get_status({debug => 2});
 		my $peers_connected = 1;
 		my $disks_ready     = 0;
 		my $drbd_peer_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_peer_count => $drbd_peer_count }});
-		if (not $drbd_peer_count)
+		if ($drbd_peer_count ne $peer_count)
 		{
 			$peers_connected = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
@@ -3454,8 +3540,12 @@ sub check_drbd_peer_access
 		
 		# This is used to store the IP we used to access the peer. If no access is available, this 
 		# shows which hosts are not available.
-		$anvil->data->{peer}{$short_host_name}{access_ip}      = "";
-		$anvil->data->{peer}{$short_host_name}{access_network} = "";
+		$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
+		$anvil->data->{peer}{$short_host_name}{access}{network} = "";
+		$anvil->data->{peer}{$short_host_name}{host_uuid}       = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:peer::${short_host_name}::host_uuid" => $anvil->data->{peer}{$short_host_name}{host_uuid}, 
+		}});
 		
 		my $access    = 0;
 		my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
@@ -3506,6 +3596,61 @@ sub check_drbd_peer_access
 					host_name => $short_host_name, 
 				},
 			});
+		}
+	}
+	
+	# If there's a DR host, make sure the DRBD resource is up. If not, mark that we're connecting it so 
+	# we can disconnect it when we're done.
+	if ($all_online)
+	{
+		$anvil->DRBD->get_status({debug => 2});
+		my $short_host_name = $anvil->Get->short_host_name;
+		my $server_name     = $anvil->data->{switches}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:short_host_name' => $short_host_name,
+			's2:server_name'     => $server_name,
+		}});
+		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{connection}})
+		{
+			my $connection_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{connection}{$peer_name}{'connection-state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:peer_name'        => $peer_name,
+				's2:connection_state' => $connection_state,
+			}});
+			if ($connection_state !~ /Connected/i)
+			{
+				# We need to connect the DRBD resource
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}),
+					message   => "job_0053", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						host_name => $peer_name, 
+					},
+				});
+				
+				my $target_ip  = $anvil->data->{peer}{$peer_name}{access}{ip};
+				my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:target_ip'  => $target_ip, 
+					's2:shell_call' => $shell_call,
+				}});
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					target     => $target_ip, 
+					shell_call => $shell_call,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					error       => $error,
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				
+				$anvil->data->{connected_resource}{$peer_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"connected_resource::${peer_name}" => $anvil->data->{connected_resource}{$peer_name},
+				}});
+			}
 		}
 	}
 	
