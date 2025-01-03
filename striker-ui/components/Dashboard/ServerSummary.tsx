@@ -18,7 +18,7 @@ const MAP_TO_DECORATOR_COLOUR: Record<string, Colours> = {
 };
 
 const PreviewBox = styled(BasePreviewBox)(() => {
-  const width = '2.5em';
+  const width = '3em';
 
   return {
     borderRadius: BORDER_RADIUS,
@@ -102,18 +102,14 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   let serverState: React.ReactNode;
 
   if (provisioning) {
-    decorator = (
-      <Grid alignSelf="center" item>
-        {provisionProgress}
-      </Grid>
-    );
+    decorator = <Grid item>{provisionProgress}</Grid>;
 
     serverName = <BodyText noWrap>{server.name}</BodyText>;
 
     serverState = <BodyText noWrap>{capitalize(server.state)}...</BodyText>;
   } else {
     decorator = (
-      <Grid item>
+      <Grid alignSelf="stretch" item>
         <Decorator colour={getDecoratorColour(server.state)} />
       </Grid>
     );
@@ -137,7 +133,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   }
 
   return (
-    <Grid container spacing="0.5em">
+    <Grid alignItems="center" container spacing="0.5em">
       {decorator}
       <Grid item>{preview}</Grid>
       <Grid item xs>
@@ -158,7 +154,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
           {server.host && <BodyText noWrap>{server.host.short}</BodyText>}
         </Box>
       </Grid>
-      <Grid alignSelf="center" item>
+      <Grid item>
         <ServerMenu
           iconButtonProps={{ size: 'small' }}
           serverName={server.name}
