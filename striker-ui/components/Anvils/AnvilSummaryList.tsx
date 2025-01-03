@@ -48,7 +48,6 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                         {name}
                       </Link>
                       <BodyText
-                        flexGrow={10}
                         overflow="hidden"
                         textOverflow="ellipsis"
                         whiteSpace="nowrap"
