@@ -1,6 +1,6 @@
 type FullSizeProps = {
   onClickCloseButton?: import('@mui/material').IconButtonProps['onClick'];
-  serverUUID: string;
+  serverUuid: string;
   serverName: string;
   vncReconnectTimerStart?: number;
 };

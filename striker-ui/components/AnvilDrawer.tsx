@@ -4,6 +4,7 @@ import {
 } from '@mui/icons-material';
 import { Drawer, List, ListItem, ListItemButton, styled } from '@mui/material';
 import { Dispatch, SetStateAction } from 'react';
+import { useCookies } from 'react-cookie';
 
 import { OLD_ICON } from '../lib/consts/DEFAULT_THEME';
 import { ICONS, ICON_SIZE } from '../lib/consts/ICONS';
@@ -13,7 +14,6 @@ import Divider from './Divider';
 import FlexBox from './FlexBox';
 import handleAPIError from '../lib/handleAPIError';
 import { BodyText } from './Text';
-import useCookieJar from '../hooks/useCookieJar';
 
 const PREFIX = 'AnvilDrawer';
 
@@ -39,22 +39,30 @@ interface DrawerProps {
 }
 
 const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
-  const { getSessionUser } = useCookieJar();
+  const [cookies] = useCookies(['suiapi.session']);
 
-  const sessionUser = getSessionUser();
+  const session: SessionCookie | undefined = cookies['suiapi.session'];
 
   return (
     <StyledDrawer
-      BackdropProps={{ invisible: true }}
       anchor="left"
       open={open}
       onClose={() => setOpen(!open)}
+      slotProps={{
+        backdrop: {
+          invisible: true,
+        },
+      }}
     >
       <div role="presentation">
         <List className={classes.list}>
           <ListItem>
             <BodyText>
-              {sessionUser ? <>Welcome, {sessionUser.name}</> : 'Unregistered'}
+              {session?.user ? (
+                <>Welcome, {session.user.name}</>
+              ) : (
+                'Unregistered'
+              )}
             </BodyText>
           </ListItem>
           <Divider />

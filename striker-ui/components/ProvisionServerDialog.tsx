@@ -984,7 +984,11 @@ const ProvisionServerDialog: React.FC<ProvisionServerDialogProps> = (props) => {
     setConfirmDialogLoading,
     setConfirmDialogOpen,
     setConfirmDialogProps,
-  } = useConfirmDialog();
+  } = useConfirmDialog({
+    initial: {
+      wide: true,
+    },
+  });
 
   const inputCpuCoresOptions = useMemo(() => {
     const result: number[] = [];

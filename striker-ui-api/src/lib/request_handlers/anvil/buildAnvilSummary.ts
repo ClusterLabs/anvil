@@ -1,5 +1,7 @@
 import assert from 'assert';
 
+import { DELETED } from '../../consts';
+
 import { query } from '../../accessModule';
 import { perr } from '../../shell';
 
@@ -15,29 +17,35 @@ export const buildAnvilSummary = async ({
   hosts: AnvilDataHostListHash;
 }) => {
   const {
-    anvil_uuid: { [anvilUuid]: ainfo },
+    anvil_uuid: { [anvilUuid]: anvilData },
   } = anvils;
 
-  if (!ainfo)
+  if (!anvilData)
     throw new Error(`Anvil information not found with UUID ${anvilUuid}`);
 
   const {
-    anvil_name: aname,
-    anvil_node1_host_uuid: n1uuid,
-    anvil_node2_host_uuid: n2uuid,
-  } = ainfo;
+    anvil_name: anvilName,
+    anvil_node1_host_uuid: subnode1Uuid,
+    anvil_node2_host_uuid: subnode2Uuid,
+  } = anvilData;
 
   const result: AnvilDetailSummary = {
-    anvil_name: aname,
-    anvil_state: 'optimal',
+    anvilStatus: {
+      drbd: {
+        status: '',
+        maxEstimatedTimeToSync: 0,
+      },
+      system: '',
+    },
+    anvil_name: anvilName,
     anvil_uuid: anvilUuid,
     hosts: [],
   };
 
-  let scounts: [scount: number, hostUuid: string][];
+  let serverCounts: [scount: number, hostUuid: string][];
 
   try {
-    scounts = await query(
+    serverCounts = await query(
       `SELECT
           COUNT(a.server_name),
           b.host_uuid
@@ -60,40 +68,40 @@ export const buildAnvilSummary = async ({
     throw error;
   }
 
-  for (const huuid of [n1uuid, n2uuid]) {
+  for (const hostUuid of [subnode1Uuid, subnode2Uuid]) {
     const {
       host_uuid: {
-        [huuid]: { host_status: hstatus, short_host_name: hname },
+        [hostUuid]: { host_status: hostStatus, short_host_name: shortHostName },
       },
     } = hosts;
 
-    const { hosts: rhosts } = result;
-
-    const found = scounts.find((row) => {
+    const found = serverCounts.find((row) => {
       if (row.length !== 2) return false;
 
-      const { 1: uuid } = row;
+      const { 1: serverHostUuid } = row;
 
-      return uuid === huuid;
+      return serverHostUuid === hostUuid;
     });
 
-    const scount = found ? found[0] : 0;
+    const serverCount = found ? found[0] : 0;
 
-    const hsummary: AnvilDetailHostSummary = {
-      host_name: hname,
-      host_uuid: huuid,
+    const hostSummary: AnvilDetailHostSummary = {
+      hostDrbdResources: {},
+      host_name: shortHostName,
+      host_uuid: hostUuid,
       maintenance_mode: false,
-      server_count: scount,
+      server_count: serverCount,
       state: 'offline',
       state_message: buildHostStateMessage(),
       state_percent: 0,
     };
 
-    rhosts.push(hsummary);
+    result.hosts.push(hostSummary);
 
-    if (hstatus !== 'online') continue;
+    // Skip when host isn't online
+    if (hostStatus !== 'online') continue;
 
-    let rows: [
+    let clusterFlags: [
       inCcm: NumberBoolean,
       crmdMember: NumberBoolean,
       clusterMember: NumberBoolean,
@@ -101,44 +109,170 @@ export const buildAnvilSummary = async ({
     ][];
 
     try {
-      rows = await query(`SELECT
-                            scan_cluster_node_in_ccm,
-                            scan_cluster_node_crmd_member,
-                            scan_cluster_node_cluster_member,
-                            scan_cluster_node_maintenance_mode
-                          FROM
-                            scan_cluster_nodes
-                          WHERE
-                            scan_cluster_node_host_uuid = '${huuid}';`);
+      clusterFlags = await query(
+        `SELECT
+            scan_cluster_node_in_ccm,
+            scan_cluster_node_crmd_member,
+            scan_cluster_node_cluster_member,
+            scan_cluster_node_maintenance_mode
+          FROM
+            scan_cluster_nodes
+          WHERE
+            scan_cluster_node_host_uuid = '${hostUuid}';`,
+      );
 
-      assert.ok(rows.length, 'No node cluster info');
+      assert.ok(clusterFlags.length, 'No subnode cluster info');
     } catch (error) {
-      perr(`Failed to get node ${huuid} cluster status; CAUSE: ${error}`);
+      perr(`Failed to get subnode ${hostUuid} cluster status; CAUSE: ${error}`);
 
       continue;
     }
 
-    const [[ccm, crmd, cluster, maintenance]] = rows;
+    const [[ccm, crmd, cluster, maintenance]] = clusterFlags;
 
-    hsummary.maintenance_mode = Boolean(maintenance);
+    hostSummary.maintenance_mode = Boolean(maintenance);
 
     if (cluster) {
-      hsummary.state = 'online';
-      hsummary.state_message = buildHostStateMessage(3);
-      hsummary.state_percent = 100;
+      hostSummary.state = 'online';
+      hostSummary.state_message = buildHostStateMessage(3);
+      hostSummary.state_percent = 100;
     } else if (crmd) {
-      hsummary.state = 'crmd';
-      hsummary.state_message = buildHostStateMessage(4);
-      hsummary.state_percent = 75;
+      hostSummary.state = 'crmd';
+      hostSummary.state_message = buildHostStateMessage(4);
+      hostSummary.state_percent = 75;
     } else if (ccm) {
-      hsummary.state = 'in_ccm';
-      hsummary.state_message = buildHostStateMessage(5);
-      hsummary.state_percent = 50;
+      hostSummary.state = 'in_ccm';
+      hostSummary.state_message = buildHostStateMessage(5);
+      hostSummary.state_percent = 50;
     } else {
-      hsummary.state = 'booted';
-      hsummary.state_message = buildHostStateMessage(6);
-      hsummary.state_percent = 25;
+      hostSummary.state = 'booted';
+      hostSummary.state_message = buildHostStateMessage(6);
+      hostSummary.state_percent = 25;
     }
+
+    let drbdResources: [
+      uuid: string,
+      name: string,
+      connectionState: string,
+      localDiskState: string,
+      estimatedTimeToSync: string,
+    ][];
+
+    try {
+      drbdResources = await query(
+        `SELECT
+            a.scan_drbd_resource_uuid,
+            a.scan_drbd_resource_name,
+            c.scan_drbd_peer_connection_state,
+            c.scan_drbd_peer_local_disk_state,
+            c.scan_drbd_peer_estimated_time_to_sync
+          FROM scan_drbd_resources AS a
+          LEFT JOIN scan_drbd_volumes AS b
+            ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
+              AND b.scan_drbd_volume_device_path != '${DELETED}'
+          LEFT JOIN scan_drbd_peers AS c
+            ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
+              AND c.scan_drbd_peer_connection_state != '${DELETED}'
+          WHERE a.scan_drbd_resource_host_uuid = '${hostUuid}'
+            AND a.scan_drbd_resource_xml != '${DELETED}';`,
+      );
+
+      assert.ok(drbdResources.length, 'No subnode DRBD resources');
+    } catch (error) {
+      continue;
+    }
+
+    drbdResources.forEach((resource) => {
+      const [
+        resourceUuid,
+        resourceName,
+        resourceConnectionState,
+        resourceLocalDiskState,
+        resourceEstimatedTimeToSync,
+      ] = resource;
+
+      if (!resourceUuid) return;
+
+      hostSummary.hostDrbdResources[resourceUuid] = {
+        connection: {
+          state: resourceConnectionState,
+        },
+        name: resourceName,
+        replication: {
+          state: resourceLocalDiskState,
+          estimatedTimeToSync: Number(resourceEstimatedTimeToSync),
+        },
+        uuid: resourceUuid,
+      };
+    });
+  }
+
+  // Summarize when finished with gathering info on the subnodes
+
+  let allClusterMember = true;
+  let allOffline = true;
+
+  let allReplicationOffline = true;
+  let allReplicationUpToDate = true;
+
+  let oneConnectionDisconnected = false;
+  let oneReplicationSyncTarget = false;
+
+  let noResources = false;
+
+  let maxReplicationEstimatedTimeToSync = 0;
+
+  result.hosts.forEach((host) => {
+    allClusterMember = allClusterMember && host.state === 'online';
+
+    allOffline = allOffline && host.state === 'offline';
+
+    const drbdResources = Object.values(host.hostDrbdResources);
+
+    noResources = !drbdResources.length;
+
+    drbdResources.forEach((resource) => {
+      allReplicationUpToDate =
+        allReplicationUpToDate && resource.replication.state === 'uptodate';
+
+      allReplicationOffline =
+        allReplicationOffline && resource.replication.state === 'off';
+
+      oneConnectionDisconnected =
+        oneConnectionDisconnected ||
+        ['standalone', 'unconnected'].includes(resource.connection.state);
+
+      oneReplicationSyncTarget =
+        oneReplicationSyncTarget || resource.replication.state === 'synctarget';
+
+      maxReplicationEstimatedTimeToSync = Math.max(
+        maxReplicationEstimatedTimeToSync,
+        resource.replication.estimatedTimeToSync,
+      );
+    });
+  });
+
+  if (allOffline) {
+    result.anvilStatus.system = 'offline';
+  } else if (allClusterMember) {
+    result.anvilStatus.system = 'optimal';
+  } else {
+    result.anvilStatus.system = 'degraded';
+  }
+
+  if (noResources) {
+    result.anvilStatus.drbd.status = 'none';
+  } else if (allReplicationOffline) {
+    result.anvilStatus.drbd.status = 'offline';
+  } else if (oneReplicationSyncTarget) {
+    result.anvilStatus.drbd = {
+      status: 'syncing',
+      maxEstimatedTimeToSync: maxReplicationEstimatedTimeToSync,
+    };
+  } else if (allReplicationUpToDate) {
+    result.anvilStatus.drbd.status = 'optimal';
+  } else {
+    result.anvilStatus.drbd.status = 'degraded';
   }
 
   return result;

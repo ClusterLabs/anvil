@@ -95,7 +95,13 @@ type AnvilStatusHost = {
 };
 
 type AnvilStatus = {
-  anvil_state: 'optimal' | 'not_ready' | 'degraded';
+  anvilStatus: {
+    drbd: {
+      status: string;
+      estimatedTimeToSync: number;
+    };
+    system: string;
+  };
   hosts: AnvilStatusHost[];
 };
 
@@ -116,6 +122,7 @@ type APIAnvilOverviewArray = Array<{
     hostName: string;
     hostType: string;
     hostUUID: string;
+    shortHostName: string;
   }>;
 }>;
 
@@ -124,6 +131,7 @@ type APIAnvilOverview = {
   hosts: {
     [uuid: string]: {
       name: string;
+      short: string;
       type: string;
       uuid: string;
     };
@@ -144,7 +152,13 @@ type APIAnvilDetail = {
     };
   };
   name: string;
-  state: AnvilStatus['anvil_state'];
+  status: {
+    drbd: {
+      status: string;
+      estimatedTimeToSync: number;
+    };
+    system: string;
+  };
   uuid: string;
 };
 

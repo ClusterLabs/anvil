@@ -128,7 +128,7 @@ const Server = (): JSX.Element => {
           <Panel>
             <MessageBox>
               Couldn&apos;t find server {router.query.name || router.query.uuid}
-              . {fetchError}
+              . {fetchError?.message}
             </MessageBox>
           </Panel>
         </PageBody>
@@ -145,7 +145,7 @@ const Server = (): JSX.Element => {
 
             router.replace({ query }, undefined, { shallow: true });
           }}
-          serverUUID={server.uuid}
+          serverUuid={server.uuid}
           serverName={server.name}
         />
       </Box>

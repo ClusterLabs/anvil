@@ -4,6 +4,7 @@ import { FC, ReactNode, useMemo } from 'react';
 import AnvilSummary from './AnvilSummary';
 import { toAnvilOverviewList } from '../../lib/api_converters';
 import Grid from '../Grid';
+import Link from '../Link';
 import {
   InnerPanel,
   InnerPanelBody,
@@ -12,25 +13,27 @@ import {
   PanelHeader,
 } from '../Panels';
 import Spinner from '../Spinner';
+import SyncIndicator from '../SyncIndicator';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
-  const { refreshInterval = 5000 } = props;
+  const { refreshInterval = 4000 } = props;
 
-  const { data: rawAnvils, loading: loadingAnvils } =
-    useFetch<APIAnvilOverviewArray>('/anvil', { refreshInterval });
-
-  const anvils = useMemo<APIAnvilOverviewList | undefined>(
-    () => rawAnvils && toAnvilOverviewList(rawAnvils),
-    [rawAnvils],
-  );
+  const {
+    altData: anvils,
+    loading,
+    validating,
+  } = useFetch<APIAnvilOverviewArray, APIAnvilOverviewList>('/anvil', {
+    mod: toAnvilOverviewList,
+    refreshInterval,
+  });
 
   const grid = useMemo<ReactNode>(
     () =>
       anvils && (
         <Grid
-          columns={{ xs: 1, sm: 2, md: 3, xl: 4 }}
+          columns={{ xs: 1, md: 2, lg: 3, xl: 4 }}
           layout={Object.values(anvils).reduce<GridLayout>(
             (previous, current) => {
               const { description, name, uuid } = current;
@@ -41,12 +44,15 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                 children: (
                   <InnerPanel height="100%" mv={0}>
                     <InnerPanelHeader>
+                      <Link href={`/anvil?anvil_uuid=${uuid}`} noWrap>
+                        {name}
+                      </Link>
                       <BodyText
                         overflow="hidden"
                         textOverflow="ellipsis"
                         whiteSpace="nowrap"
                       >
-                        {name}: {description}
+                        {description}
                       </BodyText>
                     </InnerPanelHeader>
                     <InnerPanelBody>
@@ -80,8 +86,9 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
     <Panel>
       <PanelHeader>
         <HeaderText>Nodes</HeaderText>
+        <SyncIndicator syncing={validating} />
       </PanelHeader>
-      {loadingAnvils ? <Spinner /> : grid}
+      {loading ? <Spinner /> : grid}
     </Panel>
   );
 };

@@ -1,17 +1,28 @@
-import { Search as SearchIcon } from '@mui/icons-material';
+import {
+  MoreVert as MoreVertIcon,
+  Search as SearchIcon,
+} from '@mui/icons-material';
+import { Box, boxClasses, Grid } from '@mui/material';
 import { debounce } from 'lodash';
 import { useMemo, useState } from 'react';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
+import ContainedButton from '../ContainedButton';
+import Divider from '../Divider';
 import IconButton from '../IconButton';
+import Menu from '../Menu';
+import MenuItem from '../MenuItem';
 import MessageBox from '../MessageBox';
 import OutlinedInput from '../OutlinedInput';
 import { Panel, PanelHeader } from '../Panels';
 import ProvisionServerDialog from '../ProvisionServerDialog';
+import ServerLists from './ServerLists';
 import ServerPanels from './ServerPanels';
 import Spinner from '../Spinner';
-import { HeaderText } from '../Text';
+import SyncIndicator from '../SyncIndicator';
+import { BodyText, HeaderText } from '../Text';
+import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 
 const group = (
@@ -56,16 +67,16 @@ const group = (
 };
 
 const Servers: React.FC = () => {
-  const [searchString, setSearchString] = useState<string>('');
-
+  const [viewAnchor, setViewAnchor] = useState<HTMLElement | null>(null);
   const [groups, setGroups] = useState<ServerGroups | undefined>();
-
   const [provision, setProvision] = useState<boolean>(false);
+  const [searchString, setSearchString] = useState<string>('');
 
   const {
     data: servers,
     loading,
     error: fetchError,
+    validating,
   } = useFetch<APIServerOverviewList>('/server', {
     refreshInterval: 4000,
     onSuccess: (data) => {
@@ -76,10 +87,30 @@ const Servers: React.FC = () => {
   const changeGroups = useMemo(
     () =>
       debounce((...args: Parameters<typeof group>) => {
+        const [, value = ''] = args;
+
+        setSearchString(value);
         setGroups(group(...args));
       }, 500),
     [],
   );
+
+  const noMatchMsg = useMemo(() => {
+    if (!searchString || groups?.match.length) {
+      return undefined;
+    }
+
+    return (
+      <>
+        <Grid item width="100%">
+          <BodyText noWrap>No match</BodyText>
+        </Grid>
+        <Grid item width="100%">
+          <Divider orientation="horizontal" />
+        </Grid>
+      </>
+    );
+  }, [groups?.match.length, searchString]);
 
   if (loading) {
     return (
@@ -99,33 +130,100 @@ const Servers: React.FC = () => {
     );
   }
 
+  let view: React.ReactNode;
+
+  const viewKey = 'preferences.servers.view';
+  const viewType = localStorage.getItem(viewKey);
+
+  if (viewType === 'list') {
+    view = <ServerLists groups={groups} servers={servers} />;
+  } else {
+    view = <ServerPanels groups={groups} servers={servers} />;
+  }
+
   return (
     <>
       <Panel>
         <PanelHeader>
           <HeaderText>Servers</HeaderText>
+          <SyncIndicator syncing={validating} />
+          <Box
+            sx={{
+              [`&.${boxClasses.root}`]: {
+                marginRight: '.5em',
+              },
+            }}
+          >
+            <ContainedButton
+              onClick={(event) => {
+                setViewAnchor(event.currentTarget);
+              }}
+              startIcon={<MoreVertIcon />}
+              sx={{
+                lineHeight: 2,
+              }}
+            >
+              View
+            </ContainedButton>
+            <Menu
+              muiMenuProps={{
+                anchorEl: viewAnchor,
+                keepMounted: true,
+                onClose: () => setViewAnchor(null),
+              }}
+              open={Boolean(viewAnchor)}
+            >
+              <MenuItem
+                onClick={() => {
+                  localStorage.setItem(viewKey, 'previews');
+                  setViewAnchor(null);
+                }}
+              >
+                <BodyText inheritColour>Previews</BodyText>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  localStorage.setItem(viewKey, 'list');
+                  setViewAnchor(null);
+                }}
+              >
+                <BodyText inheritColour>List</BodyText>
+              </MenuItem>
+            </Menu>
+          </Box>
           <IconButton
             mapPreset="add"
             onClick={() => {
               setProvision(true);
             }}
           />
-          <OutlinedInput
-            onChange={(event) => {
-              const { value } = event.target;
+          <UncontrolledInput
+            input={
+              <OutlinedInput
+                onChange={(event) => {
+                  const { value } = event.target;
 
-              setSearchString(value);
-
-              changeGroups(servers, value);
-            }}
-            startAdornment={
-              <SearchIcon sx={{ color: DIVIDER, marginRight: '.4em' }} />
+                  changeGroups(servers, value);
+                }}
+                startAdornment={
+                  <SearchIcon
+                    sx={{
+                      color: DIVIDER,
+                      marginRight: '.4em',
+                    }}
+                  />
+                }
+                sx={{ width: '20em' }}
+              />
             }
-            sx={{ width: '20em' }}
-            value={searchString}
           />
         </PanelHeader>
-        <ServerPanels groups={groups} servers={servers} />
+        <Grid container spacing="1em">
+          {noMatchMsg}
+          <Grid item width="100%">
+            {view}
+          </Grid>
+        </Grid>
       </Panel>
       <ProvisionServerDialog
         dialogProps={{ open: provision }}
