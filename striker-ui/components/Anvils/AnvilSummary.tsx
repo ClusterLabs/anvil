@@ -20,12 +20,17 @@ import useFetch from '../../hooks/useFetch';
 const N_100 = BigInt(100);
 
 const MAP_TO_ANVIL_STATE_COLOUR: Record<string, string> = {
-  degraded: PURPLE,
+  offline: GREY,
+  optimal: BLUE,
+};
+
+const MAP_TO_DRBD_STATE_COLOUR: Record<string, string> = {
+  offline: GREY,
   optimal: BLUE,
 };
 
 const MAP_TO_HOST_STATE_COLOUR: Record<string, string> = {
-  offline: PURPLE,
+  offline: GREY,
   online: BLUE,
 };
 
@@ -103,8 +108,10 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       etts = ago(drbd.estimatedTimeToSync);
     }
 
+    const colour = MAP_TO_DRBD_STATE_COLOUR[anvil.status.drbd.status] ?? PURPLE;
+
     return (
-      <MonoText inheritColour color={GREY}>
+      <MonoText inheritColour color={colour}>
         {anvil.status.drbd.status}
         {etts && `(needs ~${etts})`}
       </MonoText>
@@ -118,7 +125,8 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
           {Object.values(anvil.hosts).map<ReactNode>((host) => {
             const { name, serverCount, state, stateProgress, uuid } = host;
 
-            const stateColour: string = MAP_TO_HOST_STATE_COLOUR[state] ?? GREY;
+            const stateColour: string =
+              MAP_TO_HOST_STATE_COLOUR[state] ?? PURPLE;
 
             let stateValue: string = state;
 
