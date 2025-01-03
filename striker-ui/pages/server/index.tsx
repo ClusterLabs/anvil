@@ -128,7 +128,7 @@ const Server = (): JSX.Element => {
           <Panel>
             <MessageBox>
               Couldn&apos;t find server {router.query.name || router.query.uuid}
-              . {fetchError}
+              . {fetchError?.message}
             </MessageBox>
           </Panel>
         </PageBody>
