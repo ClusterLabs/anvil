@@ -2,13 +2,14 @@ import {
   MoreVert as MoreVertIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
-import { Box, boxClasses } from '@mui/material';
+import { Box, boxClasses, Grid } from '@mui/material';
 import { debounce } from 'lodash';
 import { useMemo, useState } from 'react';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
 import ContainedButton from '../ContainedButton';
+import Divider from '../Divider';
 import IconButton from '../IconButton';
 import Menu from '../Menu';
 import MenuItem from '../MenuItem';
@@ -21,6 +22,7 @@ import ServerPanels from './ServerPanels';
 import Spinner from '../Spinner';
 import SyncIndicator from '../SyncIndicator';
 import { BodyText, HeaderText } from '../Text';
+import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 
 const group = (
@@ -85,10 +87,30 @@ const Servers: React.FC = () => {
   const changeGroups = useMemo(
     () =>
       debounce((...args: Parameters<typeof group>) => {
+        const [, value = ''] = args;
+
+        setSearchString(value);
         setGroups(group(...args));
       }, 500),
     [],
   );
+
+  const noMatchMsg = useMemo(() => {
+    if (!searchString || groups?.match.length) {
+      return undefined;
+    }
+
+    return (
+      <>
+        <Grid item width="100%">
+          <BodyText noWrap>No match</BodyText>
+        </Grid>
+        <Grid item width="100%">
+          <Divider orientation="horizontal" />
+        </Grid>
+      </>
+    );
+  }, [groups?.match.length, searchString]);
 
   if (loading) {
     return (
@@ -175,22 +197,33 @@ const Servers: React.FC = () => {
               setProvision(true);
             }}
           />
-          <OutlinedInput
-            onChange={(event) => {
-              const { value } = event.target;
+          <UncontrolledInput
+            input={
+              <OutlinedInput
+                onChange={(event) => {
+                  const { value } = event.target;
 
-              setSearchString(value);
-
-              changeGroups(servers, value);
-            }}
-            startAdornment={
-              <SearchIcon sx={{ color: DIVIDER, marginRight: '.4em' }} />
+                  changeGroups(servers, value);
+                }}
+                startAdornment={
+                  <SearchIcon
+                    sx={{
+                      color: DIVIDER,
+                      marginRight: '.4em',
+                    }}
+                  />
+                }
+                sx={{ width: '20em' }}
+              />
             }
-            sx={{ width: '20em' }}
-            value={searchString}
           />
         </PanelHeader>
-        {view}
+        <Grid container spacing="1em">
+          {noMatchMsg}
+          <Grid item width="100%">
+            {view}
+          </Grid>
+        </Grid>
       </Panel>
       <ProvisionServerDialog
         dialogProps={{ open: provision }}

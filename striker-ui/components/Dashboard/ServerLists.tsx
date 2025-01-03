@@ -6,7 +6,6 @@ import Divider from '../Divider';
 import ServerSummary from './ServerSummary';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
-import { BodyText } from '../Text';
 
 const ServerLists: React.FC<ServerListProps> = (props) => {
   const { groups, servers } = props;
@@ -24,21 +23,17 @@ const ServerLists: React.FC<ServerListProps> = (props) => {
 
     return groupEntries.reduce<React.ReactNode[]>(
       (elements, [groupName, group], groupIndex, array) => {
-        if (group.length) {
-          group.forEach((uuid) => {
-            elements.push(
-              <Grid key={`${uuid}-summary`} item xs={1}>
-                <ServerSummary anvils={anvils} servers={servers} uuid={uuid} />
-              </Grid>,
-            );
-          });
-        } else {
+        if (!group.length) {
+          return elements;
+        }
+
+        group.forEach((uuid) => {
           elements.push(
-            <Grid key={`${groupName}-empty`} item width="100%">
-              <BodyText noWrap>No {groupName}</BodyText>
+            <Grid key={`${uuid}-summary`} item xs={1}>
+              <ServerSummary anvils={anvils} servers={servers} uuid={uuid} />
             </Grid>,
           );
-        }
+        });
 
         const last = groupIndex + 1 === array.length;
 
