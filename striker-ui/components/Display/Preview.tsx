@@ -6,6 +6,7 @@ import {
   IconButton,
   IconButtonProps,
 } from '@mui/material';
+import { merge } from 'lodash';
 import { cloneElement, createElement, useMemo } from 'react';
 
 import { GREY, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
@@ -149,6 +150,13 @@ const Preview = <Server extends ServerCore>(
       );
     }
 
+    let imgProps = slotProps?.screenshot;
+    let imgSx;
+
+    if (imgProps) {
+      ({ sx: imgSx, ...imgProps } = imgProps);
+    }
+
     return cloneElement(
       wrapper,
       wrapperProps,
@@ -156,13 +164,16 @@ const Preview = <Server extends ServerCore>(
         alt={`Preview is temporarily unavailable, but the server is ${server.state}.`}
         component="img"
         src={`data:image;base64,${preview}`}
-        sx={{
-          color: GREY,
-          height: preview ? '100%' : 'auto',
-          opacity,
-          width: 'auto',
-        }}
-        {...slotProps?.screenshot}
+        sx={merge(
+          {
+            color: GREY,
+            height: preview ? '100%' : 'auto',
+            opacity,
+            width: 'auto',
+          },
+          imgSx,
+        )}
+        {...imgProps}
       />,
       staleMsg,
     );
@@ -182,16 +193,31 @@ const Preview = <Server extends ServerCore>(
   const button = useMemo(() => {
     const disabled = server.state !== 'running' || Boolean(server.jobs);
 
+    let buttonProps = slotProps?.button;
+    let buttonSx;
+
+    if (buttonProps) {
+      ({ sx: buttonSx, ...buttonProps } = buttonProps);
+    }
+
     return createElement(
       IconButton,
       {
         disabled,
         href: previewHref,
         onClick: handleClickPreview,
-        sx: {
-          padding: 0,
-        },
-        ...slotProps?.button,
+        sx: merge(
+          {
+            padding: 0,
+            /**
+             * Makes the "100%" refer to the direct parent of this element
+             * instead of the parent of parent...
+             */
+            width: `calc(100% - 0em)`,
+          },
+          buttonSx,
+        ),
+        ...buttonProps,
       },
       content,
     );
