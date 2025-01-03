@@ -120,6 +120,13 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
         slots={{
           screenshotBox: <PreviewBox />,
         }}
+        slotProps={{
+          screenshot: {
+            sx: {
+              fontSize: '.6em',
+            },
+          },
+        }}
       />
     );
 

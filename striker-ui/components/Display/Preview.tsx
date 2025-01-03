@@ -6,7 +6,7 @@ import {
   IconButton,
   IconButtonProps,
 } from '@mui/material';
-import { merge } from 'lodash';
+import { capitalize, merge } from 'lodash';
 import { cloneElement, createElement, useMemo } from 'react';
 
 import { GREY, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
@@ -161,12 +161,13 @@ const Preview = <Server extends ServerCore>(
       wrapper,
       wrapperProps,
       <Box
-        alt={`Preview is temporarily unavailable, but the server is ${server.state}.`}
+        alt={`${capitalize(server.state)}. Preview unavailable`}
         component="img"
         src={`data:image;base64,${preview}`}
         sx={merge(
           {
             color: GREY,
+            fontFamily: 'Roboto Condensed',
             height: preview ? '100%' : 'auto',
             opacity,
             width: 'auto',
