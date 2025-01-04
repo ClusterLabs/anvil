@@ -20,6 +20,7 @@ my $THIS_FILE = "Words.pm";
 ### Methods;
 # center_text
 # clean_spaces
+# escape_xml
 # key
 # language
 # language_list
@@ -216,6 +217,39 @@ sub clean_spaces
 	
 	return($string);
 }
+
+
+=head2 escape_xml
+
+This takes a string and escapes any needed characters so that the string can be used as an attribute value.
+
+Parameters;
+
+=head3 string (optional)
+
+This is the string to escape. If this is empty, and empty string is returned.
+
+=cut
+sub escape_xml
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->escape_xml()" }});
+	
+	# Setup default values
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	
+	$string =~ s/&/&amp;/gs;
+	$string =~ s/"/&quot;/gs;
+	$string =~ s/'/&apos;/gs;
+	$string =~ s/</&lt;/gs;
+	$string =~ s/>/&gt;/gs;
+	
+	return($string);
+}
+
 
 =head2 key
 

@@ -3429,7 +3429,7 @@ sub show_server_details
 				
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<disk target=\"".$device_target." boot-order=\"".$say_boot."\" drbd-resource=\"".$drbd_resource."\" drbd-volume=\"".$drbd_volume."\" resource-size=\"".$resource_size."B\" lv-size=\"".$lv_size."B\"metadata-size=\"".$metadata_size."B\" />\n";
+					$anvil->data->{xml}{body} .= "\t<disk target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" drbd-resource=\"".$anvil->Words->escape_xml({string => $drbd_resource})."\" drbd-volume=\"".$anvil->Words->escape_xml({string => $drbd_volume})."\" resource-size=\"".$anvil->Words->escape_xml({string => $resource_size})."B\" lv-size=\"".$anvil->Words->escape_xml({string => $lv_size})."B\"metadata-size=\"".$anvil->Words->escape_xml({string => $metadata_size})."B\" />\n";
 				}
 				else
 				{
@@ -3465,7 +3465,7 @@ sub show_server_details
 				}});
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<optical target=\"".$device_target." boot-order=\"".$say_boot."\" iso=\"".$device_path."\"/>\n";
+					$anvil->data->{xml}{body} .= "\t<optical target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" iso=\"".$anvil->Words->escape_xml({string => $device_path})."\"/>\n";
 				}
 				else
 				{
@@ -3801,7 +3801,7 @@ sub show_volume
 		if ($anvil->data->{switches}{machine})
 		{
 			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			$anvil->data->{xml}{body} .= "\t<host name=\"".$short_host_name." type=\"".$host_type."\" uuid=\"".$host_uuid."\"/>\n";
+			$anvil->data->{xml}{body} .= "\t<host name=\"".$anvil->Words->escape_xml({string => $short_host_name})." type=\"".$anvil->Words->escape_xml({string => $host_type})."\" uuid=\"".$anvil->Words->escape_xml({string => $host_uuid})."\"/>\n";
 		}
 		else
 		{
@@ -3842,7 +3842,7 @@ sub show_volume
 			}});
 			if ($anvil->data->{switches}{machine})
 			{
-				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$volume_number." backing-lv=\"".$backing_disk."\" lv-size=\"".$volume_size."B\" sg-name=\"".$storage_group_name."\" sg-uuid=\"".$storage_group_uuid."\"/>\n";
+				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$anvil->Words->escape_xml({string => $volume_number})." backing-lv=\"".$anvil->Words->escape_xml({string => $backing_disk})."\" lv-size=\"".$anvil->Words->escape_xml({string => $volume_size})."B\" sg-name=\"".$anvil->Words->escape_xml({string => $storage_group_name})."\" sg-uuid=\"".$anvil->Words->escape_xml({string => $storage_group_uuid})."\"/>\n";
 			}
 			else
 			{
@@ -3949,7 +3949,7 @@ sub validate_server
 	if ($anvil->data->{switches}{machine})
 	{
 		$anvil->data->{xml}{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->data->{switches}{server_name}."\" uuid=\"".$anvil->data->{switches}{server_uuid}."\">\n";
+		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_name}})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_uuid}})."\">\n";
 	}
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 1}),
@@ -4353,7 +4353,7 @@ sub show_server_list
 		if ($anvil->data->{switches}{machine})
 		{
 			$anvil_description =~ s/"/\"/g;
-			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" description=\"".$anvil_description."\">\n";
+			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil->Words->escape_xml({string => $anvil_name})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil_uuid})."\" description=\"".$anvil->Words->escape_xml({string => $anvil_description})."\">\n";
 		}
 		else
 		{
