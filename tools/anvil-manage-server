@@ -81,7 +81,7 @@ if ($anvil->data->{switches}{'boot-after'})
 # If we were called with a job UUID, close it out.
 $anvil->Job->update_progress({
 	progress  => 100,
-	message   => "job_0008", 
+	message   => "job_0112", 
 	log_level => 1, 
 	'print'   => 1, 
 });
@@ -639,7 +639,7 @@ sub show_boot_order
 	# We're done.
 	$anvil->Job->update_progress({
 		progress  => 100,
-		message   => "job_0008", 
+		message   => "job_0112", 
 		log_level => 1, 
 		'print'   => 1, 
 	});

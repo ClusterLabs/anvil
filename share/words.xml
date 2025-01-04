@@ -1265,9 +1265,9 @@ resource "#!variable!server!#" {
 		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">The new-style job to remove bad keys for the target: [#!variable!target!#] has been created with the job UUID: [#!variable!job_uuid!#].</key>
-		<key name="job_0008">Job Complete.</key>
+		<key name="job_0008">#!free!#</key>
 		<key name="job_0009">Reboot...</key>
-		<key name="job_0010"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
+		<key name="job_0010">#!free!#</key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		<key name="job_0013">Remove a Striker Peer</key>
@@ -1373,7 +1373,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0109">We will now wait for the cluster to start.</key>
 		<key name="job_0110">Updating our view of DRBD resources via scan-drbd.</key>
 		<key name="job_0111">Updating the view of DRBD on our peer: [#!variable!host_name!#] via: [#!variable!use_ip!# (#!variable!use_network!#)].</key>
-		<key name="job_0112">#!free!#</key>
+		<key name="job_0112">Job Complete.</key>
 		<key name="job_0113">Checking the SSH configuration.</key>
 		<key name="job_0114">Configuring the IPMI BMC. Please be patient, this could take a minute.</key>
 		<key name="job_0115">Checking the fence configuration for the node: [#!variable!node!#].</key>
@@ -1397,7 +1397,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0133">This moves an uploaded file from the: [#!data!path::directories::shared::incoming!#] directory to: [#!data!path::directories::shared::files!#] directory, adds it to the Anvil! database, and pushed it out to other systems.</key>
 		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
 		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
-		<key name="job_0136">#!free!#</key>
+		<key name="job_0136"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
 		<key name="job_0137">#!free!#</key>
 		<key name="job_0138">#!free!#</key>
 		<key name="job_0139">#!free!#</key>

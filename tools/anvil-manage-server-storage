@@ -1518,22 +1518,24 @@ sub manage_disk_add
 	my $peer_count     = 0;
 	my $scan_drbd_call = $anvil->data->{path}{directories}{'scan_agents'}."/scan-drbd".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
-	my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code,
 	}});
-	foreach my $host_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+	
+	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 	{
-		my $access_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
-		my $access_network = $anvil->data->{peer}{$short_host_name}{access}{network};
-		my $host_uuid      = $anvil->data->{peer}{$short_host_name}{host_uuid};
+		my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
+		my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+		my $host_uuid   = $anvil->data->{peer}{$short_host_name}{host_uuid};
 		   $peer_count++;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:access_ip"      => $access_ip, 
-			"s2:access_network" => $access_network, 
-			"s3:host_uuid"      => $host_uuid, 
-			"s4:peer_count"     => $peer_count,
+			"s1:short_host_name" => $short_host_name, 
+			"s2:use_ip"          => $use_ip, 
+			"s3:use_network"     => $use_network, 
+			"s4:host_uuid"       => $host_uuid, 
+			"s5:peer_count"      => $peer_count,
 		}});
 	
 		# The resource is primary on the peer, force Primary over there.
@@ -1552,6 +1554,11 @@ sub manage_disk_add
 			shell_call => $shell_call, 
 			target     => $use_ip,
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:output"      => $output, 
+			"s2:error"       => $error, 
+			"s3:return_code" => $return_code,
+		}});
 	}
 	
 	# Update our view of DRBD resources.
@@ -4069,7 +4076,7 @@ sub validate_server
 				# Close this job.
 				$anvil->Job->update_progress({
 					progress  => 100,
-					message   => "job_0010", 
+					message   => "job_0136", 
 					log_level => 1, 
 					'print'   => 1, 
 					variables => {
