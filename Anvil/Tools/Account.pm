@@ -401,6 +401,9 @@ sub logout
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Account->logout()" }});
 	
+	# NOTE: This no longer works.
+	return(0);
+	
 	# Delete the user's cookie data. Sending nothing to '_write_cookies' does this.
 	$anvil->Account->_write_cookies({debug => $debug});
 	

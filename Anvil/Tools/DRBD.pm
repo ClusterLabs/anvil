@@ -2313,7 +2313,7 @@ sub get_status
 	if ($@)
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "error_0416", variables => { 
-			json  => $drbd_status,
+			json  => $output,
 			error => $@,
 		}});
 		return(1);

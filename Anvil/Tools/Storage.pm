@@ -4873,7 +4873,7 @@ sub rsync
 		# Make sure we know the fingerprint of the remote machine
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, key => "log_0158", variables => { target => $target, user => $< }});
 		$anvil->Remote->add_target_to_known_hosts({
-			debug  => 2, 
+			debug  => $debug, 
 			target => $target, 
 			user   => $<,
 		});
@@ -5333,6 +5333,7 @@ sub update_config
 	my $seen        = 0;
 	my $update      = 0;
 	my $new_file    = "";
+	my $problem     = 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
 		append      => $append, 
 		password    => $anvil->Log->is_secure($password), 
@@ -5348,12 +5349,15 @@ sub update_config
 	{
 		# No source
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->update_config()", parameter => "variable" }});
-		return(1);
+		
+		$problem = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+		return($problem);
 	}
 	
 	# Read in the config file.
 	my $body = $anvil->Storage->read_file({
-		debug       => $debug,
+		debug       => 3,
 		file        => $anvil->data->{path}{configs}{'anvil.conf'}, 
 		password    => $password, 
 		port        => $port, 
@@ -5366,6 +5370,7 @@ sub update_config
 		my $original_line =  $line;
 		   $line          =~ s/#.*$//;
 		   $line          =~ s/^\s+//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }}) if $line;
 		   
 		if ($line =~ /^(.*?)=(.*)$/)
 		{
@@ -5375,8 +5380,9 @@ sub update_config
 			   $this_value    =~ s/^\s+//;
 			my $is_secure     =  $this_variable =~ /passw/i ? 1 : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { 
-				this_variable => $this_variable,
-				this_value    => not $is_secure ? $this_value : $anvil->Log->is_secure($this_value),
+				's1:is_secure'     => $is_secure, 
+				's2:this_variable' => $this_variable,
+				's3:this_value'    => $is_secure ? $anvil->Log->is_secure($this_value) : $this_value,
 			}});
 			if ($this_variable eq $variable)
 			{
@@ -5387,9 +5393,9 @@ sub update_config
 					$update =  1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { update => $update }});
 					
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { ">> original_line" => $original_line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $is_secure, list => { ">> original_line" => $original_line }});
 					$original_line =~ s/$this_value/$value/;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $secure, list => { "<< original_line" => $original_line }});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => $is_secure, list => { "<< original_line" => $original_line }});
 				}
 			}
 		}
@@ -5398,6 +5404,7 @@ sub update_config
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { new_file => $new_file }});
 	
 	# Did we see the variable?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { seen => $seen }});
 	if (not $seen)
 	{
 		if ($append)
@@ -5418,7 +5425,9 @@ sub update_config
 					variable => $variable, 
 					file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
 				}});
-				return(1);
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+				return($problem);
 			}
 			else
 			{
@@ -5427,17 +5436,18 @@ sub update_config
 					file     => $anvil->data->{path}{configs}{'anvil.conf'}, 
 					target   => $target,
 				}});
-				return(1);
+				$problem = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+				return($problem);
 			}
 		}
 	}
 	
 	# Do we need to update the file?
-	my $error = 0;
 	if ($update)
 	{
 		# Yup!
-		$error = $anvil->Storage->write_file({
+		$problem = $anvil->Storage->write_file({
 			body        => $new_file,
 			debug       => $debug,
 			file        => $anvil->data->{path}{configs}{'anvil.conf'},
@@ -5451,10 +5461,11 @@ sub update_config
 			target      => $target, 
 			remote_user => $remote_user, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { error => $error }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
 	}
 	
-	return($error);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { problem => $problem }});
+	return($problem);
 }
 
 =head2 update_file

@@ -78,6 +78,14 @@ if ($anvil->data->{switches}{'boot-after'})
 	handle_boot_order($anvil);
 }
 
+# If we were called with a job UUID, close it out.
+$anvil->Job->update_progress({
+	progress  => 100,
+	message   => "job_0112", 
+	log_level => 1, 
+	'print'   => 1, 
+});
+
 $anvil->nice_exit({exit_code => 0});
 
 
@@ -118,16 +126,30 @@ sub handle_boot_order
 			# The server wasn't found on the Anvil! node.
 			my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_name};
 			my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_description};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0004", variables => { 
-				server            => $anvil->data->{switches}{server},
-				anvil_name        => $anvil_name, 
-				anvil_description => $anvil_description, 
-			}});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0004", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server            => $anvil->data->{switches}{server},
+					anvil_name        => $anvil_name, 
+					anvil_description => $anvil_description, 
+				},
+			});
 		}
 		else
 		{
 			# The server wasn't found anywhere on the Anvil!
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0007", variables => { server => $anvil->data->{switches}{server}}});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0007", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $anvil->data->{switches}{server}, 
+				},
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -183,21 +205,43 @@ sub handle_boot_order
 		if (not $server_start_after_server_uuid)
 		{
 			# The sever will boot without delay.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0079", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0079", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 		}
 		elsif ($server_stay_off)
 		{
 			# The server will stay off.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0080", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0080", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 		}
 		else
 		{
 			# The server will boot after another server
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0081", variables => { 
-				server     => $server_name,
-				delay      => $server_start_delay, 
-				boot_after => $boot_after_server_name, 
-			}});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0081", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server     => $server_name,
+					delay      => $server_start_delay, 
+					boot_after => $boot_after_server_name, 
+				},
+			});
 		}
 		$anvil->nice_exit({exit_code => 0});
 	}
@@ -237,16 +281,30 @@ sub handle_boot_order
 			# The boot-after server was not found on this Anvil! node.
 			my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_name};
 			my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_description};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0082", variables => { 
-				boot_after        => $anvil->data->{switches}{'boot-after'}, 
-				anvil_name        => $anvil_name, 
-				anvil_description => $anvil_description, 
-			}});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0082", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					boot_after        => $anvil->data->{switches}{'boot-after'}, 
+					anvil_name        => $anvil_name, 
+					anvil_description => $anvil_description, 
+				},
+			});
 		}
 		else
 		{
 			# The boot-after server wasn't found anywhere on the Anvil!.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0083", variables => { boot_after => $anvil->data->{switches}{'boot-after'} }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0083", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					boot_after => $anvil->data->{switches}{'boot-after'}, 
+				},
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -258,7 +316,15 @@ sub handle_boot_order
 		if ($anvil->data->{switches}{delay} =~ /\D/)
 		{
 			# The delay isn't valid
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0084", variables => { delay => $anvil->data->{switches}{delay} }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0084", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					delay => $anvil->data->{switches}{delay}, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 		$new_server_start_delay = $anvil->data->{switches}{delay};
@@ -271,12 +337,28 @@ sub handle_boot_order
 		if ($server_stay_off)
 		{
 			# Already configured to not auto-boot.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0085", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0085", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 		}
 		else
 		{
 			# Updating to not automatically boot.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0086", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0086", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 			my $variable_uuid = $anvil->Database->insert_or_update_variables({
 				debug                 => 2,
 				variable_name         => $stay_off_key, 
@@ -314,12 +396,28 @@ WHERE
 		if ((not $server_start_after_server_uuid) && (not $server_stay_off))
 		{
 			# I was asked to set the server to not wait on any other servers, which is already the case.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0087", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0087", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 		}
 		else
 		{
 			# Updating the not wait for any other servers
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0088", variables => { server => $server_name }});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0088", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server => $server_name, 
+				},
+			});
 			if ($server_stay_off)
 			{
 				my $variable_uuid = $anvil->Database->insert_or_update_variables({
@@ -365,20 +463,32 @@ WHERE
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_server_start_delay => $new_server_start_delay }});
 				
 				# Updating the server to change the boot delay after
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0089", variables => { 
-					server      => $server_name,
-					start_delay => $server_start_delay, 
-					boot_after  => $new_boot_after_server_name, 
-				}});
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "message_0089", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						server      => $server_name,
+						start_delay => $server_start_delay, 
+						boot_after  => $new_boot_after_server_name, 
+					},
+				});
 			}
 			else
 			{
 				# I was asked to set the server to boot after another server boots, which is already the case.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0090", variables => { 
-					server      => $server_name,
-					start_delay => $new_server_start_delay, 
-					boot_after  => $new_boot_after_server_name, 
-				}});
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "message_0090", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						server      => $server_name,
+						start_delay => $new_server_start_delay, 
+						boot_after  => $new_boot_after_server_name, 
+					},
+				});
 			}
 		}
 		else
@@ -387,11 +497,17 @@ WHERE
 			$update = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_server_start_delay => $new_server_start_delay }});
 			
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0091", variables => { 
-				server      => $server_name,
-				start_delay => $new_server_start_delay, 
-				boot_after  => $new_boot_after_server_name, 
-			}});
+			$anvil->Job->update_progress({
+				progress  => 100,
+				message   => "message_0091", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					server      => $server_name,
+					start_delay => $new_server_start_delay, 
+					boot_after  => $new_boot_after_server_name, 
+				},
+			});
 		}
 		
 		if ($update)
@@ -521,6 +637,12 @@ sub show_boot_order
 	}
 	
 	# We're done.
+	$anvil->Job->update_progress({
+		progress  => 100,
+		message   => "job_0112", 
+		log_level => 1, 
+		'print'   => 1, 
+	});
 	$anvil->nice_exit({exit_code => 0});
 	
 	return(0);

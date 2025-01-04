@@ -1564,13 +1564,16 @@ sub locate
 		$anvil->data->{server_location}{host}{$short_host_name}{access} = 0;
 		
 		# What IP to use? Don't test access, it's too slow if there's several down hosts.
-		my $target_ip = $anvil->Network->find_target_ip({
+		my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
 			debug       => $debug,
 			host_uuid   => $host_uuid, 
 			networks    => "bcn,mn,sn,ifn",
 			test_access => 0,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_ip => $target_ip }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			target_ip      => $target_ip,
+			target_network => $target_network,
+		}});
 		
 		if ($target_ip)
 		{
@@ -3237,8 +3240,8 @@ sub update_definition
 	foreach my $host_uuid (@{$hosts})
 	{
 		# Find a target_ip (local will be detected as local in the file read/write)
-		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-		my $target_ip       = $anvil->Network->find_target_ip({
+		my $short_host_name              = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
 			debug       => 2,
 			host_uuid   => $host_uuid,
 			test_access => 1,
@@ -3246,6 +3249,7 @@ sub update_definition
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			target_ip       => $target_ip,
+			target_network  => $target_network,
 			short_host_name => $short_host_name, 
 		}});
 		if ($target_ip)

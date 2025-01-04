@@ -163,15 +163,16 @@ sub configure_servers
 	}
 	
 	# How shall I connect to my peer?
-	my $peer_name            = $anvil->data->{cib}{parsed}{peer}{name};
-	my $peer_host_uuid       = $anvil->Get->host_uuid_from_name({host_name => $peer_name});
-	my $peer_target_ip       = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
-	my $peer_short_host_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $peer_name                              = $anvil->data->{cib}{parsed}{peer}{name};
+	my $peer_host_uuid                         = $anvil->Get->host_uuid_from_name({host_name => $peer_name});
+	my ($peer_target_ip, $peer_target_network) = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
+	my $peer_short_host_name                   = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		's1:peer_name'            => $peer_name, 
 		's2:peer_host_uuid'       => $peer_host_uuid, 
 		's3:peer_target_ip'       => $peer_target_ip, 
-		's4:peer_short_host_name' => $peer_short_host_name, 
+		's4:peer_target_network'  => $peer_target_network, 
+		's5:peer_short_host_name' => $peer_short_host_name, 
 	}});
 	
 	# Make sure LVM data is up to date.

@@ -463,6 +463,17 @@ sub refresh
 	$anvil->Get->switches;		# Re-read to let switches override again.
 	$anvil->Words->read();
 	
+	# If we're refreshing and the 'resync-db' or 'age-out-database' switch were used, clear them so we 
+	# don't constantly resync.
+	if ($anvil->data->{switches}{'age-out-database'})
+	{
+		$anvil->data->{switches}{'age-out-database'} = "";
+	}
+	if ($anvil->data->{switches}{'resync-db'})
+	{
+		$anvil->data->{switches}{'resync-db'} = "";
+	}
+	
 	return(0);
 }
 
@@ -1361,6 +1372,7 @@ sub _set_paths
 				wipefs				=>	"/usr/sbin/wipefs", 
 				vgs				=>	"/usr/sbin/vgs",
 				vgscan				=>	"/usr/sbin/vgscan",
+				vncpasswd			=>	"/usr/bin/vncpasswd",
 				wc				=>	"/usr/bin/wc",
 				wget				=>	"/usr/bin/wget",
 				yum				=>	"/usr/bin/yum",

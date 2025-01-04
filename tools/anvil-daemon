@@ -1479,12 +1479,15 @@ sub check_strikers
 			}});
 			
 			# Can we access this Striker?
-			my $target_ip = $anvil->Network->find_target_ip({
+			my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
 				debug     => 2,
 				host_uuid => $host_uuid,
 				networks  => "bcn,mn,sn,ifn,any", 
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				target_ip      => $target_ip,
+				target_network => $target_network,
+			}});
 			
 			if ($target_ip)
 			{

@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server system manager
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-server-system "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-server-system "8" "January 1 2025" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-server-system \- Tool used to manage the system configuration of a hosted server.
 .SH SYNOPSIS
@@ -22,11 +22,17 @@ When logging, record sensitive data, like passwords.
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SS "Commands:"
+\fB\-\-anvil\fR <name or uuid>
+This specifies which Anvil! node to work on. Generally, this is not required, but can help if there are two servers in the cluster with the same name.
+.TP
 \fB\-\-boot\-menu\fR <yes,no>
 When called without a value, it shows if the boot menu is enabled or not. If called with 'yes', it enables the boot menu. If called with 'no', the boot menu is disabled.
 .TP
 \fB\-\-boot\-order\fR <dev1,dev2,...,devN>
 When called without a value, it shows the current order of boot devices. To set a new boot device order, use a comma-separated list of boot devices. Note that any boot devices that are not specified will be moved in their original order to boot after the specified devices are moved up. For this reason, you can just specify the device you want to boot, and it will be moved to the front of the list.
+.TP
+\fB\-\-confirm\fR
+When this switch is used, no prompt to confirm an action will be requested. 
 .TP
 \fB\-\-cpu\fR <cores or sockets,cores or sockets,cores,threads>
 If called without a value, the current CPU core allocation is shown. To change it, you can specify simply a core count, which will appear as a single socket CPU with the specified number of cores. The maximum total number of cores is two-less than the total cores on the host Anvil! node.
@@ -45,6 +51,9 @@ If this is called without a value, the current RAM allocated to the server is di
 .TP
 .BR
 The size can be in bytes, or a human-readable size, using base-2 notation. Ie: '8GiB' (no space) and '8589934592' are the same.
+.TP
+\fB\-\-server\fR <name or uuid>
+This is the server being worked on.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

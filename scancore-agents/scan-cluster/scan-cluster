@@ -253,8 +253,11 @@ sub check_resources
 				else
 				{
 					# Search for the server on the peer.
-					my $target_ip = $anvil->Network->find_target_ip({host_uuid => $host_uuid});
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "scan_cluster_log_0006", variables => { target_ip => $target_ip }});
+					my ($target_ip, $target_network) = $anvil->Network->find_target_ip({host_uuid => $host_uuid});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						target_ip      => $target_ip,
+						target_network => $target_network,
+					}});
 					$anvil->Server->find({
 						debug  => 2,
 						target => $target_ip,

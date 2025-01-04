@@ -203,7 +203,7 @@ sub update_passwords
 	{
 		# Set the passwords
 		my $password  = $anvil->data->{config}{striker_password};
-		my $temp_file = "/tmp/anvil-".$anvil->Get->uuid;
+		my $temp_file = "/tmp/anvil-pw.txt";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { password => $password }});
 		
 		# Write the password into a temporary file.
@@ -244,7 +244,7 @@ sub update_passwords
 			}});
 			while ($waiting)
 			{
-				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}." -y --password-file ".$temp_file.$anvil->Log->switches;
+				my $shell_call = $anvil->data->{path}{exe}{'anvil-change-password'}.$anvil->Log->switches." --confirm --no-wait --password-file ".$temp_file;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 				
 				my ($output, $return_code) = $anvil->System->call({
