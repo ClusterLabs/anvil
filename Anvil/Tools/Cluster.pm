@@ -180,19 +180,20 @@ sub add_server
 	
 	# Find where the server is running. First, who is and where is my peer?
 	$anvil->Database->get_anvils({debug => $debug});
-	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid({debug => $debug});
-	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $peer_host_uuid  = $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
-	my $peer_target_ip  = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
-	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $anvil_uuid                             = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+	my $node1_host_uuid                        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid                        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $peer_host_uuid                         = $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	my ($peer_target_ip, $peer_target_network) = $anvil->Network->find_target_ip({host_uuid => $peer_host_uuid});
+	my $password                               = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		anvil_uuid      => $anvil_uuid, 
-		node1_host_uuid => $node1_host_uuid, 
-		node2_host_uuid => $node2_host_uuid, 
-		peer_host_uuid  => $peer_host_uuid, 
-		peer_target_ip  => $peer_target_ip, 
-		password        => $anvil->Log->is_secure($password),
+		anvil_uuid          => $anvil_uuid, 
+		node1_host_uuid     => $node1_host_uuid, 
+		node2_host_uuid     => $node2_host_uuid, 
+		peer_host_uuid      => $peer_host_uuid, 
+		peer_target_ip      => $peer_target_ip,
+		peer_target_network => $peer_target_network, 
+		password            => $anvil->Log->is_secure($password),
 	}});
 	
 	# Verify that the server is here or on the peer. Given they could be called at the same time that the
@@ -2440,17 +2441,19 @@ sub get_primary_host_uuid
 		return("");
 	}
 	
-	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
-	my $node1_target_ip = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node1_host_uuid});
-	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
-	my $node2_target_ip = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node2_host_uuid});
-	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $node1_host_uuid                          = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my ($node1_target_ip, $node1_target_network) = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node1_host_uuid});
+	my $node2_host_uuid                          = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my ($node2_target_ip, $node2_target_network) = $anvil->Network->find_target_ip({debug => $debug, host_uuid => $node2_host_uuid});
+	my $password                                 = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		node1_host_uuid => $node1_host_uuid,
-		node1_target_ip => $node1_target_ip, 
-		node2_host_uuid => $node2_host_uuid, 
-		node2_target_ip => $node2_target_ip, 
-		password        => $anvil->Log->is_secure($password),
+		node1_host_uuid      => $node1_host_uuid,
+		node1_target_ip      => $node1_target_ip, 
+		node1_target_network => $node1_target_network, 
+		node2_host_uuid      => $node2_host_uuid, 
+		node2_target_ip      => $node2_target_ip, 
+		node2_target_network => $node2_target_network, 
+		password             => $anvil->Log->is_secure($password),
 	}});
 	
 	# Are the nodes up?
