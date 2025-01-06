@@ -1920,7 +1920,7 @@ sub find_matches
 
 This uses the IP information for the local machine and a target host UUID, and returns an IP address that can be used to contact it. If no match is found, an empty string is returned.
 
- my $target_ip = $anvil->Network->find_target_ip({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
+ my ($target_ip, $target_network) = $anvil->Network->find_target_ip({host_uuid => "8da3d2fe-783a-4619-abb5-8ccae58f7bd6"});
 
 Parameters;
 
@@ -1938,6 +1938,10 @@ This is the comma-separated list of networks to search for access over. The orde
 * ifn (Internet-Facing Network)
 * any (Any other interface)
 
+=head3 ping (optional, defaukt '0')
+
+When used with C<< test_access >>, a ping is attempted before the actual SSH connection is attempted. 
+
 =head3 test_access (optional, default '0')
 
 If set to C<< 1 >>, any matched IP will be tested. If this is set and the target can't be reached using that IP, it is skipped. If this is not set, the first match is returned.
@@ -1953,10 +1957,12 @@ sub find_target_ip
 	
 	my $host_uuid   = defined $parameter->{host_uuid}   ? $parameter->{host_uuid}   : "";
 	my $networks    = defined $parameter->{networks}    ? $parameter->{networks}    : "";
+	my $ping        = defined $parameter->{ping}        ? $parameter->{ping}        : 0;
 	my $test_access = defined $parameter->{test_access} ? $parameter->{test_access} : 0;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_uuid   => $host_uuid, 
 		networks    => $networks, 
+		ping        => $ping, 
 		test_access => $test_access, 
 	}});
 	
@@ -1977,7 +1983,7 @@ sub find_target_ip
 	if (not $networks)
 	{
 		$networks = "bcn,mn,sn,ifn,any";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { networks => $networks }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { networks => $networks }});
 	}
 	
 	my $target_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
@@ -1987,32 +1993,45 @@ sub find_target_ip
 		short_host_name  => $short_host_name, 
 	}});
 	
-	my $target_ip = "";
+	my $target_ip      = "";
+	my $target_network = "";
 	my $matches   = $anvil->Network->find_access({
 		debug  => $debug,
 		target => $target_host_name, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { matches => $matches }});
 	
 	foreach my $preferred_network (split/,/, $networks)
 	{
 		last if $target_ip;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { preferred_network => $preferred_network }});
 		foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_name => $network_name }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { network_name => $network_name }});
 			if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
 			{
 				next;
 			}
 			
 			my $this_target_ip = $anvil->data->{network_access}{$network_name}{target_ip_address};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_target_ip => $this_target_ip }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { this_target_ip => $this_target_ip }});
 			
 			if ($test_access)
 			{
+				# Can I even ping the target?
+				if ($ping)
+				{
+					my ($pinged, $average_time) = $anvil->Network->ping({ping  => $this_target_ip});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						's1:pinged'       => $pinged, 
+						's2:average_time' => $average_time, 
+					}});
+					next if not $pinged;
+				}
+				
+				# Yes, can we log in?
 				my $access = $anvil->Remote->test_access({target => $this_target_ip});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					's1:network_name'   => $network_name, 
 					's2:this_target_ip' => $this_target_ip, 
 					's3:access'         => $access, 
@@ -2021,21 +2040,29 @@ sub find_target_ip
 				if ($access)
 				{
 					# We can use this one.
-					$target_ip = $this_target_ip;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+					$target_ip      = $this_target_ip;
+					$target_network = $network_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						target_ip      => $target_ip,
+						target_network => $target_network, 
+					}});
 					last;
 				}
 			}
 			else
 			{
 				# We're done.
-				$target_ip = $this_target_ip;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+				$target_ip      = $this_target_ip;
+				$target_network = $network_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					target_ip      => $target_ip,
+					target_network => $target_network, 
+				}});
 			}
 		}
 	}
 	
-	return($target_ip);
+	return($target_ip, $target_network);
 }
 
 
@@ -3423,7 +3450,7 @@ sub load_ips
 	if (($clear) && (exists $anvil->data->{network}{$host}))
 	{
 		delete $anvil->data->{network}{$host};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0700", variables => { hash => "network::${host}" }});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0700", variables => { hash => "network::${host}" }});
 	}
 	
 	# Read in all IPs, so that we know which to remove.

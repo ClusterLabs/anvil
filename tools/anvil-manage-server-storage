@@ -7,9 +7,6 @@
 # 0 = Normal exit.
 # 1 = No database connection.
 # 
-# TODO: 
-# - Update the target_ip search to use the new Network->find_target_ip().
-# 
 # USAGE:
 # - Show
 #   - anvil-manage-server-storage --server srv01-fs37
@@ -80,6 +77,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 $anvil->Database->get_hosts();
 $anvil->Database->get_anvils();
 $anvil->Database->get_servers();
+$anvil->Database->get_dr_links();
 
 if ($anvil->data->{switches}{anvil})
 {
@@ -121,6 +119,43 @@ elsif (($anvil->data->{switches}{disk}) or ($anvil->data->{switches}{add}))
 else
 {
 	show_server_details($anvil, 1);
+}
+
+# If we connected a peer, take it down.
+if (exists $anvil->data->{connected_resource})
+{
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $server_name     = $anvil->data->{switches}{server_name};
+	foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{connected_resource}})
+	{
+		# We need to connect the DRBD resource
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			message   => "job_0092", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name => $peer_name, 
+			},
+		});
+		
+		my $target_ip   = $anvil->data->{peer}{$peer_name}{access}{ip};
+		my $shell_call  = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." down ".$server_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_name' => $server_name, 
+			's2:target_ip'   => $target_ip, 
+			's3:shell_call'  => $shell_call,
+		}});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $target_ip, 
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
 }
 
 $anvil->Job->update_progress({
@@ -187,16 +222,25 @@ sub manage_disk
 {
 	my ($anvil) = @_;
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
 	if (not $anvil->data->{switches}{disk})
 	{
 		# If there's only one disk drive, select it automatically
@@ -229,17 +273,66 @@ sub manage_disk
 		}
 	}
 	
+	# Are they asking for an available amount of space?
+	my $say_up   = $anvil->Words->string({key => 'message_0331'});
+	my $say_down = $anvil->Words->string({key => 'message_0332'});
+	
+	### TODO: Make this work without the peer node being online.
+	# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
+	# needs to be online.
+	my $all_online = check_drbd_peer_access($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+	
+	if (not $all_online)
+	{
+		# Adding a new disk requires all peers to be online. We'll exit with the progress under 100,
+		# so anvil-daemon will kick it back off in a minute.
+		$anvil->Job->update_progress({
+			progress => $anvil->Job->bump_progress({steps => 10}),
+			message  => "error_0427", 
+			log_level => 1, 
+			'print'   => 1, 
+			priority  => "err",
+		});
+		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+		{
+			# Record the access
+			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 10}),
+				message   => "error_0428", 
+				log_level => 1, 
+				'print'   => 1, 
+				priority  => "err",
+				variables => {
+					host_name => $short_host_name,
+					access    => $say_access,
+				},
+			});
+		}
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
 	my $drbd_resource = load_storage($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
 			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 			{
 				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
@@ -378,7 +471,7 @@ sub manage_disk
 			's19:max_free_space'   => $max_free_space." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}).")",
 		}});
 		$anvil->Job->update_progress({
-			progress  => 10,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "log_0749", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -408,7 +501,7 @@ sub manage_disk
 				{
 					# Wait until it is off.
 					$anvil->Job->update_progress({
-						progress  => 15,
+						progress  => $anvil->Job->bump_progress({steps => 5}),
 						message   => "log_0113", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -437,7 +530,7 @@ sub manage_disk
 							$is_off = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_off => $is_off }});
 							$anvil->Job->update_progress({
-								progress  => 18,
+								progress  => $anvil->Job->bump_progress({steps => 3}),
 								message   => "log_0114", 
 								log_level => 1, 
 								'print'   => 1, 
@@ -455,7 +548,7 @@ sub manage_disk
 								$next_update = time + $update_period;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_update => $next_update }});
 								$anvil->Job->update_progress({
-									progress  => 16,
+									progress  => $anvil->Job->bump_progress({steps => 2}),
 									message   => "log_0121", 
 									log_level => 1, 
 									'print'   => 1, 
@@ -495,20 +588,24 @@ sub manage_disk_add
 	my ($anvil, $drbd_resource) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_resource => $drbd_resource }});
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
 	
-	# Are they asking for an available amount of space?
-	my $say_up   = $anvil->Words->string({key => 'message_0331'});
-	my $say_down = $anvil->Words->string({key => 'message_0332'});
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 	
 	# Do we have a storage group?
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -526,6 +623,10 @@ sub manage_disk_add
 		show_storage_groups($anvil);
 		$anvil->nice_exit({exit_code => 1});
 	}
+	
+	# Are they asking for an available amount of space?
+	my $say_up   = $anvil->Words->string({key => 'message_0331'});
+	my $say_down = $anvil->Words->string({key => 'message_0332'});
 	
 	# Make sure that the passed
 	my $storage_group_switch = $anvil->data->{switches}{'storage-group'};
@@ -584,7 +685,7 @@ sub manage_disk_add
 	{
 		# No digits, probably didn't set a value at all.
 		$anvil->Job->update_progress({
-			progress  => 99,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0423", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -618,7 +719,7 @@ sub manage_disk_add
 		{
 			# Not a valid size.
 			$anvil->Job->update_progress({
-				progress  => 99,
+				progress  => $anvil->Job->bump_progress({steps => 10}),
 				message   => "error_0424", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -748,47 +849,9 @@ sub manage_disk_add
 		}
 	}
 	
-	### TODO: Make this work without the peer node being online.
-	# The server is allowed to be running, but both nodes and any DR hosts this is replicating to
-	# needs to be online.
-	my $all_online = check_drbd_peer_access($anvil);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
-	
-	if (not $all_online)
-	{
-		# Adding a new disk requires all peers to be online. We'll exit with the progress under 100,
-		# so anvil-daemon will kick it back off in a minute.
-		$anvil->Job->update_progress({
-			progress => 90,
-			message  => "error_0427", 
-			log_level => 1, 
-			'print'   => 1, 
-			priority  => "err",
-		});
-		my $progress = 80;
-		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
-		{
-			# Record the access
-			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
-			$anvil->Job->update_progress({
-				progress  => ++$progress,
-				message   => "error_0428", 
-				log_level => 1, 
-				'print'   => 1, 
-				priority  => "err",
-				variables => {
-					host_name => $short_host_name,
-					access    => $say_access,
-				},
-			});
-		}
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
 	# Still alive? Ask the user to confirm.
-	my $progress = 20;
 	$anvil->Job->update_progress({
-		progress  => ($progress += 2),
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "message_0333", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -822,19 +885,18 @@ sub manage_disk_add
 		{
 			# It would appear that we've lost access to a peer while waiting for the answer.
 			$anvil->Job->update_progress({
-				progress => 90,
+				progress => $anvil->Job->bump_progress({steps => 10}),
 				message  => "error_0429", 
 				log_level => 1, 
 				'print'   => 1, 
 				priority  => "err",
 			});
-			my $progress = 90;
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 			{
 				# Record the access
 				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
 				$anvil->Job->update_progress({
-					progress  => ++$progress,
+					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "error_0428", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -868,20 +930,31 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid        = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
 			my $vg_name          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
 			my $vg_internal_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_internal_uuid};
 			my $new_lv_name      = $server_name."_".$next_drbd_volume;
 			my $backing_disk     = "/dev/".$vg_name."/".$new_lv_name;
 			my $shell_call       = "if [ -e '".$backing_disk."' ]; then echo 'LV: [".$backing_disk."] already exists.'; else ".$anvil->data->{path}{exe}{lvcreate}." ".$add_size." -n ".$new_lv_name." ".$vg_name."; fi;";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:short_host_name'  => $short_host_name,
-				's2:host_uuid'        => $host_uuid, 
-				's3:vg_name'          => $vg_name, 
-				's4:vg_internal_uuid' => $vg_internal_uuid, 
-				's5:new_lv_name'      => $new_lv_name, 
-				's6:backing_disk'     => $backing_disk, 
-				's7:shell_call'       => $shell_call, 
+				's1:vg_name'          => $vg_name, 
+				's2:vg_internal_uuid' => $vg_internal_uuid, 
+				's3:new_lv_name'      => $new_lv_name, 
+				's4:backing_disk'     => $backing_disk, 
+				's5:shell_call'       => $shell_call, 
 			}});
 			
 			# Record this for updating the DRBD resource.
@@ -901,7 +974,7 @@ sub manage_disk_add
 			{
 				# Creating the new local LV
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0748", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -935,7 +1008,7 @@ sub manage_disk_add
 				{
 					# Done!
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
+						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -947,7 +1020,7 @@ sub manage_disk_add
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0756", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -990,7 +1063,7 @@ sub manage_disk_add
 				{
 					# Done!
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
+						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -1091,7 +1164,7 @@ sub manage_disk_add
 	
 	# Validate.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "log_0751", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -1122,8 +1195,8 @@ sub manage_disk_add
 	}
 	# Success!
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0752", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0752", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1134,8 +1207,8 @@ sub manage_disk_add
 	# Backup the res file so we can tell the user where the current config was backed up to in case they
 	# need to restore it.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0757", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0757", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1157,8 +1230,8 @@ sub manage_disk_add
 	
 	# Copy this to our peers.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0753", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0753", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1166,14 +1239,26 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:short_host_name' => $short_host_name,
+				's2:host_uuid'       => $host_uuid, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
 			next if $host_uuid eq $anvil->Get->host_uuid;
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
 			
 			my $use_ip      =  $anvil->data->{peer}{$short_host_name}{access}{ip};
 			my $destination =  "root\@".$use_ip.":".$anvil->data->{path}{directories}{drbd_resources}."/";
 			   $destination =~ s/\/\//\//g;
 			$anvil->Job->update_progress({
-				progress  => ($progress += 2),
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0754", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -1200,8 +1285,8 @@ sub manage_disk_add
 			{
 				# There was a problem copying the new config file!
 				$anvil->Job->update_progress({
-					progress => 100,
-					message  => "error_0431", 
+					progress  => 100,
+					message   => "error_0431", 
 					log_level => 1, 
 					'print'   => 1, 
 				});
@@ -1212,8 +1297,8 @@ sub manage_disk_add
 	
 	# Create the metadata.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0755", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0755", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1221,20 +1306,29 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$drbd_resource."/".$next_drbd_volume;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$drbd_resource."/".$next_drbd_volume;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			# Create the metadata, but don't exit on failure in case the metadata was created in
 			# a previous pass.
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0758", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -1255,7 +1349,7 @@ sub manage_disk_add
 				if ($return_code)
 				{
 					$anvil->Job->update_progress({
-						progress  => ($progress += 2),
+						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "warning_0160", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -1273,8 +1367,8 @@ sub manage_disk_add
 				{
 					# Done!
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
-						message  => "log_0750", 
+						progress  => $anvil->Job->bump_progress({steps => 2}),
+						message   => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
 					});
@@ -1286,7 +1380,7 @@ sub manage_disk_add
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0759", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -1310,7 +1404,7 @@ sub manage_disk_add
 				if ($return_code)
 				{
 					$anvil->Job->update_progress({
-						progress  => ($progress += 2),
+						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "warning_0161", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -1330,7 +1424,7 @@ sub manage_disk_add
 				{
 					# Done!
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
+						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -1348,14 +1442,23 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
 			next if $host_uuid eq $anvil->Get->host_uuid;
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 				debug           => 2, 
@@ -1371,7 +1474,7 @@ sub manage_disk_add
 			
 			# Record that we registered the job to reload the resource
 			$anvil->Job->update_progress({
-				progress  => ($progress += 2),
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0760", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -1385,7 +1488,7 @@ sub manage_disk_add
 	
 	# Warn the user to check that anvil-daemon is running in case this hangs.
 	$anvil->Job->update_progress({
-		progress  => ($progress += 2),
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0761", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -1404,10 +1507,67 @@ sub manage_disk_add
 		return_code => $return_code, 
 	}});
 	
+	sleep 5;
+	# Update our view of the DRBD resources on all hosts.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "job_0110", 
+		log_level => 1, 
+		'print'   => 1, 
+	});
+	my $peer_count     = 0;
+	my $scan_drbd_call = $anvil->data->{path}{directories}{'scan_agents'}."/scan-drbd".$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
+	($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+	
+	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
+	{
+		my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
+		my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
+		my $host_uuid   = $anvil->data->{peer}{$short_host_name}{host_uuid};
+		   $peer_count++;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:short_host_name" => $short_host_name, 
+			"s2:use_ip"          => $use_ip, 
+			"s3:use_network"     => $use_network, 
+			"s4:host_uuid"       => $host_uuid, 
+			"s5:peer_count"      => $peer_count,
+		}});
+	
+		# The resource is primary on the peer, force Primary over there.
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "job_0111", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name   => $short_host_name, 
+				use_ip      => $use_ip, 
+				use_network => $use_network, 
+			},
+		});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			shell_call => $shell_call, 
+			target     => $use_ip,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:output"      => $output, 
+			"s2:error"       => $error, 
+			"s3:return_code" => $return_code,
+		}});
+	}
+	
+	# Update our view of DRBD resources.
+	$anvil->DRBD->get_status({debug => 2});
+	
 	# Find which node is currently Primary and use that host to force primary to start sync. If none, 
 	# force here.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "log_0762", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -1417,12 +1577,11 @@ sub manage_disk_add
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
 	while ($waiting)
 	{
-		$anvil->DRBD->get_status({debug => 2});
 		my $peers_connected = 1;
 		my $disks_ready     = 0;
 		my $drbd_peer_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_peer_count => $drbd_peer_count }});
-		if (not $drbd_peer_count)
+		if ($drbd_peer_count ne $peer_count)
 		{
 			$peers_connected = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peers_connected => $peers_connected }});
@@ -1478,7 +1637,7 @@ sub manage_disk_add
 				if (lc($peer_disk_state) eq "negotiating")
 				{
 					print "- Problem!\n";
-					($peer_disk_state, $role, $progress) = reconnect_resource($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume, $progress);
+					($peer_disk_state, $role) = reconnect_resource($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume);
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						peer_disk_state => $peer_disk_state,
 						role            => $role,
@@ -1534,8 +1693,8 @@ sub manage_disk_add
 	
 	# Peers are connected! Checking if the new volume requires initial sync.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0763", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0763", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1566,8 +1725,8 @@ sub manage_disk_add
 	if ($all_inconsistent)
 	{
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0764", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0764", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1594,8 +1753,8 @@ sub manage_disk_add
 		{
 			# Forcing primary locally...
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0765", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0765", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1636,8 +1795,8 @@ sub manage_disk_add
 			}});
 			# Success!
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0752", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0752", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1652,7 +1811,7 @@ sub manage_disk_add
 			}});
 			# The resource is primary on the peer, force Primary over there.
 			$anvil->Job->update_progress({
-				progress  => ($progress += 2),
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0766", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -1704,8 +1863,8 @@ sub manage_disk_add
 			}});
 			# Success!
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0752", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0752", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1715,8 +1874,8 @@ sub manage_disk_add
 	{
 		# Initial sync does not appear to be required.
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0767", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0767", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1724,8 +1883,8 @@ sub manage_disk_add
 	
 	# Is the server running? If so, where.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0768", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0768", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -1734,13 +1893,22 @@ sub manage_disk_add
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid  = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
 			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-special-operations'}." --task refresh-drbd-resource --resource ".$drbd_resource.$anvil->Log->switches;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 			
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
@@ -1770,8 +1938,8 @@ sub manage_disk_add
 					{
 						# The server is running on this host, we'll attach the disk here.
 						$anvil->Job->update_progress({
-							progress => ($progress += 2),
-							message  => "log_0769", 
+							progress  => $anvil->Job->bump_progress({steps => 2}),
+							message   => "log_0769", 
 							log_level => 1, 
 							'print'   => 1, 
 						});
@@ -1780,7 +1948,7 @@ sub manage_disk_add
 					{
 						# The server is running on the peer, we'll attach the disk there.
 						$anvil->Job->update_progress({
-							progress  => ($progress += 2),
+							progress  => $anvil->Job->bump_progress({steps => 2}),
 							message   => "log_0770", 
 							log_level => 1, 
 							'print'   => 1, 
@@ -1800,8 +1968,8 @@ sub manage_disk_add
 	{
 		# The server isn't running anywhere, we'll attach the disk offline on this host.
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0771", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0771", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1827,7 +1995,7 @@ sub manage_disk_add
 	{
 		# Define the VM, if needed, then add the drive, dump the config and push it out.
 		$anvil->Job->update_progress({
-			progress  => ($progress += 2),
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0772", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -1839,8 +2007,8 @@ sub manage_disk_add
 		
 		# Update the definition.
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0773", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0773", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1871,8 +2039,8 @@ sub manage_disk_add
 		{
 			# Failed?!
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "error_0434", 
+				progress  => 100,
+				message   => "error_0434", 
 				log_level => 1, 
 				'print'   => 1, 
 				priority  => "err",
@@ -1882,8 +2050,8 @@ sub manage_disk_add
 		
 		# Updating the stored definition and undefining the server now...
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0774", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0774", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1891,8 +2059,8 @@ sub manage_disk_add
 		
 		# Done!
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "log_0750", 
+			progress  => 100,
+			message   => "log_0750", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -1908,8 +2076,8 @@ sub manage_disk_add
 			# Do the add here.
 			update_definition($anvil, "define", "");
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0775", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0775", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1938,8 +2106,8 @@ sub manage_disk_add
 			
 			# Get the new XML
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0776", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0776", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1954,8 +2122,8 @@ sub manage_disk_add
 			
 			# Make sure the $output is valid XML.
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0777", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0777", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1970,8 +2138,8 @@ sub manage_disk_add
 			{
 				# Failed?!
 				$anvil->Job->update_progress({
-					progress => 100,
-					message  => "error_0434", 
+					progress  => 100,
+					message   => "error_0434", 
 					log_level => 1, 
 					'print'   => 1, 
 					priority  => "err",
@@ -1981,8 +2149,8 @@ sub manage_disk_add
 		
 			# Update the stored definition and undefining the server
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0778", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0778", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -1990,8 +2158,8 @@ sub manage_disk_add
 		
 			# Done!
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "log_0750", 
+				progress  => 100,
+				message   => "log_0750", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2000,9 +2168,9 @@ sub manage_disk_add
 		else
 		{
 			# Do the add on the target.
-			my $use_ip    = $anvil->data->{peer}{$short_host_name}{access}{ip};
+			my $use_ip = $anvil->data->{peer}{$short_host_name}{access}{ip};
 			$anvil->Job->update_progress({
-				progress  => ($progress += 2),
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0779", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -2046,8 +2214,8 @@ sub manage_disk_add
 			{
 				# Failed?!
 				$anvil->Job->update_progress({
-					progress => 100,
-					message  => "error_0435", 
+					progress  => 100,
+					message   => "error_0435", 
 					log_level => 1, 
 					'print'   => 1, 
 					priority  => "err",
@@ -2062,8 +2230,8 @@ sub manage_disk_add
 		
 			# Updating the stored definition and undefining the server
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0780", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0780", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2071,8 +2239,8 @@ sub manage_disk_add
 			
 			# Done!
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "log_0750", 
+				progress  => 100,
+				message   => "log_0750", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2085,13 +2253,12 @@ sub manage_disk_add
 
 sub reconnect_resource
 {
-	my ($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume, $progress) = @_;
+	my ($anvil, $short_host_name, $peer_name, $drbd_resource, $next_drbd_volume) = @_;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		short_host_name  => $short_host_name, 
 		peer_name        => $peer_name, 
 		drbd_resource    => $drbd_resource, 
 		next_drbd_volume => $next_drbd_volume, 
-		progress         => $progress,
 	}});
 	
 	my $peer_disk_state = "";
@@ -2100,7 +2267,7 @@ sub reconnect_resource
 	# Log into the peer and disconnect, then reconnect. Then wait for the disk state to update, and 
 	# return the disk state.
 	$anvil->Job->update_progress({
-		progress  => ($progress += 2),
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0781", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -2126,8 +2293,8 @@ sub reconnect_resource
 	}});
 	
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0782", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0782", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -2147,16 +2314,16 @@ sub reconnect_resource
 		return_code => $return_code, 
 	}});
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0750", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0750", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
 	
 	# Now wait
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0783", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0783", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -2173,7 +2340,7 @@ sub reconnect_resource
 		{
 			# Connected, what's the disk state for the new volume now?
 			$anvil->Job->update_progress({
-				progress  => ($progress += 2),
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0784", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -2184,7 +2351,7 @@ sub reconnect_resource
 			});
 			   $peer_disk_state   = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'peer-disk-state'};
 			my $replication_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{volume}{$next_drbd_volume}{'replication-state'};
-			    $role              = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'peer-role'};
+			    $role             = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}{$peer_name}{'peer-role'};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:peer_disk_state'   => $peer_disk_state, 
 				's2:replication_state' => $replication_state,
@@ -2194,8 +2361,8 @@ sub reconnect_resource
 			if (lc($replication_state) ne "established")
 			{
 				$anvil->Job->update_progress({
-					progress => ($progress += 2),
-					message  => "log_0785", 
+					progress  => $anvil->Job->bump_progress({steps => 2}),
+					message   => "log_0785", 
 					log_level => 1, 
 					'print'   => 1, 
 				});
@@ -2205,8 +2372,8 @@ sub reconnect_resource
 			elsif ((not $peer_disk_state) or (lc($peer_disk_state) eq "diskless"))
 			{
 				$anvil->Job->update_progress({
-					progress => ($progress += 2),
-					message  => "log_0786", 
+					progress  => $anvil->Job->bump_progress({steps => 2}),
+					message   => "log_0786", 
 					log_level => 1, 
 					'print'   => 1, 
 				});
@@ -2217,7 +2384,7 @@ sub reconnect_resource
 			if ($disks_ready)
 			{
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0787", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -2243,17 +2410,17 @@ sub reconnect_resource
 			# Timed out waiting for the peer to connect.
 			$waiting = 0;
 			$anvil->Job->update_progress({
-				progress => ($progress += 2),
-				message  => "log_0788", 
+				progress  => $anvil->Job->bump_progress({steps => 2}),
+				message   => "log_0788", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
-			return($peer_disk_state, $role, $progress);
+			return($peer_disk_state, $role);
 		}
 		sleep 3;
 	}
 	
-	return($peer_disk_state, $role, $progress);
+	return($peer_disk_state, $role);
 }
 
 sub manage_disk_grow
@@ -2265,16 +2432,24 @@ sub manage_disk_grow
 		's3:max_free_space' => $max_free_space, 
 	}});
 	
-	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
+	my $anvil_uuid      = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $server_name     = $anvil->data->{switches}{server_name};
+	my $server_uuid     = $anvil->data->{switches}{server_uuid};
 	my $from_source     = get_definition_source($anvil);
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		anvil_uuid      => $anvil_uuid, 
 		short_host_name => $short_host_name,
 		server_name     => $server_name, 
+		server_uuid     => $server_uuid, 
 		from_source     => $from_source, 
 	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 	
 	# Are they asking for an available amount of space?
 	my $add_size =  $anvil->data->{switches}{grow};
@@ -2293,7 +2468,7 @@ sub manage_disk_grow
 	{
 		# No digits, probably didn't set a value at all.
 		$anvil->Job->update_progress({
-			progress  => 99,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0436", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -2303,8 +2478,8 @@ sub manage_disk_grow
 			},
 		});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "log_0789", 
+			progress  => 100,
+			message   => "log_0789", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -2327,15 +2502,15 @@ sub manage_disk_grow
 		{
 			# Not a valid size.
 			$anvil->Job->update_progress({
-				progress => 99,
-				message  => "error_0424", 
+				progress  => $anvil->Job->bump_progress({steps => 10}),
+				message   => "error_0424", 
 				log_level => 1, 
 				'print'   => 1, 
 				priority  => "err",
 			});
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "log_0789", 
+				progress  => 100,
+				message   => "log_0789", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2348,7 +2523,7 @@ sub manage_disk_grow
 	{
 		# Must be a typo, this is less than the size of a single extent.
 		$anvil->Job->update_progress({
-			progress  => 99,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0438", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -2358,8 +2533,8 @@ sub manage_disk_grow
 			},
 		});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "log_0789", 
+			progress  => 100,
+			message   => "log_0789", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -2369,7 +2544,7 @@ sub manage_disk_grow
 	{
 		# Not enough space.
 		$anvil->Job->update_progress({
-			progress  => 99,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0439", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -2380,8 +2555,8 @@ sub manage_disk_grow
 			},
 		});
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "log_0789", 
+			progress  => 100,
+			message   => "log_0789", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -2402,18 +2577,17 @@ sub manage_disk_grow
 	{
 		# All peers have to be online.
 		$anvil->Job->update_progress({
-			progress => 90,
-			message  => "error_0440", 
+			progress  => $anvil->Job->bump_progress({steps => 10}),
+			message   => "error_0440", 
 			log_level => 1, 
 			'print'   => 1, 
 			priority  => "err",
 		});
-		my $progress = 90;
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 		{
 			my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
 			$anvil->Job->update_progress({
-				progress  => ++$progress,
+				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "error_0428", 
 				log_level => 1, 
 				'print'   => 1, 
@@ -2425,8 +2599,8 @@ sub manage_disk_grow
 			});
 		}
 		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "job_0471", 
+			progress  => 100,
+			message   => "job_0471", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -2452,7 +2626,7 @@ sub manage_disk_grow
 	
 	# Preparing to grow the storage
 	$anvil->Job->update_progress({
-		progress  => 15,
+		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "log_0790", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -2469,8 +2643,8 @@ sub manage_disk_grow
 		{
 			# Abort
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "message_0022", 
+				progress  => 100,
+				message   => "message_0022", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2484,17 +2658,16 @@ sub manage_disk_grow
 		if (not $all_online)
 		{
 			$anvil->Job->update_progress({
-				progress => 90,
-				message  => "error_0441", 
+				progress  => $anvil->Job->bump_progress({steps => 5}),
+				message   => "error_0441", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
-			my $progress = 90;
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 			{
 				my $say_access = $anvil->data->{peer}{$short_host_name}{access_ip} ? $say_up : $say_down;
 				$anvil->Job->update_progress({
-					progress  => ++$progress,
+					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "error_0428", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -2506,8 +2679,8 @@ sub manage_disk_grow
 				});
 			}
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "job_0471", 
+				progress  => 100,
+				message   => "job_0471", 
 				log_level => 1, 
 				'print'   => 1, 
 			});
@@ -2515,24 +2688,34 @@ sub manage_disk_grow
 		}
 	}
 	
-	my $progress = 16;
 	foreach my $host_type ("node", "dr")
 	{
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 		{
-			my $host_uuid    = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
-			my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$drbd_volume}{backing_disk};
-			my $shell_call   = $anvil->data->{path}{exe}{lvextend}." ".$add_size." ".$backing_disk;
+			my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+			my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+			my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				's1:short_host_name' => $short_host_name,
 				's2:host_uuid'       => $host_uuid, 
-				's3:backing_disk'    => $backing_disk, 
-				's4:shell_call'      => $shell_call, 
+				's3:this_anvil_uuid' => $this_anvil_uuid, 
+				's4:dr_link_uuid'    => $dr_link_uuid, 
+			}});
+			
+			# If this host is from another node or unrelated DR host, skip it. 
+			next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+			next if (($host_type eq "dr") && (not $dr_link_uuid));
+			
+			my $backing_disk = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$drbd_volume}{backing_disk};
+			my $shell_call   = $anvil->data->{path}{exe}{lvextend}." ".$add_size." ".$backing_disk;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:backing_disk' => $backing_disk, 
+				's2:shell_call'   => $shell_call, 
 			}});
 			if ($host_uuid eq $anvil->Get->host_uuid)
 			{
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "log_0791", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -2566,8 +2749,8 @@ sub manage_disk_grow
 				{
 					# Done
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
-						message  => "log_0750", 
+						progress  => $anvil->Job->bump_progress({steps => 2}),
+						message   => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
 					});
@@ -2578,7 +2761,7 @@ sub manage_disk_grow
 				my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 				my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
 				$anvil->Job->update_progress({
-					progress  => ($progress += 2),
+					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0792", 
 					log_level => 1, 
 					'print'   => 1, 
@@ -2620,8 +2803,8 @@ sub manage_disk_grow
 				{
 					# Done
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
-						message  => "log_0750", 
+						progress  => $anvil->Job->bump_progress({steps => 2}),
+						message   => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
 					});
@@ -2632,8 +2815,8 @@ sub manage_disk_grow
 	
 	# Locally, we'll call DRBD to resize.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0793", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0793", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -2667,8 +2850,8 @@ sub manage_disk_grow
 	{
 		# Done
 		$anvil->Job->update_progress({
-			progress => ($progress += 2),
-			message  => "log_0750", 
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0750", 
 			log_level => 1, 
 			'print'   => 1, 
 		});
@@ -2676,15 +2859,15 @@ sub manage_disk_grow
 	
 	# Call scan-lvm and scan-drbd to make sure the databases are updated.
 	$anvil->Job->update_progress({
-		progress => ($progress += 2),
-		message  => "log_0794", 
+		progress  => $anvil->Job->bump_progress({steps => 2}),
+		message   => "log_0794", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
 	foreach my $agent ("scan-drbd", "scan-lvm")
 	{
 		$anvil->Job->update_progress({
-			progress  => ($progress += 2),
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0740", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -2699,15 +2882,24 @@ sub manage_disk_grow
 		{
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 			{
-				my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+				my $host_uuid       = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
+				my $this_anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+				my $dr_link_uuid    = exists $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid} ? $anvil->data->{dr_links}{by_anvil_uuid}{$anvil_uuid}{dr_link_host_uuid}{$host_uuid}{dr_link_uuid} : "";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:short_host_name' => $short_host_name,
 					's2:host_uuid'       => $host_uuid, 
+					's3:this_anvil_uuid' => $this_anvil_uuid, 
+					's4:dr_link_uuid'    => $dr_link_uuid, 
 				}});
+				
+				# If this host is from another node or unrelated DR host, skip it. 
+				next if (($host_type eq "node") && ($anvil_uuid ne $this_anvil_uuid));
+				next if (($host_type eq "dr") && (not $dr_link_uuid));
+				
 				if ($host_uuid eq $anvil->Get->host_uuid)
 				{
 					$anvil->Job->update_progress({
-						progress  => ($progress += 2),
+						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0795", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -2723,8 +2915,8 @@ sub manage_disk_grow
 					
 					# Done
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
-						message  => "log_0750", 
+						progress  => $anvil->Job->bump_progress({steps => 2}),
+						message   => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
 					});
@@ -2734,7 +2926,7 @@ sub manage_disk_grow
 					my $use_ip      = $anvil->data->{peer}{$short_host_name}{access}{ip};
 					my $use_network = $anvil->data->{peer}{$short_host_name}{access}{network};
 					$anvil->Job->update_progress({
-						progress  => ($progress += 2),
+						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0796", 
 						log_level => 1, 
 						'print'   => 1, 
@@ -2757,8 +2949,8 @@ sub manage_disk_grow
 					
 					# Done
 					$anvil->Job->update_progress({
-						progress => ($progress += 2),
-						message  => "log_0750", 
+						progress  => $anvil->Job->bump_progress({steps => 2}),
+						message   => "log_0750", 
 						log_level => 1, 
 						'print'   => 1, 
 					});
@@ -2769,8 +2961,8 @@ sub manage_disk_grow
 	
 	# Success!
 	$anvil->Job->update_progress({
-		progress => 100,
-		message  => "log_0797", 
+		progress  => 100,
+		message   => "log_0797", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -2827,8 +3019,8 @@ sub manage_optical
 		{
 			# Can't proceed.
 			$anvil->Job->update_progress({
-				progress => 100,
-				message  => "error_0445", 
+				progress  => 100,
+				message   => "error_0445", 
 				log_level => 1, 
 				'print'   => 1, 
 				priority  => "err",
@@ -2993,7 +3185,7 @@ sub manage_optical
 	
 	# If the server is running, update the on-disk and in-DB definition.
 	$anvil->Job->update_progress({
-		progress  => 25,
+		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "log_0798", 
 		log_level => 1, 
 		'print'   => 1, 
@@ -3008,7 +3200,7 @@ sub manage_optical
 	{
 		# Inserting 
 		$anvil->Job->update_progress({
-			progress  => 50,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "log_0799", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -3022,7 +3214,7 @@ sub manage_optical
 	{
 		# Ejecting
 		$anvil->Job->update_progress({
-			progress  => 50,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "log_0800", 
 			log_level => 1, 
 			'print'   => 1, 
@@ -3074,8 +3266,8 @@ sub manage_optical
 	
 	# Updating the stored definition and undefining the server now
 	$anvil->Job->update_progress({
-		progress => 75,
-		message  => "log_0801", 
+		progress  => $anvil->Job->bump_progress({steps => 5}),
+		message   => "log_0801", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -3083,8 +3275,8 @@ sub manage_optical
 	
 	# Done
 	$anvil->Job->update_progress({
-		progress => 100,
-		message  => "log_0750", 
+		progress  => 100,
+		message   => "log_0750", 
 		log_level => 1, 
 		'print'   => 1, 
 	});
@@ -3237,7 +3429,7 @@ sub show_server_details
 				
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<disk target=\"".$device_target." boot-order=\"".$say_boot."\" drbd-resource=\"".$drbd_resource."\" drbd-volume=\"".$drbd_volume."\" resource-size=\"".$resource_size."B\" lv-size=\"".$lv_size."B\"metadata-size=\"".$metadata_size."B\" />\n";
+					$anvil->data->{xml}{body} .= "\t<disk target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" drbd-resource=\"".$anvil->Words->escape_xml({string => $drbd_resource})."\" drbd-volume=\"".$anvil->Words->escape_xml({string => $drbd_volume})."\" resource-size=\"".$anvil->Words->escape_xml({string => $resource_size})."B\" lv-size=\"".$anvil->Words->escape_xml({string => $lv_size})."B\"metadata-size=\"".$anvil->Words->escape_xml({string => $metadata_size})."B\" />\n";
 				}
 				else
 				{
@@ -3273,7 +3465,7 @@ sub show_server_details
 				}});
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<optical target=\"".$device_target." boot-order=\"".$say_boot."\" iso=\"".$device_path."\"/>\n";
+					$anvil->data->{xml}{body} .= "\t<optical target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" iso=\"".$anvil->Words->escape_xml({string => $device_path})."\"/>\n";
 				}
 				else
 				{
@@ -3323,6 +3515,14 @@ sub check_drbd_peer_access
 {
 	my ($anvil) = @_;
 	
+	# Report that we're going to test access and that this could take some time.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 1}),
+		message   => "job_0016", 
+		log_level => 1, 
+		'print'   => 1, 
+	});
+	
 	my $all_online = 1;
 	foreach my $this_host (sort {$a cmp $b} keys %{$anvil->data->{drbd}{drbd_node}})
 	{
@@ -3335,54 +3535,129 @@ sub check_drbd_peer_access
 		}});
 		next if $host_uuid eq $anvil->Get->host_uuid;
 		
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			message   => "job_0018", 
+			log_level => 1, 
+			'print'   => 1, 
+			variables => {
+				host_name => $short_host_name, 
+			},
+		});
+		
 		# This is used to store the IP we used to access the peer. If no access is available, this 
 		# shows which hosts are not available.
-		$anvil->data->{peer}{$short_host_name}{access_ip}      = "";
-		$anvil->data->{peer}{$short_host_name}{access_network} = "";
+		$anvil->data->{peer}{$short_host_name}{access}{ip}      = "";
+		$anvil->data->{peer}{$short_host_name}{access}{network} = "";
+		$anvil->data->{peer}{$short_host_name}{host_uuid}       = $host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:peer::${short_host_name}::host_uuid" => $anvil->data->{peer}{$short_host_name}{host_uuid}, 
+		}});
 		
-		my $access  = 0;
-		my $matches = $anvil->Network->find_access({
-			debug  => 2,
-			target => $this_host, 
+		my $access    = 0;
+		my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
+			host_uuid   => $host_uuid, 
+			networks    => "bcn,mn,ifn,sn,any", 
+			ping        => 1,
+			test_access => 1, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { matches => $matches }});
-		foreach my $preferred_network ("bcn", "mn", "ifn", "sn", "any")
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { preferred_network => $preferred_network }});
-			foreach my $network_name (sort {$a cmp $b} keys %{$anvil->data->{network_access}})
-			{
-				next if $access;
-				if (($network_name !~ /^$preferred_network/) && ($preferred_network ne "any"))
-				{
-					next;
-				}
-				my $target_ip   = $anvil->data->{network_access}{$network_name}{target_ip_address};
-				my $test_access = $anvil->Remote->test_access({target => $target_ip});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:network_name' => $network_name, 
-					's2:target_ip'    => $target_ip, 
-					's3:test_access'  => $test_access, 
-				}});
-				
-				if ($test_access)
-				{
-					# We're good.
-					$access                                                 = 1;
-					$anvil->data->{peer}{$short_host_name}{access}{ip}      = $target_ip;
-					$anvil->data->{peer}{$short_host_name}{access}{network} = $network_name;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:access'                                    => $access, 
-						"s2:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
-						"s3:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
-					}});
-				}
-			}
-		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			target_ip      => $target_ip,
+			target_network => $target_network,
+		}});
 		
-		if (not $access)
+		if ($target_ip)
+		{
+			# We're good.
+			$access                                                 = 1;
+			$anvil->data->{peer}{$short_host_name}{access}{ip}      = $target_ip;
+			$anvil->data->{peer}{$short_host_name}{access}{network} = $target_network;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:access'                                    => $access, 
+				"s2:peer::${short_host_name}::access::ip"      => $anvil->data->{peer}{$short_host_name}{access}{ip}, 
+				"s3:peer::${short_host_name}::access::network" => $anvil->data->{peer}{$short_host_name}{access}{network}, 
+			}});
+			
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				message   => "job_0019", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					host_name => $short_host_name, 
+					target_ip => $target_ip, 
+					network   => $target_network,
+				},
+			});
+		}
+		else
 		{
 			$all_online = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_online => $all_online }});
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				message   => "job_0058", 
+				log_level => 1, 
+				'print'   => 1, 
+				variables => {
+					host_name => $short_host_name, 
+				},
+			});
+		}
+	}
+	
+	# If there's a DR host, make sure the DRBD resource is up. If not, mark that we're connecting it so 
+	# we can disconnect it when we're done.
+	if ($all_online)
+	{
+		$anvil->DRBD->get_status({debug => 2});
+		my $short_host_name = $anvil->Get->short_host_name;
+		my $server_name     = $anvil->data->{switches}{server_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:short_host_name' => $short_host_name,
+			's2:server_name'     => $server_name,
+		}});
+		foreach my $peer_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{connection}})
+		{
+			my $connection_state = $anvil->data->{drbd}{status}{$short_host_name}{resource}{$server_name}{connection}{$peer_name}{'connection-state'};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:peer_name'        => $peer_name,
+				's2:connection_state' => $connection_state,
+			}});
+			if ($connection_state !~ /Connected/i)
+			{
+				# We need to connect the DRBD resource
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}),
+					message   => "job_0053", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						host_name => $peer_name, 
+					},
+				});
+				
+				my $target_ip  = $anvil->data->{peer}{$peer_name}{access}{ip};
+				my $shell_call = $anvil->data->{path}{exe}{drbdsetup}." status ".$server_name." || ".$anvil->data->{path}{exe}{drbdadm}." up ".$server_name;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:target_ip'  => $target_ip, 
+					's2:shell_call' => $shell_call,
+				}});
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					target     => $target_ip, 
+					shell_call => $shell_call,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					error       => $error,
+					output      => $output,
+					return_code => $return_code, 
+				}});
+				
+				$anvil->data->{connected_resource}{$peer_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"connected_resource::${peer_name}" => $anvil->data->{connected_resource}{$peer_name},
+				}});
+			}
 		}
 	}
 	
@@ -3501,8 +3776,21 @@ sub show_volume
 {
 	my ($anvil, $drbd_resource, $host_type) = @_;
 	
-	my $anvil_uuid = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : $anvil->Cluster->get_anvil_uuid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	my $anvil_uuid  = defined $anvil->data->{switches}{anvil_uuid} ? $anvil->data->{switches}{anvil_uuid} : "";
+	my $server_name = $anvil->data->{switches}{server_name};
+	my $server_uuid = $anvil->data->{switches}{server_uuid};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid  => $anvil_uuid, 
+		server_name => $server_name, 
+		server_uuid => $server_uuid, 
+	}});
+	
+	if (not $anvil_uuid)
+	{
+		$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
+	
 	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 	{
 		my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
@@ -3513,7 +3801,7 @@ sub show_volume
 		if ($anvil->data->{switches}{machine})
 		{
 			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			$anvil->data->{xml}{body} .= "\t<host name=\"".$short_host_name." type=\"".$host_type."\" uuid=\"".$host_uuid."\"/>\n";
+			$anvil->data->{xml}{body} .= "\t<host name=\"".$anvil->Words->escape_xml({string => $short_host_name})." type=\"".$anvil->Words->escape_xml({string => $host_type})."\" uuid=\"".$anvil->Words->escape_xml({string => $host_uuid})."\"/>\n";
 		}
 		else
 		{
@@ -3554,7 +3842,7 @@ sub show_volume
 			}});
 			if ($anvil->data->{switches}{machine})
 			{
-				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$volume_number." backing-lv=\"".$backing_disk."\" lv-size=\"".$volume_size."B\" sg-name=\"".$storage_group_name."\" sg-uuid=\"".$storage_group_uuid."\"/>\n";
+				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$anvil->Words->escape_xml({string => $volume_number})." backing-lv=\"".$anvil->Words->escape_xml({string => $backing_disk})."\" lv-size=\"".$anvil->Words->escape_xml({string => $volume_size})."B\" sg-name=\"".$anvil->Words->escape_xml({string => $storage_group_name})."\" sg-uuid=\"".$anvil->Words->escape_xml({string => $storage_group_uuid})."\"/>\n";
 			}
 			else
 			{
@@ -3661,10 +3949,10 @@ sub validate_server
 	if ($anvil->data->{switches}{machine})
 	{
 		$anvil->data->{xml}{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->data->{switches}{server_name}."\" uuid=\"".$anvil->data->{switches}{server_uuid}."\">\n";
+		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_name}})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_uuid}})."\">\n";
 	}
 	$anvil->Job->update_progress({
-		progress  => 2,
+		progress  => $anvil->Job->bump_progress({steps => 1}),
 		message   => "log_0802", 
 		log_level => 1, 
 		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
@@ -3738,17 +4026,81 @@ sub validate_server
 				short     => 1,
 				host_uuid => $server_host_uuid,
 			});
-			$anvil->Job->update_progress({
-				progress  => 100,
-				message   => "error_0454", 
-				log_level => 1, 
-				'print'   => 1, 
-				priority  => "err",
-				variables => {
-					server    => $server_name, 
-					host_name => $server_host_name,
-				}, 
-			});
+			
+			# Reassign the job to the host.
+			if ($server_host_uuid)
+			{
+				# What kind of job is it? Default to 'grow'
+				my $job_title       = "job_0499";
+				my $job_description = "job_0500";
+				my $job_name        = "server::".$anvil->data->{switches}{server_uuid}."::grow_disk";
+				if ($anvil->data->{switches}{add})
+				{
+					# Adding a disk
+					$job_title       = "job_0497";
+					$job_description = "job_0498";
+					$job_name        = "server::".$anvil->data->{switches}{server_uuid}."::add_disk";
+				}
+				elsif ($anvil->data->{switches}{optical})
+				{
+					# Changing an optical disc
+					$job_title       = "job_0501";
+					$job_description = "job_0502";
+					$job_name        = "server::".$anvil->data->{switches}{server_uuid}."::change_iso";
+				}
+				# Reassign the job.
+				my $job_data   =  "add=".$anvil->data->{switches}{add}."\n";
+				   $job_data   .= "anvil=".$anvil->data->{switches}{add}."\n";
+				   $job_data   .= "confirm=true\n";
+				   $job_data   .= "disk=".$anvil->data->{switches}{disk}."\n";
+				   $job_data   .= "eject=".$anvil->data->{switches}{eject}."\n";
+				   $job_data   .= "grow=".$anvil->data->{switches}{grow}."\n";
+				   $job_data   .= "insert=".$anvil->data->{switches}{insert}."\n";
+				   $job_data   .= "machine=".$anvil->data->{switches}{machine}."\n";
+				   $job_data   .= "optical=".$anvil->data->{switches}{optical}."\n";
+				   $job_data   .= "server=".$anvil->data->{switches}{server}."\n";
+				   $job_data   .= "storage-group=".$anvil->data->{switches}{'storage-group'}."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
+				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+					debug           => 2,
+					job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,
+					job_data        => $job_data, 
+					job_host_uuid   => $server_host_uuid, 
+					job_progress    => 0, 
+					job_name        => $job_name, 
+					job_title       => $job_title, 
+					job_description => $job_description, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+				
+				# Close this job.
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "job_0136", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						server    => $server_name, 
+						host_name => $server_host_name,
+						job_uuid  => $job_uuid, 
+					}, 
+				});
+			}
+			else
+			{
+				# Invalid host?! 
+				$anvil->Job->update_progress({
+					progress  => 100,
+					message   => "error_0454", 
+					log_level => 1, 
+					'print'   => 1, 
+					priority  => "err",
+					variables => {
+						server    => $server_name, 
+						host_name => $server_host_name,
+					}, 
+				});
+			}
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -4001,7 +4353,7 @@ sub show_server_list
 		if ($anvil->data->{switches}{machine})
 		{
 			$anvil_description =~ s/"/\"/g;
-			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil_name."\" uuid=\"".$anvil_uuid."\" description=\"".$anvil_description."\">\n";
+			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil->Words->escape_xml({string => $anvil_name})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil_uuid})."\" description=\"".$anvil->Words->escape_xml({string => $anvil_description})."\">\n";
 		}
 		else
 		{
@@ -4184,7 +4536,7 @@ sub load_job
 	}
 	
 	$anvil->Job->update_progress({
-		progress         => 1,
+		progress         => $anvil->Job->bump_progress({set => 1}),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		message          => "message_0350", 
