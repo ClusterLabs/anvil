@@ -1630,10 +1630,10 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0351">#!free!#</key>
 		<key name="job_0352">#!free!#</key>
 		<key name="job_0353">#!free!#</key>
-		<key name="job_0354">Joining cluster...</key>
-		<key name="job_0355">Leaving cluster...</key>
-		<key name="job_0356">Tells the subnode to join its cluster.</key>
-		<key name="job_0357">Withdraws the subnode from its cluster.</key>
+		<key name="job_0354">#!free!#</key>
+		<key name="job_0355">#!free!#</key>
+		<key name="job_0356">#!free!#</key>
+		<key name="job_0357">#!free!#</key>
 		<key name="job_0358">Running sanity checks.</key>
 		<key name="job_0359">Sanity checks complete!</key>
 		<key name="job_0360">Beginning to protect the server: [#!variable!server!#]!</key>
@@ -1838,6 +1838,10 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0518">Strictly starts the subnode. This operation doesn't include joining its cluster.</key>
 		<key name="job_0519">Stop subnode</key>
 		<key name="job_0520">Stops the subnode. Also shuts down servers if it's the last operating subnode in the cluster.</key>
+		<key name="job_0521">Join cluster</key>
+		<key name="job_0522">Tells the subnode to join its cluster.</key>
+		<key name="job_0523">Leave cluster</key>
+		<key name="job_0524">Withdraws the subnode from its cluster.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
