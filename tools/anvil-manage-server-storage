@@ -2057,6 +2057,19 @@ sub manage_disk_add
 		});
 		update_definition($anvil, "undefine", $virsh_definition);
 		
+		# Copy the new definition to the other host(s)
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 2}),
+			message   => "log_0808", 
+			log_level => 1, 
+			'print'   => 1, 
+		});
+		$anvil->Server->update_definition({
+			debug              => 2,
+			server             => $server_name,
+			new_definition_xml => $virsh_definition, 
+		});
+		
 		# Done!
 		$anvil->Job->update_progress({
 			progress  => 100,

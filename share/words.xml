@@ -2759,7 +2759,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0806">- Saving the screenshot: [#!variable!ppm_file!#].</key>
 		<key name="log_0807">- Converting: [#!variable!source_file!#] to: 
 [#!variable!new_file!#]</key>
-		<key name="log_0808">#!free!#</key>
+		<key name="log_0808">- Pushing the new definition to the database and other hosts.</key>
 		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
 		<key name="log_0810">- No access to: [#!variable!host_name!#] found.</key>
 		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
