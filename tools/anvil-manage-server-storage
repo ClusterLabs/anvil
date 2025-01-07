@@ -1561,9 +1561,6 @@ sub manage_disk_add
 		}});
 	}
 	
-	# Update our view of DRBD resources.
-	$anvil->DRBD->get_status({debug => 2});
-	
 	# Find which node is currently Primary and use that host to force primary to start sync. If none, 
 	# force here.
 	$anvil->Job->update_progress({
@@ -1577,6 +1574,9 @@ sub manage_disk_add
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { wait_until => $wait_until }});
 	while ($waiting)
 	{
+		# Update our view of DRBD resources.
+		$anvil->DRBD->get_status({debug => 2});
+		
 		my $peers_connected = 1;
 		my $disks_ready     = 0;
 		my $drbd_peer_count = keys %{$anvil->data->{drbd}{status}{$short_host_name}{resource}{$drbd_resource}{connection}};
