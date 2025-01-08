@@ -4658,11 +4658,12 @@ sub load_job
 		}});
 	}
 	
+	# Preparing to relocate the server.
 	$anvil->Job->update_progress({
 		progress         => $anvil->Job->bump_progress({set => 1}),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
-		message          => "message_0146", 
+		message          => "message_0369", 
 		log_level        => 1,
 	});
 	
