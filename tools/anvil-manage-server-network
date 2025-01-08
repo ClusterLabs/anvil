@@ -920,15 +920,52 @@ sub handle_plug_unplug
 	# Lastly, are we the host?
 	if ($server_host_uuid ne $anvil->Get->host_uuid)
 	{
+		# No, reassign the job.
 		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => $task eq "plug" ? "error_0078" : "error_0022", 
-			job_status => "failed", 
+			progress   => 99,
+			message    => $task eq "plug" ? "message_0148" : "message_0147", 
+			job_status => "reassigned", 
 			log_level  => 1, 
 			'print'    => 1, 
-			priority   => "err",
 			variables  => {
-				server => $anvil->data->{switches}{server_name}, 
+				server    => $anvil->data->{switches}{server_name}, 
+				host_name => $server_host_name, 
+				host_uuid => $server_host_uuid, 
+			},
+		});
+		
+		my $say_add    =  $anvil->data->{switches}{add}    ? "true" : "";
+		my $say_plug   =  $anvil->data->{switches}{plug}   ? "true" : "";
+		my $say_remove =  $anvil->data->{switches}{remove} ? "true" : ""; 
+		my $say_unplug =  $anvil->data->{switches}{unplug} ? "true" : "";
+		my $job_data   =  "add=".$say_add."\n";
+		   $job_data   .= "bridge=".$anvil->data->{switches}{bridge}."\n"; 
+		   $job_data   .= "confirm=true\n";
+		   $job_data   .= "mac=".$anvil->data->{switches}{mac}."\n";
+		   $job_data   .= "model=".$anvil->data->{switches}{model}."\n";
+		   $job_data   .= "plug=".$say_plug."\n";
+		   $job_data   .= "remove=".$say_remove."\n";
+		   $job_data   .= "server=".$anvil->data->{switches}{server}."\n";
+		   $job_data   .= "unplug=".$say_unplug;
+		my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,
+			job_data        => $job_data, 
+			job_host_uuid   => $server_host_uuid, 
+			job_progress    => 0, 
+			job_name        => "server::".$server_uuid."::set_interface_state", 
+			job_title       => "job_0505", 
+			job_description => "job_0506", 
+		});
+		
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "job_0137", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				host_name => $server_host_name,
+				job_uuid  => $job_uuid, 
 			},
 		});
 		$anvil->nice_exit({exit_code => 1});

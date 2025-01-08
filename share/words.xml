@@ -136,7 +136,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Please run this on that host.</key>
+		<key name="error_0080">#!free!#</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -1398,7 +1398,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
 		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
 		<key name="job_0136"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
-		<key name="job_0137">#!free!#</key>
+		<key name="job_0137">The job for the peer: [#!variable!host_name!#] has been created with the UUID: [#!variable!job_uuid!#].</key>
 		<key name="job_0138">#!free!#</key>
 		<key name="job_0139">#!free!#</key>
 		<key name="job_0140">No need to rename the file: [#!variable!file_path!#], it doesn't exist on this host.</key>
@@ -2995,8 +2995,8 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0144">- The current gateway is: [#!variable!current_gateway!#], but this is not the gateway interface. Will remove it.</key>
 		<key name="message_0145">- This is the gateway interface, but there is no gateway yet. Will configure it as: [#!variable!new_gateway!#].</key>
 		<key name="message_0146">Updating out password in the config file: [#!variable!file!#] on the host: [#!variable!host_name!#] now... </key>
-		<key name="message_0147">#!free!#</key>
-		<key name="message_0148">#!free!#</key>
+		<key name="message_0147">[ Note ] - Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to unplug the interface.</key>
+		<key name="message_0148">[ Note ] - Asked to plug in an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to plug in the interface.</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">#!free!#</key>
 		<key name="message_0151">#!free!#</key>
