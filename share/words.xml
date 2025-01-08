@@ -330,7 +330,7 @@ Output (if any):
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
 		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
 		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
-		<key name="error_0216">The server: [#!variable!server!#] is off, so adding the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though.</key>
+		<key name="error_0216">#!free!#</key>
 		<key name="error_0217">This host is not an Anvil! node or DR host, unable to delete servers.</key>
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
@@ -470,7 +470,7 @@ We're done waiting, exiting out.
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
-		<key name="error_0313">The server: [#!variable!server!#] is off, so removing the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though.</key>
+		<key name="error_0313">#!free!#</key>
 		<key name="error_0314">Asked to remove an interface from the server: [#!variable!server!#] with the MAC address: [#!variable!mac!#], but no interface with that MAC was found.</key>
 		<key name="error_0315">
 Failed to remove the network interface on: [#!variable!server!#] with the MAC address: [#!variable!mac!#].
