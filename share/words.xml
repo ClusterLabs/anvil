@@ -1399,8 +1399,8 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
 		<key name="job_0136"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
 		<key name="job_0137">The job for the peer: [#!variable!host_name!#] has been created with the UUID: [#!variable!job_uuid!#].</key>
-		<key name="job_0138">#!free!#</key>
-		<key name="job_0139">#!free!#</key>
+		<key name="job_0138">The server: [#!variable!server!#] is off, so adding the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though. We'll create a job to have: [#!variable!host_name!#] do the add.</key>
+		<key name="job_0139">The server: [#!variable!server!#] is off, so removing the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though. We'll create a job to have: [#!variable!host_name!#] do the add.</key>
 		<key name="job_0140">No need to rename the file: [#!variable!file_path!#], it doesn't exist on this host.</key>
 		<key name="job_0141">About to rename the old file: [#!variable!old_file!#] to: [#!variable!new_file!#].</key>
 		<key name="job_0142">File renamed successfully.</key>

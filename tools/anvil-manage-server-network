@@ -314,7 +314,7 @@ sub define_if_shut_off
 			# Reassign the job to node 1
 			$anvil->Job->update_progress({
 				progress   => 99,
-				message    => $task eq "add" ? "job_0010" : "job_0137", 
+				message    => $task eq "add" ? "job_0138" : "job_0139", 
 				job_status => "reassigned", 
 				log_level  => 1, 
 				'print'    => 1, 
@@ -328,7 +328,7 @@ sub define_if_shut_off
 			my $job_uuid = reassign_job($anvil, $server_uuid, $server_host_uuid);
 			$anvil->Job->update_progress({
 				progress   => 100,
-				message    => "job_0008", 
+				message    => "job_0137", 
 				log_level  => 1, 
 				'print'    => 1, 
 				variables  => {
