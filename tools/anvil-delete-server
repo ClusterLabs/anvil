@@ -862,6 +862,7 @@ sub save_job
 		job_host_uuid   => $job_host_uuid, 
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+	print $anvil->Words->string({key => "job_0383", variables => { job_uuid  => $job_uuid }})."\n";
 	
 	$anvil->nice_exit({exit_code => 0});
 	
