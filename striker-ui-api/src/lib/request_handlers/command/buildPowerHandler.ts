@@ -29,27 +29,27 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     job_title: 'job_0009',
   }),
   start: ({ uuid } = {}) => ({
-    job_command: `${SERVER_PATHS.usr.sbin['striker-boot-machine'].self} --host-uuid '${uuid}'`,
-    job_description: 'job_0335',
+    job_command: `${SERVER_PATHS.usr.sbin['striker-boot-machine'].self} --host '${uuid}'`,
+    job_description: 'job_0518',
     job_name: `set_power::on`,
-    job_title: 'job_0334',
+    job_title: 'job_0517',
   }),
   startserver: ({ runOn, uuid } = {}) => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-boot-server'].self}`,
     job_data: `server-uuid=${uuid}`,
-    job_description: 'job_0341',
+    job_description: 'job_0514',
     job_host_uuid: runOn,
     job_name: 'set_power::server::on',
-    job_title: 'job_0340',
+    job_title: 'job_0513',
   }),
   stop: ({ isStopServers, uuid, runOn = uuid } = {}) => ({
     job_command: `${SERVER_PATHS.usr.sbin['anvil-safe-stop'].self} --power-off${
       isStopServers ? ' --stop-servers' : ''
     }`,
-    job_description: 'job_0333',
+    job_description: 'job_0520',
     job_host_uuid: runOn,
     job_name: 'set_power::off',
-    job_title: 'job_0332',
+    job_title: 'job_0519',
   }),
   stopserver: ({ force, runOn, uuid } = {}) => {
     let command = SERVER_PATHS.usr.sbin['anvil-shutdown-server'].self;
@@ -61,10 +61,10 @@ const MAP_TO_POWER_JOB_PARAMS_BUILDER: Record<
     return {
       job_command: command,
       job_data: `server-uuid=${uuid}`,
-      job_description: 'job_0343',
+      job_description: 'job_0516',
       job_host_uuid: runOn,
       job_name: 'set_power::server::off',
-      job_title: 'job_0342',
+      job_title: 'job_0515',
     };
   },
 };

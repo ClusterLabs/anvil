@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
-import { List, Box, Divider, ListItem } from '@mui/material';
+import { List, Box, Divider, ListItemButton } from '@mui/material';
 import {
   HOVER,
   DIVIDER,
@@ -52,10 +52,8 @@ const selectDecorator = (state: string): Colours => {
   switch (state) {
     case 'optimal':
       return 'ok';
-    case 'not_ready':
-      return 'warning';
     case 'degraded':
-      return 'error';
+      return 'warning';
     default:
       return 'off';
   }
@@ -80,21 +78,22 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
         {sortAnvils(list).map((anvil) => (
           <>
             <Divider className={classes.divider} />
-            <ListItem
-              button
+            <ListItemButton
               className={classes.button}
               key={anvil.anvil_uuid}
               onClick={() => setAnvilUuid(anvil.anvil_uuid)}
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box p={1}>
-                  <Decorator colour={selectDecorator(anvil.anvil_state)} />
+                  <Decorator
+                    colour={selectDecorator(anvil.anvilStatus.system)}
+                  />
                 </Box>
                 <Box p={1} flexGrow={1} className={classes.anvil}>
                   <Anvil anvil={anvil} />
                 </Box>
               </Box>
-            </ListItem>
+            </ListItemButton>
           </>
         ))}
       </List>

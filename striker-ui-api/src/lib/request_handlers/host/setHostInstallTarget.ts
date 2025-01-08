@@ -26,10 +26,10 @@ export const setHostInstallTarget: RequestHandler<
     await job({
       file: __filename,
       job_command: `${SERVER_PATHS.usr.sbin['striker-manage-install-target'].self} --${task}`,
-      job_description: 'job_0016',
+      job_description: 'job_0526',
       job_host_uuid: hostUuid,
       job_name: `install-target::${task}`,
-      job_title: 'job_0015',
+      job_title: 'job_0525',
     });
   } catch (subError) {
     perr(`Failed to ${task} install target; CAUSE: ${subError}`);

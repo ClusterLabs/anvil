@@ -1265,19 +1265,19 @@ resource "#!variable!server!#" {
 		<key name="job_0005">Successfully set the host priority for the new server name: [#!variable!server_name!#]!</key>
 		<key name="job_0006">This system will be rebooted momentarily. It will not respond until it has booted back up.</key>
 		<key name="job_0007">The new-style job to remove bad keys for the target: [#!variable!target!#] has been created with the job UUID: [#!variable!job_uuid!#].</key>
-		<key name="job_0008">#!free!#</key>
-		<key name="job_0009">Reboot...</key>
-		<key name="job_0010">#!free!#</key>
+		<key name="job_0008">This system will be powered off momentarily. It will not respond until it has turned back on.</key>
+		<key name="job_0009">Reboot</key>
+		<key name="job_0010">Power off</key>
 		<key name="job_0011">Add a Striker Peer</key>
 		<key name="job_0012">The Striker peer will now be added to the local configuration.</key>
 		<key name="job_0013">Remove a Striker Peer</key>
 		<key name="job_0014">The Striker peer will now be removed from the local configuration.</key>
-		<key name="job_0015">Manager Install Target.</key>
+		<key name="job_0015">Manage Install Target</key>
 		<key name="job_0016">Testing access to peer(s). Please be patient.</key>
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">- Testing access to: [#!variable!host_name!#].</key>
 		<key name="job_0019">[ OK ] - Successfully connected to: [#!variable!host_name!#] via the network: [#!variable!network!#] and IP: [#!variable!target_ip!#].</key>
-		<key name="job_0020">Initialize a new #!string!brand_0002!# Node</key>
+		<key name="job_0020">Initialize a new #!string!brand_0002!# Subnode</key>
 		<key name="job_0021">Initialize a new DR Host</key>
 		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
 		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
@@ -1484,8 +1484,8 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0205">As we're the peer, we're now going to wait for the new server definition to be added to the database, then write it out to disk.</key>
 		<key name="job_0206">The definition file: [#!variable!file!#] has been saved.</key>
 		<key name="job_0207">Preparing to add the server to the central cluster manager.</key>
-		<key name="job_0208">Deleting a server</key>
-		<key name="job_0209">This deletes a server from an Anvil! system.</key>
+		<key name="job_0208">Delete a server</key>
+		<key name="job_0209">Deletes a server from an #!string!brand_0006!#.</key>
 		<key name="job_0210">Asking pacemaker to stop the server: [#!variable!server_name!#].</key>
 		<key name="job_0211">The server: [#!variable!server_name!#] is now stopped in pacemaker.</key>
 		<key name="job_0212">Registered a job with: [#!variable!host_name!#] to delete it's records of this server.</key>
@@ -1806,36 +1806,46 @@ Note: This is a permanent action! If you protect this server again later, a full
 [ Note ] - The host name was updated. The hostname is cached in several places, and it is important all are updated during the cluster config.
 [ Note ]   *** the system will now reboot. ***
 [ Note ] - The job will restart on reboot (so long as 'anvil-daemon' is enabled).</key>
-		<!-- Job keys for tool anvil-manage-server -->
 		<key name="job_0489">Set server start dependency</key>
 		<key name="job_0490">Controls the order in which to start the server or prevents the server from starting.</key>
-		<!-- Job keys for tool anvil-manage-server-system -->
 		<key name="job_0491">Set server boot order</key>
 		<key name="job_0492">Controls the boot order of the server's possibly bootable devices.</key>
 		<key name="job_0493">Set server CPU</key>
 		<key name="job_0494">Controls the numerical CPU properties available to the server.</key>
 		<key name="job_0495">Set server memory</key>
 		<key name="job_0496">Controls the memory available for the server to use.</key>
-		<!-- Job keys for tool anvil-manage-server-storage -->
 		<key name="job_0497">Add server disk</key>
 		<key name="job_0498">Creates and attaches a new disk to the server by allocating space from a storage group.</key>
 		<key name="job_0499">Grow server disk</key>
 		<key name="job_0500">Extends the server's disk by allocating the specified remaining space from the storage group.</key>
 		<key name="job_0501">Change server ISO</key>
 		<key name="job_0502">Inserts or ejects ISO from the server's optical device.</key>
-		<!-- Job keys for tool anvil-manage-server-network -->
 		<key name="job_0503">Add server network interface</key>
 		<key name="job_0504">Creates and attaches a network interface to the server.</key>
-		<key name="job_0505">Plug or unplug server network interface</key>
+		<key name="job_0505">Set state of server network interface</key>
 		<key name="job_0506">Changes the state (plugged-in or unplugged) of the server network interface.</key>
 		<key name="job_0507">Delete server network interface</key>
 		<key name="job_0508">Detaches and removes a network interface from the server.</key>
-		<!-- Job keys for tool anvil-rename-server -->
 		<key name="job_0509">Rename server</key>
 		<key name="job_0510">Changes the name of the server and its resources.</key>
-		<!-- Job keys for tool anvil-migrate-server -->
 		<key name="job_0511">Migrate server</key>
 		<key name="job_0512">Changes the host of the server.</key>
+		<key name="job_0513">Boot server</key>
+		<key name="job_0514">Boots the server by interacting with libvirt.</key>
+		<key name="job_0515">Shut down server</key>
+		<key name="job_0516">Shuts down the server by interacting with libvirt.</key>
+		<key name="job_0517">Start subnode</key>
+		<key name="job_0518">Strictly starts the subnode. This operation doesn't include joining its cluster.</key>
+		<key name="job_0519">Stop subnode</key>
+		<key name="job_0520">Stops the subnode. Also shuts down servers if it's the last operating subnode in the cluster.</key>
+		<key name="job_0521">Join cluster</key>
+		<key name="job_0522">Tells the subnode to join its cluster.</key>
+		<key name="job_0523">Leave cluster</key>
+		<key name="job_0524">Withdraws the subnode from its cluster.</key>
+		<key name="job_0525">Set state of install target</key>
+		<key name="job_0526">Sets the state of the 'Install Target' feature on the striker.</key>
+		<key name="job_0527">Update Striker</key>
+		<key name="job_0528">Starts a system update on the striker.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

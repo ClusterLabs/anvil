@@ -1,12 +1,10 @@
-import { useEffect, useMemo } from 'react';
-
-import useCookieJar from './useCookieJar';
+import { useEffect } from 'react';
+import { useCookies } from 'react-cookie';
 
 const useSessionExpiryCheck = (): void => {
-  const { getSession } = useCookieJar();
+  const [cookies] = useCookies(['suiapi.session']);
 
-  // Put session in memo to avoid triggering useEffect multiple times.
-  const session = useMemo(() => getSession(), [getSession]);
+  const session: SessionCookie | undefined = cookies['suiapi.session'];
 
   useEffect(() => {
     if (!session) return () => null;

@@ -1,13 +1,22 @@
 const toAnvilOverviewHostList = (
   data: APIAnvilOverviewArray[number]['hosts'],
 ): APIAnvilOverview['hosts'] =>
-  data.reduce<APIAnvilOverview['hosts']>(
-    (previous, { hostName: name, hostType: type, hostUUID: uuid }) => {
-      previous[uuid] = { name, type, uuid };
+  data.reduce<APIAnvilOverview['hosts']>((previous, host) => {
+    const {
+      hostName: name,
+      hostType: type,
+      hostUUID: uuid,
+      shortHostName: short,
+    } = host;
 
-      return previous;
-    },
-    {},
-  );
+    previous[uuid] = {
+      name,
+      short,
+      type,
+      uuid,
+    };
+
+    return previous;
+  }, {});
 
 export default toAnvilOverviewHostList;

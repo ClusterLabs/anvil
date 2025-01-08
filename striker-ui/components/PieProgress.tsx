@@ -51,8 +51,8 @@ const PieProgress: React.FC<PieProgressProps> = (props) => {
   const underlineProps = useMemo<CircularProgressProps>(() => {
     const ulProps = slotProps?.underline;
 
-    const thickness = ulProps?.thickness ?? 6;
-    const offsetMultiplier = ulProps?.offset?.multiplier ?? 1;
+    const thickness = ulProps?.thickness ?? 2;
+    const offsetMultiplier = ulProps?.offset?.multiplier ?? 2;
 
     const offset = thickness * offsetMultiplier;
     const offsetUnit = ulProps?.offset?.unit ?? 'px';

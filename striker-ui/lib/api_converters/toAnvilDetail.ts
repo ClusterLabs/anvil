@@ -1,7 +1,7 @@
 const toAnvilDetail = (data: AnvilListItem): APIAnvilDetail => {
   const {
+    anvilStatus,
     anvil_name: anvilName,
-    anvil_state: anvilState,
     anvil_uuid: anvilUuid,
     hosts: rHosts,
   } = data;
@@ -31,7 +31,7 @@ const toAnvilDetail = (data: AnvilListItem): APIAnvilDetail => {
   return {
     hosts,
     name: anvilName,
-    state: anvilState,
+    status: anvilStatus,
     uuid: anvilUuid,
   };
 };

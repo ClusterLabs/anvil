@@ -1,4 +1,5 @@
-import { Breakpoint, Grid, styled } from '@mui/material';
+import { Grid, styled } from '@mui/material';
+import { useMemo } from 'react';
 
 import {
   Preview,
@@ -10,35 +11,29 @@ import Link from '../Link';
 import { BodyText } from '../Text';
 
 const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
-  const widths: Partial<Record<Breakpoint, string>> = {
-    xs: 'calc(100vw - 4.88em)',
-    sm: 'calc(50vw - 3.1em)',
-    md: 'calc(100vw / 3 - 2.52em)',
-    lg: 'calc(25vw - 2.22em)',
-    xl: '10vw',
-  };
-
-  const getHeight = (width = '0') => `calc(${width} * 0.8)`;
+  const getHeight = (width = '0') => `calc(${width} * 0.6)`;
 
   return {
+    width: '100%',
+
     [theme.breakpoints.up('xs')]: {
-      height: getHeight(widths.xs),
-      width: widths.xs,
+      height: getHeight('100vw'),
     },
 
     [theme.breakpoints.up('sm')]: {
-      height: getHeight(widths.sm),
-      width: widths.sm,
+      height: getHeight('50vw'),
     },
 
     [theme.breakpoints.up('md')]: {
-      height: getHeight(widths.md),
-      width: widths.md,
+      height: getHeight('100vw / 3'),
     },
 
     [theme.breakpoints.up('lg')]: {
-      height: getHeight(widths.lg),
-      width: widths.lg,
+      height: getHeight('25vw'),
+    },
+
+    [theme.breakpoints.up('xl')]: {
+      height: getHeight('100vw / 6'),
     },
   };
 });
@@ -81,15 +76,54 @@ const buildPreview = (server: APIServerOverview): React.ReactNode => (
 const ServerPanels: React.FC<ServerPanelsProps> = (props) => {
   const { groups, servers } = props;
 
+  const panels = useMemo<React.ReactNode[]>(() => {
+    const groupEntries = Object.entries(groups);
+
+    return groupEntries.reduce<React.ReactNode[]>(
+      (elements, [groupName, group], groupIndex, array) => {
+        if (!group.length) {
+          return elements;
+        }
+
+        group.forEach((uuid) => {
+          const server = servers[uuid];
+
+          elements.push(
+            <Grid key={`${uuid}-panel`} item xs={1}>
+              {buildPreview(server)}
+            </Grid>,
+          );
+        });
+
+        const last = groupIndex + 1 === array.length;
+
+        if (!last) {
+          elements.push(
+            <Grid key={`${groupName}-end`} item width="100%">
+              <Divider orientation="horizontal" />
+            </Grid>,
+          );
+        }
+
+        return elements;
+      },
+      [],
+    );
+  }, [groups, servers]);
+
   return (
-    <Grid container spacing="1em">
-      {groups.match.map((uuid) => buildPreview(servers[uuid]))}
-      {groups.match.length > 0 && (
-        <Grid item width="100%">
-          <Divider flexItem orientation="horizontal" />
-        </Grid>
-      )}
-      {groups.none.map((uuid) => buildPreview(servers[uuid]))}
+    <Grid
+      columns={{
+        xs: 1,
+        sm: 2,
+        md: 3,
+        lg: 4,
+        xl: 6,
+      }}
+      container
+      spacing="1em"
+    >
+      {panels}
     </Grid>
   );
 };

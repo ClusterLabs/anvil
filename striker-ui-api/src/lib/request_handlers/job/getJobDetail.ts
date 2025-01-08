@@ -107,6 +107,8 @@ export const getJobDetail: RequestHandler<
   const data = dataLines.reduce<JobDetail['data']>((previous, entry, index) => {
     const [name, value] = entry.split(/=/);
 
+    if (!name) return previous;
+
     previous[index] = { name, value };
 
     return previous;

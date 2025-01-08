@@ -7,6 +7,7 @@ const serverState: ReadonlyMap<string, string> = new Map([
   ['crashed', 'Crashed'],
   ['pmsuspended', 'PM Suspended'],
   ['migrating', 'Migrating'],
+  ['provisioning', 'Provisioning'],
 ]);
 
 export default serverState;

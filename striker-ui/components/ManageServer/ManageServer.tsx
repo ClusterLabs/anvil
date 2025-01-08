@@ -1,4 +1,4 @@
-import { Breakpoint, Grid, styled } from '@mui/material';
+import { Grid, styled } from '@mui/material';
 import { FC, useRef, useState } from 'react';
 
 import {
@@ -64,28 +64,21 @@ const tabs = {
 };
 
 const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
-  const widths: Partial<Record<Breakpoint, string>> = {
-    xs: 'calc(100vw - 4.88em)',
-    sm: 'calc(8em)',
-    md: 'calc(12em)',
-  };
-
-  const getHeight = (width = '0') => `calc(${width} * 0.8)`;
+  const getHeight = (width = '0') => `calc(${width} * 0.6)`;
 
   return {
+    width: '100%',
+
     [theme.breakpoints.up('xs')]: {
-      height: getHeight(widths.xs),
-      width: widths.xs,
+      height: getHeight('100vw'),
     },
 
     [theme.breakpoints.up('sm')]: {
-      height: getHeight(widths.sm),
-      width: widths.sm,
+      height: '6em',
     },
 
     [theme.breakpoints.up('md')]: {
-      height: getHeight(widths.md),
-      width: widths.md,
+      height: '9em',
     },
   };
 });

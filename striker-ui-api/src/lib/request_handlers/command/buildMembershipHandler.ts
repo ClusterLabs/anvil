@@ -32,10 +32,10 @@ const MAP_TO_MEMBERSHIP_JOB_PARAMS_BUILDER: Record<
     return isOnline
       ? {
           job_command: SERVER_PATHS.usr.sbin['anvil-safe-start'].self,
-          job_description: 'job_0337',
+          job_description: 'job_0522',
           job_host_uuid: uuid,
           job_name: 'set_membership::join',
-          job_title: 'job_0336',
+          job_title: 'job_0521',
         }
       : undefined;
   },
@@ -43,10 +43,10 @@ const MAP_TO_MEMBERSHIP_JOB_PARAMS_BUILDER: Record<
     isActiveMember
       ? {
           job_command: SERVER_PATHS.usr.sbin['anvil-safe-stop'].self,
-          job_description: 'job_0339',
+          job_description: 'job_0524',
           job_host_uuid: uuid,
           job_name: 'set_membership::leave',
-          job_title: 'job_0338',
+          job_title: 'job_0523',
         }
       : undefined,
 };
