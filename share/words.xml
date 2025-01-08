@@ -1277,7 +1277,7 @@ resource "#!variable!server!#" {
 		<key name="job_0017">Update the 'Install Target' source files and refresh RPM repository.</key>
 		<key name="job_0018">- Testing access to: [#!variable!host_name!#].</key>
 		<key name="job_0019">[ OK ] - Successfully connected to: [#!variable!host_name!#] via the network: [#!variable!network!#] and IP: [#!variable!target_ip!#].</key>
-		<key name="job_0020">Initialize a new #!string!brand_0002!# Node</key>
+		<key name="job_0020">Initialize a new #!string!brand_0002!# Subnode</key>
 		<key name="job_0021">Initialize a new DR Host</key>
 		<key name="job_0022">The target will be setup to talk to this and our peer dashboards. When initialization is complete, you will be able to map the target's network.</key>
 		<key name="job_0023">Connecting to the target: [#!variable!target!#]...</key>
