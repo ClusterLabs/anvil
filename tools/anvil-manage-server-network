@@ -159,18 +159,21 @@ sub update_definition
 {
 	my ($anvil) = @_;
 	
-	my $host_name   = $anvil->Get->short_host_name();
-	my $server_uuid = $anvil->data->{switches}{server_uuid};
-	my $server_name = $anvil->data->{switches}{server_name};
+	my $host_name    = $anvil->Get->short_host_name();
+	my $server_uuid  = $anvil->data->{switches}{server_uuid};
+	my $server_name  = $anvil->data->{switches}{server_name};
+	my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:host_name'   => $host_name, 
-		's2:server_uuid' => $server_uuid, 
-		's3:server_name' => $server_name, 
+		's1:host_name'    => $host_name, 
+		's2:server_uuid'  => $server_uuid, 
+		's3:server_name'  => $server_name, 
+		's4:server_state' => $server_state, 
 	}});
 	
 	# Give a couple seconds for the changes to settle, then dump the new config.
 	sleep 2;
-	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
+	my $say_inactive = $server_state eq "running" ? "" : "--inactive ";
+	my $shell_call   = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$say_inactive.$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	
 	my ($virsh_definition, $return_code) = $anvil->System->call({shell_call => $shell_call, source => $THIS_FILE, line => __LINE__});
@@ -555,6 +558,37 @@ sub handle_add
 	# either machine on the host Anvil.
 	wait_if_migrating($anvil);
 	
+	# If the server is running on another host, reassign it.
+	if (($server_state eq "running") && ($server_host_uuid ne $anvil->Get->host_uuid))
+	{
+		# Reassign the add to the host.
+		$anvil->Job->update_progress({
+			progress   => 99,
+			message    => "job_0143", 
+			job_status => "reassigned", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				server    => $anvil->data->{switches}{server_name}, 
+				host_name => $server_host_name, 
+				host_uuid => $server_host_uuid, 
+			},
+		});
+		
+		my $job_uuid = reassign_job($anvil, $server_uuid, $server_host_uuid);
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "job_0137", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				host_name => $server_host_name,
+				job_uuid  => $job_uuid, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
 	# Define the server if the server is off.
 	define_if_shut_off($anvil);
 	
@@ -596,7 +630,9 @@ sub handle_add
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { model => $model }});
 	}
 	
-	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." attach-interface --persistent ".$server_name." bridge ".$bridge." --model ".$model;
+	# If it's running, don't use '--persistent'
+	my $say_persistent = $server_state eq "running" ? "" : "--persistent ";
+	my $shell_call     = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." attach-interface ".$say_persistent.$server_name." bridge ".$bridge." --model ".$model;
 	if ($mac_address)
 	{
 		$shell_call .= " --mac ".$mac_address;
@@ -958,7 +994,7 @@ sub handle_plug_unplug
 				job_uuid  => $job_uuid, 
 			},
 		});
-		$anvil->nice_exit({exit_code => 1});
+		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	# Get the XML
