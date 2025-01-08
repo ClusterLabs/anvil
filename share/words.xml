@@ -1844,6 +1844,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0524">Withdraws the subnode from its cluster.</key>
 		<key name="job_0525">Set state of install target</key>
 		<key name="job_0526">Sets the state of the 'Install Target' feature on the striker.</key>
+		<key name="job_0527">Update Striker</key>
+		<key name="job_0528">Starts a system update on the striker.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

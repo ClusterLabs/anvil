@@ -10,9 +10,9 @@ export const updateSystem: RequestHandler = async (request, response) => {
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-update-system'].self,
-      job_description: 'job_0004',
+      job_description: 'job_0528',
       job_name: 'update::system',
-      job_title: 'job_0003',
+      job_title: 'job_0527',
     });
   } catch (subError) {
     perr(`Failed to initiate system update; CAUSE: ${subError}`);
