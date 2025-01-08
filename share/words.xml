@@ -136,7 +136,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Please run this on that host.</key>
+		<key name="error_0080">#!free!#</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -330,7 +330,7 @@ Output (if any):
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
 		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
 		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
-		<key name="error_0216">The server: [#!variable!server!#] is off, so adding the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though.</key>
+		<key name="error_0216">#!free!#</key>
 		<key name="error_0217">This host is not an Anvil! node or DR host, unable to delete servers.</key>
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
@@ -470,7 +470,7 @@ We're done waiting, exiting out.
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
-		<key name="error_0313">The server: [#!variable!server!#] is off, so removing the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though.</key>
+		<key name="error_0313">#!free!#</key>
 		<key name="error_0314">Asked to remove an interface from the server: [#!variable!server!#] with the MAC address: [#!variable!mac!#], but no interface with that MAC was found.</key>
 		<key name="error_0315">
 Failed to remove the network interface on: [#!variable!server!#] with the MAC address: [#!variable!mac!#].
@@ -1398,13 +1398,13 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0134">Successfully deleted the file: [#!variable!file_path!#].</key>
 		<key name="job_0135">No need to delete the file: [#!variable!file_path!#], it already doesn't exist.</key>
 		<key name="job_0136"><![CDATA[The server: [#!variable!server!#] appears to be running on: [#!variable!host_name!#], assigned the job: [#!variable!job_uuid!#] to that host.]]></key>
-		<key name="job_0137">#!free!#</key>
-		<key name="job_0138">#!free!#</key>
-		<key name="job_0139">#!free!#</key>
+		<key name="job_0137">The job for the peer: [#!variable!host_name!#] has been created with the UUID: [#!variable!job_uuid!#].</key>
+		<key name="job_0138">The server: [#!variable!server!#] is off, so adding the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though. We'll create a job to have: [#!variable!host_name!#] do the add.</key>
+		<key name="job_0139">The server: [#!variable!server!#] is off, so removing the network interface can be done from either subnode. This host is not a subnode in the Anvil! node: [#!variable!anvil!#] though. We'll create a job to have: [#!variable!host_name!#] do the add.</key>
 		<key name="job_0140">No need to rename the file: [#!variable!file_path!#], it doesn't exist on this host.</key>
 		<key name="job_0141">About to rename the old file: [#!variable!old_file!#] to: [#!variable!new_file!#].</key>
 		<key name="job_0142">File renamed successfully.</key>
-		<key name="job_0143">#!free!#</key>
+		<key name="job_0143">I was asked to add a network interface to: [#!variable!server!#], but the server is runnong on: [#!variable!host_name!#]. Assigning a job to have that host do the add.</key>
 		<key name="job_0144">#!free!#</key>
 		<key name="job_0145">The file: [#!variable!file_path!#]'s mode has been set to: [#!variable!new_mode!#].</key>
 		<key name="job_0146">No need to set the mode on the file: [#!variable!file_path!#], it doesn't exist here.</key>
@@ -2759,7 +2759,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0806">- Saving the screenshot: [#!variable!ppm_file!#].</key>
 		<key name="log_0807">- Converting: [#!variable!source_file!#] to: 
 [#!variable!new_file!#]</key>
-		<key name="log_0808">#!free!#</key>
+		<key name="log_0808">- Pushing the new definition to the database and other hosts.</key>
 		<key name="log_0809">- Deleting the server: [#!variable!server_name!#]'s screenshot: [#!variable!file!#].</key>
 		<key name="log_0810">- No access to: [#!variable!host_name!#] found.</key>
 		<key name="log_0811">- The host: [#!variable!host_name!#] is not configured, skipping it.</key>
@@ -2995,8 +2995,8 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0144">- The current gateway is: [#!variable!current_gateway!#], but this is not the gateway interface. Will remove it.</key>
 		<key name="message_0145">- This is the gateway interface, but there is no gateway yet. Will configure it as: [#!variable!new_gateway!#].</key>
 		<key name="message_0146">Updating out password in the config file: [#!variable!file!#] on the host: [#!variable!host_name!#] now... </key>
-		<key name="message_0147">#!free!#</key>
-		<key name="message_0148">#!free!#</key>
+		<key name="message_0147">[ Note ] - Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to unplug the interface.</key>
+		<key name="message_0148">[ Note ] - Asked to plug in an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to plug in the interface.</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">#!free!#</key>
 		<key name="message_0151">#!free!#</key>
