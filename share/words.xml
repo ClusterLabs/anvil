@@ -1822,7 +1822,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0502">Inserts or ejects ISO from the server's optical device.</key>
 		<key name="job_0503">Add server network interface</key>
 		<key name="job_0504">Creates and attaches a network interface to the server.</key>
-		<key name="job_0505">Plug or unplug server network interface</key>
+		<key name="job_0505">Set state of server network interface</key>
 		<key name="job_0506">Changes the state (plugged-in or unplugged) of the server network interface.</key>
 		<key name="job_0507">Delete server network interface</key>
 		<key name="job_0508">Detaches and removes a network interface from the server.</key>
