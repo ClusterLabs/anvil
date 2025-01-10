@@ -352,12 +352,17 @@ sub collect_data
 	$anvil->Database->get_server_definitions();
 
 	# Find our Anvil! UUID
+	my $host_type  = $anvil->Get->host_type();
 	my $target     = $anvil->Get->short_host_name();
-	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	my $anvil_uuid = $host_type eq "node" ? $anvil->Cluster->get_anvil_uuid() : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type  => $host_type,
+		target     => $target,
+		anvil_uuid => $anvil_uuid, 
+	}});
 	
 	# Look for any servers in the database but not yet written to disk.
-	if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid})
+	if (($anvil_uuid) && (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}))
 	{
 		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
 		{
@@ -439,6 +444,13 @@ sub collect_data
 			server_id     => $server_id, 
 			server_uuid   => $server_uuid, 
 		}});
+		
+		# If we're a DR host, keep the server's last know Anvil! UUID'
+		if ($host_type eq "dr")
+		{
+			$anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+		}
 		
 		# Record the handle to the domain.
 		$anvil->data->{domain}{$server_name}{handle}     = $domain;
@@ -1245,8 +1257,6 @@ sub collect_data
 	}
 	
 	# If we're a node, check our peer.
-	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 	if ($host_type eq "node")
 	{
 		# Lastly, if we can access our peer, see what servers are running there. This will let us 

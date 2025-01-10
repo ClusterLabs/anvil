@@ -35,7 +35,6 @@ $anvil->Get->switches({list => [
 	"no-db", 
 	"no-wait", 
 	"server", 
-	"server-uuid", 
 	"wait"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -67,11 +66,19 @@ else
 	}
 }
 
+$anvil->data->{sys}{host_type} = $anvil->Get->host_type();
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+	'sys::host_type' => $anvil->data->{sys}{host_type},
+}});
+
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
 	$anvil->Job->clear();
-	$anvil->Job->get_job_details();
+	$anvil->Job->get_job_details({
+		debug    => 2,
+		job_uuid => $anvil->data->{switches}{'job-uuid'},
+	});
 	$anvil->Job->update_progress({
 		progress         => 1,
 		job_picked_up_by => $$, 
@@ -84,81 +91,113 @@ if ($anvil->data->{switches}{'job-uuid'})
 	{
 		if ($line =~ /server=(.*?)$/)
 		{
-			$anvil->data->{switches}{'server'} = $1;
+			$anvil->data->{switches}{server} = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'switches::server' => $anvil->data->{switches}{'server'},
+				'switches::server' => $anvil->data->{switches}{server},
 			}});
 		}
 		if ($line =~ /server-uuid=(.*?)$/)
 		{
-			$anvil->data->{switches}{'server-uuid'} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				'switches::server-uuid' => $anvil->data->{switches}{'server-uuid'},
-			}});
+			# This is not used anymore. If it is for some reason, make it 'server'
+			my $server_uuid = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_uuid => $server_uuid }});
+			if ($server_uuid)
+			{
+				$anvil->data->{switches}{server} = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'switches::server' => $anvil->data->{switches}{server},
+				}});
+			}
 		}
 	}
 }
 
-# Now check that we have a server. If it's a server_uuid, read the server name.
-if ($anvil->data->{switches}{'server-uuid'})
+# Get the server name and UUID if not 'all'
+if (not $anvil->data->{switches}{server})
 {
-	# DO we have DB connection(s)?
-	if (not $anvil->data->{sys}{database}{connections})
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0265"});
-		$anvil->Job->update_progress({progress => 100, message => "error_0265"});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	# Convert the server_uuid to a server_name.
-	my $query = "SELECT server_name FROM servers WHERE server_uuid = ".$anvil->Database->quote($anvil->data->{switches}{'server-uuid'}).";";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-	
-	my $server_name = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
-	   $server_name = "" if not defined $server_name;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_name => $server_name }});
-	
-	if ($server_name)
-	{
-		$anvil->data->{switches}{'server'} = $server_name;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			'switches::server' => $anvil->data->{switches}{'server'},
-		}});
-	}
-	else
-	{
-		# Invalid server UUID. 
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0269", variables => {
-			server_uuid => $anvil->data->{switches}{'server-uuid'}, 
-		}});
-		$anvil->Job->update_progress({progress => 100, message => "error_0269,!!server_uuid!".$anvil->data->{switches}{'server-uuid'}."!!"});
-		$anvil->nice_exit({exit_code => 1});
-	}
-}
-
-# Do we have a server name?
-if (not $anvil->data->{switches}{'server'})
-{
-	# Unable to proceed.
+	# Um...  Unable to proceed.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0263"});
 	$anvil->Job->update_progress({progress => 100, message => "error_0263"});
 	$anvil->nice_exit({exit_code => 1});
 }
-
-# If we're forcing off a server, make sure '--server' isn't 'all'.
-if (($anvil->data->{switches}{'server'} =~ /all/i) && ($anvil->data->{switches}{immediate}))
+elsif ($anvil->data->{switches}{server} eq "all")
 {
-	# Unable to proceed.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0462"});
-	$anvil->Job->update_progress({progress => 100, message => "error_0462"});
-	$anvil->nice_exit({exit_code => 1});
+	if ($anvil->data->{switches}{immediate})
+	{
+		# Not allowed to force-kill all servers.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0462"});
+		$anvil->Job->update_progress({progress => 100, message => "error_0462"});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Stopping all servers.
+	$anvil->data->{switches}{server_name} = "";
+	$anvil->data->{switches}{server_uuid} = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::server_name" => $anvil->data->{switches}{server_name},
+		"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+	}});
+}
+else
+{
+	# Get the server name and UUID from the switch.
+	$anvil->Get->server_from_switch({server => $anvil->data->{switches}{server}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::server_name" => $anvil->data->{switches}{server_name},
+		"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
+	}});
+}
+
+# If the server isn't all, check to see if the server is running elsewhere. If it is, reassign the job to that host.
+if (($anvil->data->{switches}{server} !~ /all/i) && ($anvil->data->{sys}{database}{connections}))
+{
+	# What's the server's host?
+	$anvil->Database->get_servers({debug => 2});
+	my $server_name      = $anvil->data->{switches}{server_name};
+	my $server_uuid      = $anvil->data->{switches}{server_uuid};
+	my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+	my $server_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid});
+	my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:server_name'      => $server_name,
+		's2:server_uuid'      => $server_uuid, 
+		's3:server_host_uuid' => $server_host_uuid, 
+		's4:server_host_name' => $server_host_name, 
+		's5:server_state'     => $server_state, 
+	}});
+	
+	if (($server_state eq "running") && ($server_host_uuid ne $anvil->Get->host_uuid))
+	{
+		# Re-assign the job.
+		$anvil->Job->update_progress({
+			progress   => 99,
+			message    => "job_0357", 
+			job_status => "reassigned", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				server    => $server_name, 
+				host_name => $server_host_name, 
+			},
+		});
+		
+		my ($job_uuid) = reassign_job($anvil, $server_uuid, $server_host_uuid);
+		$anvil->Job->update_progress({
+			progress   => 100,
+			message    => "job_0137", 
+			log_level  => 1, 
+			'print'    => 1, 
+			variables  => {
+				host_name => $server_host_name,
+				job_uuid  => $job_uuid, 
+			},
+		});
+		
+		$anvil->nice_exit({exit_code => 0});
+	}
 }
 
 # Are we a node or DR host?
-$anvil->data->{sys}{host_type} = $anvil->Get->host_type();
-$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-	'sys::host_type' => $anvil->data->{sys}{host_type},
-}});
 if (($anvil->data->{sys}{host_type} ne "node") && ($anvil->data->{sys}{host_type} ne "dr"))
 {
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0264"});
@@ -166,7 +205,7 @@ if (($anvil->data->{sys}{host_type} ne "node") && ($anvil->data->{sys}{host_type
 	$anvil->nice_exit({exit_code => 1});
 }
 
-# Make sure that we're in an Anvil! system.
+# If we're an Anvil!, read out Anvil! uuid
 $anvil->data->{sys}{anvil_uuid} = "";
 if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}{connections}))
 {
@@ -174,18 +213,12 @@ if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		'sys::anvil_uuid' => $anvil->data->{sys}{anvil_uuid},
 	}});
-	if (not $anvil->data->{sys}{anvil_uuid})
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0260"});
-		$anvil->Job->update_progress({progress => 100, message => "error_0260"});
-		$anvil->nice_exit({exit_code => 1});
-	}
 }
 
 # Is the server valid and running here?
 my $short_host_name = $anvil->Get->short_host_name;
 $anvil->Server->connect_to_libvirt({debug => 2});
-if ($anvil->data->{switches}{'server'} !~ /all/i)
+if ($anvil->data->{switches}{server} !~ /all/i)
 {
 	# Make sure the server name is real.
 	my $found   = 0;
@@ -199,9 +232,9 @@ if ($anvil->data->{switches}{'server'} !~ /all/i)
 			server_name   => $server_name, 
 			server_uuid   => $server_uuid, 
 		}});
-		if (($server_name eq $anvil->data->{switches}{'server'}) or
-		    ($server_uuid eq $anvil->data->{switches}{'server'}) or 
-		    (($anvil->data->{switches}{'server-uuid'}) && ($server_uuid eq $anvil->data->{switches}{'server-uuid'})))
+		if (($server_name eq $anvil->data->{switches}{server_name}) or
+		    ($server_uuid eq $anvil->data->{switches}{server_uuid}) or 
+		    (($anvil->data->{switches}{server_uuid}) && ($server_uuid eq $anvil->data->{switches}{server_uuid})))
 		{
 			$found = 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { found => $found }});
@@ -211,29 +244,77 @@ if ($anvil->data->{switches}{'server'} !~ /all/i)
 	
 	if (not $found)
 	{
-		$anvil->Job->update_progress({
-			progress  => 100, 
-			'print'   => 1, 
-			log_level => 1,
-			message   => "warning_0009",
-			variables => {
-				server => $anvil->data->{switches}{'server'}, 
-			},
-		});
-		$anvil->nice_exit({exit_code => 1});
+		# Do we know where the server is running, if anywhere?
+		$anvil->Database->get_servers({debug => 2});
+		my $server_uuid      = $anvil->data->{switches}{server_uuid};
+		my $server_name      = $anvil->data->{switches}{server_name};
+		my $server_host_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+		my $server_state     = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:server_uuid'      => $server_uuid,
+			's2:server_name'      => $server_name, 
+			's3:server_host_uuid' => $server_host_uuid, 
+			's4:server_state'     => $server_state, 
+		}});
+		
+		if (($server_host_uuid) && ($server_state))
+		{
+			# Re-assign the job.
+			my $server_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $server_host_uuid});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+			$anvil->Job->update_progress({
+				progress   => 99,
+				message    => "job_0357", 
+				job_status => "reassigned", 
+				log_level  => 1, 
+				'print'    => 1, 
+				variables  => {
+					server    => $server_name, 
+					host_name => $server_host_name, 
+				},
+			});
+			
+			my ($job_uuid) = reassign_job($anvil, $server_uuid, $server_host_uuid);
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "job_0137", 
+				log_level  => 1, 
+				'print'    => 1, 
+				variables  => {
+					host_name => $server_host_name,
+					job_uuid  => $job_uuid, 
+				},
+			});
+			
+			$anvil->nice_exit({exit_code => 0});
+		}
+		else
+		{
+			# It doesn't seem to be running anywhere.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				'print'   => 1, 
+				log_level => 1,
+				message   => "warning_0009",
+				variables => {
+					server => $anvil->data->{switches}{server_name}, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
 	}
 }
 
 # If we don't have a job_uuid and the user didn't pass 'confirm', ask to proceed.
 if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{'confirm'}))
 {
-	if ($anvil->data->{switches}{'server'} =~ /all/i)
+	if ($anvil->data->{switches}{server} =~ /all/i)
 	{
 		print $anvil->Words->string({key => "message_0092"})." ";
 	}
 	else
 	{
-		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{'server'} }})." ";
+		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{server_name} }})." ";
 	}
 	my $answer = <STDIN>;
 	chomp($answer);
@@ -253,14 +334,14 @@ if ($anvil->data->{sys}{host_type} eq "node")
 }
 
 # If 'server' is 'all', shut down all servers.
-if (lc($anvil->data->{switches}{'server'}) eq "all")
+if (lc($anvil->data->{switches}{server}) eq "all")
 {
 	shutdown_all_servers($anvil);
 }
 else
 {
 	my $wait = $anvil->data->{switches}{'no-wait'} ? 0 : 1;
-	shutdown_server($anvil, $anvil->data->{switches}{'server'}, $wait, 50);
+	shutdown_server($anvil, $anvil->data->{switches}{server_name}, $wait, 50);
 }
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
@@ -333,23 +414,26 @@ sub shutdown_server
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'wait' => $wait }});
 	}
 	
-	# Is the server in the cluster?
-	if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
+	if ($anvil->data->{sys}{host_type} eq "node")
 	{
-		# Nope.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0548", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
-	if ($status eq "off")
-	{
-		# It's off already
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0284", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => $progress, message => "job_0284,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
-		return(0);
+		# Is the server in the cluster?
+		if (not exists $anvil->data->{cib}{parsed}{data}{server}{$server})
+		{
+			# Nope.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0548", variables => { server => $server }});
+			$anvil->Job->update_progress({progress => 100, message => "log_0548,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		my $status = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
+		if ($status eq "off")
+		{
+			# It's off already
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0284", variables => { server => $server }});
+			$anvil->Job->update_progress({progress => $progress, message => "job_0284,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+			return(0);
+		}
 	}
 	
 	# Now shut down. Forcibly?
@@ -367,19 +451,23 @@ sub shutdown_server
 	}
 	
 	my $problem = 0;
-	if ($anvil->Get->host_type eq "dr")
+	if ($anvil->data->{sys}{host_type} eq "dr")
 	{
 		# Shut down using virsh. Invert the return.
 		my $force   = $anvil->data->{switches}{immediate} ? 1 : 0;
+		my $do_wait = $wait ? 0 : 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			force   => $force, 
+			do_wait => $do_wait, 
+		}});
 		my $success = $anvil->Server->shutdown_virsh({
 			debug     => 2,
 			server    => $server, 
 			force     => $force, 
-			wait_time => $wait ? 0 : 1,
+			wait_time => $do_wait,
 		});
 		$problem = $success ? 0 : 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			force   => $force, 
 			success => $success,
 			problem => $problem, 
 		}});
@@ -443,42 +531,122 @@ sub shutdown_all_servers
 	# Get the server data so that we know the stop order.
 	$anvil->Database->get_servers({debug => 2});
 	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 2});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	my $target     = $anvil->Get->short_host_name();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid => $anvil_uuid,
+		target     => $target, 
+	}});
 	
-	# We need to know which servers shut down before others, and this is the reverse of the boot order. 
-	# If a server boots after another, the other must stop before we shut the first down. The delay 
-	# doesn't matter, as the boot_after server has to be off, and once off, waiting makes no sense.
-	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	if ($anvil->data->{sys}{host_type} eq "dr")
 	{
-		my $server_uuid             = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-		my $status                  = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
-		my $start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
-		   $start_after_server_uuid = "" if $start_after_server_uuid eq "NULL";
-		my $start_after_server_name = $start_after_server_uuid ? $anvil->data->{servers}{server_uuid}{$start_after_server_uuid}{server_name} : "";
+		# Get a list of servers and their states from libvirt.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:server_name'             => $server_name,
-			's2:server_uuid'             => $server_uuid, 
-			's3:status'                  => $status, 
-			's4:start_after_server_name' => $start_after_server_name, 
-			's5:start_after_server_uuid' => $start_after_server_uuid, 
+			"libvirtd::${target}::connection" => $anvil->data->{libvirtd}{$target}{connection}, 
 		}});
-		
-		# If we boot after another server, make sure that the other server know to stop before us.
-		if ($start_after_server_name)
+		my @domains = $anvil->data->{libvirtd}{$target}{connection}->list_all_domains();
+		foreach my $domain (@domains)
 		{
-			$anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name} = 1;
+			my $server_name             = $domain->get_name;
+			my $server_uuid             = $domain->get_uuid_string;
+			my ($state, $reason)        = $domain->get_state();
+			my $is_running              = (($state) && ($state != 5)) ? 1 : 0;
+			my $start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+			   $start_after_server_uuid = "" if $start_after_server_uuid eq "NULL";
+			my $start_after_server_name = $start_after_server_uuid ? $anvil->data->{servers}{server_uuid}{$start_after_server_uuid}{server_name} : "";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"server_stop::${start_after_server_name}::wait_for::${server_name}" => $anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name},
+				"s1:server_name"             => $server_name,
+				"s2:server_uuid"             => $server_uuid, 
+				"s3:state"                   => $state, 
+				"s4:reason"                  => $reason,
+				"s5:is_running"              => $is_running, 
+				"s6:start_after_server_uuid" => $start_after_server_uuid, 
+				"s7:start_after_server_name" => $start_after_server_name, 
+			}});
+			
+			### Reasons are dependent on the state. 
+			### See: https://libvirt.org/html/libvirt-libvirt-domain.html#virDomainShutdownReason
+			my $server_status = "unknown";
+			if ($state == 1)    { $server_status = "running"; }	# Server is running.
+			elsif ($state == 2) { $server_status = "blocked"; }	# Server is blocked (IO contention?).
+			elsif ($state == 3) { $server_status = "paused"; }	# Server is paused (migration target?).
+			elsif ($state == 4) { $server_status = "in shutdown"; }	# Server is shutting down.
+			elsif ($state == 5) { $server_status = "shut off"; }	# Server is shut off.
+			elsif ($state == 6) { $server_status = "crashed"; }	# Server is crashed!
+			elsif ($state == 7) { $server_status = "pmsuspended"; }	# Server is suspended.
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_status  => $server_status }});
+			
+			# If we boot after another server, make sure that the other server know to stop before us.
+			if ($start_after_server_name)
+			{
+				$anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"server_stop::${start_after_server_name}::wait_for::${server_name}" => $anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name},
+				}});
+			}
+			
+			# This makes it quicker to track the status of other servers.
+			$anvil->data->{server_stop}{$server_name}{is_off}        = $is_running ? 0 : 1;
+			$anvil->data->{server_stop}{$server_name}{stop_called}   = 0;
+			$anvil->data->{server_stop}{$server_name}{server_uuid}   = $server_uuid;
+			$anvil->data->{server_stop}{$server_name}{server_status} = $server_status;
+			$anvil->data->{server_stop}{$server_name}{server_role}   = "";
+			$anvil->data->{server_stop}{$server_name}{host_name}     = $anvil->Get->short_host_name();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"server_stop::${server_name}::is_off"        => $anvil->data->{server_stop}{$server_name}{is_off},
+				"server_stop::${server_name}::stop_called"   => $anvil->data->{server_stop}{$server_name}{stop_called},
+				"server_stop::${server_name}::server_uuid"   => $anvil->data->{server_stop}{$server_name}{server_uuid},
+				"server_stop::${server_name}::server_status" => $anvil->data->{server_stop}{$server_name}{server_status},
+				"server_stop::${server_name}::server_role"   => $anvil->data->{server_stop}{$server_name}{server_role},
+				"server_stop::${server_name}::host_name"     => $anvil->data->{server_stop}{$server_name}{host_name},
 			}});
 		}
-		
-		# This makes it quicker to track the status of other servers.
-		$anvil->data->{server_stop}{$server_name}{is_off}      = $status ne "off" ? 0 : 1;
-		$anvil->data->{server_stop}{$server_name}{stop_called} = 0;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"server_stop::${server_name}::is_off"      => $anvil->data->{server_stop}{$server_name}{is_off},
-			"server_stop::${server_name}::stop_called" => $anvil->data->{server_stop}{$server_name}{stop_called},
-		}});
+	}
+	else
+	{
+		# We need to know which servers shut down before others, and this is the reverse of the boot
+		# order. If a server boots after another, the other must stop before we shut the first down.
+		# The delay doesn't matter, as the boot_after server has to be off, and once off, waiting 
+		# makes no sense.
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+		{
+			my $server_uuid             = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $status                  = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
+			my $start_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
+			   $start_after_server_uuid = "" if $start_after_server_uuid eq "NULL";
+			my $start_after_server_name = $start_after_server_uuid ? $anvil->data->{servers}{server_uuid}{$start_after_server_uuid}{server_name} : "";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:server_name'             => $server_name,
+				's2:server_uuid'             => $server_uuid, 
+				's3:status'                  => $status, 
+				's4:start_after_server_name' => $start_after_server_name, 
+				's5:start_after_server_uuid' => $start_after_server_uuid, 
+			}});
+			
+			# If we boot after another server, make sure that the other server know to stop before us.
+			if ($start_after_server_name)
+			{
+				$anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"server_stop::${start_after_server_name}::wait_for::${server_name}" => $anvil->data->{server_stop}{$start_after_server_name}{wait_for}{$server_name},
+				}});
+			}
+			
+			# This makes it quicker to track the status of other servers.
+			$anvil->data->{server_stop}{$server_name}{is_off}        = $status ne "off" ? 0 : 1;
+			$anvil->data->{server_stop}{$server_name}{stop_called}   = 0;
+			$anvil->data->{server_stop}{$server_name}{server_uuid}   = $server_uuid;
+			$anvil->data->{server_stop}{$server_name}{server_status} = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
+			$anvil->data->{server_stop}{$server_name}{server_role}   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{role};
+			$anvil->data->{server_stop}{$server_name}{host_name}     = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"server_stop::${server_name}::is_off"        => $anvil->data->{server_stop}{$server_name}{is_off},
+				"server_stop::${server_name}::stop_called"   => $anvil->data->{server_stop}{$server_name}{stop_called},
+				"server_stop::${server_name}::server_uuid"   => $anvil->data->{server_stop}{$server_name}{server_uuid},
+				"server_stop::${server_name}::server_status" => $anvil->data->{server_stop}{$server_name}{server_status},
+				"server_stop::${server_name}::server_role"   => $anvil->data->{server_stop}{$server_name}{server_role},
+				"server_stop::${server_name}::host_name"     => $anvil->data->{server_stop}{$server_name}{host_name},
+			}});
+		}
 	}
 	
 	# Loop until all servers are off (or asked to power off).
@@ -489,28 +657,32 @@ sub shutdown_all_servers
 		$all_processed = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
 		
-		my $problem = $anvil->Cluster->parse_cib({debug => 2});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		if ($problem)
+		# If we're a node, make sure pacemaker is ready
+		if ($anvil->data->{sys}{host_type} eq "node")
 		{
-			$all_processed = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
-			
-			# Tell the user we can't shut down yet.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0004"});
-			sleep 5; 
-			next;
+			my $problem = $anvil->Cluster->parse_cib({debug => 2});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			if ($problem)
+			{
+				$all_processed = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
+				
+				# Tell the user we can't shut down yet.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0004"});
+				sleep 5; 
+				next;
+			}
 		}
-		my $server_count = keys %{$anvil->data->{cib}{parsed}{data}{server}};
+		my $server_count = keys %{$anvil->data->{server_stop}};
 		my $increment    = $server_count ? int(70 / $server_count) : 70;
 		my $percent      = 15;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			server_count => $server_count, 
 			increment    => $increment,
 		}});
-		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{server_stop}})
 		{
-			my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+			my $server_uuid = $anvil->data->{server_stop}{$server_name}{server_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				server_name => $server_name,
 				server_uuid => $server_uuid, 
@@ -523,14 +695,14 @@ sub shutdown_all_servers
 			{
 				foreach my $wait_for_server_name (sort {$a cmp $b} keys %{$anvil->data->{server_stop}{$server_name}{wait_for}})
 				{
-					my $wait_for_server_status = $anvil->data->{cib}{parsed}{data}{server}{$wait_for_server_name}{status};
-					my $wait_for_server_role   = $anvil->data->{cib}{parsed}{data}{server}{$wait_for_server_name}{role};
+					my $wait_for_server_status = $anvil->data->{server_stop}{$server_name}{server_status};
+					my $wait_for_server_role   = $anvil->data->{server_stop}{$server_name}{server_role};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"s1:wait_for_server_name"   => $wait_for_server_name,
 						"s2:wait_for_server_status" => $wait_for_server_status, 
 						"s3:wait_for_server_role"   => $wait_for_server_role, 
 					}});
-					if ($wait_for_server_status ne "off")
+					if (($wait_for_server_status ne "off") && ($wait_for_server_status ne "shut off"))
 					{
 						# We need to keep waiting.
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "warning_0005", variables => {
@@ -552,19 +724,16 @@ sub shutdown_all_servers
 			next if not $stop;
 			
 			# Still here? Ask the server to stop
-			my $status    = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
-			my $host_name = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
-			my $role      = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{role};
-			my $active    = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{active};
+			my $status    = $anvil->data->{server_stop}{$server_name}{server_status};
+			my $host_name = $anvil->data->{server_stop}{$server_name}{host_name};
+			my $role      = $anvil->data->{server_stop}{$server_name}{server_role};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's2:server_uuid' => $server_uuid, 
-				's2:status'      => $status,
-				's2:host_name'   => $host_name,
-				's4:role'        => $role,
-				's5:active'      => $active, 
+				's1:status'    => $status,
+				's2:host_name' => $host_name,
+				's3:role'      => $role,
 			}});
 			
-			if ($status eq "off")
+			if ($status =~ /off/i)
 			{
 				# It's off, have we recorded that?
 				if (not $anvil->data->{server_stop}{$server_name}{is_off})
@@ -598,4 +767,33 @@ sub shutdown_all_servers
 	}
 	
 	return(0);
+}
+
+sub reassign_job
+{
+	my ($anvil, $server_uuid, $host_uuid) = @_;
+
+	my $say_immediate =  $anvil->data->{switches}{immediate} ? "true" : "";
+	my $say_no_db     =  $anvil->data->{switches}{'no-db'}   ? "true" : "";
+	my $say_no_wait   =  $anvil->data->{switches}{'no-wait'} ? "true" : "";
+	my $say_wait      =  $anvil->data->{switches}{'wait'}    ? "true" : "";
+	my $job_data      =  "confirm=true\n";
+	   $job_data      .= "immediate=".$say_immediate."\n";
+	   $job_data      .= "no-db=".$say_no_db."\n"; 
+	   $job_data      .= "no-wait=".$say_no_wait."\n"; 
+	   $job_data      .= "server=".$anvil->data->{switches}{server_name}."\n";
+	   $job_data      .= "server-uuid=".$anvil->data->{switches}{server_uuid}."\n";
+	   $job_data      .= "wait=".$say_wait;
+	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+		debug           => 2,
+		job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,
+		job_data        => $job_data, 
+		job_host_uuid   => $host_uuid, 
+		job_progress    => 0, 
+		job_name        => "set_power::server::off", 
+		job_title       => "job_0515", 
+		job_description => "job_0516", 
+	});
+
+	return($job_uuid);
 }
