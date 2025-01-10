@@ -218,7 +218,7 @@ if (($anvil->data->{sys}{host_type} eq "node") && ($anvil->data->{sys}{database}
 # Is the server valid and running here?
 my $short_host_name = $anvil->Get->short_host_name;
 $anvil->Server->connect_to_libvirt({debug => 2});
-if ($anvil->data->{switches}{'server'} !~ /all/i)
+if ($anvil->data->{switches}{server} !~ /all/i)
 {
 	# Make sure the server name is real.
 	my $found   = 0;
@@ -297,7 +297,7 @@ if ($anvil->data->{switches}{'server'} !~ /all/i)
 				log_level => 1,
 				message   => "warning_0009",
 				variables => {
-					server => $anvil->data->{switches}{'server'}, 
+					server => $anvil->data->{switches}{server_name}, 
 				},
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -308,13 +308,13 @@ if ($anvil->data->{switches}{'server'} !~ /all/i)
 # If we don't have a job_uuid and the user didn't pass 'confirm', ask to proceed.
 if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{'confirm'}))
 {
-	if ($anvil->data->{switches}{'server'} =~ /all/i)
+	if ($anvil->data->{switches}{server} =~ /all/i)
 	{
 		print $anvil->Words->string({key => "message_0092"})." ";
 	}
 	else
 	{
-		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{'server'} }})." ";
+		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{server_name} }})." ";
 	}
 	my $answer = <STDIN>;
 	chomp($answer);
@@ -334,14 +334,14 @@ if ($anvil->data->{sys}{host_type} eq "node")
 }
 
 # If 'server' is 'all', shut down all servers.
-if (lc($anvil->data->{switches}{'server'}) eq "all")
+if (lc($anvil->data->{switches}{server}) eq "all")
 {
 	shutdown_all_servers($anvil);
 }
 else
 {
 	my $wait = $anvil->data->{switches}{'no-wait'} ? 0 : 1;
-	shutdown_server($anvil, $anvil->data->{switches}{'server'}, $wait, 50);
+	shutdown_server($anvil, $anvil->data->{switches}{server_name}, $wait, 50);
 }
 
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});

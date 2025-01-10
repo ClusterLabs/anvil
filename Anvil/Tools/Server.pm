@@ -2840,11 +2840,15 @@ sub shutdown_virsh
 	$anvil->Server->find({debug => $debug});
 	
 	# And?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"server::location::${server}::status" => $anvil->data->{server}{location}{$server}{status}, 
+	}});
 	if (exists $anvil->data->{server}{location}{$server})
 	{
 		my $shutdown = 1;
 		my $status   = $anvil->data->{server}{location}{$server}{status};
 		my $task     = "shutdown";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { status => $status }});
 		if ($force)
 		{
 			$task = "destroy";
