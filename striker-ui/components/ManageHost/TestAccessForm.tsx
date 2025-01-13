@@ -88,6 +88,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
                               ),
                             });
 
+                            setApiMessage();
                             setMoreActions([]);
                           })
                           .catch((error) => {
