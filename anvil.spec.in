@@ -11,9 +11,11 @@
 # 1 more backslash to make rpmbuild continue the line.
 %define coreservices  anvil-daemon.service \\\
 anvil-monitor-network.service \\\
-scancore.service \\\
-anvil-monitor-daemons.service \\\
-anvil-monitor-performance.service
+scancore.service 
+### This adds a lot of noise to anvil.log and likely only useful in rare debug
+#   conditions. So diabling by default
+#anvil-monitor-daemons.service \\\
+#anvil-monitor-performance.service
 
 %define suiapi        striker-ui-api
 
