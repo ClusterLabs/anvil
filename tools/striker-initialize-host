@@ -566,7 +566,7 @@ EOF
 				$anvil->data->{repos}{'codeready-builder-for-rhel-9-x86_64-rpms'} = 0;
 				$anvil->data->{repos}{'rhel-9-for-x86_64-highavailability-rpms'}  = 0;
 			}
-			elsif ($anvil->data->{data}{os_type} eq "rhel9")
+			elsif ($anvil->data->{data}{os_type} eq "rhel8")
 			{
 				$anvil->data->{repos}{'rhel-8-for-x86_64-baseos-rpms'}            = 0;
 				$anvil->data->{repos}{'rhel-8-for-x86_64-appstream-rpms'}         = 0;
