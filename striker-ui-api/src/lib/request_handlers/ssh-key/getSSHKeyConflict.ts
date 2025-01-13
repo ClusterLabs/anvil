@@ -7,7 +7,7 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
   const query = `
       SELECT
         a.target,
-        a.key
+        a.bad_key
       FROM (
         SELECT
           state_uuid,
@@ -16,7 +16,7 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
           ) AS target,
           SUBSTRING(
             state_note, 'key=(.*)'
-          ) AS key
+          ) AS bad_key
         FROM states
         WHERE state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%'
       ) AS a
@@ -24,10 +24,10 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
 
   const afterQueryReturn = buildQueryResultReducer<SshKeyConflictList>(
     (previous, row) => {
-      const [target, key] = row;
+      const [target, badKey] = row;
 
-      if (!previous[key]) {
-        previous[key] = {
+      if (!previous[badKey]) {
+        previous[badKey] = {
           target: {
             ip: '',
             name: '',
@@ -36,7 +36,7 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
         };
       }
 
-      const { target: group } = previous[key];
+      const { target: group } = previous[badKey];
 
       if (REP_IPV4.test(target)) {
         group.ip = target;

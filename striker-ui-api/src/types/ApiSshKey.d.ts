@@ -8,4 +8,6 @@ type SshKeyConflict = {
 
 type SshKeyConflictList = Record<string, SshKeyConflict>;
 
-type DeleteSshKeyConflictRequestBody = Record<string, string[]>;
+type DeleteSshKeyConflictRequestBody = {
+  badKeys: string[];
+};

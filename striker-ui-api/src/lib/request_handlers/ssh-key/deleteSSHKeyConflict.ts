@@ -2,38 +2,60 @@ import { RequestHandler } from 'express';
 
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { job } from '../../accessModule';
-import { toHostUUID } from '../../convertHostUUID';
-import { perr } from '../../shell';
+import { job, query } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
+import { Responder } from '../../Responder';
+import { deleteSshKeyConflictRequestBodySchema } from './schemas';
 
 export const deleteSSHKeyConflict: RequestHandler<
-  unknown,
+  undefined,
   undefined,
   DeleteSshKeyConflictRequestBody
 > = async (request, response) => {
   const { body } = request;
-  const hostUuids = Object.keys(body);
 
-  for (const uuid of hostUuids) {
-    const hostUuid = toHostUUID(uuid);
-    const stateUuids = body[uuid];
+  const respond = new Responder(response);
 
-    try {
-      await job({
-        file: __filename,
-        job_command: SERVER_PATHS.usr.sbin['anvil-manage-keys'].self,
-        job_data: stateUuids.join(','),
-        job_description: 'job_0057',
-        job_host_uuid: hostUuid,
-        job_name: 'manage::broken_keys',
-        job_title: 'job_0056',
-      });
-    } catch (subError) {
-      perr(`Failed to delete bad SSH keys; CAUSE: ${subError}`);
+  let sanitized: Required<DeleteSshKeyConflictRequestBody>;
 
-      return response.status(500).send();
+  try {
+    sanitized = await deleteSshKeyConflictRequestBodySchema.validate(body);
+  } catch (error) {
+    return respond.s400('3b7928e', `Invalid request body; CAUSE: ${error}`);
+  }
+
+  const { badKeys } = sanitized;
+
+  let hostUuids: string[];
+
+  try {
+    const rows = await query<[string][]>(`SELECT host_uuid FROM hosts;`);
+
+    hostUuids = rows.map(([uuid]) => uuid);
+  } catch (error) {
+    return respond.s500('79164ac', `Failed to get hosts; CAUSE: ${error}`);
+  }
+
+  for (const key of badKeys) {
+    for (const hostUuid of hostUuids) {
+      try {
+        await job({
+          file: __filename,
+          job_command: SERVER_PATHS.usr.sbin['anvil-manage-keys'].self,
+          job_data: buildJobDataFromObject({ bad_key: key }),
+          job_description: 'job_0057',
+          job_host_uuid: hostUuid,
+          job_name: 'manage::broken_keys',
+          job_title: 'job_0056',
+        });
+      } catch (error) {
+        return respond.s500(
+          '41cea5a',
+          `Failed to delete bad SSH key; CAUSE: ${error}`,
+        );
+      }
     }
   }
 
-  response.status(204).send();
+  return respond.s204();
 };
