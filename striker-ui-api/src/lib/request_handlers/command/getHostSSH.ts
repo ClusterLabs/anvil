@@ -7,7 +7,7 @@ import { Responder } from '../../Responder';
 import { getHostSshRequestBodySchema } from './schemas';
 
 export const getHostSSH: RequestHandler<
-  unknown,
+  undefined,
   GetHostSshResponseBody | ResponseErrorBody,
   GetHostSshRequestBody
 > = async (request, response) => {

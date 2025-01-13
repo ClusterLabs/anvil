@@ -9,7 +9,7 @@ import { deleteSshKeyConflictRequestBodySchema } from './schemas';
 
 export const deleteSSHKeyConflict: RequestHandler<
   undefined,
-  undefined,
+  DeleteSshKeyConflictResponseBody | ResponseErrorBody,
   DeleteSshKeyConflictRequestBody
 > = async (request, response) => {
   const { body } = request;
@@ -36,10 +36,14 @@ export const deleteSSHKeyConflict: RequestHandler<
     return respond.s500('79164ac', `Failed to get hosts; CAUSE: ${error}`);
   }
 
+  const responseBody: DeleteSshKeyConflictResponseBody = {
+    jobs: {},
+  };
+
   for (const key of badKeys) {
     for (const hostUuid of hostUuids) {
       try {
-        await job({
+        const jobUuid = await job({
           file: __filename,
           job_command: SERVER_PATHS.usr.sbin['anvil-manage-keys'].self,
           job_data: buildJobDataFromObject({ bad_key: key }),
@@ -48,6 +52,10 @@ export const deleteSSHKeyConflict: RequestHandler<
           job_name: 'manage::broken_keys',
           job_title: 'job_0056',
         });
+
+        responseBody.jobs[jobUuid] = {
+          uuid: jobUuid,
+        };
       } catch (error) {
         return respond.s500(
           '41cea5a',
@@ -57,5 +65,5 @@ export const deleteSSHKeyConflict: RequestHandler<
     }
   }
 
-  return respond.s204();
+  return respond.s200(responseBody);
 };
