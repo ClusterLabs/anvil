@@ -8,8 +8,8 @@ import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
+import { testAccessSchema } from './schemas';
 import Spinner from '../Spinner';
-import schema from './testAccessSchema';
 import { BodyText } from '../Text';
 
 const TestAccessForm: FC<TestAccessFormProps> = (props) => {
@@ -152,7 +152,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
             setLoadingInquiry(false);
           });
       },
-      validationSchema: schema,
+      validationSchema: testAccessSchema,
     });
 
   const ipChain = useMemo<string>(() => 'ip', []);

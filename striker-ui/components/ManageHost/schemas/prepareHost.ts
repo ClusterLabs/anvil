@@ -1,8 +1,8 @@
 import * as yup from 'yup';
 
-import { yupIpv4, yupLaxUuid } from '../../lib/yupCommons';
+import { yupIpv4, yupLaxUuid } from '../../../lib/yupCommons';
 
-const schema = yup.object().shape(
+const prepareHostSchema = yup.object().shape(
   {
     enterpriseKey: yupLaxUuid().optional(),
     ip: yupIpv4().required(),
@@ -30,4 +30,4 @@ const schema = yup.object().shape(
   [['redhatUsername', 'redhatPassword']],
 );
 
-export default schema;
+export default prepareHostSchema;
