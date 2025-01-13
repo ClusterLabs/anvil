@@ -892,6 +892,8 @@ sub get_runtime
 
 This looks at the servers on this host and finds their graphical type (VNC or spice), and the TCP port the connection is listening on. If there's a websockify proxy port (for server access via the Striker WebUI).
 
+On a striker dashboard, this returns C<< 0 >> without doing anything.
+
 Data is stored in the hash:
  server_ports::<server_name>::host               = The short host name
  server_ports::<server_name>::state              = The state of the server (as a string)(
@@ -919,6 +921,15 @@ sub get_server_ports
 		program_name => "websockify",
 	});
 
+	# If we're a striker, just return.
+	my $host_type = $anvil->Get->host_type();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_type => $host_type }});
+	if ($host_type eq "striker")
+	{
+		# No reason to run here.
+		return(0);
+	}
+	
 	my $short_host_name = $anvil->Get->short_host_name;
 	my $uri             = "qemu+ssh://".$short_host_name."/system";
 	my $connection      = "";
