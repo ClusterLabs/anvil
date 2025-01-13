@@ -1,81 +1,59 @@
-import { FC, useMemo, useRef, useState } from 'react';
-
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+import { Box } from '@mui/material';
+import { FC, useMemo, useState } from 'react';
 
 import api from '../../lib/api';
-import ConfirmDialog from '../ConfirmDialog';
-import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import handleAPIError from '../../lib/handleAPIError';
 import Link from '../Link';
 import List from '../List';
 import MessageBox, { Message } from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
-import { BodyText } from '../Text';
+import { BodyText, SmallText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
+import useFetch from '../../hooks/useFetch';
 
 const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
   mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
-  refreshInterval = 60000,
+  refreshInterval = 10000,
 }) => {
-  const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-
   const [apiMessage, setApiMessage] = useState<Message | undefined>();
-  const [changedSSHKeys, setChangedSSHKeys] = useState<ChangedSSHKeys>({});
-  const [confirmDialogProps, setConfirmDialogProps] =
-    useState<ConfirmDialogProps>({
-      actionProceedText: '',
-      content: '',
-      titleText: '',
-    });
 
-  const { checks, getCheck, hasAllChecks, hasChecks, setAllChecks, setCheck } =
-    useChecklist({ list: changedSSHKeys });
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+    setConfirmDialogProps,
+  } = useConfirmDialog();
 
   const apiMessageElement = useMemo(
     () => apiMessage && <MessageBox {...apiMessage} />,
     [apiMessage],
   );
-  const isAllowCheckAll = useMemo(
-    () => Object.keys(changedSSHKeys).length > 1,
-    [changedSSHKeys],
-  );
 
-  const { isLoading } = periodicFetch<APISSHKeyConflictOverviewList>(
-    `${API_BASE_URL}/ssh-key/conflict`,
-    {
+  const { data: changedKeys, loading } =
+    useFetch<APISSHKeyConflictOverviewList>(`/ssh-key/conflict`, {
       onError: (error) => {
         setApiMessage({
           children: `Failed to fetch SSH key conflicts. Error: ${error}`,
           type: 'error',
         });
       },
-      onSuccess: (data) => {
-        setChangedSSHKeys((previous) =>
-          Object.values(data).reduce<ChangedSSHKeys>((nyu, stateList) => {
-            Object.values(stateList).forEach(
-              ({ hostName, hostUUID, ipAddress, stateUUID }) => {
-                nyu[stateUUID] = {
-                  ...previous[stateUUID],
-                  hostName,
-                  hostUUID,
-                  ipAddress,
-                };
-              },
-            );
-
-            return nyu;
-          }, {}),
-        );
-      },
       refreshInterval,
-    },
+    });
+
+  const { checks, getCheck, hasAllChecks, hasChecks, setAllChecks, setCheck } =
+    useChecklist({ list: changedKeys });
+
+  const isAllowCheckAll = useMemo(
+    () => changedKeys && Object.keys(changedKeys).length > 1,
+    [changedKeys],
   );
 
   return (
     <>
-      <ExpandablePanel header="Manage changed SSH keys" loading={isLoading}>
+      <ExpandablePanel header="Manage changed SSH keys" loading={loading}>
         <FlexBox spacing=".2em">
           <BodyText>
             The identity of the following targets have unexpectedly changed.
@@ -94,38 +72,7 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
             before proceeding to remove the broken keys.
           </MessageBox>
           <List
-            header={
-              <FlexBox
-                row
-                spacing=".3em"
-                sx={{
-                  width: '100%',
-
-                  '& > :not(:last-child)': {
-                    display: { xs: 'none', sm: 'flex' },
-                  },
-
-                  '& > :last-child': {
-                    display: { xs: 'initial', sm: 'none' },
-                    marginLeft: 0,
-                  },
-                }}
-              >
-                <FlexBox
-                  row
-                  spacing=".3em"
-                  sx={{ flexBasis: 'calc(50% + 1em)' }}
-                >
-                  <BodyText>Host name</BodyText>
-                  <Divider sx={{ flexGrow: 1 }} />
-                </FlexBox>
-                <FlexBox row spacing=".3em" sx={{ flexGrow: 1 }}>
-                  <BodyText>IP address</BodyText>
-                  <Divider sx={{ flexGrow: 1 }} />
-                </FlexBox>
-                <Divider sx={{ flexGrow: 1 }} />
-              </FlexBox>
-            }
+            header
             allowCheckAll={isAllowCheckAll}
             allowCheckItem
             allowDelete
@@ -138,73 +85,69 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
             listEmpty={
               <BodyText align="center">No conflicting keys found.</BodyText>
             }
-            listItems={changedSSHKeys}
+            listItems={changedKeys}
             onAllCheckboxChange={(event, checked) => {
               setAllChecks(checked);
             }}
             onDelete={() => {
-              const deleteRequestBody = checks.reduce<{
-                [hostUUID: string]: string[];
-              }>((previous, stateUUID) => {
-                const checked = getCheck(stateUUID);
+              if (!changedKeys) return;
 
-                if (!checked) return previous;
-
-                const { hostUUID } = changedSSHKeys[stateUUID];
-
-                if (!previous[hostUUID]) {
-                  previous[hostUUID] = [];
-                }
-
-                previous[hostUUID].push(stateUUID);
-
-                return previous;
-              }, {});
+              const deleteRequestBody = {
+                badKeys: checks,
+              };
 
               setConfirmDialogProps({
                 actionProceedText: 'Delete',
-                content: `Resolve ${checks.length} SSH key conflicts. Please make sure the identity change(s) are expected to avoid MITM attacks.`,
+                content: `Resolves ${checks.length} SSH key conflicts. Please make sure the identity change(s) are expected to avoid MITM attacks.`,
                 onProceedAppend: () => {
+                  setConfirmDialogLoading(true);
+
                   api
-                    .delete('/ssh-key/conflict', { data: deleteRequestBody })
+                    .delete('/ssh-key/conflict', {
+                      data: deleteRequestBody,
+                    })
+                    .then(() => {
+                      finishConfirm('Success', {
+                        children: <>Started job to delete the selected keys.</>,
+                      });
+                    })
                     .catch((error) => {
                       const emsg = handleAPIError(error);
 
-                      emsg.children = `Failed to delete selected SSH key conflicts. ${emsg.children}`;
+                      emsg.children = (
+                        <>Failed to delete the selected keys. {emsg.children}</>
+                      );
 
-                      setApiMessage(emsg);
+                      finishConfirm('Error', emsg);
                     });
                 },
                 proceedColour: 'red',
                 titleText: `Delete ${checks.length} conflicting SSH keys?`,
               });
 
-              confirmDialogRef.current.setOpen?.call(null, true);
+              setConfirmDialogOpen(true);
             }}
             onItemCheckboxChange={(key, event, checked) => {
               setCheck(key, checked);
             }}
-            renderListItem={(hostUUID, { hostName, ipAddress }) => (
-              <FlexBox
-                spacing={0}
-                sm="row"
-                sx={{ width: '100%', '& > *': { flexBasis: '50%' } }}
-                xs="column"
-              >
-                <BodyText>{hostName}</BodyText>
-                <BodyText>{ipAddress}</BodyText>
-              </FlexBox>
-            )}
+            renderListItem={(badKey, value) => {
+              const { ip, name, short } = value.target;
+
+              return (
+                <Box width="calc(100% - 4em)">
+                  <BodyText noWrap>{short || name || ip}</BodyText>
+                  <SmallText monospaced noWrap>
+                    {badKey}
+                  </SmallText>
+                </Box>
+              );
+            }}
             renderListItemCheckboxState={(key) => getCheck(key)}
           />
         </FlexBox>
         {apiMessageElement}
       </ExpandablePanel>
-      <ConfirmDialog
-        closeOnProceed
-        {...confirmDialogProps}
-        ref={confirmDialogRef}
-      />
+      {confirmDialog}
     </>
   );
 };

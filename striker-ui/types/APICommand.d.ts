@@ -1,5 +1,7 @@
 type APICommandInquireHostResponseBody = {
-  badSshKeys?: Record<string, string[]>;
+  badSshKeys?: {
+    badKeys: string[];
+  };
   hostName: string;
   hostOS: string;
   hostUUID: string;

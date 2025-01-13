@@ -1,14 +1,9 @@
 type APISSHKeyConflictOverview = {
-  [stateUUID: string]: {
-    badFile: string;
-    badLine: number;
-    hostName: string;
-    hostUUID: string;
-    ipAddress: string;
-    stateUUID: string;
+  target: {
+    ip: string;
+    name: string;
+    short: string;
   };
 };
 
-type APISSHKeyConflictOverviewList = {
-  [hostUUID: 'local' | string]: APISSHKeyConflictOverview;
-};
+type APISSHKeyConflictOverviewList = Record<string, APISSHKeyConflictOverview>;
