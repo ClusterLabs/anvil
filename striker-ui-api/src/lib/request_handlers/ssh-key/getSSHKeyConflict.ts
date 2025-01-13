@@ -20,7 +20,7 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
         FROM states
         WHERE state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%'
       ) AS a
-      ORDER BY target;`;
+      ORDER BY target DESC;`;
 
   const afterQueryReturn = buildQueryResultReducer<SshKeyConflictList>(
     (previous, row) => {
@@ -40,6 +40,8 @@ export const getSSHKeyConflict = buildGetRequestHandler((request, hooks) => {
 
       if (REP_IPV4.test(target)) {
         group.ip = target;
+      } else if (/\..+n\d+/.test(target)) {
+        // Ignore dot network names
       } else if (target.includes('.')) {
         group.name = target;
       } else {
