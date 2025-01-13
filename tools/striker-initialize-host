@@ -576,9 +576,12 @@ EOF
 			
 			foreach my $repo (sort {$a cmp $b} keys %{$anvil->data->{repos}})
 			{
+				### NOTE: Not true, until we cache RPMs on Striker, we'll need to install HA 
+				###       on all hosts to get fence agents.
 				# Both target types need 'codeready-builder', but only nodes need 'highavailability-rpms'
 				# We blindly subscribe, then we'll check that they're actually subscribed.
-				if (($repo =~ /highavailability-rpms/) && ($anvil->data->{data}{type} ne "node"))
+				#if (($repo =~ /highavailability-rpms/) && ($anvil->data->{data}{type} ne "node"))
+				if (0)
 				{
 					$anvil->data->{repos}{$repo} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
