@@ -21,6 +21,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
   const [deleteJobs, setDeleteJobs] = useState<
     APIDeleteSSHKeyConflictResponseBody['jobs'] | undefined
   >();
+  const [deleteProgress, setDeleteProgress] = useState<number>(0);
   const [loadingInquiry, setLoadingInquiry] = useState<boolean>(false);
   const [moreActions, setMoreActions] = useState<ContainedButtonProps[]>([]);
 
@@ -172,6 +173,11 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
   const ipChain = useMemo<string>(() => 'ip', []);
   const passwordChain = useMemo<string>(() => 'password', []);
 
+  const deletingSshKeyConflicts = useMemo<boolean>(
+    () => Boolean(deleteJobs) && deleteProgress < 100,
+    [deleteJobs, deleteProgress],
+  );
+
   return (
     <Grid
       component="form"
@@ -217,7 +223,13 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
       </Grid>
       {deleteJobs && (
         <Grid item width="100%">
-          <DeleteSshKeyConflictProgress jobs={deleteJobs} />
+          <DeleteSshKeyConflictProgress
+            jobs={deleteJobs}
+            progress={{
+              total: deleteProgress,
+              setTotal: setDeleteProgress,
+            }}
+          />
         </Grid>
       )}
       <Grid item width="100%">
@@ -233,7 +245,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
               {
                 background: 'blue',
                 children: 'Test access',
-                disabled: disabledSubmit,
+                disabled: disabledSubmit || deletingSshKeyConflicts,
                 type: 'submit',
               },
             ]}

@@ -10,7 +10,7 @@ import useFetch from '../../hooks/useFetch';
 const DeleteSshKeyConflictProgress: React.FC<
   DeleteSshKeyConflictProgressProps
 > = (props) => {
-  const { jobs: ids } = props;
+  const { jobs: ids, progress: jobProgress } = props;
 
   const uuids = useMemo(() => Object.keys(ids), [ids]);
 
@@ -18,31 +18,27 @@ const DeleteSshKeyConflictProgress: React.FC<
     APIJobOverviewList,
     APIJobOverview[]
   >('/job?broken_keys', {
-    mod: (data) =>
-      uuids.reduce<APIJobOverview[]>((previous, uuid) => {
+    mod: (data) => {
+      let total = 0;
+
+      const result = uuids.reduce<APIJobOverview[]>((previous, uuid) => {
         const { [uuid]: job } = data;
 
         if (job) {
           previous.push(job);
+
+          total += job.progress;
         }
 
         return previous;
-      }, []),
+      }, []);
+
+      jobProgress.setTotal(total / result.length);
+
+      return result;
+    },
     refreshInterval: 2000,
   });
-
-  const totalProgress = useMemo(() => {
-    let total = 0;
-    if (!jobs) {
-      return total;
-    }
-
-    jobs.forEach((job) => {
-      total += job.progress;
-    });
-
-    return total / jobs.length;
-  }, [jobs]);
 
   if (loading) {
     return <Spinner mt={0} />;
@@ -58,7 +54,7 @@ const DeleteSshKeyConflictProgress: React.FC<
     <Grid alignItems="center" container spacing="0.5em">
       <Grid item width="100%">
         <BodyText>
-          {totalProgress === 100 ? 'Finished deletion.' : 'Deleting...'}
+          {jobProgress.total === 100 ? 'Finished deletion.' : 'Deleting...'}
         </BodyText>
       </Grid>
       {...jobs.map<React.ReactNode>((job) => {
