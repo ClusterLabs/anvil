@@ -46,3 +46,10 @@ type PreapreHostFormProps = {
 type HostListItemProps = {
   data: APIHostOverview;
 };
+
+/** DeleteSshKeyConflictProgress */
+
+type DeleteSshKeyConflictProgressProps = Pick<
+  APIDeleteSSHKeyConflictResponseBody,
+  'jobs'
+>;

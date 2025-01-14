@@ -7,3 +7,16 @@ type APISSHKeyConflictOverview = {
 };
 
 type APISSHKeyConflictOverviewList = Record<string, APISSHKeyConflictOverview>;
+
+type APIDeleteSSHKeyConflictRequestBody = {
+  badKeys: string[];
+};
+
+type APIDeleteSSHKeyConflictResponseBody = {
+  jobs: Record<
+    string,
+    {
+      uuid: string;
+    }
+  >;
+};
