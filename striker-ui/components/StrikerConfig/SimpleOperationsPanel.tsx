@@ -49,7 +49,13 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
     <Panel>
       <PanelHeader>{headerElement}</PanelHeader>
       <Grid columns={{ xs: 1, sm: 2 }} container spacing="1em">
-        <Grid item sm={2} xs={1}>
+        <Grid
+          // Hide the install target switch until it's ready.
+          display="none"
+          item
+          sm={2}
+          xs={1}
+        >
           <FlexBox row>
             <BodyText sx={{ flexGrow: 1 }}>Install target</BodyText>
             <Switch
