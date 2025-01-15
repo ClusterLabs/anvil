@@ -5,7 +5,7 @@ import {
 import { Box, BoxProps, Grid } from '@mui/material';
 import { GridColumns } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';
-import { FC, useMemo, useRef, useState } from 'react';
+import { FC, useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import Decorator, { Colours } from '../Decorator';
@@ -42,8 +42,6 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       networks: `${base}.networks`,
     };
   }, []);
-
-  const autoAddMn = useRef<boolean>(true);
 
   const [ifaceHeld, setIfaceHeld] = useState<string | undefined>();
 
@@ -85,7 +83,6 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
             chains,
             data,
             host,
-            autoAddMn,
             formikUtils,
           });
 

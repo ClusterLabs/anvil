@@ -1,9 +1,7 @@
 import { cloneDeep } from 'lodash';
-import { v4 as uuidv4 } from 'uuid';
 
 const guessHostNets = <F extends HostNetInitFormikExtension>({
   appliedIfaces,
-  autoAddMn,
   chains,
   data,
   formikUtils,
@@ -11,7 +9,6 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   subnodeCount = 2,
 }: {
   appliedIfaces: Record<string, boolean>;
-  autoAddMn: React.MutableRefObject<boolean>;
   chains: Record<'dns' | 'gateway' | 'networkInit' | 'networks', string>;
   data: APINetworkInterfaceOverviewList;
   formikUtils: FormikUtils<F>;
@@ -24,20 +21,6 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   const clone = cloneDeep(formik.values.networkInit);
 
   const ifaceValues = Object.values(data);
-
-  if (autoAddMn.current && host.type === 'subnode' && ifaceValues.length >= 8) {
-    const nyuId = uuidv4();
-
-    clone.networks[nyuId] = {
-      interfaces: ['', ''],
-      ip: '',
-      sequence: '1',
-      subnetMask: '',
-      type: 'mn',
-    };
-
-    autoAddMn.current = false;
-  }
 
   // Categorize unapplied interfaces based on their IP.
   const candidates = ifaceValues.reduce<
