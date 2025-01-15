@@ -5,16 +5,15 @@ import { FC, useEffect, useState } from 'react';
 import getQueryParam from '../../lib/getQueryParam';
 import Header from '../../components/Header';
 import ManageFencePanel from '../../components/ManageFence';
-import { ManageHost } from '../../components/ManageHost';
+import { ManageHostPanel } from '../../components/ManageHost';
 import { ManageHostNetwork } from '../../components/ManageHostNetwork';
 import ManageManifestPanel from '../../components/ManageManifest';
 import ManageUpsPanel from '../../components/ManageUps';
 import PageBody from '../../components/PageBody';
-import { Panel, PanelHeader } from '../../components/Panels';
+import { Panel } from '../../components/Panels';
 import Tab from '../../components/Tab';
 import TabContent from '../../components/TabContent';
 import Tabs from '../../components/Tabs';
-import { HeaderText } from '../../components/Text';
 
 const TAB_ID_PREPARE_HOST = 'prepare-host';
 const TAB_ID_PREPARE_NETWORK = 'prepare-network';
@@ -33,12 +32,7 @@ const PAGE_TITLE_LOADING = 'Loading';
 
 const PrepareHostTabContent: FC = () => (
   <PageBody>
-    <Panel>
-      <PanelHeader>
-        <HeaderText>Hosts</HeaderText>
-      </PanelHeader>
-      <ManageHost />
-    </Panel>
+    <ManageHostPanel />
   </PageBody>
 );
 

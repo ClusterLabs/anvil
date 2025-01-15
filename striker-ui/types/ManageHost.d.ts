@@ -58,3 +58,11 @@ type DeleteSshKeyConflictProgressProps = Pick<
     setTotal: React.Dispatch<React.SetStateAction<number>>;
   };
 };
+
+/** ManageHost */
+
+type ManageHostOptionalProps = {
+  onValidateHostsChange?: (value: boolean) => void;
+};
+
+type ManageHostProps = ManageHostOptionalProps;

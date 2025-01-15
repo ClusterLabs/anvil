@@ -1,4 +1,4 @@
-import HostListItem from './HostListItem';
 import ManageHost from './ManageHost';
+import ManageHostPanel from './ManageHostPanel';
 
-export { ManageHost, HostListItem };
+export { ManageHost, ManageHostPanel };
