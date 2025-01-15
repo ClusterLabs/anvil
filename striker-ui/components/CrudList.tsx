@@ -1,4 +1,4 @@
-import { FC, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import api from '../lib/api';
 import { DialogWithHeader } from './Dialog';
@@ -19,8 +19,10 @@ const CrudList = <
   Detail,
   OverviewList extends Record<string, Overview> = Record<string, Overview>,
 >(
-  ...[props]: Parameters<FC<CrudListProps<Overview, Detail, OverviewList>>>
-): ReturnType<FC<CrudListProps<Overview, Detail, OverviewList>>> => {
+  ...[props]: Parameters<
+    React.FC<CrudListProps<Overview, Detail, OverviewList>>
+  >
+): ReturnType<React.FC<CrudListProps<Overview, Detail, OverviewList>>> => {
   const {
     addHeader: rAddHeader,
     editHeader: rEditHeader,
@@ -35,6 +37,7 @@ const CrudList = <
     listEmpty,
     listProps,
     onItemClick = (base, ...args) => base(...args),
+    onValidateEntriesChange,
     refreshInterval = 5000,
     renderAddForm,
     renderDeleteItem,
@@ -62,12 +65,17 @@ const CrudList = <
     data: entries,
     mutate: refreshEntries,
     loading: loadingEntries,
+    validating: validatingEntries,
   } = useFetch<OverviewList>(entriesUrl, { refreshInterval });
 
   const { fetch: getEntry, loading: loadingEntry } = useActiveFetch<Detail>({
     onData: (data) => setEntry(data),
     url: entryUrlPrefix,
   });
+
+  useEffect(() => {
+    onValidateEntriesChange?.call(null, validatingEntries);
+  }, [onValidateEntriesChange, validatingEntries]);
 
   const addHeader = useMemo<React.ReactNode>(
     () => reduceHeader(rAddHeader),
