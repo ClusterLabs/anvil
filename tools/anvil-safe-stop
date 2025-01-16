@@ -85,8 +85,10 @@ else
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	# Load the job data.
+	$anvil->Job->get_job_details({debug => 2});
+	
+	# Clear the job, in case it was partially run before
 	$anvil->Job->clear();
-	$anvil->Job->get_job_details();
 	$anvil->Job->update_progress({
 		progress         => 1,
 		job_picked_up_by => $$, 
@@ -120,6 +122,27 @@ if ($anvil->data->{switches}{'job-uuid'})
 			}});
 		}
 	}
+	
+	# If the job is too old, abort.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"jobs::job_age" => $anvil->data->{jobs}{job_age}, 
+	}});
+	if (($anvil->data->{jobs}{job_age}) && ($anvil->data->{jobs}{job_age} > 120))
+	{
+		# Too old.
+		$anvil->Job->update_progress({
+			progress   => 100, 
+			job_status => "aborted", 
+			message    => "log_0343",
+			'print'    => 1, 
+			log_level  => 1, 
+			variables  => {
+				age => $anvil->data->{jobs}{job_age}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	die;
 }
 
 # Make sure we're a subnode or DR host

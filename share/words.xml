@@ -2261,7 +2261,7 @@ Will now try with: [#!variable!count!#] known password(s).</key>
 		<key name="log_0341">[ Warning ] - Not all hosts are online, but '--force' was used!
 [ Warning ] - You will need to manually update the passwords using this tool with '--local' later.</key>
 		<key name="log_0342">Updating the VNC user: [#!variable!vncuser!#] password.</key>
-		<key name="log_0343">#!free!#</key>
+		<key name="log_0343">The request to power off the server is: [#!variable!age!#] seconds old. This is too old, so the request will be ignored to prevent unwanted power loss.</key>
 		<key name="log_0344">The server: [#!variable!server!#] wasn't found on this machine.</key>
 		<key name="log_0345">#!free!#</key>
 		<key name="log_0346">#!free!#</key>
