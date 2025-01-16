@@ -133,7 +133,7 @@ if ($anvil->data->{switches}{'job-uuid'})
 		$anvil->Job->update_progress({
 			progress   => 100, 
 			job_status => "aborted", 
-			message    => "log_0343",
+			message    => "job_0473",
 			'print'    => 1, 
 			log_level  => 1, 
 			variables  => {
@@ -142,7 +142,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 		});
 		$anvil->nice_exit({exit_code => 0});
 	}
-	die;
 }
 
 # Make sure we're a subnode or DR host
