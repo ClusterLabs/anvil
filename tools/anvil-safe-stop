@@ -190,19 +190,15 @@ if ($anvil->data->{switches}{'power-off'})
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { variable_uuid => $variable_uuid }});
 	}
 	
-	# Stop scancore and anvil-daemon.
+	# Stop scancore .
 	$anvil->Job->update_progress({
 		progress  => 90, 
 		log_level => 1, 
 		'print'   => 1, 
 		message   => "log_0257",
 	});
-	my $anvil_daemon_return_code = $anvil->System->stop_daemon({daemon => "anvil-daemon.service"});
-	my $scancore_return_code     = $anvil->System->stop_daemon({daemon => "scancore.service"});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		anvil_daemon_return_code => $anvil_daemon_return_code,
-		scancore_return_code     => $scancore_return_code, 
-	}});
+	my $scancore_return_code = $anvil->System->stop_daemon({daemon => "scancore.service"});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scancore_return_code => $scancore_return_code }});
 	
 	# Sync the file systems
 	$anvil->Job->update_progress({

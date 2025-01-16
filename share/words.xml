@@ -2157,7 +2157,7 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0254">[ Warning ] - The Storage->make_directory() method failed to create the directory: [#!variable!directory!#].</key>
 		<key name="log_0255">[ Note ] - Created the directory: [#!variable!directory!#].</key>
 		<key name="log_0256">### POWER OFF REQUESTED ### - [#!variable!reason!#]</key>
-		<key name="log_0257">Stopping Anvil! daemons.</key>
+		<key name="log_0257">Stopping Scancore.</key>
 		<key name="log_0258">Syncing the file systems.</key>
 		<key name="log_0259">[ Note ] - Updating passwords on this host only.</key>
 		<key name="log_0260">No Anvil! nodes found, updates not required.</key>
