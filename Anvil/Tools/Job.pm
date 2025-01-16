@@ -225,6 +225,10 @@ When successful, the job details will be stored in;
 * C<< jobs::job_title >>
 * C<< jobs::job_description >>
 * C<< jobs::job_status >>
+* C<< jobs::modified_date >>  (unix time)
+* C<< jobs::job_age >>        (seconds)
+
+B<< Note >>; This is how long ago the job was requested (or last updated) in seconds.
 
 Parameters;
 
@@ -323,7 +327,8 @@ SELECT
     job_progress, 
     job_title, 
     job_description, 
-    job_status 
+    job_status, 
+    round(extract(epoch from modified_date)) AS unix_modified_date 
 FROM 
     jobs 
 WHERE 
@@ -356,6 +361,7 @@ WHERE
 	$anvil->data->{jobs}{job_title}        = defined $results->[0]->[8]  ? $results->[0]->[8]  : "";
 	$anvil->data->{jobs}{job_description}  = defined $results->[0]->[9]  ? $results->[0]->[9]  : "";
 	$anvil->data->{jobs}{job_status}       = defined $results->[0]->[10] ? $results->[0]->[10] : "";
+	$anvil->data->{jobs}{modified_date}    =         $results->[0]->[11];
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		"jobs::job_uuid"         => $anvil->data->{jobs}{job_uuid}, 
 		"jobs::job_host_uuid"    => $anvil->data->{jobs}{job_host_uuid},
@@ -369,7 +375,19 @@ WHERE
 		"jobs::job_title"        => $anvil->data->{jobs}{job_title}, 
 		"jobs::job_description"  => $anvil->data->{jobs}{job_description}, 
 		"jobs::job_status"       => $anvil->data->{jobs}{job_status}, 
+		"jobs::modified_date"    => $anvil->data->{jobs}{modified_date}, 
 	}});
+	
+	$anvil->data->{jobs}{job_age} = 0;
+	if ($anvil->data->{jobs}{modified_date})
+	{
+		my $current_time                 = time;
+		   $anvil->data->{jobs}{job_age} = $current_time - $anvil->data->{jobs}{modified_date};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			current_time    => $current_time, 
+			"jobs::job_age" => $anvil->data->{jobs}{job_age}, 
+		}});
+	}
 	
 	# See if the job was picked up by another running instance.
 	my $job_picked_up_by = $anvil->data->{jobs}{job_picked_up_by};

@@ -1787,13 +1787,13 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0470">This is a DR host, no migration possible.</key>
 		<key name="job_0471">Exiting.</key>
 		<key name="job_0472">#!free!#</key>
-		<key name="job_0473">#!free!#</key>
+		<key name="job_0473">The request to power off this host is: [#!variable!age!#] seconds old. This is too old, so the request will be ignored to prevent unwanted power loss.</key>
 		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
 		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#], job_running: [#!variable!job_running!#].</key>
 		<key name="job_0476">Waiting for a bit, then will check again.</key>
 		<key name="job_0477">Waiting for both subnodes to be configured and out of maintenance mode.</key>
 		<key name="job_0478">Preparing the new definition file</key>
-		<key name="job_0479">#!free!#</key>
+		<key name="job_0479">The request to power off the server: [#!variable!server!#] is: [#!variable!age!#] seconds old. This is too old, so the request will be ignored to prevent unwanted power loss.</key>
 		<key name="job_0480">Running as a job, not prompting the user to confirm.</key>
 		<key name="job_0481">The fence device: [#!variable!device!#] already exists.</key>
 		<key name="job_0482">Waiting for the peer's hostname to be: [#!variable!peer_name!#] in the database.</key>
@@ -2157,7 +2157,7 @@ The md5sum of: [#!variable!file!#] has changed since the daemon started.
 		<key name="log_0254">[ Warning ] - The Storage->make_directory() method failed to create the directory: [#!variable!directory!#].</key>
 		<key name="log_0255">[ Note ] - Created the directory: [#!variable!directory!#].</key>
 		<key name="log_0256">### POWER OFF REQUESTED ### - [#!variable!reason!#]</key>
-		<key name="log_0257">Stopping Anvil! daemons.</key>
+		<key name="log_0257">Stopping Scancore.</key>
 		<key name="log_0258">Syncing the file systems.</key>
 		<key name="log_0259">[ Note ] - Updating passwords on this host only.</key>
 		<key name="log_0260">No Anvil! nodes found, updates not required.</key>

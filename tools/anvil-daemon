@@ -2191,7 +2191,9 @@ sub run_jobs
 			# once at a time. If two jobs of the same command exist, only one will be called.
 			if ($job_progress != 100)
 			{
-				if (exists $anvil->data->{sys}{started}{$short_command})
+				# The one exception is 'striker-initialize-host' as it's normal to run 
+				# multiple in parallel.
+				if ((exists $anvil->data->{sys}{started}{$short_command}) && ($short_command !~ /striker-initialize-host/))
 				{
 					# Skip it.
 					my $started_job = $anvil->data->{sys}{started}{$short_command};
