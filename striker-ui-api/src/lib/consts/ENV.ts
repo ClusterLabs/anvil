@@ -23,6 +23,15 @@ export const COOKIE_ORIGINAL_MAX_AGE: number =
 export const DEBUG_ACCESS = Number(process.env.DEBUG_ACCESS) || 0;
 
 /**
+ * The debug level of the main process.
+ *
+ * Only supports 0 (off) or 1 (on).
+ *
+ * @default 0
+ */
+export const DEBUG_MAIN = Number(process.env.DEBUG_MAIN) || 0;
+
+/**
  * The fallback job progress value when queuing jobs.
  *
  * Ignore jobs by setting this to `100`.

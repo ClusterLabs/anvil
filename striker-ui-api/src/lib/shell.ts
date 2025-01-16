@@ -1,6 +1,6 @@
 import { spawnSync } from 'child_process';
 
-import SERVER_PATHS from './consts/SERVER_PATHS';
+import { DEBUG_MAIN, SERVER_PATHS } from './consts';
 
 const print = (
   message: string,
@@ -64,9 +64,13 @@ export const perr = (message: string, error?: unknown) => {
   print(msg, { stream: 'stderr' });
 };
 
-export const pout = (message: string) => print(message);
+export const pout = DEBUG_MAIN
+  ? (message: string) => print(message)
+  : () => null;
 
-export const poutvar = (variable: unknown, label = 'Variables: ') =>
-  print(`${label}${JSON.stringify(variable, null, 2)}`);
+export const poutvar = DEBUG_MAIN
+  ? (variable: unknown, label = 'Variables: ') =>
+      print(`${label}${JSON.stringify(variable, null, 2)}`)
+  : () => null;
 
 export const uuid = () => uuidgen('--random').trim();
