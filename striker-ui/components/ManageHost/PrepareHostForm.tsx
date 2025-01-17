@@ -8,7 +8,7 @@ import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import RadioGroupWithLabel from '../RadioGroupWithLabel';
-import schema from './schema';
+import { prepareHostSchema } from './schemas';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
@@ -87,7 +87,7 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
 
         tools.confirm.open();
       },
-      validationSchema: schema,
+      validationSchema: prepareHostSchema,
     });
 
   const enterpriseKeyChain = useMemo<string>(() => 'enterpriseKey', []);

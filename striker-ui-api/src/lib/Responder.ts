@@ -33,6 +33,10 @@ export class Responder<
     return this.respond(201, body);
   }
 
+  public s204() {
+    return this.respond(204);
+  }
+
   public s400(...params: ResponseErrorParams) {
     return this.respondError(400, ...params);
   }

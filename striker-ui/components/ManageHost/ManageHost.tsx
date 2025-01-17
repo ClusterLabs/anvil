@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { useState } from 'react';
 
 import CrudList from '../CrudList';
 import { DialogScrollBox } from '../Dialog';
@@ -9,7 +9,9 @@ import PrepareHostForm from './PrepareHostForm';
 import TestAccessForm from './TestAccessForm';
 import { BodyText } from '../Text';
 
-const ManageHost: FC = () => {
+const ManageHost: React.FC<ManageHostProps> = (props) => {
+  const { onValidateHostsChange } = props;
+
   const [inquireHostResponse, setInquireHostResponse] = useState<
     InquireHostResponse | undefined
   >();
@@ -45,6 +47,7 @@ const ManageHost: FC = () => {
         // display the details of a host.
         allowItemButton: true,
       }}
+      onValidateEntriesChange={onValidateHostsChange}
       renderAddForm={(tools) => (
         <>
           <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />

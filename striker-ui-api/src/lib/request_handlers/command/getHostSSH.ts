@@ -1,100 +1,114 @@
-import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import {
-  HOST_KEY_CHANGED_PREFIX,
-  REP_IPV4,
-  REP_PEACEFUL_STRING,
-} from '../../consts';
+import { HOST_KEY_CHANGED_PREFIX } from '../../consts';
 
 import { getPeerData, query } from '../../accessModule';
-import { ResponseError } from '../../ResponseError';
-import { sanitize } from '../../sanitize';
-import { perr } from '../../shell';
+import { Responder } from '../../Responder';
+import { getHostSshRequestBodySchema } from './schemas';
 
 export const getHostSSH: RequestHandler<
-  unknown,
+  undefined,
   GetHostSshResponseBody | ResponseErrorBody,
   GetHostSshRequestBody
 > = async (request, response) => {
-  const {
-    body: { password: rPassword, port: rPort = 22, ipAddress: rTarget } = {},
-  } = request;
+  const { body } = request;
 
-  const password = sanitize(rPassword, 'string');
-  const port = sanitize(rPort, 'number');
-  const target = sanitize(rTarget, 'string', { modifierType: 'sql' });
+  const respond = new Responder(response);
+
+  let sanitized: Required<GetHostSshRequestBody>;
 
   try {
-    assert(
-      REP_PEACEFUL_STRING.test(password),
-      `Password must be a peaceful string; got [${password}]`,
-    );
-
-    assert(
-      Number.isInteger(port),
-      `Port must be a valid integer; got [${port}]`,
-    );
-
-    assert(
-      REP_IPV4.test(target),
-      `IP address must be a valid IPv4 address; got [${target}]`,
-    );
-  } catch (assertError) {
-    perr(`Assert failed when getting host SSH data; CAUSE: ${assertError}`);
-
-    return response.status(400).send();
+    sanitized = await getHostSshRequestBodySchema.validate(body);
+  } catch (error) {
+    return respond.s400('39bff39', `Invalid request body; CAUSE: ${error}`);
   }
 
-  let rsbody: GetHostSshResponseBody;
+  const { password, port, ipAddress: target } = sanitized;
+
+  let responseBody: GetHostSshResponseBody;
 
   try {
-    rsbody = await getPeerData(target, { password, port });
+    responseBody = await getPeerData(target, {
+      password,
+      port,
+    });
   } catch (error) {
-    const rserror = new ResponseError(
-      'fe14fb1',
-      `Failed to get peer data; CAUSE: ${error}`,
-    );
-
-    perr(rserror.toString());
-
-    return response.status(500).send(rserror.body);
+    return respond.s500('fe14fb1', `Failed to get peer data; CAUSE: ${error}`);
   }
 
-  let states: [string, string][];
+  let badKeys: string[];
 
   try {
-    states = await query<[stateUuid: string, hostUuid: string][]>(`
-      SELECT a.state_uuid, a.state_host_uuid
-      FROM states AS a
-      WHERE a.state_name = '${HOST_KEY_CHANGED_PREFIX}${target}';`);
+    // Try matching the target with an IP to get the host UUID.
+    const sqlGetUuidFromIp = `
+      SELECT ip_address_host_uuid
+      FROM ip_addresses
+      WHERE ip_address_address = '${target}'
+      LIMIT 1`;
+
+    // Try matching the target with a host name to get the host UUID.
+    const sqlGetUuidFromShort = `
+      SELECT host_uuid
+      FROM hosts
+      WHERE host_name LIKE CONCAT(
+        SUBSTRING('${target}', '^[^.]*'),
+        '%'
+      )
+      LIMIT 1`;
+
+    // Since the target can only be **either** a name or IP, 1/2 query will
+    // return NULL. When there's a match, prioritize the one that isn't NULL.
+    const sqlGetUuid = `
+      SELECT
+        COALESCE(a1.host_uuid, a2.ip_address_host_uuid) AS host_uuid
+      FROM (${sqlGetUuidFromShort}) AS a1
+      FULL JOIN (${sqlGetUuidFromIp}) AS a2
+        ON TRUE`;
+
+    // Filter and format the state values before doing the final match.
+    const sqlGetStates = `
+      SELECT
+        state_uuid,
+        SUBSTRING(state_name, '${HOST_KEY_CHANGED_PREFIX}(.*)') AS target,
+        SUBSTRING(state_note, 'key=(.*)') AS key
+      FROM states
+      WHERE state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%'`;
+
+    // Get all IPs and the host name, then match them to the state records to
+    // find all keys related to the target.
+    const sqlGetKeys = `
+      SELECT DISTINCT(d.key)
+      FROM (${sqlGetUuid}) AS a
+      LEFT JOIN ip_addresses AS b
+        ON a.host_uuid = b.ip_address_host_uuid
+      LEFT JOIN hosts AS c
+        ON a.host_uuid = c.host_uuid
+      JOIN (${sqlGetStates}) AS d
+        ON d.target LIKE ANY (
+          ARRAY [
+            b.ip_address_address,
+            CONCAT(
+              SUBSTRING(c.host_name, '^[^.]*'),
+              '%'
+            )
+          ]
+        )`;
+
+    const rows = await query<[string][]>(`${sqlGetKeys};`);
+
+    badKeys = rows.map(([badKey]) => badKey);
   } catch (error) {
-    const rserror = new ResponseError(
+    return respond.s500(
       'd5a2acf',
       `Failed to list SSH key conflicts; CAUSE: ${error}`,
     );
-
-    perr(rserror.toString());
-
-    return response.status(500).send(rserror.body);
   }
 
-  if (states.length > 0) {
-    rsbody.badSshKeys = states.reduce<DeleteSshKeyConflictRequestBody>(
-      (previous, state) => {
-        const [stateUuid, hostUuid] = state;
-
-        const { [hostUuid]: list = [] } = previous;
-
-        list.push(stateUuid);
-
-        previous[hostUuid] = list;
-
-        return previous;
-      },
-      {},
-    );
+  if (badKeys.length > 0) {
+    responseBody.badSshKeys = {
+      badKeys: badKeys,
+    };
   }
 
-  response.status(200).send(rsbody);
+  return respond.s200(responseBody);
 };

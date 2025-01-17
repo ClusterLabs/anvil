@@ -625,7 +625,7 @@ sub call
 						}
 						last;
 					}
-					my $state_note = $bad_key ? "key=".$bad_key : "file=".$bad_file.",line=".$bad_line;
+					my $state_note = "key=".$bad_key;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { state_note => $state_note }});
 					
 					# If I am a striker, make sure I write to my own database. Otherwise,

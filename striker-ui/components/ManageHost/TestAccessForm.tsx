@@ -3,13 +3,14 @@ import { Grid } from '@mui/material';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
+import DeleteSshKeyConflictProgress from './DeleteSshKeyConflictProgress';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
+import { testAccessSchema } from './schemas';
 import Spinner from '../Spinner';
-import schema from './testAccessSchema';
 import { BodyText } from '../Text';
 
 const TestAccessForm: FC<TestAccessFormProps> = (props) => {
@@ -17,6 +18,10 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
 
+  const [deleteJobs, setDeleteJobs] = useState<
+    APIDeleteSSHKeyConflictResponseBody['jobs'] | undefined
+  >();
+  const [deleteProgress, setDeleteProgress] = useState<number>(0);
   const [loadingInquiry, setLoadingInquiry] = useState<boolean>(false);
   const [moreActions, setMoreActions] = useState<ContainedButtonProps[]>([]);
 
@@ -37,6 +42,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
         setLoadingInquiry(true);
         setMoreActions([]);
         setResponse(undefined);
+        setDeleteJobs(undefined);
 
         const { ip, password } = values;
 
@@ -78,17 +84,27 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
                         tools.confirm.loading(true);
 
                         api
-                          .delete('/ssh-key/conflict', {
-                            data: badSshKeys,
-                          })
-                          .then(() => {
+                          .delete<APIDeleteSSHKeyConflictResponseBody>(
+                            '/ssh-key/conflict',
+                            {
+                              data: badSshKeys,
+                            },
+                          )
+                          .then((response) => {
                             tools.confirm.finish('Success', {
                               children: (
                                 <>Started job to delete host key(s) for {ip}.</>
                               ),
                             });
 
+                            setApiMessage();
                             setMoreActions([]);
+
+                            const { data: body } = response;
+
+                            if (!body) return;
+
+                            setDeleteJobs(body.jobs);
                           })
                           .catch((error) => {
                             const emsg = handleAPIError(error);
@@ -151,11 +167,16 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
             setLoadingInquiry(false);
           });
       },
-      validationSchema: schema,
+      validationSchema: testAccessSchema,
     });
 
   const ipChain = useMemo<string>(() => 'ip', []);
   const passwordChain = useMemo<string>(() => 'password', []);
+
+  const deletingSshKeyConflicts = useMemo<boolean>(
+    () => Boolean(deleteJobs) && deleteProgress < 100,
+    [deleteJobs, deleteProgress],
+  );
 
   return (
     <Grid
@@ -200,6 +221,17 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
           }
         />
       </Grid>
+      {deleteJobs && (
+        <Grid item width="100%">
+          <DeleteSshKeyConflictProgress
+            jobs={deleteJobs}
+            progress={{
+              total: deleteProgress,
+              setTotal: setDeleteProgress,
+            }}
+          />
+        </Grid>
+      )}
       <Grid item width="100%">
         <MessageGroup count={1} messages={formikErrors} ref={messageGroupRef} />
       </Grid>
@@ -213,7 +245,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
               {
                 background: 'blue',
                 children: 'Test access',
-                disabled: disabledSubmit,
+                disabled: disabledSubmit || deletingSshKeyConflicts,
                 type: 'submit',
               },
             ]}

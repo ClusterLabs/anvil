@@ -39,6 +39,7 @@ type CrudListOptionalProps<Overview> = {
     base: CrudListItemClickHandler,
     ...args: Parameters<CrudListItemClickHandler>
   ) => ReturnType<CrudListItemClickHandler>;
+  onValidateEntriesChange?: (value: boolean) => void;
   refreshInterval?: number;
 };
 

@@ -1,12 +1,22 @@
 type SshKeyConflict = {
-  [stateUUID: string]: {
-    badFile: string;
-    badLine: number;
-    hostName: string;
-    hostUUID: string;
-    ipAddress: string;
-    stateUUID: string;
+  target: {
+    ip: string;
+    name: string;
+    short: string;
   };
 };
 
-type DeleteSshKeyConflictRequestBody = Record<string, string[]>;
+type SshKeyConflictList = Record<string, SshKeyConflict>;
+
+type DeleteSshKeyConflictRequestBody = {
+  badKeys: string[];
+};
+
+type DeleteSshKeyConflictResponseBody = {
+  jobs: Record<
+    string,
+    {
+      uuid: string;
+    }
+  >;
+};

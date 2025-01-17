@@ -46,3 +46,23 @@ type PreapreHostFormProps = {
 type HostListItemProps = {
   data: APIHostOverview;
 };
+
+/** DeleteSshKeyConflictProgress */
+
+type DeleteSshKeyConflictProgressProps = Pick<
+  APIDeleteSSHKeyConflictResponseBody,
+  'jobs'
+> & {
+  progress: {
+    total: number;
+    setTotal: React.Dispatch<React.SetStateAction<number>>;
+  };
+};
+
+/** ManageHost */
+
+type ManageHostOptionalProps = {
+  onValidateHostsChange?: (value: boolean) => void;
+};
+
+type ManageHostProps = ManageHostOptionalProps;

@@ -1,10 +1,4 @@
-type ChangedSSHKeys = {
-  [stateUUID: string]: {
-    hostName: string;
-    hostUUID: string;
-    ipAddress: string;
-  };
-};
+type ChangedSSHKeys = APISSHKeyConflictOverviewList;
 
 type ManageChangedSSHKeysFormOptionalProps = {
   mitmExternalHref?: LinkProps['href'];
