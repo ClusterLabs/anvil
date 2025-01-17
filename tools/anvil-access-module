@@ -163,7 +163,6 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches;
 
 my $data_hash       = $anvil->data->{switches}{'data'};
-my $switch_debug    = $anvil->data->{switches}{'debug'} // 3;
 my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
 my $db_uuid         = $anvil->data->{switches}{'uuid'};
 #
@@ -287,7 +286,7 @@ else
 
 		my $script_line_id = $1;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
 			script_line_id => $script_line_id,
 			script_line    => $script_line,
 		} });
@@ -302,7 +301,7 @@ else
 		}
 		elsif ($script_line =~ /^$scmd_execute\s+/)
 		{
-			process_scmd_execute({ debug => $switch_debug, input => $script_line, lid => $script_line_id });
+			process_scmd_execute({ input => $script_line, lid => $script_line_id });
 		}
 	}
 
@@ -326,21 +325,20 @@ sub access_chain
 	my $parameters = shift;
 	my $chain_args = $parameters->{chain_args} // [];
 	my $chain_str  = $parameters->{chain};
-	my $debug      = $parameters->{debug} // 3;
 
 	my @chain        = split(/->|[.]/, $chain_str);
 	my $key_index    = 0;
 	my $intermediate = $anvil;
 	my @results      = (1);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { chain => prettify(\@chain) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => { chain => prettify(\@chain) } });
 
 	foreach my $key (@chain)
 	{
 		my $is_intermediate_hash = is_hash($intermediate);
 		my $is_last_key          = $key_index == $#chain;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
 			is_intermediate_hash => $is_intermediate_hash,
 			is_last_key          => $is_last_key,
 			key                  => $key,
@@ -387,7 +385,7 @@ sub access_chain
 
 					if ($arg =~ s/^anvil(->|\.)//)
 					{
-						my ($replacement) = access_chain({ chain => $arg, debug => $debug });
+						my ($replacement) = access_chain({ chain => $arg });
 
 						$chain_args->[$arg_i] = $replacement;
 					}
@@ -630,13 +628,12 @@ sub process_scmd_db
 sub process_scmd_execute
 {
 	my $parameters = shift;
-	my $debug      = $parameters->{debug} // 3;
 	my $input      = $parameters->{input};
 	my $lid        = $parameters->{lid} // "";
 
 	my @sargs = parse_line('\s+', 0, $input);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { sargs => prettify(\@sargs) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => { sargs => prettify(\@sargs) } });
 
 	return if $#sargs < 1;
 
@@ -651,12 +648,12 @@ sub process_scmd_execute
 		$chain_args[$i] = $param if $is_decode_success;
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
 		chain_args => prettify(\@chain_args),
 		chain_str  => $chain_str,
 	} });
 
-	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args, debug => $debug });
+	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args });
 
 	pstdout($lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
 }
