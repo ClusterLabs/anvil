@@ -257,6 +257,8 @@ else
 
 		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
 
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
+
 		if ($script_file =~ /^-$/)
 		{
 			open($script_file_handle, $script_file);
@@ -272,23 +274,25 @@ else
 		$anvil->nice_exit({ exit_code => 1 });
 	};
 
+	my $scmd_db_read  = "r";
+	my $scmd_db_write = "w";
+	my $scmd_execute  = "x";
+
 	while (my $script_line = <$script_file_handle>)
 	{
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
+
 		last if ($script_line =~ /^(?:q|quit)\s+$/);
 
 		$script_line =~ s/\s+$//;
-
-		my $scmd_db_read  = "r";
-		my $scmd_db_write = "w";
-		my $scmd_execute  = "x";
 
 		$script_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
 
 		my $script_line_id = $1;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
-			script_line_id => $script_line_id,
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			script_line    => $script_line,
+			script_line_id => $script_line_id,
 		} });
 
 		if ($script_line =~ /^$scmd_db_read\s+/)
@@ -331,14 +335,14 @@ sub access_chain
 	my $intermediate = $anvil;
 	my @results      = (1);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => { chain => prettify(\@chain) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { chain => prettify(\@chain) } });
 
 	foreach my $key (@chain)
 	{
 		my $is_intermediate_hash = is_hash($intermediate);
 		my $is_last_key          = $key_index == $#chain;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			is_intermediate_hash => $is_intermediate_hash,
 			is_last_key          => $is_last_key,
 			key                  => $key,
@@ -457,8 +461,14 @@ sub db_access
 {
 	my $parameters = shift;
 	my $mode       = $parameters->{db_access_mode} // "";
-	my $uuid       = $parameters->{db_uuid};
 	my $sql        = $parameters->{sql_query};
+	my $uuid       = $parameters->{db_uuid};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		mode => $mode,
+		sql  => $sql,
+		uuid => $uuid,
+	}, prefix => "db_access" });
 
 	my $access_parameters = { query => $sql, uuid => $uuid, source => $THIS_FILE, line => __LINE__ };
 
@@ -563,6 +573,13 @@ sub get_scmd_args
 	my $cmd        = $parameters->{cmd};
 	my $arg_names  = $parameters->{names} // [];
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		cmd        => $cmd,
+		get_values => $get_values,
+		input      => $input,
+		arg_names  => $arg_names,
+	}, prefix => "get_scmd_args" });
+
 	my $i       = 0;
 	my $args    = {};
 	my @matches = $get_values->($input, $cmd);
@@ -609,6 +626,13 @@ sub process_scmd_db
 	my $lid        = $parameters->{lid} // "";
 	my $mode       = $parameters->{mode};
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		cmd   => $cmd,
+		input => $input,
+		lid   => $lid,
+		mode  => $mode,
+	}, prefix => "process_scmd_db" });
+
 	my $sargs = get_scmd_args({
 		cmd        => $cmd,
 		input      => $input,
@@ -616,8 +640,12 @@ sub process_scmd_db
 		names      => ["uuid", "script"],
 	});
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { sargs => prettify($sargs) } });
+
 	eval {
 		my $results = db_access({ db_uuid => $sargs->{uuid}, sql_query => $sargs->{script}, db_access_mode => $mode });
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { results => prettify($results) } });
 
 		pstdout($lid.JSON->new->utf8->encode($results));
 	} or do {
@@ -631,9 +659,14 @@ sub process_scmd_execute
 	my $input      = $parameters->{input};
 	my $lid        = $parameters->{lid} // "";
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		input => $input,
+		lid   => $lid,
+	}, prefix => "process_scmd_execute" });
+
 	my @sargs = parse_line('\s+', 0, $input);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => { sargs => prettify(\@sargs) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { sargs => prettify(\@sargs) } });
 
 	return if $#sargs < 1;
 
@@ -648,7 +681,7 @@ sub process_scmd_execute
 		$chain_args[$i] = $param if $is_decode_success;
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		chain_args => prettify(\@chain_args),
 		chain_str  => $chain_str,
 	} });
