@@ -404,10 +404,14 @@ sub nice_exit
 	my $anvil     = $self;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
+	my $db_disconnect = defined $parameter->{db_disconnect} ? $parameter->{db_disconnect} : 1;
+	my $exit_code     = defined $parameter->{exit_code}     ? $parameter->{exit_code}     : 0;
 	
-	# Close database connections (if any).
-	$anvil->Database->disconnect({debug => $debug});
+	if ($db_disconnect)
+	{
+		# Close database connections (if any).
+		$anvil->Database->disconnect({debug => $debug});
+	}
 	
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;
