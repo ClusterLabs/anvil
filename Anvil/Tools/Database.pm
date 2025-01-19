@@ -1405,27 +1405,32 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
-	my $check_if_configured = defined $parameter->{check_if_configured} ? $parameter->{check_if_configured} : 0;
-	my $db_uuid             = defined $parameter->{db_uuid}             ? $parameter->{db_uuid}             : "";
-	my $check_for_resync    = defined $parameter->{check_for_resync}    ? $parameter->{check_for_resync}    : 0;
-	my $no_ping             = defined $parameter->{no_ping}             ? $parameter->{no_ping}             : 0;
-	my $retry               = defined $parameter->{retry}               ? $parameter->{retry}               : 0;
-	my $sensitive           = defined $parameter->{sensitive}           ? $parameter->{sensitive}           : 0;
-	my $source              = defined $parameter->{source}              ? $parameter->{source}              : "core";
-	my $sql_file            = defined $parameter->{sql_file}            ? $parameter->{sql_file}            : $anvil->data->{path}{sql}{'anvil.sql'};
-	my $tables              = defined $parameter->{tables}              ? $parameter->{tables}              : "";
-	my $test_table          = defined $parameter->{test_table}          ? $parameter->{test_table}          : $anvil->data->{sys}{database}{test_table};
+	# An option of DBI->connect. When enabled, DBI will only allow the creator of the connection to disconnect.
+	#
+	# Since a parent process and its forked child processes shares the DBI connection, the connection gets destroyed when any one child process exits. This flag prevents the child processes from destroying the connection unless it explicitly calls disconnect.
+	my $auto_inactive_destroy = defined $parameter->{auto_inactive_destroy} ? $parameter->{auto_inactive_destroy} : 0;
+	my $check_if_configured   = defined $parameter->{check_if_configured}   ? $parameter->{check_if_configured}   : 0;
+	my $db_uuid               = defined $parameter->{db_uuid}               ? $parameter->{db_uuid}               : "";
+	my $check_for_resync      = defined $parameter->{check_for_resync}      ? $parameter->{check_for_resync}      : 0;
+	my $no_ping               = defined $parameter->{no_ping}               ? $parameter->{no_ping}               : 0;
+	my $retry                 = defined $parameter->{retry}                 ? $parameter->{retry}                 : 0;
+	my $sensitive             = defined $parameter->{sensitive}             ? $parameter->{sensitive}             : 0;
+	my $source                = defined $parameter->{source}                ? $parameter->{source}                : "core";
+	my $sql_file              = defined $parameter->{sql_file}              ? $parameter->{sql_file}              : $anvil->data->{path}{sql}{'anvil.sql'};
+	my $tables                = defined $parameter->{tables}                ? $parameter->{tables}                : "";
+	my $test_table            = defined $parameter->{test_table}            ? $parameter->{test_table}            : $anvil->data->{sys}{database}{test_table};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		check_if_configured => $check_if_configured, 
-		db_uuid             => $db_uuid,
-		check_for_resync    => $check_for_resync, 
-		no_ping             => $no_ping,
-		retry               => $retry, 
-		sensitive           => $sensitive, 
-		source              => $source, 
-		sql_file            => $sql_file, 
-		tables              => $tables, 
-		test_table          => $test_table, 
+		auto_inactive_destroy => $auto_inactive_destroy,
+		check_if_configured   => $check_if_configured, 
+		db_uuid               => $db_uuid,
+		check_for_resync      => $check_for_resync, 
+		no_ping               => $no_ping,
+		retry                 => $retry, 
+		sensitive             => $sensitive, 
+		source                => $source, 
+		sql_file              => $sql_file, 
+		tables                => $tables, 
+		test_table            => $test_table, 
 	}});
 	
 	# If I wasn't passed an array reference of tables, load them from file(s).
@@ -1647,9 +1652,10 @@ sub connect
 		}});
 		local $@;
 		my $test = eval { $dbh = DBI->connect($db_connect_string, $user, $password, {
-			RaiseError     => 1,
-			AutoCommit     => 1,
-			pg_enable_utf8 => 1
+			RaiseError          => 1,
+			AutoCommit          => 1,
+			AutoInactiveDestroy => $auto_inactive_destroy,
+			pg_enable_utf8      => 1,
 		}); };
 		$test = "" if not defined $test;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
