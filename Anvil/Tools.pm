@@ -392,6 +392,12 @@ This is a simple method to exit cleanly, closing database connections and exitin
 
 Parameters;
 
+=head3 db_disconnect (optional, default 1)
+
+When closing a forked child process that shares a DB connection with its parent, disable DB disconnect to avoid closing the in-use connection.
+
+Only disable this when the auto_inactive_destroy option in Database->connect is used.
+
 =head3 exit_code (optional)
 
 If set, this will be the exit code. The default is to exit with code C<< 0 >>.

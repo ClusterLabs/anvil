@@ -1321,6 +1321,12 @@ This module will return the number of databases that were successfully connected
 
 Parameters;
 
+=head3 auto_inactive_destroy (optional, default 0)
+
+An option of DBI->connect. When enabled, DBI will only allow the creator of the connection to disconnect.
+
+Since a parent process and its forked child processes shares the DBI connection, the connection gets destroyed when any one child process exits. This flag prevents the child processes from destroying the connection unless it explicitly calls disconnect.
+
 =head3 check_for_resync (optional, default 0)
 
 If set to C<< 1 >>, and there are 2 or more databases available, a check will be make to see if the databases need to be resync'ed or not. This is also set if the command line switch C<< --resync-db >> is used.
@@ -1405,9 +1411,6 @@ sub connect
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->connect()" }});
 	
-	# An option of DBI->connect. When enabled, DBI will only allow the creator of the connection to disconnect.
-	#
-	# Since a parent process and its forked child processes shares the DBI connection, the connection gets destroyed when any one child process exits. This flag prevents the child processes from destroying the connection unless it explicitly calls disconnect.
 	my $auto_inactive_destroy = defined $parameter->{auto_inactive_destroy} ? $parameter->{auto_inactive_destroy} : 0;
 	my $check_if_configured   = defined $parameter->{check_if_configured}   ? $parameter->{check_if_configured}   : 0;
 	my $db_uuid               = defined $parameter->{db_uuid}               ? $parameter->{db_uuid}               : "";
