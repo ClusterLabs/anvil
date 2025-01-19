@@ -573,6 +573,7 @@ sub main
 			$anvil->nice_exit({ exit_code => 1 });
 		};
 
+		# make child processes start-and-forget because we don't need to wait for them
 		local $SIG{CHLD} = "IGNORE";
 
 		while (my $script_line = <$script_file_handle>)
@@ -592,7 +593,11 @@ sub main
 				script_line_id => $script_line_id,
 			} });
 
-			my $pid = fork;
+			my $pid = fork; # the child process starts here when spawned successfully:
+
+			# - fork returns `undef` when it fails to spawn the child
+			# - fork returns the child's pid to the parent
+			# - fork returns `0` to the child
 
 			if (not defined $pid) {
 				pstderr("failed to fork; cause: ".$!);
@@ -622,6 +627,8 @@ sub main
 				process_scmd_execute({ anvil => $anvil, input => $script_line, lid => $script_line_id });
 			}
 
+			# the child must **not** close the DB connection because it's shared with the parent and other children
+
 			close($script_file_handle) or do {
 				pstderr("failed to close ".$script_file." handle; cause: ".$!);
 
@@ -631,6 +638,8 @@ sub main
 			emit($$."-exit");
 
 			$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
+
+			# end child block
 		}
 
 		close($script_file_handle) or do {
