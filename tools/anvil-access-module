@@ -78,14 +78,14 @@
 #   anvil-access-module --sub <subroutine name> [--sub-module <module name>] [--sub-params <JSON object>]
 #   > { sub_results: only_value | [value0, value1, value2, ...] }
 #
-#   * The --sub flag is required for specifying the name of the target
-#     subroutine.
+#   * The --sub flag is required for specifying the chain to the target
+#     subroutine. The usual format is:
 #
-#   * The --sub-module flag sets the module name that the subroutine exists
-#     in. Module name is the file name (case sensitive and without extension)
-#     of any .pm file under '<root of this repository>/Anvil/Tools/'.
+#     <.pm module name>-><subroutine name>
 #
-#     This flag defaults to 'Database'.
+#     The chain separator can be arrow (->), or dot (.), for example:
+#
+#     ... --sub "Database->query" ...
 #
 #   * The --sub-params flag accepts a JSON object which will be converted to a
 #     Perl hash and passed to the target subroutine as parameters.
