@@ -601,17 +601,6 @@ sub main
 
 			last if ($script_line =~ /^(?:q|quit)\s+$/);
 
-			$script_line =~ s/\s+$//;
-
-			$script_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
-
-			my $script_line_id = $1;
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				script_line    => $script_line,
-				script_line_id => $script_line_id,
-			} });
-
 			my $pid = fork; # the child process starts here when spawned successfully:
 
 			# - fork returns `undef` when it fails to spawn the child
@@ -635,17 +624,34 @@ sub main
 
 			clone_database_handles({ anvil => $anvil });
 
-			if ($script_line =~ /^$scmd_db_read\s+/)
+			my @cmd_lines = split(/;;/, $script_line);
+
+			foreach my $cmd_line (@cmd_lines)
 			{
-				process_scmd_db({ anvil => $anvil, cmd => $scmd_db_read, input => $script_line, lid => $script_line_id });
-			}
-			elsif ($script_line =~ /^$scmd_db_write\s+/)
-			{
-				process_scmd_db({ anvil => $anvil, cmd => $scmd_db_write, input => $script_line, lid => $script_line_id });
-			}
-			elsif ($script_line =~ /^$scmd_execute\s+/)
-			{
-				process_scmd_execute({ anvil => $anvil, input => $script_line, lid => $script_line_id });
+				$cmd_line =~ s/^\s+//;
+				$cmd_line =~ s/\s+$//;
+
+				$cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
+
+				my $cmd_line_id = $1;
+
+				$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					cmd_line    => $cmd_line,
+					cmd_line_id => $cmd_line_id,
+				} });
+
+				if ($cmd_line =~ /^$scmd_db_read\s+/)
+				{
+					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_read, input => $cmd_line, lid => $cmd_line_id });
+				}
+				elsif ($cmd_line =~ /^$scmd_db_write\s+/)
+				{
+					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_write, input => $cmd_line, lid => $cmd_line_id });
+				}
+				elsif ($cmd_line =~ /^$scmd_execute\s+/)
+				{
+					process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
+				}
 			}
 
 			# the child must **not** close the DB connection because it's shared with the parent and other children
