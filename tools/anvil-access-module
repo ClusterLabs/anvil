@@ -306,6 +306,25 @@ sub call_pre_data_fns
 	}
 }
 
+# only used by child processes to clone the parent's database handles
+sub clone_database_handles
+{
+	my $parameters = shift;
+	my $anvil      = $parameters->{anvil};
+
+	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
+	{
+		# get the copied parent's database handle, which was made when fork()
+		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
+		# clone the parent's database handle for child use
+		my $child_dbh = $dbh->clone();
+		# destroy the copied parent's dbh; this will not close the parent's original database handle because auto_inactive_destroy is set
+		undef $anvil->data->{cache}{database_handle}{$uuid};
+		# add the cloned child's dbh
+		$anvil->data->{cache}{database_handle}{$uuid} = $child_dbh;
+	}
+}
+
 sub db_access
 {
 	my $parameters = shift;
@@ -613,6 +632,8 @@ sub main
 			}
 
 			# start child block
+
+			clone_database_handles({ anvil => $anvil });
 
 			if ($script_line =~ /^$scmd_db_read\s+/)
 			{
