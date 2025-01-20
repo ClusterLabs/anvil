@@ -620,7 +620,7 @@ sub main
 				next;
 			}
 
-			# start child block
+			# start child-only block
 
 			clone_database_handles({ anvil => $anvil });
 
@@ -631,9 +631,12 @@ sub main
 				$cmd_line =~ s/^\s+//;
 				$cmd_line =~ s/\s+$//;
 
-				$cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
+				my $cmd_line_id;
 
-				my $cmd_line_id = $1;
+				if ($cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//)
+				{
+					$cmd_line_id = $1;
+				}
 
 				$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 					cmd_line    => $cmd_line,
@@ -666,7 +669,7 @@ sub main
 
 			$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
 
-			# end child block
+			# end child-only block
 		}
 
 		close($script_file_handle) or do {
