@@ -39,9 +39,7 @@ export class Access extends EventEmitter {
 
     const { args: initial = [], ...rest } = startOptions;
 
-    const args = [...initial, '--emit-events', Access.VERBOSE].filter(
-      (value) => value !== '',
-    );
+    const args = [...initial, Access.VERBOSE].filter((value) => value !== '');
 
     this.ps = this.start({ args, ...rest });
   }
