@@ -1,4 +1,8 @@
-import { resolveGid, resolveUid } from '../shell';
+// Don't import from ".../shell" because it'll pull in the print functions,
+// which relies on one of the environment variables from below.
+
+import { resolveGid } from '../shell/resolveGid';
+import { resolveUid } from '../shell/resolveUid';
 
 /**
  * The prefix of every cookie used by the express app.
