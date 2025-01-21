@@ -1,11 +1,21 @@
-import { getData } from './getData';
-import { sub } from './sub';
+import { opGetData } from './getData';
+import { access } from './instance';
+import { opSub } from './sub';
 
 export const getManifestData = async (manifestUuid?: string) => {
-  await sub('load_manifest', {
-    params: [{ manifest_uuid: manifestUuid }],
-    pre: ['Striker'],
-  });
+  const [, result] = await access.default.interact<
+    [null, AnvilDataManifestListHash]
+  >(
+    opSub('load_manifest', {
+      params: [
+        {
+          manifest_uuid: manifestUuid,
+        },
+      ],
+      pre: ['Striker'],
+    }),
+    opGetData('manifests'),
+  );
 
-  return getData<AnvilDataManifestListHash>('manifests');
+  return result;
 };

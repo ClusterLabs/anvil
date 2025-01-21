@@ -1,10 +1,20 @@
 import { formatSql } from '../formatSql';
 import { access } from './instance';
 
-export const write = async (script: string) => {
-  const { write_code: wcode } = await access.default.interact<{
-    write_code: number;
-  }>('w', formatSql(script));
+export const opWrite = (sql: string) => {
+  const formatted = formatSql(sql);
 
-  return wcode;
+  return `w ${formatted}`;
+};
+
+export const write = async (...params: Parameters<typeof opWrite>) => {
+  const [{ write_code: code }] = await access.default.interact<
+    [
+      {
+        write_code: number;
+      },
+    ]
+  >(opWrite(...params));
+
+  return code;
 };

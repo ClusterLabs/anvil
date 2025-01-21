@@ -1,8 +1,11 @@
-import { getData } from './getData';
-import { sub } from './sub';
+import { opGetData } from './getData';
+import { access } from './instance';
+import { opSub } from './sub';
 
 export const getAnvilData = async () => {
-  await sub('get_anvils');
+  const [, result] = await access.default.interact<
+    [null, AnvilDataAnvilListHash]
+  >(opSub('get_anvils'), opGetData('anvils'));
 
-  return getData<AnvilDataAnvilListHash>('anvils');
+  return result;
 };

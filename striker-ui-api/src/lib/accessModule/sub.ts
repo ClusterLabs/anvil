@@ -1,9 +1,8 @@
 import { access } from './instance';
 
-export const sub = async <T extends unknown[]>(
+export const opSub = (
   subroutine: string,
   {
-    as = 'default',
     params = [],
     pre = ['Database'],
   }: {
@@ -26,9 +25,21 @@ export const sub = async <T extends unknown[]>(
     return `"${result.replaceAll('"', '\\"')}"`;
   });
 
-  const { sub_results: results } = await access[as].interact<{
-    sub_results: T;
-  }>('x', chain, ...subParams);
+  return `x ${chain} ${subParams.join(' ')}`;
+};
+
+export const sub = async <T extends unknown[]>(
+  ...params: Parameters<typeof opSub>
+) => {
+  const [, { as = 'default' } = {}] = params;
+
+  const [{ sub_results: results }] = await access[as].interact<
+    [
+      {
+        sub_results: T;
+      },
+    ]
+  >(opSub(...params));
 
   return results;
 };

@@ -118,11 +118,11 @@ export class Access extends EventEmitter {
       // 1. ~a is the shorthand for -(a + 1)
       // 2. negative is evaluated to true
       while (~nindex) {
-        const scriptId = stdout.substring(0, 36);
+        const commandId = stdout.substring(0, 36);
         const output = stdout.substring(36, nindex);
 
-        if (REP_UUID.test(scriptId)) {
-          this.emit(scriptId, output);
+        if (REP_UUID.test(commandId)) {
+          this.emit(commandId, output);
         } else {
           pout(`Access stdout: ${stdout}`);
         }
@@ -149,33 +149,44 @@ export class Access extends EventEmitter {
     this.stop();
   }
 
-  public interact<T>(operation: string, ...args: string[]) {
+  public interact<A extends unknown[], E extends A[number] = A[number]>(
+    ...ops: string[]
+  ) {
     const { stdin } = this.ps;
 
-    const scriptId = uuid();
-    const command = `${operation} ${args.join(' ')}`;
-    const script = `${scriptId} ${command}\n`;
+    const promises: Promise<E>[] = [];
 
-    const promise = new Promise<T>((resolve, reject) => {
-      this.once(scriptId, (data) => {
-        let result: T;
+    const commands = ops.map<string>((op) => {
+      const commandId = uuid();
+      const command = `${commandId} ${op}`;
 
-        try {
-          result = JSON.parse(data);
-        } catch (error) {
-          return reject(`Failed to parse line ${scriptId}; got [${data}]`);
-        }
+      const promise = new Promise<E>((resolve, reject) => {
+        this.once(commandId, (data) => {
+          let result: E;
 
-        poutvar({ result }, `Access interact ${scriptId} returns: `);
+          try {
+            result = JSON.parse(data);
+          } catch (error) {
+            return reject(`Failed to parse line ${commandId}; got [${data}]`);
+          }
 
-        return resolve(result);
+          poutvar({ result }, `Access interact ${commandId} returns: `);
+
+          return resolve(result);
+        });
       });
+
+      promises.push(promise);
+
+      return command;
     });
+
+    const script = `${commands.join(' ;; ')}\n`;
 
     poutvar({ script }, 'Access interact: ');
 
     stdin?.write(script);
 
-    return promise;
+    return Promise.all(promises) as Promise<A>;
   }
 }

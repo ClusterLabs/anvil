@@ -1,18 +1,23 @@
-import assert from 'assert';
-
-import { getData } from './getData';
-import { mutateData } from './mutateData';
-import { sub } from './sub';
+import { opGetData } from './getData';
+import { access } from './instance';
+import { opMutateData } from './mutateData';
+import { opSub } from './sub';
 
 export const getDatabaseConfigData = async () => {
-  // Empty the existing data->database hash before re-reading updated values.
-  await mutateData<string>({ keys: ['database'], operator: '=', value: '{}' });
+  const [, , result] = await access.default.interact<
+    [null, null, AnvilDataDatabaseHash]
+  >(
+    // Empty the existing data->database hash before re-reading updated values.
+    opMutateData({
+      keys: ['database'],
+      operator: '=',
+      value: '{}',
+    }),
+    opSub('read_config', {
+      pre: ['Storage'],
+    }),
+    opGetData('database'),
+  );
 
-  const [code] = await sub<[string]>('read_config', {
-    pre: ['Storage'],
-  });
-
-  assert(Number(code) === 0, `Subroutine failed with code ${code}`);
-
-  return getData<AnvilDataDatabaseHash>('database');
+  return result;
 };

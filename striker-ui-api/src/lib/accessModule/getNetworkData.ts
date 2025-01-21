@@ -1,6 +1,7 @@
-import { getData } from './getData';
+import { opGetData } from './getData';
 import { getHostData } from './getHostData';
-import { sub } from './sub';
+import { access } from './instance';
+import { opSub } from './sub';
 
 export const getNetworkData = async (hostUuid: string, hostName?: string) => {
   let replacementKey = hostName;
@@ -13,10 +14,20 @@ export const getNetworkData = async (hostUuid: string, hostName?: string) => {
     } = await getHostData());
   }
 
-  await sub('load_interfaces', {
-    params: [{ host: replacementKey, host_uuid: hostUuid }],
-    pre: ['Network'],
-  });
+  const [, result] = await access.default.interact<
+    [null, AnvilDataNetworkListHash]
+  >(
+    opSub('load_interfaces', {
+      params: [
+        {
+          host: replacementKey,
+          host_uuid: hostUuid,
+        },
+      ],
+      pre: ['Network'],
+    }),
+    opGetData('network'),
+  );
 
-  return getData<AnvilDataNetworkListHash>('network');
+  return result;
 };

@@ -1,8 +1,12 @@
-import { getData } from './getData';
-import { sub } from './sub';
+import { opGetData } from './getData';
+import { access } from './instance';
+import { opSub } from './sub';
 
 export const getLvmData = async () => {
-  await sub('get_lvm_data');
+  const [, result] = await access.default.interact<[null, AnvilDataLvm]>(
+    opSub('get_lvm_data'),
+    opGetData('lvm'),
+  );
 
-  return getData<AnvilDataLvm>('lvm');
+  return result;
 };

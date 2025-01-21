@@ -1,25 +1,31 @@
 import { access } from './instance';
-import { poutvar } from '../shell';
 
-export const mutateData = async <T>(args: {
+export const opMutateData = (args: {
   keys: string[];
   operator: string;
   value: string;
-}): Promise<T> => {
+}) => {
   const { keys, operator, value } = args;
 
   const chain = `data->${keys.join('->')}`;
 
-  const {
-    sub_results: [data],
-  } = await access.default.interact<{ sub_results: [T] }>(
-    'x',
-    chain,
-    operator,
-    value,
-  );
+  return `x ${chain} ${operator} ${value}`;
+};
 
-  poutvar(data, `${chain} data: `);
+export const mutateData = async <T>(
+  ...params: Parameters<typeof opMutateData>
+): Promise<T> => {
+  const [
+    {
+      sub_results: [data],
+    },
+  ] = await access.default.interact<
+    [
+      {
+        sub_results: [T];
+      },
+    ]
+  >(opMutateData(...params));
 
   return data;
 };
