@@ -3,7 +3,10 @@ import { getHostData } from './getHostData';
 import { access } from './instance';
 import { opSub } from './sub';
 
-export const getNetworkData = async (hostUuid: string, hostName?: string) => {
+export const getNetworkData = async (
+  hostUuid: string,
+  hostName?: string,
+): Promise<AnvilDataNetworkListHash> => {
   let replacementKey = hostName;
 
   if (!replacementKey) {
@@ -14,8 +17,13 @@ export const getNetworkData = async (hostUuid: string, hostName?: string) => {
     } = await getHostData());
   }
 
-  const [, result] = await access.default.interact<
-    [null, AnvilDataNetworkListHash]
+  const [
+    ,
+    {
+      sub_results: [result],
+    },
+  ] = await access.default.interact<
+    [null, SubroutineOutputWrapper<[AnvilDataNetworkListHash]>]
   >(
     opSub('load_interfaces', {
       params: [

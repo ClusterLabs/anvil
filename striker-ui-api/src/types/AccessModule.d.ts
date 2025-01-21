@@ -21,6 +21,10 @@ type SubroutineCommonParams = {
   debug?: number;
 };
 
+type SubroutineOutputWrapper<T extends unknown[]> = {
+  sub_results: T;
+};
+
 /**
  * @prop file - Source file name
  * @prop line - Source file line number

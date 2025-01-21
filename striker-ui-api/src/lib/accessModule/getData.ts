@@ -6,18 +6,16 @@ export const opGetData = (...keys: string[]) => {
   return `x ${chain}`;
 };
 
-export const getData = async <T>(...params: Parameters<typeof opGetData>) => {
+export const getData = async <T>(
+  ...params: Parameters<typeof opGetData>
+): Promise<T> => {
   const [
     {
       sub_results: [data],
     },
-  ] = await access.default.interact<
-    [
-      {
-        sub_results: [T];
-      },
-    ]
-  >(opGetData(...params));
+  ] = await access.default.interact<[SubroutineOutputWrapper<[T]>]>(
+    opGetData(...params),
+  );
 
   return data;
 };

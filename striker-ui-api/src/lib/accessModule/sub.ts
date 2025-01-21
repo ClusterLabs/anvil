@@ -34,11 +34,7 @@ export const sub = async <T extends unknown[]>(
   const [, { as = 'default' } = {}] = params;
 
   const [{ sub_results: results }] = await access[as].interact<
-    [
-      {
-        sub_results: T;
-      },
-    ]
+    [SubroutineOutputWrapper<T>]
   >(opSub(...params));
 
   return results;

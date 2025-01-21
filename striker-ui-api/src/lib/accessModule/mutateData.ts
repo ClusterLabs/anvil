@@ -19,13 +19,9 @@ export const mutateData = async <T>(
     {
       sub_results: [data],
     },
-  ] = await access.default.interact<
-    [
-      {
-        sub_results: [T];
-      },
-    ]
-  >(opMutateData(...params));
+  ] = await access.default.interact<[SubroutineOutputWrapper<[T]>]>(
+    opMutateData(...params),
+  );
 
   return data;
 };
