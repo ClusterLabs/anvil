@@ -111,7 +111,7 @@ r SELECT host_uuid, host_name FROM hosts;
 .TP
 Get local host name:
 .EX
-$ anvil-access-module \-\-sub 'host_name' \-\-sub-module 'Get' \-\-sub-params '{ "debug": 1 }'
+$ anvil-access-module \-\-sub 'Get->host_name' \-\-sub-params '{ "debug": 1 }'
 > {"sub_results":"..."}
 
 OR interactively:
