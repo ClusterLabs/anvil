@@ -53,8 +53,7 @@ const buildQueryAnvilDetail = ({
       JOIN hosts AS hos
         ON host_uuid IN (
           anvil_node1_host_uuid,
-          anvil_node2_host_uuid,
-          anvil_dr1_host_uuid
+          anvil_node2_host_uuid
         )
       JOIN scan_hardware AS sca_har
         ON host_uuid = scan_hardware_host_uuid
@@ -176,8 +175,7 @@ const buildQueryAnvilDetail = ({
     LEFT JOIN (${buildFileQuery()}) AS file_list
       ON file_list.file_location_host_uuid IN (
         anv.anvil_node1_host_uuid,
-        anv.anvil_node2_host_uuid,
-        anv.anvil_dr1_host_uuid
+        anv.anvil_node2_host_uuid
       )
     ;`;
 
