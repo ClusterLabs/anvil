@@ -178,7 +178,9 @@ const buildQueryAnvilDetail = ({
         anvil_list.anvil_node2_host_uuid
       )
     ORDER BY
-      anvil_list.anvil_name;`;
+      anvil_list.anvil_name ASC,
+      storage_group_list.storage_group_name ASC,
+      file_list.file_name ASC;`;
 
   let query = `
     SELECT
