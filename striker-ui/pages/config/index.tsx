@@ -2,15 +2,13 @@ import { Grid } from '@mui/material';
 import Head from 'next/head';
 import { FC, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Header from '../../components/Header';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import {
   ComplexOperationsPanel,
   SimpleOperationsPanel,
 } from '../../components/StrikerConfig';
+import useFetch from '../../hooks/useFetch';
 
 // This page can't be reused, and default is set within the render function.
 // eslint-disable-next-line react/require-default-props
@@ -38,8 +36,8 @@ const Config: FC<{ refreshInterval?: number }> = ({
   >();
   const [simpleOpsPanelHeader, setSimpleOpsPanelHeader] = useState<string>('');
 
-  const { data: hostDetail, isLoading: loadingHostDetail } =
-    periodicFetch<APIHostDetail>(`${API_BASE_URL}/host/local`, {
+  const { data: hostDetail, loading: loadingHostDetail } =
+    useFetch<APIHostDetail>(`/host/local`, {
       onError: () => {
         setSimpleOpsPanelHeader('Unknown');
       },

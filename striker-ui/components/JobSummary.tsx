@@ -7,25 +7,23 @@ import {
   useState,
 } from 'react';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
-
 import { DialogWithHeader } from './Dialog';
 import FlexBox from './FlexBox';
 import JobDetail from './JobDetail';
 import List from './List';
-import periodicFetch from '../lib/fetchers/periodicFetch';
 import PieProgress from './PieProgress';
 import { BodyText } from './Text';
 import { elapsed, now } from '../lib/time';
+import useFetch from '../hooks/useFetch';
 
 type JobSummaryOptionalPropsWithDefault = {
   getJobUrl?: (epoch: number) => string;
   openInitially?: boolean;
-  refreshInterval?: number;
 };
 
 type JobSummaryOptionalPropsWithoutDefault = {
   onFetchSuccessAppend?: (data: APIJobOverviewList) => void;
+  refreshInterval?: number;
 };
 
 type JobSummaryOptionalProps = JobSummaryOptionalPropsWithDefault &
@@ -41,10 +39,10 @@ type JobSummaryForwardedRefContent = {
 const JOB_LIST_LENGTH = '20em';
 const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
   JobSummaryOptionalPropsWithoutDefault = {
-  getJobUrl: () => `${API_BASE_URL}/job`,
+  getJobUrl: () => `/job`,
   onFetchSuccessAppend: undefined,
   openInitially: false,
-  refreshInterval: 10000,
+  refreshInterval: undefined,
 };
 
 const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
@@ -70,18 +68,16 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
     const loaded = useMemo(() => now(), []);
     const nao = now();
 
-    const { data: jobs } = periodicFetch<APIJobOverviewList>(
-      getJobUrl(loaded),
-      {
-        onError: () => {
-          // TODO: show no jobs until toasts are in place.
-        },
-        onSuccess: (rawAnvilJobs) => {
-          onFetchSuccessAppend?.call(null, rawAnvilJobs);
-        },
-        refreshInterval,
+    const { data: jobs } = useFetch<APIJobOverviewList>(getJobUrl(loaded), {
+      onError: () => {
+        // TODO: show no jobs until toasts are in place.
       },
-    );
+      onSuccess: (rawAnvilJobs) => {
+        onFetchSuccessAppend?.call(null, rawAnvilJobs);
+      },
+      periodic: true,
+      refreshInterval,
+    });
 
     useImperativeHandle(
       ref,

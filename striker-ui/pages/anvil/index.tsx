@@ -3,7 +3,6 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useContext, useEffect, useMemo } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 import AnvilProvider, { AnvilContext } from '../../components/AnvilContext';
@@ -14,11 +13,11 @@ import Hosts from '../../components/Hosts';
 import Memory from '../../components/Memory';
 import Network from '../../components/Network';
 import { Panel } from '../../components/Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Servers from '../../components/Servers';
 import SharedStorage from '../../components/SharedStorage';
 import Spinner from '../../components/Spinner';
 import useWindowDimensions from '../../hooks/useWindowDimenions';
+import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'Anvil';
 
@@ -63,25 +62,28 @@ const Anvil = (): JSX.Element => {
   const router = useRouter();
   const width = useWindowDimensions();
 
-  const { anvil_uuid: queryAnvilUUID } = router.query;
-  const { uuid: contextAnvilUUID, setAnvilUuid } = useContext(AnvilContext);
-  const { data, isLoading } = periodicFetch<AnvilList>(
-    `${API_BASE_URL}/anvil/summary`,
+  const { setAnvilUuid } = useContext(AnvilContext);
+
+  const { data: summary, loading: loadingSummary } = useFetch<AnvilList>(
+    `/anvil/summary`,
+    {
+      periodic: true,
+    },
   );
 
   const contentLayoutElement = useMemo(() => {
     let result;
 
-    if (data && width) {
+    if (summary && width) {
       result =
         width > LARGE_MOBILE_BREAKPOINT ? (
           <Box className={classes.container}>
             <Box className={classes.child}>
-              <Anvils list={data} />
-              <Hosts anvil={data.anvils} />
+              <Anvils list={summary} />
+              <Hosts anvil={summary.anvils} />
             </Box>
             <Box className={classes.server}>
-              <Servers anvil={data.anvils} />
+              <Servers anvil={summary.anvils} />
             </Box>
             <Box className={classes.child}>
               <SharedStorage />
@@ -95,9 +97,9 @@ const Anvil = (): JSX.Element => {
         ) : (
           <Box className={classes.container}>
             <Box className={classes.child}>
-              <Servers anvil={data.anvils} />
-              <Anvils list={data} />
-              <Hosts anvil={data.anvils} />
+              <Servers anvil={summary.anvils} />
+              <Anvils list={summary} />
+              <Hosts anvil={summary.anvils} />
             </Box>
             <Box className={classes.child}>
               <Network />
@@ -110,10 +112,11 @@ const Anvil = (): JSX.Element => {
     }
 
     return result;
-  }, [data, width]);
+  }, [summary, width]);
+
   const contentAreaElement = useMemo(
     () =>
-      isLoading ? (
+      loadingSummary ? (
         <Panel
           sx={{
             marginLeft: { xs: '1em', sm: 'auto' },
@@ -128,14 +131,34 @@ const Anvil = (): JSX.Element => {
       ) : (
         contentLayoutElement
       ),
-    [contentLayoutElement, isLoading],
+    [contentLayoutElement, loadingSummary],
   );
 
   useEffect(() => {
-    if (contextAnvilUUID === '') {
-      setAnvilUuid(queryAnvilUUID?.toString() || '');
+    if (!router.isReady || !summary) {
+      return;
     }
-  }, [contextAnvilUUID, queryAnvilUUID, setAnvilUuid]);
+
+    const { anvils } = summary;
+
+    const { name, uuid } = router.query;
+
+    let anvil: AnvilListItem | undefined;
+
+    if (name) {
+      anvil = anvils.find((li) => li.anvil_name === name);
+    } else if (uuid) {
+      anvil = anvils.find((li) => li.anvil_uuid === uuid);
+    }
+
+    if (!anvil) {
+      return;
+    }
+
+    const { anvil_uuid: anvilUuid } = anvil;
+
+    setAnvilUuid(anvilUuid);
+  }, [router.isReady, router.query, setAnvilUuid, summary]);
 
   return (
     <StyledDiv>

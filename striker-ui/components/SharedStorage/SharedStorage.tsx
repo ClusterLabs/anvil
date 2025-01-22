@@ -1,15 +1,14 @@
 import { Box, styled } from '@mui/material';
 import { useContext } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 import { AnvilContext } from '../AnvilContext';
 import { Panel, InnerPanel, InnerPanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import SharedStorageHost from './SharedStorageHost';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
+import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'SharedStorage';
 
@@ -32,15 +31,18 @@ const StyledDiv = styled('div')(({ theme }) => ({
 const SharedStorage = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
-  const { data, isLoading } = periodicFetch<AnvilSharedStorage>(
-    `${API_BASE_URL}/anvil/${uuid}/store`,
+  const { data, loading } = useFetch<AnvilSharedStorage>(
+    `/anvil/${uuid}/store`,
+    {
+      periodic: true,
+    },
   );
 
   return (
     <Panel>
       <StyledDiv>
         <HeaderText text="Shared Storage" />
-        {!isLoading ? (
+        {!loading ? (
           <Box className={classes.root}>
             {data?.storage_groups &&
               data.storage_groups.map(

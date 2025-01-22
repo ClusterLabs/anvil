@@ -10,7 +10,6 @@ import {
 } from '@mui/material';
 import { useState, useContext, useRef, useMemo } from 'react';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import {
   BLUE,
   DIVIDER,
@@ -32,12 +31,11 @@ import IconButton from './IconButton';
 import Menu from './Menu';
 import MenuItem from './MenuItem';
 import { Panel, PanelHeader } from './Panels';
-import periodicFetch from '../lib/fetchers/periodicFetch';
 import ProvisionServerDialog from './ProvisionServerDialog';
-import putFetch from '../lib/fetchers/putFetch';
 import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
 import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
+import useFetch from '../hooks/useFetch';
 
 const PREFIX = 'Servers';
 
@@ -157,8 +155,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
 
   const buttonLabels = useRef<ButtonLabels[]>([]);
 
-  const { data: servers } = periodicFetch<APIServerOverviewList>(
-    `${API_BASE_URL}/server?anvilUUIDs=${uuid}`,
+  const { data: servers } = useFetch<APIServerOverviewList>(
+    `/server?anvilUUIDs=${uuid}`,
+    {
+      periodic: true,
+    },
   );
 
   const serverValues = useMemo(
@@ -191,12 +192,15 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     setAnchorEl(null);
     if (selected.length) {
       selected.forEach((serverUuid) => {
-        putFetch(
-          `${API_BASE_URL}/command/${
-            label === 'on' ? 'start-server' : 'stop-server'
-          }/${serverUuid}`,
-          {},
-        );
+        api
+          .put(
+            `/command${
+              label === 'on' ? 'start-server' : 'stop-server'
+            }/${serverUuid}`,
+          )
+          .catch((error) => {
+            handleAPIError(error);
+          });
       });
     }
   };

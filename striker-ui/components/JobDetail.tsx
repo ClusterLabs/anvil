@@ -1,7 +1,6 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
 import { FC, useMemo, useState } from 'react';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
 import { ProgressBar } from './Bars';
@@ -16,11 +15,11 @@ import {
   InnerPanelBody,
   InnerPanelHeader,
 } from './Panels';
-import periodicFetch from '../lib/fetchers/periodicFetch';
 import Pre from './Pre';
 import Spinner from './Spinner';
 import { BodyText, SensitiveText, SmallText } from './Text';
 import { ago, now } from '../lib/time';
+import useFetch from '../hooks/useFetch';
 
 const toReadableTimestamp = (seconds: number): string => {
   const milliseconds = seconds * 1000;
@@ -38,7 +37,7 @@ const toReadableTimestamp = (seconds: number): string => {
 };
 
 const JobDetail: FC<JobDetailProps> = (props) => {
-  const { refreshInterval = 10000, uuid } = props;
+  const { refreshInterval, uuid } = props;
 
   const theme = useTheme();
   const breakpointSmall = useMediaQuery(theme.breakpoints.up('sm'));
@@ -48,8 +47,8 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     type: 'warning',
   });
 
-  const { data: job, isLoading: loadingJob } = periodicFetch<APIJobDetail>(
-    `${API_BASE_URL}/job/${uuid}`,
+  const { data: job, loading: loadingJob } = useFetch<APIJobDetail>(
+    `/job/${uuid}`,
     {
       onError: (error) => {
         setApiMessage({
@@ -57,6 +56,7 @@ const JobDetail: FC<JobDetailProps> = (props) => {
           type: 'error',
         });
       },
+      periodic: true,
       refreshInterval,
     },
   );

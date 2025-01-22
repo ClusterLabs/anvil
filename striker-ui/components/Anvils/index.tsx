@@ -1,25 +1,62 @@
-import { Panel } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
-import SelectedAnvil from './SelectedAnvil';
+import { createElement, useState } from 'react';
+
 import AnvilList from './AnvilList';
-
+import { Panel } from '../Panels';
+import SelectedAnvil from './SelectedAnvil';
 import sortAnvils from './sortAnvils';
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
+import useFetch from '../../hooks/useFetch';
 
-const Anvils = ({ list }: { list: AnvilList | undefined }): JSX.Element => {
-  const anvils: AnvilListItem[] = [];
+const Anvil: React.FC<{
+  anvils: {
+    get: () => AnvilListItem[];
+    set: React.Dispatch<React.SetStateAction<AnvilListItem[]>>;
+  };
+  uuid: string;
+}> = (props) => {
+  const { anvils, uuid } = props;
 
-  list?.anvils.forEach((anvil: AnvilListItem) => {
-    const { anvil_uuid } = anvil;
+  useFetch<AnvilStatus>(`/anvil/${uuid}`, {
+    onSuccess: (data) => {
+      const i = anvils.get().findIndex((anvil) => anvil.anvil_uuid === uuid);
 
-    const { data } = periodicFetch<AnvilStatus>(
-      `${API_BASE_URL}/anvil/${anvil_uuid}`,
-    );
-    anvils.push({
-      ...anvil,
-      ...data,
+      if (i === -1) {
+        return;
+      }
+
+      anvils.set((previous) => {
+        const clone = [...previous];
+
+        clone[i] = {
+          ...clone[i],
+          ...data,
+        };
+
+        return clone;
+      });
+    },
+    periodic: true,
+  });
+
+  return <></>;
+};
+
+const Anvils: React.FC<{ list?: AnvilList }> = (props) => {
+  const { list } = props;
+
+  const [anvils, setAnvils] = useState<AnvilListItem[]>([]);
+
+  list?.anvils.forEach((anvil) => {
+    const { anvil_uuid: uuid } = anvil;
+
+    createElement(Anvil, {
+      anvils: {
+        get: () => anvils,
+        set: setAnvils,
+      },
+      uuid,
     });
   });
+
   return (
     <Panel>
       <SelectedAnvil list={anvils} />

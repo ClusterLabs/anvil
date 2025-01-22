@@ -3,7 +3,6 @@ import { Grid } from '@mui/material';
 import { useRouter } from 'next/router';
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { BLACK } from '../lib/consts/DEFAULT_THEME';
 
 import api from '../lib/api';
@@ -327,7 +326,7 @@ const StrikerInitForm: FC = () => {
         titleText="Confirm striker initialization"
       />
       <JobSummary
-        getJobUrl={() => `${API_BASE_URL}/init/job`}
+        getJobUrl={() => `/init/job`}
         onFetchSuccessAppend={(jobs) => {
           jobIconRef.current.indicate?.call(null, Object.keys(jobs).length > 0);
         }}
