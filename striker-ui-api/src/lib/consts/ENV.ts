@@ -1,4 +1,8 @@
-import { resolveGid, resolveUid } from '../shell';
+// Don't import from ".../shell" because it'll pull in the print functions,
+// which relies on one of the environment variables from below.
+
+import { resolveGid } from '../shell/resolveGid';
+import { resolveUid } from '../shell/resolveUid';
 
 /**
  * The prefix of every cookie used by the express app.
@@ -21,6 +25,15 @@ export const COOKIE_ORIGINAL_MAX_AGE: number =
  * @default 0
  */
 export const DEBUG_ACCESS = Number(process.env.DEBUG_ACCESS) || 0;
+
+/**
+ * The debug level of the main process.
+ *
+ * Only supports 0 (off) or 1 (on).
+ *
+ * @default 0
+ */
+export const DEBUG_MAIN = Number(process.env.DEBUG_MAIN) || 0;
 
 /**
  * The fallback job progress value when queuing jobs.

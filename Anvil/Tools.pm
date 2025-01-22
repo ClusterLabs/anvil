@@ -392,6 +392,12 @@ This is a simple method to exit cleanly, closing database connections and exitin
 
 Parameters;
 
+=head3 db_disconnect (optional, default 1)
+
+When closing a forked child process that shares a DB connection with its parent, disable DB disconnect to avoid closing the in-use connection.
+
+Only disable this when the auto_inactive_destroy option in Database->connect is used.
+
 =head3 exit_code (optional)
 
 If set, this will be the exit code. The default is to exit with code C<< 0 >>.
@@ -404,10 +410,14 @@ sub nice_exit
 	my $anvil     = $self;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	
-	my $exit_code = defined $parameter->{exit_code} ? $parameter->{exit_code} : 0;
+	my $db_disconnect = defined $parameter->{db_disconnect} ? $parameter->{db_disconnect} : 1;
+	my $exit_code     = defined $parameter->{exit_code}     ? $parameter->{exit_code}     : 0;
 	
-	# Close database connections (if any).
-	$anvil->Database->disconnect({debug => $debug});
+	if ($db_disconnect)
+	{
+		# Close database connections (if any).
+		$anvil->Database->disconnect({debug => $debug});
+	}
 	
 	# Report the runtime.
 	my $end_time = Time::HiRes::time;

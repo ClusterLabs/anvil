@@ -27,8 +27,7 @@ anvil-access-module \-\-mode write \-\-query <sql_command>
 .TP
 To execute a Perl subroutine:
 .SY
-anvil-access-module \-\-sub <subroutine_name>
-.OP \-\-sub-module <perl_module_name>
+anvil-access-module \-\-sub <chain_to_subroutine>
 .OP \-\-sub-params <json_object>
 .YS
 .TP
@@ -43,9 +42,6 @@ anvil-access-module \-\-data <json_object>
 .TP
 \-\-data <json_object>
 Specifies the data structure to copy from the data hash under the global \fIanvil\fR object. The script will recursively traverse each of the given JSON object's properties and pick values from the anvil->data hash for each property key that exists.
-.TP
-\-\-emit-events
-Toggles whether to print event lines before and/or after operations. For example, line 'connected' will be printed after establishing the database connection when \fI\-\-emit-events\fR is given. The event lines should enable other programs to parse and activate additional logic as necessary.
 .TP
 \-\-mode <read | write>
 Used along with \fI\-\-query\fR to specify whether the provided sql should be executed in read or write mode. For example, a SELECT sql command should be executed in read mode, and an UPDATE sql command should be executed in write mode.
@@ -94,10 +90,7 @@ x <data->hash>
 .RE
 .TP
 \-\-sub <subroutine_name>
-Specifies the target subroutine to execute in perl syntax, which can include the arrow notation (->).
-.TP
-\-\-sub-module <perl_module_name>
-Used with \fI\-\-sub\fR to specify the perl module name of the target subroutine. It is expected to be the file name (excluding extension) of any .pm file under the \fIAnvil/Tools\fR directory.
+Specifies the chain to the target subroutine to execute in perl syntax, which can include the arrow (->), or dot (.) notation. This is usually "<.pm module name>-><subroutine name>", for example: "Database->query"
 .TP
 \-\-sub-params <json_object>
 Used with \fI\-\-sub\fR to specify the parameters to provide to the target subroutine. The given JSON object will be converted to a perl hash and passed to the specified subroutine.
@@ -118,7 +111,7 @@ r SELECT host_uuid, host_name FROM hosts;
 .TP
 Get local host name:
 .EX
-$ anvil-access-module \-\-sub 'host_name' \-\-sub-module 'Get' \-\-sub-params '{ "debug": 1 }'
+$ anvil-access-module \-\-sub 'Get->host_name' \-\-sub-params '{ "debug": 1 }'
 > {"sub_results":"..."}
 
 OR interactively:

@@ -78,14 +78,14 @@
 #   anvil-access-module --sub <subroutine name> [--sub-module <module name>] [--sub-params <JSON object>]
 #   > { sub_results: only_value | [value0, value1, value2, ...] }
 #
-#   * The --sub flag is required for specifying the name of the target
-#     subroutine.
+#   * The --sub flag is required for specifying the chain to the target
+#     subroutine. The usual format is:
 #
-#   * The --sub-module flag sets the module name that the subroutine exists
-#     in. Module name is the file name (case sensitive and without extension)
-#     of any .pm file under '<root of this repository>/Anvil/Tools/'.
+#     <.pm module name>-><subroutine name>
 #
-#     This flag defaults to 'Database'.
+#     The chain separator can be arrow (->), or dot (.), for example:
+#
+#     ... --sub "Database->query" ...
 #
 #   * The --sub-params flag accepts a JSON object which will be converted to a
 #     Perl hash and passed to the target subroutine as parameters.
@@ -158,28 +158,38 @@ my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 
 $running_directory =~ s/^\./$ENV{PWD}/ if $running_directory =~ /^\./ && $ENV{PWD};
 
-my $anvil = Anvil::Tools->new();
+my $scmd_db_read  = "r";
+my $scmd_db_write = "w";
+my $scmd_execute  = "x";
+
+main();
+
+##################################################
+# Functions
+##################################################
 
 sub access_chain
 {
 	my $parameters = shift;
-	my $chain_args = $parameters->{chain_args} // [];
+	# required:
+	my $anvil      = $parameters->{anvil};
 	my $chain_str  = $parameters->{chain};
-	my $debug      = $parameters->{debug} // 3;
+	# optional:
+	my $chain_args = $parameters->{chain_args} // [];
 
 	my @chain        = split(/->|[.]/, $chain_str);
 	my $key_index    = 0;
 	my $intermediate = $anvil;
 	my @results      = (1);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { chain => prettify(\@chain) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { chain => prettify(\@chain) } });
 
 	foreach my $key (@chain)
 	{
 		my $is_intermediate_hash = is_hash($intermediate);
 		my $is_last_key          = $key_index == $#chain;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 			is_intermediate_hash => $is_intermediate_hash,
 			is_last_key          => $is_last_key,
 			key                  => $key,
@@ -226,7 +236,7 @@ sub access_chain
 
 					if ($arg =~ s/^anvil(->|\.)//)
 					{
-						my ($replacement) = access_chain({ chain => $arg, debug => $debug });
+						my ($replacement) = access_chain({ anvil => $anvil, chain => $arg });
 
 						$chain_args->[$arg_i] = $replacement;
 					}
@@ -272,6 +282,7 @@ sub call_fn
 sub call_pre_data_fns
 {
 	my $parameters = shift;
+	my $anvil      = $parameters->{anvil};
 	my $fns        = $parameters->{fns};
 
 	if (is_array($fns))
@@ -286,6 +297,7 @@ sub call_pre_data_fns
 				my @cargs = @{$fn_wrapper}[1..$#{$fn_wrapper}];
 
 				access_chain({
+					anvil      => $anvil,
 					chain      => @{$fn_wrapper}[0],
 					chain_args => \@cargs,
 				});
@@ -294,26 +306,76 @@ sub call_pre_data_fns
 	}
 }
 
+# only used by child processes to clone the parent's database handles
+sub clone_database_handles
+{
+	my $parameters = shift;
+	my $anvil      = $parameters->{anvil};
+
+	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
+	{
+		# get the copied parent's database handle, which was made when fork()
+		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
+		# clone the parent's database handle for child use
+		my $child_dbh = $dbh->clone();
+		# destroy the copied parent's dbh; this will not close the parent's original database handle because auto_inactive_destroy is set
+		undef $anvil->data->{cache}{database_handle}{$uuid};
+		# add the cloned child's dbh
+		$anvil->data->{cache}{database_handle}{$uuid} = $child_dbh;
+	}
+}
+
 sub db_access
 {
-	my $parameters     = shift;
-	my $db_access_mode = $parameters->{db_access_mode} // "";
-	my $db_uuid        = $parameters->{db_uuid};
-	my $sql_query      = $parameters->{sql_query};
+	my $parameters = shift;
+	# required:
+	my $anvil      = $parameters->{anvil};
+	my $sql        = $parameters->{sql};
+	# optional:
+	my $mode       = $parameters->{db_access_mode} // "";
+	my $uuid       = $parameters->{db_uuid};
 
-	my $access_parameters = { query => $sql_query, uuid => $db_uuid, source => $THIS_FILE, line => __LINE__ };
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		mode => $mode,
+		sql  => $sql,
+		uuid => $uuid,
+	}, prefix => "db_access" });
 
-	return ($db_access_mode eq "write")
-		? { write_code => $anvil->Database->write($access_parameters) }
-		: $anvil->Database->query($access_parameters);
+	my $access_parameters = { query => $sql, uuid => $uuid, source => $THIS_FILE, line => __LINE__ };
+
+	if ($mode eq "write")
+	{
+		my $result = $anvil->Database->write($access_parameters);
+
+		return { write_code => $result };
+	}
+	else
+	{
+		my $result = $anvil->Database->query($access_parameters);
+
+		return $result;
+	}
+}
+
+sub emit
+{
+	#
+	# Events in this context are simply printing the event name before
+	# and/or after operations. The output should enable other programs to
+	# parse and activate additional logic as necessary.
+	#
+	# Event names should be present-tense before an operation, and
+	# past-tense after.
+	#
+	pstdout("event=".$_[0]);
 }
 
 sub foreach_nested
 {
 	my $parameters   = shift;
-	# Required parameters:
+	# required:
 	my $hash         = $parameters->{hash};
-	# Optional parameters:
+	# optional:
 	my $chain        = exists $parameters->{chain}        ? $parameters->{chain}        : ();
 	my $depth        = exists $parameters->{depth}        ? $parameters->{depth}        : 0;
 	my $on_key       = exists $parameters->{on_key}       ? $parameters->{on_key}       : {};
@@ -350,6 +412,8 @@ sub foreach_nested
 sub get_anvil_data
 {
 	my $parameters          = shift;
+	# required:
+	my $anvil               = $parameters->{anvil};
 	my $chain               = $parameters->{chain};
 	my $target_intermediate = $parameters->{data};
 
@@ -383,12 +447,20 @@ sub get_anvil_data
 sub get_scmd_args
 {
 	my $parameters = shift;
-	# Required:
+	# required:
+	my $anvil      = $parameters->{anvil};
 	my $input      = $parameters->{input};
 	my $get_values = $parameters->{get_values};
-	# Optional:
+	# optional:
 	my $cmd        = $parameters->{cmd};
 	my $arg_names  = $parameters->{names} // [];
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		cmd        => $cmd,
+		get_values => $get_values,
+		input      => $input,
+		arg_names  => $arg_names,
+	}, prefix => "get_scmd_args" });
 
 	my $i       = 0;
 	my $args    = {};
@@ -396,7 +468,7 @@ sub get_scmd_args
 
 	foreach (@matches)
 	{
-		my $arg_name = $arg_names->[$i++] // "$i";
+		my $arg_name = $arg_names->[$i++] // "".$i;
 
 		$args->{$arg_name} = $_ if defined $arg_name;
 	}
@@ -414,6 +486,204 @@ sub is_hash
 	return ref($_[0]) eq "HASH";
 }
 
+sub main
+{
+	my $anvil = Anvil::Tools->new();
+
+	$anvil->Get->switches;
+
+	my $data_hash       = $anvil->data->{switches}{'data'};
+	my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
+	my $db_uuid         = $anvil->data->{switches}{'uuid'};
+	my $pre_data        = $anvil->data->{switches}{'predata'};
+	my $script_file     = $anvil->data->{switches}{'script'} // "-";
+	my $sql             = $anvil->data->{switches}{'query'};
+	my $sub_chain       = $anvil->data->{switches}{'sub'} // "";
+	my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
+
+	emit("initialized");
+
+	$anvil->Database->connect({ auto_inactive_destroy => 1 });
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
+	if (not $anvil->data->{sys}{database}{connections})
+	{
+		# No databases, exit.
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
+		$anvil->nice_exit({ exit_code => 1 });
+	}
+
+	emit("connected");
+
+	if ($sql)
+	{
+		my $cmd   = $db_access_mode eq "write" ? $scmd_db_write : $scmd_db_read;
+		my $input = $cmd." ";
+
+		if ($db_uuid)
+		{
+			$input .= "uuid=".$db_uuid." ";
+		}
+
+		$input .= $sql;
+
+		process_scmd_db({ anvil => $anvil, cmd => $cmd, input => $input });
+	}
+	elsif ($sub_chain)
+	{
+		my $input = $scmd_execute." ".$sub_chain." ".$sub_params;
+
+		process_scmd_execute({ anvil => $anvil, input => $input });
+	}
+	elsif ($data_hash)
+	{
+		if ($pre_data)
+		{
+			my $decoded_pre_data;
+			my $is_decode_pre_data_success = eval { $decoded_pre_data = decode_json($pre_data); };
+
+			if ($is_decode_pre_data_success && is_array($decoded_pre_data))
+			{
+				call_pre_data_fns({ anvil => $anvil, fns => $decoded_pre_data });
+			}
+		}
+
+		my $decoded_data_hash;
+		my $is_decode_data_hash_success = eval { $decoded_data_hash = decode_json($data_hash); };
+
+		if (not $is_decode_data_hash_success)
+		{
+			pstderr("failed to parse data structure");
+
+			$anvil->nice_exit({ exit_code => 1 });
+		}
+
+		my $get_anvil_data_params = { anvil => $anvil, data => {} };
+
+		foreach_nested({
+			hash         => $decoded_data_hash,
+			on_chain_end => { fn => \&get_anvil_data, params => $get_anvil_data_params },
+		});
+
+		pstdout(JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data}));
+	}
+	else
+	{
+		my $script_file_handle;
+
+		eval {
+			# TODO: make this script read piped input
+
+			$script_file = "-" if ($script_file =~ /^#!SET!#$/);
+
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
+
+			if ($script_file =~ /^-$/)
+			{
+				open($script_file_handle, "-");
+			}
+			else
+			{
+				open($script_file_handle, "< :encoding(UTF-8)", $script_file);
+			}
+		} or do {
+			# open() sets $! upon error, different from the database module failure (which sets $@)
+			pstderr("failed to open ".$script_file." as script input; cause: ".$!);
+
+			$anvil->nice_exit({ exit_code => 1 });
+		};
+
+		# make child processes start-and-forget because we don't need to wait for them
+		local $SIG{CHLD} = "IGNORE";
+
+		while (my $script_line = <$script_file_handle>)
+		{
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
+
+			last if ($script_line =~ /^(?:q|quit)\s+$/);
+
+			my $pid = fork; # the child process starts here when spawned successfully:
+
+			# - fork returns `undef` when it fails to spawn the child
+			# - fork returns the child's pid to the parent
+			# - fork returns `0` to the child
+
+			if (not defined $pid) {
+				pstderr("failed to fork; cause: ".$!);
+
+				next;
+			}
+
+			if ($pid)
+			{
+				emit($pid."-forked");
+
+				next;
+			}
+
+			# start child-only block
+
+			clone_database_handles({ anvil => $anvil });
+
+			my @cmd_lines = split(/;;/, $script_line);
+
+			foreach my $cmd_line (@cmd_lines)
+			{
+				$cmd_line =~ s/^\s+//;
+				$cmd_line =~ s/\s+$//;
+
+				my $cmd_line_id;
+
+				if ($cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//)
+				{
+					$cmd_line_id = $1;
+				}
+
+				$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					cmd_line    => $cmd_line,
+					cmd_line_id => $cmd_line_id,
+				} });
+
+				if ($cmd_line =~ /^$scmd_db_read\s+/)
+				{
+					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_read, input => $cmd_line, lid => $cmd_line_id });
+				}
+				elsif ($cmd_line =~ /^$scmd_db_write\s+/)
+				{
+					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_write, input => $cmd_line, lid => $cmd_line_id });
+				}
+				elsif ($cmd_line =~ /^$scmd_execute\s+/)
+				{
+					process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
+				}
+			}
+
+			# the child must **not** close the DB connection because it's shared with the parent and other children
+
+			close($script_file_handle) or do {
+				pstderr("failed to close ".$script_file." handle; cause: ".$!);
+
+				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+			};
+
+			emit($$."-exit");
+
+			$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
+
+			# end child-only block
+		}
+
+		close($script_file_handle) or do {
+			pstderr("failed to close ".$script_file." handle; cause: ".$!);
+
+			$anvil->nice_exit({ exit_code => 1 });
+		};
+	}
+
+	emit("exit");
+
+	$anvil->nice_exit({ exit_code => 0 });
+}
+
 sub prettify
 {
 	my $var_value = shift;
@@ -429,39 +699,65 @@ sub prettify
 sub process_scmd_db
 {
 	my $parameters = shift;
-	# Required:
+	# required:
+	my $anvil      = $parameters->{anvil};
 	my $cmd        = $parameters->{cmd};
 	my $input      = $parameters->{input};
-	# Optional:
+	# optional:
 	my $lid        = $parameters->{lid} // "";
-	my $mode       = $parameters->{mode};
+
+	my $mode;
+
+	if ($cmd eq $scmd_db_write)
+	{
+		$mode = "write";
+	}
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		cmd   => $cmd,
+		input => $input,
+		lid   => $lid,
+		mode  => $mode,
+	}, prefix => "process_scmd_db" });
 
 	my $sargs = get_scmd_args({
+		anvil      => $anvil,
 		cmd        => $cmd,
 		input      => $input,
 		get_values => sub { my $c = $_[1]; return $_[0] =~ /^$c\s+(?:uuid=([^\s]+))?\s*(.*)$/; },
 		names      => ["uuid", "script"],
 	});
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { sargs => prettify($sargs) } });
+
 	eval {
-		my $results = db_access({ db_uuid => $sargs->{uuid}, sql_query => $sargs->{script}, db_access_mode => $mode });
+		my $results = db_access({ anvil => $anvil, db_uuid => $sargs->{uuid}, sql => $sargs->{script}, db_access_mode => $mode });
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { results => prettify($results) } });
 
 		pstdout($lid.JSON->new->utf8->encode($results));
 	} or do {
-		pstderr("failed to access database; cause: $@");
+		pstderr("failed to access database; cause: ".$@);
 	}
 }
 
 sub process_scmd_execute
 {
 	my $parameters = shift;
-	my $debug      = $parameters->{debug} // 3;
+	# required:
+	my $anvil      = $parameters->{anvil};
 	my $input      = $parameters->{input};
+	# optional:
 	my $lid        = $parameters->{lid} // "";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		input => $input,
+		lid   => $lid,
+	}, prefix => "process_scmd_execute" });
 
 	my @sargs = parse_line('\s+', 0, $input);
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { sargs => prettify(\@sargs) } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { sargs => prettify(\@sargs) } });
 
 	return if $#sargs < 1;
 
@@ -476,12 +772,12 @@ sub process_scmd_execute
 		$chain_args[$i] = $param if $is_decode_success;
 	}
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		chain_args => prettify(\@chain_args),
 		chain_str  => $chain_str,
 	} });
 
-	my (@results) = access_chain({ chain => $chain_str, chain_args => \@chain_args, debug => $debug });
+	my (@results) = access_chain({ anvil => $anvil, chain => $chain_str, chain_args => \@chain_args });
 
 	pstdout($lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
 }
@@ -494,171 +790,4 @@ sub pstdout
 sub pstderr
 {
 	print STDERR "error: ".$_[0]."\n" if defined $_[0];
-}
-
-$anvil->Get->switches;
-
-my $data_hash       = $anvil->data->{switches}{'data'};
-my $switch_debug    = $anvil->data->{switches}{'debug'} // 3;
-my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
-my $db_uuid         = $anvil->data->{switches}{'uuid'};
-#
-# Events in this context are simply printing the event name before
-# and/or after operations. The output should enable other programs to
-# parse and activate additional logic as necessary.
-#
-# Event names should be present-tense before an operation, and
-# past-tense after.
-#
-my $emit_events     = $anvil->data->{switches}{'emit-events'};
-my $pre_data        = $anvil->data->{switches}{'predata'};
-my $script_file     = $anvil->data->{switches}{'script'} // "-";
-my $sql_query       = $anvil->data->{switches}{'query'};
-my $sub_module_name = $anvil->data->{switches}{'sub-module'} // "Database";
-my $sub_name        = $anvil->data->{switches}{'sub'} // "";
-my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
-
-emit("initialized");
-
-$anvil->Database->connect;
-$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0132" });
-if (not $anvil->data->{sys}{database}{connections})
-{
-	# No databases, exit.
-	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "err", key => "error_0003" });
-	$anvil->nice_exit({ exit_code => 1 });
-}
-
-emit("connected");
-
-if ($sql_query)
-{
-	my $results = db_access({ db_uuid => $db_uuid, sql_query => $sql_query, db_access_mode => $db_access_mode });
-
-	pstdout(JSON->new->utf8->encode($results));
-}
-elsif ($anvil->${sub_module_name}->can($sub_name))
-{
-	my $decoded_sub_params;
-	my $is_decode_sub_params_success = eval { $decoded_sub_params = decode_json($sub_params); };
-
-	if (not $is_decode_sub_params_success)
-	{
-		pstderr("failed to parse subroutine parameters");
-
-		$anvil->nice_exit({ exit_code => 1 });
-	}
-
-	my (@results) = $anvil->${sub_module_name}->${sub_name}($decoded_sub_params);
-
-	pstdout(JSON->new->utf8->encode({ sub_results => scalar(@results) > 1 ? \@results : $results[0] }));
-}
-elsif ($data_hash)
-{
-	if ($pre_data)
-	{
-		my $decoded_pre_data;
-		my $is_decode_pre_data_success = eval { $decoded_pre_data = decode_json($pre_data); };
-
-		if ($is_decode_pre_data_success && is_array($decoded_pre_data))
-		{
-			call_pre_data_fns({ fns => $decoded_pre_data });
-		}
-	}
-
-	my $decoded_data_hash;
-	my $is_decode_data_hash_success = eval { $decoded_data_hash = decode_json($data_hash); };
-
-	if (not $is_decode_data_hash_success)
-	{
-		pstderr("failed to parse data structure");
-
-		$anvil->nice_exit({ exit_code => 1 });
-	}
-
-	my $get_anvil_data_params = { data => {} };
-
-	foreach_nested({
-		hash         => $decoded_data_hash,
-		on_chain_end => { fn => \&get_anvil_data, params => $get_anvil_data_params },
-	});
-
-	pstdout(JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data}));
-}
-else
-{
-	my $script_file_handle;
-
-	eval {
-		# TODO: make this script read piped input
-
-		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
-
-		if ($script_file =~ /^-$/)
-		{
-			open($script_file_handle, $script_file);
-		}
-		else
-		{
-			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
-		}
-	} or do {
-		# open() sets $! upon error, different from the database module failure (which sets $@)
-		pstderr("failed to open $script_file as script input; cause: $!");
-
-		$anvil->nice_exit({ exit_code => 1 });
-	};
-
-	while (my $script_line = <$script_file_handle>)
-	{
-		last if ($script_line =~ /^(?:q|quit)\s+$/);
-
-		$script_line =~ s/\s+$//;
-
-		my $scmd_db_read  = "r";
-		my $scmd_db_write = "w";
-		my $scmd_execute  = "x";
-
-		$script_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//;
-
-		my $script_line_id = $1;
-		
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $switch_debug, list => {
-			script_line_id => $script_line_id,
-			script_line    => $script_line,
-		} });
-
-		if ($script_line =~ /^$scmd_db_read\s+/)
-		{
-			process_scmd_db({ cmd => $scmd_db_read, input => $script_line, lid => $script_line_id });
-		}
-		elsif ($script_line =~ /^$scmd_db_write\s+/)
-		{
-			process_scmd_db({ cmd => $scmd_db_write, input => $script_line, lid => $script_line_id, mode => "write" });
-		}
-		elsif ($script_line =~ /^$scmd_execute\s+/)
-		{
-			process_scmd_execute({ debug => $switch_debug, input => $script_line, lid => $script_line_id });
-		}
-	}
-
-	close($script_file_handle) or do {
-		pstderr("failed to close $script_file handle; cause: $!");
-
-		$anvil->nice_exit({ exit_code => 1 });
-	};
-}
-
-emit("exit");
-
-$anvil->nice_exit({ exit_code => 0 });
-
-##################################################
-# Functions
-##################################################
-# TODO: need to move all subroutines down here.
-
-sub emit
-{
-	pstdout("event=".$_[0]) if ($emit_events);
 }

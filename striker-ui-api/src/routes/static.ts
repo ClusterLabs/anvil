@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { SERVER_PATHS } from '../lib/consts';
 
 import { assertAuthentication, assertInit } from '../middlewares';
-import { pout } from '../lib/shell';
+import { pout, poutvar } from '../lib/shell';
 
 const router = express.Router();
 
@@ -14,7 +14,10 @@ router.use((...args) => {
   const [request, response, next] = args;
   const { originalUrl, path: initialPath } = request;
 
-  console.log(`originalUrl=${originalUrl},initialpath=${initialPath}`);
+  poutvar({
+    initialPath,
+    originalUrl,
+  });
 
   let path = initialPath;
 
@@ -24,7 +27,7 @@ router.use((...args) => {
       const p = path.slice(0, -1).replace(/\/+/g, '/');
       const t = `${p}${q}`;
 
-      console.log(`redirect=${t}`);
+      poutvar({ redirect: t });
 
       return response.redirect(t);
     } else {
