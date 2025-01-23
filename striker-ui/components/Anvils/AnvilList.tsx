@@ -8,7 +8,6 @@ import {
 } from '../../lib/consts/DEFAULT_THEME';
 import Anvil from './Anvil';
 import { AnvilContext } from '../AnvilContext';
-import sortAnvils from './sortAnvils';
 import Decorator, { Colours } from '../Decorator';
 
 const PREFIX = 'AnvilList';
@@ -69,7 +68,7 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
         className={classes.root}
         aria-label="mailbox folders"
       >
-        {sortAnvils(list).map((anvil) => (
+        {list.map((anvil) => (
           <>
             <Divider className={classes.divider} />
             <ListItemButton

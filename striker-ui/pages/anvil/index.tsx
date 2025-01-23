@@ -16,7 +16,6 @@ import Network from '../../components/Network';
 import { Panel } from '../../components/Panels';
 import Servers from '../../components/Servers';
 import SharedStorage from '../../components/SharedStorage';
-import sortAnvils from '../../components/Anvils/sortAnvils';
 import Spinner from '../../components/Spinner';
 import useFetch from '../../hooks/useFetch';
 import useWindowDimensions from '../../hooks/useWindowDimenions';
@@ -96,7 +95,7 @@ const getAnvilUuid = (router: NextRouter, list?: AnvilList): string => {
   }
 
   if (!anvil) {
-    const [first = { anvil_uuid: '' }] = sortAnvils(ls);
+    const [first = { anvil_uuid: '' }] = ls;
 
     return first.anvil_uuid;
   }

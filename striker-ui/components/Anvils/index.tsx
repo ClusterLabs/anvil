@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import AnvilList from './AnvilList';
 import { Panel } from '../Panels';
 import SelectedAnvil from './SelectedAnvil';
-import sortAnvils from './sortAnvils';
 import useFetch from '../../hooks/useFetch';
 
 const Anvil: React.FC<{
@@ -78,7 +77,7 @@ const Anvils: React.FC<{ list: AnvilList }> = (props) => {
     <Panel>
       {fetchers}
       <SelectedAnvil list={anvils} />
-      <AnvilList list={sortAnvils(anvils)} />
+      <AnvilList list={anvils} />
     </Panel>
   );
 };
