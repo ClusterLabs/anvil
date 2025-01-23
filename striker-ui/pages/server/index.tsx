@@ -1,7 +1,7 @@
 import { Box, styled } from '@mui/material';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { FullSize } from '../../components/Display';
 import Header from '../../components/Header';
@@ -9,6 +9,7 @@ import { ManageServer } from '../../components/ManageServer';
 import MessageBox from '../../components/MessageBox';
 import PageBody from '../../components/PageBody';
 import { Panel } from '../../components/Panels';
+import setQueryParam from '../../lib/setQueryParam';
 import Spinner from '../../components/Spinner';
 import useFetch from '../../hooks/useFetch';
 
@@ -44,28 +45,6 @@ const Server = (): JSX.Element => {
     error: fetchError,
     loading: loadingServers,
   } = useFetch<APIServerOverviewList, APIServerOverview | undefined>('/server');
-
-  const setQueryParam = useCallback(
-    (
-      previous: typeof router.query,
-      key: string,
-      value?: string,
-    ): typeof router.query => {
-      let query;
-
-      // No value means removing the param
-      if (value === undefined) {
-        const { [key]: rm, ...rest } = previous;
-
-        query = rest;
-      } else {
-        query = { ...previous, [key]: value };
-      }
-
-      return query;
-    },
-    [router],
-  );
 
   const server = useMemo(() => {
     if (!servers || !router.isReady) {
@@ -141,7 +120,7 @@ const Server = (): JSX.Element => {
       <Box className={classes.fullView}>
         <FullSize
           onClickCloseButton={() => {
-            const query = setQueryParam(router.query, 'view');
+            const query = setQueryParam(router, 'view');
 
             router.replace({ query }, undefined, { shallow: true });
           }}
@@ -165,7 +144,7 @@ const Server = (): JSX.Element => {
             slotProps={{
               preview: {
                 onClick: () => {
-                  const query = setQueryParam(router.query, 'view', 'vnc');
+                  const query = setQueryParam(router, 'view', 'vnc');
 
                   router.replace({ query }, undefined, { shallow: true });
                 },
