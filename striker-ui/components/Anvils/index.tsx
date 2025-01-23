@@ -1,4 +1,5 @@
-import { createElement, useState } from 'react';
+import { Box } from '@mui/material';
+import { useMemo, useState } from 'react';
 
 import AnvilList from './AnvilList';
 import { Panel } from '../Panels';
@@ -7,19 +8,32 @@ import sortAnvils from './sortAnvils';
 import useFetch from '../../hooks/useFetch';
 
 const Anvil: React.FC<{
+  anvil: AnvilListItem;
   anvils: {
-    get: () => AnvilListItem[];
     set: React.Dispatch<React.SetStateAction<AnvilListItem[]>>;
+    value: AnvilListItem[];
   };
-  uuid: string;
 }> = (props) => {
-  const { anvils, uuid } = props;
+  const { anvil: overview, anvils } = props;
 
-  useFetch<AnvilStatus>(`/anvil/${uuid}`, {
+  useFetch<AnvilStatus>(`/anvil/${overview.anvil_uuid}`, {
     onSuccess: (data) => {
-      const i = anvils.get().findIndex((anvil) => anvil.anvil_uuid === uuid);
+      const i = anvils.value.findIndex(
+        (detail) => detail.anvil_uuid === overview.anvil_uuid,
+      );
 
       if (i === -1) {
+        anvils.set((previous) => {
+          const clone = [
+            ...previous,
+            {
+              ...overview,
+              ...data,
+            },
+          ];
+
+          return clone;
+        });
         return;
       }
 
@@ -37,28 +51,32 @@ const Anvil: React.FC<{
     periodic: true,
   });
 
-  return <></>;
+  return <Box display="none" />;
 };
 
-const Anvils: React.FC<{ list?: AnvilList }> = (props) => {
+const Anvils: React.FC<{ list: AnvilList }> = (props) => {
   const { list } = props;
 
   const [anvils, setAnvils] = useState<AnvilListItem[]>([]);
 
-  list?.anvils.forEach((anvil) => {
-    const { anvil_uuid: uuid } = anvil;
-
-    createElement(Anvil, {
-      anvils: {
-        get: () => anvils,
-        set: setAnvils,
-      },
-      uuid,
-    });
-  });
+  const fetchers = useMemo(
+    () =>
+      list.anvils.map((anvil) => (
+        <Anvil
+          key={`${anvil.anvil_uuid}-fetcher`}
+          anvil={anvil}
+          anvils={{
+            set: setAnvils,
+            value: anvils,
+          }}
+        />
+      )),
+    [anvils, list.anvils],
+  );
 
   return (
     <Panel>
+      {fetchers}
       <SelectedAnvil list={anvils} />
       <AnvilList list={sortAnvils(anvils)} />
     </Panel>

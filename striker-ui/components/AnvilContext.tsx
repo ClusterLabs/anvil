@@ -1,29 +1,37 @@
-import { createContext, useState, ReactNode } from 'react';
+import { createContext, useState } from 'react';
 
-interface AnvilContextType {
+interface AnvilContextValue {
+  setAnvilUuid?: (uuid: string) => void;
   uuid: string;
-  setAnvilUuid: (uuid: string) => void;
 }
 
-const AnvilContextDefault: AnvilContextType = {
+const AnvilContext = createContext<AnvilContextValue>({
   uuid: '',
-  setAnvilUuid: () => null,
-};
+});
 
-const AnvilContext = createContext<AnvilContextType>(AnvilContextDefault);
+const AnvilProvider: React.FC = (props) => {
+  const { children } = props;
 
-const AnvilProvider = ({ children }: { children: ReactNode }): JSX.Element => {
   const [uuid, setUuid] = useState<string>('');
-  const setAnvilUuid = (anvilUuid: string): void => {
-    setUuid(anvilUuid);
-  };
 
   return (
-    <AnvilContext.Provider value={{ uuid, setAnvilUuid }}>
+    <AnvilContext.Provider
+      value={{
+        uuid,
+        setAnvilUuid: (id) => {
+          if (id === uuid) {
+            return;
+          }
+
+          setUuid(id);
+        },
+      }}
+    >
       {children}
     </AnvilContext.Provider>
   );
 };
 
-export default AnvilProvider;
 export { AnvilContext };
+
+export default AnvilProvider;

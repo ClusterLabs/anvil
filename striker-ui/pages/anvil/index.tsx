@@ -1,7 +1,7 @@
 import { Box, styled } from '@mui/material';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
-import { useContext, useEffect, useMemo } from 'react';
+import { NextRouter, useRouter } from 'next/router';
+import { createElement, useContext, useMemo } from 'react';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
@@ -11,13 +11,15 @@ import CPU from '../../components/CPU';
 import Header from '../../components/Header';
 import Hosts from '../../components/Hosts';
 import Memory from '../../components/Memory';
+import MessageBox from '../../components/MessageBox';
 import Network from '../../components/Network';
 import { Panel } from '../../components/Panels';
 import Servers from '../../components/Servers';
 import SharedStorage from '../../components/SharedStorage';
+import sortAnvils from '../../components/Anvils/sortAnvils';
 import Spinner from '../../components/Spinner';
-import useWindowDimensions from '../../hooks/useWindowDimenions';
 import useFetch from '../../hooks/useFetch';
+import useWindowDimensions from '../../hooks/useWindowDimenions';
 
 const PREFIX = 'Anvil';
 
@@ -58,11 +60,100 @@ const StyledDiv = styled('div')(({ theme }) => ({
   },
 }));
 
-const Anvil = (): JSX.Element => {
-  const router = useRouter();
-  const width = useWindowDimensions();
+const CenterPanel: React.FC = (props) => {
+  const { children } = props;
 
-  const { setAnvilUuid } = useContext(AnvilContext);
+  return createElement(
+    Panel,
+    {
+      sx: {
+        marginLeft: { xs: '1em', sm: 'auto' },
+        marginRight: { xs: '1em', sm: 'auto' },
+        marginTop: 'calc(50vh - 10em)',
+        maxWidth: { xs: undefined, sm: '60%', md: '50%', lg: '40%' },
+        minWidth: 'fit-content',
+      },
+    },
+    children,
+  );
+};
+
+const getAnvilUuid = (router: NextRouter, list?: AnvilList): string => {
+  if (!router.isReady || !list) {
+    return '';
+  }
+
+  const { anvils: ls } = list;
+
+  const { name, uuid } = router.query;
+
+  let anvil: AnvilListItem | undefined;
+
+  if (name) {
+    anvil = ls.find((li) => li.anvil_name === name);
+  } else if (uuid) {
+    anvil = ls.find((li) => li.anvil_uuid === uuid);
+  }
+
+  if (!anvil) {
+    const [first = { anvil_uuid: '' }] = sortAnvils(ls);
+
+    return first.anvil_uuid;
+  }
+
+  return anvil.anvil_uuid;
+};
+
+const AnvilSelector: React.FC<{ list?: AnvilList; loading: boolean }> = (
+  props,
+) => {
+  const { children, list, loading } = props;
+
+  const router = useRouter();
+
+  const { uuid: selected, setAnvilUuid } = useContext(AnvilContext);
+
+  const translated = useMemo(() => {
+    const value = getAnvilUuid(router, list);
+
+    setAnvilUuid?.call(null, value);
+
+    return value;
+  }, [list, router, setAnvilUuid]);
+
+  if (selected) {
+    return <>{children}</>;
+  }
+
+  const loadingElement = (
+    <CenterPanel>
+      <Spinner sx={{ margin: '2em 2.4em' }} />
+    </CenterPanel>
+  );
+
+  const failedElement = (
+    <CenterPanel>
+      <MessageBox type="warning">Failed to get system summary.</MessageBox>
+    </CenterPanel>
+  );
+
+  if (loading) {
+    return loadingElement;
+  }
+
+  if (!list) {
+    return failedElement;
+  }
+
+  if (!translated) {
+    return failedElement;
+  }
+
+  return loadingElement;
+};
+
+const Anvil: React.FC = () => {
+  const width = useWindowDimensions();
 
   const { data: summary, loading: loadingSummary } = useFetch<AnvilList>(
     `/anvil/summary`,
@@ -72,102 +163,59 @@ const Anvil = (): JSX.Element => {
   );
 
   const contentLayoutElement = useMemo(() => {
-    let result;
-
-    if (summary && width) {
-      result =
-        width > LARGE_MOBILE_BREAKPOINT ? (
-          <Box className={classes.container}>
-            <Box className={classes.child}>
-              <Anvils list={summary} />
-              <Hosts anvil={summary.anvils} />
-            </Box>
-            <Box className={classes.server}>
-              <Servers anvil={summary.anvils} />
-            </Box>
-            <Box className={classes.child}>
-              <SharedStorage />
-            </Box>
-            <Box className={classes.child}>
-              <Network />
-              <CPU />
-              <Memory />
-            </Box>
-          </Box>
-        ) : (
-          <Box className={classes.container}>
-            <Box className={classes.child}>
-              <Servers anvil={summary.anvils} />
-              <Anvils list={summary} />
-              <Hosts anvil={summary.anvils} />
-            </Box>
-            <Box className={classes.child}>
-              <Network />
-              <SharedStorage />
-              <CPU />
-              <Memory />
-            </Box>
-          </Box>
-        );
+    if (!summary || !width) {
+      return undefined;
     }
 
-    return result;
+    if (width > LARGE_MOBILE_BREAKPOINT) {
+      return (
+        <Box className={classes.container}>
+          <Box className={classes.child}>
+            <Anvils list={summary} />
+            <Hosts anvil={summary.anvils} />
+          </Box>
+          <Box className={classes.server}>
+            <Servers anvil={summary.anvils} />
+          </Box>
+          <Box className={classes.child}>
+            <SharedStorage />
+          </Box>
+          <Box className={classes.child}>
+            <Network />
+            <CPU />
+            <Memory />
+          </Box>
+        </Box>
+      );
+    }
+
+    return (
+      <Box className={classes.container}>
+        <Box className={classes.child}>
+          <Servers anvil={summary.anvils} />
+          <Anvils list={summary} />
+          <Hosts anvil={summary.anvils} />
+        </Box>
+        <Box className={classes.child}>
+          <Network />
+          <SharedStorage />
+          <CPU />
+          <Memory />
+        </Box>
+      </Box>
+    );
   }, [summary, width]);
-
-  const contentAreaElement = useMemo(
-    () =>
-      loadingSummary ? (
-        <Panel
-          sx={{
-            marginLeft: { xs: '1em', sm: 'auto' },
-            marginRight: { xs: '1em', sm: 'auto' },
-            marginTop: 'calc(50vh - 10em)',
-            maxWidth: { xs: undefined, sm: '60%', md: '50%', lg: '40%' },
-            minWidth: 'fit-content',
-          }}
-        >
-          <Spinner sx={{ margin: '2em 2.4em' }} />
-        </Panel>
-      ) : (
-        contentLayoutElement
-      ),
-    [contentLayoutElement, loadingSummary],
-  );
-
-  useEffect(() => {
-    if (!router.isReady || !summary) {
-      return;
-    }
-
-    const { anvils } = summary;
-
-    const { name, uuid } = router.query;
-
-    let anvil: AnvilListItem | undefined;
-
-    if (name) {
-      anvil = anvils.find((li) => li.anvil_name === name);
-    } else if (uuid) {
-      anvil = anvils.find((li) => li.anvil_uuid === uuid);
-    }
-
-    if (!anvil) {
-      return;
-    }
-
-    const { anvil_uuid: anvilUuid } = anvil;
-
-    setAnvilUuid(anvilUuid);
-  }, [router.isReady, router.query, setAnvilUuid, summary]);
 
   return (
     <StyledDiv>
       <Head>
         <title>Anvil</title>
       </Head>
+      <Header />
       <AnvilProvider>
-        <Header />
-        {contentAreaElement}
+        <AnvilSelector list={summary} loading={loadingSummary}>
+          {contentLayoutElement}
+        </AnvilSelector>
       </AnvilProvider>
     </StyledDiv>
   );

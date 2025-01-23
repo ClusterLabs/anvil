@@ -45,9 +45,11 @@ const Memory = (): JSX.Element => {
           <Box display="flex" width="100%">
             <Box flexGrow={1}>
               <AllocationBar
-                allocated={Number(
-                  ((nReserved + nAllocated) * BigInt(100)) / nTotal,
-                )}
+                allocated={
+                  nTotal
+                    ? Number(((nReserved + nAllocated) * BigInt(100)) / nTotal)
+                    : 0
+                }
               />
             </Box>
           </Box>

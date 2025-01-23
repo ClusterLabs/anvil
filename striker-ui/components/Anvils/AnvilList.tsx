@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react';
+import { useContext } from 'react';
 import { styled } from '@mui/material/styles';
 import { List, Box, Divider, ListItemButton } from '@mui/material';
 import {
@@ -60,13 +60,7 @@ const selectDecorator = (state: string): Colours => {
 };
 
 const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
-  const { uuid, setAnvilUuid } = useContext(AnvilContext);
-
-  useEffect(() => {
-    if (uuid === '') {
-      setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
-    }
-  }, [uuid, list, setAnvilUuid]);
+  const { setAnvilUuid } = useContext(AnvilContext);
 
   return (
     <StyledDiv>
@@ -81,7 +75,7 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             <ListItemButton
               className={classes.button}
               key={anvil.anvil_uuid}
-              onClick={() => setAnvilUuid(anvil.anvil_uuid)}
+              onClick={() => setAnvilUuid?.call(null, anvil.anvil_uuid)}
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box p={1}>
