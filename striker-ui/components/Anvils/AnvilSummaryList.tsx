@@ -44,7 +44,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                 children: (
                   <InnerPanel height="100%" mv={0}>
                     <InnerPanelHeader>
-                      <Link href={`/anvil?anvil_uuid=${uuid}`} noWrap>
+                      <Link href={`/anvil?name=${name}`} noWrap>
                         {name}
                       </Link>
                       <BodyText

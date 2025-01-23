@@ -50,11 +50,7 @@ const buildPreview = (server: APIServerOverview): React.ReactNode => (
               {name}
             </Link>
           )}
-          <Link
-            href={`/anvil?anvil_uuid=${anvil.uuid}`}
-            noWrap
-            sx={{ opacity: 0.7 }}
-          >
+          <Link href={`/anvil?name=${anvil.name}`} noWrap sx={{ opacity: 0.7 }}>
             {anvil.name}
           </Link>
         </>
