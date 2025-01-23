@@ -1,14 +1,16 @@
-import { useContext } from 'react';
 import { styled } from '@mui/material/styles';
 import { List, Box, Divider, ListItemButton } from '@mui/material';
+import { useRouter } from 'next/router';
+
 import {
   HOVER,
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
 } from '../../lib/consts/DEFAULT_THEME';
+
 import Anvil from './Anvil';
-import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
+import setQueryParam from '../../lib/setQueryParam';
 
 const PREFIX = 'AnvilList';
 
@@ -59,7 +61,7 @@ const selectDecorator = (state: string): Colours => {
 };
 
 const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
-  const { setAnvilUuid } = useContext(AnvilContext);
+  const router = useRouter();
 
   return (
     <StyledDiv>
@@ -74,7 +76,11 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
             <ListItemButton
               className={classes.button}
               key={anvil.anvil_uuid}
-              onClick={() => setAnvilUuid?.call(null, anvil.anvil_uuid)}
+              onClick={() => {
+                const query = setQueryParam(router, 'name', anvil.anvil_name);
+
+                router.replace({ query }, undefined, { shallow: true });
+              }}
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box p={1}>
