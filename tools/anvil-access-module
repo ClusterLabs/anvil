@@ -146,8 +146,13 @@
 
 use strict;
 use warnings;
+
 use Anvil::Tools;
+use Cwd;
 use Data::Dumper;
+use File::Spec::Functions;
+use File::Temp qw(tempdir);
+use IO::Socket::UNIX;
 use JSON;
 use Text::ParseWords;
 
@@ -257,55 +262,6 @@ sub access_chain
 	return (@results);
 }
 
-sub call_fn
-{
-	my $parameters = shift;
-	my $chain      = $parameters->{chain};
-	my $fallback   = $parameters->{fallback};
-	my $fn_wrapper = $parameters->{fn};
-
-	if (exists $fn_wrapper->{fn})
-	{
-		my $fn        = $fn_wrapper->{fn};
-		my $fn_params = $fn_wrapper->{params};
-
-		$fn_params->{chain} = $chain;
-
-		return $fn->($fn_params);
-	}
-	else
-	{
-		return $fallback;
-	}
-}
-
-sub call_pre_data_fns
-{
-	my $parameters = shift;
-	my $anvil      = $parameters->{anvil};
-	my $fns        = $parameters->{fns};
-
-	if (is_array($fns))
-	{
-		foreach my $fn_wrapper ( @{$fns} )
-		{
-			if (is_array($fn_wrapper))
-			{
-				# The double dash ( // ) operator is similar to the or ( || )
-				# operator; it tests for defined instead of true.
-
-				my @cargs = @{$fn_wrapper}[1..$#{$fn_wrapper}];
-
-				access_chain({
-					anvil      => $anvil,
-					chain      => @{$fn_wrapper}[0],
-					chain_args => \@cargs,
-				});
-			}
-		}
-	}
-}
-
 # only used by child processes to clone the parent's database handles
 sub clone_database_handles
 {
@@ -370,80 +326,6 @@ sub emit
 	pstdout("event=".$_[0]);
 }
 
-sub foreach_nested
-{
-	my $parameters   = shift;
-	# required:
-	my $hash         = $parameters->{hash};
-	# optional:
-	my $chain        = exists $parameters->{chain}        ? $parameters->{chain}        : ();
-	my $depth        = exists $parameters->{depth}        ? $parameters->{depth}        : 0;
-	my $on_key       = exists $parameters->{on_key}       ? $parameters->{on_key}       : {};
-	my $on_chain_end = exists $parameters->{on_chain_end} ? $parameters->{on_chain_end} : {};
-
-	foreach my $key (keys %{$hash})
-	{
-		my $is_continue_chain = 1;
-		my $value             = $hash->{$key};
-
-		push(@{$chain}, $key);
-
-		$is_continue_chain = call_fn({ chain => $chain, fallback => $is_continue_chain, fn => $on_key });
-
-		if ( ($is_continue_chain) && is_hash($value) )
-		{
-			foreach_nested({
-				chain        => $chain,
-				depth        => $depth + 1,
-				hash         => $value,
-				on_chain_end => $on_chain_end,
-				on_key       => $on_key,
-			});
-		}
-		else
-		{
-			call_fn({ chain => $chain, fn => $on_chain_end });
-		}
-
-		pop(@{$chain});
-	}
-}
-
-sub get_anvil_data
-{
-	my $parameters          = shift;
-	# required:
-	my $anvil               = $parameters->{anvil};
-	my $chain               = $parameters->{chain};
-	my $target_intermediate = $parameters->{data};
-
-	my $source_intermediate = $anvil->data;
-	my $key_index           = 0;
-
-	foreach my $key ( @{$chain} )
-	{
-		last if not exists $source_intermediate->{$key};
-
-		$source_intermediate = $source_intermediate->{$key};
-
-		if (not exists $target_intermediate->{$key})
-		{
-			$target_intermediate->{$key} = {};
-		}
-
-		if ($key_index < $#{$chain})
-		{
-			$target_intermediate = $target_intermediate->{$key};
-		}
-		else
-		{
-			$target_intermediate->{$key} = $source_intermediate;
-		}
-
-		$key_index += 1;
-	}
-}
-
 sub get_scmd_args
 {
 	my $parameters = shift;
@@ -492,14 +374,8 @@ sub main
 
 	$anvil->Get->switches;
 
-	my $data_hash       = $anvil->data->{switches}{'data'};
-	my $db_access_mode  = $anvil->data->{switches}{'mode'} // "";
-	my $db_uuid         = $anvil->data->{switches}{'uuid'};
-	my $pre_data        = $anvil->data->{switches}{'predata'};
-	my $script_file     = $anvil->data->{switches}{'script'} // "-";
-	my $sql             = $anvil->data->{switches}{'query'};
-	my $sub_chain       = $anvil->data->{switches}{'sub'} // "";
-	my $sub_params      = $anvil->data->{switches}{'sub-params'} // "{}";
+	my $script_file = $anvil->data->{switches}{'script'}      // "-";
+	my $working_dir = $anvil->data->{switches}{'working-dir'} // cwd();
 
 	emit("initialized");
 
@@ -514,117 +390,112 @@ sub main
 
 	emit("connected");
 
-	if ($sql)
+	my $tmp_dir = tempdir(
+		CLEANUP => 1,
+		DIR     => $working_dir,
+	);
+
+	my $socket_path = catfile($tmp_dir, "socket");
+
+	emit("socket:".$socket_path);
+
+	my $server = IO::Socket::UNIX->new(
+		Blocking => 1,
+		Local    => $socket_path,
+		Listen   => 10,
+		Type     => SOCK_STREAM,
+	) or do {
+		pstderr("failed to create server using ".$socket_path."; cause: ".$@);
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
+
+	# make child processes start-and-forget because we don't need to wait for them
+	local $SIG{CHLD} = "IGNORE";
+
+	# make 1 child to interact on stdio
+	my $interface_pid = fork;
+
+	if (not defined $interface_pid)
 	{
-		my $cmd   = $db_access_mode eq "write" ? $scmd_db_write : $scmd_db_read;
-		my $input = $cmd." ";
+		pstderr("failed to fork IO interface; cause: ".$!);
 
-		if ($db_uuid)
-		{
-			$input .= "uuid=".$db_uuid." ";
-		}
+		close($server);
 
-		$input .= $sql;
-
-		process_scmd_db({ anvil => $anvil, cmd => $cmd, input => $input });
+		$anvil->nice_exit({ exit_code => 1 });
 	}
-	elsif ($sub_chain)
+
+	if ($interface_pid)
 	{
-		my $input = $scmd_execute." ".$sub_chain." ".$sub_params;
+		emit("interface:".$interface_pid."-forked");
 
-		process_scmd_execute({ anvil => $anvil, input => $input });
-	}
-	elsif ($data_hash)
-	{
-		if ($pre_data)
-		{
-			my $decoded_pre_data;
-			my $is_decode_pre_data_success = eval { $decoded_pre_data = decode_json($pre_data); };
+		while (my $responder = $server->accept() or do {
+			pstderr("failed to accept connections; cause: ".$!);
 
-			if ($is_decode_pre_data_success && is_array($decoded_pre_data))
-			{
-				call_pre_data_fns({ anvil => $anvil, fns => $decoded_pre_data });
-			}
-		}
-
-		my $decoded_data_hash;
-		my $is_decode_data_hash_success = eval { $decoded_data_hash = decode_json($data_hash); };
-
-		if (not $is_decode_data_hash_success)
-		{
-			pstderr("failed to parse data structure");
+			close($server);
 
 			$anvil->nice_exit({ exit_code => 1 });
-		}
-
-		my $get_anvil_data_params = { anvil => $anvil, data => {} };
-
-		foreach_nested({
-			hash         => $decoded_data_hash,
-			on_chain_end => { fn => \&get_anvil_data, params => $get_anvil_data_params },
-		});
-
-		pstdout(JSON->new->utf8->allow_blessed->encode($get_anvil_data_params->{data}));
-	}
-	else
-	{
-		my $script_file_handle;
-
-		eval {
-			# TODO: make this script read piped input
-
-			$script_file = "-" if ($script_file =~ /^#!SET!#$/);
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
-
-			if ($script_file =~ /^-$/)
-			{
-				open($script_file_handle, "-");
-			}
-			else
-			{
-				open($script_file_handle, "< :encoding(UTF-8)", $script_file);
-			}
-		} or do {
-			# open() sets $! upon error, different from the database module failure (which sets $@)
-			pstderr("failed to open ".$script_file." as script input; cause: ".$!);
-
-			$anvil->nice_exit({ exit_code => 1 });
-		};
-
-		# make child processes start-and-forget because we don't need to wait for them
-		local $SIG{CHLD} = "IGNORE";
-
-		while (my $script_line = <$script_file_handle>)
+		})
 		{
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
+			my $request_line = <$responder>;
 
-			last if ($script_line =~ /^(?:q|quit)\s+$/);
+			# responder is done reading
+			$responder->shutdown(SHUT_RD);
 
-			my $pid = fork; # the child process starts here when spawned successfully:
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { request_line => $request_line } });
 
-			# - fork returns `undef` when it fails to spawn the child
-			# - fork returns the child's pid to the parent
-			# - fork returns `0` to the child
+			last if ($request_line =~ /^(?:q|quit)\s*$/);
 
-			if (not defined $pid) {
-				pstderr("failed to fork; cause: ".$!);
+			my $pid = fork;
+
+			if (not defined $pid)
+			{
+				pstderr("failed to fork on receive; cause: ".$!);
 
 				next;
 			}
 
 			if ($pid)
 			{
-				emit($pid."-forked");
+				emit("responder:".$pid."-forked");
 
 				next;
 			}
 
-			# start child-only block
+			#############
+			### BEGIN ### responder block
+			#############
 
+			# close the server because the child doesn't need it
+			close($server);
+
+			# disconnect from the parent's outputs to avoid interference
+
+			close(STDOUT);
+			close(STDERR);
+
+			# redirect outputs to the responder for transport
+
+			open(STDOUT, ">&", $responder) or do {
+				print $responder "failed to open STDOUT; cause: ".$!."\n";
+
+				$responder->shutdown(SHUT_RDWR);
+
+				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+			};
+
+			open(STDERR, ">&", $responder) or do {
+				print $responder "failed to open STDERR; cause: ".$!."\n";
+
+				$responder->shutdown(SHUT_RDWR);
+
+				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+			};
+
+			# clone the database handle for this child to avoid interfering with another process that needs to use the database
 			clone_database_handles({ anvil => $anvil });
 
-			my @cmd_lines = split(/;;/, $script_line);
+			my @cmd_lines = split(/;;/, $request_line);
 
 			foreach my $cmd_line (@cmd_lines)
 			{
@@ -657,31 +528,146 @@ sub main
 				}
 			}
 
-			# the child must **not** close the DB connection because it's shared with the parent and other children
+			# responder is done writing
+			$responder->shutdown(SHUT_WR);
 
-			close($script_file_handle) or do {
-				pstderr("failed to close ".$script_file." handle; cause: ".$!);
-
-				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-			};
-
-			emit($$."-exit");
+			emit("responder:".$$."-exit");
 
 			$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
 
-			# end child-only block
+			#############
+			#### END #### responder block
+			#############
 		}
 
-		close($script_file_handle) or do {
-			pstderr("failed to close ".$script_file." handle; cause: ".$!);
+		close($server);
 
-			$anvil->nice_exit({ exit_code => 1 });
-		};
+		emit("exit");
+
+		$anvil->nice_exit({ exit_code => 0 });
 	}
 
-	emit("exit");
+	#############
+	### BEGIN ### interface block
+	#############
+
+	# close the server because the child doesn't need it
+	close($server);
+
+	my $script_file_handle;
+
+	eval {
+		# TODO: make this script read piped input
+
+		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
+
+		if ($script_file =~ /^-$/)
+		{
+			open($script_file_handle, "-");
+		}
+		else
+		{
+			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
+		}
+	} or do {
+		# open() sets $! upon error, different from the database module failure (which sets $@)
+		pstderr("failed to open ".$script_file." as script input; cause: ".$!);
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
+
+	emit("interface:".$$."-ready");
+
+	while (my $script_line = <$script_file_handle>)
+	{
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
+
+		if ($script_line =~ /^(?:q|quit)\s*$/)
+		{
+			my $quitter = IO::Socket::UNIX->new(
+				Peer => $socket_path,
+				Type => SOCK_STREAM,
+			) or do {
+				pstderr("failed to create QUIT connection to ".$socket_path."; cause: $@");
+
+				$anvil->nice_exit({ exit_code => 1 });
+			};
+
+			print $quitter $script_line;
+
+			$quitter->shutdown(SHUT_RDWR);
+
+			last;
+		}
+
+		my $pid = fork; # the child process starts here when spawned successfully:
+
+		# - fork returns `undef` when it fails to spawn the child
+		# - fork returns the child's pid to the parent
+		# - fork returns `0` to the child
+
+		if (not defined $pid) {
+			pstderr("failed to fork on send; cause: ".$!);
+
+			next;
+		}
+
+		if ($pid)
+		{
+			emit("requester:".$pid."-forked");
+
+			next;
+		}
+
+		#############
+		### BEGIN ### requester block
+		#############
+
+		# the child doesn't need to process input
+		close($script_file_handle);
+
+		my $requester = IO::Socket::UNIX->new(
+			Peer => $socket_path,
+			Type => SOCK_STREAM,
+		) or do {
+			pstderr("failed to create connection to ".$socket_path."; cause: ".$@);
+
+			$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+		};
+
+		print $requester $script_line;
+
+		$requester->shutdown(SHUT_WR);
+
+		while (my $line = <$requester>)
+		{
+			$line =~ s/\s+$//;
+
+			pstdout($line);
+		}
+
+		$requester->shutdown(SHUT_RD);
+
+		emit("requester:".$$."-exit");
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
+
+		#############
+		#### END #### requester block
+		#############
+	}
+
+	close($script_file_handle);
+
+	emit("interface:".$$."-exit");
 
 	$anvil->nice_exit({ exit_code => 0 });
+
+	#############
+	#### END #### interface block
+	#############
 }
 
 sub prettify
@@ -735,9 +721,13 @@ sub process_scmd_db
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { results => prettify($results) } });
 
-		pstdout($lid.JSON->new->utf8->encode($results));
+		my $output = $lid.JSON->new->utf8->encode($results);
+
+		pstdout($output);
 	} or do {
-		pstderr("failed to access database; cause: ".$@);
+		my $error = "failed to access database; cause: ".$@;
+
+		pstderr($error);
 	}
 }
 
@@ -777,14 +767,24 @@ sub process_scmd_execute
 		chain_str  => $chain_str,
 	} });
 
-	my (@results) = access_chain({ anvil => $anvil, chain => $chain_str, chain_args => \@chain_args });
+	eval {
+		my (@results) = access_chain({ anvil => $anvil, chain => $chain_str, chain_args => \@chain_args });
 
-	pstdout($lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results }));
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { results => prettify(\@results) } });
+
+		my $output = $lid.JSON->new->utf8->allow_blessed->encode({ sub_results => \@results });
+
+		pstdout($output);
+	} or do {
+		my $error = "failed to access chain; cause: ".$@;
+
+		pstderr($error);
+	}
 }
 
 sub pstdout
 {
-	print $_[0]."\n" if defined $_[0];
+	print STDOUT $_[0]."\n" if defined $_[0];
 }
 
 sub pstderr
