@@ -390,10 +390,18 @@ sub main
 
 	emit("connected");
 
-	my $tmp_dir = tempdir(
-		CLEANUP => 1,
-		DIR     => $working_dir,
-	);
+	my $tmp_dir;
+
+	eval {
+		$tmp_dir = tempdir(
+			CLEANUP => 1,
+			DIR     => $working_dir,
+		);
+	} or do {
+		pstderr("failed to create server directory; cause: ".$@);
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
 
 	my $socket_path = catfile($tmp_dir, "socket");
 
@@ -428,6 +436,26 @@ sub main
 	if ($interface_pid)
 	{
 		emit("interface:".$interface_pid."-forked");
+
+		local $SIG{INT}  = sub {
+			emit("sigint");
+
+			close($server);
+
+			emit("exit");
+
+			$anvil->catch_sig({ signal => "INT" });
+		};
+
+		local $SIG{TERM} = sub {
+			emit("sigterm");
+
+			close($server);
+
+			emit("exit");
+
+			$anvil->catch_sig({ signal => "TERM" });
+		};
 
 		while (my $responder = $server->accept() or do {
 			pstderr("failed to accept connections; cause: ".$!);
@@ -555,6 +583,26 @@ sub main
 	close($server);
 
 	my $script_file_handle;
+
+	local $SIG{INT}  = sub {
+		emit("interface:".$$."-sigint");
+
+		close($script_file_handle);
+
+		emit("interface:".$$."-exit");
+
+		$anvil->catch_sig({ signal => "INT" });
+	};
+
+	local $SIG{TERM} = sub {
+		emit("interface:".$$."-sigterm");
+
+		close($script_file_handle);
+
+		emit("interface:".$$."-exit");
+
+		$anvil->catch_sig({ signal => "TERM" });
+	};
 
 	eval {
 		# TODO: make this script read piped input
