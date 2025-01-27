@@ -93,16 +93,13 @@ if (not $anvil->data->{switches}{server})
 {
 	# Show the list of servers.
 	show_server_list($anvil);
-	if (not $anvil->data->{switches}{machine})
-	{
-		$anvil->Job->update_progress({
-			progress => 100,
-			message  => "error_0456", 
-			log_level => 1, 
-			'print'   => 1, 
-			priority  => "err",
-		});
-	}
+	$anvil->Job->update_progress({
+		progress => 100,
+		message  => "error_0456", 
+		log_level => 1, 
+		'print'   => 1, 
+		priority  => "err",
+	});
 	$anvil->nice_exit({exit_code => 0});
 }
 
