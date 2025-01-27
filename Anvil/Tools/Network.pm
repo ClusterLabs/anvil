@@ -3870,7 +3870,7 @@ sub manage_firewall
 	# Set defaults that the user can override in anvil.conf
 	if (not exists $anvil->data->{sys}{firewall}{'default-zone'})
 	{
-		$anvil->data->{sys}{firewall}{'default-zone'} = "";
+		$anvil->data->{sys}{firewall}{'default-zone'} = "IFN1";
 	}
 	
 	# What we do next depends on what we're doing. 
@@ -4182,6 +4182,10 @@ sub manage_firewall
 				}
 			}
 		}
+		
+		# Check the default zone. If it's 'default', change it either to 'IFN1' or whatever zone the user specified in 
+		$anvil->data->{sys}{firewall}{'current-default-zone'} = "" if not exists $anvil->data->{sys}{firewall}{'current-default-zone'};
+		
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
 		if ($reload)
@@ -6187,6 +6191,128 @@ sub _manage_striker_firewall
 	}
 	
 	return($changes);
+}
+
+# Read in the current firewall config
+sub _parse_firewall_config
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->_parse_firewall_config()" }});
+	
+	# Show live or permanent rules? Permanent is default 
+	my $permanent = defined $parameter->{permanent} ? $parameter->{permanent} : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		permanent => $permanent,
+	}});
+	
+	my $say_permanent = $permanent ? " --permanent" : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { say_permanent => $say_permanent }});
+	
+	
+	# What's the default zone? 
+	my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}.$say_permanent." --get-default-zone";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	($anvil->data->{sys}{firewall}{'current-default-zone'}, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"sys::firewall::current-default-zone" => $anvil->data->{sys}{firewall}{'current-default-zone'}, 
+		return_code                           => $return_code,
+	}});
+	
+	# Now load the zone data.
+	$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}.$say_permanent." --list-all-zones";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	
+	my $zone                   = "";
+	my $active_state           = "";
+	my ($firewall_data, undef) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+	foreach my $line (split/\n/, $firewall_data)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:zone' => $zone,
+			's2:line' => $line,
+		}});
+		
+		if ($line =~ /^(\w.*)$/)
+		{
+			$zone         = $1;
+			$active_state = "inactive";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone => $zone }});
+			if ($line =~ /^(\w+) \((.*?)\)/)
+			{
+				$zone         = $1;
+				$active_state = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone         => $zone, 
+					active_state => $active_state, 
+				}});
+			}
+			
+			$anvil->data->{firewall}{zone}{$zone}{active} = $active_state;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"firewall::zone::${zone}::active" => $anvil->data->{firewall}{zone}{$zone}{active}, 
+			}});
+		}
+		elsif ($zone)
+		{
+			if ((not $line) or ($line =~ /^\s+$/))
+			{
+				# Done reading this zone, record.
+				my $interfaces = defined $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} ? $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} : "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone       => $zone,
+					interfaces => $interfaces, 
+				}});
+				foreach my $interface (split/ /, $interfaces)
+				{
+					$anvil->data->{firewall}{interface}{$interface}{zone} = $zone;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						"firewall::interface::${interface}::zone" => $anvil->data->{firewall}{interface}{$interface}{zone},
+					}});
+				}
+				
+				$zone         = "";
+				$active_state = "";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					zone         => $zone, 
+					active_state => $active_state, 
+				}});
+			}
+			elsif (($active_state) && ($line =~ /(\S.*?):(.*)$/))
+			{
+				my $variable =  $1;
+				my $value    =  $2;
+				   $variable =~ s/^\s+//;
+				   $variable =~ s/\s+$//;
+				   $value    =~ s/^\s+//;
+				   $value    =~ s/\s+$//;
+				$anvil->data->{firewall}{zone}{$zone}{variable}{$variable} = $value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"s1:line"                                           => $line,
+					"s2:firewall::zone::${zone}::variable::${variable}" => $anvil->data->{firewall}{zone}{$zone}{variable}{$variable}, 
+				}});
+			}
+		}
+	}
+	
+	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:zone'   => $zone,
+			's2:active' => $anvil->data->{firewall}{zone}{$zone}{active},
+		}});
+		foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}{$zone}{variable}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				$variable => $anvil->data->{firewall}{zone}{$zone}{variable}{$variable},
+			}});
+		}
+	}
+	
+	return(0);
 }
 
 1;

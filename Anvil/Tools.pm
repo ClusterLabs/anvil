@@ -925,6 +925,9 @@ sub _set_defaults
 			timestamp			=>	"",
 			use_handle			=>	"",
 		},
+		firewall			=>	{
+			'default-zone'			=>	"IFN1",
+		},
 		host_type			=>	"",
 		host_uuid			=>	"",
 		language			=>	"en_CA",
