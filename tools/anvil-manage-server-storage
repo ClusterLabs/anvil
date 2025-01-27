@@ -3452,7 +3452,13 @@ sub show_server_details
 				
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<disk target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" drbd-resource=\"".$anvil->Words->escape_xml({string => $drbd_resource})."\" drbd-volume=\"".$anvil->Words->escape_xml({string => $drbd_volume})."\" resource-size=\"".$anvil->Words->escape_xml({string => $resource_size})."B\" lv-size=\"".$anvil->Words->escape_xml({string => $lv_size})."B\"metadata-size=\"".$anvil->Words->escape_xml({string => $metadata_size})."B\" />\n";
+					$anvil->data->{xml}{body} .= "\t<disk target=\"".$anvil->Words->escape_xml({string => $device_target})."\" ";
+					$anvil->data->{xml}{body} .= "boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" ";
+					$anvil->data->{xml}{body} .= "drbd-resource=\"".$anvil->Words->escape_xml({string => $drbd_resource})."\" ";
+					$anvil->data->{xml}{body} .= "drbd-volume=\"".$anvil->Words->escape_xml({string => $drbd_volume})."\" ";
+					$anvil->data->{xml}{body} .= "resource-size=\"".$anvil->Words->escape_xml({string => $resource_size})."B\" ";
+					$anvil->data->{xml}{body} .= "lv-size=\"".$anvil->Words->escape_xml({string => $lv_size})."B\" ";
+					$anvil->data->{xml}{body} .= "metadata-size=\"".$anvil->Words->escape_xml({string => $metadata_size})."B\" />\n";
 				}
 				else
 				{
@@ -3488,7 +3494,9 @@ sub show_server_details
 				}});
 				if ($anvil->data->{switches}{machine})
 				{
-					$anvil->data->{xml}{body} .= "\t<optical target=\"".$anvil->Words->escape_xml({string => $device_target})." boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" iso=\"".$anvil->Words->escape_xml({string => $device_path})."\"/>\n";
+					$anvil->data->{xml}{body} .= "\t<optical target=\"".$anvil->Words->escape_xml({string => $device_target})."\" ";
+					$anvil->data->{xml}{body} .= "boot-order=\"".$anvil->Words->escape_xml({string => $say_boot})."\" ";
+					$anvil->data->{xml}{body} .= "iso=\"".$anvil->Words->escape_xml({string => $device_path})."\" />\n";
 				}
 				else
 				{
@@ -3814,6 +3822,10 @@ sub show_volume
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 	}
 	
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} .= "\t<hosts>\n";
+	}
 	foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}})
 	{
 		my $host_uuid = $anvil->data->{drbd_resource}{$drbd_resource}{host_type}{$host_type}{short_host_name}{$short_host_name}{host_uuid};
@@ -3824,7 +3836,9 @@ sub show_volume
 		if ($anvil->data->{switches}{machine})
 		{
 			my $host_type = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-			$anvil->data->{xml}{body} .= "\t<host name=\"".$anvil->Words->escape_xml({string => $short_host_name})." type=\"".$anvil->Words->escape_xml({string => $host_type})."\" uuid=\"".$anvil->Words->escape_xml({string => $host_uuid})."\"/>\n";
+			$anvil->data->{xml}{body} .= "\t\t<host name=\"".$anvil->Words->escape_xml({string => $short_host_name})."\" ";
+			$anvil->data->{xml}{body} .= "type=\"".$anvil->Words->escape_xml({string => $host_type})."\" ";
+			$anvil->data->{xml}{body} .= "uuid=\"".$anvil->Words->escape_xml({string => $host_uuid})."\">\n";
 		}
 		else
 		{
@@ -3865,7 +3879,11 @@ sub show_volume
 			}});
 			if ($anvil->data->{switches}{machine})
 			{
-				$anvil->data->{xml}{body} .= "\t\t<disk drbd-volume=\"".$anvil->Words->escape_xml({string => $volume_number})." backing-lv=\"".$anvil->Words->escape_xml({string => $backing_disk})."\" lv-size=\"".$anvil->Words->escape_xml({string => $volume_size})."B\" sg-name=\"".$anvil->Words->escape_xml({string => $storage_group_name})."\" sg-uuid=\"".$anvil->Words->escape_xml({string => $storage_group_uuid})."\"/>\n";
+				$anvil->data->{xml}{body} .= "\t\t\t<disk drbd-volume=\"".$anvil->Words->escape_xml({string => $volume_number})."\" ";
+				$anvil->data->{xml}{body} .= "backing-lv=\"".$anvil->Words->escape_xml({string => $backing_disk})."\" ";
+				$anvil->data->{xml}{body} .= "lv-size=\"".$anvil->Words->escape_xml({string => $volume_size})."B\" ";
+				$anvil->data->{xml}{body} .= "sg-name=\"".$anvil->Words->escape_xml({string => $storage_group_name})."\" ";
+				$anvil->data->{xml}{body} .= "sg-uuid=\"".$anvil->Words->escape_xml({string => $storage_group_uuid})."\" />\n";
 			}
 			else
 			{
@@ -3920,8 +3938,12 @@ sub show_volume
 		}
 		if ($anvil->data->{switches}{machine})
 		{
-			$anvil->data->{xml}{body} .= "\t</host>\n";
+			$anvil->data->{xml}{body} .= "\t\t</host>\n";
 		}
+	}
+	if ($anvil->data->{switches}{machine})
+	{
+		$anvil->data->{xml}{body} .= "\t</hosts>\n";
 	}
 	
 	return(0);
@@ -3972,7 +3994,8 @@ sub validate_server
 	if ($anvil->data->{switches}{machine})
 	{
 		$anvil->data->{xml}{body} = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_name}})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_uuid}})."\">\n";
+		$anvil->data->{xml}{body} .= "<server name=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_name}})."\" ";
+		$anvil->data->{xml}{body} .= "uuid=\"".$anvil->Words->escape_xml({string => $anvil->data->{switches}{server_uuid}})."\" >\n";
 	}
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 1}),
@@ -4376,7 +4399,9 @@ sub show_server_list
 		if ($anvil->data->{switches}{machine})
 		{
 			$anvil_description =~ s/"/\"/g;
-			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil->Words->escape_xml({string => $anvil_name})."\" uuid=\"".$anvil->Words->escape_xml({string => $anvil_uuid})."\" description=\"".$anvil->Words->escape_xml({string => $anvil_description})."\">\n";
+			$anvil->data->{xml}{body} .= "\t<node name=\"".$anvil->Words->escape_xml({string => $anvil_name})."\" ";
+			$anvil->data->{xml}{body} .= "uuid=\"".$anvil->Words->escape_xml({string => $anvil_uuid})."\" ";
+			$anvil->data->{xml}{body} .= "description=\"".$anvil->Words->escape_xml({string => $anvil_description})."\" >\n";
 		}
 		else
 		{
