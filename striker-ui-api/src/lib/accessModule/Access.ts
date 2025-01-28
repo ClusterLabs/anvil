@@ -152,6 +152,10 @@ export class Access extends EventEmitter {
 
     ps.once('error', (error) => {
       perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
+
+      if (/fatal/i.test(error.message)) {
+        this.ps.kill('SIGTERM');
+      }
     });
 
     ps.once('close', (code, signal) => {
