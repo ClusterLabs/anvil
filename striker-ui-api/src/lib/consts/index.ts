@@ -11,4 +11,5 @@ export * from './LOCAL';
 export * from './NODE_AND_DR_RESERVED_MEMORY_SIZE';
 export * from './OS_LIST';
 export * from './REG_EXP_PATTERNS';
+export * from './UUID_LENGTH';
 export * from './WS_GUID';

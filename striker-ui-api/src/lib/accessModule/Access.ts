@@ -2,7 +2,7 @@ import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
 import { createConnection } from 'net';
 
-import { DEBUG_ACCESS, P_UUID, SERVER_PATHS } from '../consts';
+import { DEBUG_ACCESS, P_UUID, SERVER_PATHS, UUID_LENGTH } from '../consts';
 
 import { repeat } from '../repeat';
 import { perr, pout, poutvar, uuid } from '../shell';
@@ -47,7 +47,10 @@ export class Access extends EventEmitter {
     this.ps = this.start({ args, ...rest });
   }
 
-  private send(script: string) {
+  private send(script: string, commandIds: string[]) {
+    // Make a copy to avoid changing the original.
+    const cids = [...commandIds];
+
     const requester = createConnection(
       {
         path: this.socketPath,
@@ -83,10 +86,14 @@ export class Access extends EventEmitter {
             requester.end();
           }
         } else if (beginsUuid.test(line)) {
-          const id = line.substring(0, 36);
-          const out = line.substring(36);
+          const cid = line.substring(0, UUID_LENGTH);
+          const out = line.substring(UUID_LENGTH);
 
-          this.emit(this.EVT_KEYS.command.out(id), out);
+          // Commands are executed in order, so just remove the first entry
+          // when we get a response.
+          cids.shift();
+
+          this.emit(this.EVT_KEYS.command.out(cid), out);
         } else {
           poutvar({ line }, `Access output: `);
         }
@@ -98,11 +105,25 @@ export class Access extends EventEmitter {
     });
 
     requester.on('error', (error) => {
-      perr(`Requester (${script}) error: ${error.message}`);
+      const cid = cids.shift();
+
+      perr(`Requester (${cid} **of** ${script}) error: ${error}`);
+
+      if (!cid) {
+        return;
+      }
+
+      this.emit(this.EVT_KEYS.command.err(cid), error);
     });
 
     requester.on('end', () => {
       poutvar({ script }, `Requester disconnected: `);
+
+      // Clean up all listeners for each command in the script
+      commandIds.forEach((cid) => {
+        this.removeAllListeners(this.EVT_KEYS.command.err(cid));
+        this.removeAllListeners(this.EVT_KEYS.command.out(cid));
+      });
     });
   }
 
@@ -130,10 +151,7 @@ export class Access extends EventEmitter {
     });
 
     ps.once('error', (error) => {
-      perr(
-        `anvil-access-module daemon (pid=${ps.pid}) error: ${error.message}`,
-        error,
-      );
+      perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
     });
 
     ps.once('close', (code, signal) => {
@@ -223,10 +241,16 @@ export class Access extends EventEmitter {
 
     poutvar({ script }, 'Access interact: ');
 
-    this.send(script);
+    const commandIds = Object.keys(mapToCommands);
 
-    const promises = Object.keys(mapToCommands).map<Promise<E>>((commandId) => {
+    this.send(script, commandIds);
+
+    const promises = commandIds.map<Promise<E>>((commandId) => {
       const promise = new Promise<E>((resolve, reject) => {
+        this.on(this.EVT_KEYS.command.err(commandId), (error) => {
+          reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
+        });
+
         this.on(this.EVT_KEYS.command.out(commandId), (data) => {
           let result: E;
 
