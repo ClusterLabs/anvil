@@ -4,6 +4,10 @@ import { PGID, PUID, PORT, ECODE_DROP_PRIVILEGES } from './lib/consts';
 
 import { access } from './lib/accessModule';
 import { perr, pout } from './lib/shell';
+import { workspace } from './lib/workspace';
+
+// Prepare the workspace before trying to establish access
+workspace.mkdir(PUID, PGID);
 
 /**
  * Wait until the anvil-access-module daemon finishes its setup before doing

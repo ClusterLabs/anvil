@@ -1,22 +1,18 @@
-import assert from 'assert';
 import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
-import { mkdirSync } from 'fs';
 import { createConnection } from 'net';
 
-import { DEBUG_ACCESS, P_UUID, PGID, PUID, SERVER_PATHS } from '../consts';
+import { DEBUG_ACCESS, P_UUID, SERVER_PATHS } from '../consts';
 
 import { repeat } from '../repeat';
 import { perr, pout, poutvar, uuid } from '../shell';
+import { workspace } from '../workspace';
 
 /**
  * Notes:
  * - This daemon's lifecycle events should follow the naming from systemd.
  */
 export class Access extends EventEmitter {
-  private static readonly ACCESS_DIR: string =
-    SERVER_PATHS.opt.alteeve.access.self;
-
   private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
     prefix: '-',
   });
@@ -43,21 +39,12 @@ export class Access extends EventEmitter {
     const args = [
       ...initial,
       Access.VERBOSE,
+      '--daemonize',
       '--working-dir',
-      Access.ACCESS_DIR,
+      workspace.dir,
     ].filter((value) => value !== '');
 
-    this.mkAccessDir();
-
     this.ps = this.start({ args, ...rest });
-  }
-
-  private mkAccessDir() {
-    const dir = mkdirSync(Access.ACCESS_DIR, {
-      recursive: true,
-    });
-
-    assert.ok(dir, 'Failed to create access output directory');
   }
 
   private send(script: string) {
@@ -66,7 +53,7 @@ export class Access extends EventEmitter {
         path: this.socketPath,
       },
       () => {
-        poutvar({ script }, `Connected (${this.socketPath}): `);
+        poutvar({ script }, `Requester connected: `);
 
         requester.write(script);
         requester.end();
@@ -110,20 +97,19 @@ export class Access extends EventEmitter {
       }
     });
 
+    requester.on('error', (error) => {
+      perr(`Requester (${script}) error: ${error.message}`);
+    });
+
     requester.on('end', () => {
-      poutvar({ script }, `Disconnected (${this.socketPath}): `);
+      poutvar({ script }, `Requester disconnected: `);
     });
   }
 
   private start({
     args = [],
     restartInterval = 10000,
-    spawnOptions: {
-      gid = PGID,
-      stdio = 'pipe',
-      uid = PUID,
-      ...restSpawnOptions
-    } = {},
+    spawnOptions: { gid, stdio = 'pipe', uid, ...restSpawnOptions } = {},
   }: AccessStartOptions = {}) {
     const options = {
       args,
@@ -185,17 +171,17 @@ export class Access extends EventEmitter {
         if (/^event=/.test(line)) {
           const event = line.substring(6);
 
-          if (event === 'connected') {
+          if (/^socket:/.test(event)) {
+            this.socketPath = event.substring(7);
+
+            pout(`Got socket path: ${this.socketPath}`);
+          } else if (event === 'listening') {
             poutvar(
               options,
               `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
             );
 
             this.emit('active', ps.pid);
-          } else if (/^socket:/.test(event)) {
-            this.socketPath = event.substring(7);
-
-            pout(`Got socket path: ${this.socketPath}`);
           }
         }
 
