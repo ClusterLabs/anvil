@@ -358,6 +358,152 @@ sub get_scmd_args
 	return $args;
 }
 
+sub handle_connections
+{
+	my $parameters = shift;
+	my $anvil      = $parameters->{anvil};
+	my $server     = $parameters->{server};
+
+	local $SIG{INT}  = sub {
+		emit("sigint");
+
+		close($server);
+
+		emit("exit");
+
+		$anvil->catch_sig({ signal => "INT" });
+	};
+
+	local $SIG{TERM} = sub {
+		emit("sigterm");
+
+		close($server);
+
+		emit("exit");
+
+		$anvil->catch_sig({ signal => "TERM" });
+	};
+
+	emit("listening");
+
+	while (my $responder = $server->accept() or do {
+		pstderr("failed to accept connections; cause: ".$!);
+
+		close($server);
+
+		$anvil->nice_exit({ exit_code => 1 });
+	})
+	{
+		my $request_line = <$responder>;
+
+		# responder is done reading
+		$responder->shutdown(SHUT_RD);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { request_line => $request_line } });
+
+		last if ($request_line =~ /^(?:q|quit)\s*$/);
+
+		my $pid = fork;
+
+		if (not defined $pid)
+		{
+			pstderr("failed to fork on receive; cause: ".$!);
+
+			next;
+		}
+
+		if ($pid)
+		{
+			emit("responder:".$pid."-forked");
+
+			next;
+		}
+
+		#############
+		### BEGIN ### responder block
+		#############
+
+		# close the server because the child doesn't need it
+		close($server);
+
+		# disconnect from the parent's outputs to avoid interference
+
+		close(STDOUT);
+		close(STDERR);
+
+		# redirect outputs to the responder for transport
+
+		open(STDOUT, ">&", $responder) or do {
+			print $responder "failed to open STDOUT; cause: ".$!."\n";
+
+			$responder->shutdown(SHUT_RDWR);
+
+			$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+		};
+
+		open(STDERR, ">&", $responder) or do {
+			print $responder "failed to open STDERR; cause: ".$!."\n";
+
+			$responder->shutdown(SHUT_RDWR);
+
+			$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+		};
+
+		# clone the database handle for this child to avoid interfering with another process that needs to use the database
+		clone_database_handles({ anvil => $anvil });
+
+		my @cmd_lines = split(/;;/, $request_line);
+
+		foreach my $cmd_line (@cmd_lines)
+		{
+			$cmd_line =~ s/^\s+//;
+			$cmd_line =~ s/\s+$//;
+
+			my $cmd_line_id;
+
+			if ($cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//)
+			{
+				$cmd_line_id = $1;
+			}
+
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				cmd_line    => $cmd_line,
+				cmd_line_id => $cmd_line_id,
+			} });
+
+			if ($cmd_line =~ /^$scmd_db_read\s+/)
+			{
+				process_scmd_db({ anvil => $anvil, cmd => $scmd_db_read, input => $cmd_line, lid => $cmd_line_id });
+			}
+			elsif ($cmd_line =~ /^$scmd_db_write\s+/)
+			{
+				process_scmd_db({ anvil => $anvil, cmd => $scmd_db_write, input => $cmd_line, lid => $cmd_line_id });
+			}
+			elsif ($cmd_line =~ /^$scmd_execute\s+/)
+			{
+				process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
+			}
+		}
+
+		# responder is done writing
+		$responder->shutdown(SHUT_WR);
+
+		emit("responder:".$$."-exit");
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
+
+		#############
+		#### END #### responder block
+		#############
+	}
+
+	close($server);
+
+	emit("exit");
+
+	$anvil->nice_exit({ exit_code => 0 });
+}
+
 sub is_array
 {
 	return ref($_[0]) eq "ARRAY";
@@ -374,6 +520,7 @@ sub main
 
 	$anvil->Get->switches;
 
+	my $daemonize   = $anvil->data->{switches}{'daemonize'}   // 0;
 	my $script_file = $anvil->data->{switches}{'script'}      // "-";
 	my $working_dir = $anvil->data->{switches}{'working-dir'} // cwd();
 
@@ -421,6 +568,11 @@ sub main
 	# make child processes start-and-forget because we don't need to wait for them
 	local $SIG{CHLD} = "IGNORE";
 
+	if ($daemonize)
+	{
+		return handle_connections({ anvil => $anvil, server => $server });
+	}
+
 	# make 1 child to interact on stdio
 	my $interface_pid = fork;
 
@@ -437,142 +589,7 @@ sub main
 	{
 		emit("interface:".$interface_pid."-forked");
 
-		local $SIG{INT}  = sub {
-			emit("sigint");
-
-			close($server);
-
-			emit("exit");
-
-			$anvil->catch_sig({ signal => "INT" });
-		};
-
-		local $SIG{TERM} = sub {
-			emit("sigterm");
-
-			close($server);
-
-			emit("exit");
-
-			$anvil->catch_sig({ signal => "TERM" });
-		};
-
-		while (my $responder = $server->accept() or do {
-			pstderr("failed to accept connections; cause: ".$!);
-
-			close($server);
-
-			$anvil->nice_exit({ exit_code => 1 });
-		})
-		{
-			my $request_line = <$responder>;
-
-			# responder is done reading
-			$responder->shutdown(SHUT_RD);
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { request_line => $request_line } });
-
-			last if ($request_line =~ /^(?:q|quit)\s*$/);
-
-			my $pid = fork;
-
-			if (not defined $pid)
-			{
-				pstderr("failed to fork on receive; cause: ".$!);
-
-				next;
-			}
-
-			if ($pid)
-			{
-				emit("responder:".$pid."-forked");
-
-				next;
-			}
-
-			#############
-			### BEGIN ### responder block
-			#############
-
-			# close the server because the child doesn't need it
-			close($server);
-
-			# disconnect from the parent's outputs to avoid interference
-
-			close(STDOUT);
-			close(STDERR);
-
-			# redirect outputs to the responder for transport
-
-			open(STDOUT, ">&", $responder) or do {
-				print $responder "failed to open STDOUT; cause: ".$!."\n";
-
-				$responder->shutdown(SHUT_RDWR);
-
-				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-			};
-
-			open(STDERR, ">&", $responder) or do {
-				print $responder "failed to open STDERR; cause: ".$!."\n";
-
-				$responder->shutdown(SHUT_RDWR);
-
-				$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-			};
-
-			# clone the database handle for this child to avoid interfering with another process that needs to use the database
-			clone_database_handles({ anvil => $anvil });
-
-			my @cmd_lines = split(/;;/, $request_line);
-
-			foreach my $cmd_line (@cmd_lines)
-			{
-				$cmd_line =~ s/^\s+//;
-				$cmd_line =~ s/\s+$//;
-
-				my $cmd_line_id;
-
-				if ($cmd_line =~ s/^([[:xdigit:]]{8}-(?:[[:xdigit:]]{4}-){3}[[:xdigit:]]{12})\s+//)
-				{
-					$cmd_line_id = $1;
-				}
-
-				$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
-					cmd_line    => $cmd_line,
-					cmd_line_id => $cmd_line_id,
-				} });
-
-				if ($cmd_line =~ /^$scmd_db_read\s+/)
-				{
-					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_read, input => $cmd_line, lid => $cmd_line_id });
-				}
-				elsif ($cmd_line =~ /^$scmd_db_write\s+/)
-				{
-					process_scmd_db({ anvil => $anvil, cmd => $scmd_db_write, input => $cmd_line, lid => $cmd_line_id });
-				}
-				elsif ($cmd_line =~ /^$scmd_execute\s+/)
-				{
-					process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
-				}
-			}
-
-			# responder is done writing
-			$responder->shutdown(SHUT_WR);
-
-			emit("responder:".$$."-exit");
-
-			$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
-
-			#############
-			#### END #### responder block
-			#############
-		}
-
-		close($server);
-
-		emit("exit");
-
-		$anvil->nice_exit({ exit_code => 0 });
+		handle_connections({ anvil => $anvil, server => $server });
 	}
 
 	#############
@@ -711,7 +728,7 @@ sub main
 
 	emit("interface:".$$."-exit");
 
-	$anvil->nice_exit({ exit_code => 0 });
+	$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
 
 	#############
 	#### END #### interface block
