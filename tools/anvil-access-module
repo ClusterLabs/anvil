@@ -557,7 +557,7 @@ sub main
 	my $server = IO::Socket::UNIX->new(
 		Blocking => 1,
 		Local    => $socket_path,
-		Listen   => 10,
+		Listen   => 100,
 		Type     => SOCK_STREAM,
 	) or do {
 		pstderr("failed to create server using ".$socket_path."; cause: ".$@);
