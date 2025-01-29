@@ -136,7 +136,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">#!free!#</key>
+		<key name="error_0080">[ Warning ] - The server: [#!variable!server!#] does not appear to exist on the cluster, aborting.</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -4078,9 +4078,9 @@ The duplicate will be removed.</key>
 ====
 </key>
 		<key name="warning_0015">[ Warning ] - Updating passwords on all systems, please do NOT interrupt this process!</key>
-		<key name="warning_0016">#!free!#</key>
-		<key name="warning_0017">#!free!#</key>
-		<key name="warning_0018">#!free!#</key>
+		<key name="warning_0016">[ Warning ] - The server: [#!variable!server!#] is marked as deleted, aborting.</key>
+		<key name="warning_0017">[ Warning ] - The server: [#!variable!server!#] is not shown to be running on any host in the cluster, aborting.</key>
+		<key name="warning_0018">[ Warning ] - The server: [#!variable!server!#] is shown as already being off, aborting.</key>
 		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
 		<key name="warning_0021">#!free!#</key>
