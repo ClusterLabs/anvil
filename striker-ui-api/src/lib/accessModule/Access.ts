@@ -13,20 +13,22 @@ import { workspace } from '../workspace';
  * - This daemon's lifecycle events should follow the naming from systemd.
  */
 export class Access extends EventEmitter {
-  private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
-    prefix: '-',
-  });
-
-  private ps: ChildProcess;
-
-  private socketPath = '';
-
-  private readonly EVT_KEYS = {
+  private static readonly EVT_KEYS = {
     command: {
       err: (id: string) => `${id}-err`,
       out: (id: string) => `${id}-out`,
     },
   };
+
+  private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
+    prefix: '-',
+  });
+
+  private active = false;
+
+  private ps: ChildProcess;
+
+  private socketPath = '';
 
   constructor({
     eventEmitterOptions = {},
@@ -93,7 +95,7 @@ export class Access extends EventEmitter {
           // when we get a response.
           cids.shift();
 
-          this.emit(this.EVT_KEYS.command.out(cid), out);
+          this.emit(Access.EVT_KEYS.command.out(cid), out);
         } else {
           poutvar({ line }, `Access output: `);
         }
@@ -113,7 +115,7 @@ export class Access extends EventEmitter {
         return;
       }
 
-      this.emit(this.EVT_KEYS.command.err(cid), error);
+      this.emit(Access.EVT_KEYS.command.err(cid), error);
     });
 
     requester.on('end', () => {
@@ -121,8 +123,8 @@ export class Access extends EventEmitter {
 
       // Clean up all listeners for each command in the script
       commandIds.forEach((cid) => {
-        this.removeAllListeners(this.EVT_KEYS.command.err(cid));
-        this.removeAllListeners(this.EVT_KEYS.command.out(cid));
+        this.removeAllListeners(Access.EVT_KEYS.command.err(cid));
+        this.removeAllListeners(Access.EVT_KEYS.command.out(cid));
       });
     });
   }
@@ -164,6 +166,8 @@ export class Access extends EventEmitter {
         `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
 
+      this.active = false;
+
       this.emit('inactive', ps.pid);
 
       pout(`Waiting ${restartInterval} before restarting.`);
@@ -203,6 +207,8 @@ export class Access extends EventEmitter {
               `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
             );
 
+            this.active = true;
+
             this.emit('active', ps.pid);
           }
         }
@@ -233,6 +239,10 @@ export class Access extends EventEmitter {
   public interact<A extends unknown[], E extends A[number] = A[number]>(
     ...ops: string[]
   ) {
+    if (!this.active) {
+      return Promise.reject(`anvil-access-module daemon is not active`);
+    }
+
     const mapToCommands = ops.reduce<Record<string, string>>((previous, op) => {
       const commandId = uuid();
 
@@ -249,29 +259,28 @@ export class Access extends EventEmitter {
 
     this.send(script, commandIds);
 
-    const promises = commandIds.map<Promise<E>>((commandId) => {
-      const promise = new Promise<E>((resolve, reject) => {
-        this.on(this.EVT_KEYS.command.err(commandId), (error) => {
-          reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
-        });
+    const promises = commandIds.map<Promise<E>>(
+      (commandId) =>
+        new Promise<E>((resolve, reject) => {
+          this.on(Access.EVT_KEYS.command.err(commandId), (error) => {
+            reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
+          });
 
-        this.on(this.EVT_KEYS.command.out(commandId), (data) => {
-          let result: E;
+          this.on(Access.EVT_KEYS.command.out(commandId), (data) => {
+            let result: E;
 
-          try {
-            result = JSON.parse(data);
-          } catch (error) {
-            return reject(`Failed to parse line ${commandId}; got [${data}]`);
-          }
+            try {
+              result = JSON.parse(data);
+            } catch (error) {
+              return reject(`Failed to parse line ${commandId}; got [${data}]`);
+            }
 
-          poutvar({ result }, `Access interact ${commandId} returns: `);
+            poutvar({ result }, `Access interact ${commandId} returns: `);
 
-          return resolve(result);
-        });
-      });
-
-      return promise;
-    });
+            return resolve(result);
+          });
+        }),
+    );
 
     return Promise.all(promises) as Promise<A>;
   }
