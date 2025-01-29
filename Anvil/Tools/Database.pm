@@ -5728,7 +5728,7 @@ And, to allow for lookup by name;
 
 If the hash was already populated, it is cleared before repopulating to ensure no stale data remains. 
 
-B<<Note>>: Deleted devices (ones where C<< manifest_note >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
+B<<Note>>: Deleted manifests (ones where C<< manifest_note >> is set to C<< DELETED >>) are ignored. See the C<< include_deleted >> parameter to include them.
 
 Parameters;
 

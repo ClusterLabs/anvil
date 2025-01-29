@@ -1079,6 +1079,12 @@ sub _set_defaults
 			},
 		},
 	};
+	$anvil->data->{network} = {
+		ntp			=>	"",
+		wait_for_network	=>	{
+			timeout			=>	300,
+		},
+	};
 	
 	return(0);
 }

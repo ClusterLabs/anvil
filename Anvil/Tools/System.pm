@@ -1591,6 +1591,147 @@ sub check_network_type
 }
 
 
+=head2 check_ntp
+
+This checks to see if the NTP needs to be updated. If the NTP congig is updated, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+
+Parameters;
+
+=head3 ntp <ip or hostname>
+
+This is the NTP server to add to the NTP server. 
+
+=cut
+sub check_ntp
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ntp()" }});
+	
+	my $ntp     = defined $parameter->{ntp} ? $parameter->{ntp} : "";
+	my $updated = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ntp => $ntp,
+	}});
+	
+	$anvil->data->{network}{ntp} = "" if not defined $anvil->data->{network}{ntp};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"network::ntp" => $anvil->data->{network}{ntp},
+	}});
+	if ((not $ntp) && ($anvil->data->{network}{ntp}))
+	{
+		$ntp = $anvil->data->{network}{ntp};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+	}
+	
+	if (not $ntp)
+	{
+		if (not exists $anvil->data->{hosts}{host_uuid})
+		{
+			$anvil->Database->get_hosts({debug => $debug});
+		}
+		my $host_uuid  = $anvil->Get->host_uuid();
+		my $host_type  = $anvil->Get->host_type();
+		my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+		my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			host_uuid  => $host_uuid,
+			host_type  => $host_type,
+			anvil_uuid => $anvil_uuid, 
+			anvil_name => $anvil_name, 
+		}});
+		
+		if ($anvil_name)
+		{
+			# Look for the NTP in the manifest.
+			$anvil->Database->get_manifests({debug => $debug});
+			if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
+			{
+				# NOTE: Deleted manifests aren't returned so we don't need to check if this 
+				#       is deleted.
+				my $manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+				
+				$anvil->Striker->load_manifest({
+					debug         => $debug,
+					manifest_uuid => $manifest_uuid, 
+				});
+				
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ntp" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp},
+				}});
+				if ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp})
+				{
+					$ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+				}
+			}
+		}
+		
+		# If there's a database variable for this host, use it over the manifest value.
+		my $variable_name = "network::ntp";
+		my $query = "
+SELECT 
+    variable_value
+FROM 
+    variables  
+WHERE 
+    variable_name         = 'network::ntp'
+AND 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
+;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $count   = @{$results};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			results => $results, 
+			count   => $count, 
+		}});
+		if ($count)
+		{
+			my $variable_value = $results->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_value => $variable_value }});
+			
+			if ($variable_value)
+			{
+				$ntp = $variable_value;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+			}
+		}
+		
+		# Whether we loaded an NTP from the manifest or database, override if set in anvil.conf.
+		$anvil->data->{network}{ntp} = "" if not defined $anvil->data->{network}{ntp};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"network::ntp" => $anvil->data->{network}{ntp},
+		}});
+		if ($anvil->data->{network}{ntp})
+		{
+			$ntp = $anvil->data->{network}{ntp};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+		}
+	}
+	
+	if (not $ntp)
+	{
+		# Nothing to do
+		return($updated);
+	}
+	
+	# Still here? See if the NTP config needs to be updated.
+	foreach my $ntp_server (split/,/, $ntp)
+	{
+		$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0343", variables => { ntp => $ntp_server }});
+	}
+	
+	return($updated);
+}
+
+
 =head2 check_storage
 
 Thic gathers LVM data from the local system.
