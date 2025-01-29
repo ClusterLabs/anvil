@@ -22,12 +22,12 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
         b.host_type,
         b.host_status,
         CASE
-          WHEN c.scan_cluster_node_in_ccm
-            THEN 'in_ccm'
-          WHEN c.scan_cluster_node_crmd_member
-            THEN 'crmd_member'
           WHEN c.scan_cluster_node_cluster_member
             THEN 'cluster_member'
+          WHEN c.scan_cluster_node_crmd_member
+            THEN 'crmd_member'
+          WHEN c.scan_cluster_node_in_ccm
+            THEN 'in_ccm'
           ELSE 'not_member'
         END AS host_cluster_membership,
         d.scan_drbd_resource_uuid,

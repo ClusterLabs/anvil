@@ -87,8 +87,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
         b.anvil_node1_host_uuid,
-        b.anvil_node2_host_uuid,
-        b.anvil_dr1_host_uuid
+        b.anvil_node2_host_uuid
       )
     LEFT JOIN network_interfaces AS c
       ON c.network_interface_host_uuid = a.host_uuid

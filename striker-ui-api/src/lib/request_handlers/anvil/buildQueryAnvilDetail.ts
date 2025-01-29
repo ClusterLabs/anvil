@@ -20,7 +20,7 @@ const buildQueryAnvilDetail = ({
     ? ''
     : join(anvilUUIDs, {
         beforeReturn: (toReturn) =>
-          toReturn ? `WHERE anv.anvil_uuid IN (${toReturn})` : '',
+          toReturn ? `WHERE anvil_list.anvil_uuid IN (${toReturn})` : '',
         elementWrapper: "'",
         separator: ', ',
       });
@@ -53,8 +53,7 @@ const buildQueryAnvilDetail = ({
       JOIN hosts AS hos
         ON host_uuid IN (
           anvil_node1_host_uuid,
-          anvil_node2_host_uuid,
-          anvil_dr1_host_uuid
+          anvil_node2_host_uuid
         )
       JOIN scan_hardware AS sca_har
         ON host_uuid = scan_hardware_host_uuid
@@ -138,9 +137,9 @@ const buildQueryAnvilDetail = ({
 
   const buildQueryForProvisionServer = () => `
     SELECT
-      anv.anvil_uuid,
-      anv.anvil_name,
-      anv.anvil_description,
+      anvil_list.anvil_uuid,
+      anvil_list.anvil_name,
+      anvil_list.anvil_description,
       host_list.host_uuid,
       host_list.host_name,
       host_list.scan_hardware_cpu_cores,
@@ -162,24 +161,26 @@ const buildQueryAnvilDetail = ({
       storage_group_list.storage_group_free,
       file_list.file_uuid,
       file_list.file_name
-    FROM anvils AS anv
+    FROM anvils AS anvil_list
     JOIN (${buildHostQuery()}) AS host_list
-      ON anv.anvil_uuid = host_list.anvil_uuid
+      ON anvil_list.anvil_uuid = host_list.anvil_uuid
     JOIN (${buildHostQuery({ isSummary: true })}) AS host_summary
-      ON anv.anvil_uuid = host_summary.anvil_uuid
+      ON anvil_list.anvil_uuid = host_summary.anvil_uuid
     LEFT JOIN (${buildServerQuery()}) AS server_list
-      ON anv.anvil_uuid = server_list.server_anvil_uuid
+      ON anvil_list.anvil_uuid = server_list.server_anvil_uuid
     LEFT JOIN (${buildServerQuery({ isSummary: true })}) AS server_summary
-      ON anv.anvil_uuid = server_summary.server_anvil_uuid
+      ON anvil_list.anvil_uuid = server_summary.server_anvil_uuid
     LEFT JOIN (${buildStorageGroupQuery()}) AS storage_group_list
-      ON anv.anvil_uuid = storage_group_list.storage_group_anvil_uuid
+      ON anvil_list.anvil_uuid = storage_group_list.storage_group_anvil_uuid
     LEFT JOIN (${buildFileQuery()}) AS file_list
       ON file_list.file_location_host_uuid IN (
-        anv.anvil_node1_host_uuid,
-        anv.anvil_node2_host_uuid,
-        anv.anvil_dr1_host_uuid
+        anvil_list.anvil_node1_host_uuid,
+        anvil_list.anvil_node2_host_uuid
       )
-    ;`;
+    ORDER BY
+      anvil_list.anvil_name ASC,
+      storage_group_list.storage_group_name ASC,
+      file_list.file_name ASC;`;
 
   let query = `
     SELECT

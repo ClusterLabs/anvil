@@ -1,31 +1,41 @@
-import assert from 'assert';
+import { XMLParser } from 'fast-xml-parser';
 
 import { SERVER_PATHS } from '../consts';
 
-import { perr } from '../shell';
-import { sub } from './sub';
+import { readFileSync } from 'fs';
 
-export const listNicModels = async (target: string) => {
-  let list: string[] = [];
+const alwaysArray = ['qemu.host', 'qemu.host.nics.nic_model'];
 
-  try {
-    const [stdout, , code] = await sub<[string, string, string]>('call', {
-      as: 'root',
-      params: [
-        {
-          target,
-          shell_call: `${SERVER_PATHS.usr.libexec['qemu-kvm'].self} -nic model=help`,
-        },
-      ],
-      pre: ['Remote'],
-    });
+export const listNicModels = async (hostUuid: string) => {
+  const xmlParser = new XMLParser({
+    ignoreAttributes: false,
+    isArray: (tagName, jPath) => alwaysArray.includes(jPath),
+    parseAttributeValue: true,
+  });
 
-    assert(Number(code) === 0, `Subroutine failed with code ${code}`);
+  const xml = readFileSync(SERVER_PATHS.opt.alteeve['qemu-cache.xml'].self, {
+    encoding: 'utf-8',
+  });
 
-    [, ...list] = stdout.split('\n');
-  } catch (error) {
-    perr(`Failed to list NIC model; CAUSE: ${error}`);
+  const parsed = xmlParser.parse(xml);
+
+  const hosts = parsed?.qemu?.host;
+
+  if (!(hosts instanceof Array)) {
+    throw new Error(`'${alwaysArray[0]}' is not an array`);
   }
 
-  return list;
+  const host = hosts.find((host) => {
+    const { '@_uuid': uuid } = host;
+
+    return uuid === hostUuid;
+  });
+
+  const nicModels = host?.nics?.nic_model;
+
+  if (!(nicModels instanceof Array)) {
+    throw new Error(`'${alwaysArray[1]}' is not an array`);
+  }
+
+  return nicModels;
 };

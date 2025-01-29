@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import useSWR, { BareFetcher, KeyedMutator, SWRConfiguration } from 'swr';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
-
-import fetchJSON from '../lib/fetchers/fetchJSON';
+import api from '../lib/api';
 
 type FetchHookResponse<D, E extends Error = Error> = {
   data?: D;
@@ -16,24 +14,40 @@ type FetchHookResponse<D, E extends Error = Error> = {
 const useFetch = <Data, Alt = Data>(
   url: string,
   options: SWRConfiguration<Data> & {
-    baseUrl?: string;
     fetcher?: BareFetcher<Data>;
     mod?: (data: Data) => Alt;
+    periodic?: boolean;
+    timeout?: number;
   } = {},
 ): FetchHookResponse<Data> & { altData?: Alt } => {
   const {
-    baseUrl = API_BASE_URL,
-    fetcher = fetchJSON,
+    timeout = 5000,
     mod,
+    periodic,
+    // Depends on the above
+    fetcher = async (l) => {
+      const response = await api.get(l, { timeout });
+
+      return response.data;
+    },
     ...config
   } = options;
+
+  let refreshInterval: number | undefined;
+
+  if (periodic) {
+    refreshInterval = 5000;
+  }
 
   const {
     data,
     error,
     isValidating: validating,
     mutate,
-  } = useSWR<Data>(`${baseUrl}${url}`, fetcher, config);
+  } = useSWR<Data>(url, fetcher, {
+    refreshInterval,
+    ...config,
+  });
 
   const altData = useMemo<Alt | undefined>(
     () => mod && data && mod(data),

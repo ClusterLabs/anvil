@@ -8,7 +8,6 @@ import {
   useState,
 } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import { REP_LABEL_PASSW } from '../../lib/consts/REG_EXP_PATTERNS';
 
 import AddFenceInputGroup, { INPUT_ID_FENCE_AGENT } from './AddFenceInputGroup';
@@ -23,11 +22,11 @@ import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText, SensitiveText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
@@ -140,11 +139,13 @@ const ManageFencePanel: FC = () => {
   const [isLoadingFenceTemplate, setIsLoadingFenceTemplate] =
     useState<boolean>(true);
 
-  const { isLoading: isFenceOverviewsLoading } =
-    periodicFetch<APIFenceOverview>(`${API_BASE_URL}/fence`, {
+  const { loading: isFenceOverviewsLoading } = useFetch<APIFenceOverview>(
+    `/fence`,
+    {
       onSuccess: (data) => setFenceOverviews(data),
       refreshInterval: 60000,
-    });
+    },
+  );
 
   const getFenceOverviews = useCallback(() => {
     api.get('/fence').then(({ data }) => {

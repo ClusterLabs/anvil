@@ -1,35 +1,34 @@
 import { ChildProcess, spawn } from 'child_process';
 import EventEmitter from 'events';
+import { createConnection } from 'net';
 
-import { DEBUG_ACCESS, PGID, PUID, REP_UUID, SERVER_PATHS } from '../consts';
+import { DEBUG_ACCESS, P_UUID, SERVER_PATHS, UUID_LENGTH } from '../consts';
 
 import { repeat } from '../repeat';
 import { perr, pout, poutvar, uuid } from '../shell';
+import { workspace } from '../workspace';
 
 /**
  * Notes:
  * - This daemon's lifecycle events should follow the naming from systemd.
  */
 export class Access extends EventEmitter {
+  private static readonly EVT_KEYS = {
+    command: {
+      err: (id: string) => `${id}-err`,
+      out: (id: string) => `${id}-out`,
+    },
+  };
+
   private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
     prefix: '-',
   });
 
+  private active = false;
+
   private ps: ChildProcess;
 
-  private readonly MAP_TO_EVT_HDL: Record<
-    string,
-    (args: { options: AccessStartOptions; ps: ChildProcess }) => void
-  > = {
-    connected: ({ options, ps }) => {
-      poutvar(
-        options,
-        `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
-      );
-
-      this.emit('active', ps.pid);
-    },
-  };
+  private socketPath = '';
 
   constructor({
     eventEmitterOptions = {},
@@ -39,20 +38,101 @@ export class Access extends EventEmitter {
 
     const { args: initial = [], ...rest } = startOptions;
 
-    const args = [...initial, Access.VERBOSE].filter((value) => value !== '');
+    const args = [
+      ...initial,
+      Access.VERBOSE,
+      '--daemonize',
+      '--working-dir',
+      workspace.dir,
+    ].filter((value) => value !== '');
 
     this.ps = this.start({ args, ...rest });
+  }
+
+  private send(script: string, commandIds: string[]) {
+    // Make a copy to avoid changing the original.
+    const cids = [...commandIds];
+
+    const requester = createConnection(
+      {
+        path: this.socketPath,
+      },
+      () => {
+        poutvar({ script }, `Requester connected: `);
+
+        requester.write(script);
+        requester.end();
+      },
+    );
+
+    requester.setEncoding('utf-8');
+
+    let stdout = '';
+
+    requester.on('data', (data) => {
+      stdout += data.toString();
+
+      let i: number = stdout.indexOf('\n');
+
+      const beginsUuid = new RegExp(`^${P_UUID}`);
+
+      // 1. ~a is the shorthand for -(a + 1)
+      // 2. negative is evaluated to true
+      while (~i) {
+        const line = stdout.substring(0, i);
+
+        if (/^event=/.test(line)) {
+          const event = line.substring(6);
+
+          if (/exit$/.test(event)) {
+            requester.end();
+          }
+        } else if (beginsUuid.test(line)) {
+          const cid = line.substring(0, UUID_LENGTH);
+          const out = line.substring(UUID_LENGTH);
+
+          // Commands are executed in order, so just remove the first entry
+          // when we get a response.
+          cids.shift();
+
+          this.emit(Access.EVT_KEYS.command.out(cid), out);
+        } else {
+          poutvar({ line }, `Access output: `);
+        }
+
+        stdout = stdout.substring(i + 1);
+
+        i = stdout.indexOf('\n');
+      }
+    });
+
+    requester.on('error', (error) => {
+      const cid = cids.shift();
+
+      perr(`Requester (${cid} **of** ${script}) error: ${error}`);
+
+      if (!cid) {
+        return;
+      }
+
+      this.emit(Access.EVT_KEYS.command.err(cid), error);
+    });
+
+    requester.on('end', () => {
+      poutvar({ script }, `Requester disconnected: `);
+
+      // Clean up all listeners for each command in the script
+      commandIds.forEach((cid) => {
+        this.removeAllListeners(Access.EVT_KEYS.command.err(cid));
+        this.removeAllListeners(Access.EVT_KEYS.command.out(cid));
+      });
+    });
   }
 
   private start({
     args = [],
     restartInterval = 10000,
-    spawnOptions: {
-      gid = PGID,
-      stdio = 'pipe',
-      uid = PUID,
-      ...restSpawnOptions
-    } = {},
+    spawnOptions: { gid, stdio = 'pipe', uid, ...restSpawnOptions } = {},
   }: AccessStartOptions = {}) {
     const options = {
       args,
@@ -73,10 +153,11 @@ export class Access extends EventEmitter {
     });
 
     ps.once('error', (error) => {
-      perr(
-        `anvil-access-module daemon (pid=${ps.pid}) error: ${error.message}`,
-        error,
-      );
+      perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
+
+      if (/fatal/i.test(error.message)) {
+        this.ps.kill('SIGTERM');
+      }
     });
 
     ps.once('close', (code, signal) => {
@@ -84,6 +165,8 @@ export class Access extends EventEmitter {
         { code, options, signal },
         `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
+
+      this.active = false;
 
       this.emit('inactive', ps.pid);
 
@@ -98,37 +181,41 @@ export class Access extends EventEmitter {
       perr(`anvil-access-module daemon stderr: ${chunk}`);
     });
 
+    // Make sure only the parent writes to the stdout
     let stdout = '';
 
     ps.stdout?.setEncoding('utf-8').on('data', (chunk: string) => {
-      const eventless = chunk.replace(/(\n)?event=([^\n]*)\n/g, (...parts) => {
-        poutvar(parts, 'In replacer, args: ');
+      stdout += chunk;
 
-        const { 1: n = '', 2: event } = parts;
-
-        this.MAP_TO_EVT_HDL[event]?.call(null, { options, ps });
-
-        return n;
-      });
-
-      stdout += eventless;
-
-      let nindex: number = stdout.indexOf('\n');
+      let i: number = stdout.indexOf('\n');
 
       // 1. ~a is the shorthand for -(a + 1)
       // 2. negative is evaluated to true
-      while (~nindex) {
-        const commandId = stdout.substring(0, 36);
-        const output = stdout.substring(36, nindex);
+      while (~i) {
+        const line = stdout.substring(0, i);
 
-        if (REP_UUID.test(commandId)) {
-          this.emit(commandId, output);
-        } else {
-          pout(`Access stdout: ${stdout}`);
+        if (/^event=/.test(line)) {
+          const event = line.substring(6);
+
+          if (/^socket:/.test(event)) {
+            this.socketPath = event.substring(7);
+
+            pout(`Got socket path: ${this.socketPath}`);
+          } else if (event === 'listening') {
+            poutvar(
+              options,
+              `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
+            );
+
+            this.active = true;
+
+            this.emit('active', ps.pid);
+          }
         }
 
-        stdout = stdout.substring(nindex + 1);
-        nindex = stdout.indexOf('\n');
+        stdout = stdout.substring(i + 1);
+
+        i = stdout.indexOf('\n');
       }
     });
 
@@ -152,40 +239,48 @@ export class Access extends EventEmitter {
   public interact<A extends unknown[], E extends A[number] = A[number]>(
     ...ops: string[]
   ) {
-    const { stdin } = this.ps;
+    if (!this.active) {
+      return Promise.reject(`anvil-access-module daemon is not active`);
+    }
 
-    const promises: Promise<E>[] = [];
-
-    const commands = ops.map<string>((op) => {
+    const mapToCommands = ops.reduce<Record<string, string>>((previous, op) => {
       const commandId = uuid();
-      const command = `${commandId} ${op}`;
 
-      const promise = new Promise<E>((resolve, reject) => {
-        this.once(commandId, (data) => {
-          let result: E;
+      previous[commandId] = `${commandId} ${op}`;
 
-          try {
-            result = JSON.parse(data);
-          } catch (error) {
-            return reject(`Failed to parse line ${commandId}; got [${data}]`);
-          }
+      return previous;
+    }, {});
 
-          poutvar({ result }, `Access interact ${commandId} returns: `);
-
-          return resolve(result);
-        });
-      });
-
-      promises.push(promise);
-
-      return command;
-    });
-
-    const script = `${commands.join(' ;; ')}\n`;
+    const script = `${Object.values(mapToCommands).join(' ;; ')}\n`;
 
     poutvar({ script }, 'Access interact: ');
 
-    stdin?.write(script);
+    const commandIds = Object.keys(mapToCommands);
+
+    this.send(script, commandIds);
+
+    const promises = commandIds.map<Promise<E>>(
+      (commandId) =>
+        new Promise<E>((resolve, reject) => {
+          this.on(Access.EVT_KEYS.command.err(commandId), (error) => {
+            reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
+          });
+
+          this.on(Access.EVT_KEYS.command.out(commandId), (data) => {
+            let result: E;
+
+            try {
+              result = JSON.parse(data);
+            } catch (error) {
+              return reject(`Failed to parse line ${commandId}; got [${data}]`);
+            }
+
+            poutvar({ result }, `Access interact ${commandId} returns: `);
+
+            return resolve(result);
+          });
+        }),
+    );
 
     return Promise.all(promises) as Promise<A>;
   }

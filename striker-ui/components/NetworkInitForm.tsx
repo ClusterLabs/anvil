@@ -32,7 +32,6 @@ import {
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import API_BASE_URL from '../lib/consts/API_BASE_URL';
 import { BLUE, GREY } from '../lib/consts/DEFAULT_THEME';
 import NETWORK_TYPES from '../lib/consts/NETWORK_TYPES';
 import { REP_IPV4, REP_IPV4_CSV } from '../lib/consts/REG_EXP_PATTERNS';
@@ -47,11 +46,11 @@ import { Message } from './MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from './MessageGroup';
 import OutlinedInputWithLabel from './OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelHeader } from './Panels';
-import periodicFetch from '../lib/fetchers/periodicFetch';
 import SelectWithLabel from './SelectWithLabel';
 import Spinner from './Spinner';
 import { createTestInputFunction, testNotBlank } from '../lib/test_input';
 import { BodyText, MonoText, SmallText } from './Text';
+import useFetch from '../hooks/useFetch';
 
 type NetworkInput = {
   inputUUID: string;
@@ -743,9 +742,9 @@ const NetworkInitForm = forwardRef<
 
     const {
       data: networkInterfaces = [],
-      isLoading: isLoadingNetworkInterfaces,
-    } = periodicFetch<NetworkInterfaceOverviewMetadata[]>(
-      `${API_BASE_URL}/init/network-interface/${hostUUID}`,
+      loading: isLoadingNetworkInterfaces,
+    } = useFetch<NetworkInterfaceOverviewMetadata[]>(
+      `/init/network-interface/${hostUUID}`,
       {
         refreshInterval: 2000,
         onSuccess: (data) => {

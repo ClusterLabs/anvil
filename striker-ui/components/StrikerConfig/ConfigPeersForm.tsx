@@ -1,7 +1,6 @@
 import { Grid } from '@mui/material';
 import { FC, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
 import AddPeerDialog from './AddPeerDialog';
@@ -12,9 +11,9 @@ import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
 import MessageBox, { Message } from '../MessageBox';
 import { ExpandablePanel } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import State from '../State';
 import { BodyText, MonoText, SmallText } from '../Text';
+import useFetch from '../../hooks/useFetch';
 
 const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
   refreshInterval = 60000,
@@ -47,8 +46,8 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
     [apiMessage],
   );
 
-  const { isLoading } = periodicFetch<APIHostConnectionOverviewList>(
-    `${API_BASE_URL}/host/connection`,
+  const { loading } = useFetch<APIHostConnectionOverviewList>(
+    `/host/connection`,
     {
       refreshInterval,
       onError: (error) => {
@@ -125,7 +124,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
 
   return (
     <>
-      <ExpandablePanel header="Configure striker peers" loading={isLoading}>
+      <ExpandablePanel header="Configure striker peers" loading={loading}>
         <Grid columns={{ xs: 1, sm: 2 }} container spacing="1em">
           <Grid item xs={1}>
             <List

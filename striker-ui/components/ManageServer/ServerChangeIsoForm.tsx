@@ -44,7 +44,7 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
   );
 
   const { data: isos } = useFetch<APIFileOverviewList>(
-    `/file?anvil_uuid=${detail.anvil.uuid}&type=iso`,
+    `/file?name=${detail.anvil.name}&type=iso`,
     {
       refreshInterval: 5000,
     },

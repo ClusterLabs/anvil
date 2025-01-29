@@ -5,5 +5,6 @@ export * from './deleteHostConnection';
 export * from './getHost';
 export * from './getHostConnection';
 export * from './getHostDetail';
+export * from './getHostNicModels';
 export * from './prepareHost';
 export * from './updateHost';

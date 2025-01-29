@@ -1,7 +1,6 @@
 import { Box, Divider, styled } from '@mui/material';
 import { useContext, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
 import {
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
@@ -10,10 +9,10 @@ import {
 import { AnvilContext } from '../AnvilContext';
 import Decorator, { Colours } from '../Decorator';
 import { Panel } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import processNetworkData from './processNetwork';
 import Spinner from '../Spinner';
 import { HeaderText, BodyText } from '../Text';
+import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'Network';
 
@@ -73,20 +72,18 @@ const Network = (): JSX.Element => {
 
   const [processed, setProcessed] = useState<ProcessedNetwork | undefined>();
 
-  const { isLoading } = periodicFetch<AnvilNetwork>(
-    `${API_BASE_URL}/anvil/${uuid}/network`,
-    {
-      onSuccess: (data) => {
-        setProcessed(processNetworkData(data));
-      },
+  const { loading } = useFetch<AnvilNetwork>(`/anvil/${uuid}/network`, {
+    onSuccess: (data) => {
+      setProcessed(processNetworkData(data));
     },
-  );
+    periodic: true,
+  });
 
   return (
     <Panel>
       <StyledDiv>
         <HeaderText text="Network" />
-        {!isLoading ? (
+        {!loading ? (
           <Box className={classes.container}>
             {processed &&
               processed.bonds.map((bond: ProcessedBond) => (

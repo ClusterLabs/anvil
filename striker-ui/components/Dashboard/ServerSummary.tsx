@@ -155,7 +155,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
       </Grid>
       <Grid item xs>
         <Box>
-          <Link href={`/anvil?anvil_uuid=${server.anvil.uuid}`} noWrap>
+          <Link href={`/anvil?name=${server.anvil.name}`} noWrap>
             {server.anvil.name}
           </Link>
           {server.host && <BodyText noWrap>{server.host.short}</BodyText>}

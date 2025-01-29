@@ -1,7 +1,5 @@
 import { FC, useMemo, useRef, useState } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-
 import CommonUserInputGroup, {
   INPUT_ID_USER_CONFIRM_PASSWORD,
   INPUT_ID_USER_NAME,
@@ -15,10 +13,10 @@ import List from '../List';
 import MessageBox, { Message } from '../MessageBox';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { ExpandablePanel } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import { BodyText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
 
 const getFormEntries = (
@@ -57,11 +55,12 @@ const ManageUsersForm: FC = () => {
     UserOverviewMetadata | undefined
   >();
 
-  const { data: users, isLoading: loadingUsers } =
-    periodicFetch<UserOverviewMetadataList>(`${API_BASE_URL}/user`, {
+  const { data: users, loading: loadingUsers } =
+    useFetch<UserOverviewMetadataList>(`/user`, {
       onError: (error) => {
         setListMessage(handleAPIError(error));
       },
+      periodic: true,
     });
 
   const formUtils = useFormUtils(

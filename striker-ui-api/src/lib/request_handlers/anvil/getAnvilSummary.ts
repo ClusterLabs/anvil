@@ -20,13 +20,24 @@ export const getAnvilSummary: RequestHandler<unknown, AnvilSummary> = async (
     return response.status(500).send();
   }
 
-  const { anvil_uuid: alist } = anvils;
+  const { anvil_uuid: listByUuid } = anvils;
   const result: AnvilSummary = { anvils: [] };
 
   try {
-    for (const auuid of Object.keys(alist)) {
+    const entries = Object.entries(listByUuid);
+
+    entries.sort(([, a], [, b]) => {
+      const collator = new Intl.Collator(undefined, {
+        numeric: true,
+        sensitivity: 'accent',
+      });
+
+      return collator.compare(a.anvil_name, b.anvil_name);
+    });
+
+    for (const [uuid] of entries) {
       result.anvils.push(
-        await buildAnvilSummary({ anvils, anvilUuid: auuid, hosts }),
+        await buildAnvilSummary({ anvils, anvilUuid: uuid, hosts }),
       );
     }
   } catch (error) {

@@ -1,15 +1,16 @@
-import { useContext, useEffect } from 'react';
 import { styled } from '@mui/material/styles';
 import { List, Box, Divider, ListItemButton } from '@mui/material';
+import { useRouter } from 'next/router';
+
 import {
   HOVER,
   DIVIDER,
   LARGE_MOBILE_BREAKPOINT,
 } from '../../lib/consts/DEFAULT_THEME';
+
 import Anvil from './Anvil';
-import { AnvilContext } from '../AnvilContext';
-import sortAnvils from './sortAnvils';
 import Decorator, { Colours } from '../Decorator';
+import setQueryParam from '../../lib/setQueryParam';
 
 const PREFIX = 'AnvilList';
 
@@ -60,13 +61,7 @@ const selectDecorator = (state: string): Colours => {
 };
 
 const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
-  const { uuid, setAnvilUuid } = useContext(AnvilContext);
-
-  useEffect(() => {
-    if (uuid === '') {
-      setAnvilUuid(sortAnvils(list)[0].anvil_uuid);
-    }
-  }, [uuid, list, setAnvilUuid]);
+  const router = useRouter();
 
   return (
     <StyledDiv>
@@ -75,13 +70,17 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
         className={classes.root}
         aria-label="mailbox folders"
       >
-        {sortAnvils(list).map((anvil) => (
+        {list.map((anvil) => (
           <>
             <Divider className={classes.divider} />
             <ListItemButton
               className={classes.button}
               key={anvil.anvil_uuid}
-              onClick={() => setAnvilUuid(anvil.anvil_uuid)}
+              onClick={() => {
+                const query = setQueryParam(router, 'name', anvil.anvil_name);
+
+                router.replace({ query }, undefined, { shallow: true });
+              }}
             >
               <Box display="flex" flexDirection="row" width="100%">
                 <Box p={1}>

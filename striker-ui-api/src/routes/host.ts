@@ -7,6 +7,7 @@ import {
   getHost,
   getHostConnection,
   getHostDetail,
+  getHostNicModels,
   prepareHost,
   updateHost,
 } from '../lib/request_handlers/host';
@@ -18,6 +19,7 @@ const router = express.Router();
 router
   .get('/', getHost)
   .get(CONNECTION_PATH, getHostConnection)
+  .get('/:uuid/nic-model', getHostNicModels)
   .get('/:hostUUID', getHostDetail)
   .post('/', createHost)
   .post(CONNECTION_PATH, createHostConnection)

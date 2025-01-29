@@ -35,8 +35,7 @@ export const getAnvilMemory: RequestHandler<
         JOIN hosts AS b
           ON b.host_uuid IN (
             a.anvil_node1_host_uuid,
-            a.anvil_node2_host_uuid,
-            a.anvil_dr1_host_uuid
+            a.anvil_node2_host_uuid
           )
         JOIN scan_hardware AS c
           ON b.host_uuid = c.scan_hardware_host_uuid

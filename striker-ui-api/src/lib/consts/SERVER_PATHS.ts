@@ -17,6 +17,8 @@ const EMPTY_SERVER_PATHS: ServerPath = {
   },
   opt: {
     alteeve: {
+      access: {},
+      'qemu-cache.xml': {},
       screenshots: {},
     },
   },

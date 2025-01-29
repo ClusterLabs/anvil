@@ -36,8 +36,7 @@ export const getHost = buildGetRequestHandler((request, hooks) => {
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
         b.anvil_node1_host_uuid,
-        b.anvil_node2_host_uuid,
-        b.anvil_dr1_host_uuid
+        b.anvil_node2_host_uuid
       )
     LEFT JOIN variables AS c
       ON c.variable_name = 'system::configured'

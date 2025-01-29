@@ -7,8 +7,6 @@ import {
   useState,
 } from 'react';
 
-import API_BASE_URL from '../../lib/consts/API_BASE_URL';
-
 import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
 import api from '../../lib/api';
 import { INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME } from './CommonUpsInputGroup';
@@ -20,11 +18,11 @@ import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
-import periodicFetch from '../../lib/fetchers/periodicFetch';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText, MonoText } from '../Text';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
 
@@ -120,8 +118,8 @@ const ManageUpsPanel: FC = () => {
     useState<boolean>(true);
   const [upsTemplate, setUpsTemplate] = useState<APIUpsTemplate | undefined>();
 
-  const { data: upsOverviews, isLoading: isUpsOverviewLoading } =
-    periodicFetch<APIUpsOverview>(`${API_BASE_URL}/ups`, {
+  const { data: upsOverviews, loading: isUpsOverviewLoading } =
+    useFetch<APIUpsOverview>(`/ups`, {
       refreshInterval: 60000,
     });
 
