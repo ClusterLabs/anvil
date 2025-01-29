@@ -1536,15 +1536,18 @@ sub create_lv
 				my $say_storage_group  = $anvil->data->{anvil_resources}{$anvil_uuid}{storage_group}{$storage_group_uuid}{group_name};
 				$anvil->Job->update_progress({
 					progress   => 100,
-					message    => "error_0194,!!server_name!".$anvil->data->{job}{server_name}."!!,!!available_size!".$say_available_size."!!,!!requested_size!".$say_requested_size."!!,!!storage_group!".$say_storage_group."!!", 
+					message    => "error_0194",
 					job_status => "failed", 
+					'print'    => 1,
+					log_level  => 0, 
+					priority   => 'err', 
+					variables  => {
+						server_name    => $anvil->data->{job}{server_name},
+						available_size => $say_available_size,
+						requested_size => $say_requested_size, 
+						storage_group  => $say_storage_group, 
+					},
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0194", variables => { 
-					server_name    => $anvil->data->{job}{server_name}, 
-					available_size => $say_available_size, 
-					requested_size => $say_requested_size, 
-					storage_group  => $say_storage_group, 
-				}});
 				$anvil->nice_exit({exit_code => 1});
 			}
 		}
