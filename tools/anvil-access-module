@@ -708,9 +708,16 @@ sub main
 
 		while (my $line = <$requester>)
 		{
-			$line =~ s/\s+$//;
+			chomp($line);
 
-			pstdout($line);
+			eval {
+				my $decoded = decode_json($line);
+				my $encoded = JSON->new->utf8->allow_blessed->pretty->encode($decoded);
+
+				pstdout($encoded);
+			} or do {
+				pstdout($line);
+			}
 		}
 
 		$requester->shutdown(SHUT_RD);
