@@ -353,7 +353,7 @@ export const getServerDetail: RequestHandler<
 
     // Get list of NIC models
 
-    const nicModels = await listNicModels(hostName);
+    const nicModels = await listNicModels(hostUuid);
 
     // Extract necessary values from the libvirt domain XML
 

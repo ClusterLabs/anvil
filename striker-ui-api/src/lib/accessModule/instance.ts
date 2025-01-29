@@ -11,12 +11,4 @@ export const access = {
       },
     },
   }),
-  root: new Access({
-    startOptions: {
-      spawnOptions: {
-        gid: 0,
-        uid: 0,
-      },
-    },
-  }),
 };
