@@ -2261,10 +2261,10 @@ Will now try with: [#!variable!count!#] known password(s).</key>
 		<key name="log_0341">[ Warning ] - Not all hosts are online, but '--force' was used!
 [ Warning ] - You will need to manually update the passwords using this tool with '--local' later.</key>
 		<key name="log_0342">Updating the VNC user: [#!variable!vncuser!#] password.</key>
-		<key name="log_0343">Checking to see if the NTP server: [#!variable!ntp!#] is configured on this machine.</key>
+		<key name="log_0343">Adding the NTP server: [#!variable!ntp!#] as a time source for this machine.</key>
 		<key name="log_0344">The server: [#!variable!server!#] wasn't found on this machine.</key>
-		<key name="log_0345">#!free!#</key>
-		<key name="log_0346">#!free!#</key>
+		<key name="log_0345">Removing the NTP server: [#!variable!ntp!#].</key>
+		<key name="log_0346">The NTP crony.conf file: [#!variable!file!#] wasn't found, skipping NTP config.</key>
 		<key name="log_0347">The migration of the server: [#!variable!server!#] to here was successful!</key>
 		<key name="log_0348">It looks like we were called to verify that the: [#!variable!server!#] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.</key>
 		<key name="log_0349">#!free!#</key>

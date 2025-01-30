@@ -1595,11 +1595,14 @@ sub check_network_type
 
 This checks to see if the NTP needs to be updated. If the NTP congig is updated, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
 
-Parameters;
+This method looks for the NTP server(s) to use in this order;
+* Install Manifest (if a subnode)
+* variables -> variable_name = network::ntp::servers
+* /etc/anvil/anvil.con -> network::ntp::servers = X
 
-=head3 ntp <ip or hostname>
+If multiple are set, the last one is ues. Values are NOT merged.
 
-This is the NTP server to add to the NTP server. 
+This method takes no parameters.
 
 =cut
 sub check_ntp
@@ -1610,109 +1613,101 @@ sub check_ntp
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ntp()" }});
 	
-	my $ntp     = defined $parameter->{ntp} ? $parameter->{ntp} : "";
-	my $updated = 0;
+	# If management is disabled, just return.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		ntp => $ntp,
+		"network::ntp::manage" => $anvil->data->{network}{ntp}{manage},
 	}});
-	
-	$anvil->data->{network}{ntp} = "" if not defined $anvil->data->{network}{ntp};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		"network::ntp" => $anvil->data->{network}{ntp},
-	}});
-	if ((not $ntp) && ($anvil->data->{network}{ntp}))
+	if (not $anvil->data->{network}{ntp}{manage})
 	{
-		$ntp = $anvil->data->{network}{ntp};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+		return(0);
 	}
 	
-	if (not $ntp)
+	my $updated = 0;
+	my $ntp     = "";
+
+	if (not exists $anvil->data->{hosts}{host_uuid})
 	{
-		if (not exists $anvil->data->{hosts}{host_uuid})
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	my $host_uuid  = $anvil->Get->host_uuid();
+	my $host_type  = $anvil->Get->host_type();
+	my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+	my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid  => $host_uuid,
+		host_type  => $host_type,
+		anvil_uuid => $anvil_uuid, 
+		anvil_name => $anvil_name, 
+	}});
+	
+	if ($anvil_name)
+	{
+		# Look for the NTP in the manifest.
+		$anvil->Database->get_manifests({debug => $debug});
+		if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
 		{
-			$anvil->Database->get_hosts({debug => $debug});
-		}
-		my $host_uuid  = $anvil->Get->host_uuid();
-		my $host_type  = $anvil->Get->host_type();
-		my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
-		my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			host_uuid  => $host_uuid,
-			host_type  => $host_type,
-			anvil_uuid => $anvil_uuid, 
-			anvil_name => $anvil_name, 
-		}});
-		
-		if ($anvil_name)
-		{
-			# Look for the NTP in the manifest.
-			$anvil->Database->get_manifests({debug => $debug});
-			if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
+			# NOTE: Deleted manifests aren't returned so we don't need to check if this 
+			#       is deleted.
+			my $manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+			
+			$anvil->Striker->load_manifest({
+				debug         => $debug,
+				manifest_uuid => $manifest_uuid, 
+			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ntp" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp},
+			}});
+			if ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp})
 			{
-				# NOTE: Deleted manifests aren't returned so we don't need to check if this 
-				#       is deleted.
-				my $manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
-				
-				$anvil->Striker->load_manifest({
-					debug         => $debug,
-					manifest_uuid => $manifest_uuid, 
-				});
-				
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ntp" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp},
-				}});
-				if ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp})
-				{
-					$ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
-				}
+				$ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
 			}
 		}
-		
-		# If there's a database variable for this host, use it over the manifest value.
-		my $variable_name = "network::ntp";
-		my $query = "
+	}
+	
+	# If there's a database variable for this host, use it over the manifest value.
+	my $query = "
 SELECT 
     variable_value
 FROM 
     variables  
 WHERE 
-    variable_name         = 'network::ntp'
+    variable_name         = 'network::ntp::servers'
 AND 
     variable_source_table = 'hosts' 
 AND 
     variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
 ;";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
-		my $count   = @{$results};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			results => $results, 
-			count   => $count, 
-		}});
-		if ($count)
-		{
-			my $variable_value = $results->[0]->[0];
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_value => $variable_value }});
-			
-			if ($variable_value)
-			{
-				$ntp = $variable_value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
-			}
-		}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		my $variable_value = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_value => $variable_value }});
 		
-		# Whether we loaded an NTP from the manifest or database, override if set in anvil.conf.
-		$anvil->data->{network}{ntp} = "" if not defined $anvil->data->{network}{ntp};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"network::ntp" => $anvil->data->{network}{ntp},
-		}});
-		if ($anvil->data->{network}{ntp})
+		if ($variable_value)
 		{
-			$ntp = $anvil->data->{network}{ntp};
+			$ntp = $variable_value;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
 		}
+	}
+	
+	# Whether we loaded an NTP from the manifest or database, override if set in anvil.conf.
+	$anvil->data->{network}{ntp}{servers} = "" if not defined $anvil->data->{network}{ntp}{servers};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"network::ntp::servers" => $anvil->data->{network}{ntp}{servers},
+	}});
+	if ($anvil->data->{network}{ntp}{servers})
+	{
+		$ntp = $anvil->data->{network}{ntp}{servers};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
 	}
 	
 	if (not $ntp)
@@ -1721,11 +1716,99 @@ AND
 		return($updated);
 	}
 	
-	# Still here? See if the NTP config needs to be updated.
+	# If the chrony.conf file doesn't exist for some reason, skip.
+	if ((not $anvil->data->{path}{configs}{'chrony.conf'}) or (not -f $anvil->data->{path}{configs}{'chrony.conf'}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0346", variables => { file => $anvil->data->{path}{configs}{'chrony.conf'} }});
+		return($updated);
+	}
+	
+	# Read in the NTP config file
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({
+		debug => $debug, 
+		file  => $anvil->data->{path}{configs}{'chrony.conf'},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+	
+	# Loop through the file and update.
+	delete $anvil->data->{ntp}{seen_servers} if exists $anvil->data->{ntp}{seen_servers};
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^pool /)
+		{
+			# Comment out this line
+			$new_body .= "#".$line."\n";
+			next;
+		}
+		if ($line =~ /^server (.*)$/)
+		{
+			my $server = $1;
+			   $server =~ s/\s.*//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
+			
+			# Is this a server we want?
+			my $seen = 0;
+			foreach my $ntp_server (split/,/, $ntp)
+			{
+				next if $seen;
+				$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp_server => $ntp_server }});
+				
+				if ($server eq $ntp_server)
+				{
+					# Yup, we want this one.
+					$seen                                      = 1;
+					$anvil->data->{ntp}{seen_servers}{$server} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						seen                           => $seen, 
+						"ntp::seen_servers::${server}" => $anvil->data->{ntp}{seen_servers}{$server}, 
+					}});
+				}
+			}
+			
+			if (not $seen)
+			{
+				# Remove this server by skipping this line.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0345", variables => { ntp => $server }});
+				next;
+			}
+		}
+		$new_body .= $line."\n";
+	}
+	
+	# Are there servers not yet added?
 	foreach my $ntp_server (split/,/, $ntp)
 	{
 		$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+		if ((exists $anvil->data->{ntp}{seen_servers}{$ntp_server}) && ($anvil->data->{ntp}{seen_servers}{$ntp_server}))
+		{
+			next;
+		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0343", variables => { ntp => $ntp_server }});
+		$new_body .= "server ".$ntp_server." iburst\n";
+	}
+	
+	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	
+	if ($difference)
+	{
+		# Write out the new config.
+		$anvil->Storage->write_file({
+			debug     => $debug,
+			body      => $new_body,
+			file      => $anvil->data->{path}{configs}{'chrony.conf'},
+			backup    => 1,
+			overwrite => 1,
+		});
+		
+		# Restart chronyd
+		$anvil->System->restart_daemon({
+			debug  => $debug,
+			daemon => "chronyd.service",
+		});
 	}
 	
 	return($updated);

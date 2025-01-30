@@ -112,6 +112,10 @@ if (1)
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0094", variables => { daemon => "anvil-safe-start.service" }});
 }
 
+# Update NTP, if needed.
+my $ntp_updated = $anvil->System->check_ntp({debug => 2});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ntp_updated => $ntp_updated }});
+
 update_progress($anvil, 100, "job_0129");
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0129"});
 
