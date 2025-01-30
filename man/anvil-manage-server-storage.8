@@ -32,6 +32,9 @@ Also, base2 vs base10 notation! Ie: '1GiB' = 1,073,741,824 bytes', '1GB' = '1,00
 \fB\-\-anvil\fR <name|uuid>
 This is the Anvil! node name or UUID to be used. If not specified, the Anvil! the command or job runs on will be used.
 .TP
+\fB\-\-ci\-test\fR
+This is used by CI/CD tests, and not meant for normal use. This disables all prompts can causes the program to exit out / close a job as failed if it would otherwise have prompted for input. Note that this sets \fB\-\-confirm\fR.
+.TP
 \fB\-\-confirm\fR
 Using this prevents the prompts to confirm given actions. When using \fB\-\-job\-uuid\fR, this is ignored as all commands are considered confirmed.
 .TP

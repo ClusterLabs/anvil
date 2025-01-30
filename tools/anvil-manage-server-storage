@@ -42,6 +42,7 @@ my $anvil = Anvil::Tools->new();
 $anvil->Get->switches({list => [
 	"add", 
 	"anvil", 
+	"ci-test", 
 	"confirm", 
 	"disk", 
 	"eject", 
@@ -72,6 +73,14 @@ if (not $anvil->data->{sys}{database}{connections})
 if ($anvil->data->{switches}{'job-uuid'})
 {
 	load_job($anvil);
+}
+
+if ($anvil->data->{switches}{'ci-test'})
+{
+	$anvil->data->{switches}{confirm} = "#!SET!#";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::confirm" => $anvil->data->{switches}{confirm},
+	}});
 }
 
 $anvil->Database->get_hosts();
@@ -507,6 +516,10 @@ sub manage_disk
 							server_state => $server_state, 
 						}, 
 					});
+					
+					# If this is a CI test, abort.
+					$anvil->System->_abort_if_ci();
+					
 					my $is_off        = 0;
 					my $update_period = 120;
 					my $next_update   = time + $update_period;
@@ -865,6 +878,7 @@ sub manage_disk_add
 	});
 	if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
+		$anvil->System->_abort_if_ci();
 		print $anvil->Words->string({key => "message_0021"})." ";
 		my $answer = <STDIN>;
 		chomp($answer);
@@ -2659,6 +2673,7 @@ sub manage_disk_grow
 	});
 	if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
 	{
+		$anvil->System->_abort_if_ci();
 		print $anvil->Words->string({key => "message_0021"})." ";
 		my $answer = <STDIN>;
 		chomp($answer);
@@ -4094,19 +4109,55 @@ sub validate_server
 					$job_description = "job_0502";
 					$job_name        = "server::".$anvil->data->{switches}{server_uuid}."::change_iso";
 				}
+				
 				# Reassign the job.
-				my $job_data   =  "add=".$anvil->data->{switches}{add}."\n";
-				   $job_data   .= "anvil=".$anvil->data->{switches}{add}."\n";
-				   $job_data   .= "confirm=true\n";
-				   $job_data   .= "disk=".$anvil->data->{switches}{disk}."\n";
-				   $job_data   .= "eject=".$anvil->data->{switches}{eject}."\n";
-				   $job_data   .= "grow=".$anvil->data->{switches}{grow}."\n";
-				   $job_data   .= "insert=".$anvil->data->{switches}{insert}."\n";
-				   $job_data   .= "machine=".$anvil->data->{switches}{machine}."\n";
-				   $job_data   .= "optical=".$anvil->data->{switches}{optical}."\n";
-				   $job_data   .= "server=".$anvil->data->{switches}{server}."\n";
-				   $job_data   .= "storage-group=".$anvil->data->{switches}{'storage-group'}."\n";
+				my $job_data =  "add=".$anvil->data->{switches}{add}."\n";
+				   $job_data .= "anvil=".$anvil->data->{switches}{add}."\n";
+				   $job_data .= "confirm=true\n";
+				   $job_data .= "disk=".$anvil->data->{switches}{disk}."\n";
+				   $job_data .= "eject=".$anvil->data->{switches}{eject}."\n";
+				   $job_data .= "grow=".$anvil->data->{switches}{grow}."\n";
+				   $job_data .= "insert=".$anvil->data->{switches}{insert}."\n";
+				   $job_data .= "machine=".$anvil->data->{switches}{machine}."\n";
+				   $job_data .= "optical=".$anvil->data->{switches}{optical}."\n";
+				   $job_data .= "server=".$anvil->data->{switches}{server}."\n";
+				   $job_data .= "storage-group=".$anvil->data->{switches}{'storage-group'}."\n";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
+				
+				# If this is a grow, add or delete job, ask the user to confirm.
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 2}),
+					message   => "log_0349", 
+					log_level => 1, 
+					'print'   => 1, 
+					variables => {
+						host            => $server_host_name, 
+						job_data        => $job_data, 
+						job_name        => $job_name, 
+						job_title       => "#!string!".$job_title."!#", 
+						job_description => "#!string!".$job_description."!#", 
+					},
+				});
+				
+				# Confirmation set by '--ci-test' so don't abort if --ci-test in use, just re-assign.
+				if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
+				{
+					print $anvil->Words->string({key => "message_0021"})." ";
+					my $answer = <STDIN>;
+					chomp($answer);
+					if ($answer !~ /^y/i)
+					{
+						# Abort
+						$anvil->Job->update_progress({
+							progress  => 100,
+							message   => "message_0022", 
+							log_level => 1, 
+							'print'   => 1, 
+						});
+						$anvil->nice_exit({exit_code => 0});
+					}
+				}
+				
 				my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 					debug           => 2,
 					job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,

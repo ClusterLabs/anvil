@@ -5906,6 +5906,34 @@ sub wait_on_dnf
 #############################################################################################################
 
 
+=head2 _abort_if_ci
+
+If the c<< --ci-test >> switch is used, this method will close any running job and exit. It's meant to be used before a user prompt, preventing tests from hanging.
+
+=cut
+sub _abort_if_ci
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_abort_if_ci" }});
+	
+	if ($anvil->data->{switches}{'ci-test'})
+	{
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0216", 
+			log_level => 1, 
+			'print'   => 1, 
+			priority  => "err",
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
 =head2 _check_anvil_conf
 
 This looks for anvil.conf and, if it's missing, regenerates it.

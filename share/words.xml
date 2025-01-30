@@ -330,7 +330,7 @@ Output (if any):
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
 		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
 		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
-		<key name="error_0216">#!free!#</key>
+		<key name="error_0216">User input needed, but --ci-test used, aborting.</key>
 		<key name="error_0217">This host is not an Anvil! node or DR host, unable to delete servers.</key>
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
@@ -2267,7 +2267,13 @@ Will now try with: [#!variable!count!#] known password(s).</key>
 		<key name="log_0346">The NTP crony.conf file: [#!variable!file!#] wasn't found, skipping NTP config.</key>
 		<key name="log_0347">The migration of the server: [#!variable!server!#] to here was successful!</key>
 		<key name="log_0348">It looks like we were called to verify that the: [#!variable!server!#] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.</key>
-		<key name="log_0349">#!free!#</key>
+		<key name="log_0349">The server is not running here, would you like to assign the job to: [#!variable!host!#]?
+Job Details;
+* job_data: ...... [#!variable!job_data!#]
+* job_name: ...... [#!variable!job_name!#]
+* job_title: ..... [#!variable!job_title!#]
+* job_description: [#!variable!job_description!#]
+[ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0351">#!free!#</key>
 		<key name="log_0352">#!free!#</key>
