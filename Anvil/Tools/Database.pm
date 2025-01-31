@@ -5256,6 +5256,8 @@ SELECT
     scan_lvm_pv_sector_size 
 FROM 
     scan_lvm_pvs
+WHERE 
+    scan_lvm_pv_name != 'DELETED' 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -5340,7 +5342,9 @@ SELECT
     scan_lvm_vg_size,
     scan_lvm_vg_free 
 FROM 
-    scan_lvm_vgs
+    scan_lvm_vgs 
+WHERE 
+    scan_lvm_vg_name != 'DELETED' 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -5426,7 +5430,9 @@ SELECT
     scan_lvm_lv_path,
     scan_lvm_lv_on_pvs
 FROM 
-    scan_lvm_lvs
+    scan_lvm_lvs 
+WHERE 
+    scan_lvm_lv_name != 'DELETED'
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
