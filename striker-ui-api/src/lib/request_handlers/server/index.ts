@@ -4,6 +4,7 @@ export * from './changeServerIso';
 export * from './createServer';
 export * from './deleteServer';
 export * from './deleteServerIface';
+export * from './getProvisionServerResources';
 export * from './getServer';
 export * from './getServerDetail';
 export * from './growServerDisk';
