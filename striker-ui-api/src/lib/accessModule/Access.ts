@@ -181,9 +181,13 @@ export class Access extends EventEmitter {
 
       pout(`Waiting ${restartInterval} before restarting.`);
 
-      setTimeout(() => {
-        this.ps = this.start(this.options.start);
-      }, restartInterval);
+      setTimeout(
+        (ops) => {
+          this.ps = this.start(ops);
+        },
+        restartInterval,
+        options,
+      );
     });
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
@@ -229,20 +233,6 @@ export class Access extends EventEmitter {
     });
 
     return ps;
-  }
-
-  private stop() {
-    this.ps.once('error', () => !this.ps.killed && this.ps.kill('SIGKILL'));
-
-    this.ps.kill();
-  }
-
-  private restart(options?: AccessStartOptions) {
-    this.ps.once('close', () => {
-      this.ps = this.start(options);
-    });
-
-    this.stop();
   }
 
   public interact<A extends unknown[], E extends A[number] = A[number]>(
@@ -292,5 +282,43 @@ export class Access extends EventEmitter {
     );
 
     return Promise.all(promises) as Promise<A>;
+  }
+
+  public restart(options?: AccessStartOptions) {
+    this.stop(() => {
+      this.ps = this.start(options);
+    });
+  }
+
+  public stop(onClose?: () => void) {
+    // Remove other listeners that might interfere with the clean up
+    this.ps.removeAllListeners();
+
+    this.ps.once('close', (code, signal) => {
+      poutvar(
+        { code, options: this.options.start, signal },
+        `Stopped anvil-access-module daemon (pid=${this.ps.pid}); params: `,
+      );
+
+      this.active = false;
+
+      this.emit('inactive', this.ps.pid);
+
+      onClose?.call(null);
+    });
+
+    this.ps.once('error', (error) => {
+      perr(
+        `Failed to stop anvil-access-module daemon (pid=${this.ps.pid}); CAUSE: ${error}`,
+      );
+
+      if (this.ps.killed) {
+        return;
+      }
+
+      this.ps.kill('SIGKILL');
+    });
+
+    this.ps.kill('SIGTERM');
   }
 }
