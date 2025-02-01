@@ -93,13 +93,7 @@ export class Access extends EventEmitter {
       while (~i) {
         const line = stdout.substring(0, i);
 
-        if (/^event=/.test(line)) {
-          const event = line.substring(6);
-
-          if (/exit$/.test(event)) {
-            requester.end();
-          }
-        } else if (beginsUuid.test(line)) {
+        if (beginsUuid.test(line)) {
           const cid = line.substring(0, UUID_LENGTH);
           const out = line.substring(UUID_LENGTH);
 
@@ -108,8 +102,20 @@ export class Access extends EventEmitter {
           cids.shift();
 
           this.emit(Access.EVT_KEYS.command.out(cid), out);
+        } else if (/fatal/i.test(line)) {
+          const cid = cids.shift();
+
+          if (cid) {
+            const error = new Error(`Failed to finish ${cid}`, {
+              cause: line,
+            });
+
+            this.emit(Access.EVT_KEYS.command.err(cid), error);
+          } else {
+            perr(`(${script}) stderr: ${line}`);
+          }
         } else {
-          poutvar({ line }, `Access output: `);
+          pout(`(${script}) stdout: ${line}`);
         }
 
         stdout = stdout.substring(i + 1);
@@ -296,11 +302,11 @@ export class Access extends EventEmitter {
     const promises = commandIds.map<Promise<E>>(
       (commandId) =>
         new Promise<E>((resolve, reject) => {
-          this.on(Access.EVT_KEYS.command.err(commandId), (error) => {
+          this.once(Access.EVT_KEYS.command.err(commandId), (error) => {
             reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
           });
 
-          this.on(Access.EVT_KEYS.command.out(commandId), (data) => {
+          this.once(Access.EVT_KEYS.command.out(commandId), (data) => {
             let result: E;
 
             try {
