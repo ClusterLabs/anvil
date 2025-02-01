@@ -181,13 +181,11 @@ export class Access extends EventEmitter {
 
       pout(`Waiting ${restartInterval} before restarting.`);
 
-      setTimeout(
-        (ops) => {
-          this.ps = this.start(ops);
-        },
-        restartInterval,
-        options,
-      );
+      // The local variable 'options' cannot be used in the timeout callback
+      // because it will be garbage collected.
+      setTimeout(() => {
+        this.ps = this.start(this.options.start);
+      }, restartInterval);
     });
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
