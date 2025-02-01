@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, spawn, SpawnOptions } from 'child_process';
 import EventEmitter from 'events';
 import { createConnection } from 'net';
 
@@ -26,27 +26,39 @@ export class Access extends EventEmitter {
 
   private active = false;
 
+  private options: Required<AccessOptions>;
+
   private ps: ChildProcess;
 
   private socketPath = '';
 
   constructor({
-    eventEmitterOptions = {},
-    startOptions = {},
+    emitter: emitterOptions = {},
+    start: startOptions = {},
   }: AccessOptions = {}) {
-    super(eventEmitterOptions);
+    super(emitterOptions);
 
-    const { args: initial = [], ...rest } = startOptions;
+    const { args: initialArgs = [], ...restStartOptions } = startOptions;
 
+    // Don't merge in start() to avoid duplicating the args
     const args = [
-      ...initial,
+      ...initialArgs,
       Access.VERBOSE,
       '--daemonize',
       '--working-dir',
       workspace.dir,
     ].filter((value) => value !== '');
 
-    this.ps = this.start({ args, ...rest });
+    // Init instance's options, but will be updated as defaults are filled in.
+    this.options = {
+      emitter: emitterOptions,
+      start: {
+        args,
+        ...restStartOptions,
+      },
+    };
+
+    this.ps = this.start(this.options.start);
   }
 
   private send(script: string, commandIds: string[]) {
@@ -132,27 +144,35 @@ export class Access extends EventEmitter {
   private start({
     args = [],
     restartInterval = 10000,
-    spawnOptions: { gid, stdio = 'pipe', uid, ...restSpawnOptions } = {},
+    spawn: { stdio = 'pipe', ...restSpawnOptions } = {},
   }: AccessStartOptions = {}) {
-    const options = {
-      args,
-      gid,
-      restartInterval,
+    const spawnOptions: SpawnOptions = {
       stdio,
-      uid,
       ...restSpawnOptions,
     };
 
-    poutvar(options, `Starting anvil-access-module daemon with: `);
+    // Update options because they changed due to initialization in start()
+    this.options.start = {
+      args,
+      restartInterval,
+      spawn: spawnOptions,
+    };
 
-    const ps = spawn(SERVER_PATHS.usr.sbin['anvil-access-module'].self, args, {
-      gid,
-      stdio,
-      uid,
-      ...restSpawnOptions,
-    });
+    poutvar(
+      {
+        options: this.options.start,
+      },
+      `Starting anvil-access-module daemon with: `,
+    );
 
-    ps.once('error', (error) => {
+    const ps = spawn(
+      SERVER_PATHS.usr.sbin['anvil-access-module'].self,
+      args,
+      spawnOptions,
+    );
+
+    // Don't use .once() because errors can happen multiple times
+    ps.on('error', (error) => {
       perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
 
       if (/fatal/i.test(error.message)) {
@@ -161,8 +181,14 @@ export class Access extends EventEmitter {
     });
 
     ps.once('close', (code, signal) => {
+      const startOptions = this.options.start;
+
       poutvar(
-        { code, options, signal },
+        {
+          code,
+          options: startOptions,
+          signal,
+        },
         `anvil-access-module daemon (pid=${ps.pid}) closed: `,
       );
 
@@ -170,11 +196,17 @@ export class Access extends EventEmitter {
 
       this.emit('inactive', ps.pid);
 
-      pout(`Waiting ${restartInterval} before restarting.`);
+      if (!startOptions.restartInterval) {
+        return;
+      }
 
+      pout(`Waiting ${startOptions.restartInterval} before restarting.`);
+
+      // The local variable 'options' cannot be used in the timeout callback
+      // because it will be garbage collected.
       setTimeout(() => {
-        this.ps = this.start(options);
-      }, restartInterval);
+        this.ps = this.start(this.options.start);
+      }, startOptions.restartInterval);
     });
 
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
@@ -203,7 +235,9 @@ export class Access extends EventEmitter {
             pout(`Got socket path: ${this.socketPath}`);
           } else if (event === 'listening') {
             poutvar(
-              options,
+              {
+                options: this.options.start,
+              },
               `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
             );
 
@@ -220,20 +254,6 @@ export class Access extends EventEmitter {
     });
 
     return ps;
-  }
-
-  private stop() {
-    this.ps.once('error', () => !this.ps.killed && this.ps.kill('SIGKILL'));
-
-    this.ps.kill();
-  }
-
-  private restart(options?: AccessStartOptions) {
-    this.ps.once('close', () => {
-      this.ps = this.start(options);
-    });
-
-    this.stop();
   }
 
   public interact<A extends unknown[], E extends A[number] = A[number]>(
@@ -283,5 +303,45 @@ export class Access extends EventEmitter {
     );
 
     return Promise.all(promises) as Promise<A>;
+  }
+
+  public async restart(options?: AccessStartOptions) {
+    await this.stop();
+
+    this.ps = this.start(options);
+  }
+
+  public async stop() {
+    this.options.start.restartInterval = 0;
+
+    poutvar(
+      {
+        options: this.options.start,
+      },
+      `Stopping anvil-access-module daemon (pid=${this.ps.pid}) with: `,
+    );
+
+    // Killing can only happen once
+    this.ps.once('error', () => {
+      if (this.ps.killed) {
+        return;
+      }
+
+      pout(`Sending SIGKILL...`);
+
+      this.ps.kill('SIGKILL');
+    });
+
+    const promise = new Promise<void>((resolve) => {
+      this.ps.once('close', () => {
+        pout(`anvil-access-module daemon (pid=${this.ps.pid}) stopped`);
+
+        resolve();
+      });
+    });
+
+    this.ps.kill('SIGTERM');
+
+    return promise;
   }
 }

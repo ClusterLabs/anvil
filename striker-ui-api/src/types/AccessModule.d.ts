@@ -7,14 +7,12 @@
 type AccessStartOptions = {
   args?: readonly string[];
   restartInterval?: number;
-  spawnOptions?: import('child_process').SpawnOptions;
+  spawn?: import('child_process').SpawnOptions;
 };
 
 type AccessOptions = {
-  eventEmitterOptions?: ConstructorParameters<
-    typeof import('events').EventEmitter
-  >[0];
-  startOptions?: AccessStartOptions;
+  emitter?: ConstructorParameters<typeof import('events').EventEmitter>[0];
+  start?: AccessStartOptions;
 };
 
 type SubroutineCommonParams = {
