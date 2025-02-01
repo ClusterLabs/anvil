@@ -4,8 +4,8 @@ import { Access } from './Access';
 
 export const access = {
   default: new Access({
-    startOptions: {
-      spawnOptions: {
+    start: {
+      spawn: {
         gid: PGID,
         uid: PUID,
       },

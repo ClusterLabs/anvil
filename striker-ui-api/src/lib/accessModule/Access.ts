@@ -26,15 +26,16 @@ export class Access extends EventEmitter {
 
   private active = false;
 
+  private options: AccessOptions;
+
   private ps: ChildProcess;
 
   private socketPath = '';
 
-  constructor({
-    eventEmitterOptions = {},
-    startOptions = {},
-  }: AccessOptions = {}) {
-    super(eventEmitterOptions);
+  constructor(options: AccessOptions = {}) {
+    const { emitter: emitterOptions, start: startOptions = {} } = options;
+
+    super(emitterOptions);
 
     const { args: initial = [], ...rest } = startOptions;
 
@@ -46,7 +47,15 @@ export class Access extends EventEmitter {
       workspace.dir,
     ].filter((value) => value !== '');
 
-    this.ps = this.start({ args, ...rest });
+    this.options = {
+      emitter: emitterOptions,
+      start: {
+        args,
+        ...rest,
+      },
+    };
+
+    this.ps = this.start(this.options.start);
   }
 
   private send(script: string, commandIds: string[]) {
@@ -132,7 +141,7 @@ export class Access extends EventEmitter {
   private start({
     args = [],
     restartInterval = 10000,
-    spawnOptions: { gid, stdio = 'pipe', uid, ...restSpawnOptions } = {},
+    spawn: { gid, stdio = 'pipe', uid, ...restSpawnOptions } = {},
   }: AccessStartOptions = {}) {
     const options = {
       args,
@@ -173,7 +182,7 @@ export class Access extends EventEmitter {
       pout(`Waiting ${restartInterval} before restarting.`);
 
       setTimeout(() => {
-        this.ps = this.start(options);
+        this.ps = this.start(this.options.start);
       }, restartInterval);
     });
 
