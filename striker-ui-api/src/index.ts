@@ -44,14 +44,16 @@ access.default.once('active', async () => {
 
   server.on('upgrade', proxyServerVncUpgrade);
 
-  const handleSig: NodeJS.SignalsListener = (signal) => {
+  const handleSig: NodeJS.SignalsListener = async (signal) => {
     pout(`Main process received signal ${signal}.`);
 
     server.close((error) => {
       perr(`Failed to close express app; CAUSE: ${error}`);
     });
 
-    access.default.stop();
+    await access.default.stop();
+
+    process.exit(0);
   };
 
   const sigs: NodeJS.Signals[] = ['SIGALRM', 'SIGINT', 'SIGTERM'];

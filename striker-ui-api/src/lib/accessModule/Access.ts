@@ -284,41 +284,45 @@ export class Access extends EventEmitter {
     return Promise.all(promises) as Promise<A>;
   }
 
-  public restart(options?: AccessStartOptions) {
-    this.stop(() => {
-      this.ps = this.start(options);
-    });
+  public async restart(options?: AccessStartOptions) {
+    await this.stop();
+
+    this.ps = this.start(options);
   }
 
-  public stop(onClose?: () => void) {
+  public async stop() {
     // Remove other listeners that might interfere with the clean up
     this.ps.removeAllListeners();
 
-    this.ps.once('close', (code, signal) => {
-      poutvar(
-        { code, options: this.options.start, signal },
-        `Stopped anvil-access-module daemon (pid=${this.ps.pid}); params: `,
-      );
+    const promise = new Promise<void>((resolve) => {
+      this.ps.once('close', (code, signal) => {
+        poutvar(
+          { code, options: this.options.start, signal },
+          `Stopped anvil-access-module daemon (pid=${this.ps.pid}); params: `,
+        );
 
-      this.active = false;
+        this.active = false;
 
-      this.emit('inactive', this.ps.pid);
+        this.emit('inactive', this.ps.pid);
 
-      onClose?.call(null);
-    });
+        resolve();
+      });
 
-    this.ps.once('error', (error) => {
-      perr(
-        `Failed to stop anvil-access-module daemon (pid=${this.ps.pid}); CAUSE: ${error}`,
-      );
+      this.ps.once('error', (error) => {
+        perr(
+          `Failed to stop anvil-access-module daemon (pid=${this.ps.pid}); CAUSE: ${error}`,
+        );
 
-      if (this.ps.killed) {
-        return;
-      }
+        if (this.ps.killed) {
+          return;
+        }
 
-      this.ps.kill('SIGKILL');
+        this.ps.kill('SIGKILL');
+      });
     });
 
     this.ps.kill('SIGTERM');
+
+    return promise;
   }
 }
