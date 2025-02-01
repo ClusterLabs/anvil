@@ -24,7 +24,11 @@ access.default.once('active', async () => {
     /* webpackMode: "eager" */ './middlewares'
   );
 
-  pout(`Starting main process with ownership ${getuid()}:${getgid()}`);
+  pout(
+    `Starting app; main process (pid=${
+      process.pid
+    }) ownership is ${getuid()}:${getgid()}`,
+  );
 
   const server = (await app).listen(PORT, () => {
     try {
@@ -32,7 +36,7 @@ access.default.once('active', async () => {
       setgid(PGID);
       setuid(PUID);
 
-      pout(`Main process ownership changed to ${getuid()}:${getgid()}.`);
+      pout(`Changed main process ownership to ${getuid()}:${getgid()}.`);
     } catch (error) {
       perr(`Failed to change main process ownership; CAUSE: ${error}`);
 
@@ -45,13 +49,23 @@ access.default.once('active', async () => {
   server.on('upgrade', proxyServerVncUpgrade);
 
   const handleSig: NodeJS.SignalsListener = async (signal) => {
-    pout(`Main process received signal ${signal}.`);
+    pout(`Main process (pid=${process.pid}) received signal ${signal}.`);
+
+    pout(`Closing app`);
 
     server.close((error) => {
+      if (!error) {
+        pout(`App closed.`);
+
+        return;
+      }
+
       perr(`Failed to close express app; CAUSE: ${error}`);
     });
 
     await access.default.stop();
+
+    pout(`Main process (pid=${process.pid}) finished clean up.`);
 
     process.exit(0);
   };
