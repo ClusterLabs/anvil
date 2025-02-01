@@ -209,8 +209,22 @@ export class Access extends EventEmitter {
       }, startOptions.restartInterval);
     });
 
+    let stderr = '';
+
     ps.stderr?.setEncoding('utf-8').on('data', (chunk: string) => {
-      perr(`anvil-access-module daemon stderr: ${chunk}`);
+      stderr += chunk;
+
+      let i: number = stderr.indexOf('\n');
+
+      while (~i) {
+        const line = stderr.substring(0, i);
+
+        perr(`${ps.pid}:stderr: ${line}`);
+
+        stderr = stderr.substring(i + 1);
+
+        i = stderr.indexOf('\n');
+      }
     });
 
     // Make sure only the parent writes to the stdout
