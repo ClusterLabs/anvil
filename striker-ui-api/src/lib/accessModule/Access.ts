@@ -102,7 +102,7 @@ export class Access extends EventEmitter {
           cids.shift();
 
           this.emit(Access.EVT_KEYS.command.out(cid), out);
-        } else if (/fatal/i.test(line)) {
+        } else if (/FATAL/.test(line)) {
           const cid = cids.shift();
 
           if (cid) {
@@ -181,7 +181,7 @@ export class Access extends EventEmitter {
     ps.on('error', (error) => {
       perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
 
-      if (/fatal/i.test(error.message)) {
+      if (/FATAL/.test(error.message)) {
         this.ps.kill('SIGTERM');
       }
     });
