@@ -1,4 +1,4 @@
-import { chownSync, existsSync, mkdirSync } from 'fs';
+import { chownSync, existsSync, mkdirSync, rmSync } from 'fs';
 
 import { workingDir } from './dir';
 
@@ -6,7 +6,10 @@ export const mkdir = (uid: number, gid?: number): void => {
   const exists = existsSync(workingDir);
 
   if (exists) {
-    return;
+    rmSync(workingDir, {
+      force: true,
+      recursive: true,
+    });
   }
 
   mkdirSync(workingDir, {
