@@ -20,6 +20,8 @@ export class Access extends EventEmitter {
     },
   };
 
+  private static readonly NAME = 'anvil-access-module daemon';
+
   private static readonly VERBOSE: string = repeat('v', DEBUG_ACCESS, {
     prefix: '-',
   });
@@ -103,6 +105,17 @@ export class Access extends EventEmitter {
 
           this.emit(Access.EVT_KEYS.command.out(cid), out);
         } else if (/FATAL/.test(line)) {
+          // When the line is a failed password authentication attempt, then
+          // try to reconnect to the database because probably
+          // anvil-change-password just finished running.
+          if (
+            ['DBI connect', 'password authentication'].every((phrase) =>
+              line.includes(phrase),
+            )
+          ) {
+            this.restart();
+          }
+
           const cid = cids.shift();
 
           if (cid) {
@@ -168,7 +181,7 @@ export class Access extends EventEmitter {
       {
         options: this.options.start,
       },
-      `Starting anvil-access-module daemon with: `,
+      `Starting ${Access.NAME} with: `,
     );
 
     const ps = spawn(
@@ -179,7 +192,7 @@ export class Access extends EventEmitter {
 
     // Don't use .once() because errors can happen multiple times
     ps.on('error', (error) => {
-      perr(`anvil-access-module daemon (pid=${ps.pid}) error: ${error}`);
+      perr(`${Access.NAME} (pid=${ps.pid}) error: ${error}`);
 
       if (/FATAL/.test(error.message)) {
         this.ps.kill('SIGTERM');
@@ -195,7 +208,7 @@ export class Access extends EventEmitter {
           options: startOptions,
           signal,
         },
-        `anvil-access-module daemon (pid=${ps.pid}) closed: `,
+        `${Access.NAME} (pid=${ps.pid}) closed: `,
       );
 
       this.active = false;
@@ -258,7 +271,7 @@ export class Access extends EventEmitter {
               {
                 options: this.options.start,
               },
-              `Successfully started anvil-access-module daemon (pid=${ps.pid}): `,
+              `Successfully started ${Access.NAME} (pid=${ps.pid}): `,
             );
 
             this.active = true;
@@ -280,7 +293,7 @@ export class Access extends EventEmitter {
     ...ops: string[]
   ) {
     if (!this.active) {
-      return Promise.reject(`anvil-access-module daemon is not active`);
+      return Promise.reject(`${Access.NAME} is not active`);
     }
 
     const mapToCommands = ops.reduce<Record<string, string>>((previous, op) => {
@@ -325,8 +338,15 @@ export class Access extends EventEmitter {
     return Promise.all(promises) as Promise<A>;
   }
 
-  public async restart(options?: AccessStartOptions) {
+  public async restart(
+    // Default to shallow copy start options because stop() tampers it.
+    options: AccessStartOptions = {
+      ...this.options.start,
+    },
+  ) {
     await this.stop();
+
+    pout(`${Access.NAME} (pid=${this.ps.pid}) stopped, restarting...`);
 
     this.ps = this.start(options);
   }
@@ -338,7 +358,7 @@ export class Access extends EventEmitter {
       {
         options: this.options.start,
       },
-      `Stopping anvil-access-module daemon (pid=${this.ps.pid}) with: `,
+      `Stopping ${Access.NAME} (pid=${this.ps.pid}) with: `,
     );
 
     // Killing can only happen once
@@ -354,7 +374,7 @@ export class Access extends EventEmitter {
 
     const promise = new Promise<void>((resolve) => {
       this.ps.once('close', () => {
-        pout(`anvil-access-module daemon (pid=${this.ps.pid}) stopped`);
+        pout(`${Access.NAME} (pid=${this.ps.pid}) stopped`);
 
         resolve();
       });
