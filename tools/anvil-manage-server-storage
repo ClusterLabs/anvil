@@ -341,6 +341,7 @@ sub manage_disk
 			
 			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 			{
+				next if not defined $volume_number or $volume_number eq "";
 				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
 				next if $device_path eq "DELETED";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -3443,6 +3444,7 @@ sub show_server_details
 				my $on_lv            = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{on_lv};
 				my $drbd_resource    = $anvil->data->{server}{$short_host_name}{$server_name}{device}{$device_path}{resource};
 				my $drbd_volume      = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{drbd}{volume};
+				next if not defined $drbd_volume or $drbd_volume eq "";
 				my $resource_size    = $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$drbd_resource}{volume}{$drbd_volume}{volume_size};
 				my $lv_name          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv_path}{$on_lv}{scan_lvm_lv_name};
 				my $lv_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{lv}{$lv_name}{scan_lvm_lv_size};
@@ -3869,6 +3871,7 @@ sub show_volume
 			my $device_minor       = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_minor};
 			my $volume_size        = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{volume_size};
 			my $backing_disk       = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{backing_disk};
+			next if not defined $backing_disk or $backing_disk eq "";
 			my $meta_disk          = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{meta_disk};
 			my $storage_group_uuid = $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{storage_group_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
