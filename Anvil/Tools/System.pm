@@ -1732,15 +1732,43 @@ AND
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
 	
 	# Loop through the file and update.
-	delete $anvil->data->{ntp}{seen_servers} if exists $anvil->data->{ntp}{seen_servers};
+	delete $anvil->data->{ntp}{seen} if exists $anvil->data->{ntp}{seen};
 	foreach my $line (split/\n/, $old_body)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^pool /)
+		if ($line =~ /^pool (.*)$/)
 		{
-			# Comment out this line
-			$new_body .= "#".$line."\n";
-			next;
+			my $pool = $1;
+			   $pool =~ s/\s.*//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pool => $pool }});
+			
+			# Is this a server or pool we want?
+			my $seen = 0;
+			foreach my $ntp_server (split/,/, $ntp)
+			{
+				next if $seen;
+				$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp_server => $ntp_server }});
+				
+				if ($pool eq $ntp_server)
+				{
+					# Yup, we want this one.
+					$seen                            = 1;
+					$anvil->data->{ntp}{seen}{$pool} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						seen                 => $seen, 
+						"ntp::seen::${pool}" => $anvil->data->{ntp}{seen}{$pool}, 
+					}});
+				}
+			}
+			
+			if (not $seen)
+			{
+				# Comment out this pool
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0345", variables => { ntp => $pool }});
+				$line = "# ".$line;
+				next;
+			}
 		}
 		if ($line =~ /^server (.*)$/)
 		{
@@ -1759,19 +1787,20 @@ AND
 				if ($server eq $ntp_server)
 				{
 					# Yup, we want this one.
-					$seen                                      = 1;
-					$anvil->data->{ntp}{seen_servers}{$server} = 1;
+					$seen                              = 1;
+					$anvil->data->{ntp}{seen}{$server} = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						seen                           => $seen, 
-						"ntp::seen_servers::${server}" => $anvil->data->{ntp}{seen_servers}{$server}, 
+						seen                   => $seen, 
+						"ntp::seen::${server}" => $anvil->data->{ntp}{seen}{$server}, 
 					}});
 				}
 			}
 			
 			if (not $seen)
 			{
-				# Remove this server by skipping this line.
+				# Comment this server out
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0345", variables => { ntp => $server }});
+				$line = "# ".$line;
 				next;
 			}
 		}
@@ -1782,12 +1811,13 @@ AND
 	foreach my $ntp_server (split/,/, $ntp)
 	{
 		$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
-		if ((exists $anvil->data->{ntp}{seen_servers}{$ntp_server}) && ($anvil->data->{ntp}{seen_servers}{$ntp_server}))
+		next if not $ntp_server;
+		if ((exists $anvil->data->{ntp}{seen}{$ntp_server}) && ($anvil->data->{ntp}{seen}{$ntp_server}))
 		{
 			next;
 		}
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0343", variables => { ntp => $ntp_server }});
-		$new_body .= "server ".$ntp_server." iburst\n";
+		$new_body .= "pool ".$ntp_server." iburst\n";
 	}
 	
 	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
