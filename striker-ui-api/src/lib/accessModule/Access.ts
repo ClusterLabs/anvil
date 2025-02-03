@@ -63,6 +63,30 @@ export class Access extends EventEmitter {
     this.ps = this.start(this.options.start);
   }
 
+  private activate(): void {
+    const same = this.active === true;
+
+    if (same) {
+      return;
+    }
+
+    this.active = true;
+
+    this.emit('active', this.ps.pid);
+  }
+
+  private inactivate(): void {
+    const same = this.active === false;
+
+    if (same) {
+      return;
+    }
+
+    this.active = false;
+
+    this.emit('inactive', this.ps.pid);
+  }
+
   private send(script: string, commandIds: string[]) {
     // Make a copy to avoid changing the original.
     const cids = [...commandIds];
@@ -119,9 +143,7 @@ export class Access extends EventEmitter {
           const cid = cids.shift();
 
           if (cid) {
-            const error = new Error(`Failed to finish ${cid}`, {
-              cause: line,
-            });
+            const error = new Error(line);
 
             this.emit(Access.EVT_KEYS.command.err(cid), error);
           } else {
@@ -211,9 +233,7 @@ export class Access extends EventEmitter {
         `${Access.NAME} (pid=${ps.pid}) closed: `,
       );
 
-      this.active = false;
-
-      this.emit('inactive', ps.pid);
+      this.inactivate();
 
       if (!startOptions.restartInterval) {
         return;
@@ -274,9 +294,7 @@ export class Access extends EventEmitter {
               `Successfully started ${Access.NAME} (pid=${ps.pid}): `,
             );
 
-            this.active = true;
-
-            this.emit('active', ps.pid);
+            this.activate();
           }
         }
 
@@ -316,7 +334,7 @@ export class Access extends EventEmitter {
       (commandId) =>
         new Promise<E>((resolve, reject) => {
           this.once(Access.EVT_KEYS.command.err(commandId), (error) => {
-            reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
+            return reject(`Failed to finish ${commandId}; CAUSE: ${error}`);
           });
 
           this.once(Access.EVT_KEYS.command.out(commandId), (data) => {
@@ -352,6 +370,8 @@ export class Access extends EventEmitter {
   }
 
   public async stop() {
+    this.inactivate();
+
     this.options.start.restartInterval = 0;
 
     poutvar(
