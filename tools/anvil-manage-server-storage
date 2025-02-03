@@ -4085,8 +4085,14 @@ sub validate_server
 	
 	if (not $anvil->data->{server}{$short_host_name}{$server_name}{from_virsh}{xml})
 	{
-		# The server isn't actually running... Not here anyway.
-		if ($server_state eq "running")
+		# The server isn't actually running... Not here anyway, or the database data is stale. If 
+		# we're just displaying info, proceed, but if we're doing something, reassign.
+		if (($server_state eq "running")                  && 
+		    ($server_host_uuid ne $anvil->Get->host_uuid) &&
+		    (($anvil->data->{switches}{add})   or 
+		     ($anvil->data->{switches}{eject}) or 
+		     ($anvil->data->{switches}{grow})  or 
+		     ($anvil->data->{switches}{insert})))
 		{
 			my $server_host_name = $anvil->Database->get_host_from_uuid({
 				short     => 1,
@@ -4117,7 +4123,7 @@ sub validate_server
 				
 				# Reassign the job.
 				my $job_data =  "add=".$anvil->data->{switches}{add}."\n";
-				   $job_data .= "anvil=".$anvil->data->{switches}{add}."\n";
+				   $job_data .= "anvil=".$anvil->data->{switches}{anvil}."\n";
 				   $job_data .= "confirm=true\n";
 				   $job_data .= "disk=".$anvil->data->{switches}{disk}."\n";
 				   $job_data .= "eject=".$anvil->data->{switches}{eject}."\n";
