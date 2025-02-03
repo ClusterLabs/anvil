@@ -1770,7 +1770,7 @@ AND
 				next;
 			}
 		}
-		if ($line =~ /^server (.*)$/)
+		if ($line =~ /^Server (.*)$/)
 		{
 			my $server = $1;
 			   $server =~ s/\s.*//;
