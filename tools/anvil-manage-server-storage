@@ -106,7 +106,7 @@ if (not $anvil->data->{switches}{server})
 		progress => 100,
 		message  => "error_0456", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		priority  => "err",
 	});
 	$anvil->nice_exit({exit_code => 0});
@@ -139,7 +139,7 @@ if (exists $anvil->data->{connected_resource})
 			progress  => $anvil->Job->bump_progress({steps => 1}),
 			message   => "job_0092", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				host_name => $peer_name, 
 			},
@@ -272,7 +272,7 @@ sub manage_disk
 				progress => 100,
 				message  => "error_0457", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -297,7 +297,7 @@ sub manage_disk
 			progress => $anvil->Job->bump_progress({steps => 10}),
 			message  => "error_0427", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 		});
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
@@ -308,7 +308,7 @@ sub manage_disk
 				progress  => $anvil->Job->bump_progress({steps => 10}),
 				message   => "error_0428", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					host_name => $short_host_name,
@@ -415,7 +415,7 @@ sub manage_disk
 				progress => 100,
 				message  => "error_0458", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -428,7 +428,7 @@ sub manage_disk
 				progress  => 100,
 				message   => "error_0459", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					device_target => $device_target, 
@@ -481,7 +481,7 @@ sub manage_disk
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "log_0749", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 			device_target  => $device_target, 
 			say_boot       => $say_boot, 
@@ -511,7 +511,7 @@ sub manage_disk
 						progress  => $anvil->Job->bump_progress({steps => 5}),
 						message   => "log_0113", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						variables => {
 							server_name  => $server_name, 
 							server_state => $server_state, 
@@ -544,7 +544,7 @@ sub manage_disk
 								progress  => $anvil->Job->bump_progress({steps => 3}),
 								message   => "log_0114", 
 								log_level => 1, 
-								'print'   => 1, 
+								'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 								variables => {
 									server_name  => $server_name, 
 								}, 
@@ -562,7 +562,7 @@ sub manage_disk
 									progress  => $anvil->Job->bump_progress({steps => 2}),
 									message   => "log_0121", 
 									log_level => 1, 
-									'print'   => 1, 
+									'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 									variables => {
 										timestamp    => $anvil->Get->date_and_time({time_only => 1}),
 										server_name  => $server_name, 
@@ -628,7 +628,7 @@ sub manage_disk_add
 			progress => 100,
 			message  => "warning_0168", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "alert",
 		});
 		show_storage_groups($anvil);
@@ -670,7 +670,7 @@ sub manage_disk_add
 			progress  => 100,
 			message   => "error_0437", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				storage_group => $storage_group_switch
@@ -699,7 +699,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0423", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}), 
@@ -709,7 +709,7 @@ sub manage_disk_add
 			progress => 100,
 			message  => "message_0330", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -733,7 +733,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 10}),
 				message   => "error_0424", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					add_size => $add_size
@@ -743,7 +743,7 @@ sub manage_disk_add
 				progress => 100,
 				message  => "message_0330", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -812,7 +812,7 @@ sub manage_disk_add
 			progress => 100,
 			message  => "error_0425", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 		});
 		$anvil->nice_exit({exit_code => 1});
@@ -853,7 +853,7 @@ sub manage_disk_add
 				progress => 100,
 				message  => "error_0426", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -865,7 +865,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "message_0333", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			new_device_target  => $new_device_target,
 			hr_size            => $hr_size,
@@ -900,7 +900,7 @@ sub manage_disk_add
 				progress => $anvil->Job->bump_progress({steps => 10}),
 				message  => "error_0429", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
@@ -911,7 +911,7 @@ sub manage_disk_add
 					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "error_0428", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						host_name => $short_host_name,
@@ -923,7 +923,7 @@ sub manage_disk_add
 				progress => 100,
 				message  => "job_0471", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -989,7 +989,7 @@ sub manage_disk_add
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0748", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						backing_disk => $backing_disk
 					},
@@ -1005,7 +1005,7 @@ sub manage_disk_add
 						progress  => 100,
 						message   => "error_0460", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "err",
 						variables => {
 							backing_disk => $backing_disk,
@@ -1023,7 +1023,7 @@ sub manage_disk_add
 						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -1035,7 +1035,7 @@ sub manage_disk_add
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0756", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						host_name    => $short_host_name, 
 						backing_disk => $backing_disk, 
@@ -1058,7 +1058,7 @@ sub manage_disk_add
 						progress  => 100,
 						message   => "error_0461", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "err",
 						variables => {
 							host_name    => $short_host_name, 
@@ -1078,7 +1078,7 @@ sub manage_disk_add
 						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -1179,7 +1179,7 @@ sub manage_disk_add
 		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "log_0751", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$drbd_res_file." sh-nop";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -1195,7 +1195,7 @@ sub manage_disk_add
 			progress  => 100,
 			message   => "error_0430", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				test_file   => $test_file,
@@ -1210,7 +1210,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0752", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	
 	# Remove the test file.
@@ -1222,7 +1222,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0757", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my ($backup_file) = $anvil->Storage->backup({file => $drbd_res_file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
@@ -1245,7 +1245,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0753", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	foreach my $host_type ("node", "dr")
 	{
@@ -1273,7 +1273,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0754", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					resource_file => $drbd_res_file, 
 					host_name     => $short_host_name, 
@@ -1300,7 +1300,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0431", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				});
 				$anvil->nice_exit({exit_code => 1});
 			}
@@ -1312,7 +1312,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0755", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	foreach my $host_type ("node", "dr")
 	{
@@ -1343,7 +1343,7 @@ sub manage_disk_add
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0758", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						next_drbd_volume => $next_drbd_volume
 					},
@@ -1364,7 +1364,7 @@ sub manage_disk_add
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "warning_0160", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "alert",
 						variables => {
 							drbd_resource    => $drbd_resource, 
@@ -1382,7 +1382,7 @@ sub manage_disk_add
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -1395,7 +1395,7 @@ sub manage_disk_add
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0759", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						host_name        => $short_host_name, 
 						drbd_resource    => $drbd_resource, 
@@ -1419,7 +1419,7 @@ sub manage_disk_add
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "warning_0161", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "alert",
 						variables => {
 							host_name        => $short_host_name, 
@@ -1439,7 +1439,7 @@ sub manage_disk_add
 						progress => $anvil->Job->bump_progress({steps => 2}),
 						message  => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -1489,7 +1489,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0760", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					host_name => $short_host_name, 
 					job_uuid  => $job_uuid, 
@@ -1503,7 +1503,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0761", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			drbd_resource => $drbd_resource
 		},
@@ -1525,7 +1525,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "job_0110", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $peer_count     = 0;
 	my $scan_drbd_call = $anvil->data->{path}{directories}{'scan_agents'}."/scan-drbd".$anvil->Log->switches;
@@ -1555,7 +1555,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "job_0111", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				host_name   => $short_host_name, 
 				use_ip      => $use_ip, 
@@ -1579,7 +1579,7 @@ sub manage_disk_add
 		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "log_0762", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $waiting    = 1;
 	my $wait_until = time + 300;
@@ -1694,7 +1694,7 @@ sub manage_disk_add
 					progress => 100,
 					message  => "error_0432", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 				});
 				$anvil->nice_exit({exit_code => 1});
@@ -1708,7 +1708,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0763", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $all_inconsistent = 1;
 	my $primary_on_host  = "";
@@ -1740,7 +1740,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0764", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		
 		my $shell_call = $anvil->data->{path}{exe}{drbdadm}." new-current-uuid --force-resync ".$drbd_resource."/".$next_drbd_volume;
@@ -1768,7 +1768,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0765", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			my ($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1783,7 +1783,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0430", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						drbd_resource    => $drbd_resource, 
@@ -1810,7 +1810,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0752", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 		}
 		else
@@ -1826,7 +1826,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0766", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					host_name   => $short_host_name, 
 					use_ip      => $use_ip, 
@@ -1848,7 +1848,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0430", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						drbd_resource    => $drbd_resource, 
@@ -1878,7 +1878,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0752", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 		}
 	}
@@ -1889,7 +1889,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0767", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 	}
 	
@@ -1898,7 +1898,7 @@ sub manage_disk_add
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0768", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $server_host = "";
 	foreach my $host_type ("node", "dr")
@@ -1953,7 +1953,7 @@ sub manage_disk_add
 							progress  => $anvil->Job->bump_progress({steps => 2}),
 							message   => "log_0769", 
 							log_level => 1, 
-							'print'   => 1, 
+							'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						});
 					}
 					else
@@ -1963,7 +1963,7 @@ sub manage_disk_add
 							progress  => $anvil->Job->bump_progress({steps => 2}),
 							message   => "log_0770", 
 							log_level => 1, 
-							'print'   => 1, 
+							'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 							variables => {
 								server_host => $server_host, 
 							},
@@ -1983,7 +1983,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0771", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$server_host = $short_host_name;
 		$offline     = 1;
@@ -2010,7 +2010,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0772", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				server_name => $server_name, 
 			},
@@ -2022,7 +2022,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0773", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		($output, $return_code) = $anvil->System->call({debug => 2, shell_call => $shell_call});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2054,7 +2054,7 @@ sub manage_disk_add
 				progress  => 100,
 				message   => "error_0434", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			$anvil->nice_exit({exit_code => 1});
@@ -2065,7 +2065,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0774", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		update_definition($anvil, "undefine", $virsh_definition);
 		
@@ -2074,7 +2074,7 @@ sub manage_disk_add
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0808", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->Server->update_definition({
 			debug              => 2,
@@ -2087,7 +2087,7 @@ sub manage_disk_add
 			progress  => 100,
 			message   => "log_0750", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 0});
 	}
@@ -2104,7 +2104,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0775", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -2118,7 +2118,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0138", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						shell_call  => $shell_call,
@@ -2134,7 +2134,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0776", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml --inactive ".$server_name;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -2150,7 +2150,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0777", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			my $problem = $anvil->Server->parse_definition({
 				server     => $server_name,
@@ -2166,7 +2166,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0434", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 				});
 				$anvil->nice_exit({exit_code => 1});
@@ -2177,7 +2177,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0778", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			update_definition($anvil, "undefine", $virsh_definition);
 			
@@ -2186,7 +2186,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0808", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->Server->update_definition({
 				debug              => 2,
@@ -2199,7 +2199,7 @@ sub manage_disk_add
 				progress  => 100,
 				message   => "log_0750", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 0});
 		}
@@ -2211,7 +2211,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0779", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					server_host => $server_host, 
 					use_ip      => $use_ip, 
@@ -2255,7 +2255,7 @@ sub manage_disk_add
 					progress  => 100,
 					message   => "error_0435", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 				});
 				$anvil->nice_exit({exit_code => 1});
@@ -2271,7 +2271,7 @@ sub manage_disk_add
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0780", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			update_definition($anvil, "undefine", $virsh_definition);
 			
@@ -2280,7 +2280,7 @@ sub manage_disk_add
 				progress  => 100,
 				message   => "log_0750", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 0});
 		}
@@ -2308,7 +2308,7 @@ sub reconnect_resource
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0781", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			peer_name => $peer_name, 
 		},
@@ -2334,7 +2334,7 @@ sub reconnect_resource
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0782", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	sleep 1;
 	$shell_call = $anvil->data->{path}{exe}{drbdadm}." connect ".$drbd_resource;
@@ -2355,7 +2355,7 @@ sub reconnect_resource
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0750", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	
 	# Now wait
@@ -2363,7 +2363,7 @@ sub reconnect_resource
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0783", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $waiting    = 1;
 	my $wait_until = time + 300;
@@ -2381,7 +2381,7 @@ sub reconnect_resource
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0784", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					drbd_resource    => $drbd_resource,
 					next_drbd_volume => $next_drbd_volume, 
@@ -2402,7 +2402,7 @@ sub reconnect_resource
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0785", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				});
 				$disks_ready = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
@@ -2413,7 +2413,7 @@ sub reconnect_resource
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0786", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				});
 				$disks_ready = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disks_ready => $disks_ready }});
@@ -2425,7 +2425,7 @@ sub reconnect_resource
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0787", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						peer_disk_state => $peer_disk_state, 
 					},
@@ -2451,7 +2451,7 @@ sub reconnect_resource
 				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "log_0788", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			return($peer_disk_state, $role);
 		}
@@ -2509,7 +2509,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0436", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				max_free_space => $anvil->Convert->bytes_to_human_readable({'bytes' => $max_free_space}), 
@@ -2519,7 +2519,7 @@ sub manage_disk_grow
 			progress  => 100,
 			message   => "log_0789", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -2543,14 +2543,14 @@ sub manage_disk_grow
 				progress  => $anvil->Job->bump_progress({steps => 10}),
 				message   => "error_0424", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			$anvil->Job->update_progress({
 				progress  => 100,
 				message   => "log_0789", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -2564,7 +2564,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0438", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				add_size => $anvil->Convert->bytes_to_human_readable({'bytes' => $add_size}), 
@@ -2574,7 +2574,7 @@ sub manage_disk_grow
 			progress  => 100,
 			message   => "log_0789", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -2585,7 +2585,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0439", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				add_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $add_size}), 
@@ -2596,7 +2596,7 @@ sub manage_disk_grow
 			progress  => 100,
 			message   => "log_0789", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -2618,7 +2618,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "error_0440", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 		});
 		foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
@@ -2628,7 +2628,7 @@ sub manage_disk_grow
 				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "error_0428", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					host_name => $short_host_name,
@@ -2640,7 +2640,7 @@ sub manage_disk_grow
 			progress  => 100,
 			message   => "job_0471", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -2667,7 +2667,7 @@ sub manage_disk_grow
 		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "log_0790", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			size => $hr_size, 
 		},
@@ -2685,7 +2685,7 @@ sub manage_disk_grow
 				progress  => 100,
 				message   => "message_0022", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 0});
 		}
@@ -2700,7 +2700,7 @@ sub manage_disk_grow
 				progress  => $anvil->Job->bump_progress({steps => 5}),
 				message   => "error_0441", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			foreach my $short_host_name (sort {$a cmp $b} keys %{$anvil->data->{peer}})
 			{
@@ -2709,7 +2709,7 @@ sub manage_disk_grow
 					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "error_0428", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						host_name => $short_host_name,
@@ -2721,7 +2721,7 @@ sub manage_disk_grow
 				progress  => 100,
 				message   => "job_0471", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -2757,7 +2757,7 @@ sub manage_disk_grow
 					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "log_0791", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						backing_disk => $backing_disk, 
 					},
@@ -2773,7 +2773,7 @@ sub manage_disk_grow
 						progress  => 100,
 						message   => "error_0442", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "err",
 						variables => {
 							backing_disk => $backing_disk, 
@@ -2791,7 +2791,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -2803,7 +2803,7 @@ sub manage_disk_grow
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0792", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						host_name    => $short_host_name, 
 						backing_disk => $backing_disk,
@@ -2826,7 +2826,7 @@ sub manage_disk_grow
 						progress  => 100,
 						message   => "error_0443", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						priority  => "err",
 						variables => {
 							backing_disk => $backing_disk, 
@@ -2845,7 +2845,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -2857,7 +2857,7 @@ sub manage_disk_grow
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0793", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." resize ".$drbd_resource."/".$drbd_volume;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -2873,7 +2873,7 @@ sub manage_disk_grow
 			progress  => 100,
 			message   => "error_0444", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				drbd_resource => $drbd_resource, 
@@ -2892,7 +2892,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0750", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		});
 	}
 	
@@ -2901,7 +2901,7 @@ sub manage_disk_grow
 		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "log_0794", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	foreach my $agent ("scan-drbd", "scan-lvm")
 	{
@@ -2909,7 +2909,7 @@ sub manage_disk_grow
 			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "log_0740", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				agent => $agent, 
 			},
@@ -2941,7 +2941,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0795", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						variables => {
 							agent => $agent, 
 						},
@@ -2957,7 +2957,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 				else
@@ -2968,7 +2968,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0796", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						variables => {
 							agent       => $agent,
 							host_name   => $short_host_name, 
@@ -2991,7 +2991,7 @@ sub manage_disk_grow
 						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "log_0750", 
 						log_level => 1, 
-						'print'   => 1, 
+						'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					});
 				}
 			}
@@ -3003,7 +3003,7 @@ sub manage_disk_grow
 		progress  => 100,
 		message   => "log_0797", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	
 	return(0);
@@ -3061,7 +3061,7 @@ sub manage_optical
 				progress  => 100,
 				message   => "error_0445", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 			});
 			show_server_details($anvil, 1);
@@ -3139,7 +3139,7 @@ sub manage_optical
 			progress  => 100,
 			message   => "error_0446", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 		});
 		$anvil->nice_exit({exit_code => 1});
@@ -3153,7 +3153,7 @@ sub manage_optical
 			progress  => 100,
 			message   => "error_0447", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				device_target => $device_target, 
@@ -3207,7 +3207,7 @@ sub manage_optical
 				progress  => 100,
 				message   => "error_0448", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					iso => $iso, 
@@ -3227,7 +3227,7 @@ sub manage_optical
 		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "log_0798", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 		variables => {
 			server_name => $server_name, 
 		},
@@ -3242,7 +3242,7 @@ sub manage_optical
 			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "log_0799", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				insert        => $anvil->data->{switches}{insert}, 
 				device_target => $device_target, 
@@ -3256,7 +3256,7 @@ sub manage_optical
 			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "log_0800", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				device_path   => $device_path, 
 				device_target => $device_target, 
@@ -3273,7 +3273,7 @@ sub manage_optical
 				progress  => 100,
 				message   => "error_0449", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					device_target => $device_target, 
@@ -3288,7 +3288,7 @@ sub manage_optical
 				progress  => 100,
 				message   => "error_0450", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				priority  => "err",
 				variables => {
 					device_target => $device_target, 
@@ -3308,7 +3308,7 @@ sub manage_optical
 		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "log_0801", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	update_definition($anvil, "undefine", "");
 	
@@ -3317,7 +3317,7 @@ sub manage_optical
 		progress  => 100,
 		message   => "log_0750", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	
 	return(0);
@@ -3568,7 +3568,7 @@ sub check_drbd_peer_access
 		progress  => $anvil->Job->bump_progress({steps => 1}),
 		message   => "job_0016", 
 		log_level => 1, 
-		'print'   => 1, 
+		'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 	});
 	
 	my $all_online = 1;
@@ -3587,7 +3587,7 @@ sub check_drbd_peer_access
 			progress  => $anvil->Job->bump_progress({steps => 1}),
 			message   => "job_0018", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			variables => {
 				host_name => $short_host_name, 
 			},
@@ -3630,7 +3630,7 @@ sub check_drbd_peer_access
 				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "job_0019", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					host_name => $short_host_name, 
 					target_ip => $target_ip, 
@@ -3646,7 +3646,7 @@ sub check_drbd_peer_access
 				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "job_0058", 
 				log_level => 1, 
-				'print'   => 1, 
+				'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 				variables => {
 					host_name => $short_host_name, 
 				},
@@ -3679,7 +3679,7 @@ sub check_drbd_peer_access
 					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "job_0053", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						host_name => $peer_name, 
 					},
@@ -4001,7 +4001,7 @@ sub validate_server
 			progress  => 100,
 			message   => $key, 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				server => $anvil->data->{switches}{server}, 
@@ -4058,7 +4058,7 @@ sub validate_server
 			progress  => 100,
 			message   => "error_0453", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err", 
 			variables => {
 				server => $server_name, 
@@ -4140,7 +4140,7 @@ sub validate_server
 					progress  => $anvil->Job->bump_progress({steps => 2}),
 					message   => "log_0349", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						host            => $server_host_name, 
 						job_data        => $job_data, 
@@ -4163,7 +4163,7 @@ sub validate_server
 							progress  => 100,
 							message   => "message_0022", 
 							log_level => 1, 
-							'print'   => 1, 
+							'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 						});
 						$anvil->nice_exit({exit_code => 0});
 					}
@@ -4186,7 +4186,7 @@ sub validate_server
 					progress  => 100,
 					message   => "job_0136", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					variables => {
 						server    => $server_name, 
 						host_name => $server_host_name,
@@ -4201,7 +4201,7 @@ sub validate_server
 					progress  => 100,
 					message   => "error_0454", 
 					log_level => 1, 
-					'print'   => 1, 
+					'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 					priority  => "err",
 					variables => {
 						server    => $server_name, 
@@ -4368,7 +4368,7 @@ sub update_definition
 			progress  => 100,
 			message   => "error_0455", 
 			log_level => 1, 
-			'print'   => 1, 
+			'print'   => $anvil->data->{switches}{machine} ? 0 : 1, 
 			priority  => "err",
 			variables => {
 				server => $server_name, 
