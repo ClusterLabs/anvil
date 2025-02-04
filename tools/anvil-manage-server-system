@@ -200,6 +200,7 @@ sub manage_cpu
 		}});
 	}
 	
+	# Max cores already accounts for 1 or 2 less than real cores.
 	my $host_cores   = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{cores};
 	my $host_threads = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{threads};
 	my $max_cores    = $anvil->data->{anvil_resources}{$anvil_uuid}{cpu}{available};
@@ -211,7 +212,7 @@ sub manage_cpu
 	
 	my $recommended_max = $host_cores - 2;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
-	if ($host_cores <= 2)
+	if ($host_cores <= 4)
 	{
 		$recommended_max = 1;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
@@ -292,6 +293,8 @@ sub manage_cpu
 			new_sockets     => $new_sockets,
 			new_cores       => $new_cores,
 			new_threads     => $new_threads, 
+			max_cores       => $max_cores, 
+			recommended_max => $recommended_max, 
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0477", variables => $variables});
 		$anvil->Job->update_progress({
@@ -389,7 +392,7 @@ sub manage_cpu
 	elsif ($anvil->data->{switches}{confirm})
 	{
 		# User confirmed
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0150"});
 	}
 	else
 	{
@@ -645,7 +648,7 @@ sub manage_ram
 	elsif ($anvil->data->{switches}{confirm})
 	{
 		# User confirmed
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0150"});
 	}
 	else
 	{
@@ -960,7 +963,7 @@ sub manage_boot_order
 		elsif ($anvil->data->{switches}{confirm})
 		{
 			# User confirmed
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0359"});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0150"});
 		}
 		else
 		{

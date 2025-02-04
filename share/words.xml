@@ -792,7 +792,8 @@ The XML that failed sanity check was:
 		<key name="error_0474">[ Error ] - The requested size: [#!variable!requested_ram!#] is greater than the maximum RAM: [#!variable!max_ram!#].</key>
 		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
 		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
-		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!#], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
+		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!#], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]) is invalid!
+[ Error ] - The maximum cores that can be allocated to this server is: [#!variable!max_cores!#] (Real cores - #!variable!recommended_max!#).</key>
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
@@ -3004,7 +3005,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0147">[ Note ] - Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to unplug the interface.</key>
 		<key name="message_0148">[ Note ] - Asked to plug in an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to plug in the interface.</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
-		<key name="message_0150">#!free!#</key>
+		<key name="message_0150">The '--confirm' switch was used, proceeding.</key>
 		<key name="message_0151">#!free!#</key>
 		<key name="message_0152">#!free!#</key>
 		<key name="message_0153">Local repository</key>
