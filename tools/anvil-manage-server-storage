@@ -4477,7 +4477,21 @@ sub show_server_list
 		my $server_count = 0;
 		if (exists $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name})
 		{
-			$server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
+			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+			{
+				my $server_uuid  = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+				my $server_state = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:server_name'  => $server_name,
+					's2:server_uuid'  => $server_uuid, 
+					's3:server_state' => $server_state, 
+				}});
+				if ($server_state ne "DELETED")
+				{
+					$server_count++;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
+				}
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_count => $server_count }});
 		}
 		if (not $server_count)
@@ -4495,7 +4509,6 @@ sub show_server_list
 		{
 			if ($anvil->data->{switches}{machine})
 			{
-				my $server_count = keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}};
 				$anvil->data->{xml}{body} .= "\t\t<server count=\"".$server_count."\" />\n";
 			}
 			foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
