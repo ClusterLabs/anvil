@@ -85,6 +85,8 @@ type ProvisionServerResources = {
   subnodes: Record<string, ProvisionServerResourceSubnode>;
 };
 
+type ServerOses = Record<string, string>;
+
 type ServerOverviewHost = {
   name: string;
   short: string;

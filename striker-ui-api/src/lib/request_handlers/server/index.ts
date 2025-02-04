@@ -8,6 +8,7 @@ export * from './getProvisionServerResources';
 export * from './getServer';
 export * from './getServerDetail';
 export * from './growServerDisk';
+export * from './lsos';
 export * from './migrateServer';
 export * from './renameServer';
 export * from './setServerBootOrder';
