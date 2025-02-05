@@ -9,6 +9,95 @@ type APIServerState =
   | 'running'
   | 'shut off';
 
+type APIServerOses = Record<string, string>;
+
+type APIProvisionServerResourceFile = {
+  jobs: Record<
+    string,
+    {
+      progress: number;
+      uuid: string;
+    }
+  >;
+  name: string;
+  nodes: string[];
+  uuid: string;
+};
+
+type APIProvisionServerResourceNode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  description: string;
+  files: string[];
+  memory: {
+    allocated: string;
+    available: string;
+    system: string;
+    total: string;
+  };
+  name: string;
+  servers: string[];
+  storageGroups: string[];
+  subnodes: string[];
+  uuid: string;
+};
+
+type APIProvisionServerResourceServer = {
+  cpu: {
+    cores: number;
+  };
+  jobs: Record<
+    string,
+    {
+      progress: number;
+      uuid: string;
+    }
+  >;
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  uuid: string;
+};
+
+type APIProvisionServerResourceStorageGroup = {
+  name: string;
+  node: string;
+  usage: {
+    free: string;
+    total: string;
+    used: string;
+  };
+  uuid: string;
+};
+
+type APIProvisionServerResourceSubnode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  short: string;
+  uuid: string;
+};
+
+type APIProvisionServerResources = {
+  files: Record<string, APIProvisionServerResourceFile>;
+  nodes: Record<string, APIProvisionServerResourceNode>;
+  servers: Record<string, APIProvisionServerResourceServer>;
+  storageGroups: Record<string, APIProvisionServerResourceStorageGroup>;
+  subnodes: Record<string, APIProvisionServerResourceSubnode>;
+};
+
 type APIServerOverviewAnvil = {
   description: string;
   name: string;
