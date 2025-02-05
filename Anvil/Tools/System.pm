@@ -1806,6 +1806,7 @@ AND
 		}
 		$new_body .= $line."\n";
 	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
 	
 	# Are there servers not yet added?
 	foreach my $ntp_server (split/,/, $ntp)

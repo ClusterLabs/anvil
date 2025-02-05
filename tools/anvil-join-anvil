@@ -3862,65 +3862,8 @@ sub check_local_network
 		# Break up the NTP servers into a list, we'll set to '1' the ones we find.
 		update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0089");
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0089"});
-		my $new_ntp = {};
-		foreach my $ntp_server (split/,/, $ntp)
-		{
-			$ntp_server = $anvil->Words->clean_spaces({ string => $ntp_server });
-			$new_ntp->{$ntp_server} = 0;
-		}
-		
-		# Call chrony to see what servers are setup already.
-		my $change     = 0;
-		my $new_config = "";
-		my $old_config = $anvil->Storage->read_file({file => $anvil->data->{path}{data}{'chrony.conf'}});
-		foreach my $line (split/\n/, $old_config)
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			$new_config .= $line."\n";
-			if ($line =~ /^Server (.*)$/)
-			{
-				# This is a source.
-				my $source = $1;
-				$new_ntp->{$source} = 1;
-			}
-		}
-		
-		# Are any sources not enabled?
-		foreach my $source (sort {$a cmp $b} keys %{$new_ntp})
-		{
-			if (not $new_ntp->{$source})
-			{
-				update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0090,!!server!".$source."!!");
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0090", variables => { server => $source }});
-				$change = 1;
-				$new_config .= "Server ".$source."\n";
-			}
-		}
-		
-		if ($change)
-		{
-			# Write out the updated file.
-			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0055,!!file!".$anvil->data->{path}{data}{'chrony.conf'}."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0055", variables => { file => $anvil->data->{path}{data}{'chrony.conf'} }});
-			$anvil->Storage->write_file({
-				debug     => 2,
-				file      => $anvil->data->{path}{data}{'chrony.conf'}, 
-				body      => $new_config, 
-				user      => "root", 
-				group     => "root", 
-				mode      => "0644", 
-				overwrite => 1,
-			});
-			
-			# Restart the daemon.
-			my $daemon = "chronyd";
-			update_progress($anvil, ($anvil->data->{job}{progress} += 2), "job_0091,!!daemon!".$daemon."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0091", variables => { daemon => $daemon }});
-			$anvil->System->restart_daemon({
-				debug  => 3,
-				daemon => $daemon,
-			})
-		}
+		my $updated = $anvil->System->check_ntp({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { updated => $updated }});
 	}
 	
 	# Configure SSH by adding ours and our peer's SSH keys to ~/.ssh/known_hosts
