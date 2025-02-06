@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { toProvisionServerResources } from '../../lib/api_converters';
 import MessageBox from '../MessageBox';
 import ProvisionServerForm from './ProvisionServerForm';
 import useFetch from '../../hooks/useFetch';
@@ -9,12 +10,16 @@ const useProvisionServerForm = () => {
     useFetch<APIServerOses>('/server/lsos');
 
   const {
-    data: resources,
+    altData: resources,
     loading: loadingResources,
     validating: validatingResources,
-  } = useFetch<APIProvisionServerResources>('/server/provision', {
-    refreshInterval: 5000,
-  });
+  } = useFetch<APIProvisionServerResources, ProvisionServerResources>(
+    '/server/provision',
+    {
+      mod: toProvisionServerResources,
+      refreshInterval: 5000,
+    },
+  );
 
   const loading = loadingLsos || loadingResources;
 
@@ -32,7 +37,7 @@ const useProvisionServerForm = () => {
     return (
       <ProvisionServerForm
         lsos={lsos as APIServerOses}
-        resources={resources as APIProvisionServerResources}
+        resources={resources as ProvisionServerResources}
       />
     );
   }, [lsos, resources]);

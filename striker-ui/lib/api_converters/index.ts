@@ -3,6 +3,7 @@ import toAnvilMemoryCalcable from './toAnvilMemoryCalcable';
 import toAnvilOverviewHostList from './toAnvilOverviewHostList';
 import toAnvilOverviewList from './toAnvilOverviewList';
 import toAnvilSharedStorageOverview from './toAnvilSharedStorageOverview';
+import toProvisionServerResources from './toProvisionServerResources';
 
 export {
   toAnvilDetail,
@@ -10,4 +11,5 @@ export {
   toAnvilOverviewHostList,
   toAnvilOverviewList,
   toAnvilSharedStorageOverview,
+  toProvisionServerResources,
 };

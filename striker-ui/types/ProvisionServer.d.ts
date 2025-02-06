@@ -29,7 +29,7 @@ type ProvisionServerDialogContextValue = {
 
 type ProvisionServerFormProps = {
   lsos: APIServerOses;
-  resources: APIProvisionServerResources;
+  resources: ProvisionServerResources;
 };
 
 type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {

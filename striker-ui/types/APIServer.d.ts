@@ -45,6 +45,18 @@ type APIProvisionServerResourceNode = {
   uuid: string;
 };
 
+type ProvisionServerResourceNode = Omit<
+  APIProvisionServerResourceNode,
+  'memory'
+> & {
+  memory: {
+    allocated: bigint;
+    available: bigint;
+    system: bigint;
+    total: bigint;
+  };
+};
+
 type APIProvisionServerResourceServer = {
   cpu: {
     cores: number;
@@ -64,6 +76,15 @@ type APIProvisionServerResourceServer = {
   uuid: string;
 };
 
+type ProvisionServerResourceServer = Omit<
+  APIProvisionServerResourceServer,
+  'memory'
+> & {
+  memory: {
+    total: bigint;
+  };
+};
+
 type APIProvisionServerResourceStorageGroup = {
   name: string;
   node: string;
@@ -73,6 +94,17 @@ type APIProvisionServerResourceStorageGroup = {
     used: string;
   };
   uuid: string;
+};
+
+type ProvisionServerResourceStorageGroup = Omit<
+  APIProvisionServerResourceStorageGroup,
+  'usage'
+> & {
+  usage: {
+    free: bigint;
+    total: bigint;
+    used: bigint;
+  };
 };
 
 type APIProvisionServerResourceSubnode = {
@@ -90,12 +122,29 @@ type APIProvisionServerResourceSubnode = {
   uuid: string;
 };
 
+type ProvisionServerResourceSubnode = Omit<
+  APIProvisionServerResourceSubnode,
+  'memory'
+> & {
+  memory: {
+    total: bigint;
+  };
+};
+
 type APIProvisionServerResources = {
   files: Record<string, APIProvisionServerResourceFile>;
   nodes: Record<string, APIProvisionServerResourceNode>;
   servers: Record<string, APIProvisionServerResourceServer>;
   storageGroups: Record<string, APIProvisionServerResourceStorageGroup>;
   subnodes: Record<string, APIProvisionServerResourceSubnode>;
+};
+
+type ProvisionServerResources = {
+  files: Record<string, APIProvisionServerResourceFile>;
+  nodes: Record<string, ProvisionServerResourceNode>;
+  servers: Record<string, ProvisionServerResourceServer>;
+  storageGroups: Record<string, ProvisionServerResourceStorageGroup>;
+  subnodes: Record<string, ProvisionServerResourceSubnode>;
 };
 
 type APIServerOverviewAnvil = {
