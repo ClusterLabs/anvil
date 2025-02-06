@@ -139,6 +139,46 @@ sub striker_stage2
 	# Run the manifest(s).
 	run_manifests($anvil);
 	
+	# Update NTP if needed
+	update_ntp($anvil);
+	
+	return(0);
+}
+
+sub update_ntp
+{
+	my ($anvil) = @_;
+	
+	# If NTP is set, add a DB entry for all hosts to use the requested NTP server.
+	$anvil->Database->get_hosts({debug => 2});
+	my $network_ntp = $anvil->data->{base}{ntp};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_ntp => $network_ntp }});
+	if ($network_ntp)
+	{
+		foreach my $host_type (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}})
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+			foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}})
+			{
+				my $host_uuid = $anvil->data->{sys}{hosts}{by_type}{$host_type}{host_name}{$host_name}{host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					host_name => $host_name,
+					host_uuid => $host_uuid, 
+				}});
+				
+				$anvil->Database->insert_or_update_variables({
+					variable_name         => "network::ntp::servers", 
+					variable_value        => $network_ntp, 
+					variable_default      => "", 
+					variable_description  => "striker_0002", 
+					variable_section      => "network", 
+					variable_source_uuid  => $host_uuid, 
+					variable_source_table => "hosts", 
+				});
+			}
+		}
+	}
+	
 	return(0);
 }
 
@@ -1098,6 +1138,7 @@ sub create_manifest
 			"process::anvil::${anvil_number}::manifest_uuid" => $anvil->data->{process}{anvil}{$anvil_number}{manifest_uuid},
 		}});
 	}
+	
 	update_progress($anvil, 55, "job_0245");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0245"});
 	

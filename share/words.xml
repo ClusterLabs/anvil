@@ -3566,7 +3566,7 @@ proceeding.
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
-		<key name="striker_0002">#!free!#</key>
+		<key name="striker_0002">If you want to specify an NTP server (or servers) to use, specify them here. Note that any existing NTP servers will be removed. Multiple servers (IPs or host names) can be specified as a comma-separated list.</key>
 		<key name="striker_0003">#!free!#</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">#!free!#</key>
