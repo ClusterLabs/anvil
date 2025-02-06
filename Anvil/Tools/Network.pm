@@ -3898,6 +3898,62 @@ sub manage_firewall
 		# Get a list of zones and the interfaces already in them.
 		$anvil->Network->_get_existing_zone_interfaces({debug => $debug});
 		
+		# Change the default zone, if needed.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"firewalld::default_zone" => $anvil->data->{firewalld}{default_zone},
+			"exists firewall::zone::IFN1" => exists $anvil->data->{firewall}{zone}{IFN1} ? 1 : 0,
+		}});
+		if (($anvil->data->{firewalld}{default_zone} eq "public") && 
+		    (exists $anvil->data->{firewall}{zone}{IFN1}))
+		{
+			# Change the default zone.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0021"});
+			
+			my $new_firewalld_conf = "";
+			my $old_firewalld_conf = $anvil->Storage->read_file({
+				debug      => 3, 
+				file       => $anvil->data->{path}{configs}{'firewalld.conf'},
+				force_read => 1,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_firewalld_conf => $old_firewalld_conf }});
+			
+			foreach my $line (split/\n/, $old_firewalld_conf)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				
+				if ($line =~ /^DefaultZone=(.*)$/)
+				{
+					my $old_zone = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_zone => $old_zone }});
+					$line = "DefaultZone=IFN1";
+				}
+				
+				$new_firewalld_conf .= $line."\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_firewalld_conf => $new_firewalld_conf }});
+			}
+			
+			my $difference = diff \$old_firewalld_conf, \$new_firewalld_conf, { STYLE => 'Unified' };
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+			if ($difference)
+			{
+				# Write the file out
+				$anvil->Storage->write_file({
+					debug     => $debug, 
+					backup    => 1,
+					overwrite => 1, 
+					body      => $new_firewalld_conf, 
+					file      => $anvil->data->{path}{configs}{'firewalld.conf'},
+					user      => "root",
+					group     => "root", 
+					mode      => "0644",
+				});
+				
+				# Mark that we need to reload
+				$reload = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
+			}
+		}
+		
 		# What zones do we need, and what zones do we have?
 		foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
 		{
@@ -5263,7 +5319,7 @@ sub _check_firewalld_conf
 		file       => $anvil->data->{path}{configs}{'firewalld.conf'},
 		force_read => 1,
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_firewalld_conf => $old_firewalld_conf }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_firewalld_conf => $old_firewalld_conf }});
 	
 	### NOTE: This is ignored in EL9+
 	# For now, the only thing we want to change is to disable 'AllowZoneDrifting'
@@ -5272,7 +5328,7 @@ sub _check_firewalld_conf
 	my $allowzonedrifting_seen = 0;
 	foreach my $line (split/\n/, $old_firewalld_conf)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 		if ($line =~ /^AllowZoneDrifting=(.*)$/)
 		{
 			my $old_value              = $1;
@@ -5290,6 +5346,14 @@ sub _check_firewalld_conf
 				next;
 			}
 		}
+		if ($line =~ /^DefaultZone=(.*)$/)
+		{
+			$anvil->data->{firewalld}{default_zone} = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"firewalld::default_zone" => $anvil->data->{firewalld}{default_zone},
+			}});
+		}
+		
 		$new_firewalld_conf .= $line."\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_firewalld_conf => $new_firewalld_conf }});
 	}

@@ -4090,7 +4090,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0018">[ Warning ] - The server: [#!variable!server!#] is shown as already being off, aborting.</key>
 		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
-		<key name="warning_0021">#!free!#</key>
+		<key name="warning_0021">[ Warning ] - Changing the default zone to IFN1.</key>
 		<key name="warning_0022">#!free!#</key>
 		<key name="warning_0023">#!free!#</key>
 		<key name="warning_0024">#!free!#</key>
