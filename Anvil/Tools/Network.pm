@@ -4070,7 +4070,6 @@ sub manage_firewall
 			# Do any interfaces need to be added to this zone?
 			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
 			{
-				next if not $anvil->data->{network}{$host_name}{interface}{$interface}{ip};
 				my $interface_zone  = uc(($interface =~ /^(.*?)_/)[0]);
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					interface      => $interface,
