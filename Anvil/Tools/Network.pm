@@ -3899,12 +3899,14 @@ sub manage_firewall
 		$anvil->Network->_get_existing_zone_interfaces({debug => $debug});
 		
 		# Change the default zone, if needed.
+		my $wanted_default_zone = $anvil->data->{sys}{firewall}{'default-zone'};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"firewalld::default_zone" => $anvil->data->{firewalld}{default_zone},
-			"exists firewall::zone::IFN1" => exists $anvil->data->{firewall}{zone}{IFN1} ? 1 : 0,
+			wanted_default_zone                             => $wanted_default_zone, 
+			"firewalld::default_zone"                       => $anvil->data->{firewalld}{default_zone},
+			"exists firewall::zone::${wanted_default_zone}" => exists $anvil->data->{firewall}{zone}{$wanted_default_zone} ? 1 : 0,
 		}});
 		if (($anvil->data->{firewalld}{default_zone} eq "public") && 
-		    (exists $anvil->data->{firewall}{zone}{IFN1}))
+		    (exists $anvil->data->{firewall}{zone}{$wanted_default_zone}))
 		{
 			# Change the default zone.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0021"});
