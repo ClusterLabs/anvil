@@ -1,6 +1,6 @@
 import { Box, createFilterOptions, Grid } from '@mui/material';
-import { dSizeStr } from 'format-data-size';
-import { useCallback, useMemo } from 'react';
+import { dSize, dSizeStr } from 'format-data-size';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
@@ -16,6 +16,38 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   const { lsos, resources } = props;
+
+  const files = useMemo(
+    () => ({
+      uuids: Object.keys(resources.files),
+    }),
+    [resources.files],
+  );
+
+  const nodes = useMemo(
+    () => ({
+      uuids: Object.keys(resources.nodes),
+      values: Object.values(resources.nodes),
+    }),
+    [resources.nodes],
+  );
+
+  const oses = useMemo(
+    () => ({
+      keys: Object.keys(lsos),
+    }),
+    [lsos],
+  );
+
+  const storageGroups = useMemo(
+    () => ({
+      uuids: Object.keys(resources.storageGroups),
+      values: Object.values(resources.storageGroups),
+    }),
+    [resources.storageGroups],
+  );
+
+  const scope = useRef<string[]>(nodes.uuids);
 
   const formikUtils = useFormikUtils<ProvisionServerFormikValues>({
     initialValues: {
@@ -66,48 +98,94 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     [],
   );
 
-  const disks = useMemo(() => {
-    const ids = Object.keys(formik.values.disks);
+  const disks = useMemo(
+    () => ({
+      ids: Object.keys(formik.values.disks),
+      values: Object.values(formik.values.disks),
+    }),
+    [formik.values.disks],
+  );
 
-    return {
-      ids,
-    };
-  }, [formik.values.disks]);
+  useEffect(() => {
+    // Lock the scope to the selected node
+    if (formik.values.node) {
+      scope.current = [formik.values.node];
 
-  const files = useMemo(() => {
-    const uuids = Object.keys(resources.files);
+      return;
+    }
 
-    return {
-      uuids,
-    };
-  }, [resources.files]);
+    scope.current = [...nodes.uuids];
 
-  const nodes = useMemo(() => {
-    const uuids = Object.keys(resources.nodes);
+    const cpuCores = Number(formik.values.cpu.cores);
 
-    const values = Object.values(resources.nodes);
+    // Limit the scope to nodes with sufficient CPU cores
+    if (Number.isSafeInteger(cpuCores)) {
+      scope.current = scope.current.filter((uuid) => {
+        const { [uuid]: node } = resources.nodes;
 
-    return {
-      uuids,
-      values,
-    };
-  }, [resources.nodes]);
+        return node.cpu.cores.total >= cpuCores;
+      });
+    }
 
-  const oses = useMemo(() => {
-    const keys = Object.keys(lsos);
+    const memoryBytes = dSize(formik.values.memory.value, {
+      fromUnit: formik.values.memory.unit,
+      toUnit: 'B',
+    });
 
-    return {
-      keys,
-    };
-  }, [lsos]);
+    // Limit the scope to nodes with sufficient memory
+    if (memoryBytes) {
+      const bytes = BigInt(memoryBytes.value);
 
-  const storageGroups = useMemo(() => {
-    const uuids = Object.keys(resources.storageGroups);
+      scope.current = scope.current.filter((uuid) => {
+        const { [uuid]: node } = resources.nodes;
 
-    return {
-      uuids,
-    };
-  }, [resources.storageGroups]);
+        return node.memory.available >= bytes;
+      });
+    }
+
+    disks.values.forEach((disk) => {
+      const { size, storageGroup: sgUuid } = disk;
+
+      // When there's a storage group, limit the scope to nodes that owns the
+      // storage group
+      if (sgUuid) {
+        const { [sgUuid]: sg } = resources.storageGroups;
+
+        scope.current = scope.current.filter((uuid) => uuid === sg.node);
+
+        return;
+      }
+
+      const diskBytes = dSize(size.value, {
+        fromUnit: size.unit,
+        toUnit: 'B',
+      });
+
+      // Limit the scope to nodes with sufficient storage
+      if (diskBytes) {
+        const bytes = BigInt(diskBytes.value);
+
+        scope.current = scope.current.filter((uuid) => {
+          const { [uuid]: node } = resources.nodes;
+
+          return node.storageGroups.some((nodeSgUuid) => {
+            const { [nodeSgUuid]: sg } = resources.storageGroups;
+
+            return sg.usage.free >= bytes;
+          });
+        });
+      }
+    });
+  }, [
+    disks.values,
+    formik.values.cpu.cores,
+    formik.values.memory.unit,
+    formik.values.memory.value,
+    formik.values.node,
+    nodes.uuids,
+    resources.nodes,
+    resources.storageGroups,
+  ]);
 
   const cpuCoresOptions = useMemo<readonly string[]>(() => {
     const max = nodes.values.reduce<number>(
