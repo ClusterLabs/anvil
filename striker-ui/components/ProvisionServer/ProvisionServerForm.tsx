@@ -34,7 +34,11 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
   const oses = useMemo(
     () => ({
-      keys: Object.keys(lsos),
+      keys: Object.keys(lsos).sort((a, b) =>
+        b.localeCompare(a, undefined, {
+          numeric: true,
+        }),
+      ),
     }),
     [lsos],
   );
