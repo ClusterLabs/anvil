@@ -3911,49 +3911,17 @@ sub manage_firewall
 			# Change the default zone.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0021"});
 			
-			my $new_firewalld_conf = "";
-			my $old_firewalld_conf = $anvil->Storage->read_file({
-				debug      => 3, 
-				file       => $anvil->data->{path}{configs}{'firewalld.conf'},
-				force_read => 1,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_firewalld_conf => $old_firewalld_conf }});
+			my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --set-default-zone=".$wanted_default_zone;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 			
-			foreach my $line (split/\n/, $old_firewalld_conf)
-			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-				
-				if ($line =~ /^DefaultZone=(.*)$/)
-				{
-					my $old_zone = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_zone => $old_zone }});
-					$line = "DefaultZone=IFN1";
-				}
-				
-				$new_firewalld_conf .= $line."\n";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_firewalld_conf => $new_firewalld_conf }});
-			}
-			
-			my $difference = diff \$old_firewalld_conf, \$new_firewalld_conf, { STYLE => 'Unified' };
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
-			if ($difference)
-			{
-				# Write the file out
-				$anvil->Storage->write_file({
-					debug     => $debug, 
-					backup    => 1,
-					overwrite => 1, 
-					body      => $new_firewalld_conf, 
-					file      => $anvil->data->{path}{configs}{'firewalld.conf'},
-					user      => "root",
-					group     => "root", 
-					mode      => "0644",
-				});
-				
-				# Mark that we need to reload
-				$reload = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
-			}
+			# Mark that we need to reload
+			$reload = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { reload => $reload }});
 		}
 		
 		# What zones do we need, and what zones do we have?
