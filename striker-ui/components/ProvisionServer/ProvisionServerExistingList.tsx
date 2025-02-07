@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import List from '../List';
 import { BodyText } from '../Text';
 
@@ -6,10 +8,29 @@ const ProvisionServerExistingList: React.FC<
 > = (props) => {
   const { resources } = props;
 
+  const reversed = useMemo(() => {
+    const servers = Object.values(resources.servers);
+
+    return servers
+      .sort((a, b) =>
+        b.name.localeCompare(a.name, undefined, {
+          numeric: true,
+        }),
+      )
+      .reduce<Record<string, ProvisionServerResourceServer>>(
+        (previous, server) => {
+          previous[server.uuid] = server;
+
+          return previous;
+        },
+        {},
+      );
+  }, [resources.servers]);
+
   return (
     <List
       header="Existing"
-      listItems={resources.servers}
+      listItems={reversed}
       listProps={{
         dense: true,
         sx: {
