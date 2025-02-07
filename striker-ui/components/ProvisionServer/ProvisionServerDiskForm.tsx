@@ -12,7 +12,7 @@ import UncontrolledInput from '../UncontrolledInput';
 const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
   const { formikUtils, id, resources, scope } = props;
 
-  const { formik, handleChange } = formikUtils;
+  const { changeFieldValue, formik, handleChange } = formikUtils;
 
   const chains = useMemo(() => {
     const base = `disks.${id}`;
@@ -98,7 +98,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
           label={`Disk ${id}: storage group`}
           noOptionsText="No matching storage group"
           onChange={(event, value) => {
-            formik.setFieldValue(chains.storageGroup, value, true);
+            changeFieldValue(chains.storageGroup, value, true);
           }}
           openOnFocus
           options={storageGroups.uuids}

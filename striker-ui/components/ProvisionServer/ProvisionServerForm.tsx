@@ -124,7 +124,14 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     validationSchema,
   });
 
-  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
+  const {
+    changeFieldValue,
+    disabledSubmit,
+    formik,
+    formikErrors,
+    getFieldChanged,
+    handleChange,
+  } = formikUtils;
 
   const chains = useMemo(
     () => ({
@@ -225,6 +232,81 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     groups,
     resources.nodes,
     resources.storageGroups,
+  ]);
+
+  // Auto fill-in fields where there are only 1 option
+  useEffect(() => {
+    // When there's only 1 ISO, select it as the install ISO
+    if (files.uuids.length === 1) {
+      const [only] = files.uuids;
+
+      const changed = getFieldChanged(chains.install);
+
+      if ([changed, formik.values.install].every((value) => !value)) {
+        formik.setFieldValue(chains.install, only, true);
+      }
+    }
+
+    // Get distinct UUIDs from the scope
+    const distinct = scope.current.reduce<{
+      nodes: Record<string, string>;
+      storageGroups: Record<string, string>;
+    }>(
+      (previous, group) => {
+        const { node: nodeUuid, storageGroup: sgUuid } = group;
+
+        previous.nodes[nodeUuid] = nodeUuid;
+        previous.storageGroups[sgUuid] = sgUuid;
+
+        return previous;
+      },
+      {
+        nodes: {},
+        storageGroups: {},
+      },
+    );
+
+    const distinctNodes = Object.keys(distinct.nodes);
+
+    // When there's only 1 node within the scope, select it
+    if (distinctNodes.length === 1) {
+      const [only] = distinctNodes;
+
+      const changed = getFieldChanged(chains.node);
+
+      if ([changed, formik.values.node].every((value) => !value)) {
+        formik.setFieldValue(chains.node, only, true);
+      }
+    }
+
+    const distinctSgs = Object.keys(distinct.storageGroups);
+
+    // When there's only 1 storage group within the scope, select it for all
+    // disks
+    if (distinctSgs.length === 1) {
+      const [only] = distinctSgs;
+
+      disks.ids.forEach((id) => {
+        const field = `disks.${id}.storageGroup`;
+
+        const changed = getFieldChanged(field);
+
+        if (
+          [changed, formik.values.disks[id].storageGroup].every(
+            (value) => !value,
+          )
+        ) {
+          formik.setFieldValue(field, only, true);
+        }
+      });
+    }
+  }, [
+    chains.install,
+    chains.node,
+    disks.ids,
+    files.uuids,
+    formik,
+    getFieldChanged,
   ]);
 
   const cpuCoresOptions = useMemo<readonly string[]>(() => {
@@ -375,7 +457,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 label="CPU cores"
                 noOptionsText="No node has the requested cores"
                 onChange={(event, value) => {
-                  formik.setFieldValue(chains.cpu.cores, value, true);
+                  changeFieldValue(chains.cpu.cores, value, true);
                 }}
                 openOnFocus
                 options={cpuCoresOptions}
@@ -424,7 +506,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 label="Install ISO"
                 noOptionsText="No matching ISO"
                 onChange={(event, value) => {
-                  formik.setFieldValue(chains.install, value, true);
+                  changeFieldValue(chains.install, value, true);
                 }}
                 openOnFocus
                 options={files.uuids}
@@ -443,7 +525,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 label="Driver ISO"
                 noOptionsText="No matching ISO"
                 onChange={(event, value) => {
-                  formik.setFieldValue(chains.driver, value, true);
+                  changeFieldValue(chains.driver, value, true);
                 }}
                 openOnFocus
                 options={files.uuids}
@@ -475,7 +557,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 label="Node"
                 noOptionsText="No matching node"
                 onChange={(event, value) => {
-                  formik.setFieldValue(chains.node, value, true);
+                  changeFieldValue(chains.node, value, true);
                 }}
                 openOnFocus
                 options={nodes.uuids}
@@ -530,7 +612,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 label="Optimize for OS"
                 noOptionsText="No OS that matches exactly; try finding a close match"
                 onChange={(event, value) => {
-                  formik.setFieldValue(chains.os, value, true);
+                  changeFieldValue(chains.os, value, true);
                 }}
                 openOnFocus
                 options={oses.keys}
