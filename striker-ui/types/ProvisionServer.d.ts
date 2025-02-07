@@ -34,6 +34,11 @@ type ProvisionServerFormProps = {
   resources: ProvisionServerResources;
 };
 
+type ProvisionServerExistingListProps = Pick<
+  ProvisionServerFormProps,
+  'resources'
+>;
+
 type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
   formikUtils: FormikUtils<ProvisionServerFormikValues>;
   id: string;
