@@ -1,6 +1,6 @@
 import { createFilterOptions, Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
@@ -10,19 +10,43 @@ import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 
 const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
-  const { formikUtils, id, resources, storageGroups } = props;
+  const { formikUtils, id, resources, scope } = props;
 
   const { formik, handleChange } = formikUtils;
 
   const chains = useMemo(() => {
     const base = `disks.${id}`;
 
+    const size = `${base}.size`;
+
     return {
-      unit: `${base}.size.unit`,
-      value: `${base}.size.value`,
+      size,
+      unit: `${size}.unit`,
+      value: `${size}.value`,
       storageGroup: `${base}.storageGroup`,
     };
   }, [id]);
+
+  const storageGroups = useMemo(
+    () => ({
+      uuids: Object.keys(resources.storageGroups),
+    }),
+    [resources.storageGroups],
+  );
+
+  const getBranch = useCallback(
+    (uuid: string) => {
+      const { [uuid]: sg } = resources.storageGroups;
+
+      const { [sg.node]: node } = resources.nodes;
+
+      return {
+        node,
+        sg,
+      };
+    },
+    [resources.nodes, resources.storageGroups],
+  );
 
   const diskValues = formik.values.disks[id];
 
@@ -32,14 +56,13 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedLabeledInputWithSelect
-              id={chains.value}
+              id={chains.size}
               label={`Disk ${id}: size`}
               inputWithLabelProps={{
                 id: chains.value,
                 name: chains.value,
-                onChange: handleChange,
-                value: diskValues.size.value,
               }}
+              onChange={handleChange}
               selectItems={DSIZE_SELECT_ITEMS}
               selectWithLabelProps={{
                 id: chains.unit,
@@ -47,6 +70,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
                 onChange: formik.handleChange,
                 value: diskValues.size.unit,
               }}
+              value={diskValues.size.value}
             />
           }
         />
@@ -56,15 +80,16 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
           filterOptions={createFilterOptions<string>({
             ignoreCase: true,
             stringify: (uuid) => {
-              const { [uuid]: sg } = resources.storageGroups;
-              const { [sg.node]: node } = resources.nodes;
+              const { node, sg } = getBranch(uuid);
 
               return `${sg.name}\n${node.name}`;
             },
           })}
+          getOptionDisabled={(uuid) =>
+            scope.current.every((group) => group.storageGroup !== uuid)
+          }
           getOptionLabel={(uuid) => {
-            const { [uuid]: sg } = resources.storageGroups;
-            const { [sg.node]: node } = resources.nodes;
+            const { node, sg } = getBranch(uuid);
 
             return `${sg.name} (${node.name})`;
           }}
@@ -78,8 +103,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
           openOnFocus
           options={storageGroups.uuids}
           renderOption={(optionProps, uuid) => {
-            const { [uuid]: sg } = resources.storageGroups;
-            const { [sg.node]: node } = resources.nodes;
+            const { node, sg } = getBranch(uuid);
 
             return (
               <li {...optionProps} key={`storage-group-op-${uuid}`}>

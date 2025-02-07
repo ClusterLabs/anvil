@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
+import ActionGroup from '../ActionGroup';
 import Autocomplete from '../Autocomplete';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import ProvisionServerDiskForm from './ProvisionServerDiskForm';
+import { buildProvisionServerSchema } from './schemas';
 import { BodyText, SmallText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
@@ -51,7 +53,27 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     [resources.storageGroups],
   );
 
-  const scope = useRef<string[]>(nodes.uuids);
+  const groups = useMemo(
+    () =>
+      nodes.values.reduce<ProvisionServerScopeGroup[]>((previous, node) => {
+        node.storageGroups.forEach((sgUuid) => {
+          previous.push({
+            node: node.uuid,
+            storageGroup: sgUuid,
+          });
+        });
+
+        return previous;
+      }, []),
+    [nodes.values],
+  );
+
+  const scope = useRef<ProvisionServerScopeGroup[]>(groups);
+
+  const validationSchema = useMemo(
+    () => buildProvisionServerSchema(scope.current, resources, lsos),
+    [lsos, resources],
+  );
 
   const formikUtils = useFormikUtils<ProvisionServerFormikValues>({
     initialValues: {
@@ -80,9 +102,10 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     onSubmit: (values, { setSubmitting }) => {
       setSubmitting(false);
     },
+    validationSchema,
   });
 
-  const { formik, formikErrors, handleChange } = formikUtils;
+  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
   const chains = useMemo(
     () => ({
@@ -105,27 +128,26 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   const disks = useMemo(
     () => ({
       ids: Object.keys(formik.values.disks),
-      values: Object.values(formik.values.disks),
     }),
     [formik.values.disks],
   );
 
   useEffect(() => {
+    scope.current = [...groups];
+
     // Lock the scope to the selected node
     if (formik.values.node) {
-      scope.current = [formik.values.node];
-
-      return;
+      scope.current = scope.current.filter(
+        (group) => group.node === formik.values.node,
+      );
     }
-
-    scope.current = [...nodes.uuids];
 
     const cpuCores = Number(formik.values.cpu.cores);
 
     // Limit the scope to nodes with sufficient CPU cores
     if (Number.isSafeInteger(cpuCores)) {
-      scope.current = scope.current.filter((uuid) => {
-        const { [uuid]: node } = resources.nodes;
+      scope.current = scope.current.filter((group) => {
+        const { [group.node]: node } = resources.nodes;
 
         return node.cpu.cores.total >= cpuCores;
       });
@@ -140,24 +162,22 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     if (memoryBytes) {
       const bytes = BigInt(memoryBytes.value);
 
-      scope.current = scope.current.filter((uuid) => {
-        const { [uuid]: node } = resources.nodes;
+      scope.current = scope.current.filter((group) => {
+        const { [group.node]: node } = resources.nodes;
 
         return node.memory.available >= bytes;
       });
     }
 
-    disks.values.forEach((disk) => {
-      const { size, storageGroup: sgUuid } = disk;
+    disks.ids.forEach((id) => {
+      const { size, storageGroup: sgUuid } = formik.values.disks[id];
 
       // When there's a storage group, limit the scope to nodes that owns the
       // storage group
       if (sgUuid) {
         const { [sgUuid]: sg } = resources.storageGroups;
 
-        scope.current = scope.current.filter((uuid) => uuid === sg.node);
-
-        return;
+        scope.current = scope.current.filter((group) => group.node === sg.node);
       }
 
       const diskBytes = dSize(size.value, {
@@ -169,24 +189,21 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       if (diskBytes) {
         const bytes = BigInt(diskBytes.value);
 
-        scope.current = scope.current.filter((uuid) => {
-          const { [uuid]: node } = resources.nodes;
+        scope.current = scope.current.filter((group) => {
+          const { [group.storageGroup]: sg } = resources.storageGroups;
 
-          return node.storageGroups.some((nodeSgUuid) => {
-            const { [nodeSgUuid]: sg } = resources.storageGroups;
-
-            return sg.usage.free >= bytes;
-          });
+          return sg.usage.free >= bytes;
         });
       }
     });
   }, [
-    disks.values,
+    disks.ids,
     formik.values.cpu.cores,
+    formik.values.disks,
     formik.values.memory.unit,
     formik.values.memory.value,
     formik.values.node,
-    nodes.uuids,
+    groups,
     resources.nodes,
     resources.storageGroups,
   ]);
@@ -197,7 +214,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       0,
     );
 
-    return Array.from({ length: max - 1 }, (value, key) => String(key + 1));
+    return Array.from({ length: max }, (value, key) => String(key + 1));
   }, [nodes]);
 
   const getFileOptionLabel = useCallback(
@@ -311,6 +328,15 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       </Grid>
       <Grid item width="100%">
         <Autocomplete
+          getOptionDisabled={(value) => {
+            const count = Number(value);
+
+            return scope.current.every((group) => {
+              const { [group.node]: node } = resources.nodes;
+
+              return node.cpu.cores.total < count;
+            });
+          }}
           id={chains.cpu.cores}
           label="CPU cores"
           noOptionsText="No node has the requested cores"
@@ -350,14 +376,15 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
           <ProvisionServerDiskForm
             formikUtils={formikUtils}
             id={diskId}
-            storageGroups={storageGroups}
             resources={resources}
+            scope={scope}
           />
         </Grid>
       ))}
       <Grid item width="100%">
         <Autocomplete
           filterOptions={filterFileOptions}
+          getOptionDisabled={(uuid) => uuid === formik.values.driver}
           getOptionLabel={getFileOptionLabel}
           id={chains.install}
           label="Install ISO"
@@ -376,6 +403,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       <Grid item width="100%">
         <Autocomplete
           filterOptions={filterFileOptions}
+          getOptionDisabled={(uuid) => uuid === formik.values.install}
           getOptionLabel={getFileOptionLabel}
           id={chains.driver}
           label="Driver ISO"
@@ -401,6 +429,9 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
               return `${node.name}\n${node.description}`;
             },
           })}
+          getOptionDisabled={(uuid) =>
+            scope.current.every((group) => group.node !== uuid)
+          }
           getOptionLabel={(uuid) => {
             const { [uuid]: node } = resources.nodes;
 
@@ -419,7 +450,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
             return (
               <li {...optionProps} key={`node-op-${uuid}`}>
-                <Grid container>
+                <Grid alignItems="center" container>
                   <Grid item xs>
                     <BodyText inheritColour noWrap>
                       {node.name}
@@ -489,6 +520,18 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       </Grid>
       <Grid item width="100%">
         <MessageGroup count={1} messages={formikErrors} />
+      </Grid>
+      <Grid item width="100%">
+        <ActionGroup
+          actions={[
+            {
+              background: 'blue',
+              children: 'Provision',
+              disabled: disabledSubmit,
+              type: 'submit',
+            },
+          ]}
+        />
       </Grid>
     </Grid>
   );

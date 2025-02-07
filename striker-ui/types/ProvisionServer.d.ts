@@ -22,10 +22,12 @@ type ProvisionServerFormikValues = {
   os: null | string;
 };
 
-type ProvisionServerDialogContextValue = {
-  setLoading?: React.Dispatch<React.SetStateAction<boolean>>;
-  setValidating?: React.Dispatch<React.SetStateAction<boolean>>;
+type ProvisionServerScopeGroup = {
+  node: string;
+  storageGroup: string;
 };
+
+type ProvisionServerScope = ProvisionServerScopeGroup[];
 
 type ProvisionServerFormProps = {
   lsos: APIServerOses;
@@ -35,7 +37,5 @@ type ProvisionServerFormProps = {
 type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
   formikUtils: FormikUtils<ProvisionServerFormikValues>;
   id: string;
-  storageGroups: {
-    uuids: string[];
-  };
+  scope: React.MutableRefObject<ProvisionServerScope>;
 };
