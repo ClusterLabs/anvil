@@ -324,7 +324,7 @@ Output (if any):
 ====
 #!variable!shell_call!#
 ====</key>
-		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after 10 seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
+		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after: [#!variable!timeout!#] seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
 		<key name="error_0211">Failed to add the server: [#!variable!server_name!#] because we failed to parse the CIB. Is the cluster running?</key>
 		<key name="error_0212">Failed to add the server: [#!variable!server_name!#] because we are not a full cluster member?</key>
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
