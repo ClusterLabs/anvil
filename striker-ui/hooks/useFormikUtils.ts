@@ -1,6 +1,6 @@
 import { FormikConfig, FormikValues, getIn, setIn, useFormik } from 'formik';
 import { isEqual, isObject, isString } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
@@ -30,7 +30,20 @@ const isEqualIn = (
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   formikConfig: FormikConfig<Values>,
 ): FormikUtils<Values> => {
-  const [changed, setChanged] = useState<Tree<boolean>>({});
+  const changed = useRef<Tree<boolean>>({});
+
+  const getFieldChanged = useCallback(
+    (field: string): boolean => getIn(changed.current, field),
+    [],
+  );
+
+  const setFieldChanged = useCallback(
+    (field: string, value: boolean = false): void => {
+      changed.current = setIn(changed.current, field, value);
+    },
+    [],
+  );
+
   const [changing, setChanging] = useState<boolean>(false);
 
   const formik = useFormik<Values>({ ...formikConfig });
@@ -50,7 +63,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
         const event = maybeEvent as React.ChangeEvent<{ name: string }>;
         const target = event.target ? event.target : event.currentTarget;
 
-        setChanged((prev) => setIn(prev, target.name, true));
+        setFieldChanged(target.name, true);
       }
 
       base(...args);
@@ -60,12 +73,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     // add the whole formik object as dependency.
     //
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formik.handleChange]);
-
-  const getFieldChanged = useCallback(
-    (field: string): boolean => getIn(changed, field),
-    [changed],
-  );
+  }, [formik.handleChange, setFieldChanged]);
 
   const getFieldIsDiff = useCallback(
     (field: string): boolean =>
@@ -73,11 +81,19 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     [formik.initialValues, formik.values],
   );
 
-  const setFieldChanged = useCallback(
-    (field: string, value: boolean = false): void => {
-      setChanged((prev) => setIn(prev, field, value));
+  const changeFieldValue = useCallback<typeof formik.setFieldValue>(
+    async (...args) => {
+      const [field] = args;
+
+      setFieldChanged(field, true);
+
+      await formik.setFieldValue(...args);
     },
-    [],
+
+    // Only the field value setter is being used here
+    //
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formik.setFieldValue, setFieldChanged],
   );
 
   const disabledSubmit = useMemo(
@@ -105,6 +121,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   );
 
   return {
+    changeFieldValue,
     disabledSubmit,
     formik,
     formikErrors,
