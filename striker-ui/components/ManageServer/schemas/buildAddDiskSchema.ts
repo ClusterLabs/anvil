@@ -1,9 +1,7 @@
 import * as yup from 'yup';
 
-import { yupDataSize, yupLaxUuid } from '../../../lib/yupCommons';
-
-// Unit: bytes; 100 MiB
-const nMin = BigInt(104857600);
+import { buildDiskSizeSchema } from '../../ProvisionServer';
+import { yupLaxUuid } from '../../../lib/yupCommons';
 
 const buildAddDiskSchema = (sgs: APIAnvilSharedStorageOverview | undefined) =>
   yup.object({
@@ -12,9 +10,11 @@ const buildAddDiskSchema = (sgs: APIAnvilSharedStorageOverview | undefined) =>
 
       const sg = sgs?.storageGroups[sgUuid];
 
-      if (!sg) return schema;
+      if (!sg) {
+        return schema;
+      }
 
-      return yupDataSize({ max: sg.free, min: nMin });
+      return buildDiskSizeSchema(sg.free);
     }),
     storage: yupLaxUuid(),
   });

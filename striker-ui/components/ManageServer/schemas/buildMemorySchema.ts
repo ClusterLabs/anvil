@@ -1,17 +1,12 @@
 import * as yup from 'yup';
 
-import { yupDataSize } from '../../../lib/yupCommons';
-
-// Unit: bytes; 64 KiB
-const nMin = BigInt(65536);
-
-/* eslint-disable no-template-curly-in-string */
+import { buildMemorySizeSchema } from '../../ProvisionServer';
 
 const buildMemorySchema = (memory: AnvilMemoryCalcable) => {
-  const { available: nMax } = memory;
+  const { available: max } = memory;
 
   return yup.object({
-    size: yupDataSize({ max: nMax, min: nMin }),
+    size: buildMemorySizeSchema(max),
   });
 };
 
