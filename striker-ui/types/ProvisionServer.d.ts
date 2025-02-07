@@ -34,13 +34,17 @@ type ProvisionServerFormProps = {
   resources: ProvisionServerResources;
 };
 
+type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
+  formikUtils: FormikUtils<ProvisionServerFormikValues>;
+  id: string;
+  scope: React.MutableRefObject<ProvisionServerScope>;
+};
+
 type ProvisionServerExistingListProps = Pick<
   ProvisionServerFormProps,
   'resources'
 >;
 
-type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
-  formikUtils: FormikUtils<ProvisionServerFormikValues>;
-  id: string;
-  scope: React.MutableRefObject<ProvisionServerScope>;
+type ProvisionServerSummary = ProvisionServerFormProps & {
+  values: ProvisionServerFormikValues;
 };

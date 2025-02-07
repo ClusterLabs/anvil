@@ -12,9 +12,11 @@ import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import ProvisionServerDiskForm from './ProvisionServerDiskForm';
 import ProvisionServerExistingList from './ProvisionServerExistingList';
+import ProvisionServerSummary from './ProvisionServerSummary';
 import { buildProvisionServerSchema } from './schemas';
 import { BodyText, SmallText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
@@ -71,6 +73,9 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
   const scope = useRef<ProvisionServerScopeGroup[]>(groups);
 
+  const { confirmDialog, setConfirmDialogProps, setConfirmDialogOpen } =
+    useConfirmDialog();
+
   const validationSchema = useMemo(
     () => buildProvisionServerSchema(scope.current, resources, lsos),
     [lsos, resources],
@@ -101,7 +106,20 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       os: null,
     },
     onSubmit: (values, { setSubmitting }) => {
-      setSubmitting(false);
+      setConfirmDialogProps({
+        actionProceedText: 'Provision',
+        content: (
+          <ProvisionServerSummary
+            lsos={lsos}
+            resources={resources}
+            values={values}
+          />
+        ),
+        onCancelAppend: () => setSubmitting(false),
+        titleText: `Provision ${values.name}?`,
+      });
+
+      setConfirmDialogOpen(true);
     },
     validationSchema,
   });
@@ -313,235 +331,247 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   }
 
   return (
-    <Grid container spacing="1em">
-      <Grid item width="16em">
-        <ProvisionServerExistingList resources={resources} />
-      </Grid>
-      <Grid item xs>
-        <Grid container spacing="1em">
-          <Grid item width="100%">
-            <UncontrolledInput
-              input={
-                <OutlinedInputWithLabel
-                  id={chains.name}
-                  label="Server name"
-                  name={chains.name}
-                  onChange={handleChange}
-                  value={formik.values.name}
-                />
-              }
-            />
-          </Grid>
-          <Grid item width="100%">
-            <Autocomplete
-              getOptionDisabled={(value) => {
-                const count = Number(value);
+    <>
+      <Grid container spacing="1em">
+        <Grid item width="16em">
+          <ProvisionServerExistingList resources={resources} />
+        </Grid>
+        <Grid item xs>
+          <Grid
+            component="form"
+            container
+            onSubmit={(event) => {
+              event.preventDefault();
 
-                return scope.current.every((group) => {
-                  const { [group.node]: node } = resources.nodes;
-
-                  return node.cpu.cores.total < count;
-                });
-              }}
-              id={chains.cpu.cores}
-              label="CPU cores"
-              noOptionsText="No node has the requested cores"
-              onChange={(event, value) => {
-                formik.setFieldValue(chains.cpu.cores, value, true);
-              }}
-              openOnFocus
-              options={cpuCoresOptions}
-              value={formik.values.cpu.cores}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <UncontrolledInput
-              input={
-                <OutlinedLabeledInputWithSelect
-                  id="memory"
-                  inputWithLabelProps={{
-                    id: chains.memory.value,
-                    name: chains.memory.value,
-                  }}
-                  label="Memory"
-                  onChange={handleChange}
-                  selectItems={DSIZE_SELECT_ITEMS}
-                  selectWithLabelProps={{
-                    id: chains.memory.unit,
-                    name: chains.memory.unit,
-                    onChange: formik.handleChange,
-                    value: formik.values.memory.unit,
-                  }}
-                  value={formik.values.memory.value}
-                />
-              }
-            />
-          </Grid>
-          {disks.ids.map<React.ReactNode>((diskId) => (
-            <Grid item key={`disk-${diskId}-form`} width="100%">
-              <ProvisionServerDiskForm
-                formikUtils={formikUtils}
-                id={diskId}
-                resources={resources}
-                scope={scope}
+              formik.handleSubmit(event);
+            }}
+            spacing="1em"
+          >
+            <Grid item width="100%">
+              <UncontrolledInput
+                input={
+                  <OutlinedInputWithLabel
+                    id={chains.name}
+                    label="Server name"
+                    name={chains.name}
+                    onChange={handleChange}
+                    value={formik.values.name}
+                  />
+                }
               />
             </Grid>
-          ))}
-          <Grid item width="100%">
-            <Autocomplete
-              filterOptions={filterFileOptions}
-              getOptionDisabled={(uuid) => uuid === formik.values.driver}
-              getOptionLabel={getFileOptionLabel}
-              id={chains.install}
-              label="Install ISO"
-              noOptionsText="No matching ISO"
-              onChange={(event, value) => {
-                formik.setFieldValue(chains.install, value, true);
-              }}
-              openOnFocus
-              options={files.uuids}
-              renderOption={(optionProps, uuid) =>
-                renderFileOption(chains.install, optionProps, uuid)
-              }
-              value={formik.values.install}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <Autocomplete
-              filterOptions={filterFileOptions}
-              getOptionDisabled={(uuid) => uuid === formik.values.install}
-              getOptionLabel={getFileOptionLabel}
-              id={chains.driver}
-              label="Driver ISO"
-              noOptionsText="No matching ISO"
-              onChange={(event, value) => {
-                formik.setFieldValue(chains.driver, value, true);
-              }}
-              openOnFocus
-              options={files.uuids}
-              renderOption={(optionProps, uuid) =>
-                renderFileOption(chains.driver, optionProps, uuid)
-              }
-              value={formik.values.driver}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <Autocomplete
-              filterOptions={createFilterOptions<string>({
-                ignoreCase: true,
-                stringify: (uuid) => {
+            <Grid item width="100%">
+              <Autocomplete
+                getOptionDisabled={(value) => {
+                  const count = Number(value);
+
+                  return scope.current.every((group) => {
+                    const { [group.node]: node } = resources.nodes;
+
+                    return node.cpu.cores.total < count;
+                  });
+                }}
+                id={chains.cpu.cores}
+                label="CPU cores"
+                noOptionsText="No node has the requested cores"
+                onChange={(event, value) => {
+                  formik.setFieldValue(chains.cpu.cores, value, true);
+                }}
+                openOnFocus
+                options={cpuCoresOptions}
+                value={formik.values.cpu.cores}
+              />
+            </Grid>
+            <Grid item width="100%">
+              <UncontrolledInput
+                input={
+                  <OutlinedLabeledInputWithSelect
+                    id="memory"
+                    inputWithLabelProps={{
+                      id: chains.memory.value,
+                      name: chains.memory.value,
+                    }}
+                    label="Memory"
+                    onChange={handleChange}
+                    selectItems={DSIZE_SELECT_ITEMS}
+                    selectWithLabelProps={{
+                      id: chains.memory.unit,
+                      name: chains.memory.unit,
+                      onChange: formik.handleChange,
+                      value: formik.values.memory.unit,
+                    }}
+                    value={formik.values.memory.value}
+                  />
+                }
+              />
+            </Grid>
+            {disks.ids.map<React.ReactNode>((diskId) => (
+              <Grid item key={`disk-${diskId}-form`} width="100%">
+                <ProvisionServerDiskForm
+                  formikUtils={formikUtils}
+                  id={diskId}
+                  resources={resources}
+                  scope={scope}
+                />
+              </Grid>
+            ))}
+            <Grid item width="100%">
+              <Autocomplete
+                filterOptions={filterFileOptions}
+                getOptionDisabled={(uuid) => uuid === formik.values.driver}
+                getOptionLabel={getFileOptionLabel}
+                id={chains.install}
+                label="Install ISO"
+                noOptionsText="No matching ISO"
+                onChange={(event, value) => {
+                  formik.setFieldValue(chains.install, value, true);
+                }}
+                openOnFocus
+                options={files.uuids}
+                renderOption={(optionProps, uuid) =>
+                  renderFileOption(chains.install, optionProps, uuid)
+                }
+                value={formik.values.install}
+              />
+            </Grid>
+            <Grid item width="100%">
+              <Autocomplete
+                filterOptions={filterFileOptions}
+                getOptionDisabled={(uuid) => uuid === formik.values.install}
+                getOptionLabel={getFileOptionLabel}
+                id={chains.driver}
+                label="Driver ISO"
+                noOptionsText="No matching ISO"
+                onChange={(event, value) => {
+                  formik.setFieldValue(chains.driver, value, true);
+                }}
+                openOnFocus
+                options={files.uuids}
+                renderOption={(optionProps, uuid) =>
+                  renderFileOption(chains.driver, optionProps, uuid)
+                }
+                value={formik.values.driver}
+              />
+            </Grid>
+            <Grid item width="100%">
+              <Autocomplete
+                filterOptions={createFilterOptions<string>({
+                  ignoreCase: true,
+                  stringify: (uuid) => {
+                    const { [uuid]: node } = resources.nodes;
+
+                    return `${node.name}\n${node.description}`;
+                  },
+                })}
+                getOptionDisabled={(uuid) =>
+                  scope.current.every((group) => group.node !== uuid)
+                }
+                getOptionLabel={(uuid) => {
                   const { [uuid]: node } = resources.nodes;
 
-                  return `${node.name}\n${node.description}`;
-                },
-              })}
-              getOptionDisabled={(uuid) =>
-                scope.current.every((group) => group.node !== uuid)
-              }
-              getOptionLabel={(uuid) => {
-                const { [uuid]: node } = resources.nodes;
+                  return node.name;
+                }}
+                id={chains.node}
+                label="Node"
+                noOptionsText="No matching node"
+                onChange={(event, value) => {
+                  formik.setFieldValue(chains.node, value, true);
+                }}
+                openOnFocus
+                options={nodes.uuids}
+                renderOption={(optionProps, uuid) => {
+                  const { [uuid]: node } = resources.nodes;
 
-                return node.name;
-              }}
-              id={chains.node}
-              label="Node"
-              noOptionsText="No matching node"
-              onChange={(event, value) => {
-                formik.setFieldValue(chains.node, value, true);
-              }}
-              openOnFocus
-              options={nodes.uuids}
-              renderOption={(optionProps, uuid) => {
-                const { [uuid]: node } = resources.nodes;
+                  return (
+                    <li {...optionProps} key={`node-op-${uuid}`}>
+                      <Grid alignItems="center" container>
+                        <Grid item xs>
+                          <BodyText inheritColour noWrap>
+                            {node.name}
+                          </BodyText>
+                          <SmallText inheritColour noWrap>
+                            {node.description}
+                          </SmallText>
+                        </Grid>
+                        <Grid item>
+                          <BodyText inheritColour noWrap>
+                            CPU: {node.cpu.cores.total} cores
+                          </BodyText>
+                          <BodyText inheritColour noWrap>
+                            Memory:{' '}
+                            {dSizeStr(node.memory.available, {
+                              toUnit: 'ibyte',
+                            })}
+                          </BodyText>
+                        </Grid>
+                      </Grid>
+                    </li>
+                  );
+                }}
+                value={formik.values.node}
+              />
+            </Grid>
+            <Grid item width="100%">
+              <Autocomplete
+                filterOptions={createFilterOptions<string>({
+                  ignoreCase: true,
+                  stringify: (osKey) => {
+                    const { [osKey]: os } = lsos;
 
-                return (
-                  <li {...optionProps} key={`node-op-${uuid}`}>
-                    <Grid alignItems="center" container>
-                      <Grid item xs>
-                        <BodyText inheritColour noWrap>
-                          {node.name}
-                        </BodyText>
-                        <SmallText inheritColour noWrap>
-                          {node.description}
-                        </SmallText>
-                      </Grid>
-                      <Grid item>
-                        <BodyText inheritColour noWrap>
-                          CPU: {node.cpu.cores.total} cores
-                        </BodyText>
-                        <BodyText inheritColour noWrap>
-                          Memory:{' '}
-                          {dSizeStr(node.memory.available, {
-                            toUnit: 'ibyte',
-                          })}
-                        </BodyText>
-                      </Grid>
-                    </Grid>
-                  </li>
-                );
-              }}
-              value={formik.values.node}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <Autocomplete
-              filterOptions={createFilterOptions<string>({
-                ignoreCase: true,
-                stringify: (osKey) => {
+                    return `${osKey}\n${os}`;
+                  },
+                })}
+                getOptionLabel={(osKey) => {
                   const { [osKey]: os } = lsos;
 
-                  return `${osKey}\n${os}`;
-                },
-              })}
-              getOptionLabel={(osKey) => {
-                const { [osKey]: os } = lsos;
+                  return os;
+                }}
+                id={chains.os}
+                label="Optimize for OS"
+                noOptionsText="No OS that matches exactly; try finding a close match"
+                onChange={(event, value) => {
+                  formik.setFieldValue(chains.os, value, true);
+                }}
+                openOnFocus
+                options={oses.keys}
+                renderOption={(optionProps, osKey) => {
+                  const { [osKey]: os } = lsos;
 
-                return os;
-              }}
-              id={chains.os}
-              label="Optimize for OS"
-              noOptionsText="No OS that matches exactly; try finding a close match"
-              onChange={(event, value) => {
-                formik.setFieldValue(chains.os, value, true);
-              }}
-              openOnFocus
-              options={oses.keys}
-              renderOption={(optionProps, osKey) => {
-                const { [osKey]: os } = lsos;
-
-                return (
-                  <li {...optionProps} key={`os-op-${osKey}`}>
-                    <Box width="100%">
-                      <BodyText inheritColour noWrap>
-                        {os}
-                      </BodyText>
-                      <SmallText inheritColour noWrap>
-                        {osKey}
-                      </SmallText>
-                    </Box>
-                  </li>
-                );
-              }}
-            />
-          </Grid>
-          <Grid item width="100%">
-            <MessageGroup count={1} messages={formikErrors} />
-          </Grid>
-          <Grid item width="100%">
-            <ActionGroup
-              actions={[
-                {
-                  background: 'blue',
-                  children: 'Provision',
-                  disabled: disabledSubmit,
-                  type: 'submit',
-                },
-              ]}
-            />
+                  return (
+                    <li {...optionProps} key={`os-op-${osKey}`}>
+                      <Box width="100%">
+                        <BodyText inheritColour noWrap>
+                          {os}
+                        </BodyText>
+                        <SmallText inheritColour noWrap>
+                          {osKey}
+                        </SmallText>
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            </Grid>
+            <Grid item width="100%">
+              <MessageGroup count={1} messages={formikErrors} />
+            </Grid>
+            <Grid item width="100%">
+              <ActionGroup
+                actions={[
+                  {
+                    background: 'blue',
+                    children: 'Provision',
+                    disabled: disabledSubmit,
+                    type: 'submit',
+                  },
+                ]}
+              />
+            </Grid>
           </Grid>
         </Grid>
       </Grid>
-    </Grid>
+      {confirmDialog}
+    </>
   );
 };
 
