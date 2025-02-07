@@ -2880,7 +2880,7 @@ sub shutdown_virsh
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0425", variables => { server => $server }});
 		}
-		if ($status eq "shut off")
+		if (($status eq "shut off") or ($status eq ""))
 		{
 			# Already off. 
 			$success = 1;
