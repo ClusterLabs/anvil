@@ -16,7 +16,7 @@ import MenuItem from '../MenuItem';
 import MessageBox from '../MessageBox';
 import OutlinedInput from '../OutlinedInput';
 import { Panel, PanelHeader } from '../Panels';
-import ProvisionServerDialog from '../ProvisionServerDialog';
+import { useProvisionServerDialog } from '../ProvisionServer';
 import ServerLists from './ServerLists';
 import ServerPanels from './ServerPanels';
 import Spinner from '../Spinner';
@@ -69,7 +69,6 @@ const group = (
 const Servers: React.FC = () => {
   const [viewAnchor, setViewAnchor] = useState<HTMLElement | null>(null);
   const [groups, setGroups] = useState<ServerGroups | undefined>();
-  const [provision, setProvision] = useState<boolean>(false);
   const [searchString, setSearchString] = useState<string>('');
 
   const {
@@ -111,6 +110,8 @@ const Servers: React.FC = () => {
       </>
     );
   }, [groups?.match.length, searchString]);
+
+  const provision = useProvisionServerDialog();
 
   if (loading) {
     return (
@@ -194,7 +195,7 @@ const Servers: React.FC = () => {
           <IconButton
             mapPreset="add"
             onClick={() => {
-              setProvision(true);
+              provision.setOpen(true);
             }}
           />
           <UncontrolledInput
@@ -225,12 +226,7 @@ const Servers: React.FC = () => {
           </Grid>
         </Grid>
       </Panel>
-      <ProvisionServerDialog
-        dialogProps={{ open: provision }}
-        onClose={() => {
-          setProvision(false);
-        }}
-      />
+      {provision.dialog}
     </>
   );
 };

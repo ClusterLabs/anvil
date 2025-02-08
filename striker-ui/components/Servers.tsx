@@ -31,7 +31,7 @@ import IconButton from './IconButton';
 import Menu from './Menu';
 import MenuItem from './MenuItem';
 import { Panel, PanelHeader } from './Panels';
-import ProvisionServerDialog from './ProvisionServerDialog';
+import { useProvisionServerDialog } from './ProvisionServer';
 import Spinner from './Spinner';
 import { BodyText, HeaderText } from './Text';
 import useConfirmDialogProps from '../hooks/useConfirmDialogProps';
@@ -145,8 +145,6 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
   const [allSelected, setAllSelected] = useState<boolean>(false);
   const [selected, setSelected] = useState<string[]>([]);
-  const [isOpenProvisionServerDialog, setIsOpenProvisionServerDialog] =
-    useState<boolean>(false);
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
@@ -232,6 +230,8 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     [selected.length],
   );
 
+  const provision = useProvisionServerDialog();
+
   return (
     <>
       <Panel>
@@ -277,7 +277,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
             />
             <IconButton
               mapPreset="add"
-              onClick={() => setIsOpenProvisionServerDialog(true)}
+              onClick={() => provision.setOpen(true)}
             />
           </PanelHeader>
           {showCheckbox && (
@@ -423,12 +423,7 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           )}
         </StyledDiv>
       </Panel>
-      <ProvisionServerDialog
-        dialogProps={{ open: isOpenProvisionServerDialog }}
-        onClose={() => {
-          setIsOpenProvisionServerDialog(false);
-        }}
-      />
+      {provision.dialog}
       <ConfirmDialog
         closeOnProceed
         {...confirmDialogProps}

@@ -117,7 +117,7 @@ const ManageUsersForm: FC = () => {
 
   const editUserFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
-      actionProceedText: 'Edit',
+      actionProceedText: 'Update',
       content: (
         <CommonUserInputGroup
           formUtils={formUtils}

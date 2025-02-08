@@ -7,9 +7,11 @@ import {
   createServer,
   deleteServer,
   deleteServerIface,
+  getProvisionServerResources,
   getServer,
   getServerDetail,
   growServerDisk,
+  lsos,
   migrateServer,
   renameServer,
   setServerBootOrder,
@@ -24,6 +26,8 @@ const router = express.Router();
 router
   .delete('/', deleteServer)
   .delete('/:serverUuid', deleteServer)
+  .get('/lsos', lsos)
+  .get('/provision', getProvisionServerResources)
   .get('/', getServer)
   .get('/:serverUUID', getServerDetail)
   .post('/', createServer)

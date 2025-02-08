@@ -1,3 +1,94 @@
+type ProvisionServerResourceFile = {
+  locations: Record<
+    string,
+    {
+      active: boolean;
+      ready: boolean;
+      subnode: string;
+    }
+  >;
+  name: string;
+  nodes: string[];
+  uuid: string;
+};
+
+type ProvisionServerResourceNode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  description: string;
+  files: string[];
+  memory: {
+    allocated: string;
+    available: string;
+    system: string;
+    total: string;
+  };
+  name: string;
+  servers: string[];
+  storageGroups: string[];
+  subnodes: string[];
+  uuid: string;
+};
+
+type ProvisionServerResourceServer = {
+  cpu: {
+    cores: number;
+  };
+  jobs: Record<
+    string,
+    {
+      peer: boolean;
+      progress: number;
+      uuid: string;
+    }
+  >;
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  uuid: string;
+};
+
+type ProvisionServerResourceStorageGroup = {
+  name: string;
+  node: string;
+  usage: {
+    free: string;
+    total: string;
+    used: string;
+  };
+  uuid: string;
+};
+
+type ProvisionServerResourceSubnode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  short: string;
+  uuid: string;
+};
+
+type ProvisionServerResources = {
+  files: Record<string, ProvisionServerResourceFile>;
+  nodes: Record<string, ProvisionServerResourceNode>;
+  servers: Record<string, ProvisionServerResourceServer>;
+  storageGroups: Record<string, ProvisionServerResourceStorageGroup>;
+  subnodes: Record<string, ProvisionServerResourceSubnode>;
+};
+
+type ServerOses = Record<string, string>;
+
 type ServerOverviewHost = {
   name: string;
   short: string;

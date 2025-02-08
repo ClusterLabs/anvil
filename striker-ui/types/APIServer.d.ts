@@ -9,6 +9,159 @@ type APIServerState =
   | 'running'
   | 'shut off';
 
+type APIServerOses = Record<string, string>;
+
+type APIProvisionServerResourceFile = {
+  locations: Record<
+    string,
+    {
+      active: boolean;
+      ready: boolean;
+      subnode: string;
+    }
+  >;
+  name: string;
+  nodes: string[];
+  uuid: string;
+};
+
+type APIProvisionServerResourceNode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  description: string;
+  files: string[];
+  memory: {
+    allocated: string;
+    available: string;
+    system: string;
+    total: string;
+  };
+  name: string;
+  servers: string[];
+  storageGroups: string[];
+  subnodes: string[];
+  uuid: string;
+};
+
+type ProvisionServerResourceNode = Omit<
+  APIProvisionServerResourceNode,
+  'memory'
+> & {
+  memory: {
+    allocated: bigint;
+    available: bigint;
+    system: bigint;
+    total: bigint;
+  };
+};
+
+type APIProvisionServerResourceServer = {
+  cpu: {
+    cores: number;
+  };
+  jobs: Record<
+    string,
+    {
+      progress: number;
+      uuid: string;
+    }
+  >;
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  uuid: string;
+};
+
+type ProvisionServerResourceServer = Omit<
+  APIProvisionServerResourceServer,
+  'memory'
+> & {
+  memory: {
+    total: bigint;
+  };
+};
+
+type APIProvisionServerResourceStorageGroup = {
+  name: string;
+  node: string;
+  usage: {
+    free: string;
+    total: string;
+    used: string;
+  };
+  uuid: string;
+};
+
+type ProvisionServerResourceStorageGroup = Omit<
+  APIProvisionServerResourceStorageGroup,
+  'usage'
+> & {
+  usage: {
+    free: bigint;
+    total: bigint;
+    used: bigint;
+  };
+};
+
+type APIProvisionServerResourceSubnode = {
+  cpu: {
+    cores: {
+      total: number;
+    };
+  };
+  memory: {
+    total: string;
+  };
+  name: string;
+  node: string;
+  short: string;
+  uuid: string;
+};
+
+type ProvisionServerResourceSubnode = Omit<
+  APIProvisionServerResourceSubnode,
+  'memory'
+> & {
+  memory: {
+    total: bigint;
+  };
+};
+
+type APIProvisionServerResources = {
+  files: Record<string, APIProvisionServerResourceFile>;
+  nodes: Record<string, APIProvisionServerResourceNode>;
+  servers: Record<string, APIProvisionServerResourceServer>;
+  storageGroups: Record<string, APIProvisionServerResourceStorageGroup>;
+  subnodes: Record<string, APIProvisionServerResourceSubnode>;
+};
+
+type ProvisionServerResources = {
+  files: Record<string, APIProvisionServerResourceFile>;
+  nodes: Record<string, ProvisionServerResourceNode>;
+  servers: Record<string, ProvisionServerResourceServer>;
+  storageGroups: Record<string, ProvisionServerResourceStorageGroup>;
+  subnodes: Record<string, ProvisionServerResourceSubnode>;
+};
+
+type APIProvisionServerRequestBody = {
+  serverName: string;
+  cpuCores: number;
+  memory: string;
+  virtualDisks: {
+    storageSize: string;
+    storageGroupUUID: string;
+  }[];
+  installISOFileUUID: string;
+  driverISOFileUUID: string;
+  anvilUUID: string;
+  optimizeForOS: string;
+};
+
 type APIServerOverviewAnvil = {
   description: string;
   name: string;

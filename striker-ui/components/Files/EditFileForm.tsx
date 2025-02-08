@@ -172,7 +172,7 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
         actions={[
           {
             background: 'blue',
-            children: 'Edit',
+            children: 'Update',
             disabled: disableProceed,
             type: 'submit',
           },

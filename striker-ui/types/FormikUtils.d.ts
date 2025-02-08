@@ -12,6 +12,7 @@ type FormikSubmitHandler<Values extends FormikValues> =
   import('formik').FormikConfig<Values>['onSubmit'];
 
 type FormikUtils<Values extends FormikValues> = {
+  changeFieldValue: Formik<Values>['setFieldValue'];
   disabledSubmit: boolean;
   formik: Formik<Values>;
   formikErrors: Messages;

@@ -84,6 +84,7 @@ const AnNetworkConfigInputGroup = <
     buildInputFirstRenderFunction,
     setMessage,
     setMessageRe,
+    setValidity,
   } = formUtils;
 
   const getNetworkNumber = useCallback(
@@ -422,20 +423,9 @@ const AnNetworkConfigInputGroup = <
                   value={previousNtpCsv}
                 />
               }
-              inputTestBatch={buildIpCsvTestBatch(
-                INPUT_LABEL_ANC_NTP,
-                () => {
-                  setMessage(INPUT_ID_ANC_NTP);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_ANC_NTP),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_ANC_NTP, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_NTP)}
+              onFirstRender={() => {
+                setValidity(INPUT_ID_ANC_NTP, true);
+              }}
             />
           ),
         },
