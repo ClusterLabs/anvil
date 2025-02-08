@@ -451,8 +451,8 @@ export const getProvisionServerResources: RequestHandler<
       serverCpuCores,
       serverMemorySize,
       serverName,
-      storageGroupUuid,
-      storageSize,
+      ,
+      ,
       anvilUuid,
     ] = row;
 
@@ -466,13 +466,11 @@ export const getProvisionServerResources: RequestHandler<
 
     const name = String(serverName);
 
-    const { nodes, servers, storageGroups } = previous;
+    const { servers } = previous;
 
     if (!servers[name]) {
       const cpuCores = Number(serverCpuCores);
-      const memoryTotal = BigInt(String(serverMemorySize));
-      const sgUuid = String(storageGroupUuid);
-      const diskSize = BigInt(String(storageSize));
+      const memoryTotal = String(serverMemorySize);
       const node = String(anvilUuid);
 
       servers[name] = {
@@ -481,35 +479,15 @@ export const getProvisionServerResources: RequestHandler<
         },
         jobs: {},
         memory: {
-          total: String(memoryTotal),
+          total: memoryTotal,
         },
         name,
         node,
         uuid: name,
       };
 
-      // Only do the following updates **once**!
-
-      // 1. Update memory numbers on the node that owns the provisioning server
-
-      const nodeObj = nodes[node];
-
-      const allocated = BigInt(nodeObj.memory.allocated);
-      const available = BigInt(nodeObj.memory.available);
-
-      nodeObj.memory.allocated = String(allocated + memoryTotal);
-      nodeObj.memory.available = String(available - memoryTotal);
-
-      // 2. Update storage numbers on the storage group that holds the disk used by
-      // the provisioning server
-
-      const sgObj = storageGroups[sgUuid];
-
-      const sgFree = BigInt(sgObj.usage.free);
-      const sgUsed = BigInt(sgObj.usage.used);
-
-      sgObj.usage.free = String(sgFree - diskSize);
-      sgObj.usage.used = String(sgUsed + diskSize);
+      // TODO: find a way to correctly deduct the resources allocated to the
+      // provisioning server(s) without over/under dedut
     }
 
     servers[name].jobs[jobUuid] = {
