@@ -62,10 +62,6 @@ export const buildManifest = async (
 
     assert(Number.isSafeInteger(mtu), `MTU must be an integer; got [${mtu}]`);
 
-    if (ntp) {
-      assert(REP_IPV4_CSV.test(ntp), `NTP must be an IPv4 CSV; got [${ntp}]`);
-    }
-
     assert(
       REP_PEACEFUL_STRING.test(prefix),
       `Prefix must be a peaceful string; got [${prefix}]`,
