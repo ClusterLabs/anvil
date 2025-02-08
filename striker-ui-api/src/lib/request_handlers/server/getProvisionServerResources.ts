@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 import { XMLParser } from 'fast-xml-parser';
 import { dSize } from 'format-data-size';
 
-import { NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
+import { DELETED, NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
 
 import { query } from '../../accessModule';
 import { Responder } from '../../Responder';
@@ -81,6 +81,7 @@ export const getProvisionServerResources: RequestHandler<
       ON a.server_anvil_uuid = b. anvil_uuid
     JOIN server_definitions AS c
       ON a.server_uuid = c.server_definition_server_uuid
+    WHERE a.server_state != '${DELETED}'
     ORDER BY
       a.server_name ASC,
       b.anvil_name ASC;`;
@@ -162,6 +163,7 @@ export const getProvisionServerResources: RequestHandler<
       s.server_name NOT IN (
         SELECT server_name
         FROM servers
+        WHERE server_state != '${DELETED}'
       );`;
 
   const promises = [
