@@ -293,7 +293,7 @@ const ManageManifestPanel: FC = () => {
 
   const editManifestFormDialogProps = useMemo<ConfirmDialogProps>(
     () => ({
-      actionProceedText: 'Edit',
+      actionProceedText: 'Update',
       content: (
         <EditManifestInputGroup
           formUtils={formUtils}
@@ -307,7 +307,7 @@ const ManageManifestPanel: FC = () => {
         const { messages } = countHostFences(body);
 
         setOldConfirmDialogProps({
-          actionProceedText: 'Edit',
+          actionProceedText: 'Update',
           content: <FormSummary entries={body} maxDepth={REQ_BODY_MAX_DEPTH} />,
           onProceedAppend: () => {
             submitForm({
