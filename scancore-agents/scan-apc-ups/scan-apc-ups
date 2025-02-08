@@ -3043,8 +3043,10 @@ FROM
     upses 
 WHERE 
     ups_agent = ".$anvil->Database->quote($THIS_FILE)."
+AND 
+    ups_ip_address != 'DELETED'
 ORDER BY 
-    ups_name ASC
+    ups_name ASC 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	

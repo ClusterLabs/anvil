@@ -115,11 +115,10 @@ $anvil->Database->insert_or_update_variables({
 });
 
 update_passwords($anvil);
-$anvil->Job->update_progress({
-	progress  => 100, 
-	message   => "",
-	job_uuid  => $anvil->data->{job}{uuid},
-});
+
+# Update NTP, if needed.
+my $ntp_updated = $anvil->System->check_ntp({debug => 2});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ntp_updated => $ntp_updated }});
 
 # Make sure that we set the network->wait_on_network() timeout back to 180.
 $anvil->Storage->update_config({
@@ -131,6 +130,13 @@ $anvil->Storage->update_config({
 # Clear maintenance mode.
 $anvil->System->maintenance_mode({set => 0});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0467"});
+
+# We're done
+$anvil->Job->update_progress({
+	progress  => 100, 
+	message   => "",
+	job_uuid  => $anvil->data->{job}{uuid},
+});
 
 $anvil->nice_exit({exit_code => 0});
 

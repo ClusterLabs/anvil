@@ -1554,13 +1554,24 @@ sub locate
 		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
 		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type}; 
 		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+		my $host_status     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_status};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			's1:host_name'       => $host_name, 
 			's2:host_uuid'       => $host_uuid, 
 			's3:host_type'       => $host_type, 
 			's4:short_host_name' => $short_host_name, 
+			's5:host_status'     => $host_status, 
 		}});
 		next if $host_type eq "striker";
+		
+		if (($host_status eq "powered off") or 
+		    ($host_status eq "rebooting")   or 
+		    ($host_status eq "stopping")    or 
+		    ($host_status eq "booting"))
+		{
+			# Connections would likely timeout, so skip.
+			next;
+		}
 		
 		if ($anvil_uuid)
 		{
@@ -2869,7 +2880,7 @@ sub shutdown_virsh
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0425", variables => { server => $server }});
 		}
-		if ($status eq "shut off")
+		if (($status eq "shut off") or ($status eq ""))
 		{
 			# Already off. 
 			$success = 1;

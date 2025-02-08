@@ -88,7 +88,7 @@ sub auto_grow_pv
 	if ($anvil->data->{switches}{confirm})
 	{
 		# Already confirmed.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0359"});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0150"});
 	}
 	else
 	{

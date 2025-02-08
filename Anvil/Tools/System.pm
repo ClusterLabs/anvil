@@ -1591,6 +1591,261 @@ sub check_network_type
 }
 
 
+=head2 check_ntp
+
+This checks to see if the NTP needs to be updated. If the NTP congig is updated, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+
+This method looks for the NTP server(s) to use in this order;
+* Install Manifest (if a subnode)
+* variables -> variable_name = network::ntp::servers
+* /etc/anvil/anvil.con -> network::ntp::servers = X
+
+If multiple are set, the last one is ues. Values are NOT merged.
+
+This method takes no parameters.
+
+=cut
+sub check_ntp
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_ntp()" }});
+	
+	# If management is disabled, just return.
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"network::ntp::manage" => $anvil->data->{network}{ntp}{manage},
+	}});
+	if (not $anvil->data->{network}{ntp}{manage})
+	{
+		return(0);
+	}
+	
+	my $updated = 0;
+	my $ntp     = "";
+
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	my $host_uuid  = $anvil->Get->host_uuid();
+	my $host_type  = $anvil->Get->host_type();
+	my $anvil_uuid = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_uuid};
+	my $anvil_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{anvil_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid  => $host_uuid,
+		host_type  => $host_type,
+		anvil_uuid => $anvil_uuid, 
+		anvil_name => $anvil_name, 
+	}});
+	
+	if ($anvil_name)
+	{
+		# Look for the NTP in the manifest.
+		$anvil->Database->get_manifests({debug => $debug});
+		if (exists $anvil->data->{manifests}{manifest_name}{$anvil_name})
+		{
+			# NOTE: Deleted manifests aren't returned so we don't need to check if this 
+			#       is deleted.
+			my $manifest_uuid = $anvil->data->{manifests}{manifest_name}{$anvil_name}{manifest_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { manifest_uuid => $manifest_uuid }});
+			
+			$anvil->Striker->load_manifest({
+				debug         => $debug,
+				manifest_uuid => $manifest_uuid, 
+			});
+			
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::ntp" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp},
+			}});
+			if ($anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp})
+			{
+				$ntp = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{ntp};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+			}
+		}
+	}
+	
+	# If there's a database variable for this host, use it over the manifest value.
+	my $query = "
+SELECT 
+    variable_value
+FROM 
+    variables  
+WHERE 
+    variable_name         = 'network::ntp::servers'
+AND 
+    variable_source_table = 'hosts' 
+AND 
+    variable_source_uuid  = ".$anvil->Database->quote($host_uuid)." 
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	if ($count)
+	{
+		my $variable_value = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { variable_value => $variable_value }});
+		
+		if ($variable_value)
+		{
+			$ntp = $variable_value;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+		}
+	}
+	
+	# Whether we loaded an NTP from the manifest or database, override if set in anvil.conf.
+	$anvil->data->{network}{ntp}{servers} = "" if not defined $anvil->data->{network}{ntp}{servers};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"network::ntp::servers" => $anvil->data->{network}{ntp}{servers},
+	}});
+	if ($anvil->data->{network}{ntp}{servers})
+	{
+		$ntp = $anvil->data->{network}{ntp}{servers};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp => $ntp }});
+	}
+	
+	if (not $ntp)
+	{
+		# Nothing to do
+		return($updated);
+	}
+	
+	# If the chrony.conf file doesn't exist for some reason, skip.
+	if ((not $anvil->data->{path}{configs}{'chrony.conf'}) or (not -f $anvil->data->{path}{configs}{'chrony.conf'}))
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0346", variables => { file => $anvil->data->{path}{configs}{'chrony.conf'} }});
+		return($updated);
+	}
+	
+	# Read in the NTP config file
+	my $new_body = "";
+	my $old_body = $anvil->Storage->read_file({
+		debug => $debug, 
+		file  => $anvil->data->{path}{configs}{'chrony.conf'},
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_body => $old_body }});
+	
+	# Loop through the file and update.
+	delete $anvil->data->{ntp}{seen} if exists $anvil->data->{ntp}{seen};
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+		if ($line =~ /^pool (.*)$/)
+		{
+			my $pool = $1;
+			   $pool =~ s/\s.*//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { pool => $pool }});
+			
+			# Is this a server or pool we want?
+			my $seen = 0;
+			foreach my $ntp_server (split/,/, $ntp)
+			{
+				next if $seen;
+				$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp_server => $ntp_server }});
+				
+				if ($pool eq $ntp_server)
+				{
+					# Yup, we want this one.
+					$seen                            = 1;
+					$anvil->data->{ntp}{seen}{$pool} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						seen                 => $seen, 
+						"ntp::seen::${pool}" => $anvil->data->{ntp}{seen}{$pool}, 
+					}});
+				}
+			}
+			
+			if (not $seen)
+			{
+				# Comment out this pool
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0345", variables => { ntp => $pool }});
+				$line = "# ".$line;
+				next;
+			}
+		}
+		if ($line =~ /^Server (.*)$/)
+		{
+			my $server = $1;
+			   $server =~ s/\s.*//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { server => $server }});
+			
+			# Is this a server we want?
+			my $seen = 0;
+			foreach my $ntp_server (split/,/, $ntp)
+			{
+				next if $seen;
+				$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ntp_server => $ntp_server }});
+				
+				if ($server eq $ntp_server)
+				{
+					# Yup, we want this one.
+					$seen                              = 1;
+					$anvil->data->{ntp}{seen}{$server} = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						seen                   => $seen, 
+						"ntp::seen::${server}" => $anvil->data->{ntp}{seen}{$server}, 
+					}});
+				}
+			}
+			
+			if (not $seen)
+			{
+				# Comment this server out
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0345", variables => { ntp => $server }});
+				$line = "# ".$line;
+				next;
+			}
+		}
+		$new_body .= $line."\n";
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { new_body => $new_body }});
+	
+	# Are there servers not yet added?
+	foreach my $ntp_server (split/,/, $ntp)
+	{
+		$ntp_server = $anvil->Words->clean_spaces({string => $ntp_server});
+		next if not $ntp_server;
+		if ((exists $anvil->data->{ntp}{seen}{$ntp_server}) && ($anvil->data->{ntp}{seen}{$ntp_server}))
+		{
+			next;
+		}
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0343", variables => { ntp => $ntp_server }});
+		$new_body .= "pool ".$ntp_server." iburst\n";
+	}
+	
+	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+	
+	if ($difference)
+	{
+		# Write out the new config.
+		$anvil->Storage->write_file({
+			debug     => $debug,
+			body      => $new_body,
+			file      => $anvil->data->{path}{configs}{'chrony.conf'},
+			backup    => 1,
+			overwrite => 1,
+		});
+		
+		# Restart chronyd
+		$anvil->System->restart_daemon({
+			debug  => $debug,
+			daemon => "chronyd.service",
+		});
+	}
+	
+	return($updated);
+}
+
+
 =head2 check_storage
 
 Thic gathers LVM data from the local system.
@@ -3926,134 +4181,6 @@ sub maintenance_mode
 	return($maintenance_mode);
 }
 
-### TODO: Move and document.
-### NOTE: This only works if the firewall is enabled.
-sub check_firewall
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->check_firewall()" }});
-	
-	# Show live or permanent rules? Permanent is default 
-	my $permanent = defined $parameter->{permanent} ? $parameter->{permanent} : 1;
-	my $start     = defined $parameter->{start}     ? $parameter->{start}     : 1;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { permanent => $permanent }});
-	
-	# Read in /etc/firewalld/firewalld.conf and parse the 'DefaultZone' variable.
-	my $firewall_conf = $anvil->Storage->read_file({file => $anvil->data->{path}{configs}{'firewalld.conf'}});
-	foreach my $line (split/\n/, $firewall_conf)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-		if ($line =~ /^DefaultZone=(.*?)$/)
-		{
-			$anvil->data->{firewall}{default_zone} = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
-			last;
-		}
-	}
-	$anvil->data->{firewall}{default_zone} = "" if not defined $anvil->data->{firewall}{default_zone};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::default_zone" => $anvil->data->{firewall}{default_zone} }});
-	
-	### NOTE: 'iptables-save' doesn't seem to show the loaded firewall in RHEL8. Slower or not, we seem 
-	###       to have to use 'firewall-cmd'
-	my $shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --permanent --list-all-zones";
-	if (not $permanent)
-	{
-		$shell_call = $anvil->data->{path}{exe}{'firewall-cmd'}." --list-all-zones";
-	}
-	
-	my $zone                          = "";
-	my $active_state                  = "";
-	my ($firewall_data, $return_code) = $anvil->System->call({debug => $debug, shell_call => $shell_call});
-	foreach my $line (split/\n/, $firewall_data)
-	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			's1:zone' => $zone,
-			's2:line' => $line,
-		}});
-		
-		if ($line =~ /^(\w.*)$/)
-		{
-			$zone         = $1;
-			$active_state = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { zone => $zone }});
-			if ($line =~ /^(\w+) \((.*?)\)/)
-			{
-				$zone         = $1;
-				$active_state = $2;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					zone         => $zone, 
-					active_state => $active_state 
-				}});
-			}
-			$anvil->data->{firewall}{zone}{$zone}{file} = "";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "firewall::zone::${zone}::file" => $anvil->data->{firewall}{zone}{$zone}{file} }});
-		}
-		elsif ($zone)
-		{
-			if ((not $line) or ($line =~ /^\s+$/))
-			{
-				# Done reading this zone, record.
-				my $interfaces = defined $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} ? $anvil->data->{firewall}{zone}{$zone}{variable}{interfaces} : "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					zone       => $zone,
-					interfaces => $interfaces, 
-				}});
-				foreach my $interface (split/ /, $interfaces)
-				{
-					$anvil->data->{firewall}{interface}{$interface}{zone} = $zone;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-						"firewall::interface::${interface}::zone" => $anvil->data->{firewall}{interface}{$interface}{zone},
-					}});
-				}
-				
-				$zone         = "";
-				$active_state = "";
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					zone         => $zone, 
-					active_state => $active_state, 
-				}});
-			}
-			elsif (($active_state) && ($line =~ /(\S.*?):(.*)$/))
-			{
-				my $variable =  $1;
-				my $value    =  $2;
-				   $variable =~ s/^\s+//;
-				   $variable =~ s/\s+$//;
-				   $value    =~ s/^\s+//;
-				   $value    =~ s/\s+$//;
-				$anvil->data->{firewall}{zone}{$zone}{variable}{$variable} = $value;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"s1:line"                                           => $line,
-					"s2:firewall::zone::${zone}::variable::${variable}" => $anvil->data->{firewall}{zone}{$zone}{variable}{$variable}, 
-				}});
-			}
-		}
-	}
-	
-	# Make sure, for each zone, we've got a zone file. We should, so we'll read it in.
-	foreach my $zone (sort {$a cmp $b} keys %{$anvil->data->{firewall}{zone}})
-	{
-		$anvil->data->{firewall}{zone}{$zone}{file} =  $anvil->data->{path}{directories}{firewalld_zones}."/".$zone.".xml";
-		$anvil->data->{firewall}{zone}{$zone}{file} =~ s/\/\//\//g;
-		$anvil->data->{firewall}{zone}{$zone}{body} =  "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"firewall::zone::${zone}::file" => $anvil->data->{firewall}{zone}{$zone}{file},
-		}});
-		if (-e $anvil->data->{firewall}{zone}{$zone}{file})
-		{
-			$anvil->data->{firewall}{zone}{$zone}{body} = $anvil->Storage->read_file({file => $anvil->data->{firewall}{zone}{$zone}{file}});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				"firewall::zone::${zone}::body" => $anvil->data->{firewall}{zone}{$zone}{body},
-			}});
-		}
-	}
-	
-	return(0);
-}
-
 =head2 manage_authorized_keys
 
 This takes a host's UUID and will adds or removes their ssh public key to the target host user (or users). On success, C<< 0 >> is returned. Otherwise, C<< 1 >> is returned.
@@ -5809,6 +5936,34 @@ sub wait_on_dnf
 # Private functions                                                                                         #
 #############################################################################################################
 
+
+=head2 _abort_if_ci
+
+If the c<< --ci-test >> switch is used, this method will close any running job and exit. It's meant to be used before a user prompt, preventing tests from hanging.
+
+=cut
+sub _abort_if_ci
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_abort_if_ci" }});
+	
+	if ($anvil->data->{switches}{'ci-test'})
+	{
+		$anvil->Job->update_progress({
+			progress => 100,
+			message  => "error_0216", 
+			log_level => 1, 
+			'print'   => 1, 
+			priority  => "err",
+		});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
 
 =head2 _check_anvil_conf
 

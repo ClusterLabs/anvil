@@ -136,7 +136,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0077">Unable to connect to the database, unable to read the details of the key to remove.</key>
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
-		<key name="error_0080">#!free!#</key>
+		<key name="error_0080">[ Warning ] - The server: [#!variable!server!#] does not appear to exist on the cluster, aborting.</key>
 		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
@@ -324,13 +324,13 @@ Output (if any):
 ====
 #!variable!shell_call!#
 ====</key>
-		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after 10 seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
+		<key name="error_0210">The call to create the new server appears to have failed. It hasn't shown up as running after: [#!variable!timeout!#] seconds. The status, if any, was last seen as: [#!variable!status!#].</key>
 		<key name="error_0211">Failed to add the server: [#!variable!server_name!#] because we failed to parse the CIB. Is the cluster running?</key>
 		<key name="error_0212">Failed to add the server: [#!variable!server_name!#] because we are not a full cluster member?</key>
 		<key name="error_0213">Failed to add the server: [#!variable!server_name!#] because it appears to already exist in the cluster.</key>
 		<key name="error_0214">Failed to add the server: [#!variable!server_name!#]. After the commands to add it ran, it was still not found in the cluster.</key>
 		<key name="error_0215">It looks like something went wrong while adding the server to the cluster. There should be more information in the logs.</key>
-		<key name="error_0216">#!free!#</key>
+		<key name="error_0216">User input needed, but --ci-test used, aborting.</key>
 		<key name="error_0217">This host is not an Anvil! node or DR host, unable to delete servers.</key>
 		<key name="error_0218">Unable to connect to any databases, unable to continue.</key>
 		<key name="error_0219">Unable to find the server uuid to delete from the job UUID: [#!variable!job_uuid!#].</key>
@@ -792,7 +792,8 @@ The XML that failed sanity check was:
 		<key name="error_0474">[ Error ] - The requested size: [#!variable!requested_ram!#] is greater than the maximum RAM: [#!variable!max_ram!#].</key>
 		<key name="error_0475">[ Error ] - The requested size: [#!variable!requested_ram!#] is less than 640 KiB, this must be a mistake.</key>
 		<key name="error_0476">[ Error ] - The requested CPU: [#!variable!requested_cpu!#] is not valid. Valid options are '--cpu X', '--cpu Y,X' or '--cpu 'Y,X,Z' where 'X' is the number of cores per socket, 'Y' is the number of sockets and 'Z' is the number of threads per core.</key>
-		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!#], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]).</key>
+		<key name="error_0477">[ Error ] - The requested number of cores: [#!variable!requested_cores!#] (sockets: [#!variable!new_sockets!#], cores per socket: [#!variable!new_cores!#], threads per core: [#!variable!new_threads!#]) is invalid!
+[ Error ] - The maximum cores that can be allocated to this server is: [#!variable!max_cores!#] (Real cores - #!variable!recommended_max!#).</key>
 		<key name="error_0478">[ Error ] - This program must be run on a subnode.</key>
 		<key name="error_0479">[ Error ] - This subnode is not in the cluster (failed to parse the CIB). Exiting.</key>
 		<key name="error_0480">[ Error ] - The wanted interface: [#!variable!interface_name!#] which should have the MAC address: [#!variable!mac_address!#] was not found in Network Manager. Unable to proceed.</key>
@@ -2261,13 +2262,19 @@ Will now try with: [#!variable!count!#] known password(s).</key>
 		<key name="log_0341">[ Warning ] - Not all hosts are online, but '--force' was used!
 [ Warning ] - You will need to manually update the passwords using this tool with '--local' later.</key>
 		<key name="log_0342">Updating the VNC user: [#!variable!vncuser!#] password.</key>
-		<key name="log_0343">#!free!#</key>
+		<key name="log_0343">Adding the NTP server: [#!variable!ntp!#] as a time source for this machine.</key>
 		<key name="log_0344">The server: [#!variable!server!#] wasn't found on this machine.</key>
-		<key name="log_0345">#!free!#</key>
-		<key name="log_0346">#!free!#</key>
+		<key name="log_0345">Removing the NTP server: [#!variable!ntp!#].</key>
+		<key name="log_0346">The NTP crony.conf file: [#!variable!file!#] wasn't found, skipping NTP config.</key>
 		<key name="log_0347">The migration of the server: [#!variable!server!#] to here was successful!</key>
 		<key name="log_0348">It looks like we were called to verify that the: [#!variable!server!#] migrated here, but it isn't here yet. We'll proceed with an attempt to pull the server over.</key>
-		<key name="log_0349">#!free!#</key>
+		<key name="log_0349">The server is not running here, would you like to assign the job to: [#!variable!host!#]?
+Job Details;
+* job_data: ...... [#!variable!job_data!#]
+* job_name: ...... [#!variable!job_name!#]
+* job_title: ..... [#!variable!job_title!#]
+* job_description: [#!variable!job_description!#]
+[ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0351">#!free!#</key>
 		<key name="log_0352">#!free!#</key>
@@ -2998,7 +3005,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0147">[ Note ] - Asked to unplug an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to unplug the interface.</key>
 		<key name="message_0148">[ Note ] - Asked to plug in an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to plug in the interface.</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
-		<key name="message_0150">#!free!#</key>
+		<key name="message_0150">The '--confirm' switch was used, proceeding.</key>
 		<key name="message_0151">#!free!#</key>
 		<key name="message_0152">#!free!#</key>
 		<key name="message_0153">Local repository</key>
@@ -3559,7 +3566,7 @@ proceeding.
 		
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
-		<key name="striker_0002">#!free!#</key>
+		<key name="striker_0002">If you want to specify an NTP server (or servers) to use, specify them here. Note that any existing NTP servers will be removed. Multiple servers (IPs or host names) can be specified as a comma-separated list.</key>
 		<key name="striker_0003">#!free!#</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">#!free!#</key>
@@ -4078,12 +4085,12 @@ The duplicate will be removed.</key>
 ====
 </key>
 		<key name="warning_0015">[ Warning ] - Updating passwords on all systems, please do NOT interrupt this process!</key>
-		<key name="warning_0016">#!free!#</key>
-		<key name="warning_0017">#!free!#</key>
-		<key name="warning_0018">#!free!#</key>
+		<key name="warning_0016">[ Warning ] - The server: [#!variable!server!#] is marked as deleted, aborting.</key>
+		<key name="warning_0017">[ Warning ] - The server: [#!variable!server!#] is not shown to be running on any host in the cluster, aborting.</key>
+		<key name="warning_0018">[ Warning ] - The server: [#!variable!server!#] is shown as already being off, aborting.</key>
 		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
-		<key name="warning_0021">#!free!#</key>
+		<key name="warning_0021">[ Warning ] - Changing the default zone to IFN1.</key>
 		<key name="warning_0022">#!free!#</key>
 		<key name="warning_0023">#!free!#</key>
 		<key name="warning_0024">#!free!#</key>

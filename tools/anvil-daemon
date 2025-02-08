@@ -640,6 +640,10 @@ sub handle_periodic_tasks
 			}
 		}
 		
+		# Check if the NTP servers need to be updated.
+		my $ntp_updated = $anvil->System->check_ntp({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ntp_updated => $ntp_updated }});
+		
 		# Reap old db_in_use states over 6 hours old.
 		my $query = "DELETE FROM states WHERE state_name LIKE 'db_in_use%' AND modified_date < (SELECT now() - interval '6 hour');\n";
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});

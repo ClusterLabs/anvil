@@ -167,6 +167,20 @@ else
 		"switches::server_name" => $anvil->data->{switches}{server_name},
 		"switches::server_uuid" => $anvil->data->{switches}{server_uuid},
 	}});
+	
+	if ((not $anvil->data->{switches}{server_name}) or (not $anvil->data->{switches}{server_uuid}))
+	{
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			'print'   => 1, 
+			log_level => 1,
+			message   => "error_0080",
+			variables => {
+				server => $anvil->data->{switches}{server}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 }
 
 # If the server isn't all, check to see if the server is running elsewhere. If it is, reassign the job to that host.
@@ -186,6 +200,20 @@ if (($anvil->data->{switches}{server} !~ /all/i) && ($anvil->data->{sys}{databas
 		's4:server_host_name' => $server_host_name, 
 		's5:server_state'     => $server_state, 
 	}});
+	
+	if ((not $server_host_uuid) or ($server_host_uuid eq "NULL"))
+	{
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			'print'   => 1, 
+			log_level => 1,
+			message   => "warning_0017",
+			variables => {
+				server => $anvil->data->{switches}{server_name}, 
+			},
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	if (($server_state eq "running") && ($server_host_uuid ne $anvil->Get->host_uuid))
 	{
@@ -277,6 +305,47 @@ if ($anvil->data->{switches}{server} !~ /all/i)
 			's3:server_host_uuid' => $server_host_uuid, 
 			's4:server_state'     => $server_state, 
 		}});
+		
+		# Is the server deleted?
+		if ($server_state eq "DELETED")
+		{
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				'print'   => 1, 
+				log_level => 1,
+				message   => "warning_0016",
+				variables => {
+					server => $anvil->data->{switches}{server_name}, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if ($server_state eq "shut off")
+		{
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				'print'   => 1, 
+				log_level => 1,
+				message   => "warning_0018",
+				variables => {
+					server => $anvil->data->{switches}{server_name}, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		if ((not $server_host_uuid) or ($server_host_uuid eq "NULL"))
+		{
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				'print'   => 1, 
+				log_level => 1,
+				message   => "warning_0017",
+				variables => {
+					server => $anvil->data->{switches}{server_name}, 
+				},
+			});
+			$anvil->nice_exit({exit_code => 1});
+		}
 		
 		if (($server_host_uuid) && ($server_state))
 		{

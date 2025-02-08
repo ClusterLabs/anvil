@@ -925,6 +925,9 @@ sub _set_defaults
 			timestamp			=>	"",
 			use_handle			=>	"",
 		},
+		firewall			=>	{
+			'default-zone'			=>	"IFN1",
+		},
 		host_type			=>	"",
 		host_uuid			=>	"",
 		language			=>	"en_CA",
@@ -1076,6 +1079,18 @@ sub _set_defaults
 			},
 		},
 	};
+	$anvil->data->{network} = {
+		ntp			=>	{
+			servers			=>	"",
+			manage			=>	1,
+		},
+		wait_for_network	=>	{
+			timeout			=>	300,
+		},
+		wait_on_network		=>	{
+			timeout			=>	180,
+		},
+	};
 	
 	return(0);
 }
@@ -1097,6 +1112,7 @@ sub _set_paths
 				'anvil.debug'			=>	"/etc/anvil/anvil.debug",
 				'anvil.version'			=>	"/etc/anvil/anvil.version",
 				'autoindex.conf'		=>	"/etc/httpd/conf.d/autoindex.conf", 
+				'chrony.conf'			=>	"/etc/chrony.conf", 
 				'cib.xml'			=>	"/var/lib/pacemaker/cib/cib.xml",
 				'corosync.conf'			=>	"/etc/corosync/corosync.conf",
 				'corosync-authkey'		=>	"/etc/corosync/authkey",
