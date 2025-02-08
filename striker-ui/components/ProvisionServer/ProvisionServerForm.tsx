@@ -434,9 +434,20 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     ): React.ReactNode => {
       const { [uuid]: file } = resources.files;
 
-      const jobs = Object.values(file.jobs);
+      const locations = Object.values(file.locations);
 
-      const status = jobs.length > 0 ? <>Syncing</> : <>Ready</>;
+      const syncing = locations.filter((location) => !location.ready);
+
+      const status = syncing.length ? (
+        <>
+          Syncing to{' '}
+          {syncing
+            .map<string>(({ subnode }) => resources.subnodes[subnode].short)
+            .join(', ')}
+        </>
+      ) : (
+        <>Ready</>
+      );
 
       return (
         <li {...optionProps} key={`${field}-op-${uuid}`}>
@@ -451,7 +462,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
         </li>
       );
     },
-    [resources.files],
+    [resources.files, resources.subnodes],
   );
 
   const resourceMessages = useMemo(() => {
