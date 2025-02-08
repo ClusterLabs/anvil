@@ -147,6 +147,20 @@ type ProvisionServerResources = {
   subnodes: Record<string, ProvisionServerResourceSubnode>;
 };
 
+type APIProvisionServerRequestBody = {
+  serverName: string;
+  cpuCores: number;
+  memory: string;
+  virtualDisks: {
+    storageSize: string;
+    storageGroupUUID: string;
+  }[];
+  installISOFileUUID: string;
+  driverISOFileUUID: string;
+  anvilUUID: string;
+  optimizeForOS: string;
+};
+
 type APIServerOverviewAnvil = {
   description: string;
   name: string;

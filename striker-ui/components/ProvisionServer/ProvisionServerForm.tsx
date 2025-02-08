@@ -1,11 +1,14 @@
 import { Box, createFilterOptions, Grid } from '@mui/material';
 import { dSize, dSizeStr } from 'format-data-size';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import ActionGroup from '../ActionGroup';
+import api from '../../lib/api';
 import Autocomplete from '../Autocomplete';
+import { DialogContext } from '../Dialog';
+import handleAPIError from '../../lib/handleAPIError';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
@@ -21,6 +24,8 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   const { lsos, resources } = props;
+
+  const dialog = useContext(DialogContext);
 
   const files = useMemo(
     () => ({
@@ -73,8 +78,13 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
   const scope = useRef<ProvisionServerScopeGroup[]>(groups);
 
-  const { confirmDialog, setConfirmDialogProps, setConfirmDialogOpen } =
-    useConfirmDialog();
+  const {
+    confirmDialog,
+    finishConfirm,
+    setConfirmDialogProps,
+    setConfirmDialogLoading,
+    setConfirmDialogOpen,
+  } = useConfirmDialog();
 
   const validationSchema = useMemo(
     () => buildProvisionServerSchema(scope.current, resources, lsos),
@@ -116,6 +126,82 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
           />
         ),
         onCancelAppend: () => setSubmitting(false),
+        onProceedAppend: () => {
+          setConfirmDialogLoading(true);
+
+          const memoryBytes = dSize(values.memory.value, {
+            fromUnit: values.memory.unit,
+            toUnit: 'B',
+          });
+
+          if (!memoryBytes) {
+            finishConfirm('Error', {
+              children: <>Failed to convert memory to bytes.</>,
+            });
+
+            return;
+          }
+
+          let virtualDisks: APIProvisionServerRequestBody['virtualDisks'];
+
+          try {
+            virtualDisks = Object.keys(values.disks).map((id) => {
+              const { [id]: disk } = values.disks;
+
+              const { size, storageGroup } = disk;
+
+              const sizeBytes = dSize(size.value, {
+                fromUnit: size.unit,
+                toUnit: 'B',
+              });
+
+              if (!sizeBytes) {
+                throw new Error(`Failed to convert disk ${id} size to bytes.`);
+              }
+
+              return {
+                storageSize: sizeBytes.value,
+                storageGroupUUID: storageGroup as string,
+              };
+            });
+          } catch (error) {
+            finishConfirm('Error', {
+              children: <>{error}</>,
+            });
+
+            return;
+          }
+
+          const body: APIProvisionServerRequestBody = {
+            serverName: values.name,
+            cpuCores: Number(values.cpu.cores as string),
+            memory: memoryBytes.value,
+            virtualDisks,
+            installISOFileUUID: values.install as string,
+            driverISOFileUUID: values.driver ? values.driver : '',
+            anvilUUID: values.node as string,
+            optimizeForOS: values.os as string,
+          };
+
+          api
+            .post('/server', body)
+            .then(() => {
+              finishConfirm('Success', {
+                children: <>Provision server job registered.</>,
+              });
+
+              dialog?.setOpen(false);
+            })
+            .catch((error) => {
+              const emsg = handleAPIError(error);
+
+              emsg.children = (
+                <>Failed to start provision server job. {emsg.children}</>
+              );
+
+              finishConfirm('Error', emsg);
+            });
+        },
         titleText: `Provision ${values.name}?`,
       });
 

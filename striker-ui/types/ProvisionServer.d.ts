@@ -45,6 +45,9 @@ type ProvisionServerExistingListProps = Pick<
   'resources'
 >;
 
-type ProvisionServerSummary = ProvisionServerFormProps & {
+type ProvisionServerSummary = Pick<
+  ProvisionServerFormProps,
+  'lsos' | 'resources'
+> & {
   values: ProvisionServerFormikValues;
 };
