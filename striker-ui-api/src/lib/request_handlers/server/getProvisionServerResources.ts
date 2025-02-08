@@ -115,12 +115,50 @@ export const getProvisionServerResources: RequestHandler<
       a.host_name ASC,
       b.anvil_name ASC;`;
 
+  const sqlGetProvisioning = `
+    SELECT *
+    FROM (
+      SELECT
+        a.job_uuid,
+        a.job_progress,
+        CASE
+          WHEN a.job_data LIKE '%peer_mode=true%'
+            THEN 1
+          ELSE 0
+        END AS job_on_peer,
+        SUBSTRING(a.job_data, 'cpu_cores=([^\\n]*)') AS cpu_cores,
+        SUBSTRING(a.job_data, 'ram=([^\\n]*)') AS memory_size,
+        SUBSTRING(a.job_data, 'server_name=([^\\n]*)') AS server_name,
+        SUBSTRING(a.job_data, 'storage_group_uuid=([^\\n]*)') AS storage_group_uuid,
+        SUBSTRING(a.job_data, 'storage_size=([^\\n]*)') AS storage_size,
+        b.anvil_uuid
+      FROM jobs AS a
+      LEFT JOIN anvils AS b
+        ON a.job_host_uuid IN (
+          b.anvil_node1_host_uuid,
+          b.anvil_node2_host_uuid
+        )
+      WHERE
+          a.job_command LIKE '%anvil-provision-server%'
+        AND
+          a.modified_date > current_timestamp - interval '5 minutes'
+      ORDER BY
+        server_name ASC,
+        job_on_peer ASC
+    ) AS s
+    WHERE
+      s.server_name NOT IN (
+        SELECT server_name
+        FROM servers
+      );`;
+
   const promises = [
     sqlGetFiles,
     sqlGetNodes,
     sqlGetServers,
     sqlGetStorageGroups,
     sqlGetSubnodes,
+    sqlGetProvisioning,
   ].map<Promise<QueryResult>>((sql) => query(sql));
 
   let results: QueryResult[];
@@ -134,8 +172,14 @@ export const getProvisionServerResources: RequestHandler<
     );
   }
 
-  const [fileRows, nodeRows, serverRows, storageGroupRows, subnodeRows] =
-    results;
+  const [
+    fileRows,
+    nodeRows,
+    serverRows,
+    storageGroupRows,
+    subnodeRows,
+    provisioningRows,
+  ] = results;
 
   const resources: ProvisionServerResources = {
     files: {},
@@ -358,6 +402,84 @@ export const getProvisionServerResources: RequestHandler<
         ? memoryTotal
         : min(nodeObj.memory.total, memoryTotal),
     );
+
+    return previous;
+  }, resources);
+
+  provisioningRows.reduce<ProvisionServerResources>((previous, row) => {
+    const [
+      provisionJobUuid,
+      provisionJobProgress,
+      provisionJobOnPeer,
+      serverCpuCores,
+      serverMemorySize,
+      serverName,
+      storageGroupUuid,
+      storageSize,
+      nodeUuid,
+    ] = row;
+
+    if (row.some((field) => field === null)) {
+      return previous;
+    }
+
+    const jobUuid = String(provisionJobUuid);
+    const jobProgress = Number(provisionJobProgress);
+    const jobOnPeer = Boolean(provisionJobOnPeer);
+
+    const name = String(serverName);
+
+    const { nodes, servers, storageGroups } = previous;
+
+    if (!servers[name]) {
+      const cpuCores = Number(serverCpuCores);
+      const memoryTotal = BigInt(String(serverMemorySize));
+      const sgUuid = String(storageGroupUuid);
+      const diskSize = BigInt(String(storageSize));
+      const node = String(nodeUuid);
+
+      servers[name] = {
+        cpu: {
+          cores: cpuCores,
+        },
+        jobs: {},
+        memory: {
+          total: String(memoryTotal),
+        },
+        name,
+        node,
+        uuid: name,
+      };
+
+      // Only do the following updates **once**!
+
+      // 1. Update memory numbers on the node that owns the provisioning server
+
+      const nodeObj = nodes[node];
+
+      const allocated = BigInt(nodeObj.memory.allocated);
+      const available = BigInt(nodeObj.memory.available);
+
+      nodeObj.memory.allocated = String(allocated + memoryTotal);
+      nodeObj.memory.available = String(available - memoryTotal);
+
+      // 2. Update storage numbers on the storage group that holds the disk used by
+      // the provisioning server
+
+      const sgObj = storageGroups[sgUuid];
+
+      const sgFree = BigInt(sgObj.usage.free);
+      const sgUsed = BigInt(sgObj.usage.used);
+
+      sgObj.usage.free = String(sgFree - diskSize);
+      sgObj.usage.used = String(sgUsed + diskSize);
+    }
+
+    servers[name].jobs[jobUuid] = {
+      peer: jobOnPeer,
+      progress: jobProgress,
+      uuid: jobUuid,
+    };
 
     return previous;
   }, resources);

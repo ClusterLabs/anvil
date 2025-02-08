@@ -39,6 +39,7 @@ type ProvisionServerResourceServer = {
   jobs: Record<
     string,
     {
+      peer: boolean;
       progress: number;
       uuid: string;
     }
