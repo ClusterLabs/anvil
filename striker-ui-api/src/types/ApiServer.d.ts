@@ -1,9 +1,10 @@
 type ProvisionServerResourceFile = {
-  jobs: Record<
+  locations: Record<
     string,
     {
-      progress: number;
-      uuid: string;
+      active: boolean;
+      ready: boolean;
+      subnode: string;
     }
   >;
   name: string;

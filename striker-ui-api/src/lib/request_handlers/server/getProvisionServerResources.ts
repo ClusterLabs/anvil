@@ -50,6 +50,18 @@ export const getProvisionServerResources: RequestHandler<
       a.file_name ASC,
       c.anvil_name ASC;`;
 
+  const sqlGetFileLocations = `
+    SELECT
+      a.file_location_file_uuid,
+      a.file_location_host_uuid,
+      a.file_location_active,
+      a.file_location_ready
+    FROM file_locations AS a
+    JOIN files AS b
+      ON a.file_location_file_uuid = b.file_uuid
+    WHERE b.file_type = 'iso'
+    ORDER BY b.file_name ASC;`;
+
   const sqlGetNodes = `
     SELECT
       a.anvil_uuid,
@@ -154,6 +166,7 @@ export const getProvisionServerResources: RequestHandler<
 
   const promises = [
     sqlGetFiles,
+    sqlGetFileLocations,
     sqlGetNodes,
     sqlGetServers,
     sqlGetStorageGroups,
@@ -174,6 +187,7 @@ export const getProvisionServerResources: RequestHandler<
 
   const [
     fileRows,
+    fileLocationRows,
     nodeRows,
     serverRows,
     storageGroupRows,
@@ -237,7 +251,7 @@ export const getProvisionServerResources: RequestHandler<
 
     if (!files[uuid]) {
       files[uuid] = {
-        jobs: {},
+        locations: {},
         name,
         nodes: [],
         uuid,
@@ -247,6 +261,29 @@ export const getProvisionServerResources: RequestHandler<
     files[uuid].nodes.push(node);
 
     nodes[node].files.push(uuid);
+
+    return previous;
+  }, resources);
+
+  fileLocationRows.reduce<ProvisionServerResources>((previous, row) => {
+    const [fileUuid, hostUuid, locationActive, locationReady] = row;
+
+    if (row.some((field) => field === null)) {
+      return previous;
+    }
+
+    const uuid = String(fileUuid);
+    const subnode = String(hostUuid);
+    const active = Boolean(locationActive);
+    const ready = Boolean(locationReady);
+
+    const { files } = previous;
+
+    files[uuid].locations[subnode] = {
+      active,
+      ready,
+      subnode,
+    };
 
     return previous;
   }, resources);
@@ -416,7 +453,7 @@ export const getProvisionServerResources: RequestHandler<
       serverName,
       storageGroupUuid,
       storageSize,
-      nodeUuid,
+      anvilUuid,
     ] = row;
 
     if (row.some((field) => field === null)) {
@@ -436,7 +473,7 @@ export const getProvisionServerResources: RequestHandler<
       const memoryTotal = BigInt(String(serverMemorySize));
       const sgUuid = String(storageGroupUuid);
       const diskSize = BigInt(String(storageSize));
-      const node = String(nodeUuid);
+      const node = String(anvilUuid);
 
       servers[name] = {
         cpu: {
