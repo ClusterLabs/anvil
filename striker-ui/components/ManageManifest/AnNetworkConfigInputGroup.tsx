@@ -84,6 +84,7 @@ const AnNetworkConfigInputGroup = <
     buildInputFirstRenderFunction,
     setMessage,
     setMessageRe,
+    setValidity,
   } = formUtils;
 
   const getNetworkNumber = useCallback(
@@ -422,7 +423,9 @@ const AnNetworkConfigInputGroup = <
                   value={previousNtpCsv}
                 />
               }
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_ANC_NTP)}
+              onFirstRender={() => {
+                setValidity(INPUT_ID_ANC_NTP, true);
+              }}
             />
           ),
         },
