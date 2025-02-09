@@ -42,6 +42,7 @@ $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure =
 # Common daemons
 $anvil->data->{daemons}{core}{'anvil-daemon'}              = "anvil-daemon.service";
 $anvil->data->{daemons}{core}{'scancore'}                  = "scancore.service";
+$anvil->data->{daemons}{core}{'anvil-monitor-lvm'}         = "anvil-monitor-lvm.service";
 $anvil->data->{daemons}{core}{'anvil-monitor-network'}     = "anvil-monitor-network.service";
 $anvil->data->{daemons}{core}{'anvil-monitor-daemons'}     = "anvil-monitor-daemons.service";
 $anvil->data->{daemons}{core}{'anvil-monitor-performance'} = "anvil-monitor-performance.service";
