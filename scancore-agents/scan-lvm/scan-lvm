@@ -1360,7 +1360,7 @@ sub collect_pvs_data
 	
 	return(0);
 }
-	
+
 sub collect_vgs_data
 {
 	my ($anvil) = @_;

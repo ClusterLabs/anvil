@@ -1,0 +1,381 @@
+#!/usr/bin/perl
+# 
+# This daemon watches for changes in LVM; new LVs, deleted LVs, changed pv or vg sizes, etc. 
+# 
+# At this point, the only thing this does is call 'scan-lvm' when a change is detected.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. As such, 
+#       be mindful of what this daemon is used for.
+# 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Text::Diff;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# Calculate my sum so that we can exit if it changes later.
+$anvil->Storage->record_md5sums;
+my $next_md5sum_check = time + 30;
+
+# Now go into the main loop
+while(1)
+{
+	### NOTE: A lot of this logic comes from scan-lvm
+	my $scan_time = time;
+	my $trigger   = 0;
+	
+	$trigger = scan_pvs($anvil, $trigger);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	$trigger = scan_vgs($anvil, $trigger);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	$trigger = scan_lvs($anvil, $trigger);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	
+	# Trigger?
+	if ($trigger)
+	{
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-lvm/scan-lvm".$anvil->Log->switches;
+		print "Triggering the call to run: [".$shell_call."]\n";
+		
+		die;
+		
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	if (time > $next_md5sum_check)
+	{
+		$next_md5sum_check = time + 30;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+		if ($anvil->Storage->check_md5sums)
+		{
+			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "alert", key => "message_0014"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	sleep 5;
+}
+
+sub scan_pvs
+{
+	my ($anvil, $trigger) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{pvscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	$shell_call = $anvil->data->{path}{exe}{pvs}." --noheadings --units b --reportformat json -o pv_uuid,pv_name,vg_name,pv_attr,pv_size,pv_free";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	my $json     = JSON->new->allow_nonref;
+	my $pvs_data = $json->decode($output);
+	foreach my $hash_ref (@{$pvs_data->{report}->[0]->{pv}})
+	{
+		my $pv_internal_uuid = $hash_ref->{pv_uuid};
+		my $pv_name          = $hash_ref->{pv_name};
+		my $used_by_vg       = $hash_ref->{vg_name};
+		my $attributes       = $hash_ref->{pv_attr};
+		my $size             = ($hash_ref->{pv_size} =~ /^(\d+)B/)[0];
+		my $free_space       = ($hash_ref->{pv_free} =~ /^(\d+)B/)[0];
+		my $sector_size      = get_pv_sector_size($anvil, $pv_name);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:pv_internal_uuid" => $pv_internal_uuid, 
+			"s2:pv_name"          => $pv_name,
+			"s3:used_by_vg"       => $used_by_vg,
+			"s4:attributes"       => $attributes, 
+			"s5:size"             => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}).")", 
+			"s6:free_space"       => $anvil->Convert->add_commas({number => $free_space})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}).")", 
+			"s7:sector_size"      => $anvil->Convert->add_commas({number => $sector_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $sector_size}).")", 
+		}});
+		
+		if (not exists $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid})
+		{
+			# New PV
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		elsif (($anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{name}       ne $pv_name)    or 
+		       ($anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{used_by_vg} ne $used_by_vg) or 
+		       ($anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{attributes} ne $attributes) or 
+		       ($anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{size}       ne $size)       or
+		       ($anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{free_space} ne $free_space))
+		{
+			# Something changed.
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		
+		# Update what we're storing for this PV.
+		$anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{name}       = $pv_name;
+		$anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{used_by_vg} = $used_by_vg;
+		$anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{attributes} = $attributes;
+		$anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{size}       = $size;
+		$anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{free_space} = $free_space;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:pv::internal_uuid::${pv_internal_uuid}::name"       => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{name},
+			"s2:pv::internal_uuid::${pv_internal_uuid}::used_by_vg" => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{used_by_vg},
+			"s3:pv::internal_uuid::${pv_internal_uuid}::attributes" => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{attributes},
+			"s4:pv::internal_uuid::${pv_internal_uuid}::size"       => $anvil->Convert->add_commas({number => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{size}}).")",
+			"s5:pv::internal_uuid::${pv_internal_uuid}::free_space" => $anvil->Convert->add_commas({number => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{pv}{internal_uuid}{$pv_internal_uuid}{free_space}}).")",
+		}});
+	}
+	
+	return($trigger);
+}
+
+sub scan_vgs
+{
+	my ($anvil, $trigger) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{vgscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	$shell_call = $anvil->data->{path}{exe}{vgs}." --noheadings --units b --reportformat json -o vg_uuid,vg_name,vg_attr,vg_extent_size,vg_size,vg_free";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	my $json     = JSON->new->allow_nonref;
+	my $vgs_data = $json->decode($output);
+	foreach my $hash_ref (@{$vgs_data->{report}->[0]->{vg}})
+	{
+		my $vg_internal_uuid = $hash_ref->{vg_uuid};
+		my $vg_name          = $hash_ref->{vg_name};
+		my $attributes       = $hash_ref->{vg_attr};
+		my $extent_size      = ($hash_ref->{vg_extent_size} =~ /^(\d+)B/)[0];
+		my $size             = ($hash_ref->{vg_size} =~ /^(\d+)B/)[0];
+		my $free_space       = ($hash_ref->{vg_free} =~ /^(\d+)B/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:vg_internal_uuid" => $vg_internal_uuid, 
+			"s2:vg_name"          => $vg_name,
+			"s3:attributes"       => $attributes,
+			"s4:extent_size"      => $anvil->Convert->add_commas({number => $extent_size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $extent_size}),
+			"s5:size"             => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
+			"s6:free_space"       => $anvil->Convert->add_commas({number => $free_space})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $free_space}),
+		}});
+		
+		if (not exists $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid})
+		{
+			# New VG
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		elsif (($anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{name} ne $vg_name)            or 
+		       ($anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{attributes} ne $attributes)   or 
+		       ($anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{extent_size} ne $extent_size) or 
+		       ($anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{size} ne $size)               or 
+		       ($anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{free_space} ne $free_space))
+		{
+			# Something changed.
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		
+		$anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{name}        = $vg_name;
+		$anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{attributes}  = $attributes;
+		$anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{extent_size} = $extent_size;
+		$anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{size}        = $size;
+		$anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{free_space}  = $free_space;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:vg::internal_uuid::${vg_internal_uuid}::name"        => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{name},
+			"s2:vg::internal_uuid::${vg_internal_uuid}::attributes"  => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{attributes},
+			"s3:vg::internal_uuid::${vg_internal_uuid}::extent_size" => $anvil->Convert->add_commas({number => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{extent_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{extent_size}}),
+			"s4:vg::internal_uuid::${vg_internal_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{size}}),
+			"s5:vg::internal_uuid::${vg_internal_uuid}::free_space"  => $anvil->Convert->add_commas({number => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{free_space}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{vg}{internal_uuid}{$vg_internal_uuid}{free_space}}),
+		}});
+	}
+	
+	return($trigger);
+}
+
+sub scan_lvs
+{
+	my ($anvil, $trigger) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{lvscan};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# In JSON format, there are 2+ hash references when there are 2+ PVs under an LV. So we record all 
+	# data on the first pass and append the additional PVs.
+	delete $anvil->data->{seen_lvs};
+	
+	$shell_call = $anvil->data->{path}{exe}{lvs}." --noheadings --units b --reportformat json -o lv_name,vg_name,lv_attr,lv_size,lv_uuid,lv_path,devices";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	($output, $return_code) = $anvil->System->call({timeout => 15, shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		return_code => $return_code,
+	}});
+	
+	# Unlike pvs and vgs, we need to compile the data before we look for changes.
+	my $json     = JSON->new->allow_nonref;
+	my $lvs_data = $json->decode($output);
+	foreach my $hash_ref (@{$lvs_data->{report}->[0]->{lv}})
+	{
+		my $lv_internal_uuid =  $hash_ref->{lv_uuid};
+		my $on_pvs           =  $hash_ref->{devices};
+		   $on_pvs           =~ s/\(\d+\)//g;
+		if (not exists $anvil->data->{seen_lvs}{$lv_internal_uuid})
+		{
+			# Only get the pvs
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{name}        = $hash_ref->{lv_name};
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{attributes}  = $hash_ref->{lv_attr};
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{on_vg}       = $hash_ref->{vg_name};
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{device_path} = $hash_ref->{lv_path};
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{size}        = ($hash_ref->{lv_size} =~ /^(\d+)B/)[0];
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{on_pvs}      = $on_pvs;
+			
+		}
+		else
+		{
+			$anvil->data->{seen_lvs}{$lv_internal_uuid}{on_pvs} .= ",".$on_pvs;
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:seen_lvs::${lv_internal_uuid}::name"        => $anvil->data->{seen_lvs}{$lv_internal_uuid}{name},
+			"s2:seen_lvs::${lv_internal_uuid}::attributes"  => $anvil->data->{seen_lvs}{$lv_internal_uuid}{attributes},
+			"s3:seen_lvs::${lv_internal_uuid}::on_vg"       => $anvil->data->{seen_lvs}{$lv_internal_uuid}{on_vg},
+			"s4:seen_lvs::${lv_internal_uuid}::device_path" => $anvil->data->{seen_lvs}{$lv_internal_uuid}{device_path},
+			"s5:seen_lvs::${lv_internal_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{seen_lvs}{$lv_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{seen_lvs}{$lv_internal_uuid}{size}}),
+			"s6:seen_lvs::${lv_internal_uuid}::on_pvs"      => $anvil->data->{seen_lvs}{$lv_internal_uuid}{on_pvs},
+		}});
+	}
+	
+	# Now look for changes.
+	foreach my $lv_internal_uuid (sort {$a cmp $b} keys %{$anvil->data->{seen_lvs}})
+	{
+	}
+	
+	return($trigger);
+}
+
+sub get_pv_sector_size
+{
+	my ($anvil, $pv_name) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { pv_name => $pv_name }});
+	
+	my $partition =  $pv_name;
+	   $partition =~ s/^.*\///;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { partition => $partition }});
+	if ((exists $anvil->data->{pv}{$partition}) && ($anvil->data->{pv}{$partition}{sector_size} =~ /^\d+$/))
+	{
+		# Just return what we read before.
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"pv::${partition}::sector_size" => $anvil->Convert->add_commas({number => $anvil->data->{pv}{$partition}{sector_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{pv}{$partition}{sector_size}}).")",
+		}});
+		return($anvil->data->{pv}{$partition}{sector_size});
+	}
+	
+	my $directory =  "/sys/class/block/".$partition."/subsystem";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		partition => $partition, 
+		directory => $directory,
+	}});
+	
+	# Look for the parent device. For partitions like 'sda1', this is 'sda'. For 'nvmen0p1', this is 'nvmen0', etc.
+	my $sector_size         = 0;
+	my $default_sector_size = 512;
+	until ($sector_size)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { partition => $partition }});
+		
+		if (not $partition)
+		{
+			# Weird... Default to 512.
+			   $sector_size        = $default_sector_size;
+			my $original_partition = $pv_name;
+			my $sector_path        = $directory."/".$original_partition."/queue/hw_sector_size";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_warning_0001", variables => { 
+				device      => $original_partition, 
+				sector_path => $sector_path, 
+				sector_size => $sector_size, 
+			}});
+		}
+		
+		my $sector_size_file = $directory."/".$partition."/queue/hw_sector_size";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size_file => $sector_size_file }});
+		if (-e $sector_size_file)
+		{
+			$sector_size = $anvil->Storage->read_file({file => $sector_size_file });
+			chomp $sector_size;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sector_size => $sector_size }});
+			
+			if ((not $sector_size) or ($sector_size =~ /\D/))
+			{
+				# Something went wrong, default to 512.
+			   $sector_size        = $default_sector_size;
+			my $original_partition = $pv_name;
+			my $sector_path        = $directory."/".$original_partition."/queue/hw_sector_size";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_lvm_warning_0001", variables => { 
+				device      => $original_partition, 
+				sector_path => $sector_path, 
+				sector_size => $sector_size, 
+			}});
+			}
+		}
+		
+		# Take a number off and try again.
+		chop $partition;
+	}
+	
+	# Record it.
+	$anvil->data->{pv}{$partition}{sector_size} = $sector_size;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"pv::${partition}::sector_size" => $anvil->Convert->add_commas({number => $anvil->data->{pv}{$partition}{sector_size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{pv}{$partition}{sector_size}}).")",
+	}});
+	return($anvil->data->{pv}{$partition}{sector_size});
+}
