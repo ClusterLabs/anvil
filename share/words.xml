@@ -2695,7 +2695,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0739">The server: [#!variable!server!#] needs its pacemaker configuration updated. Running: [#!variable!command!#].</key>
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
-		<key name="log_0742">#!free!#</key>
+		<key name="log_0742">Triggering a call to run: [#!variable!shell_call!#]</key>
 		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
 		<key name="log_0744">#!free!#</key>
 		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>

@@ -43,19 +43,15 @@ while(1)
 	my $trigger   = 0;
 	
 	$trigger = scan_pvs($anvil, $trigger);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
 	$trigger = scan_vgs($anvil, $trigger);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
 	$trigger = scan_lvs($anvil, $trigger);
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
 	
 	# Trigger?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
 	if ($trigger)
 	{
 		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-lvm/scan-lvm".$anvil->Log->switches;
-		print "Triggering the call to run: [".$shell_call."]\n";
-		
-		die;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0742", variables => { shell_call => $shell_call }});
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -77,7 +73,7 @@ while(1)
 		}
 	}
 	
-	sleep 5;
+	sleep 2;
 }
 
 sub scan_pvs
@@ -298,6 +294,54 @@ sub scan_lvs
 	# Now look for changes.
 	foreach my $lv_internal_uuid (sort {$a cmp $b} keys %{$anvil->data->{seen_lvs}})
 	{
+		my $lv_name     = $anvil->data->{seen_lvs}{$lv_internal_uuid}{name};
+		my $attributes  = $anvil->data->{seen_lvs}{$lv_internal_uuid}{attributes};
+		my $on_vg       = $anvil->data->{seen_lvs}{$lv_internal_uuid}{on_vg};
+		my $device_path = $anvil->data->{seen_lvs}{$lv_internal_uuid}{device_path};
+		my $size        = $anvil->data->{seen_lvs}{$lv_internal_uuid}{size};
+		my $on_pvs      = $anvil->Words->sort_csv({string => $anvil->data->{seen_lvs}{$lv_internal_uuid}{on_pvs}});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:lv_internal_uuid" => $lv_internal_uuid, 
+			"s2:lv_name"          => $lv_name,
+			"s3:attributes"       => $attributes,
+			"s4:on_vg"            => $on_vg,
+			"s5:device_path"      => $device_path, 
+			"s6:size"             => $anvil->Convert->add_commas({number => $size})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $size}),
+			"s7:on_pvs"           => $on_pvs,
+		}});
+		
+		if (not exists $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid})
+		{
+			# New LV
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		elsif (($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{name} ne $lv_name)            or 
+		       ($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{attributes} ne $attributes)   or 
+		       ($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_vg} ne $on_vg)             or 
+		       ($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{device_path} ne $device_path) or 
+		       ($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{size} ne $size)               or 
+		       ($anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_pvs} ne $on_pvs))
+		{
+			# Something changed.
+			$trigger = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+		}
+		
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{name}        = $lv_name;
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{attributes}  = $attributes;
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_vg}       = $on_vg;
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{device_path} = $device_path;
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{size}        = $size;
+		$anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_pvs}      = $on_pvs;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:lv::internal_uuid::${lv_internal_uuid}::name"        => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{name},
+			"s2:lv::internal_uuid::${lv_internal_uuid}::attributes"  => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{attributes},
+			"s3:lv::internal_uuid::${lv_internal_uuid}::on_vg"       => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_vg},
+			"s4:lv::internal_uuid::${lv_internal_uuid}::device_path" => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{device_path},
+			"s5:lv::internal_uuid::${lv_internal_uuid}::size"        => $anvil->Convert->add_commas({number => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{size}})." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{size}}),
+			"s6:lv::internal_uuid::${lv_internal_uuid}::on_pvs"      => $anvil->data->{lv}{internal_uuid}{$lv_internal_uuid}{on_pvs},
+		}});
 	}
 	
 	return($trigger);

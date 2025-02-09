@@ -26,6 +26,7 @@ my $THIS_FILE = "Words.pm";
 # language_list
 # load_agent_strings
 # parse_banged_string
+# sort_csv
 # read
 # shorten_string
 # string
@@ -718,6 +719,60 @@ sub parse_banged_string
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_string => $key_string }});
 	return($out_string);
 }
+
+=head2 sort_csv
+
+This takes a CSV string (one line!) and returns the string sorted alphabetically. 
+
+The sorted string is returned. If the incoming string doesn't have a comma, the input string is returned unchanged.
+
+B<< Note >>: If there are empty entries (ie: C<< foo,bar,,baz >>, the empty values will be removed, ie: C<< bar,baz,foo >>. 
+
+parameters;
+
+=head3 string (required)
+
+This is the string to be sorted.
+
+=cut
+sub sort_csv
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Words->sort_csv()" }});
+	
+	# Setup default values
+	my $sorted = "";
+	my $string = defined $parameter->{string} ? $parameter->{string} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		string => $string,
+	}});
+	
+	if ((not $string) or ($string !~ /,/))
+	{
+		return($string);
+	}
+	
+	my $values = {};
+	foreach my $value (split/,/, $string)
+	{
+		next if $value eq "";
+		$values->{$value} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "values->{$value}" => $values->{$value} }});
+	}
+	foreach my $value (sort {$a cmp $b} keys %{$values})
+	{
+		$sorted .= $value.",";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sorted => $sorted }});
+	}
+	$sorted =~ s/,$//;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sorted => $sorted }});
+	
+	return($sorted);
+}
+
 
 =head2 read
 
