@@ -210,13 +210,15 @@ sub manage_cpu
 		's3:max_cores'    => $max_cores,
 	}});
 	
-	my $recommended_max = $host_cores - 2;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
+	my $cpu_buffer = 2;
 	if ($host_cores <= 4)
 	{
-		$recommended_max = 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
+		$cpu_buffer = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { cpu_buffer => $cpu_buffer }});
 	}
+	
+	my $recommended_max = $max_cores - $cpu_buffer;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { recommended_max => $recommended_max }});
 	
 	# Show the user or change?
 	if ($anvil->data->{switches}{cpu} eq "#!SET!#")
@@ -295,6 +297,9 @@ sub manage_cpu
 			new_threads     => $new_threads, 
 			max_cores       => $max_cores, 
 			recommended_max => $recommended_max, 
+			host_cores      => $host_cores,
+			host_threads    => $host_threads,  
+			cpu_buffer      => $cpu_buffer, 
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0477", variables => $variables});
 		$anvil->Job->update_progress({
