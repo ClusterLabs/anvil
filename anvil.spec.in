@@ -314,6 +314,9 @@ getent passwd %{suiapi} >/dev/null \
 if [ $1 -eq 1 ]
 then
     systemctl enable --now %{suiapi}.service
+elif [ $1 -gt 1 ]
+then
+    systemctl restart %{suiapi}.service
 fi
 
 restorecon -rv /%{_localstatedir}/www
