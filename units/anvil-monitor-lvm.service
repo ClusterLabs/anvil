@@ -1,7 +1,6 @@
 [Unit]
 Description=Anvil! Intelligent Availability Platform - LVM Monitor Daemon
 Documentation=man:anvil-monitor-lvm(8)
-Wants=
 
 [Service]
 Type=simple

@@ -1,0 +1,12 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - KVM/qemu Monitor Deamon
+Documentation=man:anvil-monitor-server(8)
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/anvil-monitor-server
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
