@@ -2658,7 +2658,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0702">I was asked to update the timestamp, but the returned timestamp matches the last one. Will loop until a new timestamp is returned.</key>
 		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
 		<key name="log_0704">[ Error ] - The method Database/read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.</key>
-		<key name="log_0705">#!free!#</key>
+		<key name="log_0705">The server: [#!variable!name!#] (#!variable!uuid!#) has disappeared.</key>
 		<key name="log_0706">Updating the OUI list will happen after the system has been up for at least an hour. You can force an update now by running 'striker-parse-oui --force' at the command line.</key>
 		<key name="log_0707">Updated: [#!data!path::configs::firewalld.conf!#] to disable 'AllowZoneDrifting'. See: https://firewalld.org/2020/01/allowzonedrifting</key>
 		<key name="log_0708">Created the firewall zone: [#!variable!zone!#].</key>
@@ -2697,7 +2697,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
 		<key name="log_0742">Triggering a call to run: [#!variable!shell_call!#]</key>
 		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
-		<key name="log_0744">#!free!#</key>
+		<key name="log_0744">This is a Striker dashboard, there are no servers here. Please disable the 'anvil-monitor-server' daemon.</key>
 		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>
 		<key name="log_0746">The local resource: [#!variable!resource!#] is StandAlone, attempting to connect.</key>
 		<key name="log_0747">Failed to connect to the host: [#!variable!host!#]! Unable to up the resource on it. The volume(s) backing this server are UpToDate locally, so booting should be fine.</key>
@@ -2782,7 +2782,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0817">The server: [#!variable!server_name!#] libvirt definition was updated, undefining static config.</key>
 		<key name="log_0818">The server: [#!variable!server_name!#] libvirt definition will now be updated.</key>
 		<key name="log_0819">Check to verify that the connection to the server: [#!variable!server_name!#] is valid.</key>
-		<key name="log_0820">#!free!#</key>
+		<key name="log_0820">There is no connection to the hypervisor on this host, skipping this check.</key>
 		<key name="log_0821">No device found for PV: [#!variable!pv_name!#], skipping it.</key>
 		<key name="log_0822">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]! Will grow the partition to use the free space.</key>
 		<key name="log_0823">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]. This is too small for auto-growing the partition.</key>
@@ -2814,8 +2814,8 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0841">Processes; (total / running / blocked / IRQ interrupts): [#!variable!total!# / #!variable!running!# / #!variable!blocked!# / #!variable!interrupts!#].</key>
 		<key name="log_0842">Starting the network manager connection: [#!variable!id!#] (uuid: [#!variable!uuid!#]).</key>
 		<key name="log_0843">Creating the: [#!variable!file!#] debug file on: [#!variable!host!#].</key>
-		<key name="log_0844">#!free!#</key>
-		<key name="log_0845">#!free!#</key>
+		<key name="log_0844">First time we've seen the server: [#!variable!name!#] (#!variable!uuid!#).</key>
+		<key name="log_0845">Something has changed with the server: [#!variable!name!#] (#!variable!uuid!#).</key>
 		<key name="log_0846">CPU Load Average: [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#], io wait: [#!variable!iowait!#%], running/blocked processes: [#!variable!running!# / #!variable!blocked!#]</key>
 		<key name="log_0847">Times out waiting for the bonds to come up. We waited: [#!variable!waited!#] seconds.</key>
 		<key name="log_0848">The fence level exists and it's the same fence agent, nothing to do.</key>
