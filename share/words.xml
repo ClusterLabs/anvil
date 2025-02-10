@@ -2649,7 +2649,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0693">#!free!#</key>
 		<key name="log_0694">The connection to: [#!variable!host!#] for the resource: [#!variable!resource!#] is in the connection state: [#!variable!connection_state!#]. Will try to connect to the peer and up the resource now.</key>
 		<key name="log_0695">About to request the start of the resource: [#!variable!resource!#] on: [#!variable!host!#].</key>
-		<key name="log_0696">#!free!#</key>
+		<key name="log_0696">This is a Striker dashboard, there are no servers here. Please disable the 'anvil-monitor-drbd' daemon.</key>
 		<key name="log_0697">All clients using our database are gone, ready to stop the postgresql daemon.</key>
 		<key name="log_0698">[ Note ] - Marking our database as active.</key>
 		<key name="log_0699">[ Note ] - The Striker database host: [#!variable!host!#] is inactive, skipping it.</key>

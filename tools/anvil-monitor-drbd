@@ -1,0 +1,189 @@
+#!/usr/bin/perl
+# 
+# This daemon watches for changes in KVM/qemu virtual servers; Booted servers, stopped servers, and changed 
+# servers. 
+# 
+# At this point, the only thing this does is call 'scan-server' when a change is detected.
+# 
+# NOTE: This is designed to be minimal overhead, so there is no attempt to connect to the database. As such, 
+#       be mindful of what this daemon is used for.
+# 
+
+use strict;
+use warnings;
+use Data::Dumper;
+use Text::Diff;
+use Anvil::Tools;
+
+my $THIS_FILE           =  ($0 =~ /^.*\/(.*)$/)[0];
+my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
+if (($running_directory =~ /^\./) && ($ENV{PWD}))
+{
+	$running_directory =~ s/^\./$ENV{PWD}/;
+}
+
+# Turn off buffering so that the pinwheel will display while waiting for the SSH call(s) to complete.
+$| = 1;
+
+my $anvil = Anvil::Tools->new();
+
+# Read switches
+$anvil->Get->switches({list => [], man => $THIS_FILE});
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
+$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0115", variables => { program => $THIS_FILE }});
+
+# If this is a striker, exit, we shouldn't be running here.
+if ($anvil->Get->host_type eq "striker")
+{
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "log_0696"});
+	sleep 2;
+	$anvil->nice_exit({exit_code => 1});
+}
+
+# Calculate my sum so that we can exit if it changes later.
+$anvil->Storage->record_md5sums;
+my $next_md5sum_check = time + 30;
+
+# Now go into the main loop
+while(1)
+{
+	### NOTE: A lot of this logic comes from scan-server
+	my $scan_time = time;
+	my $trigger   = 0;
+	
+	my $problem = gather_data($anvil);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	if ($problem)
+	{
+		sleep 2;
+		last;
+	}
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{resource}})
+	{
+		print "Resource: [".$resource."]\n";
+		foreach my $connection (sort {$a cmp $b} keys %{$anvil->data->{resource}{$resource}{connection}})
+		{
+			print "- Connection: [".$connection."]\n";
+			foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{resource}{$resource}{connection}{$connection}{volume}})
+			{
+				print " - Volume: [".$volume."]\n";
+				print "====\n";
+				print $anvil->data->{resource}{$resource}{connection}{$connection}{volume}{$volume}{proc_drbd};
+				print "====\n";
+			}
+		}
+	}
+	die;
+	
+	# Trigger?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger }});
+	if ($trigger)
+	{
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches;
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "log_0742", variables => { shell_call => $shell_call }});
+		
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output,
+			return_code => $return_code, 
+		}});
+	}
+	
+	if (time > $next_md5sum_check)
+	{
+		$next_md5sum_check = time + 30;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { next_md5sum_check => $next_md5sum_check }});
+		if ($anvil->Storage->check_md5sums)
+		{
+			# NOTE: We exit with '0' to prevent systemctl from showing a scary red message.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, priority => "alert", key => "message_0014"});
+			$anvil->nice_exit({exit_code => 0});
+		}
+	}
+	
+	sleep 2;
+}
+
+sub gather_data
+{
+	my ($anvil) = @_;
+	
+	if (not -e $anvil->data->{path}{exe}{drbdadm})
+	{
+		# This is an error, but it happens a lot because we're called by scan_drbd from Striker
+		# dashboards often. As such, this log level is '2'.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "error_0251"});
+		return(1);
+	}
+	
+	my $root_directory = $anvil->data->{path}{directories}{resource_status};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { root_directory => $root_directory }});
+	
+	local(*DIRECTORY);
+	opendir(DIRECTORY, $root_directory);
+	while(my $file = readdir(DIRECTORY))
+	{
+		next if $file eq ".";
+		next if $file eq "..";
+		my $full_path = $root_directory."/".$file;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+		if (-d $full_path)
+		{
+			$anvil->data->{resource}{$file} = {};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"resource::${file}" => $anvil->data->{resource}{$file},
+			}});
+		}
+	}
+	closedir(DIRECTORY);
+	
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{resource}})
+	{
+		my $directory = $root_directory."/".$resource."/connections";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+		local(*DIRECTORY);
+		opendir(DIRECTORY, $directory);
+		while(my $file = readdir(DIRECTORY))
+		{
+			next if $file eq ".";
+			next if $file eq "..";
+			my $full_path = $directory."/".$file;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+			if (-d $full_path)
+			{
+				$anvil->data->{resource}{$resource}{connection}{$file} = {};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"resource::${resource}::connection::${file}" => $anvil->data->{resource}{$resource}{connection}{$file},
+				}});
+			}
+		}
+		closedir(DIRECTORY);
+	
+		foreach my $connection (sort {$a cmp $b} keys %{$anvil->data->{resource}{$resource}{connection}})
+		{
+			my $directory = $root_directory."/".$resource."/connections/".$connection;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { directory => $directory }});
+			local(*DIRECTORY);
+			opendir(DIRECTORY, $directory);
+			while(my $file = readdir(DIRECTORY))
+			{
+				next if $file eq ".";
+				next if $file eq "..";
+				my $full_path = $directory."/".$file."/proc_drbd";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { full_path => $full_path }});
+				if (-r $full_path)
+				{
+					my $proc_drbd = $anvil->Storage->read_file({file => $full_path});
+					$anvil->data->{resource}{$resource}{connection}{$connection}{volume}{$file}{proc_drbd} = $proc_drbd;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"resource::${resource}::connection::${connection}::volume::${file}::proc_drbd" => $anvil->data->{resource}{$resource}{connection}{$connection}{volume}{$file}{proc_drbd},
+					}});
+				}
+			}
+			closedir(DIRECTORY);
+		}
+	}
+	
+	return(0);
+}
