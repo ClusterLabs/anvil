@@ -1,6 +1,7 @@
-import { FormikConfig, FormikValues, getIn, setIn, useFormik } from 'formik';
+import { FormikValues, getIn, setIn, useFormik } from 'formik';
 import { isEqual, isObject, isString } from 'lodash';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import * as yup from 'yup';
 
 import debounce from '../lib/debounce';
 import getFormikErrorMessages from '../lib/getFormikErrorMessages';
@@ -48,6 +49,27 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
 
   const formik = useFormik<Values>({ ...formikConfig });
 
+  const changeFieldValue = useCallback<typeof formik.setFieldValue>(
+    async (...args) => {
+      const [field] = args;
+
+      setFieldChanged(field, true);
+
+      await formik.setFieldValue(...args);
+    },
+
+    // Only the field value setter is being used here
+    //
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formik.setFieldValue, setFieldChanged],
+  );
+
+  const getFieldIsDiff = useCallback(
+    (field: string): boolean =>
+      isEqualIn(formik.values, field, formik.initialValues),
+    [formik.initialValues, formik.values],
+  );
+
   const debounceHandleChange = useMemo(() => {
     const base = debounce((...args: Parameters<typeof formik.handleChange>) => {
       formik.handleChange(...args);
@@ -75,27 +97,6 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.handleChange, setFieldChanged]);
 
-  const getFieldIsDiff = useCallback(
-    (field: string): boolean =>
-      isEqualIn(formik.values, field, formik.initialValues),
-    [formik.initialValues, formik.values],
-  );
-
-  const changeFieldValue = useCallback<typeof formik.setFieldValue>(
-    async (...args) => {
-      const [field] = args;
-
-      setFieldChanged(field, true);
-
-      await formik.setFieldValue(...args);
-    },
-
-    // Only the field value setter is being used here
-    //
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [formik.setFieldValue, setFieldChanged],
-  );
-
   const disabledSubmit = useMemo(
     () =>
       changing ||
@@ -120,6 +121,33 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     [formik.errors, getFieldChanged],
   );
 
+  const validationSchemaHelpers = useMemo<
+    FormikValidationSchemaHelpers | undefined
+  >(() => {
+    if (!yup.isSchema(formikConfig.validationSchema)) {
+      return undefined;
+    }
+
+    const description = formikConfig.validationSchema.describe();
+
+    return {
+      description,
+      required: (field: string) => {
+        if (!('fields' in description)) {
+          return undefined;
+        }
+
+        const fieldDescription = description.fields[field];
+
+        if (!('optional' in fieldDescription)) {
+          return undefined;
+        }
+
+        return !fieldDescription.optional;
+      },
+    };
+  }, [formikConfig.validationSchema]);
+
   return {
     changeFieldValue,
     disabledSubmit,
@@ -129,6 +157,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     getFieldIsDiff,
     handleChange: debounceHandleChange,
     setFieldChanged,
+    validationSchemaHelpers,
   };
 };
 
