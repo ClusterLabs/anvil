@@ -173,6 +173,11 @@ const Autocomplete = <
             endAdornment: InputProps.endAdornment,
             inputProps,
             startAdornment: InputProps.startAdornment,
+            sx: {
+              [`& .${muiOutlinedInputClasses.input}`]: {
+                margin: 0,
+              },
+            },
           },
           label,
         };
