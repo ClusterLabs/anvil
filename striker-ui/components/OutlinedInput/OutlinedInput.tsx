@@ -82,6 +82,10 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
 
       [`& .${muiOutlinedInputClasses.input}`]: {
         color: TEXT,
+        margin: '10px 8.5px',
+        marginRight: '0',
+        padding: '6.5px 5.5px',
+        paddingRight: '0',
       },
 
       '&:hover': {
