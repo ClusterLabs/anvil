@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import { Grid, gridClasses as muiGridClasses } from '@mui/material';
 import { FC } from 'react';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
@@ -24,17 +24,36 @@ const HostTabs: FC<HostTabsProps> = (props) => {
       value={value}
     >
       {hostValues.map((host) => {
-        const { hostConfigured, hostStatus, hostUUID, shortHostName } = host;
+        const {
+          hostConfigured,
+          hostStatus,
+          hostType,
+          hostUUID,
+          shortHostName,
+        } = host;
+
+        const type = hostType.replace('dr', 'DR').replace('node', 'Subnode');
 
         return (
           <Tab
             key={`host-${hostUUID}`}
             label={
-              <Grid columns={{ xs: 2 }} container spacing="1em">
-                <Grid item xs={1}>
+              <Grid
+                container
+                spacing="1em"
+                sx={{
+                  [`.${muiGridClasses.item}:not(:first-child)`]: {
+                    borderLeft: `thin solid ${DIVIDER}`,
+                  },
+                }}
+              >
+                <Grid item xs>
+                  <BodyText noWrap>{type}</BodyText>
+                </Grid>
+                <Grid item xs>
                   <MonoText noWrap>{shortHostName}</MonoText>
                 </Grid>
-                <Grid borderLeft={`thin solid ${DIVIDER}`} item xs={1}>
+                <Grid item xs>
                   <BodyText noWrap>
                     {hostStatus}
                     {hostConfigured ? ', configured' : ''}

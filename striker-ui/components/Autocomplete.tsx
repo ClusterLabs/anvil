@@ -30,6 +30,7 @@ type AutocompleteOptionalProps = {
   ) => void;
   getGroupLabel?: (group: string) => React.ReactNode;
   messageBoxProps?: Partial<MessageBoxProps>;
+  required?: boolean;
 };
 
 type AutocompleteProps<
@@ -77,6 +78,7 @@ const Autocomplete = <
     messageBoxProps,
     renderGroup,
     renderInput,
+    required,
     sx,
     ...autocompleteRestProps
   } = autocompleteProps;
@@ -173,15 +175,21 @@ const Autocomplete = <
             endAdornment: InputProps.endAdornment,
             inputProps,
             startAdornment: InputProps.startAdornment,
+            sx: {
+              [`& .${muiOutlinedInputClasses.input}`]: {
+                margin: 0,
+              },
+            },
           },
           label,
+          required,
         };
 
         extendRenderInput?.call(null, inputWithLabelProps, params);
 
         return <OutlinedInputWithLabel {...inputWithLabelProps} />;
       }),
-    [extendRenderInput, label, renderInput],
+    [extendRenderInput, label, renderInput, required],
   );
 
   const mergedSx = useMemo<

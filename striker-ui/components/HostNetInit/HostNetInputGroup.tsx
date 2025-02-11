@@ -34,7 +34,8 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
     netId,
   } = props;
 
-  const { formik, handleChange, setFieldChanged } = formikUtils;
+  const { changeFieldValue, formik, handleChange, setFieldChanged } =
+    formikUtils;
 
   const netTypeOptions = useMemo<SelectItem[]>(() => {
     const base: string[] = NETOPS[host.type];
@@ -120,7 +121,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               onMouseUp={() => {
                 if (!ifaceHeld) return;
 
-                formik.setFieldValue(chains.link1, ifaceHeld, true);
+                changeFieldValue(chains.link1, ifaceHeld, true);
               }}
             >
               <Autocomplete
@@ -137,11 +138,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                 label="Link 1"
                 noOptionsText="No matching interface"
                 onChange={(event, value) => {
-                  formik.setFieldValue(
-                    chains.link1,
-                    value ? value.uuid : '',
-                    true,
-                  );
+                  changeFieldValue(chains.link1, value ? value.uuid : '', true);
                 }}
                 openOnFocus
                 options={ifaceValues}
@@ -170,7 +167,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
               onMouseUp={() => {
                 if (!ifaceHeld) return;
 
-                formik.setFieldValue(chains.link2, ifaceHeld, true);
+                changeFieldValue(chains.link2, ifaceHeld, true);
               }}
             >
               <Autocomplete
@@ -187,11 +184,7 @@ const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
                 label="Link 2"
                 noOptionsText="No matching interface"
                 onChange={(event, value) => {
-                  formik.setFieldValue(
-                    chains.link2,
-                    value ? value.uuid : '',
-                    true,
-                  );
+                  changeFieldValue(chains.link2, value ? value.uuid : '', true);
                 }}
                 openOnFocus
                 options={ifaceValues}

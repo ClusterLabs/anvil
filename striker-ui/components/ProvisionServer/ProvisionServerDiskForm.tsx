@@ -1,10 +1,11 @@
 import { createFilterOptions, Grid } from '@mui/material';
-import { dSizeStr } from 'format-data-size';
+import { DataSize, dSize, dSizeStr } from 'format-data-size';
 import { useCallback, useMemo } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
 import Autocomplete from '../Autocomplete';
+import MaxButton from './MaxButton';
 import OutlinedLabeledInputWithSelect from '../OutlinedLabeledInputWithSelect';
 import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
@@ -50,6 +51,33 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
 
   const diskValues = formik.values.disks[id];
 
+  const maxFreeStorage = scope.current.reduce<bigint>((previous, group) => {
+    const { storageGroup: uuid } = group;
+
+    const sg = resources.storageGroups[uuid];
+
+    return sg.usage.free > previous ? sg.usage.free : previous;
+  }, BigInt(0));
+
+  const maxFreeStorageReadable = useMemo<DataSize & { str: string }>(() => {
+    const size = dSize(maxFreeStorage, {
+      toUnit: diskValues.size.unit,
+    });
+
+    if (!size) {
+      return {
+        str: 'unknown',
+        unit: 'B',
+        value: '0',
+      };
+    }
+
+    return {
+      ...size,
+      str: `${size.value} ${size.unit}`,
+    };
+  }, [diskValues.size.unit, maxFreeStorage]);
+
   return (
     <Grid container spacing="1em">
       <Grid item width="100%">
@@ -60,7 +88,23 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
               label={`Disk ${id}: size`}
               inputWithLabelProps={{
                 id: chains.value,
+                inputProps: {
+                  endAdornment: (
+                    <MaxButton
+                      onClick={() => {
+                        changeFieldValue(
+                          chains.value,
+                          maxFreeStorageReadable.value,
+                          true,
+                        );
+                      }}
+                    >
+                      {maxFreeStorageReadable.str}
+                    </MaxButton>
+                  ),
+                },
                 name: chains.value,
+                required: true,
               }}
               onChange={handleChange}
               selectItems={DSIZE_SELECT_ITEMS}
@@ -125,6 +169,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
               </li>
             );
           }}
+          required
           value={diskValues.storageGroup}
         />
       </Grid>

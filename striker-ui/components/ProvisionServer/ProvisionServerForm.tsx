@@ -1,5 +1,5 @@
 import { Box, createFilterOptions, Grid } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { DataSize, dSize, dSizeStr } from 'format-data-size';
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
@@ -9,6 +9,7 @@ import api from '../../lib/api';
 import Autocomplete from '../Autocomplete';
 import { DialogContext } from '../Dialog';
 import handleAPIError from '../../lib/handleAPIError';
+import MaxButton from './MaxButton';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
@@ -100,7 +101,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
         '0': {
           size: {
             unit: 'GiB',
-            value: '1',
+            value: '10',
           },
           storageGroup: null,
         },
@@ -131,6 +132,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
           const memoryBytes = dSize(values.memory.value, {
             fromUnit: values.memory.unit,
+            precision: 0,
             toUnit: 'B',
           });
 
@@ -152,6 +154,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
               const sizeBytes = dSize(size.value, {
                 fromUnit: size.unit,
+                precision: 0,
                 toUnit: 'B',
               });
 
@@ -267,6 +270,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
     const memoryBytes = dSize(formik.values.memory.value, {
       fromUnit: formik.values.memory.unit,
+      precision: 0,
       toUnit: 'B',
     });
 
@@ -294,6 +298,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
       const diskBytes = dSize(size.value, {
         fromUnit: size.unit,
+        precision: 0,
         toUnit: 'B',
       });
 
@@ -394,6 +399,33 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     formik,
     getFieldChanged,
   ]);
+
+  const maxAvailableMemory = scope.current.reduce<bigint>((previous, group) => {
+    const { node: uuid } = group;
+
+    const node = resources.nodes[uuid];
+
+    return node.memory.available > previous ? node.memory.available : previous;
+  }, BigInt(0));
+
+  const maxAvailableMemoryReadable = useMemo<DataSize & { str: string }>(() => {
+    const size = dSize(maxAvailableMemory, {
+      toUnit: formik.values.memory.unit,
+    });
+
+    if (!size) {
+      return {
+        str: 'unknown',
+        unit: 'B',
+        value: '0',
+      };
+    }
+
+    return {
+      ...size,
+      str: `${size.value} ${size.unit}`,
+    };
+  }, [formik.values.memory.unit, maxAvailableMemory]);
 
   const cpuCoresOptions = useMemo<readonly string[]>(() => {
     const max = nodes.values.reduce<number>(
@@ -534,6 +566,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     label="Server name"
                     name={chains.name}
                     onChange={handleChange}
+                    required
                     value={formik.values.name}
                   />
                 }
@@ -558,6 +591,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 }}
                 openOnFocus
                 options={cpuCoresOptions}
+                required
                 value={formik.values.cpu.cores}
               />
             </Grid>
@@ -568,7 +602,23 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     id="memory"
                     inputWithLabelProps={{
                       id: chains.memory.value,
+                      inputProps: {
+                        endAdornment: (
+                          <MaxButton
+                            onClick={() => {
+                              changeFieldValue(
+                                chains.memory.value,
+                                maxAvailableMemoryReadable.value,
+                                true,
+                              );
+                            }}
+                          >
+                            {maxAvailableMemoryReadable.str}
+                          </MaxButton>
+                        ),
+                      },
                       name: chains.memory.value,
+                      required: true,
                     }}
                     label="Memory"
                     onChange={handleChange}
@@ -610,11 +660,13 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 renderOption={(optionProps, uuid) =>
                   renderFileOption(chains.install, optionProps, uuid)
                 }
+                required
                 value={formik.values.install}
               />
             </Grid>
             <Grid item width="100%">
               <Autocomplete
+                autoSelect={false}
                 filterOptions={filterFileOptions}
                 getOptionDisabled={(uuid) => uuid === formik.values.install}
                 getOptionLabel={getFileOptionLabel}
@@ -664,7 +716,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                   return (
                     <li {...optionProps} key={`node-op-${uuid}`}>
                       <Grid alignItems="center" container>
-                        <Grid item xs>
+                        <Grid item width="70%">
                           <BodyText inheritColour noWrap>
                             {node.name}
                           </BodyText>
@@ -672,7 +724,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                             {node.description}
                           </SmallText>
                         </Grid>
-                        <Grid item>
+                        <Grid item width="30%">
                           <BodyText inheritColour noWrap>
                             CPU: {node.cpu.cores.total} cores
                           </BodyText>
@@ -687,6 +739,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     </li>
                   );
                 }}
+                required
                 value={formik.values.node}
               />
             </Grid>
@@ -729,6 +782,8 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     </li>
                   );
                 }}
+                required
+                value={formik.values.os}
               />
             </Grid>
             <Grid item width="100%">

@@ -9,6 +9,7 @@ import {
   outlinedInputClasses as muiOutlinedInputClasses,
   OutlinedInputProps as MUIOutlinedInputProps,
 } from '@mui/material';
+import { merge } from 'lodash';
 import { cloneElement, FC, ReactElement, useMemo, useState } from 'react';
 
 import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
@@ -73,37 +74,43 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
   }, [initialType, onPasswordVisibilityAppend, type]);
 
   const combinedSx = useMemo(
-    () => ({
-      color: GREY,
+    () =>
+      merge(
+        {
+          color: GREY,
 
-      [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-        borderColor: UNSELECTED,
-      },
+          [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+            borderColor: UNSELECTED,
+          },
 
-      [`& .${muiOutlinedInputClasses.input}`]: {
-        color: TEXT,
-      },
+          [`& .${muiOutlinedInputClasses.input}`]: {
+            color: TEXT,
+            margin: '10px 8.5px',
+            marginRight: '0',
+            padding: '6.5px 5.5px',
+            paddingRight: '0',
+          },
 
-      '&:hover': {
-        [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-          borderColor: GREY,
-        },
-      },
+          '&:hover': {
+            [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+              borderColor: GREY,
+            },
+          },
 
-      [`&.${muiOutlinedInputClasses.focused}`]: {
-        color: TEXT,
+          [`&.${muiOutlinedInputClasses.focused}`]: {
+            color: TEXT,
 
-        [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-          borderColor: GREY,
+            [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+              borderColor: GREY,
 
-          '& legend': {
-            paddingRight: label ? '1.2em' : 0,
+              '& legend': {
+                paddingRight: label ? '1.2em' : 0,
+              },
+            },
           },
         },
-      },
-
-      ...sx,
-    }),
+        sx,
+      ),
     [label, sx],
   );
 
