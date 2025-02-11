@@ -217,7 +217,6 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     formikErrors,
     getFieldChanged,
     handleChange,
-    validationSchemaHelpers,
   } = formikUtils;
 
   const chains = useMemo(
@@ -535,6 +534,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     label="Server name"
                     name={chains.name}
                     onChange={handleChange}
+                    required
                     value={formik.values.name}
                   />
                 }
@@ -559,6 +559,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 }}
                 openOnFocus
                 options={cpuCoresOptions}
+                required
                 value={formik.values.cpu.cores}
               />
             </Grid>
@@ -570,6 +571,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     inputWithLabelProps={{
                       id: chains.memory.value,
                       name: chains.memory.value,
+                      required: true,
                     }}
                     label="Memory"
                     onChange={handleChange}
@@ -611,12 +613,13 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 renderOption={(optionProps, uuid) =>
                   renderFileOption(chains.install, optionProps, uuid)
                 }
+                required
                 value={formik.values.install}
               />
             </Grid>
             <Grid item width="100%">
               <Autocomplete
-                autoSelect={validationSchemaHelpers?.required(chains.driver)}
+                autoSelect={false}
                 filterOptions={filterFileOptions}
                 getOptionDisabled={(uuid) => uuid === formik.values.install}
                 getOptionLabel={getFileOptionLabel}
@@ -689,6 +692,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     </li>
                   );
                 }}
+                required
                 value={formik.values.node}
               />
             </Grid>
@@ -731,6 +735,8 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     </li>
                   );
                 }}
+                required
+                value={formik.values.os}
               />
             </Grid>
             <Grid item width="100%">

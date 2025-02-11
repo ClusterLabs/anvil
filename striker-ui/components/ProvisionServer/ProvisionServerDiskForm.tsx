@@ -61,6 +61,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
               inputWithLabelProps={{
                 id: chains.value,
                 name: chains.value,
+                required: true,
               }}
               onChange={handleChange}
               selectItems={DSIZE_SELECT_ITEMS}
@@ -125,6 +126,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
               </li>
             );
           }}
+          required
           value={diskValues.storageGroup}
         />
       </Grid>
