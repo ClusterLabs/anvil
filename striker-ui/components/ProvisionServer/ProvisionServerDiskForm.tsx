@@ -51,13 +51,17 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
 
   const diskValues = formik.values.disks[id];
 
-  const maxFreeStorage = scope.current.reduce<bigint>((previous, group) => {
-    const { storageGroup: uuid } = group;
+  const maxFreeStorage = useMemo(
+    () =>
+      scope.reduce<bigint>((previous, group) => {
+        const { storageGroup: uuid } = group;
 
-    const sg = resources.storageGroups[uuid];
+        const sg = resources.storageGroups[uuid];
 
-    return sg.usage.free > previous ? sg.usage.free : previous;
-  }, BigInt(0));
+        return sg.usage.free > previous ? sg.usage.free : previous;
+      }, BigInt(0)),
+    [resources.storageGroups, scope],
+  );
 
   const maxFreeStorageReadable = useMemo<DataSize & { str: string }>(() => {
     const size = dSize(maxFreeStorage, {
@@ -130,7 +134,7 @@ const ProvisionServerDiskForm: React.FC<ProvisionServerDiskProps> = (props) => {
             },
           })}
           getOptionDisabled={(uuid) =>
-            scope.current.every((group) => group.storageGroup !== uuid)
+            scope.every((group) => group.storageGroup !== uuid)
           }
           getOptionLabel={(uuid) => {
             const { node, sg } = getBranch(uuid);
