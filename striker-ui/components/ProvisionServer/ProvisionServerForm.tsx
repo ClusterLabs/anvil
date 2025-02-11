@@ -217,6 +217,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     formikErrors,
     getFieldChanged,
     handleChange,
+    validationSchemaHelpers,
   } = formikUtils;
 
   const chains = useMemo(
@@ -615,6 +616,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
             </Grid>
             <Grid item width="100%">
               <Autocomplete
+                autoSelect={validationSchemaHelpers?.required(chains.driver)}
                 filterOptions={filterFileOptions}
                 getOptionDisabled={(uuid) => uuid === formik.values.install}
                 getOptionLabel={getFileOptionLabel}
