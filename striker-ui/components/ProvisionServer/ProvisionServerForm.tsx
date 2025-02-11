@@ -669,7 +669,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                   return (
                     <li {...optionProps} key={`node-op-${uuid}`}>
                       <Grid alignItems="center" container>
-                        <Grid item xs>
+                        <Grid item width="70%">
                           <BodyText inheritColour noWrap>
                             {node.name}
                           </BodyText>
@@ -677,7 +677,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                             {node.description}
                           </SmallText>
                         </Grid>
-                        <Grid item>
+                        <Grid item width="30%">
                           <BodyText inheritColour noWrap>
                             CPU: {node.cpu.cores.total} cores
                           </BodyText>
