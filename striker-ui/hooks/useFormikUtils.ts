@@ -139,7 +139,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
 
         const fieldDescription = description.fields[field];
 
-        if (!('optional' in fieldDescription)) {
+        if (!fieldDescription || !('optional' in fieldDescription)) {
           return undefined;
         }
 
