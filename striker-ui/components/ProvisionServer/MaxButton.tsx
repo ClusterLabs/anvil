@@ -8,11 +8,11 @@ const BaseStyle = styled(ContainedButton)({
 });
 
 const MaxButton: React.FC<MaxButtonProps> = (props) => {
-  const { max, onClick, slotProps } = props;
+  const { children, onClick, slotProps } = props;
 
   return (
     <BaseStyle onClick={onClick} {...slotProps?.button}>
-      Max: {max}
+      Max: {children}
     </BaseStyle>
   );
 };

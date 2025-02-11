@@ -1,5 +1,5 @@
 import { Box, createFilterOptions, Grid } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { DataSize, dSize, dSizeStr } from 'format-data-size';
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
@@ -9,6 +9,7 @@ import api from '../../lib/api';
 import Autocomplete from '../Autocomplete';
 import { DialogContext } from '../Dialog';
 import handleAPIError from '../../lib/handleAPIError';
+import MaxButton from './MaxButton';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
@@ -131,6 +132,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
           const memoryBytes = dSize(values.memory.value, {
             fromUnit: values.memory.unit,
+            precision: 0,
             toUnit: 'B',
           });
 
@@ -152,6 +154,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
               const sizeBytes = dSize(size.value, {
                 fromUnit: size.unit,
+                precision: 0,
                 toUnit: 'B',
               });
 
@@ -267,6 +270,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
     const memoryBytes = dSize(formik.values.memory.value, {
       fromUnit: formik.values.memory.unit,
+      precision: 0,
       toUnit: 'B',
     });
 
@@ -294,6 +298,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
       const diskBytes = dSize(size.value, {
         fromUnit: size.unit,
+        precision: 0,
         toUnit: 'B',
       });
 
@@ -394,6 +399,33 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     formik,
     getFieldChanged,
   ]);
+
+  const maxAvailableMemory = scope.current.reduce<bigint>((previous, group) => {
+    const { node: uuid } = group;
+
+    const node = resources.nodes[uuid];
+
+    return node.memory.available > previous ? node.memory.available : previous;
+  }, BigInt(0));
+
+  const maxAvailableMemoryReadable = useMemo<DataSize & { str: string }>(() => {
+    const size = dSize(maxAvailableMemory, {
+      toUnit: formik.values.memory.unit,
+    });
+
+    if (!size) {
+      return {
+        str: 'unknown',
+        unit: 'B',
+        value: '0',
+      };
+    }
+
+    return {
+      ...size,
+      str: `${size.value} ${size.unit}`,
+    };
+  }, [formik.values.memory.unit, maxAvailableMemory]);
 
   const cpuCoresOptions = useMemo<readonly string[]>(() => {
     const max = nodes.values.reduce<number>(
@@ -570,6 +602,21 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                     id="memory"
                     inputWithLabelProps={{
                       id: chains.memory.value,
+                      inputProps: {
+                        endAdornment: (
+                          <MaxButton
+                            onClick={() => {
+                              changeFieldValue(
+                                chains.memory.value,
+                                maxAvailableMemoryReadable.value,
+                                true,
+                              );
+                            }}
+                          >
+                            {maxAvailableMemoryReadable.str}
+                          </MaxButton>
+                        ),
+                      },
                       name: chains.memory.value,
                       required: true,
                     }}

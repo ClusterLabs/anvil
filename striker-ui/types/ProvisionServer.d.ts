@@ -40,9 +40,7 @@ type MaxButtonOptionalProps = Pick<ContainedButtonProps, 'onClick'> & {
   };
 };
 
-type MaxButtonProps = MaxButtonOptionalProps & {
-  max: string;
-};
+type MaxButtonProps = MaxButtonOptionalProps;
 
 type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
   formikUtils: FormikUtils<ProvisionServerFormikValues>;
