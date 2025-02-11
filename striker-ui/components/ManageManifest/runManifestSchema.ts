@@ -20,8 +20,8 @@ const hostSchema = yup.object({
   uuid: yupLaxUuid().required(),
 });
 
-const rerunStringSchema = yup.string().when('rerun', (refs, field) => {
-  const rerun = refs[0] as boolean;
+const rerunStringSchema = yup.string().when(['rerun'], (values, field) => {
+  const rerun = values[0] as boolean;
 
   return rerun ? field.optional() : field.required();
 });
@@ -34,8 +34,12 @@ const runManifestSchema = yup.object({
   ),
   password: rerunStringSchema,
   rerun: yup.boolean().required(),
-  reuseHosts: yup.boolean().when('hosts', (refs, field) => {
-    const hosts = refs[0] as RunManifestFormikValues['hosts'];
+  reuseHosts: yup.boolean().when(['hosts'], (values, field) => {
+    const hosts = values[0] as RunManifestFormikValues['hosts'] | undefined;
+
+    if (!hosts) {
+      return field.isFalse();
+    }
 
     return Object.values(hosts).some((host) => Boolean(host.anvil))
       ? field.isTrue()
