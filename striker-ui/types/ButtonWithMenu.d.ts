@@ -1,7 +1,15 @@
-type ButtonWithMenuOptionalProps<T = unknown> = Omit<MenuProps<T>, 'open'> & {
-  containedButtonProps?: Partial<ContainedButtonProps>;
-  iconButtonProps?: Partial<import('../components/IconButton').IconButtonProps>;
-  onButtonClick?: import('react').MouseEventHandler<HTMLButtonElement>;
+type ButtonWithMenuOptionalProps<T = unknown> = Pick<
+  MenuProps<T>,
+  'getItemDisabled' | 'getItemHref' | 'items' | 'onItemClick' | 'renderItem'
+> & {
+  onClick?: import('react').MouseEventHandler<HTMLButtonElement>;
+  slotProps?: {
+    button?: {
+      contained?: Partial<ContainedButtonProps>;
+      icon?: Partial<import('../components/IconButton').IconButtonProps>;
+    };
+    menu?: Partial<MenuProps<T>>;
+  };
   variant?: 'contained' | 'icon';
 };
 

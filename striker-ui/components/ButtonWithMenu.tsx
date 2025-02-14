@@ -1,21 +1,22 @@
 import { MoreVert as MoreVertIcon } from '@mui/icons-material';
 import { Box } from '@mui/material';
-import { FC, MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import { merge } from 'lodash';
+import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
 
 import ContainedButton from './ContainedButton';
 import IconButton from './IconButton/IconButton';
 import Menu from './Menu';
 
-const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
+const ButtonWithMenu = <T = unknown,>(
+  ...[props]: Parameters<React.FC<ButtonWithMenuProps<T>>>
+): ReturnType<React.FC<ButtonWithMenuProps<T>>> => {
   const {
     children,
-    containedButtonProps,
-    iconButtonProps,
-    muiMenuProps,
-    onButtonClick,
+    onClick,
     onItemClick,
+    slotProps,
     variant = 'icon',
-    ...menuProps
+    ...restProps
   } = props;
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -28,11 +29,11 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
     }
 
     if (variant === 'icon') {
-      return <MoreVertIcon fontSize={iconButtonProps?.size} />;
+      return <MoreVertIcon fontSize={slotProps?.button?.icon?.size} />;
     }
 
     return 'Options';
-  }, [children, iconButtonProps?.size, variant]);
+  }, [children, slotProps?.button?.icon?.size, variant]);
 
   const buttonClickHandler = useCallback<MouseEventHandler<HTMLButtonElement>>(
     (...args) => {
@@ -42,35 +43,38 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
 
       setAnchorEl(currentTarget);
 
-      return onButtonClick?.call(null, ...args);
+      return onClick?.call(null, ...args);
     },
-    [onButtonClick],
+    [onClick],
   );
 
   const buttonElement = useMemo(() => {
     if (variant === 'contained') {
       return (
-        <ContainedButton onClick={buttonClickHandler} {...containedButtonProps}>
+        <ContainedButton
+          onClick={buttonClickHandler}
+          {...slotProps?.button?.contained}
+        >
           {buttonContent}
         </ContainedButton>
       );
     }
 
     return (
-      <IconButton onClick={buttonClickHandler} {...iconButtonProps}>
+      <IconButton onClick={buttonClickHandler} {...slotProps?.button?.icon}>
         {buttonContent}
       </IconButton>
     );
   }, [
     buttonClickHandler,
     buttonContent,
-    containedButtonProps,
-    iconButtonProps,
+    slotProps?.button?.contained,
+    slotProps?.button?.icon,
     variant,
   ]);
 
   const itemClickHandler = useCallback<
-    Exclude<MenuProps['onItemClick'], undefined>
+    Exclude<MenuProps<T>['onItemClick'], undefined>
   >(
     (key, value, ...rest) => {
       setAnchorEl(null);
@@ -80,24 +84,33 @@ const ButtonWithMenu: FC<ButtonWithMenuProps> = (props) => {
     [onItemClick],
   );
 
+  const mergedMenuSlotProps = useMemo<MenuProps['slotProps']>(
+    () =>
+      merge(
+        {
+          menu: {
+            anchorEl,
+            keepMounted: true,
+            onClose: () => setAnchorEl(null),
+          },
+        },
+        slotProps?.menu?.slotProps,
+      ),
+    [anchorEl, slotProps?.menu?.slotProps],
+  );
+
   return (
     <Box>
       {buttonElement}
-      <Menu
-        muiMenuProps={{
-          anchorEl,
-          keepMounted: true,
-          onClose: () => setAnchorEl(null),
-          ...muiMenuProps,
-        }}
+      <Menu<T>
         onItemClick={itemClickHandler}
         open={open}
-        {...menuProps}
+        {...restProps}
+        {...slotProps?.menu}
+        slotProps={mergedMenuSlotProps}
       />
     </Box>
   );
 };
 
-export default ButtonWithMenu as <T>(
-  ...args: Parameters<FC<ButtonWithMenuProps<T>>>
-) => ReturnType<FC<ButtonWithMenuProps<T>>>;
+export default ButtonWithMenu;

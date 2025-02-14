@@ -7,7 +7,7 @@ import {
 import { Box, styled, Typography } from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
-import { useState, useEffect, FC, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useCookies } from 'react-cookie';
 
 import IconButton from '../IconButton';
@@ -52,16 +52,20 @@ const MAP_TO_WSCODE_MSG: Record<number, string> = {
   1006: 'destination is down?',
 };
 
-const buildServerVncUrl = (host: string, serverUuid: string) =>
-  `ws://${host}/ws/server/vnc/${serverUuid}`;
+const buildServerVncUrl = (host: string, server: string) =>
+  `ws://${host}/ws/server/vnc/${server}`;
 
-const FullSize: FC<FullSizeProps> = ({
-  onClickCloseButton,
-  serverUuid,
-  serverName,
-  vncReconnectTimerStart = DEFAULT_VNC_RECONNECT_TIMER_START,
-}): JSX.Element => {
-  const [cookies] = useCookies([`suiapi.vncerror.${serverUuid}`]);
+const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
+  ...[props]: Parameters<FullSizeComponent<Node, Server>>
+): ReturnType<FullSizeComponent<Node, Server>> => {
+  const {
+    node,
+    onClickCloseButton,
+    server,
+    vncReconnectTimerStart = DEFAULT_VNC_RECONNECT_TIMER_START,
+  } = props;
+
+  const [cookies] = useCookies([`suiapi.vncerror.${server.uuid}`]);
 
   const isFirstRender = useIsFirstRender();
 
@@ -115,9 +119,9 @@ const FullSize: FC<FullSizeProps> = ({
     setVncError(false);
 
     setRfbConnectArgs({
-      url: buildServerVncUrl(window.location.host, serverUuid),
+      url: buildServerVncUrl(window.location.host, server.uuid),
     });
-  }, [serverUuid]);
+  }, [server.uuid]);
 
   const disconnectServerVnc = useCallback(() => {
     if (rfb?.current) {
@@ -194,7 +198,7 @@ const FullSize: FC<FullSizeProps> = ({
       setVncWsErrorMessage(wsmsg);
 
       const vncerror: APIError | undefined =
-        cookies[`suiapi.vncerror.${serverUuid}`];
+        cookies[`suiapi.vncerror.${server.uuid}`];
 
       if (!vncerror) {
         setVncApiErrorMessage(undefined);
@@ -206,7 +210,7 @@ const FullSize: FC<FullSizeProps> = ({
 
       setVncApiErrorMessage(`api: ${apicode}, ${message}`);
     },
-    [cookies, serverUuid],
+    [cookies, server.uuid],
   );
 
   const showScreen = useMemo(
@@ -236,12 +240,14 @@ const FullSize: FC<FullSizeProps> = ({
           <KeyboardIcon />
         </IconButton>
         <Menu
-          muiMenuProps={{
-            anchorEl,
-            keepMounted: true,
-            onClose: () => setAnchorEl(null),
-          }}
           open={Boolean(anchorEl)}
+          slotProps={{
+            menu: {
+              anchorEl,
+              keepMounted: true,
+              onClose: () => setAnchorEl(null),
+            },
+          }}
         >
           {keyCombinations.map(({ keys, scans }) => (
             <MenuItem key={keys} onClick={() => handleSendKeys(scans)}>
@@ -295,11 +301,7 @@ const FullSize: FC<FullSizeProps> = ({
         <>
           {fullscreenElement}
           {keyboardMenuElement}
-          <ServerMenu
-            serverName={serverName}
-            serverState="running"
-            serverUuid={serverUuid}
-          />
+          <ServerMenu node={node} server={server} />
           {returnHomeElement}
           {vncDisconnectElement}
         </>
@@ -307,9 +309,9 @@ const FullSize: FC<FullSizeProps> = ({
     [
       fullscreenElement,
       keyboardMenuElement,
+      node,
       returnHomeElement,
-      serverName,
-      serverUuid,
+      server,
       showScreen,
       vncDisconnectElement,
     ],
@@ -332,7 +334,7 @@ const FullSize: FC<FullSizeProps> = ({
   return (
     <Panel>
       <PanelHeader>
-        <HeaderText text={`Server: ${serverName}`} />
+        <HeaderText text={`Server: ${server.name}`} />
         {vncToolbarElement}
       </PanelHeader>
       <StyledDiv>
@@ -353,7 +355,7 @@ const FullSize: FC<FullSizeProps> = ({
           <Box display="flex" className={classes.spinnerBox} textAlign="center">
             {vncConnecting && (
               <>
-                <HeaderText>Connecting to {serverName}.</HeaderText>
+                <HeaderText>Connecting to {server.name}.</HeaderText>
                 <Spinner />
               </>
             )}

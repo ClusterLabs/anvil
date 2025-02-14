@@ -1,14 +1,23 @@
-type ServerPowerOption = {
-  description: import('react').ReactNode;
-  label: string;
-  path: string;
-  colour?: Exclude<ContainedButtonBackground, 'normal'>;
+type ServerOption = {
+  disabled?: <Value extends ServerOption>(key: string, value: Value) => boolean;
+  href?: <Value extends ServerOption>(key: string, value: Value) => string;
+  onClick?: <Value extends ServerOption>(key: string, value: Value) => void;
+  render: <Value extends ServerOption>(
+    key: string,
+    value: Value,
+  ) => React.ReactNode;
 };
 
-type MapToServerPowerOption = Record<string, ServerPowerOption>;
+type ServerMenuOptionalProps = {
+  slotProps?: {
+    button?: ButtonWithMenuProps<ServerOption>;
+  };
+};
 
-type ServerMenuProps = ButtonWithMenuProps & {
-  serverName: string;
-  serverState: string;
-  serverUuid: string;
+type ServerMenuProps<
+  Node extends NodeMinimum,
+  Server extends ServerMinimum,
+> = ServerMenuOptionalProps & {
+  node: Node;
+  server: Server;
 };

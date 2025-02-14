@@ -119,13 +119,13 @@ const Server = (): JSX.Element => {
     vnc: (
       <Box className={classes.fullView}>
         <FullSize
+          node={server.anvil}
           onClickCloseButton={() => {
             const query = setQueryParam(router, 'view');
 
             router.replace({ query }, undefined, { shallow: true });
           }}
-          serverUuid={server.uuid}
-          serverName={server.name}
+          server={server}
         />
       </Box>
     ),

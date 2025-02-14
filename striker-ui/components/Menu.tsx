@@ -44,9 +44,11 @@ const Menu = <Item = unknown,>(
           disabled: getItemDisabled?.call(null, key, value),
         };
 
-        if (getItemHref) {
+        const href = getItemHref?.call(null, key, value);
+
+        if (href) {
           itemProps.component = 'a';
-          itemProps.href = getItemHref(key, value);
+          itemProps.href = href;
         } else {
           itemProps.onClick = (...args) =>
             onItemClick?.call(null, key, value, ...args);
