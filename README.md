@@ -8,4 +8,4 @@ Major components;
 
 This project is being designed for EL 9 (RHEL/Alma), Pacemaker 2, DRBD v9, Corosync 3 and Kronosnet 1.
 
-© Alteeve's Niche! Inc. 1997-2024
+© Alteeve's Niche! Inc. 1997-2025
