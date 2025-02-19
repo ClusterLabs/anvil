@@ -23,6 +23,8 @@ my $THIS_FILE = "Network.pm";
 # find_matches
 # find_target_ip
 # get_company_from_mac
+# get_host_from_ip
+# get_ip_from_host
 # get_ip_from_mac
 # get_ips
 # get_network
@@ -2141,6 +2143,123 @@ sub get_company_from_mac
 	}
 	
 	return($company);
+}
+
+
+=head2 get_host_from_ip
+
+This takes an IP address and returns a C<< host_uuid >> if the IP is known to below to a known host. If no IP is found (or not mapped to a host), an empty string is returned.
+
+Parameters;
+
+=head3 ip (required)
+
+This is the IP address being searched for.
+
+=cut
+sub get_host_from_ip
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_host_from_ip()" }});
+	
+	my $ip = defined $parameter->{ip} ? $parameter->{ip} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		ip => $ip, 
+	}});
+	
+	# Is it a valid IP?
+	my $is_ip = $anvil->Validate->ip({
+		debug => $debug, 
+		ip    => $ip,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { is_ip => $is_ip }});
+	if (not $is_ip)
+	{
+		# Not an IP, return.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0313", variables => { ip => $ip }});
+		return("");
+	}
+	
+	my $host_uuid = "";
+	my $query     = "SELECT ip_address_host_uuid FROM ip_addresses WHERE ip_address_address = ".$anvil->Database->quote($ip).";";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	if ($count)
+	{
+		$host_uuid = $results->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	}
+	
+	return($host_uuid);
+}
+
+
+=head2 get_ip_from_host
+
+This takes a host name and tries to convert it to IP addresses. If no IP is found, an empty string is returned. If two or more IPs are found, they're returned as a comma-separated list.
+
+Parameters;
+
+=head3 host (required)
+
+This is the host name being searched for.
+
+=cut
+sub get_ip_from_host
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_ip_from_host()" }});
+	
+	my $ip   = "";
+	my $host = defined $parameter->{host} ? $parameter->{host} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host => $host, 
+	}});
+	
+	# Convert the host to a host_uuid, if possible.
+	my $host_uuid = $anvil->Get->host_uuid_from_name({
+		debug     => $debug, 
+		host_name => $host,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	if (not $host_uuid)
+	{
+		# No luck
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "error_0320", variables => { host => $host }});
+		return("");
+	}
+	
+	my $query = "SELECT ip_address_address FROM ip_addresses WHERE ip_address_host_uuid = ".$anvil->Database->quote($host_uuid)." ORDER BY ip_address_address ASC;";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0124", variables => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count,
+	}});
+	if ($count)
+	{
+		foreach my $row (@{$results})
+		{
+			$ip .= $row->[0].",";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+		}
+		$ip =~ s/,$//;
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { ip => $ip }});
+	return($ip);
 }
 
 

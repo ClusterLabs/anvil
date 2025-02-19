@@ -315,6 +315,22 @@ sub process_file
 		's5:target'  => $target, 
 	}});
 	
+	# if my target is an IP, find the host names. If it's a host name, get the IP then look for other names.
+	my $is_ip   = $anvil->Validate->ip({ip => $target});
+	my $host_ip = "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_ip => $is_ip }});
+	if ($is_ip)
+	{
+		# Get the host names
+		$host_ip = $target;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_ip => $host_ip }});
+	}
+	else
+	{
+		# Find the IP from the hostname.
+	}
+	die;
+	
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0049,!!bad_key!".$bad_key."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => { bad_key => $bad_key }});
@@ -341,6 +357,20 @@ sub process_file
 		
 		return(1);
 	}
+	
+	# What is the host IP or name for this bad key?
+	#$anvil->data->{bad_key}
+	my $ip = "";
+	foreach my $line (split/\n/, $old_body)
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line_number.":".$line }});
+		
+		if ($line =~ /\Q$bad_key\E/)
+		{
+			my 
+		}
+	}
+	die;
 	
 	# Find our key(s)
 	my $line_number = 0;

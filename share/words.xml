@@ -470,7 +470,7 @@ We're done waiting, exiting out.
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
-		<key name="error_0313">#!free!#</key>
+		<key name="error_0313">I was asked to find the host that has the IP address: [#!variable!ip!#], but that doesn't appear to be an IP.</key>
 		<key name="error_0314">Asked to remove an interface from the server: [#!variable!server!#] with the MAC address: [#!variable!mac!#], but no interface with that MAC was found.</key>
 		<key name="error_0315">
 Failed to remove the network interface on: [#!variable!server!#] with the MAC address: [#!variable!mac!#].
@@ -491,7 +491,7 @@ Output (if any):
 [ Error ] - Please correct the source of the failure and then re-run the password update.
 </key>
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
-		<key name="error_0320">#!free!#</key>
+		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
 		<key name="error_0321">#!free!#</key>
 		<key name="error_0322">#!free!#</key>
 		<key name="error_0323">#!free!#</key>
