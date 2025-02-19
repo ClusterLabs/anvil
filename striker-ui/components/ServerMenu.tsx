@@ -85,7 +85,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
           <Grid container>
             <Grid item width="100%">
               <BodyText inheritColour noWrap>
-                Node
+                On node
               </BodyText>
             </Grid>
             <Grid item>
