@@ -254,7 +254,7 @@ sub configure_servers
 				my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
 				my $scan_lvm_vg_size          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{scan_lvm_vg_size};
 				my $this_storage_group_uuid   = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$scan_lvm_vg_name}{storage_group_uuid};
-				next if $this_storage_group_uuid;
+				next if not $this_storage_group_uuid;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:scan_lvm_vg_name'          => $scan_lvm_vg_name, 
 					's2:scan_lvm_vg_uuid'          => $scan_lvm_vg_uuid, 
