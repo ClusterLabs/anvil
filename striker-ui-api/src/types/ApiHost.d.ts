@@ -92,16 +92,24 @@ type InitializeStrikerResponseBody = {
 };
 
 type PrepareHostRequestBody = {
-  enterpriseUUID?: string;
-  hostIPAddress: string;
-  hostName: string;
-  hostPassword: string;
-  hostSSHPort?: number;
-  hostType: string;
-  hostUser?: string;
-  hostUUID?: string;
-  redhatPassword: string;
-  redhatUser: string;
+  enterprise: {
+    uuid?: string;
+  };
+  host: {
+    name: string;
+    password: string;
+    ssh: {
+      port?: number;
+    };
+    type: string;
+    user?: string;
+    uuid?: string;
+  };
+  redhat: {
+    password?: string;
+    user?: string;
+  };
+  target: string;
 };
 
 type PrepareNetworkRequestBody = {
