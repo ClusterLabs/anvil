@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
-import { job, query } from '../../accessModule';
+import { getLocalHostUUID, job, query } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
 import { Responder } from '../../Responder';
 import { deleteSshKeyConflictRequestBodySchema } from './schemas';
@@ -40,6 +40,14 @@ export const deleteSSHKeyConflict: RequestHandler<
     jobs: {},
   };
 
+  let localHostUuid: string;
+
+  try {
+    localHostUuid = getLocalHostUUID();
+  } catch (error) {
+    return respond.s500('ee17828', String(error));
+  }
+
   for (const key of badKeys) {
     for (const hostUuid of hostUuids) {
       try {
@@ -54,6 +62,7 @@ export const deleteSSHKeyConflict: RequestHandler<
         });
 
         responseBody.jobs[jobUuid] = {
+          local: hostUuid === localHostUuid,
           uuid: jobUuid,
         };
       } catch (error) {
