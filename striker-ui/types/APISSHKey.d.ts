@@ -10,6 +10,9 @@ type APISSHKeyConflictOverviewList = Record<string, APISSHKeyConflictOverview>;
 
 type APIDeleteSSHKeyConflictRequestBody = {
   badKeys: string[];
+  badHost: {
+    uuid?: string;
+  };
 };
 
 type APIDeleteSSHKeyConflictResponseBody = {
