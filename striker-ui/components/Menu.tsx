@@ -8,6 +8,7 @@ import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
+import ListSubheader from './ListSubheader';
 import MenuItem from './MenuItem';
 
 const BaseMenu = styled(MuiMenu)({
@@ -35,6 +36,12 @@ const Menu = <Item = unknown,>(
   const itemElements = useMemo(
     () =>
       pairs.map(([key, value]) => {
+        if (key.includes('subheader')) {
+          return (
+            <ListSubheader>{renderItem?.call(null, key, value)}</ListSubheader>
+          );
+        }
+
         const itemProps: Pick<
           MuiMenuItemProps,
           'component' | 'disabled' | 'onClick'
