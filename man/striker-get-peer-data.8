@@ -1,18 +1,14 @@
 .\" Manpage for the Anvil! IA platform 
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH striker-get-peer-data "8" "July 23 2024" "Anvil! Intelligent Availability™ Platform"
+.TH striker-get-peer-data "8" "February 19 2025" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
-striker-get-peer-data \- This manages peering two Striker dashboards
+striker-get-peer-data \- This collects information from a target computer.
 .SH SYNOPSIS
 .B striker-get-peer-data 
 \fI\,<command> \/\fR[\fI\,options\/\fR]
 .SH DESCRIPTION
-This handles peering Striker dashboards. Peered Strikers means that they act as replaceable alternative dashboards, should another fail.
-.TP
-.B Note
-The list that is downloaded is - https://standards-oui.ieee.org/oui/oui.txt 
-.TP
-The oui.txt file is cached locally once downloaded to minimizing loading the IEEE server. It will be redownloaded every few days.
+This is used to test a connection to a remote machine and, if it connects, information about the host is returned.
+.IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
 Show this man page.
@@ -22,30 +18,17 @@ When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
 .SS "Commands:"
-\fB\-\-target\fR
-
 .TP
-\fB\-\-list\fR
-
+\fB\-\-password\fR <password>
+If the '\fB\-\-state\-uuid\fR' is not used, the alternative way to pass the password to use to connect to the \fB\-\-target\fR is using this switch. Be mindful of escaping or quoting the password as necessary.
 .TP
-\fB\-\-enable\fR
-This enables the install target feature.
+\fB\-\-state\-uuid\fR <uuid>
+If the password is stored in the database's 'states' table, this is the 'state_uuid' that points to the record with the password stored in the 'state_note'. Once this is read, the 'state_uuid' column is deleted, so it's one-use.
 .TP
-\fB\-\-force\fR
-This is the same as '--refresh', forcing the update of the RPM repo.
-.TP
-\fB\-\-job\-uuid\fR <uuid>
-This is the job UUID used to run this job.
-.TP
-\fB\-\-no\-refresh\fR
-If a refresh of the RPM repository would have been called, this switch will prevent it from happening.
-.TP
-\fB\-\-refresh\-file\fR
-This tells this run to refresh the RPM repository, regardless of whether it would have run otherwise.
-.TP
-\fB\-\-status\fR
-This checks to see if dhcpd is running or not, then exits (effectively checking if the install target feature is running).
+\fB\-\-target\fR [user@]<ip_or_hostname>[:port]
+This is the target you want to collect data from.
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
