@@ -1,7 +1,7 @@
 type GetHostSshRequestBody = {
   password: string;
   port?: number;
-  ipAddress: string;
+  target: string;
 };
 
 type GetHostSshResponseBody = {

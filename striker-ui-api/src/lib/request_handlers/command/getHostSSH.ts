@@ -23,7 +23,7 @@ export const getHostSSH: RequestHandler<
     return respond.s400('39bff39', `Invalid request body; CAUSE: ${error}`);
   }
 
-  const { password, port, ipAddress: target } = sanitized;
+  const { password, port, target } = sanitized;
 
   let responseBody: GetHostSshResponseBody;
 
