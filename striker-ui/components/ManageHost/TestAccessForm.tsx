@@ -34,8 +34,8 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
   const { disabledSubmit, formik, formikErrors, handleChange } =
     useFormikUtils<TestAccessFormikValues>({
       initialValues: {
-        ip: '',
         password: '',
+        target: '',
       },
       onSubmit: (values, { setSubmitting }) => {
         setApiMessage();
@@ -44,13 +44,18 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
         setResponse(undefined);
         setDeleteJobs(undefined);
 
-        const { ip, password } = values;
+        const { password, target } = values;
+
+        const requestBody: APICommandInquireHostRequestBody = {
+          password,
+          target,
+        };
 
         api
-          .put<APICommandInquireHostResponseBody>('/command/inquire-host', {
-            ipAddress: ip,
-            password,
-          })
+          .put<APICommandInquireHostResponseBody>(
+            '/command/inquire-host',
+            requestBody,
+          )
           .then(({ data }) => {
             const { badSshKeys, isConnected } = data;
 
@@ -58,7 +63,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
               setApiMessage({
                 children: (
                   <>
-                    Host identification at {ip} changed. If this is valid,
+                    Host identification at {target} changed. If this is valid,
                     please delete the conflicting SSH host key.
                   </>
                 ),
@@ -74,10 +79,10 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
                       actionProceedText: 'Delete',
                       content: (
                         <BodyText>
-                          There&apos;s a different host key on {ip}, which could
-                          mean a MITM attack. But if this change is expected,
-                          you can delete the known host key(s) to resolve the
-                          conflict.
+                          There&apos;s a different host key on {target}, which
+                          could mean a MITM attack. But if this change is
+                          expected, you can delete the known host key(s) to
+                          resolve the conflict.
                         </BodyText>
                       ),
                       onProceedAppend: () => {
@@ -93,7 +98,10 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
                           .then((response) => {
                             tools.confirm.finish('Success', {
                               children: (
-                                <>Started job to delete host key(s) for {ip}.</>
+                                <>
+                                  Started job to delete host key(s) for {target}
+                                  .
+                                </>
                               ),
                             });
 
@@ -117,7 +125,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
                           });
                       },
                       proceedColour: 'red',
-                      titleText: `Delete all known SSH host key(s) for ${ip}?`,
+                      titleText: `Delete all known SSH host key(s) for ${target}?`,
                     });
 
                     tools.confirm.open(true);
@@ -145,8 +153,8 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
 
             setResponse({
               ...data,
-              hostIpAddress: ip,
               hostPassword: password,
+              target,
             });
 
             setApiMessage();
@@ -156,7 +164,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
 
             emsg.children = (
               <>
-                Failed to access {ip}. {emsg.children}
+                Failed to access {target}. {emsg.children}
               </>
             );
 
@@ -200,7 +208,7 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
               name={ipChain}
               onChange={handleChange}
               required
-              value={formik.values.ip}
+              value={formik.values.target}
             />
           }
         />

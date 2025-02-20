@@ -1,3 +1,8 @@
+type APICommandInquireHostRequestBody = {
+  password: string;
+  target: string;
+};
+
 type APICommandInquireHostResponseBody = {
   badSshKeys?: APIDeleteSSHKeyConflictRequestBody;
   hostName: string;

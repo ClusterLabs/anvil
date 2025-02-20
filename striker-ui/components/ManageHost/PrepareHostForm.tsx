@@ -13,8 +13,14 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
 const HOST_TYPE_OPTIONS: RadioItemList = {
-  subnode: { label: 'Subnode', value: 'subnode' },
-  dr: { label: 'Disaster Recovery (DR) host', value: 'dr' },
+  subnode: {
+    label: 'Subnode',
+    value: 'subnode',
+  },
+  dr: {
+    label: 'Disaster Recovery (DR) host',
+    value: 'dr',
+  },
 };
 
 const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
@@ -23,22 +29,22 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
   const { disabledSubmit, formik, formikErrors, handleChange } =
     useFormikUtils<PrepareHostFormikValues>({
       initialValues: {
-        ip: host.hostIpAddress,
         name: host.hostName,
         password: host.hostPassword,
+        target: host.target,
         type: '',
         uuid: host.hostUUID,
       },
       onSubmit: (values, { setSubmitting }) => {
         const {
           enterpriseKey,
-          ip,
           name,
           password,
-          type,
-          uuid,
           redhatPassword,
           redhatUsername,
+          target,
+          type,
+          uuid,
         } = values;
 
         tools.confirm.prepare({
@@ -48,20 +54,29 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
           onProceedAppend: () => {
             tools.confirm.loading(true);
 
+            const requestBody: APIPrepareHostRequestBody = {
+              enterprise: {
+                uuid: enterpriseKey,
+              },
+              host: {
+                name,
+                password,
+                ssh: {},
+                type: type === 'subnode' ? 'node' : type,
+                uuid,
+              },
+              redhat: {
+                password: redhatPassword,
+                user: redhatUsername,
+              },
+              target,
+            };
+
             api
-              .put('/host/prepare', {
-                enterpriseUUID: enterpriseKey,
-                hostIPAddress: ip,
-                hostName: name,
-                hostPassword: password,
-                hostType: type === 'subnode' ? 'node' : type,
-                hostUUID: uuid,
-                redhatPassword,
-                redhatUser: redhatUsername,
-              })
+              .put('/host/prepare', requestBody)
               .then(() => {
                 tools.confirm.finish('Success', {
-                  children: <>Started job to prepare host at {ip}.</>,
+                  children: <>Started job to prepare host at {target}.</>,
                 });
 
                 tools.add.open(false);
@@ -73,7 +88,7 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
 
                 emsg.children = (
                   <>
-                    Failed to prepare host at {ip}. {emsg.children}
+                    Failed to prepare host at {target}. {emsg.children}
                   </>
                 );
 
@@ -82,7 +97,7 @@ const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
                 setSubmitting(false);
               });
           },
-          titleText: `Prepare host at ${values.ip} with the following?`,
+          titleText: `Prepare host at ${values.target} with the following?`,
         });
 
         tools.confirm.open();

@@ -1,11 +1,10 @@
 import * as yup from 'yup';
 
-import { yupIpv4, yupLaxUuid } from '../../../lib/yupCommons';
+import { yupLaxUuid } from '../../../lib/yupCommons';
 
 const prepareHostSchema = yup.object().shape(
   {
     enterpriseKey: yupLaxUuid().optional(),
-    ip: yupIpv4().required(),
     name: yup.string().required(),
     redhatConfirmPassword: yup
       .string()
@@ -24,6 +23,7 @@ const prepareHostSchema = yup.object().shape(
       .when('redhatPassword', (redhatPassword, field) =>
         String(redhatPassword).length > 0 ? field.required() : field.optional(),
       ),
+    target: yup.string().required(),
     type: yup.string().oneOf(['dr', 'subnode']).required(),
     uuid: yupLaxUuid().required(),
   },

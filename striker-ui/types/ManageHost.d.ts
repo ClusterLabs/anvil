@@ -1,6 +1,6 @@
 type InquireHostResponse = APICommandInquireHostResponseBody & {
-  hostIpAddress: string;
   hostPassword: string;
+  target: string;
 };
 
 type InquireHostResponseStateSetter = React.Dispatch<
@@ -10,8 +10,8 @@ type InquireHostResponseStateSetter = React.Dispatch<
 /** TestAccessForm */
 
 type TestAccessFormikValues = {
-  ip: string;
   password: string;
+  target: string;
 };
 
 type TestAccessFormProps = {
