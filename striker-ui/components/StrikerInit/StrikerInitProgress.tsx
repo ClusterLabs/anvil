@@ -9,6 +9,7 @@ import ScrollBox from '../ScrollBox';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 import useFetch from '../../hooks/useFetch';
+import useScrollHelpers from '../../hooks/useScrollHelpers';
 
 const CenterPanel: FC = (props) => {
   const { children } = props;
@@ -18,9 +19,15 @@ const CenterPanel: FC = (props) => {
       sx={{
         marginLeft: { xs: '1em', sm: 'auto' },
         marginRight: { xs: '1em', sm: 'auto' },
-        marginTop: 'calc(50vh - 10em)',
-        maxWidth: { xs: undefined, sm: '60%', md: '50%', lg: '40%' },
-        minWidth: 'fit-content',
+        // Half screen - half status area - text & progress bar (roughly)
+        marginTop: 'calc(25vh - 6em)',
+        width: {
+          xs: undefined,
+          sm: '90vw',
+          md: '80vw',
+          lg: '70vw',
+          xl: '60vw',
+        },
       }}
     >
       {children}
@@ -44,6 +51,10 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
 
     return { label, path };
   }, [reinit]);
+
+  const scroll = useScrollHelpers<HTMLDivElement>({
+    follow: true,
+  });
 
   const { data: initJob } = useFetch<APIJobDetail>(`/init/job/${jobUuid}`, {
     onSuccess: (data) => {
@@ -104,7 +115,7 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
               <BodyText>Status</BodyText>
             </InnerPanelHeader>
             <InnerPanelBody>
-              <ScrollBox id="status-scroll-box" height="20vh">
+              <ScrollBox height="50vh" ref={scroll.ref}>
                 {statusList}
               </ScrollBox>
             </InnerPanelBody>
