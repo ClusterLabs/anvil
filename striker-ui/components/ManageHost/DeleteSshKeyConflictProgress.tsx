@@ -12,7 +12,11 @@ const DeleteSshKeyConflictProgress: React.FC<
 > = (props) => {
   const { jobs: ids, progress: jobProgress } = props;
 
-  const uuids = useMemo(() => Object.keys(ids), [ids]);
+  // Only look at progress of the job targeting the local striker
+  const scope = useMemo(
+    () => Object.keys(ids).filter((key) => ids[key].local),
+    [ids],
+  );
 
   const { altData: jobs, loading } = useFetch<
     APIJobOverviewList,
@@ -21,7 +25,7 @@ const DeleteSshKeyConflictProgress: React.FC<
     mod: (data) => {
       let total = 0;
 
-      const result = uuids.reduce<APIJobOverview[]>((previous, uuid) => {
+      const result = scope.reduce<APIJobOverview[]>((previous, uuid) => {
         const { [uuid]: job } = data;
 
         if (job) {

@@ -16,6 +16,7 @@ type APIDeleteSSHKeyConflictResponseBody = {
   jobs: Record<
     string,
     {
+      local: boolean;
       uuid: string;
     }
   >;
