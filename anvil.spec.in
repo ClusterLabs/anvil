@@ -10,7 +10,6 @@
 # 2 backslashes to make shell continue the line, and
 # 1 more backslash to make rpmbuild continue the line.
 %define coreservices  anvil-daemon.service \\\
-anvil-monitor-lvm.service \\\
 anvil-monitor-network.service \\\
 scancore.service 
 ### This adds a lot of noise to anvil.log and likely only useful in rare debug
