@@ -38,6 +38,8 @@ export const getHostSSH: RequestHandler<
 
   let badKeys: string[];
 
+  let badHostUuid: string | undefined;
+
   try {
     // Try matching the target with an IP to get the host UUID.
     const sqlGetUuidFromIp = `
@@ -77,7 +79,9 @@ export const getHostSSH: RequestHandler<
     // Get all IPs and the host name, then match them to the state records to
     // find all keys related to the target.
     const sqlGetKeys = `
-      SELECT DISTINCT(d.key)
+      SELECT
+        DISTINCT(d.key),
+        a.host_uuid
       FROM (${sqlGetUuid}) AS a
       LEFT JOIN ip_addresses AS b
         ON a.host_uuid = b.ip_address_host_uuid
@@ -94,9 +98,14 @@ export const getHostSSH: RequestHandler<
           ]
         )`;
 
-    const rows = await query<[string][]>(`${sqlGetKeys};`);
+    const rows = await query<[string, string][]>(`${sqlGetKeys};`);
 
     badKeys = rows.map(([badKey]) => badKey);
+
+    if (rows.length) {
+      // All keys should only relate to 0 or 1 host UUID; try the first record
+      [, badHostUuid] = rows[0];
+    }
   } catch (error) {
     return respond.s500(
       'd5a2acf',
@@ -106,7 +115,10 @@ export const getHostSSH: RequestHandler<
 
   if (badKeys.length > 0) {
     responseBody.badSshKeys = {
-      badKeys: badKeys,
+      badKeys,
+      badHost: {
+        uuid: badHostUuid,
+      },
     };
   }
 

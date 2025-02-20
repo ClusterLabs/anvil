@@ -24,7 +24,7 @@ export const deleteSSHKeyConflict: RequestHandler<
     return respond.s400('3b7928e', `Invalid request body; CAUSE: ${error}`);
   }
 
-  const { badKeys } = sanitized;
+  const { badKeys, badHost } = sanitized;
 
   let hostUuids: string[];
 
@@ -50,6 +50,11 @@ export const deleteSSHKeyConflict: RequestHandler<
 
   for (const key of badKeys) {
     for (const hostUuid of hostUuids) {
+      // Don't start a deletion job on the bad host
+      if (hostUuid === badHost.uuid) {
+        continue;
+      }
+
       try {
         const jobUuid = await job({
           file: __filename,

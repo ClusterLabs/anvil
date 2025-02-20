@@ -10,6 +10,9 @@ type SshKeyConflictList = Record<string, SshKeyConflict>;
 
 type DeleteSshKeyConflictRequestBody = {
   badKeys: string[];
+  badHost: {
+    uuid?: string;
+  };
 };
 
 type DeleteSshKeyConflictResponseBody = {
