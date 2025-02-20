@@ -1,5 +1,5 @@
 import { MoreVert as MoreVertIcon } from '@mui/icons-material';
-import { Box, Grid } from '@mui/material';
+import { Box } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo } from 'react';
 
@@ -9,6 +9,7 @@ import { MAP_TO_COLOUR } from './ContainedButton';
 import handleAPIError from '../lib/handleAPIError';
 import { BodyText } from './Text';
 import useConfirmDialog from '../hooks/useConfirmDialog';
+import Divider from './Divider';
 
 const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
   ...[props]: Parameters<React.FC<ServerMenuProps<Node, Server>>>
@@ -79,27 +80,25 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
 
   const options = useMemo<Record<string, ServerOption>>(() => {
     const ops: Record<string, ServerOption> = {
+      server: {
+        href: () => `/server?name=${server.name}`,
+        render: () => (
+          <BodyText inheritColour noWrap>
+            Manage server
+          </BodyText>
+        ),
+      },
       node: {
         href: () => `/anvil?name=${node.name}`,
         render: () => (
-          <Grid container>
-            <Grid item width="100%">
-              <BodyText inheritColour noWrap>
-                On node
-              </BodyText>
-            </Grid>
-            <Grid item>
-              <BodyText
-                inheritColour
-                noWrap
-                sx={{
-                  textDecoration: 'underline',
-                }}
-              >
-                {node.name}
-              </BodyText>
-            </Grid>
-          </Grid>
+          <BodyText inheritColour noWrap>
+            On node: {node.name}
+          </BodyText>
+        ),
+      },
+      'subheader-power': {
+        render: () => (
+          <Divider orientation="horizontal" sx={{ margin: '.4em 0' }} />
         ),
       },
     };
@@ -159,7 +158,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     ops['force off'] = forceOff;
 
     return ops;
-  }, [handlePowerOption, node.name, on, server.uuid]);
+  }, [handlePowerOption, node.name, on, server.name, server.uuid]);
 
   return (
     <Box>
