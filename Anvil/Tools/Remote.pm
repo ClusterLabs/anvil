@@ -660,7 +660,7 @@ sub call
 						
 						# Do a key scan.
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'ENV{_}' => $ENV{_} }});
-						if ($ENV{_} !~ /anvil-manage-keys/)
+						if (($ENV{_} !~ /anvil-manage-keys/) or ($ENV{_} !~ /striker-get-peer-data/))
 						{
 							# We can't record this as a job as we're probably 
 							# already trying to connect to the database
