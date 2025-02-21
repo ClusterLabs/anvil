@@ -322,7 +322,6 @@ sub process_key
 	my $known_hosts = $user_home."/.ssh/known_hosts";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_hosts => $known_hosts }});
 	process_file($anvil, $known_hosts);
-	die;
 	
 	# If we're root, look through other users also
 	if (($< == 0) or ($> == 0))
