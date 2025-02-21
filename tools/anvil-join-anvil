@@ -79,11 +79,11 @@ if (not $anvil->data->{switches}{'no-auto-grow-pv'})
 # Make sure the firewall is setup and ready.
 $anvil->Network->manage_firewall({debug => 2, task => "check"});
 
-# Hold until both subnodes are marked as configured and not in maintenance mode.
-wait_for_subnodes($anvil);
-
 # Update the user passwords
 update_passwords($anvil);
+
+# Hold until both subnodes are marked as configured and not in maintenance mode.
+wait_for_subnodes($anvil);
 
 # Check if we need to change any IPs or our hostname.
 check_local_network($anvil);
