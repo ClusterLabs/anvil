@@ -492,7 +492,7 @@ Output (if any):
 </key>
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
 		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
-		<key name="error_0321">#!free!#</key>
+		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
 		<key name="error_0322">#!free!#</key>
 		<key name="error_0323">#!free!#</key>
 		<key name="error_0324">#!free!#</key>

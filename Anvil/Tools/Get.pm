@@ -3505,6 +3505,7 @@ sub virsh_capabilities
 	else
 	{
 		# Successful parse!
+		# NOTE: Dump kept for future debugging.
 		#print Dumper $dom->findnodes('/capabilities/host/cpu/feature');
 		foreach my $feature ($dom->findnodes('/capabilities/host/cpu/feature'))
 		{
