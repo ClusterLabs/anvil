@@ -7,14 +7,19 @@ import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
 
+const PATTERNS = {
+  network: {
+    id: new RegExp(`^${ifaceAliasReps.id}`),
+    ip: new RegExp(`^${ifaceAliasReps.id}_ip$`),
+  },
+};
+
 const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
   form: ([, part2]) => {
     const [rHead, ...rest] = part2.split('_');
     const head = rHead.toLowerCase();
 
-    const netRep = new RegExp(`^${ifaceAliasReps.id}`);
-
-    return netRep.test(head)
+    return PATTERNS.network.id.test(head)
       ? ['networks', head, camel(...rest)]
       : [camel(head, ...rest)];
   },
@@ -181,6 +186,24 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
               MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
             setCvar(keychain, variableValue, previous);
+
+            // Extract the network type and number from a reused machine
+            if (PATTERNS.network.ip.test(variableName)) {
+              const parts = variableName.match(PATTERNS.network.id);
+
+              if (parts) {
+                const [, type, sequence] = parts;
+
+                const alias = `${type}${sequence}`;
+
+                [
+                  ['sequence', sequence],
+                  ['type', type],
+                ].forEach(([key, value]) => {
+                  setCvar(['networks', alias, key], value, previous);
+                });
+              }
+            }
 
             // Also set the NIC's UUID when we see a MAC variable
             if (/mac_to_set/.test(variableName)) {
