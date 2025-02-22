@@ -105,20 +105,39 @@ sub check_storage_groups
 	
 	if ($anvil_uuid)
 	{
-		# If we're node 1, we'll try to assemble the storage group. Onle node 1 does this to help avoid race 
-		# conditions. This both loads storage group data and assembles ungrouped VGs into storage groups, 
-		# when possible.
-		$anvil->Database->get_anvils();
+		# Now, loop through all our VGs and any that are marked as DELETED, see if they're a member 
+		# of a Storage Group. If so, mark them as DELETED also.
+		$anvil->Database->get_hosts();
+		$anvil->Database->get_lvm_data({include_deleted => 1});
 		my $host_uuid       = $anvil->Get->host_uuid;
+		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
 		my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
 		my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:anvil_name'      => $anvil_name,
-			's2:node1_host_uuid' => $node1_host_uuid, 
-			's3:node2_host_uuid' => $node2_host_uuid, 
-			's4:host_uuid'       => $host_uuid, 
+			's1:host_uuid'       => $host_uuid, 
+			's2:short_host_name' => $short_host_name, 
+			's3:anvil_name'      => $anvil_name,
+			's4:node1_host_uuid' => $node1_host_uuid, 
+			's5:node2_host_uuid' => $node2_host_uuid, 
 		}});
+		foreach my $vg_name (sort {$a cmp $b} keys %{$anvil->data->{lvm}{host_name}{$short_host_name}{vg}})
+		{
+			my $scan_lvm_vg_uuid          = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_uuid};
+			my $scan_lvm_vg_internal_uuid = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{scan_lvm_vg_internal_uuid};
+			my $storage_group_uuid        = $anvil->data->{lvm}{host_name}{$short_host_name}{vg}{$vg_name}{storage_group_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:vg_name'                   => $vg_name,
+				's2:scan_lvm_vg_uuid'          => $scan_lvm_vg_uuid, 
+				's3:scan_lvm_vg_internal_uuid' => $scan_lvm_vg_internal_uuid, 
+				's4:storage_group_uuid'        => $storage_group_uuid, 
+			}});
+		}
+		die;
+		
+		# If we're node 1, we'll try to assemble the storage group. Onle node 1 does this to help avoid race 
+		# conditions. This both loads storage group data and assembles ungrouped VGs into storage groups, 
+		# when possible.
 		if ($host_uuid eq $node1_host_uuid)
 		{
 			# Are there any storage groups yet? If not, try to assemble one.
@@ -135,6 +154,7 @@ sub check_storage_groups
 				});
 			}
 		}
+		
 	}
 	
 	return(0);

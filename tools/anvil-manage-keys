@@ -472,7 +472,7 @@ sub process_file
 				$bad = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad => $bad }});
 			}
-			if ((exists $anvil->data->{bad_keys}{$key}) && ($anvil->data->{bad_keys}{$key}))
+			elsif ((exists $anvil->data->{bad_keys}{$key}) && ($anvil->data->{bad_keys}{$key}))
 			{
 				$bad = 1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad => $bad }});
