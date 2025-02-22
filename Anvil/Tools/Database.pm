@@ -6448,21 +6448,27 @@ sub get_storage_group_data
 	$query = "
 SELECT 
     a.storage_group_uuid, 
-    a.storage_group_anvil_uuid,
-    a.storage_group_name,  
+    a.storage_group_anvil_uuid, 
+    a.storage_group_name, 
     b.storage_group_member_uuid, 
     b.storage_group_member_host_uuid, 
-    b.storage_group_member_vg_uuid,
-    b.storage_group_member_note
+    b.storage_group_member_vg_uuid, 
+    b.storage_group_member_note, 
+    c.scan_lvm_vg_name 
 FROM 
     storage_groups a, 
-    storage_group_members b 
+    storage_group_members b, 
+    scan_lvm_vgs c 
 WHERE 
-    a.storage_group_uuid = b.storage_group_member_storage_group_uuid 
+    a.storage_group_uuid           =  b.storage_group_member_storage_group_uuid 
 AND 
-    a.storage_group_name != 'DELETED'
+    b.storage_group_member_vg_uuid =  c.scan_lvm_vg_internal_uuid 
+AND 
+    a.storage_group_name           != 'DELETED' 
+AND 
+     c.scan_lvm_vg_name            != 'DELETED' 
 ORDER BY 
-    a.storage_group_anvil_uuid ASC
+    a.storage_group_anvil_uuid ASC 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -6528,7 +6534,7 @@ ORDER BY
 		# Make it possible to sort the storage groups by name.
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid}" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});
 		
 		# If scan_lvm has been run, read is the free space on the VG
