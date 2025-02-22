@@ -208,8 +208,120 @@ sub process_key
 {
 	my ($anvil) = @_;
 	
+	# We need a list of both hosts and keys to delete. The job will have one key for one algo. Take the
+	# key and figure out which host it belongs to. Once we know the host, we need to find all names and
+	# IPs that the target host uses, and delete all keys that are used by any of those names or IPs.
+	my $bad_key      = $anvil->data->{bad_key};
+	my ($algo, $key) = ($bad_key =~ /^(.*?)\s+(.*)$/);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:bad_key' => $bad_key, 
+		's2:algo'    => $algo,
+		's3:key'     => $key, 
+	}});
+	
+	$anvil->data->{bad_keys}{$key} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"bad_keys::${key}" => $anvil->data->{bad_keys}{$key},
+	}});
+	
+	my $target_host_uuid = "";
+	print "Key to remove: [".$bad_key."]\n";
+	foreach my $host (sort {$a cmp $b} keys %{$anvil->{ssh_host}})
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
+		foreach my $this_algo (sort {$a cmp $b} keys %{$anvil->{ssh_host}{$host}{algo}})
+		{
+			my $this_key = $anvil->{ssh_host}{$host}{algo}{$this_algo}{key};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_algo' => $this_algo,
+				's2:this_key'  => $this_key, 
+			}});
+			
+			if ($this_key eq $key)
+			{
+				# Record this host, we'll want to find any other keys regardless of if we 
+				# find the host_uuid
+				$anvil->data->{bad_hosts}{$host} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"bad_hosts::${host}" => $anvil->data->{bad_hosts}{$host},
+				}});
+				
+				next if $target_host_uuid;
+				my $is_ip = $anvil->Validate->ip({ip => $host});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { is_ip => $is_ip }});
+				if ($is_ip)
+				{
+					# Get the host names
+					$target_host_uuid = $anvil->Network->get_host_from_ip({ip => $host});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+				}
+				else
+				{
+					# Find the IP from the hostname.
+					$target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $host});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_host_uuid => $target_host_uuid }});
+				}
+			}
+		}
+	}
+	
+	# If I have a host_uuid, look 
+	my $target_host_name       = "";
+	my $target_short_host_name = "";
+	my $target_ips             = "";
+	if ($target_host_uuid)
+	{
+		$anvil->data->{bad_host_uuid} = $target_host_uuid;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_host_uuid => $anvil->data->{bad_host_uuid} }});
+		
+		$target_host_name       = $anvil->Get->host_name_from_uuid({host_uuid => $target_host_uuid});
+		$target_short_host_name = $anvil->data->{hosts}{host_uuid}{$target_host_uuid}{short_host_name};
+		$target_ips             = $anvil->Network->get_ip_from_host({host => $target_host_name});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:target_host_name'       => $target_host_name, 
+			's2:target_short_host_name' => $target_short_host_name, 
+			's3:target_ips'             => $target_ips,
+		}});
+		
+		# Create the hash of IPs and names to look for.
+		$anvil->data->{bad_hosts}{$target_short_host_name} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"bad_hosts::${target_short_host_name}" => $anvil->data->{bad_hosts}{$target_short_host_name},
+		}});
+		foreach my $ip (split/,/, $target_ips)
+		{
+			$anvil->data->{bad_hosts}{$ip} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"bad_hosts::${ip}" => $anvil->data->{bad_hosts}{$ip},
+			}});
+		}
+	}
+	
+	# Walk through the keys we already processed and see if there's any other bad keys to remove.
+	$anvil->data->{bad_keys}{$key} = $algo;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"bad_keys::${key}" => $anvil->data->{bad_keys}{$key},
+	}});
+	foreach my $host (sort {$a cmp $b} keys %{$anvil->{ssh_host}})
+	{
+		next if ((not exists $anvil->data->{bad_hosts}{$host}) or (not $anvil->data->{bad_hosts}{$host}));
+		foreach my $this_algo (sort {$a cmp $b} keys %{$anvil->{ssh_host}{$host}{algo}})
+		{
+			my $this_key = $anvil->{ssh_host}{$host}{algo}{$this_algo}{key};
+			next if $anvil->data->{bad_keys}{$this_key};
+			
+			$anvil->data->{bad_keys}{$this_key} = $this_algo;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"bad_keys::${key}" => $anvil->data->{bad_keys}{$key},
+			}});
+		}
+	}
+	
 	# Delete the key now.
-	process_file($anvil, "/root/.ssh/known_hosts");
+	my $user_home   = $anvil->Get->users_home();
+	my $known_hosts = $user_home."/.ssh/known_hosts";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { known_hosts => $known_hosts }});
+	process_file($anvil, $known_hosts);
 	
 	# If we're root, look through other users also
 	if (($< == 0) or ($> == 0))
@@ -306,15 +418,8 @@ sub process_file
 	my ($anvil, $file) = @_;
 	my $bad_key        = $anvil->data->{bad_key};
 	my ($algo, $key)   = ($bad_key =~ /^(.*?)\s+(.*)$/);
-	my $target         = $anvil->{ssh_key}{$key}{host};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		's1:file'    => $file,
-		's2:bad_key' => $bad_key, 
-		's3:algo'    => $algo,
-		's4:key'     => $key, 
-		's5:target'  => $target, 
-	}});
-	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0049,!!bad_key!".$bad_key."!!");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0049", variables => { bad_key => $bad_key }});
@@ -350,23 +455,46 @@ sub process_file
 		$line_number++;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line_number.":".$line }});
 		
-		if ($line =~ /\Q$bad_key\E/)
+		if ($line =~ /^(\S.*)\s+(\S.*)\s+(\S.*)$/)
 		{
-			# Skip this key
-			update_progress($anvil, $anvil->data->{job}{progress}, "job_0054,!!line!".$line_number."!!");
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0054", variables => { line => $line_number }});
+			my $host = $1;
+			my $algo = $2;
+			my $key  = $3;
+			my $bad  = 0;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:host' => $host,
+				's2:algo' => $algo,
+				's3:key'  => $key,
+			}});
+			
+			if ((exists $anvil->data->{bad_hosts}{$host}) && ($anvil->data->{bad_hosts}{$host}))
+			{
+				$bad = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad => $bad }});
+			}
+			elsif ((exists $anvil->data->{bad_keys}{$key}) && ($anvil->data->{bad_keys}{$key}))
+			{
+				$bad = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad => $bad }});
+			}
+			if ($bad)
+			{
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0054,!!line!".$line_number."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0054", variables => { line => $line_number }});
+				next;
+			}
 		}
-		else
-		{
-			$new_body .= $line."\n";
-		}
+		
+		$new_body .= $line."\n";
 	}
 	
+	# Record the difference, if any.
 	my $difference = diff \$old_body, \$new_body, { STYLE => 'Unified' };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0003", variables => { 
 		file       => $file, 
 		difference => $difference,
 	}});
+	
 	if ($difference)
 	{
 		# Write the file out.
@@ -456,17 +584,16 @@ sub load_job_data
 				$anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{algo} = $algo;
 				$anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{host} = $host;
 				$anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{key}  = $key;
-				$anvil->{ssh_key}{$key}{algo}                              = $algo;
-				$anvil->{ssh_key}{$key}{host}                              = $host;
-				$anvil->{ssh_key}{$key}{asked}                             = 0;
+				$anvil->{ssh_key}{$key}{host}{$host}{algo}{$algo}{asked}   = 0;
+				$anvil->{ssh_host}{$host}{algo}{$algo}{key}                = $key;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"s1:ssh_keys::${known_hosts}::host::${host}::${algo}::key"  => $anvil->{ssh_keys}{$known_hosts}{host}{$host}{$algo}{key}, 
 					"s2:ssh_keys::${known_hosts}::host::${host}::${algo}::line" => $anvil->{ssh_keys}{$known_hosts}{host}{$host}{$algo}{line}, 
 					"s3:ssh_keys::${known_hosts}::line::${line_number}::algo"   => $anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{algo}, 
 					"s4:ssh_keys::${known_hosts}::line::${line_number}::host"   => $anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{host}, 
 					"s5:ssh_keys::${known_hosts}::line::${line_number}::key"    => $anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{key}, 
-					"s6:ssh_key::${key}::algo"                                  => $anvil->{ssh_key}{$key}{algo}, 
-					"s7:ssh_key::${key}::host"                                  => $anvil->{ssh_key}{$key}{host}, 
+					"s7:ssh_key::${key}::host::${host}::algo::${algo}::asked"   => $anvil->{ssh_key}{$key}{host}{$host}{algo}{$algo}{asked}, 
+					"s8:ssh_host::${host}::algo::${algo}::key"                  => $anvil->{ssh_host}{$host}{algo}{$algo}{key},
 				}});
 			}
 		}
@@ -514,6 +641,21 @@ sub load_job_data
 		# The job data only consists of 1 'bad_key=<key>' entry
 		$anvil->data->{bad_key} = ($job_data =~ /bad_key=(.*)$/)[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $anvil->data->{bad_key} }});
+		
+		# Make sure we say this key.
+		my ($algo, $key) = ($anvil->data->{bad_key} =~ /^(.*?)\s+(.*)$/);
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			algo => $algo,
+			key  => $key,
+		}});
+		
+# 		if ((not exists $anvil->{ssh_key}{$key}) or (not $anvil->{ssh_key}{$key}{host}))
+# 		{
+# 			# Nothing to do.
+# 			update_progress($anvil, 100, "error_0321,!!key!".$key."!!");
+# 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0321", variables => { key => $key }});
+# 			$anvil->nice_exit({exit_code => 1});
+# 		}
 	}
 	else
 	{

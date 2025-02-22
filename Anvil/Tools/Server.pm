@@ -16,7 +16,7 @@ my $THIS_FILE = "Server.pm";
 ### Methods;
 # active_migrations
 # boot_virsh
-# connect_to_virsh
+# connect_to_libvirt
 # count_servers
 # find			# To be replaced by Server->locate();
 # find_processes

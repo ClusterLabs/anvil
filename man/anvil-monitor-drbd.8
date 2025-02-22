@@ -1,0 +1,28 @@
+.\" Manpage for the Anvil! DRBD monitor daemon
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-monitor-drbd "8" "February 09 2025" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-monitor-network \- Tool that watches for changes to any DRBD resource
+.SH SYNOPSIS
+.B anvil-monitor-drbd
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This tool is meant to be run as a daemon. It will collect data on DRBD resources and monitor for changes. If a change is detected, 'scan-drbd' will be called. This will keep the Anvil! database up to date with the changes in servers.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+This tool takes no switches.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

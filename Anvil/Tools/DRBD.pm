@@ -873,7 +873,7 @@ sub gather_data
 		{
 			my $resource  =  $name->{name};
 			my $conf_file =  $name->{'conf-file-line'};
-				$conf_file =~ s/:\d+$//;
+			   $conf_file =~ s/:\d+$//;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				's1:resource'  => $resource, 
 				's2:conf_file' => $conf_file,

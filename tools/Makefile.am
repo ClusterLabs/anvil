@@ -28,12 +28,16 @@ dist_sbin_SCRIPTS	= \
 			  anvil-manage-server-system \
 			  anvil-manage-vnc-pipe \
 			  anvil-migrate-server \
+			  anvil-monitor-drbd \
+			  anvil-monitor-lvm \
 			  anvil-monitor-network \
 			  anvil-monitor-performance \
+			  anvil-monitor-server \
 			  anvil-network-profiler \
 			  anvil-parse-fence-agents \
 			  anvil-pcs-wrapper \
 			  anvil-provision-server \
+			  anvil-pull-pid-logs \
 			  anvil-rename-server \
 			  anvil-report-usage \
 			  anvil-safe-start \

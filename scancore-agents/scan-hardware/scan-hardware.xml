@@ -154,6 +154,16 @@ If the RAM is being updated, this alert will clear once this node has been upgra
 - Old: ...... [#!variable!old!#]
 - Difference: [#!variable!difference!#]
 		</key>
+		<key name="scan_hardware_alert_0030">
+For some reason, two (or more) CPU cores/threads returned different vmx flags. This should never happen. The differences are:
+The differences are:
+====
+#!variable!vmx_flags!#
+====
+#!variable!these_flags!#
+====
+		</key>
+		<key name="scan_hardware_alert_0031">The issue with mismatched CPU vmx flags has been resolved.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_hardware_log_0001">#!free!#</key>

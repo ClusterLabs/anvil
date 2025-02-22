@@ -270,6 +270,11 @@ sub clone_database_handles
 
 	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
 	{
+		if ((not exists $anvil->data->{cache}{database_handle}{$uuid}) or (not $anvil->data->{cache}{database_handle}{$uuid}))
+		{
+			# Useless handle, skip it.
+			next;
+		}
 		# get the copied parent's database handle, which was made when fork()
 		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
 		# clone the parent's database handle for child use

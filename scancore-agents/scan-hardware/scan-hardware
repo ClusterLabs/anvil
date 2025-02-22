@@ -18,6 +18,7 @@ use strict;
 use warnings;
 use Anvil::Tools;
 use Data::Dumper;
+use Text::Diff;
 
 # Disable buffering
 $| = 1;
@@ -157,13 +158,15 @@ sub collect_cpu_data
 	}
 	
 	# Read in /proc/cpuinfo.
-	my $flags          = "";
-	my $flags_mismatch = 0;
-	my $bugs           = "";
-	my $bugs_mismatch  = 0;
-	my $model          = "";
-	my $model_mismatch = 0;
-	my $cpu_info       = $anvil->Storage->read_file({debug => 3, file => $anvil->data->{path}{proc}{cpuinfo}});
+	my $flags              = "";
+	my $flags_mismatch     = 0;
+	my $vmx_flags          = "";
+	my $vmx_flags_mismatch = 0;
+	my $bugs               = "";
+	my $bugs_mismatch      = 0;
+	my $model              = "";
+	my $model_mismatch     = 0;
+	my $cpu_info           = $anvil->Storage->read_file({debug => 3, file => $anvil->data->{path}{proc}{cpuinfo}});
 	foreach my $line (split/\n/, $cpu_info)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
@@ -171,6 +174,7 @@ sub collect_cpu_data
 		
 		if ($line =~ /^flags\s*: (.*?)$/)
 		{
+			# Full list of flags: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/x86/include/asm/cpufeatures.h
 			my $these_flags = $1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { these_flags => $these_flags }});
 			if (not $flags)
@@ -181,8 +185,8 @@ sub collect_cpu_data
 			elsif ($flags ne $these_flags)
 			{
 				# This should never happen.
-				   $flags_mismatch = 1;
-				my $changed        = $anvil->Alert->check_alert_sent({
+				   $vmx_flags_mismatch = 1;
+				my $changed            = $anvil->Alert->check_alert_sent({
 					debug          => 2,
 					record_locator => "scan_hardware::cpu_flags_mismatch",
 					set_by         => $THIS_FILE,
@@ -199,6 +203,43 @@ sub collect_cpu_data
 					$anvil->Alert->register({
 						alert_level => "notice", 
 						message     => "scan_hardware_alert_0001",
+						variables   => $variables,
+						set_by      => $THIS_FILE,
+					});
+				}
+			}
+		}
+		if ($line =~ /^vmx flags\s*: (.*?)$/)
+		{
+			# Full list of flags: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/x86/include/asm/cpufeatures.h
+			my $these_flags = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { these_flags => $these_flags }});
+			if (not $vmx_flags)
+			{
+				$vmx_flags = $these_flags;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { vmx_flags => $vmx_flags }});
+			}
+			elsif ($vmx_flags ne $these_flags)
+			{
+				# This should never happen.
+				   $flags_mismatch = 1;
+				my $changed        = $anvil->Alert->check_alert_sent({
+					debug          => 2,
+					record_locator => "scan_hardware::cpu_vmx_flags_mismatch",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert.
+					my $variables = {
+						these_flags => $these_flags,
+						vmx_flags   => $vmx_flags,
+					};
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0030", variables => $variables});
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						message     => "scan_hardware_alert_0030",
 						variables   => $variables,
 						set_by      => $THIS_FILE,
 					});
@@ -298,6 +339,26 @@ sub collect_cpu_data
 			});
 		}
 	}
+	if (not $vmx_flags_mismatch)
+	{
+		my $changed = $anvil->Alert->check_alert_sent({
+			debug          => 3,
+			record_locator => "scan_hardware::cpu_vmx_flags_mismatch",
+			set_by         => $THIS_FILE,
+			clear          => 1,
+		});
+		if ($changed)
+		{
+			# Register an alert-cleared event.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0031"});
+			$anvil->Alert->register({
+				alert_level => "notice", 
+				clear       => 1,
+				message     => "scan_hardware_alert_0031", 
+				set_by      => $THIS_FILE,
+			});
+		}
+	}
 	if (not $bugs_mismatch)
 	{
 		my $changed = $anvil->Alert->check_alert_sent({
@@ -338,6 +399,45 @@ sub collect_cpu_data
 			});
 		}
 	}
+	
+	# If there are VMX flags, append them to the 'flags' variable.
+	if ($vmx_flags)
+	{
+		$flags .= " ".$vmx_flags;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+	
+	# Read in the features provided by virsh
+	$anvil->Get->virsh_capabilities({debug => 2});
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	my $features = "";
+	foreach my $feature (sort {$a cmp $b} keys %{$anvil->data->{capabilities}{host_uuid}{$host_uuid}{cpu}{feature}})
+	{
+		$features .= $feature." ";
+	}
+	$features =~ s/ $//;
+	if ($features)
+	{
+		$flags .= " ".$features;
+	}
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+	
+	# Dedupe flags
+	my $new_flags = "";
+	my $flag_hash = {};
+	foreach my $flag (sort {$a cmp $b} split/ /, $flags)
+	{
+		if (not exists $flag_hash->{$flag})
+		{
+			$new_flags .= $flag." ";
+			$flag_hash->{$flag} = 1;
+		}
+	}
+	$new_flags =~ s/ $//;
+	$flags     =  $new_flags;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
 	
 	# Record what we found.
 	$anvil->data->{summary}{cpu}{model}   = $model;

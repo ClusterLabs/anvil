@@ -1,0 +1,12 @@
+[Unit]
+Description=Anvil! Intelligent Availability Platform - LVM Monitor Daemon
+Documentation=man:anvil-monitor-lvm(8)
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/anvil-monitor-lvm
+ExecStop=/bin/kill -WINCH ${MAINPID}
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,54 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-relocate-server "8" "November 22 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-relocate-server \- Tool to relocate servers from one node to another.
+.SH SYNOPSIS
+.B anvil-relocate-server 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This moves a server from one node to another. This creates a new replicated storage device on the target and copies the data. Relocations can be done live of cold. 
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-anvil\fR <anvil name or uuid>
+.TP
+This is the \fBtarget\fR Anvil! node that the server will be relocated to. 
+.TP
+\fB\-\-confirm\fR
+.TP
+When not running as a job, you will be asked to confirm the relocation. This switch auto-confirms the relocation.
+.TP
+\fB\-\-no\-boot\fR
+.TP
+By default, if the server is \fBnot\fR running, the server will be booted when the migration completes. This switch will prevent this, and leave the server off after the migration is complete.
+.TP
+\fB\-\-no\-snapshot\fR
+.TP
+By default, and as a safety step, the source is snapshotted before the migration runs. This can take a while, so this switch and bypass this stage. Of course, be sure you have a good backup.
+.TP
+\fB\-\-update\-cpu\fR
+.TP
+If the server being relocated is offline, then this switch can be used to update the server's definition on the target node to \fBhost\-copy\fR. This allows the relocation to proceed even if the target doesn't have some CPU features the old host had. It also allows the server to access new features the new host's CPUs may have.
+.TP
+\fB\-\-server\fR <server name or uuid>
+.TP
+This is the server name or UUID that will be relocated. 
+.TP
+\fB\-\-storage\-group\fR <storage group name or UUID>
+.TP
+If the target Anvil! node has two or more storage groups, this switch indicates with SG to use for the server's backing storage.
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

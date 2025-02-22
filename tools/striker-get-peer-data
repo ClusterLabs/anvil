@@ -31,9 +31,9 @@ my $anvil = Anvil::Tools->new();
 # Read switches (target ([user@]host[:port]) and the file with the target's password. If the password is 
 # passed directly, it will be used. Otherwise, the password will be read from the database.
 $anvil->Get->switches({list => [
-	"target", 
+	"password", 
 	"state-uuid", 
-	"password"
+	"target"
 ], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, key => "log_0115", variables => { program => $THIS_FILE }});
@@ -129,9 +129,14 @@ fi;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_body => $file_body }});
 	if ($file_body)
 	{
-		if ($file_body =~ /Red Hat .*? release (\d+\.\d+) /)
+		if (($file_body =~ /Red Hat .*? release (\d+\.\d+) /) or ($file_body =~ /Red Hat release (\d+\.\d+) /))
 		{
 			$host_os = "rhel ".$1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_os => $host_os }});
+		}
+		elsif ($file_body =~ /AlmaLinux release (\d+\.\d+) /)
+		{
+			$host_os = "alma ".$1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_os => $host_os }});
 		}
 	}
@@ -187,7 +192,7 @@ Network error, unable to connect to server. Please see /var/log/rhsm/rhsm.log fo
 	return($host_os, $os_registered);
 }
 
-# This tries to read the target's UUID either via host.uuid or via dmidecode.
+# This tries to read the target's host name.
 sub get_host_name
 {
 	my ($anvil) = @_;
@@ -274,7 +279,36 @@ fi;
 			error       => $error, 
 			return_code => $return_code, 
 		}});
-		if ($anvil->Validate->uuid({uuid => $output}))
+		
+		# Not all systems have dmidecode.
+		if (($error) or ($error =~ /No such file or directory/i))
+		{
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				debug      => 3,
+				shell_call => $anvil->data->{path}{exe}{lshw}." -class system -quiet -notime | ".$anvil->data->{path}{exe}{'grep'}." uuid=",
+				user       => $anvil->data->{target}{user}, 
+				target     => $anvil->data->{target}{host}, 
+				port       => $anvil->data->{target}{port}, 
+				password   => $anvil->data->{target}{password}, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				error       => $error, 
+				return_code => $return_code, 
+			}});
+			
+			foreach my $line (split/\n/, $output)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /configuration:.*? uuid=(.*)$/)
+				{
+					# Found it.
+					$host_uuid = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+				}
+			}
+		}
+		elsif ($anvil->Validate->uuid({uuid => $output}))
 		{
 			# Got it.
 			$host_uuid = $output;

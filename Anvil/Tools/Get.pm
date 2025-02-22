@@ -1,6 +1,6 @@
 package Anvil::Tools::Get;
 # 
-# This module contains methods used to handle access to frequently used data.
+# This module contains methods used to handle access to frequently used data. 
 # 
 
 use strict;
@@ -13,6 +13,7 @@ use Net::Netmask;
 use Text::Diff;
 use UUID::Tiny qw(:std);
 use String::ShellQuote;
+use XML::LibXML;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "Get.pm";
@@ -24,6 +25,7 @@ my $THIS_FILE = "Get.pm";
 # available_resources
 # bridges
 # cgi
+# cpu_flags
 # date_and_time
 # domain_name
 # free_memory
@@ -46,6 +48,7 @@ my $THIS_FILE = "Get.pm";
 # uuid
 # virsh_list_net
 # virsh_list_os
+# virsh_capabilities
 # _salt
 # _wrap_to
 
@@ -1264,6 +1267,74 @@ sub cgi
 	
 	return(0);
 }
+
+
+=head2 cpu_flags
+
+This parses C<< scan_hardware_cpu_flags >> and stores it by host. The flags are stored in the hash;
+
+* cpu_flags::<host_uuid>::flag::<flag> = 1
+
+This method takes no parameters.
+
+=cut
+sub cpu_flags
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->cpu_flags()" }});
+	
+	if (not exists $anvil->data->{hosts}{host_uuid})
+	{
+		$anvil->Database->get_hosts({debug => $debug});
+	}
+	
+	if (exists $anvil->data->{cpu_flags})
+	{
+		delete $anvil->data->{cpu_flags};
+	}
+	
+	my $query = "
+SELECT 
+    scan_hardware_host_uuid, 
+    scan_hardware_cpu_flags 
+FROM 
+    scan_hardware
+ORDER BY 
+    scan_hardware_host_uuid ASC
+;
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	foreach my $row (@{$results})
+	{
+		my $scan_hardware_host_uuid = $row->[0];
+		my $scan_hardware_cpu_flags = $row->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_hardware_host_uuid => $scan_hardware_host_uuid, 
+			scan_hardware_cpu_flags => $scan_hardware_cpu_flags, 
+		}});
+		
+		foreach my $flag (split/\s+/, $scan_hardware_cpu_flags)
+		{
+			next if not $flag;
+			$anvil->data->{cpu_flags}{$scan_hardware_host_uuid}{flag}{$flag} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"cpu_flags::${scan_hardware_host_uuid}::flag::${flag}" => $anvil->data->{cpu_flags}{$scan_hardware_host_uuid}{flag}{$flag}, 
+			}});
+		}
+	}
+	
+	return(0);
+}
+
 
 =head2 date_and_time
 
@@ -3311,6 +3382,7 @@ sub virsh_list_net
 	return(0);
 }
 
+
 =head2 virsh_list_os
 
 This parses the output from C<< osinfo-query os >> and populates the hash;
@@ -3393,6 +3465,62 @@ sub virsh_list_os
 	
 	return(0);
 }
+
+
+=head2 virsh_capabilities
+
+This parses C<< virsh capabilities >> on a host.
+
+This method takes no parameters.
+
+=cut
+sub virsh_capabilities
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Get->virsh_capabilities()" }});
+	
+	my $shell_call = $anvil->data->{path}{exe}{virsh}." capabilities";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
+	local $@;
+	my $dom = eval { XML::LibXML->load_xml(string => $output); };
+	if ($@)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0176", variables => { 
+			xml   => $output,
+			error => $@,
+		}});
+	}
+	else
+	{
+		# Successful parse!
+		# NOTE: Dump kept for future debugging.
+		#print Dumper $dom->findnodes('/capabilities/host/cpu/feature');
+		foreach my $feature ($dom->findnodes('/capabilities/host/cpu/feature'))
+		{
+			my $name = $feature->{name};
+			$anvil->data->{capabilities}{host_uuid}{$host_uuid}{cpu}{feature}{$name} = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				"capabilities::host_uuid::${host_uuid}::cpu::feature::${name}" => $anvil->data->{capabilities}{host_uuid}{$host_uuid}{cpu}{feature}{$name},
+			}});
+		}
+	}
+	
+	
+	return(0);
+}
+
 
 # =head3
 # 

@@ -436,6 +436,7 @@ sub show_data
 			print "- Subnode: [".$node_host_name."] volume groups;\n";
 			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}})
 			{
+				next if $scan_lvm_vg_name eq "DELETED";
 				my $scan_lvm_vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
 				my $scan_lvm_vg_size          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size};
 				my $scan_lvm_vg_free          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free};

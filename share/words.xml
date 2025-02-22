@@ -470,7 +470,7 @@ We're done waiting, exiting out.
 		<key name="error_0310">I tried to remove the fence delay from the node: [#!variable!node!#], but it doesn't appear to have worked. The preferred node is: [#!variable!current!#] ('--' means there is no preferred node)</key>
 		<key name="error_0311">Failed to find the UUID column for the table: [#!variable!table!#].</key>
 		<key name="error_0312">The 'set_to' parameter: [#!variable!set_to!#] is invalid. It must be 'yes' or 'no'.</key>
-		<key name="error_0313">#!free!#</key>
+		<key name="error_0313">I was asked to find the host that has the IP address: [#!variable!ip!#], but that doesn't appear to be an IP.</key>
 		<key name="error_0314">Asked to remove an interface from the server: [#!variable!server!#] with the MAC address: [#!variable!mac!#], but no interface with that MAC was found.</key>
 		<key name="error_0315">
 Failed to remove the network interface on: [#!variable!server!#] with the MAC address: [#!variable!mac!#].
@@ -491,8 +491,8 @@ Output (if any):
 [ Error ] - Please correct the source of the failure and then re-run the password update.
 </key>
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
-		<key name="error_0320">#!free!#</key>
-		<key name="error_0321">#!free!#</key>
+		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
+		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
 		<key name="error_0322">#!free!#</key>
 		<key name="error_0323">#!free!#</key>
 		<key name="error_0324">#!free!#</key>
@@ -1789,7 +1789,7 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0469">Update beginning. Verifying all known machines are accessible...</key>
 		<key name="job_0470">This is a DR host, no migration possible.</key>
 		<key name="job_0471">Exiting.</key>
-		<key name="job_0472">#!free!#</key>
+		<key name="job_0472">Please enter the a valid server name, server UUID or the index number of the server you want to relocate.</key>
 		<key name="job_0473">The request to power off this host is: [#!variable!age!#] seconds old. This is too old, so the request will be ignored to prevent unwanted power loss.</key>
 		<key name="job_0474">The server: [#!variable!server!#] will now be forced off!</key>
 		<key name="job_0475">The subnode: [#!variable!subnode!#] is not ready. Configured: [#!variable!configured!#], maintenance mode: [#!variable!maintenance_mode!#], job_running: [#!variable!job_running!#].</key>
@@ -1849,6 +1849,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0526">Sets the state of the 'Install Target' feature on the striker.</key>
 		<key name="job_0527">Update Striker</key>
 		<key name="job_0528">Starts a system update on the striker.</key>
+		<key name="job_0529">- Which server do you want to relocate? [#!variable!server!#]</key>
+		<key name="job_0530">-=] Server Relocation Menu</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>
@@ -2647,7 +2649,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0693">#!free!#</key>
 		<key name="log_0694">The connection to: [#!variable!host!#] for the resource: [#!variable!resource!#] is in the connection state: [#!variable!connection_state!#]. Will try to connect to the peer and up the resource now.</key>
 		<key name="log_0695">About to request the start of the resource: [#!variable!resource!#] on: [#!variable!host!#].</key>
-		<key name="log_0696">#!free!#</key>
+		<key name="log_0696">This is a Striker dashboard, there are no servers here. Please disable the 'anvil-monitor-drbd' daemon.</key>
 		<key name="log_0697">All clients using our database are gone, ready to stop the postgresql daemon.</key>
 		<key name="log_0698">[ Note ] - Marking our database as active.</key>
 		<key name="log_0699">[ Note ] - The Striker database host: [#!variable!host!#] is inactive, skipping it.</key>
@@ -2656,7 +2658,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0702">I was asked to update the timestamp, but the returned timestamp matches the last one. Will loop until a new timestamp is returned.</key>
 		<key name="log_0703">The timestamp has been updated from: [#!variable!old_time!#] to: [#!variable!new_time!#].</key>
 		<key name="log_0704">[ Error ] - The method Database/read_state() was called but both the 'state_name' and 'state_uuid' parameters were not passed or both were empty.</key>
-		<key name="log_0705">#!free!#</key>
+		<key name="log_0705">The server: [#!variable!name!#] (#!variable!uuid!#) has disappeared.</key>
 		<key name="log_0706">Updating the OUI list will happen after the system has been up for at least an hour. You can force an update now by running 'striker-parse-oui --force' at the command line.</key>
 		<key name="log_0707">Updated: [#!data!path::configs::firewalld.conf!#] to disable 'AllowZoneDrifting'. See: https://firewalld.org/2020/01/allowzonedrifting</key>
 		<key name="log_0708">Created the firewall zone: [#!variable!zone!#].</key>
@@ -2693,9 +2695,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0739">The server: [#!variable!server!#] needs its pacemaker configuration updated. Running: [#!variable!command!#].</key>
 		<key name="log_0740">Running the scan-agent: [#!variable!agent!#] now to ensure that the database has an updated view of resources.</key>
 		<key name="log_0741">I was about to start: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#]. However, another job using the same command with the job UUID: [#!variable!other_job_uuid!#]. To avoid race conditions, only one process with a given command is run at the same time.</key>
-		<key name="log_0742">#!free!#</key>
+		<key name="log_0742">Triggering a call to run: [#!variable!shell_call!#]</key>
 		<key name="log_0743">Will run without connecting to the databases. Some features will be unavailable.</key>
-		<key name="log_0744">#!free!#</key>
+		<key name="log_0744">This is a Striker dashboard, there are no servers here. Please disable the 'anvil-monitor-server' daemon.</key>
 		<key name="log_0745">Adjusting the resource: [#!variable!resource!#] to ensure it's compatible with the peer's config prior to connection.</key>
 		<key name="log_0746">The local resource: [#!variable!resource!#] is StandAlone, attempting to connect.</key>
 		<key name="log_0747">Failed to connect to the host: [#!variable!host!#]! Unable to up the resource on it. The volume(s) backing this server are UpToDate locally, so booting should be fine.</key>
@@ -2780,7 +2782,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0817">The server: [#!variable!server_name!#] libvirt definition was updated, undefining static config.</key>
 		<key name="log_0818">The server: [#!variable!server_name!#] libvirt definition will now be updated.</key>
 		<key name="log_0819">Check to verify that the connection to the server: [#!variable!server_name!#] is valid.</key>
-		<key name="log_0820">#!free!#</key>
+		<key name="log_0820">There is no connection to the hypervisor on this host, skipping this check.</key>
 		<key name="log_0821">No device found for PV: [#!variable!pv_name!#], skipping it.</key>
 		<key name="log_0822">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]! Will grow the partition to use the free space.</key>
 		<key name="log_0823">Found: [#!variable!free_space!#] free space after the PV partition: [#!variable!device_path!#:#!variable!pv_partition!#]. This is too small for auto-growing the partition.</key>
@@ -2812,24 +2814,24 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0841">Processes; (total / running / blocked / IRQ interrupts): [#!variable!total!# / #!variable!running!# / #!variable!blocked!# / #!variable!interrupts!#].</key>
 		<key name="log_0842">Starting the network manager connection: [#!variable!id!#] (uuid: [#!variable!uuid!#]).</key>
 		<key name="log_0843">Creating the: [#!variable!file!#] debug file on: [#!variable!host!#].</key>
-		<key name="log_0844">#!free!#</key>
-		<key name="log_0845">#!free!#</key>
+		<key name="log_0844">First time we've seen the server: [#!variable!name!#] (#!variable!uuid!#).</key>
+		<key name="log_0845">Something has changed with the server: [#!variable!name!#] (#!variable!uuid!#).</key>
 		<key name="log_0846">CPU Load Average: [#!variable!one_minute!# / #!variable!five_minutes!# / #!variable!ten_minutes!#], io wait: [#!variable!iowait!#%], running/blocked processes: [#!variable!running!# / #!variable!blocked!#]</key>
 		<key name="log_0847">Times out waiting for the bonds to come up. We waited: [#!variable!waited!#] seconds.</key>
 		<key name="log_0848">The fence level exists and it's the same fence agent, nothing to do.</key>
 		<key name="log_0849">The fence level exists, but it's for the fence name: [#!variable!old_fence_name!#], agent: [#!variable!old_fence_agent!#], deleting it.</key>
 		<key name="log_0850">Creating the fence level: [#!variable!key_name!#] for the agent: [#!variable!fence_agent!#] using the device(s): [#!variable!devices!#]</key>
-		<key name="log_0851">#!free!#</key>
+		<key name="log_0851">This is not a subnode. This job has nothing to do on this host. Was the job assigned improperly?</key>
 		<key name="log_0852">Finished configuring bonds.</key>
 		<key name="log_0853">Now configuring bridges.</key>
 		<key name="log_0854">The connection to the database: [#!variable!server!#] has been restored!</key>
 		<key name="log_0855">Calling: [#!variable!shell_call!#] via a 'timeout' of: [#!variable!timeout!#] seconds.</key>
-		<key name="log_0856">#!free!#</key>
+		<key name="log_0856">The server: [#!variable!server!#] was not found.</key>
 		<key name="log_0857">Cleaning up the connection to the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0858">Disconnecting from the database on striker: [#!variable!uuid!#].</key>
 		<key name="log_0859"><![CDATA[Convert->to_seconds() was passed the invalid string: [#!variable!string!#]. The supported units are 'Xw', 'Xd', 'Xh', 'Xs' and bare numbers (interpreted as seconds). If the string has multiple units, the must be separated by spaces only.]]></key>
 		<key name="log_0860">Processed: [#!variable!count!#] records, [#!variable!records_left!#] remaining.</key>
-		<key name="log_0861">#!free!#</key>
+		<key name="log_0861">No server was specified to relocate.</key>
 		<key name="log_0862">We're starting another copy of: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#].</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
@@ -3355,7 +3357,7 @@ proceeding.
 		<key name="message_0366"> - No linked DR hosts yet.</key>
 		<key name="message_0367">- No Anvil! nodes exist yet.</key>
 		<key name="message_0368">- Name: [#!variable!host_name!#]</key>
-		<key name="message_0369">#!free!#</key>
+		<key name="message_0369">Preparing to relocate the server.</key>
 		<key name="message_0370">- Server name: [#!variable!server_name!#] on Anvil! Node: [#!variable!anvil_name!#]</key>
 		<key name="message_0371">- No servers yet installed</key>
 		<key name="message_0372">Boot device order for: [#!variable!server_name!#]</key>
@@ -4345,7 +4347,15 @@ We will try to proceed anyway.</key>
 		<key name="warning_0173">[ Warning ] - Failed to convert: [#!variable!source_file!#] to: [#!variable!new_file!#] (format: [#!variable!format!#]! Return code was: [#!variable!return_code!#], expected '0'.</key>
 		<key name="warning_0174">[ Warning ] - The fence method: [#!variable!method!#] already existed, proceeding.</key>
 		<key name="warning_0175">[ Warning ] - The DB query: [#!variable!query!#] timed out! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
-		<key name="warning_0176">#!free!#</key>
+		<key name="warning_0176">[ Warning ] - Failed to parse the 'virsh capabilities'. The XML read was:
+========
+#!variable!xml!#
+========
+The error was:
+========
+#!variable!error!#
+========
+</key>
 		<key name="warning_0177">[ Warning ] - SQL quoting string: [#!variable!string!#] failed with the error: [#!variable!error!#].</key>
 		<key name="warning_0178">[ Warning ] - About to run 'anvil-configure-host'. This is likely going to take the network down, so we will hold here until this job is complete.</key>
 		<key name="warning_0179">[ Warning ] - The connection to the database: [#!variable!server!#] was not restored, unable to this database.</key>

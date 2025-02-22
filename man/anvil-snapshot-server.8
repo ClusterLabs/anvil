@@ -1,0 +1,60 @@
+.\" Manpage for the Anvil! cluster update tool.
+.\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
+.TH anvil-snapshot-server "8" "November 22 2024" "Anvil! Intelligent Availability™ Platform"
+.SH NAME
+anvil-snapshot-server \- Tool to create a snapshot of a server's backing storage.
+.SH SYNOPSIS
+.B anvil-snapshot-server 
+\fI\,<command> \/\fR[\fI\,options\/\fR]
+.SH DESCRIPTION
+This takes a snapshot of the logical volume backing the replicated storage under a server. 
+.TP
+.B Note:
+If the server has multiple disks, the snapshots will be made as close as possible in time, but they won't be made at exactly the same time. Similarly, there is no way for this tool to quiesce the server, so it is the responsibility of the caller to ensure caches / buffers are flushed before calling the snapshot.
+.TP
+Once the snapshots have been created, the message '\fBSNAPSHOT READY\fR' will be printed to STDOUT and recorded in the job progress. Once this message is seen, it is safe to re-enable caching / buffering in the OS. 
+.TP
+The snapshot images will be compressed using bzip2. This places some CPU overhead on the system and results in slower MiB/sec write speed, but results in a good balance of CPU overhead to compression ratio. When a server is running, and the peer subnode's storage is UpToDate, the snapshot and compression will be done on the peer subnode to minimize CPU load on the active host subnode.
+.IP
+.SH OPTIONS
+\-?, \-h, \fB\-\-help\fR
+Show this man page.
+.TP
+\fB\-\-log\-secure\fR
+When logging, record sensitive data, like passwords.
+.TP
+\-v, \-vv, \-vvv
+Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
+.IP
+.SS "Commands:"
+\fB\-\-confirm\fR
+.TP
+When not running as a job, you will be asked to confirm before the snapshots are made. This switch auto-confirms the snapshot.
+.TP
+\fB\-\-destination\fR </path/to/destination/>
+.TP
+This is the directory where the snapshot image will be saved into. The filename will be \fB<server_name>_<volume>_<yyyy-mm-dd_hh-mm-ss>.bzip2\fR. If there are two or more drives, they will all have the same timestamp, but it's possible each volume's snapshot might have been made a couple of seconds after the volume before it.
+.TP
+\fB\-\-restore\fR
+.TP
+This is used to indicate that you want to restore a snapshot to a server. The server can be different from the original source of the snapshot, you will need to ensure the target server has enough space to receive the restored data.
+.TP
+.B Note:
+The server must be off before the snapshot can be restored. Also note that servers with multiple drives will need to have each drive restored manually. This is to allow, for example, the restoration of a server's boot/root/OS drive without also restoring the data drive, or vice versa.
+.TP
+\fB\-\-source\fR </path/to/snapshot.bz2>
+.TP
+This is the snapshot image to restore. 
+.TP
+\fB\-\-server\fR <server name or uuid>
+.TP
+This is the server to snapshotted from or restored to.
+.TP
+\fB\-\-size\fR <human readible size>
+.TP
+By default, the snapshot size is the same as the source partition. This ensures that the snapshot will work no matter how fast the storage is changing. Of course, this is not possible if there isn't enough free space. In such a case, this switch allows the snapshot the be smaller. When using this switch, be certain the size you choose is sufficient to store the amount of changes on the duration during the duration of the snapshot image process. Example; If you the snapshot image takes 20 minutes, and you expect ~2 GiB of data to change in 20 minutes, use '\fB\-\-size 3GiB\fB' (50% additional buffer).
+.IP
+.SH AUTHOR
+Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.
+.SH "REPORTING BUGS"
+Report bugs to users@clusterlabs.org

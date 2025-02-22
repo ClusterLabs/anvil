@@ -2832,6 +2832,8 @@ WHERE
 		results => $results, 
 		count   => $count, 
 	}});
+	
+	my $longest_anvil_name = 0;
 	foreach my $row (@{$results})
 	{
 		my $anvil_uuid            =         $row->[0];
@@ -2934,7 +2936,18 @@ WHERE
 				}});
 			}
 		}
+		
+		if (length($anvil_name) > $longest_anvil_name)
+		{
+			$longest_anvil_name = length($anvil_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { longest_anvil_name => $longest_anvil_name }});
+		}
 	}
+	
+	$anvil->data->{anvils}{longest_anvil_name} = $longest_anvil_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"anvils::longest_anvil_name" => $anvil->data->{anvils}{longest_anvil_name},
+	}});
 
 	return(0);
 }
@@ -5228,7 +5241,11 @@ This loads all of the LVM data into the following hashes;
 * lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_path
 * lvm::host_name::<short_host_name>::lv::<scan_lvm_lv_name>::scan_lvm_lv_on_pvs
 
-This method takes no parameters.
+Parameters;
+
+=head3 include_deleted (optional)
+
+If set to C<< 1 >>, LVM data marked as C<< DELETED >> will be included.
 
 =cut
 sub get_lvm_data
@@ -5238,6 +5255,11 @@ sub get_lvm_data
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_lvm_data()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
 	
 	# Load Storage Group data
 	$anvil->Database->get_storage_group_data({debug => $debug});
@@ -5255,9 +5277,14 @@ SELECT
     scan_lvm_pv_free, 
     scan_lvm_pv_sector_size 
 FROM 
-    scan_lvm_pvs
+    scan_lvm_pvs";
+	if (not $include_deleted)
+	{
+		$query .= "
 WHERE 
-    scan_lvm_pv_name != 'DELETED' 
+    scan_lvm_pv_name != 'DELETED' ";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -5342,9 +5369,14 @@ SELECT
     scan_lvm_vg_size,
     scan_lvm_vg_free 
 FROM 
-    scan_lvm_vgs 
+    scan_lvm_vgs ";
+	if (not $include_deleted)
+	{
+		$query .= "
 WHERE 
-    scan_lvm_vg_name != 'DELETED' 
+    scan_lvm_vg_name != 'DELETED' ";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -5430,9 +5462,14 @@ SELECT
     scan_lvm_lv_path,
     scan_lvm_lv_on_pvs
 FROM 
-    scan_lvm_lvs 
+    scan_lvm_lvs ";
+	if (not $include_deleted)
+	{
+		$query .= "
 WHERE 
-    scan_lvm_lv_name != 'DELETED'
+    scan_lvm_lv_name != 'DELETED' ";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -6094,6 +6131,7 @@ WHERE
 		count   => $count, 
 	}});
 	
+	my $longest_server_name = 0;
 	foreach my $row (@{$results})
 	{
 		my $server_uuid                     =         $row->[0];
@@ -6237,7 +6275,19 @@ WHERE
 			"servers::anvil_uuid::${server_anvil_uuid}::server_name::${server_name}::server_uuid" => $anvil->data->{servers}{anvil_uuid}{$server_anvil_uuid}{server_name}{$server_name}{server_uuid}, 
 			"servers::server_name::${server_name}::server_uuid"                                   => $anvil->data->{servers}{server_name}{$server_name}{server_uuid}, 
 		}});
+		
+		# This makes it easier for TUI interfaces to align menus.
+		if (length($server_name) > $longest_server_name)
+		{
+			$longest_server_name = length($server_name);
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { longest_server_name => $longest_server_name }});
+		}
 	}
+	
+	$anvil->data->{servers}{longest_server_name} = $longest_server_name;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		"servers::longest_server_name" => $anvil->data->{servers}{longest_server_name},
+	}});
 	
 	return(0);
 }
@@ -6398,19 +6448,27 @@ sub get_storage_group_data
 	$query = "
 SELECT 
     a.storage_group_uuid, 
-    a.storage_group_anvil_uuid,
-    a.storage_group_name,  
+    a.storage_group_anvil_uuid, 
+    a.storage_group_name, 
     b.storage_group_member_uuid, 
     b.storage_group_member_host_uuid, 
-    b.storage_group_member_vg_uuid,
-    b.storage_group_member_note
+    b.storage_group_member_vg_uuid, 
+    b.storage_group_member_note, 
+    c.scan_lvm_vg_name 
 FROM 
     storage_groups a, 
-    storage_group_members b 
+    storage_group_members b, 
+    scan_lvm_vgs c 
 WHERE 
-    a.storage_group_uuid = b.storage_group_member_storage_group_uuid 
+    a.storage_group_uuid           =  b.storage_group_member_storage_group_uuid 
+AND 
+    b.storage_group_member_vg_uuid =  c.scan_lvm_vg_internal_uuid 
+AND 
+    a.storage_group_name           != 'DELETED' 
+AND 
+     c.scan_lvm_vg_name            != 'DELETED' 
 ORDER BY 
-    a.storage_group_anvil_uuid ASC
+    a.storage_group_anvil_uuid ASC 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
@@ -6476,7 +6534,7 @@ ORDER BY
 		# Make it possible to sort the storage groups by name.
 		$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid}" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
+			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_name::${storage_group_name}::storage_group_uuid" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid},
 		}});
 		
 		# If scan_lvm has been run, read is the free space on the VG
@@ -6507,9 +6565,9 @@ WHERE
 				$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size} = $results->[0]->[1];
 				$anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free} = $results->[0]->[2];
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_name" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_name},
-					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
-					"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
+					"s1:storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_name" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_name},
+					"s2:storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_size" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_size}}).")",
+					"s3:storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::vg_free" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{vg_free}}).")",
 				}});
 				
 				if (($anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{free_space} == 0) or 
