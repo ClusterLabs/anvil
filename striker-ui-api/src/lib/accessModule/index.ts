@@ -6,6 +6,7 @@ export * from './getData';
 export * from './getDatabaseConfigData';
 export * from './getFenceSpec';
 export * from './getHostData';
+export * from './getHostFromTarget';
 export * from './getLocalHostName';
 export * from './getLocalHostUuid';
 export * from './getLvmData';

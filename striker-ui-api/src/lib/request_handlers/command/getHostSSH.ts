@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { HOST_KEY_CHANGED_PREFIX } from '../../consts';
 
-import { getPeerData, query } from '../../accessModule';
+import { getHostFromTarget, getPeerData, query } from '../../accessModule';
 import { Responder } from '../../Responder';
 import { getHostSshRequestBodySchema } from './schemas';
 
@@ -36,36 +36,14 @@ export const getHostSSH: RequestHandler<
     return respond.s500('fe14fb1', `Failed to get peer data; CAUSE: ${error}`);
   }
 
-  let badKeys: string[];
+  const badKeys: string[] = [];
 
   let badHostUuid: string | undefined;
 
   try {
-    // Try matching the target with an IP to get the host UUID.
-    const sqlGetUuidFromIp = `
-      SELECT ip_address_host_uuid
-      FROM ip_addresses
-      WHERE ip_address_address = '${target}'
-      LIMIT 1`;
-
-    // Try matching the target with a host name to get the host UUID.
-    const sqlGetUuidFromShort = `
-      SELECT host_uuid
-      FROM hosts
-      WHERE host_name LIKE CONCAT(
-        SUBSTRING('${target}', '^[^.]*'),
-        '%'
-      )
-      LIMIT 1`;
-
-    // Since the target can only be **either** a name or IP, 1/2 query will
-    // return NULL. When there's a match, prioritize the one that isn't NULL.
-    const sqlGetUuid = `
-      SELECT
-        COALESCE(a1.host_uuid, a2.ip_address_host_uuid) AS host_uuid
-      FROM (${sqlGetUuidFromShort}) AS a1
-      FULL JOIN (${sqlGetUuidFromIp}) AS a2
-        ON TRUE`;
+    // The test access is done with the given target. If there is a bad key
+    // problem, it will be stored in the states table with the target in the
+    // state name.
 
     // Filter and format the state values before doing the final match.
     const sqlGetStates = `
@@ -76,36 +54,24 @@ export const getHostSSH: RequestHandler<
       FROM states
       WHERE state_name LIKE '${HOST_KEY_CHANGED_PREFIX}%'`;
 
-    // Get all IPs and the host name, then match them to the state records to
-    // find all keys related to the target.
-    const sqlGetKeys = `
+    // Try to get the key with matching target. Other key(s) linked to the same
+    // host will be handled by the job.
+    const sqlGetKey = `
       SELECT
-        DISTINCT(d.key),
-        a.host_uuid
-      FROM (${sqlGetUuid}) AS a
-      LEFT JOIN ip_addresses AS b
-        ON a.host_uuid = b.ip_address_host_uuid
-      LEFT JOIN hosts AS c
-        ON a.host_uuid = c.host_uuid
-      JOIN (${sqlGetStates}) AS d
-        ON d.target LIKE ANY (
-          ARRAY [
-            b.ip_address_address,
-            CONCAT(
-              SUBSTRING(c.host_name, '^[^.]*'),
-              '%'
-            )
-          ]
-        )`;
+        a.key
+      FROM (${sqlGetStates}) AS a
+      WHERE
+        a.target = '${target}'`;
 
-    const rows = await query<[string, string][]>(`${sqlGetKeys};`);
-
-    badKeys = rows.map(([badKey]) => badKey);
+    const rows = await query<[string][]>(`${sqlGetKey};`);
 
     if (rows.length) {
-      // All keys should only relate to 0 or 1 host UUID; try the first record
-      [, badHostUuid] = rows[0];
+      const [badKey] = rows[0];
+
+      badKeys.push(badKey);
     }
+
+    badHostUuid = await getHostFromTarget(target);
   } catch (error) {
     return respond.s500(
       'd5a2acf',
