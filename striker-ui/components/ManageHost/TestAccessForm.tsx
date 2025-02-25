@@ -178,8 +178,13 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
       validationSchema: testAccessSchema,
     });
 
-  const ipChain = useMemo<string>(() => 'ip', []);
-  const passwordChain = useMemo<string>(() => 'password', []);
+  const chains = useMemo(
+    () => ({
+      target: 'target',
+      password: 'password',
+    }),
+    [],
+  );
 
   const deletingSshKeyConflicts = useMemo<boolean>(
     () => Boolean(deleteJobs) && deleteProgress < 100,
@@ -203,9 +208,9 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
           input={
             <OutlinedInputWithLabel
               disableAutofill
-              id={ipChain}
+              id={chains.target}
               label="IP address"
-              name={ipChain}
+              name={chains.target}
               onChange={handleChange}
               required
               value={formik.values.target}
@@ -218,9 +223,9 @@ const TestAccessForm: FC<TestAccessFormProps> = (props) => {
           input={
             <OutlinedInputWithLabel
               disableAutofill
-              id={passwordChain}
+              id={chains.password}
               label="Password"
-              name={passwordChain}
+              name={chains.password}
               onChange={handleChange}
               required
               type="password"
