@@ -46,9 +46,9 @@ export const getFile: RequestHandler<
         BOOL_AND(b.file_location_ready) AS file_ready,
         c.anvil_uuid
       FROM files AS a
-      JOIN file_locations AS b
+      LEFT JOIN file_locations AS b
         ON b.file_location_file_uuid = a.file_uuid
-      JOIN anvils AS c
+      LEFT JOIN anvils AS c
         ON b.file_location_host_uuid IN (
           c.anvil_node1_host_uuid,
           c.anvil_node2_host_uuid
@@ -70,6 +70,10 @@ export const getFile: RequestHandler<
           type,
           uuid,
         };
+      }
+
+      if (!anvilUuid) {
+        return previous;
       }
 
       previous[uuid].anvils[anvilUuid] = {
