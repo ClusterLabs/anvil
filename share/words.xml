@@ -137,7 +137,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
 		<key name="error_0080">[ Warning ] - The server: [#!variable!server!#] does not appear to exist on the cluster, aborting.</key>
-		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
+		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data or the job data was malformed.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
 		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
@@ -493,7 +493,7 @@ Output (if any):
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
 		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
-		<key name="error_0322">#!free!#</key>
+		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
 		<key name="error_0323">#!free!#</key>
 		<key name="error_0324">#!free!#</key>
 		<key name="error_0325">#!free!#</key>
