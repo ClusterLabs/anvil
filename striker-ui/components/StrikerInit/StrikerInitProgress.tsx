@@ -9,6 +9,7 @@ import ScrollBox from '../ScrollBox';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 import useFetch from '../../hooks/useFetch';
+import useJobStatus from '../../hooks/useJobStatus';
 import useScrollHelpers from '../../hooks/useScrollHelpers';
 
 const CenterPanel: FC = (props) => {
@@ -73,17 +74,7 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
     refreshInterval: 2000,
   });
 
-  const statusList = useMemo(() => {
-    if (!initJob?.status) return <Pre>Loading...</Pre>;
-
-    const { status } = initJob;
-
-    const content = Object.values(status)
-      .reduce<string>((previous, entry) => `${previous}${entry.value}\n\n`, '')
-      .trimEnd();
-
-    return <Pre>{content}</Pre>;
-  }, [initJob]);
+  const status = useJobStatus(initJob?.status);
 
   if (!initJob) {
     return (
@@ -115,8 +106,8 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
               <BodyText>Status</BodyText>
             </InnerPanelHeader>
             <InnerPanelBody>
-              <ScrollBox height="50vh" ref={scroll.ref}>
-                {statusList}
+              <ScrollBox height="4em" key="status" ref={scroll.callbackRef}>
+                <Pre>{status.string}</Pre>
               </ScrollBox>
             </InnerPanelBody>
           </InnerPanel>

@@ -16,10 +16,13 @@ import {
   InnerPanelHeader,
 } from './Panels';
 import Pre from './Pre';
+import ScrollBox from './ScrollBox';
 import Spinner from './Spinner';
 import { BodyText, SensitiveText, SmallText } from './Text';
 import { ago, now } from '../lib/time';
 import useFetch from '../hooks/useFetch';
+import useJobStatus from '../hooks/useJobStatus';
+import useScrollHelpers from '../hooks/useScrollHelpers';
 
 const toReadableTimestamp = (seconds: number): string => {
   const milliseconds = seconds * 1000;
@@ -61,6 +64,8 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     },
   );
 
+  const status = useJobStatus(job?.status);
+
   const nao = now();
 
   const dataList = useMemo(
@@ -85,16 +90,6 @@ const JobDetail: FC<JobDetailProps> = (props) => {
       }),
     [job],
   );
-
-  const statusList = useMemo(() => {
-    if (!job) return undefined;
-
-    const content = Object.values(job.status)
-      .reduce<string>((previous, entry) => `${previous}${entry.value}\n\n`, '')
-      .trimEnd();
-
-    return <Pre>{content}</Pre>;
-  }, [job]);
 
   const startedReadable = useMemo(
     () => job && toReadableTimestamp(job.started),
@@ -126,7 +121,19 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     );
   }, [breakpointSmall, job, startedAgo, startedReadable]);
 
-  const content = job ? (
+  const scroll = useScrollHelpers<HTMLDivElement>({
+    follow: true,
+  });
+
+  if (loadingJob) {
+    return <Spinner mt={0} />;
+  }
+
+  if (!job) {
+    return <MessageBox {...apiMessage} />;
+  }
+
+  return (
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
         <Grid item width="100%">
@@ -171,6 +178,23 @@ const JobDetail: FC<JobDetailProps> = (props) => {
               ~{modifiedAgo} ago{breakpointSmall && ` (${modifiedReadable})`}
             </BodyText>
           </Grid>
+        </Grid>
+        <Grid item width="100%">
+          <InnerPanel mb={0} mt={0}>
+            <InnerPanelHeader>
+              <BodyText>Status</BodyText>
+            </InnerPanelHeader>
+            <InnerPanelBody>
+              <ScrollBox
+                height="24vh"
+                key="job-status"
+                lineHeight="2"
+                ref={scroll.callbackRef}
+              >
+                <Pre>{status.string}</Pre>
+              </ScrollBox>
+            </InnerPanelBody>
+          </InnerPanel>
         </Grid>
         <Grid item width="100%">
           <ExpandablePanel
@@ -226,27 +250,19 @@ const JobDetail: FC<JobDetailProps> = (props) => {
               overflow="scroll"
               paddingBottom=".8em"
               spacing=".2em"
-              sx={{ '& > *': { width: 'max-content' } }}
+              sx={{
+                '& > *': {
+                  width: 'max-content',
+                },
+              }}
             >
               {dataList}
             </FlexBox>
           </ExpandablePanel>
         </Grid>
-        <Grid item width="100%">
-          <InnerPanel mb={0} mt={0}>
-            <InnerPanelHeader>
-              <BodyText>Status</BodyText>
-            </InnerPanelHeader>
-            <InnerPanelBody>{statusList}</InnerPanelBody>
-          </InnerPanel>
-        </Grid>
       </Grid>
     </DialogScrollBox>
-  ) : (
-    <MessageBox {...apiMessage} />
   );
-
-  return loadingJob ? <Spinner /> : content;
 };
 
 export default JobDetail;
