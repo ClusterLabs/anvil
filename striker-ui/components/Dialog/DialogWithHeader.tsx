@@ -2,11 +2,18 @@ import {
   ForwardRefExoticComponent,
   PropsWithChildren,
   RefAttributes,
+  createContext,
   forwardRef,
+  useMemo,
+  useState,
 } from 'react';
 
 import Dialog from './Dialog';
 import DialogHeader from './DialogHeader';
+
+const DialogWithHeaderContext = createContext<DialogWithHeaderContext | null>(
+  null,
+);
 
 const DialogWithHeader: ForwardRefExoticComponent<
   PropsWithChildren<DialogWithHeaderProps> &
@@ -16,7 +23,7 @@ const DialogWithHeader: ForwardRefExoticComponent<
     const {
       children,
       dialogProps,
-      header,
+      header: initialHeader,
       loading,
       onClose,
       openInitially,
@@ -24,23 +31,36 @@ const DialogWithHeader: ForwardRefExoticComponent<
       wide,
     } = props;
 
+    const [header, setHeader] = useState<React.ReactNode>(initialHeader);
+
+    const context = useMemo<DialogWithHeaderContext>(
+      () => ({
+        setHeader,
+      }),
+      [],
+    );
+
     return (
-      <Dialog
-        dialogProps={dialogProps}
-        loading={loading}
-        openInitially={openInitially}
-        ref={ref}
-        wide={wide}
-      >
-        <DialogHeader onClose={onClose} showClose={showClose}>
-          {header}
-        </DialogHeader>
-        {children}
-      </Dialog>
+      <DialogWithHeaderContext.Provider value={context}>
+        <Dialog
+          dialogProps={dialogProps}
+          loading={loading}
+          openInitially={openInitially}
+          ref={ref}
+          wide={wide}
+        >
+          <DialogHeader onClose={onClose} showClose={showClose}>
+            {header}
+          </DialogHeader>
+          {children}
+        </Dialog>
+      </DialogWithHeaderContext.Provider>
     );
   },
 );
 
 DialogWithHeader.displayName = 'DialogWithHeader';
+
+export { DialogWithHeaderContext };
 
 export default DialogWithHeader;

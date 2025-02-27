@@ -2,7 +2,7 @@ import Dialog, { DialogContext } from './Dialog';
 import DialogActionGroup from './DialogActionGroup';
 import DialogHeader from './DialogHeader';
 import DialogScrollBox from './DialogScrollBox';
-import DialogWithHeader from './DialogWithHeader';
+import DialogWithHeader, { DialogWithHeaderContext } from './DialogWithHeader';
 
 export {
   Dialog,
@@ -10,5 +10,6 @@ export {
   DialogContext,
   DialogHeader,
   DialogScrollBox,
+  DialogWithHeaderContext,
   DialogWithHeader,
 };
