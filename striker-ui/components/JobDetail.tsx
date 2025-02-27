@@ -1,10 +1,10 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { FC, useContext, useMemo, useState } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
 import { ProgressBar } from './Bars';
-import { DialogScrollBox } from './Dialog';
+import { DialogScrollBox, DialogWithHeaderContext } from './Dialog';
 import FlexBox from './FlexBox';
 import IconButton from './IconButton';
 import MessageBox, { Message } from './MessageBox';
@@ -45,6 +45,8 @@ const JobDetail: FC<JobDetailProps> = (props) => {
   const theme = useTheme();
   const breakpointSmall = useMediaQuery(theme.breakpoints.up('sm'));
 
+  const dialog = useContext(DialogWithHeaderContext);
+
   const [apiMessage, setApiMessage] = useState<Message>({
     children: `Job ${uuid} details unavailable`,
     type: 'warning',
@@ -58,6 +60,9 @@ const JobDetail: FC<JobDetailProps> = (props) => {
           children: `Failed to get job ${uuid} details. Error: ${error}`,
           type: 'error',
         });
+      },
+      onSuccess: (data) => {
+        dialog?.setHeader(data.title);
       },
       periodic: true,
       refreshInterval,
@@ -136,9 +141,6 @@ const JobDetail: FC<JobDetailProps> = (props) => {
   return (
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
-        <Grid item width="100%">
-          <BodyText>{job.title}</BodyText>
-        </Grid>
         <Grid item width="100%">
           <ProgressBar progressPercentage={job.progress} />
         </Grid>
