@@ -1,18 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 const useScrollHelpers = <Element extends HTMLElement>(
-  props: {
+  options: {
     follow?: boolean;
   } = {},
 ): {
+  callbackRef: (element: Element | null) => void;
   follow: boolean;
-  ref: React.Ref<Element>;
+  ref: React.MutableRefObject<Element | null>;
   setFollow: React.Dispatch<React.SetStateAction<boolean>>;
   setScrollTop: (value?: number) => void;
 } => {
-  const { follow: initialFollow = true } = props;
+  const { follow: initialFollow = true } = options;
 
   const ref = useRef<Element | null>(null);
+
+  const observer = useRef<MutationObserver | null>(null);
 
   const [follow, setFollow] = useState<boolean>(initialFollow);
 
@@ -90,31 +93,48 @@ const useScrollHelpers = <Element extends HTMLElement>(
     [follow, setScrollTop],
   );
 
-  useEffect(() => {
-    if (!ref.current) {
-      return () => null;
-    }
+  const callbackRef = useCallback(
+    (element: Element | null) => {
+      if (!element) {
+        return;
+      }
 
+      ref.current = element;
+
+      // The exact same instance of a listener will only be set once
+      element.addEventListener('scroll', handleScroll);
+
+      // Only create and set the observer once
+      if (observer.current) {
+        return;
+      }
+
+      observer.current = new MutationObserver(handleMutations);
+
+      observer.current.observe(element, {
+        characterData: true,
+        childList: true,
+        subtree: true,
+      });
+    },
+    [handleMutations, handleScroll],
+  );
+
+  // Remember to set key={} on the scrollable element to prevent unnecessary
+  // re-rendering
+  useEffect(() => {
     const element = ref.current;
 
-    element.addEventListener('scroll', handleScroll);
-
-    const observer = new MutationObserver(handleMutations);
-
-    observer.observe(element, {
-      characterData: true,
-      childList: true,
-      subtree: true,
-    });
-
+    // Try to clean up the listeners on unmount
     return () => {
-      observer.disconnect();
+      observer.current?.disconnect();
 
-      element.removeEventListener('scroll', handleScroll);
+      element?.removeEventListener('scroll', handleScroll);
     };
-  }, [handleMutations, handleScroll]);
+  }, [handleScroll]);
 
   return {
+    callbackRef,
     follow,
     ref,
     setFollow,
