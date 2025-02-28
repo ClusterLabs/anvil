@@ -1,5 +1,5 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useContext, useMemo, useState } from 'react';
+import { FC, useContext, useEffect, useMemo, useState } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
@@ -18,7 +18,8 @@ import {
 import Pre from './Pre';
 import ScrollBox from './ScrollBox';
 import Spinner from './Spinner';
-import { BodyText, SensitiveText, SmallText } from './Text';
+import SyncIndicator from './SyncIndicator';
+import { BodyText, HeaderText, SensitiveText, SmallText } from './Text';
 import { ago, now } from '../lib/time';
 import useFetch from '../hooks/useFetch';
 import useJobStatus from '../hooks/useJobStatus';
@@ -52,22 +53,36 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     type: 'warning',
   });
 
-  const { data: job, loading: loadingJob } = useFetch<APIJobDetail>(
-    `/job/${uuid}`,
-    {
-      onError: (error) => {
-        setApiMessage({
-          children: `Failed to get job ${uuid} details. Error: ${error}`,
-          type: 'error',
-        });
-      },
-      onSuccess: (data) => {
-        dialog?.setHeader(data.title);
-      },
-      periodic: true,
-      refreshInterval,
+  const {
+    data: job,
+    loading: loadingJob,
+    validating: validatingJob,
+  } = useFetch<APIJobDetail>(`/job/${uuid}`, {
+    onError: (error) => {
+      setApiMessage({
+        children: `Failed to get job ${uuid} details. Error: ${error}`,
+        type: 'error',
+      });
     },
-  );
+    onSuccess: (data) => {
+      dialog?.setHeader(data.title);
+    },
+    periodic: true,
+    refreshInterval,
+  });
+
+  useEffect(() => {
+    if (!(dialog && job)) {
+      return;
+    }
+
+    dialog.setHeader(
+      <>
+        <HeaderText>{job.title}</HeaderText>
+        <SyncIndicator syncing={validatingJob} />
+      </>,
+    );
+  }, [dialog, job, validatingJob]);
 
   const status = useJobStatus(job?.status);
 
