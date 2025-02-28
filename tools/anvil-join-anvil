@@ -1589,9 +1589,9 @@ sub wait_for_access
 			}});
 			
 			### NOTE: I know I could match interface names, but that's not certain enough. It's 
-			###       possible (if unlikely) that the network name+numbre differs on our peer. So
+			###       possible (if unlikely) that the network name+number differs on our peer. So
 			###       this is safer.
-			# Loop through my peer's interfaces and see if we're sharing this one.
+			# Loop through my peer's interfaces and see if we're shareing this one.
 			my $local_network    = NetAddr::IP->new($ip_address."/".$subnet_mask);
 			my $peer_match_found = 0;
 			foreach my $peer_interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$peer_short_host_name}{interface}})
@@ -1641,6 +1641,16 @@ sub wait_for_access
 							network => $this_network, 
 							peer_ip => $peer_ip_address,
 						}});
+						
+						my $job_created = check_for_bad_key($anvil, $peer_ip_address);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_created => $job_created }});
+						
+						if ($job_created)
+						{
+							# Sleep for ten seconds to give the job time to get 
+							# picked up and run.
+							sleep 10;
+						}
 					}
 				} 
 				
@@ -1651,6 +1661,19 @@ sub wait_for_access
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0606", variables => { peer => $peer_short_host_name }});
 			sleep 5;
+			
+			# Run anvil-manage-keys to see if we're failing to connect because of key changes.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0586"});
+			
+			### TODO: This should be safe, but it's worth revisiting with fresh eyes to be sure.
+			my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-keys'}." --test --confirm".$anvil->Log->switches();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $shell_call});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
 		}
 	}
 	
@@ -1658,6 +1681,93 @@ sub wait_for_access
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0607", variables => { peer => $peer_short_host_name }});
 	
 	return(0);
+}
+
+# This takes an IP or short host name and checks to see if a bad key exists in states. If so, it creates a 
+# job to remove it.
+sub check_for_bad_key
+{
+	my ($anvil, $peer) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer => $peer }});
+	
+	my $job_created = 0;
+	my $state_name  = "host_key_changed::".$peer;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_name => $state_name }});
+	if ((exists $anvil->data->{key_jobs}{$state_name}) && ($anvil->data->{key_jobs}{$state_name}))
+	{
+		# We've already processed this key, don't do it again.
+		my $job_uuid = $anvil->data->{key_jobs}{$state_name};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0627", variables => { 
+			peer     => $peer, 
+			job_uuid => $job_uuid, 
+		}});
+		return($job_created);
+	}
+	
+	my $query = "
+SELECT 
+    state_uuid, 
+    state_note 
+FROM 
+    states 
+WHERE 
+    state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
+AND 
+    state_name      = ".$anvil->Database->quote($state_name)."
+;";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+	
+	my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+	my $count   = @{$results};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		results => $results, 
+		count   => $count, 
+	}});
+	
+	if ($count == 1)
+	{
+		my $state_uuid = $results->[0]->[0];
+		my $state_note = $results->[0]->[1];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			state_uuid => $state_uuid,
+			state_note => $state_note, 
+		}});
+		
+		my $bad_key = ($state_note =~ /key=(.*)$/)[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bad_key => $bad_key }});
+		
+		next if not $bad_key;
+		
+		### NOTE: Rationale for automating this; If a malicious actor can run this program, they can
+		###       just as easily register a job to clear the keys directly. So this favours 
+		###       usability.
+		# Register a jo to clean up the bad key.
+		$anvil->data->{key_jobs}{$state_name} = $anvil->Database->insert_or_update_jobs({
+			debug           => 2,
+			file            => $THIS_FILE, 
+			line            => __LINE__, 
+			job_title       => "job_0056",
+			job_description => "job_0057",
+			job_host_uuid   => $anvil->Get->host_uuid, 
+			job_data        => "bad_key=".$bad_key,
+			job_command     => $anvil->data->{path}{exe}{'anvil-manage-keys'}.$anvil->Log->switches, 
+			job_name        => "manage::broken_keys", 
+			job_progress    => 0,
+		});
+		$job_created = $anvil->data->{key_jobs}{$state_name} ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:key_jobs::${state_name}" => $anvil->data->{key_jobs}{$state_name},
+			"s2:job_created"             => $job_created, 
+		}});
+		
+		# Tell the user we've created a new job.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "log_0625", variables => {
+			job_uuid => $anvil->data->{key_jobs}{$state_name}, 
+			peer     => $peer, 
+		}});
+	}
+	
+	return($job_created);
 }
 
 # Configure DRBD

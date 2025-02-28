@@ -2535,7 +2535,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0583">#!free!#</key>
 		<key name="log_0584">#!free!#</key>
 		<key name="log_0585">#!free!#</key>
-		<key name="log_0586">#!free!#</key>
+		<key name="log_0586">Checking for SSH key changes before we retest network access.</key>
 		<key name="log_0587">The server: [#!variable!server_name!#] has been removed from Pacemaker.</key>
 		<key name="log_0588">We're required by at least one peer, so we'll wait a bit and check to see if they still need us before we proceed with the deletion.</key>
 		<key name="log_0589">Deleting the file: [#!variable!file!#].</key>
@@ -2574,9 +2574,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0622">Aging out one or more records that are more than: [#!variable!age!#] hours old from the table: [#!variable!table!#] on the database host: [#!variable!database!#].</key>
 		<key name="log_0623">Starting the process of aging out old data. This can take about a minute, please be patient.</key>
 		<key name="log_0624">Aging out old data completed after: [#!variable!runtime!#] seconds.</key>
-		<key name="log_0625">#!free!#</key>
+		<key name="log_0625">It appears our peer was rebuilt. Created a job to delete the SSH key for our peer's: [#!variable!peer!#] name/IP with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0626">This system will reboot in: [#!variable!seconds!#] seconds...</key>
-		<key name="log_0627">#!free!#</key>
+		<key name="log_0627">We've already found a bad key for the peer: [#!variable!peer!#], so we won't check again. The job to clean the bad keys has UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0628">#!free!#</key>
 		<key name="log_0629">#!free!#</key>
 		<key name="log_0630">#!free!#</key>
