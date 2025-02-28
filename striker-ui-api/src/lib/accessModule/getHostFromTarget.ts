@@ -27,5 +27,11 @@ export const getHostFromTarget = async (
     pre: ['Get'],
   });
 
+  // Empty string will cause input validation to fail because it's treated as
+  // input is provided but won't match the UUID pattern.
+  if (!badHostUuid) {
+    badHostUuid = undefined;
+  }
+
   return badHostUuid;
 };
