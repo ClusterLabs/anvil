@@ -31,10 +31,7 @@ const DialogHeader: React.FC<DialogHeaderProps> = (props) => {
   );
 
   const title = useMemo<ReactNode>(
-    () =>
-      sxstring(children, HeaderText, {
-        noWrap: true,
-      }),
+    () => sxstring(children, HeaderText),
     [children],
   );
 

@@ -23,7 +23,7 @@ const DialogWithHeader: ForwardRefExoticComponent<
     const {
       children,
       dialogProps,
-      header: initialHeader,
+      header: externalHeader,
       loading,
       onClose,
       openInitially,
@@ -31,13 +31,19 @@ const DialogWithHeader: ForwardRefExoticComponent<
       wide,
     } = props;
 
-    const [header, setHeader] = useState<React.ReactNode>(initialHeader);
+    const [internalHeader, setInternalHeader] =
+      useState<React.ReactNode>(externalHeader);
 
     const context = useMemo<DialogWithHeaderContext>(
       () => ({
-        setHeader,
+        setHeader: setInternalHeader,
       }),
       [],
+    );
+
+    const header = useMemo<React.ReactNode>(
+      () => externalHeader || internalHeader,
+      [externalHeader, internalHeader],
     );
 
     return (
