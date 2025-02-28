@@ -1133,7 +1133,16 @@ sub get_job_details
 			}});
 		}
 	}
-	
+
+	# In job data: if 'target' is set, but not 'host_ip_address', set it.
+	if ((not $anvil->data->{data}{host_ip_address}) && ($anvil->data->{data}{target}))
+	{
+		$anvil->data->{data}{host_ip_address} = $anvil->data->{data}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"data::host_ip_address" => $anvil->data->{data}{host_ip_address},
+		}});
+	}
+
 	# If the user set command line switches, they will override the values read from the job.
 	if ($anvil->data->{switches}{'enterprise-uuid'})
 	{
