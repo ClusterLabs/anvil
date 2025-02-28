@@ -1198,7 +1198,7 @@ sub get_job_details
 	if (($anvil->data->{data}{enterprise_uuid}) && (not $anvil->Validate->uuid({uuid => $anvil->data->{data}{enterprise_uuid}})))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0378", variables => { uuid => $anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}} }});
-		update_progress($anvil, 100, "error_0378,!!uuid!".$anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}}."!!");
+		update_progress($anvil, 100, "error_0378,!!uuid!".$anvil->data->{data}{enterprise_uuid}."!!");
 		$anvil->nice_exit({exit_code => 1});
 	}
 	if (not $anvil->data->{data}{host_ip_address})
