@@ -1,3 +1,5 @@
+import { DELETED } from '../../consts';
+
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
@@ -54,11 +56,17 @@ const setCvar = (
 };
 
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
-  keys: hostUUIDs = '*',
+  keys: hostUuids = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'WHERE a.host_uuid');
+  let conditions = `WHERE a.host_key != '${DELETED}'`;
 
-  pout(`condHostUUIDs=[${condHostUUIDs}]`);
+  const uuidsCondition = buildKnownIDCondition(hostUuids, 'a.host_uuid');
+
+  if (uuidsCondition) {
+    conditions += ` AND ${uuidsCondition}`;
+  }
+
+  pout(`condHostUUIDs=[${uuidsCondition}]`);
 
   const query = `
     SELECT
@@ -118,7 +126,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         )
     LEFT JOIN network_interfaces AS g
       ON g.network_interface_mac_address = f.variable_value
-    ${condHostUUIDs}
+    ${conditions}
     ORDER BY
       a.host_name ASC,
       d.network_interface_alias ASC,
