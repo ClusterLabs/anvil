@@ -1,3 +1,5 @@
+import { DELETED } from '../../consts';
+
 import { getLocalHostUUID } from '../../accessModule';
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
@@ -12,15 +14,15 @@ export const getHost = buildGetRequestHandler((request, hooks) => {
 
   const localHostUUID: string = getLocalHostUUID();
 
+  let condition = `WHERE a.host_key != '${DELETED}'`;
+
   const { after: typeCondition } = buildUnknownIDCondition(
     hostTypes,
     'a.host_type',
   );
 
-  let condition = '';
-
-  if (typeCondition.length > 0) {
-    condition += `WHERE ${typeCondition}`;
+  if (typeCondition) {
+    condition += ` AND ${typeCondition}`;
   }
 
   let query = `

@@ -41,20 +41,17 @@ const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
 const buildPreview = (server: APIServerOverview): React.ReactNode => (
   <Grid item>
     <PreviewFrame<APIServerOverview>
-      getHeader={({ anvil, jobs, name }) => (
-        <>
-          {jobs ? (
-            <BodyText noWrap>{name}</BodyText>
-          ) : (
-            <Link href={`/server?name=${name}`} noWrap>
-              {name}
-            </Link>
-          )}
-          <Link href={`/anvil?name=${anvil.name}`} noWrap sx={{ opacity: 0.7 }}>
-            {anvil.name}
+      getHeader={({ jobs, name }) => {
+        if (jobs) {
+          return <BodyText noWrap>{name}</BodyText>;
+        }
+
+        return (
+          <Link href={`/server?name=${name}`} noWrap>
+            {name}
           </Link>
-        </>
-      )}
+        );
+      }}
       key={`${server.uuid}-preview`}
       server={server}
       showControls={!server.jobs}

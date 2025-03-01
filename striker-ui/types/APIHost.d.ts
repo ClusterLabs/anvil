@@ -93,3 +93,24 @@ type APIDeleteHostConnectionRequestBody = {
 type APIStrikerInitResponseBody = {
   jobUuid: string;
 };
+
+type APIPrepareHostRequestBody = {
+  enterprise: {
+    uuid?: string;
+  };
+  host: {
+    name: string;
+    password: string;
+    ssh: {
+      port?: number;
+    };
+    type: string;
+    user?: string;
+    uuid?: string;
+  };
+  redhat: {
+    password?: string;
+    user?: string;
+  };
+  target: string;
+};

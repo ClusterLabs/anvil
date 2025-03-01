@@ -1,27 +1,20 @@
-import { Link as MUILinkIcon } from '@mui/icons-material';
-import { Link as MUILink } from '@mui/material';
-import { FC } from 'react';
+import { Link as MuiLink, styled } from '@mui/material';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 
-import FlexBox from './FlexBox';
+const BaseStyle = styled(MuiLink)({
+  color: TEXT,
+  textDecorationColor: GREY,
+});
 
-const Link: FC<LinkProps> = ({ children, sx: linkSx, ...restLinkProps }) => (
-  <MUILink
-    underline="hover"
-    variant="subtitle1"
-    {...restLinkProps}
-    sx={{
-      color: TEXT,
-      textDecorationColor: GREY,
-      ...linkSx,
-    }}
-  >
-    <FlexBox row>
+const Link: React.FC<LinkProps> = (props) => {
+  const { children, ...restProps } = props;
+
+  return (
+    <BaseStyle underline="always" variant="subtitle1" {...restProps}>
       {children}
-      <MUILinkIcon sx={{ marginLeft: '.3em' }} />
-    </FlexBox>
-  </MUILink>
-);
+    </BaseStyle>
+  );
+};
 
 export default Link;

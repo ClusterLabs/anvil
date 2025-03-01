@@ -31,10 +31,19 @@ const PreviewFrame = <Server extends APIServerOverview>(
         {getHeader(server)}
         {showControls && (
           <ServerMenu
-            iconButtonProps={{ size: 'small' }}
-            serverName={server.name}
-            serverState={server.state}
-            serverUuid={server.uuid}
+            node={server.anvil}
+            server={server}
+            slotProps={{
+              button: {
+                slotProps: {
+                  button: {
+                    icon: {
+                      size: 'small',
+                    },
+                  },
+                },
+              },
+            }}
           />
         )}
       </InnerPanelHeader>

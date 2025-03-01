@@ -1,4 +1,4 @@
-import { FC, ReactNode, useCallback, useContext, useMemo } from 'react';
+import { ReactNode, useCallback, useContext, useMemo } from 'react';
 
 import { DialogContext } from './Dialog';
 import IconButton from '../IconButton';
@@ -6,14 +6,14 @@ import { PanelHeader } from '../Panels';
 import sxstring from '../../lib/sxstring';
 import { HeaderText } from '../Text';
 
-const DialogHeader: FC<DialogHeaderProps> = (props) => {
+const DialogHeader: React.FC<DialogHeaderProps> = (props) => {
   const {
     children,
     onClose = ({ handlers: { base } }, ...args) => base?.call(null, ...args),
     showClose,
   } = props;
 
-  const dialogContext = useContext(DialogContext);
+  const dialog = useContext(DialogContext);
 
   const closeHandler = useCallback<ButtonClickEventHandler>(
     (...args) =>
@@ -21,13 +21,13 @@ const DialogHeader: FC<DialogHeaderProps> = (props) => {
         {
           handlers: {
             base: () => {
-              dialogContext?.setOpen(false);
+              dialog?.setOpen(false);
             },
           },
         },
         ...args,
       ),
-    [dialogContext, onClose],
+    [dialog, onClose],
   );
 
   const title = useMemo<ReactNode>(

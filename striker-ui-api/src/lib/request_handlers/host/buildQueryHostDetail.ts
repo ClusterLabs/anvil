@@ -1,3 +1,5 @@
+import { DELETED } from '../../consts';
+
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
@@ -7,14 +9,19 @@ import { pout } from '../../shell';
 
 const CVAR_PREFIX = 'form::config_step';
 
+const PATTERNS = {
+  network: {
+    id: new RegExp(`^${ifaceAliasReps.id}`),
+    ip: new RegExp(`^${ifaceAliasReps.id}_ip$`),
+  },
+};
+
 const MAP_TO_EXTRACTOR: Record<string, (parts: string[]) => string[]> = {
   form: ([, part2]) => {
     const [rHead, ...rest] = part2.split('_');
     const head = rHead.toLowerCase();
 
-    const netRep = new RegExp(`^${ifaceAliasReps.id}`);
-
-    return netRep.test(head)
+    return PATTERNS.network.id.test(head)
       ? ['networks', head, camel(...rest)]
       : [camel(head, ...rest)];
   },
@@ -49,11 +56,17 @@ const setCvar = (
 };
 
 export const buildQueryHostDetail: BuildQueryDetailFunction = ({
-  keys: hostUUIDs = '*',
+  keys: hostUuids = '*',
 } = {}) => {
-  const condHostUUIDs = buildKnownIDCondition(hostUUIDs, 'WHERE a.host_uuid');
+  let conditions = `WHERE a.host_key != '${DELETED}'`;
 
-  pout(`condHostUUIDs=[${condHostUUIDs}]`);
+  const uuidsCondition = buildKnownIDCondition(hostUuids, 'a.host_uuid');
+
+  if (uuidsCondition) {
+    conditions += ` AND ${uuidsCondition}`;
+  }
+
+  pout(`condHostUUIDs=[${uuidsCondition}]`);
 
   const query = `
     SELECT
@@ -113,7 +126,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
         )
     LEFT JOIN network_interfaces AS g
       ON g.network_interface_mac_address = f.variable_value
-    ${condHostUUIDs}
+    ${conditions}
     ORDER BY
       a.host_name ASC,
       d.network_interface_alias ASC,
@@ -181,6 +194,24 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
               MAP_TO_EXTRACTOR[variablePrefix](restVariableParts);
 
             setCvar(keychain, variableValue, previous);
+
+            // Extract the network type and number from a reused machine
+            if (PATTERNS.network.ip.test(variableName)) {
+              const parts = variableName.match(PATTERNS.network.id);
+
+              if (parts) {
+                const [, type, sequence] = parts;
+
+                const alias = `${type}${sequence}`;
+
+                [
+                  ['sequence', sequence],
+                  ['type', type],
+                ].forEach(([key, value]) => {
+                  setCvar(['networks', alias, key], value, previous);
+                });
+              }
+            }
 
             // Also set the NIC's UUID when we see a MAC variable
             if (/mac_to_set/.test(variableName)) {

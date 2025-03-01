@@ -1,4 +1,4 @@
-type APIServerState =
+type ServerState =
   | 'crashed'
   | 'idle'
   | 'in shutdown'
@@ -8,6 +8,12 @@ type APIServerState =
   | 'provisioning'
   | 'running'
   | 'shut off';
+
+type ServerMinimum = {
+  name: string;
+  state: ServerState;
+  uuid: string;
+};
 
 type APIServerOses = Record<string, string>;
 
@@ -187,7 +193,7 @@ type APIServerOverview = {
   host?: APIServerOverviewHost;
   jobs?: Record<string, APIServerOverviewJob>;
   name: string;
-  state: APIServerState;
+  state: ServerState;
   uuid: string;
 };
 

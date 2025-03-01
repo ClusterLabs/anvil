@@ -14,9 +14,7 @@ import {
 import { Panel } from '../Panels';
 import Spinner from '../Spinner';
 
-const DialogContext = createContext<DialogContextContent | undefined>(
-  undefined,
-);
+const DialogContext = createContext<DialogContext | null>(null);
 
 const Dialog: ForwardRefExoticComponent<
   PropsWithChildren<DialogProps> & RefAttributes<DialogForwardedRefContent>

@@ -1,6 +1,7 @@
 import { Box, createFilterOptions, Grid } from '@mui/material';
 import { DataSize, dSize, dSizeStr } from 'format-data-size';
-import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { isEqual } from 'lodash';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
@@ -77,7 +78,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     [nodes.values],
   );
 
-  const scope = useRef<ProvisionServerScopeGroup[]>(groups);
+  const [scope, setScope] = useState<ProvisionServerScopeGroup[]>(groups);
 
   const {
     confirmDialog,
@@ -88,8 +89,8 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   } = useConfirmDialog();
 
   const validationSchema = useMemo(
-    () => buildProvisionServerSchema(scope.current, resources, lsos),
-    [lsos, resources],
+    () => buildProvisionServerSchema(scope, resources, lsos),
+    [lsos, resources, scope],
   );
 
   const formikUtils = useFormikUtils<ProvisionServerFormikValues>({
@@ -248,20 +249,18 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
   );
 
   useEffect(() => {
-    scope.current = [...groups];
+    let rescope = [...groups];
 
     // Lock the scope to the selected node
     if (formik.values.node) {
-      scope.current = scope.current.filter(
-        (group) => group.node === formik.values.node,
-      );
+      rescope = rescope.filter((group) => group.node === formik.values.node);
     }
 
     const cpuCores = Number(formik.values.cpu.cores);
 
     // Limit the scope to nodes with sufficient CPU cores
     if (Number.isSafeInteger(cpuCores)) {
-      scope.current = scope.current.filter((group) => {
+      rescope = rescope.filter((group) => {
         const { [group.node]: node } = resources.nodes;
 
         return node.cpu.cores.total >= cpuCores;
@@ -278,7 +277,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     if (memoryBytes) {
       const bytes = BigInt(memoryBytes.value);
 
-      scope.current = scope.current.filter((group) => {
+      rescope = rescope.filter((group) => {
         const { [group.node]: node } = resources.nodes;
 
         return node.memory.available >= bytes;
@@ -293,7 +292,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       if (sgUuid) {
         const { [sgUuid]: sg } = resources.storageGroups;
 
-        scope.current = scope.current.filter((group) => group.node === sg.node);
+        rescope = rescope.filter((group) => group.node === sg.node);
       }
 
       const diskBytes = dSize(size.value, {
@@ -306,13 +305,19 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
       if (diskBytes) {
         const bytes = BigInt(diskBytes.value);
 
-        scope.current = scope.current.filter((group) => {
+        rescope = rescope.filter((group) => {
           const { [group.storageGroup]: sg } = resources.storageGroups;
 
           return sg.usage.free >= bytes;
         });
       }
     });
+
+    if (isEqual(scope, rescope)) {
+      return;
+    }
+
+    setScope(rescope);
   }, [
     disks.ids,
     formik.values.cpu.cores,
@@ -323,6 +328,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     groups,
     resources.nodes,
     resources.storageGroups,
+    scope,
   ]);
 
   // Auto fill-in fields where there are only 1 option
@@ -339,7 +345,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     }
 
     // Get distinct UUIDs from the scope
-    const distinct = scope.current.reduce<{
+    const distinct = scope.reduce<{
       nodes: Record<string, string>;
       storageGroups: Record<string, string>;
     }>(
@@ -398,15 +404,22 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
     files.uuids,
     formik,
     getFieldChanged,
+    scope,
   ]);
 
-  const maxAvailableMemory = scope.current.reduce<bigint>((previous, group) => {
-    const { node: uuid } = group;
+  const maxAvailableMemory = useMemo(
+    () =>
+      scope.reduce<bigint>((previous, group) => {
+        const { node: uuid } = group;
 
-    const node = resources.nodes[uuid];
+        const node = resources.nodes[uuid];
 
-    return node.memory.available > previous ? node.memory.available : previous;
-  }, BigInt(0));
+        return node.memory.available > previous
+          ? node.memory.available
+          : previous;
+      }, BigInt(0)),
+    [resources.nodes, scope],
+  );
 
   const maxAvailableMemoryReadable = useMemo<DataSize & { str: string }>(() => {
     const size = dSize(maxAvailableMemory, {
@@ -577,7 +590,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                 getOptionDisabled={(value) => {
                   const count = Number(value);
 
-                  return scope.current.every((group) => {
+                  return scope.every((group) => {
                     const { [group.node]: node } = resources.nodes;
 
                     return node.cpu.cores.total < count;
@@ -695,7 +708,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
                   },
                 })}
                 getOptionDisabled={(uuid) =>
-                  scope.current.every((group) => group.node !== uuid)
+                  scope.every((group) => group.node !== uuid)
                 }
                 getOptionLabel={(uuid) => {
                   const { [uuid]: node } = resources.nodes;

@@ -1133,7 +1133,16 @@ sub get_job_details
 			}});
 		}
 	}
-	
+
+	# In job data: if 'target' is set, but not 'host_ip_address', set it.
+	if ((not $anvil->data->{data}{host_ip_address}) && ($anvil->data->{data}{target}))
+	{
+		$anvil->data->{data}{host_ip_address} = $anvil->data->{data}{target};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			"data::host_ip_address" => $anvil->data->{data}{host_ip_address},
+		}});
+	}
+
 	# If the user set command line switches, they will override the values read from the job.
 	if ($anvil->data->{switches}{'enterprise-uuid'})
 	{
@@ -1198,7 +1207,7 @@ sub get_job_details
 	if (($anvil->data->{data}{enterprise_uuid}) && (not $anvil->Validate->uuid({uuid => $anvil->data->{data}{enterprise_uuid}})))
 	{
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0378", variables => { uuid => $anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}} }});
-		update_progress($anvil, 100, "error_0378,!!uuid!".$anvil->data->{data}{$anvil->data->{data}{enterprise_uuid}}."!!");
+		update_progress($anvil, 100, "error_0378,!!uuid!".$anvil->data->{data}{enterprise_uuid}."!!");
 		$anvil->nice_exit({exit_code => 1});
 	}
 	if (not $anvil->data->{data}{host_ip_address})

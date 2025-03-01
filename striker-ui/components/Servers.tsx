@@ -292,12 +292,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                     Power
                   </ContainedButton>
                   <Menu
-                    muiMenuProps={{
-                      anchorEl,
-                      keepMounted: true,
-                      onClose: () => setAnchorEl(null),
-                    }}
                     open={Boolean(anchorEl)}
+                    slotProps={{
+                      menu: {
+                        anchorEl,
+                        keepMounted: true,
+                        onClose: () => setAnchorEl(null),
+                      },
+                    }}
                   >
                     {buttonLabels.current.map((label: ButtonLabels) => (
                       <MenuItem onClick={() => handlePower(label)} key={label}>

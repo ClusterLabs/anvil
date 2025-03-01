@@ -1,3 +1,9 @@
+type NodeMinimum = {
+  name: string;
+  description: string;
+  uuid: string;
+};
+
 type AnvilCPU = {
   allocated: number;
   cores: number;

@@ -167,12 +167,14 @@ const Servers: React.FC = () => {
               View
             </ContainedButton>
             <Menu
-              muiMenuProps={{
-                anchorEl: viewAnchor,
-                keepMounted: true,
-                onClose: () => setViewAnchor(null),
-              }}
               open={Boolean(viewAnchor)}
+              slotProps={{
+                menu: {
+                  anchorEl: viewAnchor,
+                  keepMounted: true,
+                  onClose: () => setViewAnchor(null),
+                },
+              }}
             >
               <MenuItem
                 onClick={() => {

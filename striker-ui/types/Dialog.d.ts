@@ -1,4 +1,4 @@
-type DialogContextContent = {
+type DialogContext = {
   open: boolean;
   setOpen: (open: boolean) => void;
 };
@@ -12,7 +12,7 @@ type DialogOptionalProps = {
 
 type DialogProps = DialogOptionalProps;
 
-type DialogForwardedRefContent = DialogContextContent;
+type DialogForwardedRefContent = DialogContext;
 
 /** DialogActionGroup */
 
@@ -46,6 +46,10 @@ type DialogHeaderOptionalProps = {
 type DialogHeaderProps = DialogHeaderOptionalProps;
 
 /** DialogWithHeader */
+
+type DialogWithHeaderContext = {
+  setHeader: (header: React.ReactNode) => void;
+};
 
 type DialogWithHeaderProps = DialogProps &
   DialogHeaderProps & {

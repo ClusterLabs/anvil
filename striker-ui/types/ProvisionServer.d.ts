@@ -45,7 +45,7 @@ type MaxButtonProps = MaxButtonOptionalProps;
 type ProvisionServerDiskProps = Pick<ProvisionServerFormProps, 'resources'> & {
   formikUtils: FormikUtils<ProvisionServerFormikValues>;
   id: string;
-  scope: React.MutableRefObject<ProvisionServerScope>;
+  scope: ProvisionServerScope;
 };
 
 type ProvisionServerExistingListProps = Pick<

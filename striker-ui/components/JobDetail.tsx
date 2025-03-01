@@ -1,10 +1,10 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { FC, useContext, useEffect, useMemo, useState } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
 import { ProgressBar } from './Bars';
-import { DialogScrollBox } from './Dialog';
+import { DialogScrollBox, DialogWithHeaderContext } from './Dialog';
 import FlexBox from './FlexBox';
 import IconButton from './IconButton';
 import MessageBox, { Message } from './MessageBox';
@@ -16,10 +16,14 @@ import {
   InnerPanelHeader,
 } from './Panels';
 import Pre from './Pre';
+import ScrollBox from './ScrollBox';
 import Spinner from './Spinner';
-import { BodyText, SensitiveText, SmallText } from './Text';
+import SyncIndicator from './SyncIndicator';
+import { BodyText, HeaderText, SensitiveText, SmallText } from './Text';
 import { ago, now } from '../lib/time';
 import useFetch from '../hooks/useFetch';
+import useJobStatus from '../hooks/useJobStatus';
+import useScrollHelpers from '../hooks/useScrollHelpers';
 
 const toReadableTimestamp = (seconds: number): string => {
   const milliseconds = seconds * 1000;
@@ -42,24 +46,45 @@ const JobDetail: FC<JobDetailProps> = (props) => {
   const theme = useTheme();
   const breakpointSmall = useMediaQuery(theme.breakpoints.up('sm'));
 
+  const dialog = useContext(DialogWithHeaderContext);
+
   const [apiMessage, setApiMessage] = useState<Message>({
     children: `Job ${uuid} details unavailable`,
     type: 'warning',
   });
 
-  const { data: job, loading: loadingJob } = useFetch<APIJobDetail>(
-    `/job/${uuid}`,
-    {
-      onError: (error) => {
-        setApiMessage({
-          children: `Failed to get job ${uuid} details. Error: ${error}`,
-          type: 'error',
-        });
-      },
-      periodic: true,
-      refreshInterval,
+  const {
+    data: job,
+    loading: loadingJob,
+    validating: validatingJob,
+  } = useFetch<APIJobDetail>(`/job/${uuid}`, {
+    onError: (error) => {
+      setApiMessage({
+        children: `Failed to get job ${uuid} details. Error: ${error}`,
+        type: 'error',
+      });
     },
-  );
+    onSuccess: (data) => {
+      dialog?.setHeader(data.title);
+    },
+    periodic: true,
+    refreshInterval,
+  });
+
+  useEffect(() => {
+    if (!(dialog && job)) {
+      return;
+    }
+
+    dialog.setHeader(
+      <>
+        <HeaderText>{job.title}</HeaderText>
+        <SyncIndicator syncing={validatingJob} />
+      </>,
+    );
+  }, [dialog, job, validatingJob]);
+
+  const status = useJobStatus(job?.status);
 
   const nao = now();
 
@@ -85,16 +110,6 @@ const JobDetail: FC<JobDetailProps> = (props) => {
       }),
     [job],
   );
-
-  const statusList = useMemo(() => {
-    if (!job) return undefined;
-
-    const content = Object.values(job.status)
-      .reduce<string>((previous, entry) => `${previous}${entry.value}\n\n`, '')
-      .trimEnd();
-
-    return <Pre>{content}</Pre>;
-  }, [job]);
 
   const startedReadable = useMemo(
     () => job && toReadableTimestamp(job.started),
@@ -126,12 +141,21 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     );
   }, [breakpointSmall, job, startedAgo, startedReadable]);
 
-  const content = job ? (
+  const scroll = useScrollHelpers<HTMLDivElement>({
+    follow: true,
+  });
+
+  if (loadingJob) {
+    return <Spinner mt={0} />;
+  }
+
+  if (!job) {
+    return <MessageBox {...apiMessage} />;
+  }
+
+  return (
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
-        <Grid item width="100%">
-          <BodyText>{job.title}</BodyText>
-        </Grid>
         <Grid item width="100%">
           <ProgressBar progressPercentage={job.progress} />
         </Grid>
@@ -171,6 +195,23 @@ const JobDetail: FC<JobDetailProps> = (props) => {
               ~{modifiedAgo} ago{breakpointSmall && ` (${modifiedReadable})`}
             </BodyText>
           </Grid>
+        </Grid>
+        <Grid item width="100%">
+          <InnerPanel mb={0} mt={0}>
+            <InnerPanelHeader>
+              <BodyText>Status</BodyText>
+            </InnerPanelHeader>
+            <InnerPanelBody>
+              <ScrollBox
+                height="24vh"
+                key="job-status"
+                lineHeight="2"
+                ref={scroll.callbackRef}
+              >
+                <Pre>{status.string}</Pre>
+              </ScrollBox>
+            </InnerPanelBody>
+          </InnerPanel>
         </Grid>
         <Grid item width="100%">
           <ExpandablePanel
@@ -226,27 +267,19 @@ const JobDetail: FC<JobDetailProps> = (props) => {
               overflow="scroll"
               paddingBottom=".8em"
               spacing=".2em"
-              sx={{ '& > *': { width: 'max-content' } }}
+              sx={{
+                '& > *': {
+                  width: 'max-content',
+                },
+              }}
             >
               {dataList}
             </FlexBox>
           </ExpandablePanel>
         </Grid>
-        <Grid item width="100%">
-          <InnerPanel mb={0} mt={0}>
-            <InnerPanelHeader>
-              <BodyText>Status</BodyText>
-            </InnerPanelHeader>
-            <InnerPanelBody>{statusList}</InnerPanelBody>
-          </InnerPanel>
-        </Grid>
       </Grid>
     </DialogScrollBox>
-  ) : (
-    <MessageBox {...apiMessage} />
   );
-
-  return loadingJob ? <Spinner /> : content;
 };
 
 export default JobDetail;

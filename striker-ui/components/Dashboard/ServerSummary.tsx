@@ -163,10 +163,19 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
       </Grid>
       <Grid item>
         <ServerMenu
-          iconButtonProps={{ size: 'small' }}
-          serverName={server.name}
-          serverState={server.state}
-          serverUuid={server.uuid}
+          node={server.anvil}
+          server={server}
+          slotProps={{
+            button: {
+              slotProps: {
+                button: {
+                  icon: {
+                    size: 'small',
+                  },
+                },
+              },
+            },
+          }}
         />
       </Grid>
     </Grid>
