@@ -137,7 +137,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
 		<key name="error_0080">[ Warning ] - The server: [#!variable!server!#] does not appear to exist on the cluster, aborting.</key>
-		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
+		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data or the job data was malformed.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
 		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
@@ -493,7 +493,7 @@ Output (if any):
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
 		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
-		<key name="error_0322">#!free!#</key>
+		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
 		<key name="error_0323">#!free!#</key>
 		<key name="error_0324">#!free!#</key>
 		<key name="error_0325">#!free!#</key>
@@ -2535,7 +2535,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0583">#!free!#</key>
 		<key name="log_0584">#!free!#</key>
 		<key name="log_0585">#!free!#</key>
-		<key name="log_0586">#!free!#</key>
+		<key name="log_0586">Checking for SSH key changes before we retest network access.</key>
 		<key name="log_0587">The server: [#!variable!server_name!#] has been removed from Pacemaker.</key>
 		<key name="log_0588">We're required by at least one peer, so we'll wait a bit and check to see if they still need us before we proceed with the deletion.</key>
 		<key name="log_0589">Deleting the file: [#!variable!file!#].</key>
@@ -2574,9 +2574,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0622">Aging out one or more records that are more than: [#!variable!age!#] hours old from the table: [#!variable!table!#] on the database host: [#!variable!database!#].</key>
 		<key name="log_0623">Starting the process of aging out old data. This can take about a minute, please be patient.</key>
 		<key name="log_0624">Aging out old data completed after: [#!variable!runtime!#] seconds.</key>
-		<key name="log_0625">#!free!#</key>
+		<key name="log_0625">It appears our peer was rebuilt. Created a job to delete the SSH key for our peer's: [#!variable!peer!#] name/IP with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0626">This system will reboot in: [#!variable!seconds!#] seconds...</key>
-		<key name="log_0627">#!free!#</key>
+		<key name="log_0627">We've already found a bad key for the peer: [#!variable!peer!#], so we won't check again. The job to clean the bad keys has UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0628">#!free!#</key>
 		<key name="log_0629">#!free!#</key>
 		<key name="log_0630">#!free!#</key>
