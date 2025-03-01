@@ -56,11 +56,6 @@ const DeleteSshKeyConflictProgress: React.FC<
 
   return (
     <Grid alignItems="center" container spacing="0.5em">
-      <Grid item width="100%">
-        <BodyText>
-          {jobProgress.total === 100 ? 'Finished deletion.' : 'Deleting...'}
-        </BodyText>
-      </Grid>
       {...jobs.map<React.ReactNode>((job) => {
         const { progress, uuid } = job;
 
@@ -77,6 +72,11 @@ const DeleteSshKeyConflictProgress: React.FC<
           </Grid>
         );
       })}
+      <Grid item xs>
+        <BodyText>
+          {jobProgress.total === 100 ? 'Finished deletion.' : 'Deleting...'}
+        </BodyText>
+      </Grid>
     </Grid>
   );
 };
