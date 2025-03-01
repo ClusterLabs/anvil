@@ -732,6 +732,11 @@ sub update_progress
 		$job_uuid = $anvil->data->{jobs}{job_uuid};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
 	}
+	if ((not $job_uuid) && ($anvil->data->{switches}{'job-uuid'}))
+	{
+		$job_uuid = $anvil->data->{switches}{'job-uuid'};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { job_uuid => $job_uuid }});
+	}
 	
 	# Return if we still don't have a job_uuid. This isn't unexpected as some programs can run with or 
 	# without a job_uuid.
