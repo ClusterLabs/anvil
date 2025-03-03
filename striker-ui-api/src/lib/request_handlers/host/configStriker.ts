@@ -1,106 +1,43 @@
-import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import {
-  REP_DOMAIN,
-  REP_IPV4,
-  REP_IPV4_CSV,
-  REP_PEACEFUL_STRING,
-  REP_UUID,
-  SERVER_PATHS,
-} from '../../consts';
+import { SERVER_PATHS } from '../../consts';
 
-import { getLocalHostUUID, job, variable } from '../../accessModule';
-import { buildJobData } from '../../buildJobData';
+import { getLocalHostUUID, job } from '../../accessModule';
+import { buildJobDataFromObject } from '../../buildJobData';
 import { buildNetworkConfig } from '../../fconfig';
-import { sanitize } from '../../sanitize';
-import { perr, poutvar } from '../../shell';
+import { Responder } from '../../Responder';
+import { configStrikerRequestBodySchema } from './schemas';
+import { setConfigVariables } from './setConfigVariables';
+import { poutvar } from '../../shell';
 import { cvar } from '../../varn';
 
 export const configStriker: RequestHandler<
   unknown,
   InitializeStrikerResponseBody,
-  Partial<InitializeStrikerForm>
+  InitializeStrikerForm
 > = async (request, response) => {
-  const { body = {} } = request;
+  const respond = new Responder(response);
 
-  poutvar(body, 'Begin initialize Striker; body=');
-
-  const {
-    adminPassword: rAdminPassword,
-    domainName: rDomainName,
-    hostName: rHostName,
-    hostNumber: rHostNumber,
-    dns: rDns,
-    gateway: rGateway,
-    gatewayInterface: rGatewayInterface,
-    networks = [],
-    organizationName: rOrganizationName,
-    organizationPrefix: rOrganizationPrefix,
-  } = body;
-
-  const adminPassword = sanitize(rAdminPassword, 'string');
-  const domainName = sanitize(rDomainName, 'string');
-  const hostName = sanitize(rHostName, 'string');
-  const hostNumber = sanitize(rHostNumber, 'number');
-  const dns = sanitize(rDns, 'string');
-  const gateway = sanitize(rGateway, 'string');
-  const gatewayInterface = sanitize(rGatewayInterface, 'string');
-  const organizationName = sanitize(rOrganizationName, 'string');
-  const organizationPrefix = sanitize(rOrganizationPrefix, 'string');
+  let body: InitializeStrikerForm;
 
   try {
-    assert(
-      REP_PEACEFUL_STRING.test(adminPassword),
-      `Data admin password cannot contain single-quote, double-quote, slash, backslash, angle brackets, and curly brackets; got [${adminPassword}]`,
-    );
-
-    assert(
-      REP_DOMAIN.test(domainName),
-      `Data domain name can only contain alphanumeric, hyphen, and dot characters; got [${domainName}]`,
-    );
-
-    assert(
-      REP_DOMAIN.test(hostName),
-      `Data host name can only contain alphanumeric, hyphen, and dot characters; got [${hostName}]`,
-    );
-
-    assert(
-      Number.isInteger(hostNumber) && hostNumber > 0,
-      `Data host number can only contain digits; got [${hostNumber}]`,
-    );
-
-    assert(
-      REP_IPV4_CSV.test(dns),
-      `Data network DNS must be a comma separated list of valid IPv4 addresses; got [${dns}]`,
-    );
-
-    assert(
-      REP_IPV4.test(gateway),
-      `Data network gateway must be a valid IPv4 address; got [${gateway}]`,
-    );
-
-    assert(
-      REP_PEACEFUL_STRING.test(gatewayInterface),
-      `Data gateway interface must be a peaceful string; got [${gatewayInterface}]`,
-    );
-
-    assert(
-      organizationName.length > 0,
-      `Data organization name cannot be empty; got [${organizationName}]`,
-    );
-
-    assert(
-      /^[a-z0-9]{1,5}$/.test(organizationPrefix),
-      `Data organization prefix can only contain 1 to 5 lowercase alphanumeric characters; got [${organizationPrefix}]`,
-    );
-  } catch (assertError) {
-    perr(
-      `Failed to assert value when trying to initialize striker; CAUSE: ${assertError}.`,
-    );
-
-    return response.status(400).send();
+    body = await configStrikerRequestBodySchema.validate(request.body);
+  } catch (error) {
+    return respond.s400('88d8673', `Invalid request body; CAUSE: ${error}`);
   }
+
+  const {
+    adminPassword,
+    domainName,
+    hostName,
+    hostNumber,
+    dns,
+    gateway,
+    gatewayInterface,
+    networks,
+    organizationName,
+    organizationPrefix,
+  } = body;
 
   const configData: FormConfigData = {
     [cvar(1, 'domain')]: { value: domainName },
@@ -116,51 +53,31 @@ export const configStriker: RequestHandler<
     ...buildNetworkConfig(networks),
   };
 
-  poutvar(configData, `Config data before initiating striker config: `);
-
-  const configEntries = Object.entries(configData);
+  poutvar(configData, `Config striker with data: `);
 
   let jobUuid: string;
 
   try {
     const localHostUuid = getLocalHostUUID();
 
-    for (const [ckey, cdetail] of configEntries) {
-      const { step = 1, value } = cdetail;
-
-      const vuuid = await variable({
-        file: __filename,
-        variable_default: '',
-        varaible_description: '',
-        variable_name: ckey,
-        variable_section: `config_step${step}`,
-        variable_source_uuid: localHostUuid,
-        variable_source_table: 'hosts',
-        variable_value: value,
-      });
-
-      assert(
-        REP_UUID.test(vuuid),
-        `Not a UUIDv4 post insert or update of ${ckey} with [${cdetail}]`,
-      );
-    }
+    await setConfigVariables(configData, localHostUuid);
 
     jobUuid = await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
-      job_data: buildJobData({
-        entries: configEntries,
-        getValue: ({ value }) => String(value),
-      }),
+      job_data: buildJobDataFromObject(configData),
       job_name: 'configure::network',
       job_title: 'job_0001',
       job_description: 'job_0071',
     });
-  } catch (subError) {
-    perr(`Failed to queue striker initialization; CAUSE: ${subError}`);
-
-    return response.status(500).send();
+  } catch (error) {
+    return respond.s500(
+      'd864d78',
+      `Failed to register striker config job; CAUSE: ${error}`,
+    );
   }
 
-  response.status(200).send({ jobUuid });
+  return respond.s200({
+    jobUuid,
+  });
 };
