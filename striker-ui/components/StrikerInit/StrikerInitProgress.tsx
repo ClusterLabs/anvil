@@ -106,7 +106,12 @@ const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
               <BodyText>Status</BodyText>
             </InnerPanelHeader>
             <InnerPanelBody>
-              <ScrollBox height="4em" key="status" ref={scroll.callbackRef}>
+              <ScrollBox
+                height="60vh"
+                key="status"
+                lineHeight="2"
+                ref={scroll.callbackRef}
+              >
                 <Pre>{status.string}</Pre>
               </ScrollBox>
             </InnerPanelBody>
