@@ -3,7 +3,7 @@ import * as yup from 'yup';
 import { yupIpv4, yupLaxMac } from '../../../yupCommons';
 
 const interfaceSchema = yup.object({
-  mac: yupLaxMac().required(),
+  mac: yupLaxMac(),
 });
 
 export const hostNetworkRequestBodySchema = yup.object({

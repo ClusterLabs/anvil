@@ -67,7 +67,13 @@ type HostDetail = HostOverview & {
 
 type InitializeStrikerNetworkForm = {
   createBridge?: string;
-  interfaces: (Pick<NetworkInterfaceOverview, 'mac'> | null | undefined)[];
+  interfaces: (
+    | {
+        mac?: string;
+      }
+    | null
+    | undefined
+  )[];
   ipAddress: string;
   sequence: number;
   subnetMask: string;
