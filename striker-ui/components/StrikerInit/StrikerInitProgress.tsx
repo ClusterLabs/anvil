@@ -21,7 +21,7 @@ const CenterPanel: FC = (props) => {
         marginLeft: { xs: '1em', sm: 'auto' },
         marginRight: { xs: '1em', sm: 'auto' },
         // Half screen - half status area - text & progress bar (roughly)
-        marginTop: 'calc(25vh - 6em)',
+        marginTop: 'calc(50vh - 30vh - 6em)',
         width: {
           xs: undefined,
           sm: '90vw',
