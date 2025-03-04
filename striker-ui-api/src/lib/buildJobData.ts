@@ -1,12 +1,15 @@
-export const buildJobData = <T extends [string, unknown][]>({
-  entries,
-  getValue = (v) => String(v),
-  skip = (v) => [null, undefined].some((bad) => v === bad),
-}: {
-  entries: T;
-  getValue?: (value: T[number][1]) => string;
-  skip?: (value: T[number][1]) => boolean;
-}) =>
+type BuildJobDataOptions<Value = unknown> = {
+  getValue?: (value: Value) => string;
+  skip?: (value: Value) => boolean;
+};
+
+export const buildJobData = <Value = unknown>(
+  entries: [string, Value][],
+  {
+    getValue = (v) => String(v),
+    skip = (v) => [null, undefined].some((bad) => v === bad),
+  }: BuildJobDataOptions<Value> = {},
+) =>
   entries
     .reduce<string>((previous, [key, value]) => {
       if (skip(value)) {
@@ -19,7 +22,11 @@ export const buildJobData = <T extends [string, unknown][]>({
     }, '')
     .trim();
 
-export const buildJobDataFromObject = <T extends Record<string, unknown>>(
-  obj: T,
-  options?: Omit<Parameters<typeof buildJobData>[0], 'entries'>,
-) => buildJobData({ entries: Object.entries(obj), ...options });
+export const buildJobDataFromObject = <Value = unknown>(
+  obj: Record<string, Value>,
+  options?: BuildJobDataOptions<Value>,
+) => {
+  const entries = Object.entries<Value>(obj);
+
+  return buildJobData<Value>(entries, options);
+};
