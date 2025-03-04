@@ -88,7 +88,9 @@ export const prepareNetwork: RequestHandler<
     await job({
       file: __filename,
       job_command: SERVER_PATHS.usr.sbin['anvil-configure-host'].self,
-      job_data: buildJobDataFromObject(configData),
+      job_data: buildJobDataFromObject(configData, {
+        getValue: ({ value }) => String(value),
+      }),
       job_host_uuid: hostUuid,
       job_name: 'configure::network',
       job_title: 'job_0001',
