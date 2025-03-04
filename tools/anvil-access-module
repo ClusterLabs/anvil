@@ -163,9 +163,10 @@ my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 
 $running_directory =~ s/^\./$ENV{PWD}/ if $running_directory =~ /^\./ && $ENV{PWD};
 
-my $scmd_db_read  = "r";
-my $scmd_db_write = "w";
-my $scmd_execute  = "x";
+my $scmd_db_listen = "listen";
+my $scmd_db_read   = "r";
+my $scmd_db_write  = "w";
+my $scmd_execute   = "x";
 
 main();
 
@@ -262,28 +263,62 @@ sub access_chain
 	return (@results);
 }
 
+sub check_database_handles
+{
+	my $parameters = shift;
+	my $anvil      = $parameters->{anvil};
+
+	my $success_count = 0;
+
+	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
+	{
+		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
+
+		if ((not exists $dbh) or (not $dbh) or (not $dbh->ping))
+		{
+			# ignore broken database handle(s)
+			next;
+		}
+
+		$success_count += 1;
+	}
+
+	return $success_count;
+}
+
 # only used by child processes to clone the parent's database handles
 sub clone_database_handles
 {
 	my $parameters = shift;
 	my $anvil      = $parameters->{anvil};
 
+	my $success_count = 0;
+
 	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
 	{
-		if ((not exists $anvil->data->{cache}{database_handle}{$uuid}) or (not $anvil->data->{cache}{database_handle}{$uuid}))
-		{
-			# Useless handle, skip it.
-			next;
-		}
 		# get the copied parent's database handle, which was made when fork()
 		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
+
+		my $child_dbh;
+
 		# clone the parent's database handle for child use
-		my $child_dbh = $dbh->clone();
+		my $success = eval { $child_dbh = $dbh->clone(); };
+
+		if (not $success)
+		{
+			# failed to clone the parent's database handle; skip it
+			next;
+		}
+
 		# destroy the copied parent's dbh; this will not close the parent's original database handle because auto_inactive_destroy is set
 		undef $anvil->data->{cache}{database_handle}{$uuid};
 		# add the cloned child's dbh
 		$anvil->data->{cache}{database_handle}{$uuid} = $child_dbh;
+
+		$success_count += 1;
 	}
+
+	return $success_count;
 }
 
 sub db_access
@@ -408,6 +443,12 @@ sub handle_connections
 
 		last if ($request_line =~ /^(?:q|quit)\s*$/);
 
+		check_database_handles({ anvil => $anvil }) or do {
+			pstderr("no usable database handle");
+
+			next;
+		}
+
 		my $pid = fork;
 
 		if (not defined $pid)
@@ -455,7 +496,13 @@ sub handle_connections
 		};
 
 		# clone the database handle for this child to avoid interfering with another process that needs to use the database
-		clone_database_handles({ anvil => $anvil });
+		clone_database_handles({ anvil => $anvil }) or do {
+			print $responder "failed to clone database handle(s)\n";
+
+			$responder->shutdown(SHUT_RDWR);
+
+			$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+		}
 
 		my @cmd_lines = split(/;;/, $request_line);
 
@@ -487,6 +534,10 @@ sub handle_connections
 			elsif ($cmd_line =~ /^$scmd_execute\s+/)
 			{
 				process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
+			}
+			elsif ($cmd_line =~ /^$scmd_db_listen\s+/)
+			{
+				# it's a request to register a listener to a database trigger
 			}
 		}
 
