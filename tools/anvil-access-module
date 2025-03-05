@@ -268,11 +268,16 @@ sub check_database_handles
 	my $parameters = shift;
 	my $anvil      = $parameters->{anvil};
 
-	my $success_count = 0;
+	my $success = 0;
 
 	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
 	{
 		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			database_uuid => $uuid,
+			dbh_local     => $dbh,
+		} });
 
 		if ((not exists $dbh) or (not $dbh) or (not $dbh->ping))
 		{
@@ -280,10 +285,12 @@ sub check_database_handles
 			next;
 		}
 
-		$success_count += 1;
+		$success += 1;
 	}
 
-	return $success_count;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }, prefix => "check_database_handles" });
+
+	return $success;
 }
 
 # only used by child processes to clone the parent's database handles
@@ -292,33 +299,44 @@ sub clone_database_handles
 	my $parameters = shift;
 	my $anvil      = $parameters->{anvil};
 
-	my $success_count = 0;
+	my $success = 0;
 
 	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
 	{
 		# get the copied parent's database handle, which was made when fork()
 		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
 
+		# release the reference to the copied parent's dbh; this will not close the parent's original database handle because auto_inactive_destroy is set
+		undef $anvil->data->{cache}{database_handle}{$uuid};
+
 		my $child_dbh;
 
 		# clone the parent's database handle for child use
-		my $success = eval { $child_dbh = $dbh->clone(); };
+		my $cloned = eval { $child_dbh = $dbh->clone(); };
 
-		if (not $success)
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			database_uuid => $uuid,
+			dbh_local     => $dbh,
+			dbh_cache     => $anvil->data->{cache}{database_handle}{$uuid},
+			cloned        => $cloned,
+			dbh_child     => $child_dbh,
+		} });
+
+		if (not $cloned)
 		{
 			# failed to clone the parent's database handle; skip it
 			next;
 		}
 
-		# destroy the copied parent's dbh; this will not close the parent's original database handle because auto_inactive_destroy is set
-		undef $anvil->data->{cache}{database_handle}{$uuid};
 		# add the cloned child's dbh
 		$anvil->data->{cache}{database_handle}{$uuid} = $child_dbh;
 
-		$success_count += 1;
+		$success += 1;
 	}
 
-	return $success_count;
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { success => $success }, prefix => "clone_database_handles" });
+
+	return $success;
 }
 
 sub db_access
