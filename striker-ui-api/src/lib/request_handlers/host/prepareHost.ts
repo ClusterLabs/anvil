@@ -12,19 +12,17 @@ export const prepareHost: RequestHandler<
   undefined,
   PrepareHostRequestBody
 > = async (request, response) => {
-  const { body } = request;
-
   const respond = new Responder(response);
 
-  let sanitized: PrepareHostRequestBody;
+  let body: PrepareHostRequestBody;
 
   try {
-    sanitized = await prepareHostRequestBodySchema.validate(body);
+    body = await prepareHostRequestBodySchema.validate(request.body);
   } catch (error) {
     return respond.s400('7b91b9d', `Invalid request body; CAUSE: ${error}`);
   }
 
-  const { enterprise, host, redhat, target } = sanitized;
+  const { enterprise, host, redhat, target } = body;
 
   try {
     if (host.uuid) {

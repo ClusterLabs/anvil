@@ -66,8 +66,14 @@ type HostDetail = HostOverview & {
 } & Tree<string>;
 
 type InitializeStrikerNetworkForm = {
-  createBridge?: StringBoolean;
-  interfaces: Array<NetworkInterfaceOverview | null | undefined>;
+  createBridge?: string;
+  interfaces: (
+    | {
+        mac?: string;
+      }
+    | null
+    | undefined
+  )[];
   ipAddress: string;
   sequence: number;
   subnetMask: string;
@@ -76,7 +82,7 @@ type InitializeStrikerNetworkForm = {
 
 type InitializeStrikerForm = {
   adminPassword: string;
-  dns: string;
+  dns?: string;
   domainName: string;
   gateway: string;
   gatewayInterface: string;
@@ -113,7 +119,7 @@ type PrepareHostRequestBody = {
 };
 
 type PrepareNetworkRequestBody = {
-  dns: string;
+  dns?: string;
   gateway: string;
   gatewayInterface: string;
   hostName: string;

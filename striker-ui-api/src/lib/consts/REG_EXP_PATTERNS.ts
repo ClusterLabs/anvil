@@ -5,10 +5,6 @@ export const P_ALPHANUM_DASH = '[a-z0-9-]';
 export const P_IPV4 = `(?:${P_OCTET}[.]){3}${P_OCTET}`;
 export const P_UUID = `${P_HEX}{8}-(?:${P_HEX}{4}-){3}${P_HEX}{12}`;
 
-export const REP_DOMAIN = new RegExp(
-  `^(?:${P_ALPHANUM}(?:${P_ALPHANUM_DASH}{0,61}${P_ALPHANUM})?[.])+${P_ALPHANUM}${P_ALPHANUM_DASH}{0,61}${P_ALPHANUM}$`,
-);
-
 export const REP_INTEGER = /^\d+$/;
 
 export const REP_IPV4 = new RegExp(`^${P_IPV4}$`);
