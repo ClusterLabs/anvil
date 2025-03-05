@@ -496,6 +496,9 @@ sub handle_connections
 		};
 
 		# clone the database handle for this child to avoid interfering with another process that needs to use the database
+		#
+		# the database handle variable only holds a reference to the parent's database handle before clone completes, therefore we shouldn't call disconnect unless clone succeeds
+
 		clone_database_handles({ anvil => $anvil }) or do {
 			print $responder "failed to clone database handle(s)\n";
 
@@ -546,7 +549,7 @@ sub handle_connections
 
 		emit("responder:".$$."-exit");
 
-		$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
+		$anvil->nice_exit({ exit_code => 0 });
 
 		#############
 		#### END #### responder block
