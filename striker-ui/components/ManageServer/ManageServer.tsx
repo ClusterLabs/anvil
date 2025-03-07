@@ -35,8 +35,8 @@ const tabs = {
     value: 'cpu',
   },
   delete: {
-    label: 'Delete',
-    value: 'delete',
+    label: 'Deletion',
+    value: 'deletion',
   },
   disks: {
     label: 'Disks',
@@ -269,7 +269,9 @@ const ManageServer: FC<ManageServerProps> = (props) => {
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.delete.value}>
-              <PanelHeader>{tabs.delete.label}</PanelHeader>
+              <PanelHeader>
+                <HeaderText>{tabs.delete.label}</HeaderText>
+              </PanelHeader>
               <ServerDeletion detail={detail} tools={formTools.current} />
             </TabContent>
 
