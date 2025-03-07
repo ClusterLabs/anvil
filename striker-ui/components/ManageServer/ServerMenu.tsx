@@ -3,13 +3,13 @@ import { Box } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo } from 'react';
 
-import api from '../lib/api';
-import ButtonWithMenu from './ButtonWithMenu';
-import { MAP_TO_COLOUR } from './ContainedButton';
-import handleAPIError from '../lib/handleAPIError';
-import { BodyText } from './Text';
-import useConfirmDialog from '../hooks/useConfirmDialog';
-import Divider from './Divider';
+import api from '../../lib/api';
+import ButtonWithMenu from '../ButtonWithMenu';
+import { MAP_TO_COLOUR } from '../ContainedButton';
+import handleAPIError from '../../lib/handleAPIError';
+import { BodyText } from '../Text';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
+import Divider from '../Divider';
 
 const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
   ...[props]: Parameters<React.FC<ServerMenuProps<Node, Server>>>

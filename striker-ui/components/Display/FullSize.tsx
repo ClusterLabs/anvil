@@ -15,7 +15,7 @@ import keyCombinations from './keyCombinations';
 import Menu from '../Menu';
 import MenuItem from '../MenuItem';
 import { Panel, PanelHeader } from '../Panels';
-import ServerMenu from '../ServerMenu';
+import ServerMenu from '../ManageServer/ServerMenu';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useIsFirstRender from '../../hooks/useIsFirstRender';
