@@ -192,7 +192,7 @@ const Preview = <Server extends ServerCore>(
   ]);
 
   const button = useMemo(() => {
-    const disabled = server.state === 'shut off' || Boolean(server.jobs);
+    const disabled = Boolean(server.jobs);
 
     let buttonProps = slotProps?.button;
     let buttonSx;
@@ -227,7 +227,6 @@ const Preview = <Server extends ServerCore>(
     handleClickPreview,
     previewHref,
     server.jobs,
-    server.state,
     slotProps?.button,
   ]);
 
