@@ -10,6 +10,7 @@ import Divider from '../Divider';
 import { Panel, PanelHeader } from '../Panels';
 import ServerBootOrderForm from './ServerBootOrderForm';
 import ServerCpuForm from './ServerCpuForm';
+import ServerDeletion from './ServerDeletion';
 import ServerDiskList from './ServerDiskList';
 import ServerInterfaceList from './ServerInterfaceList';
 import ServerMemoryForm from './ServerMemoryForm';
@@ -32,6 +33,10 @@ const tabs = {
   cpu: {
     label: 'CPU',
     value: 'cpu',
+  },
+  delete: {
+    label: 'Delete',
+    value: 'delete',
   },
   disks: {
     label: 'Disks',
@@ -201,6 +206,8 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                     label={tabs.startDependency.label}
                     value={tabs.startDependency.value}
                   />
+
+                  <Tab label={tabs.delete.label} value={tabs.delete.value} />
                 </Tabs>
               </Grid>
             </Grid>
@@ -259,6 +266,11 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                 <HeaderText>{tabs.cpu.label}</HeaderText>
               </PanelHeader>
               <ServerCpuForm detail={detail} tools={formTools.current} />
+            </TabContent>
+
+            <TabContent changingTabId={tabId} tabId={tabs.delete.value}>
+              <PanelHeader>{tabs.delete.label}</PanelHeader>
+              <ServerDeletion detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.disks.value}>

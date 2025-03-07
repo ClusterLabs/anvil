@@ -53,7 +53,7 @@ const ServerMigration: FC<ServerMigrationProps> = (props) => {
                 messages: {
                   fail: <>Failed to register migration job.</>,
                   proceed: 'Migrate',
-                  success: <>Successfully register migration job</>,
+                  success: <>Successfully registered migration job</>,
                 },
               },
             );
