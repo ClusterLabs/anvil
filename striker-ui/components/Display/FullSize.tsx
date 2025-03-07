@@ -45,7 +45,7 @@ const StyledDiv = styled('div')(() => ({
 const VncDisplay = dynamic(() => import('./VncDisplay'), { ssr: false });
 
 // Unit: seconds
-const DEFAULT_VNC_RECONNECT_TIMER_START = 10;
+const DEFAULT_VNC_RECONNECT_TIMER_START = 3;
 
 const MAP_TO_WSCODE_MSG: Record<number, string> = {
   1000: 'in-use by another process?',
@@ -296,23 +296,21 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
   );
 
   const vncToolbarElement = useMemo(
-    () =>
-      showScreen && (
-        <>
-          {fullscreenElement}
-          {keyboardMenuElement}
-          <ServerMenu node={node} server={server} />
-          {returnHomeElement}
-          {vncDisconnectElement}
-        </>
-      ),
+    () => (
+      <>
+        {fullscreenElement}
+        {keyboardMenuElement}
+        <ServerMenu node={node} server={server} />
+        {returnHomeElement}
+        {vncDisconnectElement}
+      </>
+    ),
     [
       fullscreenElement,
       keyboardMenuElement,
       node,
       returnHomeElement,
       server,
-      showScreen,
       vncDisconnectElement,
     ],
   );
