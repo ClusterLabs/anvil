@@ -132,6 +132,9 @@ Exiting.</key>
 - Link state:  [#!variable!old_link_state!#] -> [#!variable!new_link_state!#]
 ]]></key>
 		<key name="scan_server_alert_0027"><![CDATA[- Deleted interface: [#!variable!server!#] -> [#!variable!mac_address!#]]]></key>
+		<key name="scan_server_alert_0028">
+A server: [#!variable!server_name!# (#!variable!server_uuid!#)] was found to not have a local definition file. Neither this host or our peer: [#!variable!peer_name!#] had the DRBD resource file, eithre. This likely means the server was deleted, and so we're marking it as deleted in the database.
+		</key>
 		
 		<!-- Log entries -->
 		<key name="scan_server_log_0001">Starting: [#!variable!program!#].</key>

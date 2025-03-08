@@ -90,6 +90,7 @@ if (not $anvil->data->{sys}{database}{connections})
 # 3. ...
 # 6. Using Start Groups/Delays (and ignoring 'clean' off VMs), boot servers.
 
+start_job($anvil);
 
 # Check to see if we should run. Also checks/sets enable/disable requests.
 prerun_checks($anvil);
@@ -114,6 +115,31 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub start_job
+{
+	my ($anvil) = @_;
+
+	# Clear previous data
+	$anvil->Job->update_progress({
+		progress => 0, 
+		message  => "clear", 
+		job_uuid => $anvil->data->{job}{uuid},
+	});
+	
+	# Record that we've picked up this job.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
+		message   => "message_0015", 
+		job_uuid  => $anvil->data->{job}{uuid},
+		'print'   => 1,
+		log_level => 1,
+		file      => $THIS_FILE, 
+		line      => __LINE__,
+	});
+	
+	return(0);
+}
 
 sub check_drbd
 {

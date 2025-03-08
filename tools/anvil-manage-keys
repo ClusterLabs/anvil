@@ -585,6 +585,7 @@ sub load_job_data
 				$anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{host} = $host;
 				$anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{key}  = $key;
 				$anvil->{ssh_key}{$key}{host}{$host}{algo}{$algo}{asked}   = 0;
+				$anvil->{ssh_key}{$key}{algo}{$algo}{host}                 = $host;
 				$anvil->{ssh_host}{$host}{algo}{$algo}{key}                = $key;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"s1:ssh_keys::${known_hosts}::host::${host}::${algo}::key"  => $anvil->{ssh_keys}{$known_hosts}{host}{$host}{$algo}{key}, 
@@ -593,7 +594,8 @@ sub load_job_data
 					"s4:ssh_keys::${known_hosts}::line::${line_number}::host"   => $anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{host}, 
 					"s5:ssh_keys::${known_hosts}::line::${line_number}::key"    => $anvil->{ssh_keys}{$known_hosts}{line}{$line_number}{key}, 
 					"s7:ssh_key::${key}::host::${host}::algo::${algo}::asked"   => $anvil->{ssh_key}{$key}{host}{$host}{algo}{$algo}{asked}, 
-					"s8:ssh_host::${host}::algo::${algo}::key"                  => $anvil->{ssh_host}{$host}{algo}{$algo}{key},
+					"s8:ssh_key::${key}::algo::${algo}::host"                   => $anvil->{ssh_key}{$key}{algo}{$algo}{host}, 
+					"s9:ssh_host::${host}::algo::${algo}::key"                  => $anvil->{ssh_host}{$host}{algo}{$algo}{key},
 				}});
 			}
 		}
@@ -622,8 +624,9 @@ sub load_job_data
 		# Pick up the data.
 		my $job_data = $results->[0]->[0];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_data => $job_data }});
-		if (not $job_data)
+		if ((not $job_data) or ($job_data !~ /^bad_key=/))
 		{
+			update_progress($anvil, 100, "error_0081,!!job_uuid!".$anvil->data->{switches}{'job-uuid'}."!!");
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0081", variables => {
 				job_uuid => $anvil->data->{switches}{'job-uuid'}, 
 			}});
@@ -648,6 +651,13 @@ sub load_job_data
 			algo => $algo,
 			key  => $key,
 		}});
+		
+		if ((not $algo) or (not $key))
+		{
+			update_progress($anvil, 100, "error_0322,!!job_data!".$job_data."!!");
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0322", variables => { job_data => $job_data }});
+			$anvil->nice_exit({exit_code => 1});
+		}
 		
 # 		if ((not exists $anvil->{ssh_key}{$key}) or (not $anvil->{ssh_key}{$key}{host}))
 # 		{
@@ -766,7 +776,7 @@ AND
 								"ssh_key::${hash_key}::asked" => $anvil->{ssh_key}{$hash_key}{asked},
 							}});
 							
-							my $host = $anvil->{ssh_key}{$hash_key}{host};
+							my $host = $anvil->{ssh_key}{$hash_key}{algo}{$algo}{host};
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host => $host }});
 							
 							my $bad_key_host_uuid = "";

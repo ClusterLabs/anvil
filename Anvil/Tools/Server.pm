@@ -2770,6 +2770,7 @@ sub parse_definition
 	foreach my $hash_ref (@{$server_xml->{devices}->[0]->{interface}})
 	{
 		#print Dumper $hash_ref;
+		next if not defined $hash_ref->{mac}->[0]->{address};
 		my $mac = $hash_ref->{mac}->[0]->{address};
 		
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{bridge}            = $hash_ref->{source}->[0]->{bridge};
