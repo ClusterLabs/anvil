@@ -9,6 +9,7 @@ const handleAction = <ReqBody = unknown,>(
   title: React.ReactNode,
   options: {
     body?: ReqBody;
+    content?: React.ReactNode;
     dangerous?: boolean;
     messages?: {
       fail?: React.ReactNode;
@@ -22,6 +23,7 @@ const handleAction = <ReqBody = unknown,>(
 ) => {
   const {
     body,
+    content,
     messages,
     method = 'put',
     onFail,
@@ -31,7 +33,7 @@ const handleAction = <ReqBody = unknown,>(
 
   tools.confirm.prepare({
     actionProceedText: messages?.proceed ?? 'Confirm',
-
+    content,
     onProceedAppend: () => {
       tools.confirm.loading(true);
 
