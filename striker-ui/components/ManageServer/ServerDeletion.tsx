@@ -24,7 +24,7 @@ const ServerDeletion: React.FC<ServerDeletionProps> = (props) => {
               `/server/${detail.uuid}`,
               `Delete server ${detail.name}?`,
               {
-                content: (
+                description: (
                   <BodyText>
                     Are you sure you want to delete the server {detail.name}?
                     This action is not reversible!
