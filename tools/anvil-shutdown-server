@@ -34,6 +34,7 @@ $anvil->Get->switches({list => [
 	"immediate",
 	"no-db", 
 	"no-wait", 
+	"reset", 
 	"server", 
 	"wait"], man => $THIS_FILE});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
@@ -106,6 +107,19 @@ if ($anvil->data->{switches}{'job-uuid'})
 				$anvil->data->{switches}{server} = $1;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					'switches::server' => $anvil->data->{switches}{server},
+				}});
+			}
+		}
+		if ($line =~ /task=(.*?)$/)
+		{
+			my $task = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { task => $task }});
+			
+			if ($task eq "reset")
+			{
+				$anvil->data->{switches}{'reset'} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					'switches::reset' => $anvil->data->{switches}{'reset'},
 				}});
 			}
 		}
@@ -402,6 +416,10 @@ if ((not $anvil->data->{switches}{'job-uuid'}) && (not $anvil->data->{switches}{
 	{
 		print $anvil->Words->string({key => "message_0092"})." ";
 	}
+	elsif ($anvil->data->{switches}{'reset'})
+	{
+		print $anvil->Words->string({key => "message_0151", variables => { server_name => $anvil->data->{switches}{server_name} }})." ";
+	}
 	else
 	{
 		print $anvil->Words->string({key => "message_0093", variables => { server_name => $anvil->data->{switches}{server_name} }})." ";
@@ -498,7 +516,7 @@ sub shutdown_server
 		progress => $progress, 
 	}});
 	
-	if (($wait) && ($anvil->data->{switches}{immediate}))
+	if (($wait) && (($anvil->data->{switches}{immediate}) or ($anvil->data->{switches}{'reset'})))
 	{
 		$wait = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'wait' => $wait }});
@@ -530,61 +548,97 @@ sub shutdown_server
 	if ($anvil->data->{switches}{immediate})
 	{
 		# Kill it!
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0474", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => $progress, message => "job_0474,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->Job->update_progress({log_level => 1, 'print' => 1, file => $THIS_FILE, line => __LINE__, progress => $progress, message => "job_0474", variables => { server => $server }});
+	}
+	elsif ($anvil->data->{switches}{'reset'})
+	{
+		# Reset it (don't destroy it)
+		$anvil->Job->update_progress({log_level => 1, 'print' => 1, file => $THIS_FILE, line => __LINE__, progress => $progress, message => "job_0463", variables => { server => $server }});
 	}
 	else
 	{
 		# Lets be gentle
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0289", variables => { server => $server }});
-		$anvil->Job->update_progress({progress => $progress, message => "job_0289,!!server!".$server."!!"}) if $anvil->data->{switches}{'job-uuid'};
+		$anvil->Job->update_progress({log_level => 1, 'print' => 1, file => $THIS_FILE, line => __LINE__, progress => $progress, message => "job_0289", variables => { server => $server }});
 	}
 	
 	my $problem = 0;
 	if ($anvil->data->{sys}{host_type} eq "dr")
 	{
 		# Shut down using virsh. Invert the return.
-		my $force   = $anvil->data->{switches}{immediate} ? 1 : 0;
-		my $do_wait = $wait ? 0 : 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			force   => $force, 
-			do_wait => $do_wait, 
-		}});
-		my $success = $anvil->Server->shutdown_virsh({
-			debug     => 2,
-			server    => $server, 
-			force     => $force, 
-			wait_time => $do_wait,
-		});
-		$problem = $success ? 0 : 1;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			success => $success,
-			problem => $problem, 
-		}});
-	}
-	else
-	{
-		$problem = $anvil->Cluster->shutdown_server({
-			debug  => 2, 
-			server => $server, 
-			'wait' => $wait,
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		
-		# If we're being asked to force the server off, do it now regardless of what pacemaker returned.
-		if ($anvil->data->{switches}{immediate})
+		if ($anvil->data->{switches}{'reset'})
 		{
 			my $success = $anvil->Server->shutdown_virsh({
-				debug     => 2,
-				server    => $server, 
-				force     => 1, 
-				wait_time => 0,
+				debug   => 2,
+				server  => $server, 
+				'reset' => 1,
 			});
 			$problem = $success ? 0 : 1;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				success => $success,
 				problem => $problem, 
 			}});
+		}
+		else
+		{
+			my $force   = $anvil->data->{switches}{immediate} ? 1 : 0;
+			my $do_wait = $wait ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				force   => $force, 
+				do_wait => $do_wait, 
+			}});
+			my $success = $anvil->Server->shutdown_virsh({
+				debug     => 2,
+				server    => $server, 
+				force     => $force, 
+				wait_time => $do_wait,
+			});
+			$problem = $success ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				success => $success,
+				problem => $problem, 
+			}});
+		}
+	}
+	else
+	{
+		if ($anvil->data->{switches}{'reset'})
+		{
+			# We're not powering it off, so don't ask the cluster to do anything.
+			my $success = $anvil->Server->shutdown_virsh({
+				debug   => 2,
+				server  => $server, 
+				'reset' => 1,
+			});
+			$problem = $success ? 0 : 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				success => $success,
+				problem => $problem, 
+			}});
+		}
+		else
+		{
+			$problem = $anvil->Cluster->shutdown_server({
+				debug  => 2, 
+				server => $server, 
+				'wait' => $wait,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			
+			# If we're being asked to force the server off, do it now regardless of what pacemaker returned.
+			if ($anvil->data->{switches}{immediate})
+			{
+				my $success = $anvil->Server->shutdown_virsh({
+					debug     => 2,
+					server    => $server, 
+					force     => 1, 
+					wait_time => 0,
+				});
+				$problem = $success ? 0 : 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					success => $success,
+					problem => $problem, 
+				}});
+			}
 		}
 	}
 	
@@ -874,6 +928,10 @@ sub reassign_job
 	   $job_data      .= "server=".$anvil->data->{switches}{server_name}."\n";
 	   $job_data      .= "server-uuid=".$anvil->data->{switches}{server_uuid}."\n";
 	   $job_data      .= "wait=".$say_wait;
+	if ($anvil->data->{switches}{'reset'})
+	{
+		$job_data .= "\ntask=reset";
+	}
 	my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
 		debug           => 2,
 		job_command     => $anvil->data->{path}{exe}{$THIS_FILE}.$anvil->Log->switches,

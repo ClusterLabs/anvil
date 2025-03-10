@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! server shutdown tool
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-shutdown-server "8" "January 09 2025" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-shutdown-server "8" "March 10 2025" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-shutdown-server \- This program shuts down servers hosted on the Anvil! cluster.
 .SH SYNOPSIS
@@ -25,7 +25,7 @@ When not running as a job, you will be asked to confirm the shutdown. Using this
 .TP
 \fB\-\-immediate\fR
 .TP
-This causes the server to be forced off, equivalent to pulling the power cord out of a traditional server. This doesn't work with '\fB\-\-server all\fR', a specific server must be specified.
+This causes the server to be forced off, equivalent to pulling the power cord out of a traditional server. This is different from \fB\-\-reset\fR as it completely shuts off ('destroys' in linbirtd language) the server. The server stays off until pacemaker detects it is off and restarts it. This doesn't work with '\fB\-\-server all\fR', a specific server must be specified.
 .TP
 \fB\-\-no\-db\fR
 .TP
@@ -37,6 +37,10 @@ This tells the program to call the shut down, but not wait for the server to act
 .TP
 .B Note:
 Any server that has to boot before another will not shut down until those servers are stopped. This is the reverse order of the boot up sequence. For example, if server B boots after C has started, C will not shut down until B is off. The 'no-wait' still applies once the request to shut down is sent, however. See 'anvil-manage-server's man page for boot order details.
+.TP
+\fB\-\-reset\fR
+.TP
+This is equal to pressing the reset button on a physical server. The OS is given on chance to react, the server immediately restarts. The main difference from \fB\-\-immediate\fR is that the server never turns off, making this useful when you want to stay connected to a server's console to catch the entire boot sequence. Specifically, this makes it easier to hit special keys to select a boot device, interrupt the OS boot, etc. This doesn't work with '\fB\-\-server all\fR', a specific server must be specified.
 .TP
 \fB\-\-server\fR {<name>, <uuid>, or all}
 .TP
