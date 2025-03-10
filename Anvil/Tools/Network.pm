@@ -4190,6 +4190,7 @@ sub manage_firewall
 			foreach my $interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$host_name}{interface}})
 			{
 				next if not $interface;
+				next if $interface !~ /^(.*?)_/;
 				my $interface_zone = uc(($interface =~ /^(.*?)_/)[0]);
 				next if not $interface_zone;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 

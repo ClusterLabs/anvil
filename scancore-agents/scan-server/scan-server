@@ -413,19 +413,39 @@ sub collect_data
 				
 				if ($server_definition)
 				{
-					# Register an alert.
-					my $variables = {
-						server => $server_name,
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0016", variables => $variables});
-					$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0016", variables => $variables, set_by => $THIS_FILE});
+					# This could be a rebuilt host. If so, and if the peer is also 
+					# rebuilt, the server might be gone entirely.
+					my $host_type = $anvil->Get->host_type;
+					my $gone      = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+					if ($host_type eq "node")
+					{
+						# 0 = The local DRBD resource config exists, write the XML
+						# 1 = The DRBD resource is missing on both subnods, the 
+						#     server was marked as DELETED, do nothing.
+						# 2 = The local DRBD resource is missing, and we could not 
+						#     check the peer, do nothing.
+						($gone) = check_if_server_is_gone($anvil, $server_name, $server_uuid, $anvil_uuid);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+					}
 					
-					my $return = $anvil->Storage->write_file({
-						body      => $server_definition,
-						file      => $xml_file,
-						overwrite => 1,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+					# Replace the missing file?
+					if (not $gone)
+					{
+						# Register an alert.
+						my $variables = {
+							server => $server_name,
+						};
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0016", variables => $variables});
+						$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0016", variables => $variables, set_by => $THIS_FILE});
+						
+						my $return = $anvil->Storage->write_file({
+							body      => $server_definition,
+							file      => $xml_file,
+							overwrite => 1,
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'return' => $return }});
+					}
 				}
 			}
 		}
@@ -1379,6 +1399,118 @@ WHERE
 	}
 	
 	return(0);
+}
+
+# This looks to see if a server no longer exists on either node. If so, the server gets marked as 'DELETED' 
+# and '1' is returned. This requires that we can access the peer. If not, and if our local DRBD resource is 
+# missing, '2' is returned. If the local DRBD resource file exists, '0' is returned.
+sub check_if_server_is_gone
+{
+	my ($anvil, $server_name, $server_uuid, $anvil_uuid) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		server_name => $server_name,
+		server_uuid => $server_uuid, 
+		anvil_uuid  => $anvil_uuid, 
+	}});
+	
+	my $drbd_res_file = $anvil->data->{path}{directories}{drbd_resources}."/".$server_name.".res";
+	my $gone          = 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+	if (-e $drbd_res_file)
+	{
+		# The resource file exists, so return '2'.
+		my $gone = 2;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gone => $gone }});
+		return($gone);
+	}
+	
+	# If we're a DR host, we're done
+	my $host_type = $anvil->Get->host_type;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ($host_type ne "node")
+	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gone => $gone }});
+		return($gone);
+	}
+	
+	# Can we connect to the peer?
+	$anvil->Cluster->get_peers();
+	my $peer_is         = $anvil->data->{sys}{anvil}{peer_is};
+	my $host_uuid       = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
+	my $peer_host_uuid  = $anvil->data->{sys}{anvil}{$peer_is}{host_uuid};
+	my $peer_short_name = $anvil->data->{hosts}{host_uuid}{$peer_host_uuid}{short_host_name};
+	my $password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:peer_is'         => $peer_is,
+		's2:host_uuid'       => $host_uuid, 
+		's3:peer_host_uuid'  => $peer_host_uuid, 
+		's4:peer_short_name' => $peer_short_name, 
+		's5:password'        => $anvil->Log->is_secure($password), 
+	}});
+	
+	# If we can access our peer or DR host, see what servers are running on them. We do no 
+	# parsing or processing of servers on other machines, we only care what servers are running.
+	my $peer_access = $anvil->Remote->test_access({
+		debug    => 2,
+		target   => $peer_short_name,
+		password => $password,
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_access => $peer_access }});
+	if ($peer_access)
+	{
+		# Does the file exist?
+		my $shell_call = "if [ -e ".$drbd_res_file." ]; 
+then 
+  ".$anvil->data->{path}{exe}{echo}." exists; 
+else 
+  ".$anvil->data->{path}{exe}{echo}." not found; 
+fi;";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug      => 3, 
+			shell_call => $shell_call,
+			target     => $peer_short_name,
+			password   => $password,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:output'      => $output,
+			's2:error'       => $error,
+			's3:return_code' => $return_code, 
+		}});
+		
+		if ($output eq "not found")
+		{
+			# The server is gone.
+			if ($server_uuid)
+			{
+				my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'DELETED', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				
+				my $variables = {
+					server_name => $server_name, 
+					server_uuid => $server_uuid, 
+					peer_name   => $peer_short_name, 
+				};
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_server_alert_0028", variables => $variables});
+				$anvil->Alert->register({alert_level => "notice", message => "scan_server_alert_0028", variables => $variables, set_by => $THIS_FILE});
+			}
+			
+			$gone = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { gone => $gone }});
+			return($gone);
+		}
+	}
+	
+	return($gone);
 }
 
 sub get_server_state

@@ -137,7 +137,7 @@ Failed to generate an RSA public key for the user: [#!variable!user!#]. The outp
 		<key name="error_0078">Asked to plug in an interface from: [#!variable!server!#] but there was a problem parsing the definition file. More details are likely in the logs.</key>
 		<key name="error_0079">Job data not found for job_uuid: [#!variable!job_uuid!#].</key>
 		<key name="error_0080">[ Warning ] - The server: [#!variable!server!#] does not appear to exist on the cluster, aborting.</key>
-		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data.</key>
+		<key name="error_0081">The job_uuid: [#!variable!job_uuid!#] appears valid, but there was no job_data or the job data was malformed.</key>
 		<key name="error_0082">The state UUID: [#!variable!state_uuid!#] does not appear to be a valid UUID.</key>
 		<key name="error_0083">No (good) state UUIDs found, unable to run this job.</key>
 		<key name="error_0084">Unable to find a common network between the target and this machine. This shouldn't be possible, given we're able to talk to it. This is probably a program error.</key>
@@ -493,7 +493,7 @@ Output (if any):
 		<key name="error_0319">[ Error ] - One or more machines in the Anvil! are not accessible.</key>
 		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
-		<key name="error_0322">#!free!#</key>
+		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
 		<key name="error_0323">#!free!#</key>
 		<key name="error_0324">#!free!#</key>
 		<key name="error_0325">#!free!#</key>
@@ -1617,8 +1617,8 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0335">The target machine is now off.</key>
 		<key name="job_0336">The target was already off, proceeding with booting it.</key>
 		<key name="job_0337">The target machine is already off, nothing to do.</key>
-		<key name="job_0338">#!free!#</key>
-		<key name="job_0339">#!free!#</key>
+		<key name="job_0338">Reset a server</key>
+		<key name="job_0339">This hard-resets the server, but leaves it running so the console remains active.</key>
 		<key name="job_0340">#!free!#</key>
 		<key name="job_0341">#!free!#</key>
 		<key name="job_0342">#!free!#</key>
@@ -1780,7 +1780,7 @@ Note: This is a permanent action! If you protect this server again later, a full
  --install-media - File name or file UUID. Available discs are:]]></key>
 		<key name="job_0461"><![CDATA[                 > File name: [#!variable!name!#], file UUID: [#!variable!uuid!#], size: [#!variable!size!#]]]></key>
 		<key name="job_0462"><![CDATA[ --driver-disc   - (optional) A driver disc to be added as a second optical drive. Valid options are above.]]></key>
-		<key name="job_0463">#!free!#</key>
+		<key name="job_0463">The server: [#!variable!server!#] will now be reset!</key>
 		<key name="job_0464">Calling select ScanCore scan agents to ensure the database is updated.</key>
 		<key name="job_0465">Reload (adjust) a DRBD resource</key>
 		<key name="job_0466">This job is to reload (adjust) a DRBD resource. It's run as a job as it blocks until the adjust is run on all nodes.</key>
@@ -2467,7 +2467,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0519">Attempting to parse bridge information using standard output after failing to parse JSON status information.</key>
 		<key name="log_0520">The server: [#!variable!server!#] is indeed running. It will be shut down now.</key>
 		<key name="log_0521">Checking the status of the server: [#!variable!server!#].</key>
-		<key name="log_0522">#!free!#</key>
+		<key name="log_0522">The server: [#!variable!server!#] is indeed running. It will be reset now.</key>
 		<key name="log_0523">Found the server to be running using its PID. The state of the server can't be determined, however. There appears to be a problem with 'virsh'!</key>
 		<key name="log_0524">#!free!#</key>
 		<key name="log_0525">The server: [#!variable!server_name!#] is shutting down. Will wait for it to finish...</key>
@@ -2535,7 +2535,7 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0583">#!free!#</key>
 		<key name="log_0584">#!free!#</key>
 		<key name="log_0585">#!free!#</key>
-		<key name="log_0586">#!free!#</key>
+		<key name="log_0586">Checking for SSH key changes before we retest network access.</key>
 		<key name="log_0587">The server: [#!variable!server_name!#] has been removed from Pacemaker.</key>
 		<key name="log_0588">We're required by at least one peer, so we'll wait a bit and check to see if they still need us before we proceed with the deletion.</key>
 		<key name="log_0589">Deleting the file: [#!variable!file!#].</key>
@@ -2574,9 +2574,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0622">Aging out one or more records that are more than: [#!variable!age!#] hours old from the table: [#!variable!table!#] on the database host: [#!variable!database!#].</key>
 		<key name="log_0623">Starting the process of aging out old data. This can take about a minute, please be patient.</key>
 		<key name="log_0624">Aging out old data completed after: [#!variable!runtime!#] seconds.</key>
-		<key name="log_0625">#!free!#</key>
+		<key name="log_0625">It appears our peer was rebuilt. Created a job to delete the SSH key for our peer's: [#!variable!peer!#] name/IP with the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0626">This system will reboot in: [#!variable!seconds!#] seconds...</key>
-		<key name="log_0627">#!free!#</key>
+		<key name="log_0627">We've already found a bad key for the peer: [#!variable!peer!#], so we won't check again. The job to clean the bad keys has UUID: [#!variable!job_uuid!#].</key>
 		<key name="log_0628">#!free!#</key>
 		<key name="log_0629">#!free!#</key>
 		<key name="log_0630">#!free!#</key>
@@ -3010,7 +3010,7 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0148">[ Note ] - Asked to plug in an interface from: [#!variable!server!#] but the server is not running here. It's running on: [#!variable!host_name!#] (#!variable!host_uuid!#). Creating a job for that host to plug in the interface.</key>
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">The '--confirm' switch was used, proceeding.</key>
-		<key name="message_0151">#!free!#</key>
+		<key name="message_0151">Are you sure you want to reset: [#!variable!server_name!#]? [y/N].</key>
 		<key name="message_0152">#!free!#</key>
 		<key name="message_0153">Local repository</key>
 		<key name="message_0154">#!free!#</key>
