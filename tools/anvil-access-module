@@ -163,7 +163,6 @@ my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 
 $running_directory =~ s/^\./$ENV{PWD}/ if $running_directory =~ /^\./ && $ENV{PWD};
 
-my $scmd_db_listen = "listen";
 my $scmd_db_read   = "r";
 my $scmd_db_write  = "w";
 my $scmd_execute   = "x";
@@ -281,7 +280,6 @@ sub check_database_handles
 
 		if ((not exists $dbh) or (not $dbh) or (not $dbh->ping))
 		{
-			# ignore broken database handle(s)
 			next;
 		}
 
@@ -419,6 +417,7 @@ sub get_scmd_args
 sub handle_connections
 {
 	my $parameters = shift;
+	# required:
 	my $anvil      = $parameters->{anvil};
 	my $server     = $parameters->{server};
 
@@ -556,10 +555,6 @@ sub handle_connections
 			{
 				process_scmd_execute({ anvil => $anvil, input => $cmd_line, lid => $cmd_line_id });
 			}
-			elsif ($cmd_line =~ /^$scmd_db_listen\s+/)
-			{
-				# it's a request to register a listener to a database trigger
-			}
 		}
 
 		# responder is done writing
@@ -647,7 +642,9 @@ sub main
 
 	if ($daemonize)
 	{
-		return handle_connections({ anvil => $anvil, server => $server });
+		handle_connections({ anvil => $anvil, server => $server });
+		# when running as daemon, the main process shouldn't do anything other than handling connections
+		return;
 	}
 
 	# make 1 child to interact on stdio
@@ -667,6 +664,8 @@ sub main
 		emit("interface:".$interface_pid."-forked");
 
 		handle_connections({ anvil => $anvil, server => $server });
+		# after starting a child process to handle the stdin interactions, the main process should only handle connections
+		return;
 	}
 
 	#############
