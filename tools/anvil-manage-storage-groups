@@ -605,10 +605,10 @@ FROM
 		}});
 		
 		# Check for duplicate groups.
-		if (exists $anvil->data->{duplicate_check}{$storage_group_name})
+		if (exists $anvil->data->{duplicate_check}{$storage_group_anvil_uuid}{$storage_group_name})
 		{
 			# Pick one to delete. Does one of the groups have DR and the other doesn't?
-			my $other_storage_group_uuid = $anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid};
+			my $other_storage_group_uuid = $anvil->data->{duplicate_check}{$storage_group_anvil_uuid}{$storage_group_name}{storage_group_uuid};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { other_storage_group_uuid => $other_storage_group_uuid }});
 			
 			my $this_query  = "SELECT COUNT(*) FROM storage_group_members WHERE storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid).";";
@@ -672,9 +672,9 @@ FROM
 		}
 		
 		# Used to check for duplicates. We can't use the real data as it could have been loaded before here.
-		$anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
+		$anvil->data->{duplicate_check}{$storage_group_anvil_uuid}{$storage_group_name}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			"duplicate_check::${storage_group_name}::storage_group_uuid" => $anvil->data->{duplicate_check}{$storage_group_name}{storage_group_uuid},
+			"duplicate_check::${storage_group_anvil_uuid}::${storage_group_name}::storage_group_uuid" => $anvil->data->{duplicate_check}{$storage_group_anvil_uuid}{$storage_group_name}{storage_group_uuid},
 		}});
 		
 		# Store the real data
