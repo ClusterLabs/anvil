@@ -21,7 +21,7 @@ open (my $file_handle, "<", $file) or die "Failed to read: [".$file."], error: [
 while(<$file_handle>)
 {
 	my $line = $_;
-	if ($line =~ /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}:\[(\d+)\]:/)
+	if (($line =~ /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}:\[(\d+)\]:/) or ($line =~ /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}:\[.*?\]:\[(\d+)\]:/))
 	{
 		my $this_pid = $1;
 		if ($pid eq $this_pid)
