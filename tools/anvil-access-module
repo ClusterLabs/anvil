@@ -538,7 +538,7 @@ sub manage_database_listeners
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { pid => $pid } });
 
-		kill 'TERM' $pid;
+		kill('TERM', $pid);
 
 		return 1;
 	}
