@@ -685,10 +685,10 @@ sub handle_connections
 			}
 		}
 
+		emit("responder:".$$."-exit");
+
 		# responder is done writing
 		$responder->shutdown(SHUT_WR);
-
-		emit("responder:".$$."-exit");
 
 		$anvil->nice_exit({ exit_code => 0 });
 
