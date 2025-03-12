@@ -271,6 +271,11 @@ sub check_database_handles
 
 	foreach my $uuid (sort { $a cmp $b } keys %{$anvil->data->{database}})
 	{
+		if (not exists $anvil->data->{cache}{database_handle}{$uuid})
+		{
+			next;
+		}
+
 		my $dbh = $anvil->data->{cache}{database_handle}{$uuid};
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
@@ -278,7 +283,7 @@ sub check_database_handles
 			dbh_local     => $dbh,
 		} });
 
-		if ((not exists $dbh) or (not $dbh) or (not $dbh->ping))
+		if ((not $dbh) or (not $dbh->ping))
 		{
 			next;
 		}
