@@ -402,7 +402,7 @@ sub fork_responder
 		pstderr("no usable database handle");
 
 		return 0;
-	}
+	};
 
 	my $pid = fork;
 
@@ -460,7 +460,7 @@ sub fork_responder
 		$responder->shutdown(SHUT_RDWR);
 
 		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-	}
+	};
 
 	return 1;
 }
