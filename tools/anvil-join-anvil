@@ -1591,7 +1591,7 @@ sub wait_for_access
 			### NOTE: I know I could match interface names, but that's not certain enough. It's 
 			###       possible (if unlikely) that the network name+number differs on our peer. So
 			###       this is safer.
-			# Loop through my peer's interfaces and see if we're shareing this one.
+			# Loop through my peer's interfaces and see if we're sharing this one.
 			my $local_network    = NetAddr::IP->new($ip_address."/".$subnet_mask);
 			my $peer_match_found = 0;
 			foreach my $peer_interface (sort {$a cmp $b} keys %{$anvil->data->{network}{$peer_short_host_name}{interface}})
@@ -1741,7 +1741,7 @@ AND
 		### NOTE: Rationale for automating this; If a malicious actor can run this program, they can
 		###       just as easily register a job to clear the keys directly. So this favours 
 		###       usability.
-		# Register a jo to clean up the bad key.
+		# Register a job to clean up the bad key.
 		$anvil->data->{key_jobs}{$state_name} = $anvil->Database->insert_or_update_jobs({
 			debug           => 2,
 			file            => $THIS_FILE, 
