@@ -2858,7 +2858,7 @@ sub shutdown_virsh
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown_virsh()", parameter => "server" }});
 		return($success);
 	}
-	if (($reset) or ($force))
+	if ($reset)
 	{
 		$wait_time = 0;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_time => $wait_time }});
