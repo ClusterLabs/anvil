@@ -2770,6 +2770,7 @@ sub parse_definition
 	foreach my $hash_ref (@{$server_xml->{devices}->[0]->{interface}})
 	{
 		#print Dumper $hash_ref;
+		next if not defined $hash_ref->{mac}->[0]->{address};
 		my $mac = $hash_ref->{mac}->[0]->{address};
 		
 		$anvil->data->{server}{$target}{$server}{$source}{device}{interface}{$mac}{bridge}            = $hash_ref->{source}->[0]->{bridge};
@@ -2816,6 +2817,10 @@ Normally, a graceful shutdown is requested. This requires that the guest respond
 
 B<WARNING>: Setting this to C<< 1 >> results in the immediate shutdown of the server! Same as if you pulled the power out of a traditional machine.
 
+=head3 reset (optional, default '0')
+
+If this is set to C<< 1 >>, the server is 'reset' instead of shutdown. If this is set to C<< 1 >>, C<< wait_time >> is ignored. The main difference with this is that the server is B<< NOT >> destroyed, so the user's connection to the console will not be interrupted. This makes it easier for the user to interrupt the boot sequence. 
+
 =head3 server (required)
 
 This is the name of the server (as it appears in C<< virsh >>) to shut down.
@@ -2835,13 +2840,15 @@ sub shutdown_virsh
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Server->shutdown_virsh()" }});
 	
-	my $server      = defined $parameter->{server}    ? $parameter->{server}    : "";
 	my $force       = defined $parameter->{force}     ? $parameter->{force}     : 0;
+	my $reset       = defined $parameter->{'reset'}   ? $parameter->{'reset'}   : 0;
+	my $server      = defined $parameter->{server}    ? $parameter->{server}    : "";
 	my $wait_time   = defined $parameter->{wait_time} ? $parameter->{wait_time} : 0;
 	my $success     = 0;
 	my $server_uuid = "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		force     => $force, 
+		'reset'   => $reset, 
 		server    => $server, 
 		wait_time => $wait_time, 
 	}});
@@ -2851,7 +2858,12 @@ sub shutdown_virsh
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Server->shutdown_virsh()", parameter => "server" }});
 		return($success);
 	}
-	if (($wait_time) && ($wait_time =~ /\D/))
+	if ($reset)
+	{
+		$wait_time = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_time => $wait_time }});
+	}
+	elsif (($wait_time) && ($wait_time =~ /\D/))
 	{
 		# Bad value.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0422", variables => { server => $server, wait_time => $wait_time }});
@@ -2874,6 +2886,11 @@ sub shutdown_virsh
 		if ($force)
 		{
 			$task = "destroy";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0424", variables => { server => $server }});
+		}
+		elsif ($reset)
+		{
+			$task = "reset";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, key => "log_0424", variables => { server => $server }});
 		}
 		else
@@ -2930,13 +2947,20 @@ sub shutdown_virsh
 		elsif (($status eq "idle") or ($status eq "crashed"))
 		{
 			# The server needs to be destroyed.
-			$task = "destroy";
+			if ($reset)
+			{
+				$task = "reset";
+			}
+			else
+			{
+				$task = "destroy";
+			}
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0322", variables => { 
 				server => $server,
 				status => $status, 
 			}});
 		}
-		elsif ($status eq "in shutdown")
+		elsif (($status eq "in shutdown") && (not $reset))
 		{
 			# The server is already shutting down
 			$shutdown = 0;
@@ -2955,13 +2979,13 @@ sub shutdown_virsh
 		if ($shutdown)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
-			if ($anvil->data->{sys}{database}{connections})
+			if (($anvil->data->{sys}{database}{connections}) && (not $reset))
 			{
-				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 3});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 				
 				$server_uuid = $anvil->Get->server_uuid_from_name({
-					debug       => $debug, 
+					debug       => 3, 
 					server_name => $server, 
 					anvil_uuid  => $anvil_uuid,
 				});
@@ -2992,7 +3016,8 @@ WHERE
 					}
 				}
 			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0520", variables => { server => $server }});
+			my $word_key = $reset ? "log_0522" : "log_0520";
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => $word_key, variables => { server => $server }});
 			my ($output, $return_code) = $anvil->System->call({
 				debug      => $debug, 
 				shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." ".$task." ".$server,
@@ -3018,8 +3043,11 @@ WHERE
 		$stop_waiting = time + $wait_time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_waiting => $stop_waiting }});
 	};
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_time => $wait_time }});
-	my $waiting = 1;
+	my $waiting = $reset ? 0 : 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		wait_time => $wait_time,
+		waiting   => $waiting, 
+	}});
 	while ($waiting)
 	{
 		# Update

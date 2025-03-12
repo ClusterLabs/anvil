@@ -90,6 +90,7 @@ if (not $anvil->data->{sys}{database}{connections})
 # 3. ...
 # 6. Using Start Groups/Delays (and ignoring 'clean' off VMs), boot servers.
 
+start_job($anvil);
 
 # Check to see if we should run. Also checks/sets enable/disable requests.
 prerun_checks($anvil);
@@ -107,13 +108,26 @@ boot_servers($anvil);
 # Start DRBD resources locally for VMs running on the peer already
 check_drbd($anvil);
 
-$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0281"});
+$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
 
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub start_job
+{
+	my ($anvil) = @_;
+
+	# Clear previous data
+	$anvil->Job->update_progress({progress => 0, message => "clear", job_uuid => $anvil->data->{job}{uuid}});
+	
+	# Record that we've picked up this job.
+	$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, message => "message_0015", progress => $anvil->Job->bump_progress({steps => 1})});
+	
+	return(0);
+}
 
 sub check_drbd
 {
@@ -181,7 +195,7 @@ sub boot_servers
 	my ($anvil) = @_;
 	
 	# Call 'anvil-boot-server --server all' to boot the servers now.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0614"});
+	$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 5}), message => "log_0614"});
 	my $shell_call = $anvil->data->{path}{exe}{'anvil-boot-server'}." --server all".$anvil->Log->switches;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
@@ -192,7 +206,7 @@ sub boot_servers
 	if ($return_code)
 	{
 		# What?! Fail out, we're done.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0275", variables => {
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "error_0275", variables => {
 			output      => $output,
 			return_code => $return_code, 
 		}});
@@ -228,14 +242,15 @@ sub start_pacemaker
 	if ($problem)
 	{
 		# Nope, start it.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0608"});
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, priority => "alert", progress => $anvil->Job->bump_progress({steps => 5}), message => "log_0608"});
 		
 		# NOTE: In some odd cases, this can try to run before /etc/hosts has been populated. So wait
 		#       until we can access ourself.
 		my $ok = 0;
 		until ($ok)
 		{
-			# Convert out short host name to an IP and verify that the IP is one of ours.
+			# Convert our short host name to an IP and verify that the IP is one of ours.
+			$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0608"});
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0681"});
 			my $local_bcn1_ip = $anvil->Convert->host_name_to_ip({debug => 2, host_name => $short_host_name});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_bcn1_ip => $local_bcn1_ip }});
@@ -270,7 +285,7 @@ sub start_pacemaker
 			if (not $ok)
 			{
 				# Sleep 10 seconds.
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "warning_0134"});
+				$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, priority => "alert", progress => $anvil->Job->bump_progress({steps => 1}), message => "warning_0134"});
 				sleep 10;
 			}
 		}
@@ -301,7 +316,7 @@ sub start_pacemaker
 				if (time > $wait_until)
 				{
 					# We're done.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0256", variables => {
+					$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, priority => "alert", progress => 100, message => "error_0256", variables => {
 						output      => $output,
 						return_code => $return_code, 
 					}});
@@ -311,7 +326,7 @@ sub start_pacemaker
 				{
 					# Report the error and sleep
 					my $time_left = $wait_until - time;
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0153", variables => {
+					$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, priority => "alert", progress => $anvil->Job->bump_progress({steps => 1}), message => "warning_0153", variables => {
 						output      => $output,
 						return_code => $return_code, 
 						time_left   => $time_left, 
@@ -390,7 +405,7 @@ sub start_pacemaker
 						# We're ready, but do we have quorum?
 						if ($quorate)
 						{
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0611", variables => { node_name => $node_name }});
+							$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0611", variables => { node_name => $node_name }});
 						}
 						else
 						{
@@ -405,7 +420,7 @@ sub start_pacemaker
 								# Time to fence. Use 'pcs stonith fence <peer>', verify it succeeded, 
 								# then do 'pcs quorum unblock --force' to finish startup.
 							}
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0610", variables => { node_name => $node_name }});
+							$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, priority => "alert", progress => $anvil->Job->bump_progress({steps => 1}), message => "warning_0153", variables => { node_name => $node_name }});
 						}
 					}
 					else
@@ -413,7 +428,7 @@ sub start_pacemaker
 						# Not ready yet.
 						$waiting = 1;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0612", variables => { 
+						$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0612", variables => { 
 							node_name => $node_name,
 							in_ccm    => $in_ccm,
 							crmd      => $crmd,
@@ -425,7 +440,7 @@ sub start_pacemaker
 			
 			if ($waiting)
 			{
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0609"});
+				$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0609"});
 				sleep 5;
 			}
 		}
@@ -532,7 +547,7 @@ sub wait_for_access
 					if ($access)
 					{
 						# This network is good.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0604", variables => {
+						$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0604", variables => {
 							peer    => $peer_short_host_name, 
 							network => $this_network, 
 							peer_ip => $peer_ip_address,
@@ -547,7 +562,7 @@ sub wait_for_access
 					{
 						# No access, wait and try it again.
 						$waiting = 1;
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0605", variables => {
+						$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0605", variables => {
 							peer    => $peer_short_host_name, 
 							network => $this_network, 
 							peer_ip => $peer_ip_address,
@@ -560,13 +575,13 @@ sub wait_for_access
 		
 		if ($waiting)
 		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0606", variables => { peer => $peer_short_host_name }});
+			$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 1}), message => "log_0606", variables => { peer => $peer_short_host_name }});
 			sleep 5;
 		}
 	}
 	
 	# All networks are up.
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, priority => "alert", key => "log_0607", variables => { peer => $peer_short_host_name }});
+	$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 5}), message => "log_0607", variables => { peer => $peer_short_host_name }});
 	
 	return(0);
 }
@@ -597,7 +612,7 @@ sub start_dr
 				# Found a resource. This is where we'd check for schedules. For now, just 
 				# adjust.
 				my $resource = $1;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0577", variables => {resource => $resource}});
+				$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 5}), message => "log_0577", variables => { resource => $resource }});
 				
 				my $shell_call = $anvil->data->{path}{exe}{'drbdadm'}." adjust ".$resource;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
@@ -641,7 +656,7 @@ sub prerun_checks
 	if ($host_type eq "striker")
 	{
 		# We're done.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0598"});
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0598"});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -649,7 +664,7 @@ sub prerun_checks
 	if ($host_type eq "dr")
 	{
 		# Call adjust and then exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0570"});
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0570"});
 		start_dr($anvil);
 		$anvil->nice_exit({exit_code => 0});
 	}
@@ -660,7 +675,7 @@ sub prerun_checks
 	if (not $anvil_uuid)
 	{
 		# This is a node, but not in an Anvil! yet.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0603"});
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0603"});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -680,123 +695,6 @@ sub prerun_checks
 		"sys::peer_password"  => $anvil->Log->is_secure($anvil->data->{sys}{peer_password}), 
 	}});
 	
-	# We don't use this anymore, it's managed by the 'anvil-safe-start.service' daemon.
-=cut
-	# Are we being asked to enable or disable? 
-	my $nodes   = [$host_uuid];
-	my $set_to  = 1;
-	my $message = "";
-	if ($anvil->data->{switches}{enable})
-	{
-		# We're enabling, which message will we use?
-		$message = $anvil->data->{switches}{'local'} ? "log_0599" : "log_0600";
-	}
-	elsif ($anvil->data->{switches}{disable})
-	{
-		# We're disabling. Which message?
-		$set_to  = 0;
-		$message = $anvil->data->{switches}{'local'} ? "log_0601" : "log_0602";
-	}
-	
-	# If we're updating the settings, do so and then exit.
-	if ($message)
-	{
-		if (not $anvil->data->{switches}{'local'})
-		{
-			# Add our peer as well.
-			push @{$nodes}, $anvil->data->{sys}{peer_host_uuid};
-		}
-		foreach my $host_uuid (@{$nodes})
-		{
-			my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
-				debug                 => 3,
-				variable_name         => "tool::anvil-safe-start::enabled", 
-				variable_value        => $set_to, 
-				variable_default      => 1, 
-				variable_description  => "striker_0286", 
-				variable_section      => "system", 
-				variable_source_uuid  => $host_uuid, 
-				variable_source_table => "hosts", 
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-		}
-		
-		# Record that it's been enabled.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => $message});
-		$anvil->nice_exit({exit_code => 0});
-	}
-	
-	# Read my variables. 
-	my ($local_enabled, $variable_uuid, $mtime, $modified_date) = $anvil->Database->read_variable({
-		debug                 => 3,
-		variable_name         => "tool::anvil-safe-start::enabled", 
-		variable_source_table => "hosts", 
-		variable_source_uuid  => $host_uuid, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		local_enabled => $local_enabled, 
-		variable_uuid => $variable_uuid, 
-	}});
-	# No UUID means the value hasn't been recorded, so we default to 1.
-	if (not $variable_uuid) 
-	{
-		$local_enabled = 1; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { local_enabled => $local_enabled }});
-	}
-	
-	# Have we just been asked for the status?
-	if ($anvil->data->{switches}{status})
-	{
-		# Yes, check our peer as well.
-		my ($peer_enabled, $variable_uuid, $mtime, $modified_date) = $anvil->Database->read_variable({
-			debug                 => 3,
-			variable_name         => "tool::anvil-safe-start::enabled", 
-			variable_source_table => "hosts", 
-			variable_source_uuid  => $anvil->data->{sys}{peer_host_uuid}, 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			peer_enabled  => $peer_enabled, 
-			variable_uuid => $variable_uuid, 
-		}});
-		# No UUID means the value hasn't been recorded, so we default to 1.
-		if (not $variable_uuid) 
-		{
-			$peer_enabled = 1; 
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { peer_enabled => $peer_enabled }});
-		}
-		
-		# What we tell the use slightly depends on which nodes are enabled.
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			local_enabled => $local_enabled, 
-			peer_enabled  => $peer_enabled,
-		}});
-		
-		my $message = "";
-		if (($local_enabled) && ($peer_enabled))
-		{
-			# Both nodes are enabled.
-			$message = "message_0227";
-		}
-		elsif ((not $local_enabled) && (not $peer_enabled))
-		{
-			# Both nodes are disabled
-			$message = "message_0228";
-		}
-		elsif ($local_enabled)
-		{
-			# We're enabled, the peer is disabled.
-			$message = "message_0229";
-		}
-		else
-		{
-			# We're disabled, the peer is enabled.
-			$message = "message_0230";
-		}
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => $message});
-		$anvil->nice_exit({exit_code => 0});
-	}
-=cut
-	
 	# Is another instance running?
 	my $pids = $anvil->System->pids({
 		debug        => 3, 
@@ -808,30 +706,10 @@ sub prerun_checks
 	
 	if ($other_instances)
 	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0233", variables => { program => $THIS_FILE }});
+		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "message_0233", variables => { program => $THIS_FILE }});
 		sleep 2;
 		$anvil->nice_exit({exit_code => 0});
 	}
-	
-=cut
-	# Last test, enabled or forced?
-	if (not $local_enabled)
-	{
-		# Disabled. Forced?
-		if ($anvil->data->{switches}{force})
-		{
-			# Forced, run anyway.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0232"});
-			return(0);
-		}
-		else
-		{
-			# Exit.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0231"});
-			$anvil->nice_exit({exit_code => 0});
-		}
-	}
-=cut
 	
 	return(0);
 }
