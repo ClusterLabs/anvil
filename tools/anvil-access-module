@@ -619,6 +619,8 @@ sub handle_connections
 	{
 		my $request_line = <$responder>;
 
+		chomp($request_line);
+
 		# responder is done reading
 		$responder->shutdown(SHUT_RD);
 
@@ -851,6 +853,8 @@ sub main
 
 	while (my $script_line = <$script_file_handle>)
 	{
+		chomp($script_line);
+
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
 
 		if ($script_line =~ /^(?:q|quit)\s*$/)
