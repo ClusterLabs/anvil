@@ -2981,11 +2981,11 @@ sub shutdown_virsh
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { "sys::database::connections" => $anvil->data->{sys}{database}{connections} }});
 			if (($anvil->data->{sys}{database}{connections}) && (not $reset))
 			{
-				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => $debug});
+				my $anvil_uuid = $anvil->Cluster->get_anvil_uuid({debug => 3});
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_uuid => $anvil_uuid }});
 				
 				$server_uuid = $anvil->Get->server_uuid_from_name({
-					debug       => $debug, 
+					debug       => 3, 
 					server_name => $server, 
 					anvil_uuid  => $anvil_uuid,
 				});
@@ -3043,7 +3043,7 @@ WHERE
 		$stop_waiting = time + $wait_time;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { stop_waiting => $stop_waiting }});
 	};
-	my $waiting = $wait_time ? 1 : 0;
+	my $waiting = $reset ? 0 : 1;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		wait_time => $wait_time,
 		waiting   => $waiting, 
