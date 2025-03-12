@@ -387,9 +387,29 @@ sub emit
 	pstdout("event=".$_[0]);
 }
 
-#
-# this subroutine should only run in the main process
-#
+sub exit_responder
+{
+	my $parameters = shift;
+	# required:
+	my $anvil      = $parameters->{anvil};
+	my $responder  = $parameters->{responder};
+
+	emit("responder:".$$."-exit");
+
+	# responder is done writing
+	$responder->shutdown(SHUT_WR);
+
+	$anvil->nice_exit({ exit_code => 0 });
+
+	#############
+	#### END #### responder block
+	#############
+}
+
+# notes:
+# - this subroutine should only run in the main process
+# - every line after the call to this function are a part of the responder process
+# - calling this subroutine requires calling exit_responder later for clean up
 sub fork_responder
 {
 	my $parameters = shift;
@@ -497,9 +517,7 @@ sub get_scmd_args
 	return $args;
 }
 
-#
 # this subroutine should only run in the main process
-#
 sub manage_database_listeners
 {
 	my $parameters = shift;
@@ -549,11 +567,7 @@ sub manage_database_listeners
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger } });
 
-		fork_responder({
-			anvil     => $anvil,
-			responder => $responder,
-			server    => $server,
-		}) or do {
+		fork_responder({ anvil => $anvil, responder => $responder, server => $server }) or do {
 			return 1;
 		};
 
@@ -574,7 +588,7 @@ sub manage_database_listeners
 			emit($name.":".$pid.":".$payload);
 		}
 
-		return 1;
+		exit_responder({ anvil => $anvil, responder => $responder });
 	}
 }
 
@@ -642,11 +656,7 @@ sub handle_connections
 
 		pstdout($$."::manage_database_listeners ended with false");
 
-		fork_responder({
-			anvil     => $anvil,
-			responder => $responder,
-			server    => $server,
-		}) or do {
+		fork_responder({ anvil => $anvil, responder => $responder, server => $server }) or do {
 			pstdout($$."::fork_responder ended with false");
 
 			next;
@@ -687,16 +697,7 @@ sub handle_connections
 			}
 		}
 
-		emit("responder:".$$."-exit");
-
-		# responder is done writing
-		$responder->shutdown(SHUT_WR);
-
-		$anvil->nice_exit({ exit_code => 0 });
-
-		#############
-		#### END #### responder block
-		#############
+		exit_responder({ anvil => $anvil, responder => $responder });
 	}
 
 	close($server);
