@@ -2,6 +2,7 @@ import { RequestHandler } from 'express';
 
 import { Responder } from '../lib/Responder';
 import { requestTargetSchema } from './schemas';
+import { poutvar } from '../lib/shell';
 
 export const validateRequestTarget =
   <
@@ -13,6 +14,13 @@ export const validateRequestTarget =
   >(): RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> =>
   async (request, response, next) => {
     const respond = new Responder<ResBody, Locals>(response);
+
+    poutvar(
+      {
+        params: request.params,
+      },
+      `Validate request target with: `,
+    );
 
     try {
       const valid = await requestTargetSchema.validate(request.params);
