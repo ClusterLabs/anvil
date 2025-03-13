@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTargetId } from '../middlewares';
 import {
   addServerDisk,
   addServerIface,
@@ -30,18 +31,21 @@ router
   .get('/provision', getProvisionServerResources)
   .get('/', getServer)
   .get('/:serverUUID', getServerDetail)
-  .post('/', createServer)
-  .put('/:uuid/add-disk', addServerDisk)
-  .put('/:uuid/add-interface', addServerIface)
-  .put('/:uuid/change-iso', changeServerIso)
-  .put('/:uuid/delete-interface', deleteServerIface)
-  .put('/:uuid/grow-disk', growServerDisk)
-  .put('/:uuid/migrate', migrateServer)
-  .put('/:uuid/rename', renameServer)
-  .put('/:uuid/set-boot-order', setServerBootOrder)
-  .put('/:uuid/set-cpu', setServerCpu)
-  .put('/:uuid/set-interface-state', setServerIfaceState)
-  .put('/:uuid/set-memory', setServerMemory)
-  .put('/:uuid/set-start-dependency', setServerStartDependency);
+  .post('/', createServer);
+
+router
+  .use('/:uuid', validateRequestTargetId())
+  .put('/add-disk', addServerDisk)
+  .put('/add-interface', addServerIface)
+  .put('/change-iso', changeServerIso)
+  .put('/delete-interface', deleteServerIface)
+  .put('/grow-disk', growServerDisk)
+  .put('/migrate', migrateServer)
+  .put('/rename', renameServer)
+  .put('/set-boot-order', setServerBootOrder)
+  .put('/set-cpu', setServerCpu)
+  .put('/set-interface-state', setServerIfaceState)
+  .put('/set-memory', setServerMemory)
+  .put('/set-start-dependency', setServerStartDependency);
 
 export default router;
