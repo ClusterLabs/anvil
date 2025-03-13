@@ -1,9 +1,9 @@
 import { RequestHandler } from 'express';
 
 import { Responder } from '../lib/Responder';
-import { requestTargetIdSchema } from './schemas';
+import { requestTargetSchema } from './schemas';
 
-export const validateRequestTargetId =
+export const validateRequestTarget =
   <
     P extends RequestTarget,
     ResBody = Express.RhResBody,
@@ -15,9 +15,12 @@ export const validateRequestTargetId =
     const respond = new Responder<ResBody, Locals>(response);
 
     try {
-      const valid = await requestTargetIdSchema.validate(request.params);
+      const valid = await requestTargetSchema.validate(request.params);
 
-      response.locals.target.uuid = valid.uuid;
+      // .locals is already an object, but anything nested doesn't exist yet.
+      response.locals.target = {
+        uuid: valid.uuid,
+      };
     } catch (error) {
       return respond.s400(
         '3a7fac7',

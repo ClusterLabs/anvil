@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { validateRequestTargetId } from '../middlewares';
+import { validateRequestTarget } from '../middlewares';
 import {
   addServerDisk,
   addServerIface,
@@ -35,7 +35,7 @@ router
   .post('/', createServer);
 
 router
-  .use('/:uuid', validateRequestTargetId())
+  .use('/:uuid', validateRequestTarget())
   .put('/add-disk', addServerDisk)
   .put('/add-interface', addServerIface)
   .put('/change-iso', changeServerIso)

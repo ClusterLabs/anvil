@@ -1,1 +1,1 @@
-export * from './requestTargetId';
+export * from './requestTarget';
