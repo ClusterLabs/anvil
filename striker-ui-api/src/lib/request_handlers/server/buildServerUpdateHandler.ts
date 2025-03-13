@@ -15,6 +15,7 @@ type S = {
     uuid: string;
   };
   name: string;
+  uuid: string;
 };
 
 export const buildServerUpdateHandler =
@@ -44,13 +45,12 @@ export const buildServerUpdateHandler =
       return respond.s400('e49b06e', `Invalid request; CAUSE ${error}`);
     }
 
-    const { uuid: serverUuid } = response.locals.target;
-
-    const server = {
+    const server: S = {
       host: {
         uuid: '',
       },
       name: '',
+      uuid: response.locals.target.uuid,
     };
 
     try {
@@ -59,7 +59,7 @@ export const buildServerUpdateHandler =
             server_name,
             server_host_uuid
           FROM servers
-          WHERE server_uuid = '${serverUuid}';`,
+          WHERE server_uuid = '${server.uuid}';`,
       );
 
       assert.ok(rows.length, 'No record found');

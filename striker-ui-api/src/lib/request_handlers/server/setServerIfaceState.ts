@@ -4,10 +4,9 @@ import { serverSetIfaceStateRequestBodySchema } from './schemas';
 export const setServerIfaceState =
   buildServerUpdateHandler<ServerSetIfaceStateRequestBody>(
     async ({ body }) => {
-      serverSetIfaceStateRequestBodySchema.validateSync(body);
+      await serverSetIfaceStateRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { active, mac } = body;
 
       const tool = 'anvil-manage-server-network';
@@ -19,10 +18,10 @@ export const setServerIfaceState =
       }
 
       return {
-        job_command: `${sbin[tool].self} --server ${serverUuid} --mac ${mac} ${stateFlag}`,
+        job_command: `${sbin[tool].self} --server ${server.uuid} --mac ${mac} ${stateFlag}`,
         job_description: `job_0506`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::set_interface_state`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::set_interface_state`,
         job_title: `job_0505`,
       };
     },

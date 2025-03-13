@@ -3,7 +3,7 @@ import { serverSetCpuRequestBodySchema } from './schemas';
 
 export const setServerCpu = buildServerUpdateHandler<ServerSetCpuRequestBody>(
   async ({ body }) => {
-    serverSetCpuRequestBodySchema.validateSync(body);
+    await serverSetCpuRequestBodySchema.validate(body);
   },
   async ({ body, params }, { host }, sbin) => {
     const { uuid: serverUuid } = params;

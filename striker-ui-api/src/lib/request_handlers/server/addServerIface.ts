@@ -4,10 +4,9 @@ import { serverAddIfaceRequestBodySchema } from './schemas';
 export const addServerIface =
   buildServerUpdateHandler<ServerAddIfaceRequestBody>(
     async ({ body }) => {
-      serverAddIfaceRequestBodySchema.validateSync(body);
+      await serverAddIfaceRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { bridge, mac, model } = body;
 
       const tool = 'anvil-manage-server-network';
@@ -25,10 +24,10 @@ export const addServerIface =
       }
 
       return {
-        job_command: `${sbin[tool].self} --server ${serverUuid} --add --bridge ${bridge} ${macFlag} ${modelFlag}`,
+        job_command: `${sbin[tool].self} --server ${server.uuid} --add --bridge ${bridge} ${macFlag} ${modelFlag}`,
         job_description: `job_0504`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::add_interface`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::add_interface`,
         job_title: `job_0503`,
       };
     },
