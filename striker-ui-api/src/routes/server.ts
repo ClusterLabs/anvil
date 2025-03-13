@@ -15,6 +15,7 @@ import {
   lsos,
   migrateServer,
   renameServer,
+  resetServer,
   setServerBootOrder,
   setServerCpu,
   setServerIfaceState,
@@ -42,6 +43,7 @@ router
   .put('/grow-disk', growServerDisk)
   .put('/migrate', migrateServer)
   .put('/rename', renameServer)
+  .put('/reset', resetServer)
   .put('/set-boot-order', setServerBootOrder)
   .put('/set-cpu', setServerCpu)
   .put('/set-interface-state', setServerIfaceState)
