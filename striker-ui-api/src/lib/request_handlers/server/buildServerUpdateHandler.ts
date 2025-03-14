@@ -56,10 +56,15 @@ export const buildServerUpdateHandler =
     try {
       const rows = await query<[[string, string]]>(
         `SELECT
-            server_name,
-            server_host_uuid
-          FROM servers
-          WHERE server_uuid = '${server.uuid}';`,
+            a.server_name,
+            COALESCE(
+              a.server_host_uuid,
+              b.anvil_node1_host_uuid
+            ) AS job_host_uuid
+          FROM servers AS a
+          JOIN anvils AS b
+            ON a.server_anvil_uuid = b.anvil_uuid
+          WHERE a.server_uuid = '${server.uuid}';`,
       );
 
       assert.ok(rows.length, 'No record found');
