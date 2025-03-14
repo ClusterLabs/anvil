@@ -1,5 +1,5 @@
 import { MoreVert as MoreVertIcon } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { Box, Grid } from '@mui/material';
 import { useMemo, useRef } from 'react';
 
 import ButtonWithMenu from '../ButtonWithMenu';
@@ -33,7 +33,10 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     edit: { open: () => null },
   });
 
-  const on = useMemo(() => ['running'].includes(server.state), [server.state]);
+  const off = useMemo(
+    () => ['shut off'].includes(server.state),
+    [server.state],
+  );
 
   const options = useMemo<Record<string, ServerOption>>(() => {
     const ops: Record<string, ServerOption> = {
@@ -61,7 +64,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     };
 
     const forceOff: ServerOption = {
-      disabled: () => !on,
+      disabled: () => off,
       onClick: () => {
         handleAction(
           confirm.current,
@@ -93,8 +96,52 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
       ),
     };
 
+    const reset: ServerOption = {
+      disabled: () => off,
+      onClick: () => {
+        handleAction(
+          confirm.current,
+          `/server/${server.uuid}/reset`,
+          `Reset server ${server.name}?`,
+          {
+            dangerous: true,
+            description: (
+              <Grid container spacing="1em">
+                <Grid item width="100%">
+                  <BodyText>
+                    This is equal to holding the power button to force shut
+                    down, followed by pushing the power button again to turn the
+                    machine back on.
+                  </BodyText>
+                </Grid>
+                <Grid item width="100%">
+                  <BodyText>
+                    Reset is usually used to access the boot menu when
+                    you&apos;ve missed it in the live VNC connection.
+                  </BodyText>
+                </Grid>
+              </Grid>
+            ),
+            messages: {
+              fail: <>Failed to register reset job on {server.name}.</>,
+              proceed: 'Reset',
+              success: (
+                <>Successfully registered reset join on {server.name}.</>
+              ),
+            },
+            method: 'put',
+          },
+        );
+      },
+      render: () => (
+        <BodyText color={MAP_TO_COLOUR.red} inheritColour noWrap>
+          Reset
+        </BodyText>
+      ),
+    };
+
     const powerOff: ServerOption = {
-      disabled: () => !on,
+      disabled: () => off,
       onClick: () => {
         handleAction(
           confirm.current,
@@ -127,7 +174,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     };
 
     const powerOn: ServerOption = {
-      disabled: () => on,
+      disabled: () => !off,
       onClick: () => {
         handleAction(
           confirm.current,
@@ -157,11 +204,13 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
 
     ops['power on'] = powerOn;
 
+    ops.reset = reset;
+
     ops['power off'] = powerOff;
     ops['force off'] = forceOff;
 
     return ops;
-  }, [node.name, on, server.name, server.uuid]);
+  }, [node.name, off, server.name, server.uuid]);
 
   return (
     <Box>
