@@ -1,7 +1,7 @@
 import { BoxProps } from '@mui/material';
 
 import { InnerPanel, InnerPanelHeader } from '../Panels';
-import ServerMenu from '../ServerMenu';
+import ServerMenu from '../ManageServer/ServerMenu';
 import { BodyText } from '../Text';
 
 type PreviewFrameProps<Server extends APIServerOverview> = {

@@ -5,10 +5,9 @@ import { SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { Responder } from '../../Responder';
-import { serverUpdateParamsDictionarySchema } from './schemas';
 import { perr } from '../../shell';
 
-type P = ServerUpdateParamsDictionary;
+type P = RequestTarget;
 type ResBody = ServerUpdateResponseBody | ResponseErrorBody;
 
 type S = {
@@ -16,17 +15,21 @@ type S = {
     uuid: string;
   };
   name: string;
+  uuid: string;
 };
 
 export const buildServerUpdateHandler =
   <
     ReqBody = Express.RhReqBody,
     ReqQuery = Express.RhReqQuery,
-    Locals extends Express.RhLocals = Express.RhLocals,
+    Locals extends LocalsRequestTarget = LocalsRequestTarget,
   >(
-    validate: (
-      request: Request<P, ResBody, ReqBody, ReqQuery, Locals>,
-    ) => Promise<void>,
+    validate:
+      | ((
+          request: Request<P, ResBody, ReqBody, ReqQuery, Locals>,
+        ) => Promise<void>)
+      | null
+      | undefined,
     buildJobParams: (
       request: Request<P, ResBody, ReqBody, ReqQuery, Locals>,
       server: S,
@@ -34,34 +37,34 @@ export const buildServerUpdateHandler =
     ) => Promise<Omit<JobParams, 'file'>>,
   ): RequestHandler<P, ResBody, ReqBody, ReqQuery, Locals> =>
   async (request, response) => {
-    const { params } = request;
-
     const respond = new Responder<ResBody, Locals>(response);
 
     try {
-      serverUpdateParamsDictionarySchema.validateSync(params);
-
-      await validate(request);
+      await validate?.call(null, request);
     } catch (error) {
       return respond.s400('e49b06e', `Invalid request; CAUSE ${error}`);
     }
 
-    const { uuid: serverUuid } = params;
-
-    const server = {
+    const server: S = {
       host: {
         uuid: '',
       },
       name: '',
+      uuid: response.locals.target.uuid,
     };
 
     try {
       const rows = await query<[[string, string]]>(
         `SELECT
-            server_name,
-            server_host_uuid
-          FROM servers
-          WHERE server_uuid = '${serverUuid}';`,
+            a.server_name,
+            COALESCE(
+              a.server_host_uuid,
+              b.anvil_node1_host_uuid
+            ) AS job_host_uuid
+          FROM servers AS a
+          JOIN anvils AS b
+            ON a.server_anvil_uuid = b.anvil_uuid
+          WHERE a.server_uuid = '${server.uuid}';`,
       );
 
       assert.ok(rows.length, 'No record found');

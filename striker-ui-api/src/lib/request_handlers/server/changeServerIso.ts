@@ -7,10 +7,9 @@ import { serverChangeIsoRequestBodySchema } from './schemas';
 export const changeServerIso =
   buildServerUpdateHandler<ServerChangeIsoRequestBody>(
     async ({ body }) => {
-      serverChangeIsoRequestBodySchema.validateSync(body);
+      await serverChangeIsoRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { anvil, device, iso: fileUuid } = body;
 
       const tool = 'anvil-manage-server-storage';
@@ -33,10 +32,10 @@ export const changeServerIso =
       }
 
       return {
-        job_command: `${sbin[tool].self} ${anvilFlag} --server ${serverUuid} --optical ${device} ${isoFlag}`,
+        job_command: `${sbin[tool].self} ${anvilFlag} --server ${server.uuid} --optical ${device} ${isoFlag}`,
         job_description: `job_0502`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::change_iso`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::change_iso`,
         job_title: `job_0501`,
       };
     },

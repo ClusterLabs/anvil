@@ -187,6 +187,8 @@ export const getServerDetail: RequestHandler<
 
     let host: ServerOverviewHost | undefined;
 
+    let nicModelsHostUuid: string;
+
     if (hostUuid) {
       shortHostName = getShortHostName(hostName);
 
@@ -196,6 +198,22 @@ export const getServerDetail: RequestHandler<
         type: hostType,
         uuid: hostUuid,
       };
+
+      nicModelsHostUuid = hostUuid;
+    } else {
+      const sqlGetSubnode1Uuid = `
+        SELECT anvil_node1_host_uuid
+        FROM anvils
+        WHERE anvil_uuid = '${anvilUuid}';`;
+
+      try {
+        [[nicModelsHostUuid]] = await query<[[string]]>(sqlGetSubnode1Uuid);
+      } catch (error) {
+        return respond.s500(
+          'a4eff57',
+          `Failed to faillback on the first subnode's UUID; CAUSE: ${error}`,
+        );
+      }
     }
 
     // Get bridges separately to avoid passing duplicate definition XMLs
@@ -353,7 +371,16 @@ export const getServerDetail: RequestHandler<
 
     // Get list of NIC models
 
-    const nicModels = await listNicModels(hostUuid);
+    let nicModels: string[];
+
+    try {
+      nicModels = await listNicModels(nicModelsHostUuid);
+    } catch (error) {
+      return respond.s500(
+        '8451d62',
+        `Failed to get NIC models; CAUSE: ${error}`,
+      );
+    }
 
     // Extract necessary values from the libvirt domain XML
 

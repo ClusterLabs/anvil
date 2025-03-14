@@ -82,6 +82,10 @@ type ServerFormSubmitProps = {
   label: React.ReactNode;
 };
 
+/** ServerDeletion */
+
+type ServerDeletionProps = ServerFormProps;
+
 /** ServerDiskList */
 
 type ServerDiskListProps = ServerFormProps;

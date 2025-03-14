@@ -4,10 +4,9 @@ import { serverSetStartDependencyRequestBodySchema } from './schemas';
 export const setServerStartDependency =
   buildServerUpdateHandler<ServerSetStartDependencyRequestBody>(
     async ({ body }) => {
-      serverSetStartDependencyRequestBodySchema.validateSync(body);
+      await serverSetStartDependencyRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { active, after, delay } = body;
 
       let stayOff = '';
@@ -27,10 +26,10 @@ export const setServerStartDependency =
       const tool = 'anvil-manage-server';
 
       return {
-        job_command: `${sbin[tool].self} --server ${serverUuid} ${bootAfterFlag} ${delayFlag}`,
+        job_command: `${sbin[tool].self} --server ${server.uuid} ${bootAfterFlag} ${delayFlag}`,
         job_description: `job_0490`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::set_start_dependency`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::set_start_dependency`,
         job_title: `job_0489`,
       };
     },

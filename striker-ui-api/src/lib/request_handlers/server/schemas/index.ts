@@ -10,4 +10,3 @@ export * from './setCpuRb';
 export * from './setIfaceStateRb';
 export * from './setMemoryRb';
 export * from './setStartDependencyRb';
-export * from './updatePd';

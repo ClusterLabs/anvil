@@ -11,6 +11,7 @@ export * from './growServerDisk';
 export * from './lsos';
 export * from './migrateServer';
 export * from './renameServer';
+export * from './resetServer';
 export * from './setServerBootOrder';
 export * from './setServerCpu';
 export * from './setServerIfaceState';

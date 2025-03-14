@@ -52,15 +52,15 @@ export const getProvisionServerResources: RequestHandler<
 
   const sqlGetFileLocations = `
     SELECT
-      a.file_location_file_uuid,
-      a.file_location_host_uuid,
-      a.file_location_active,
-      a.file_location_ready
-    FROM file_locations AS a
-    JOIN files AS b
-      ON a.file_location_file_uuid = b.file_uuid
-    WHERE b.file_type = 'iso'
-    ORDER BY b.file_name ASC;`;
+      b.file_location_file_uuid,
+      b.file_location_host_uuid,
+      b.file_location_active,
+      b.file_location_ready
+    FROM files AS a
+    LEFT JOIN file_locations AS b
+      ON a.file_uuid = b.file_location_file_uuid
+    WHERE a.file_type = 'iso'
+    ORDER BY a.file_name ASC;`;
 
   const sqlGetNodes = `
     SELECT
@@ -279,9 +279,13 @@ export const getProvisionServerResources: RequestHandler<
     const active = Boolean(locationActive);
     const ready = Boolean(locationReady);
 
-    const { files } = previous;
+    const { [uuid]: file } = previous.files;
 
-    files[uuid].locations[subnode] = {
+    if (!file) {
+      return previous;
+    }
+
+    file.locations[subnode] = {
       active,
       ready,
       subnode,

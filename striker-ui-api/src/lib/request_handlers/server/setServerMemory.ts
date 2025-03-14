@@ -4,19 +4,18 @@ import { serverSetMemoryRequestBodySchema } from './schemas';
 export const setServerMemory =
   buildServerUpdateHandler<ServerSetMemoryRequestBody>(
     async ({ body }) => {
-      serverSetMemoryRequestBodySchema.validateSync(body);
+      await serverSetMemoryRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { size } = body;
 
       const tool = 'anvil-manage-server-system';
 
       return {
-        job_command: `${sbin[tool].self} --server ${serverUuid} --ram ${size}`,
+        job_command: `${sbin[tool].self} --server ${server.uuid} --ram ${size}`,
         job_description: `job_0496`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::set_memory`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::set_memory`,
         job_title: `job_0495`,
       };
     },
