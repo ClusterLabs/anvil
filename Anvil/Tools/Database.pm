@@ -16,12 +16,14 @@ our $VERSION  = "3.0.0";
 my $THIS_FILE = "Database.pm";
 
 ### Methods;
+# add_listener
 # archive_database
 # backup_database
 # check_file_locations
 # check_hosts
 # check_lock_age
 # check_for_schema
+# clone_connection
 # configure_pgsql
 # connect
 # disconnect
@@ -174,6 +176,154 @@ sub parent
 #############################################################################################################
 # Public methods                                                                                            #
 #############################################################################################################
+
+=head2 add_listener
+
+This method adds 1 listener to the primary database. The listener runs when the primary database executes a pg_notify with the matching name.
+
+Parameters;
+
+=head3 blocking (optional, default 1)
+
+If set, the listener process will listen to database notifications indefinitely.
+
+=head3 name (required)
+
+The name of the events to listen for. This must match with the name provided to 1 pg_notify call in procedures called by database triggers.
+
+=head3 on_fork_child (optional)
+
+If set, runs the referenced subroutine in the listener process after it is created.
+
+=head3 on_notify (optional)
+
+If set, runs the referenced subroutine when a database notification is received.
+
+=head3 uuid (optional)
+
+If set, the listener will be added to the connection of the database identified with the provided UUID.
+
+=cut
+sub add_listener
+{
+	my $self       = shift;
+	my $parameters = shift;
+	my $anvil      = $self->parent;
+	my $debug      = $parameters->{debug} // 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
+
+	my $blocking            = $parameters->{blocking}       // 1;
+	my $db_uuid             = $parameters->{uuid}           // $anvil->data->{sys}{database}{primary_db};
+	my $fork_child_handler  = $parameters->{on_fork_child};
+	my $notify_handler      = $parameters->{on_notify};
+	my $notify_name         = $parameters->{name};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		blocking            => $blocking,
+		db_uuid             => $db_uuid,
+		fork_child_handler  => $fork_child_handler,
+		fork_fail_handler   => $fork_fail_handler,
+		fork_parent_handler => $fork_parent_handler,
+		notify_handler      => $notify_handler,
+		notify_name         => $notify_name,
+	} });
+
+	if (not $notify_name)
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0020", variables => {
+			method    => "Database->add_listener()",
+			parameter => "name",
+		} });
+
+		return (1);
+	}
+
+	if (not $db_uuid)
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0020", variables => {
+			method    => "Database->add_listener()",
+			parameter => "uuid",
+		} });
+
+		return (2);
+	}
+
+	my $fork = fork;
+
+	if (not defined $fork)
+	{
+		return (3);
+	}
+
+	if ($fork)
+	{
+		# The parent must record the listener process PID for removal at a later point.
+
+		return (0, $fork);
+	}
+
+	#############
+	### BEGIN ### child block
+	#############
+
+	$fork_child_handler->({ anvil => $anvil }) if (ref($fork_child_handler) eq "CODE");
+
+	my ($clone_connection_code, $dbh) = $self->clone_connection({ uuid => $db_uuid });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		clone_connection_code => $clone_connection_code,
+		dbh                   => $dbh,
+	} });
+
+	if ((not $dbh) or (not eval { $dbh->ping }))
+	{
+		$anvil->nice_exit({ exit_code => 1 });
+	}
+
+	my $listen = eval { $dbh->do("LISTEN ".$trigger); };
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { listen => $listen } });
+
+	if (not $listen)
+	{
+		$anvil->nice_exit({ exit_code => 2 });
+	}
+
+	while ($blocking)
+	{
+		while (my $notify = eval { $dbh->pg_notifies; })
+		{
+			my ($name, $pid, $payload) = @$notify;
+
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				name    => $name,
+				pid     => $pid,
+				payload => $payload,
+			}, prefix => "pg_notify" });
+
+			$notify_handler->({ anvil => $anvil, notify => $notify }) if (ref($notify_handler) eq "CODE");
+		}
+
+		my $ping = eval { $dbh->ping; };
+
+		if (not $ping)
+		{
+			# TODO: Maybe try recovering the listener process?
+
+			$anvil->nice_exit({ exit_code => 3 });
+		}
+
+		sleep(0.1);
+	}
+
+	# The listener process should never reach here.
+	$anvil->nice_exit({ exit_code => 4 });
+
+	#############
+	#### END #### child block
+	#############
+}
 
 
 =head2 archive_database
@@ -867,6 +1017,78 @@ sub check_for_schema
 	}
 	
 	return($loaded);
+}
+
+
+=head2 clone_connection
+
+This method attempts to clone and replace the primary database connection in the cache.
+
+When fork is called in a process where there is a database connection, the connection is not duplicated like other variables in the fork (or child process).
+
+This method is designed to be used in a fork to avoid multiple forks from sharing the parent process's connection.
+
+Although not recommended, it should still be safe to use in a non-fork process because the original connection should be released and garbage collected.
+
+Parameters;
+
+=head3 disconnect_base (optional, default 0)
+
+If set, the disconnect() will be called on the original connection when the clone succeeds.
+
+=head3 uuid (optional)
+
+If set, connection to the database identified by the provided UUID will be cloned instead of the primary database.
+
+=cut
+sub clone_connection
+{
+	my $self       = shift;
+	my $parameters = shift;
+	my $anvil      = $self->parent;
+	my $debug      = $parameters->{debug} // 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->clone_connection()" } });
+
+	my $disconnect_base = $parameters->{disconnect_base} // 0;
+	my $db_uuid         = $parameters->{uuid}            // $anvil->data->{sys}{database}{primary_db};
+
+	if (not $db_uuid)
+	{
+		return (1);
+	}
+
+	# Get the copied parent's database handle, which was made when fork()
+	my $dbh = $anvil->data->{cache}{database_handle}{$db_uuid};
+
+	if ((not $dbh) or (not $dbh->ping()))
+	{
+		return (2);
+	}
+
+	# Clone the parent's database handle for child use
+	my $clone = eval { $dbh->clone(); };
+
+	if (not $clone)
+	{
+		# Failed to clone the parent's database handle
+		return (3);
+	}
+
+	if ($disconnect_base)
+	{
+		$dbh->disconnect();
+	}
+	else
+	{
+		# Release the reference to the copied parent's dbh; this will not close the parent's original database handle when auto_inactive_destroy is set
+		undef $anvil->data->{cache}{database_handle}{$db_uuid};
+	}
+
+	# Add the cloned child's database handle
+	$anvil->data->{cache}{database_handle}{$db_uuid} = $clone;
+
+	return (0, $clone);
 }
 
 
