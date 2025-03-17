@@ -4,21 +4,20 @@ import { serverSetBootOrderRequestBodySchema } from './schemas';
 export const setServerBootOrder =
   buildServerUpdateHandler<ServerSetBootOrderRequestBody>(
     async ({ body }) => {
-      serverSetBootOrderRequestBodySchema.validateSync(body);
+      await serverSetBootOrderRequestBodySchema.validate(body);
     },
-    async ({ body, params }, { host }, sbin) => {
-      const { uuid: serverUuid } = params;
+    async ({ body }, server, sbin) => {
       const { order } = body;
 
       const tool = 'anvil-manage-server-system';
 
       return {
-        job_command: `${
-          sbin[tool].self
-        } --server ${serverUuid} --boot-order ${order.join(',')}`,
+        job_command: `${sbin[tool].self} --server ${
+          server.uuid
+        } --boot-order ${order.join(',')}`,
         job_description: `job_0492`,
-        job_host_uuid: host.uuid,
-        job_name: `server::${serverUuid}::set_boot_order`,
+        job_host_uuid: server.host.uuid,
+        job_name: `server::${server.uuid}::set_boot_order`,
         job_title: `job_0491`,
       };
     },

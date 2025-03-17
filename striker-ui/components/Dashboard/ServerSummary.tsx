@@ -8,7 +8,7 @@ import Decorator, { Colours } from '../Decorator';
 import { Preview, PreviewBox as BasePreviewBox } from '../Display';
 import Link from '../Link';
 import PieProgress from '../PieProgress';
-import ServerMenu from '../ServerMenu';
+import ServerMenu from '../ManageServer/ServerMenu';
 import { BodyText } from '../Text';
 
 const MAP_TO_DECORATOR_COLOUR: Record<string, Colours> = {
