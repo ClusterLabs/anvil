@@ -203,6 +203,10 @@ If set, runs the referenced subroutine in the listener process after it is creat
 
 If set, runs the referenced subroutine when a database notification is received.
 
+=head3 sigchld (optional)
+
+If set, assigns the provided value to C<<local $SIG{CHLD}>>. Defaults to C<<"IGNORE">> to make the listener process start-and-forget because there's usually no need to wait for it.
+
 =head3 uuid (optional)
 
 If set, the listener will be added to the connection of the database identified with the provided UUID.
@@ -217,20 +221,22 @@ sub add_listener
 
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
 
-	my $blocking              = $parameters->{blocking}         // 1;
-	my $db_uuid               = $parameters->{uuid}             // $anvil->data->{sys}{database}{primary_db};
+	my $blocking              = $parameters->{blocking}      // 1;
+	my $db_uuid               = $parameters->{uuid}          // $anvil->data->{sys}{database}{primary_db};
 	my $clone_fail_handler    = $parameters->{on_clone_fail};
 	my $fork_child_handler    = $parameters->{on_fork_child};
 	my $notify_handler        = $parameters->{on_notify};
 	my $notify_name           = $parameters->{name};
+	my $sigchld               = $parameters->{sigchld}       // "IGNORE";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		blocking              => $blocking,
-		db_uuid               => $db_uuid,
-		clone_fail_handler    => $clone_fail_handler,
-		fork_child_handler    => $fork_child_handler,
-		notify_handler        => $notify_handler,
-		notify_name           => $notify_name,
+		blocking           => $blocking,
+		db_uuid            => $db_uuid,
+		clone_fail_handler => $clone_fail_handler,
+		fork_child_handler => $fork_child_handler,
+		notify_handler     => $notify_handler,
+		notify_name        => $notify_name,
+		sigchld            => $sigchld,
 	} });
 
 	if (not $notify_name)
@@ -252,6 +258,10 @@ sub add_listener
 
 		return (2, undef, "missing uuid");
 	}
+
+	# Set signals behaviours
+
+	local $SIG{CHLD} = $sigchld;
 
 	my $fork = fork;
 
