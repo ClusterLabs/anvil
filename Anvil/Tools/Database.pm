@@ -296,6 +296,9 @@ sub add_listener
 		$anvil->nice_exit({ exit_code => 2 });
 	}
 
+	my $step     = 0.1;
+	my $interval = 0;
+
 	while ($blocking)
 	{
 		while (my $notify = eval { $dbh->pg_notifies(); })
@@ -311,16 +314,24 @@ sub add_listener
 			$notify_handler->({ anvil => $anvil, notify => $notify }) if (ref($notify_handler) eq "CODE");
 		}
 
-		my $ping = eval { $dbh->ping(); };
-
-		if (not $ping)
+		if ($interval >= 30)
 		{
-			# TODO: Maybe try recovering the listener process?
+			my $ping = eval { $dbh->ping(); };
 
-			$anvil->nice_exit({ exit_code => 3 });
+			if (not $ping)
+			{
+				# TODO: Maybe try recovering the listener process?
+
+				$anvil->nice_exit({ exit_code => 3 });
+			}
+
+			# Reset the interval counter
+			$interval = 0;
 		}
 
-		sleep(0.1);
+		$interval += $step;
+
+		sleep($step);
 	}
 
 	# The listener process should never reach here.
