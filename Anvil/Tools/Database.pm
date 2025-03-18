@@ -191,6 +191,10 @@ If set, the listener process will listen to database notifications indefinitely.
 
 The name of the events to listen for. This must match with the name provided to 1 pg_notify call in procedures called by database triggers.
 
+=head3 on_clone_fail (optional)
+
+If set, runs the referenced subroutine when the call to clone_connection() fails with a non-zero code.
+
 =head3 on_fork_child (optional)
 
 If set, runs the referenced subroutine in the listener process after it is created.
@@ -213,20 +217,20 @@ sub add_listener
 
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
 
-	my $blocking            = $parameters->{blocking}       // 1;
-	my $db_uuid             = $parameters->{uuid}           // $anvil->data->{sys}{database}{primary_db};
-	my $fork_child_handler  = $parameters->{on_fork_child};
-	my $notify_handler      = $parameters->{on_notify};
-	my $notify_name         = $parameters->{name};
+	my $blocking              = $parameters->{blocking}         // 1;
+	my $db_uuid               = $parameters->{uuid}             // $anvil->data->{sys}{database}{primary_db};
+	my $clone_fail_handler    = $parameters->{on_clone_fail};
+	my $fork_child_handler    = $parameters->{on_fork_child};
+	my $notify_handler        = $parameters->{on_notify};
+	my $notify_name           = $parameters->{name};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		blocking            => $blocking,
-		db_uuid             => $db_uuid,
-		fork_child_handler  => $fork_child_handler,
-		fork_fail_handler   => $fork_fail_handler,
-		fork_parent_handler => $fork_parent_handler,
-		notify_handler      => $notify_handler,
-		notify_name         => $notify_name,
+		blocking              => $blocking,
+		db_uuid               => $db_uuid,
+		clone_fail_handler    => $clone_fail_handler,
+		fork_child_handler    => $fork_child_handler,
+		notify_handler        => $notify_handler,
+		notify_name           => $notify_name,
 	} });
 
 	if (not $notify_name)
@@ -236,7 +240,7 @@ sub add_listener
 			parameter => "name",
 		} });
 
-		return (1);
+		return (1, undef, "missing name");
 	}
 
 	if (not $db_uuid)
@@ -246,14 +250,14 @@ sub add_listener
 			parameter => "uuid",
 		} });
 
-		return (2);
+		return (2, undef, "missing uuid");
 	}
 
 	my $fork = fork;
 
 	if (not defined $fork)
 	{
-		return (3);
+		return (3, undef, $!);
 	}
 
 	if ($fork)
@@ -276,9 +280,11 @@ sub add_listener
 		dbh                   => $dbh,
 	} });
 
-	if ((not $dbh) or (not eval { $dbh->ping }))
+	if (not $dbh)
 	{
-		$anvil->nice_exit({ exit_code => 1 });
+		$clone_fail_handler->({ anvil => $anvil }) if (ref($clone_fail_handler) eq "CODE");
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
 	}
 
 	my $listen = eval { $dbh->do("LISTEN ".$trigger); };
@@ -292,7 +298,7 @@ sub add_listener
 
 	while ($blocking)
 	{
-		while (my $notify = eval { $dbh->pg_notifies; })
+		while (my $notify = eval { $dbh->pg_notifies(); })
 		{
 			my ($name, $pid, $payload) = @$notify;
 
@@ -305,7 +311,7 @@ sub add_listener
 			$notify_handler->({ anvil => $anvil, notify => $notify }) if (ref($notify_handler) eq "CODE");
 		}
 
-		my $ping = eval { $dbh->ping; };
+		my $ping = eval { $dbh->ping(); };
 
 		if (not $ping)
 		{
@@ -1069,6 +1075,12 @@ sub clone_connection
 	# Clone the parent's database handle for child use
 	my $clone = eval { $dbh->clone(); };
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		base_dbh      => $dbh,
+		clone_dbh     => $clone,
+		database_uuid => $db_uuid,
+	} });
+
 	if (not $clone)
 	{
 		# Failed to clone the parent's database handle
@@ -1079,11 +1091,9 @@ sub clone_connection
 	{
 		$dbh->disconnect();
 	}
-	else
-	{
-		# Release the reference to the copied parent's dbh; this will not close the parent's original database handle when auto_inactive_destroy is set
-		undef $anvil->data->{cache}{database_handle}{$db_uuid};
-	}
+
+	# Release the reference to the copied parent's dbh; this will not close the parent's original database handle when auto_inactive_destroy is set
+	undef $anvil->data->{cache}{database_handle}{$db_uuid};
 
 	# Add the cloned child's database handle
 	$anvil->data->{cache}{database_handle}{$db_uuid} = $clone;
