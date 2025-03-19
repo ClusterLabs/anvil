@@ -506,7 +506,7 @@ sub manage_database_listeners
 			close($server);
 
 			handle_responder_output_setup({ anvil => $anvil, responder => $responder });
-		}
+		};
 
 		my $notify_handler = sub {
 			my $params = shift;
