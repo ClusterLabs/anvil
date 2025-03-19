@@ -221,13 +221,14 @@ sub add_listener
 
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
 
-	my $blocking              = $parameters->{blocking}      // 1;
-	my $db_uuid               = $parameters->{uuid}          // $anvil->data->{sys}{database}{primary_db};
-	my $clone_fail_handler    = $parameters->{on_clone_fail};
-	my $fork_child_handler    = $parameters->{on_fork_child};
-	my $notify_handler        = $parameters->{on_notify};
-	my $notify_name           = $parameters->{name};
-	my $sigchld               = $parameters->{sigchld}       // "IGNORE";
+	my $blocking           = $parameters->{blocking}      // 1;
+	my $db_ping_interval   = $parameters->{ping_interval} // 300;
+	my $db_uuid            = $parameters->{uuid}          // $anvil->data->{sys}{database}{primary_db};
+	my $clone_fail_handler = $parameters->{on_clone_fail};
+	my $fork_child_handler = $parameters->{on_fork_child};
+	my $notify_handler     = $parameters->{on_notify};
+	my $notify_name        = $parameters->{name};
+	my $sigchld            = $parameters->{sigchld}       // "IGNORE";
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		blocking           => $blocking,
@@ -306,8 +307,8 @@ sub add_listener
 		$anvil->nice_exit({ exit_code => 2 });
 	}
 
-	my $step     = 0.1;
-	my $interval = 0;
+	my $step  = 0.1;
+	my $count = 0;
 
 	while ($blocking)
 	{
@@ -324,7 +325,7 @@ sub add_listener
 			$notify_handler->({ anvil => $anvil, notify => $notify }) if (ref($notify_handler) eq "CODE");
 		}
 
-		if ($interval >= 30)
+		if ($count >= $db_ping_interval)
 		{
 			my $ping = eval { $dbh->ping(); };
 
@@ -335,11 +336,11 @@ sub add_listener
 				$anvil->nice_exit({ exit_code => 3 });
 			}
 
-			# Reset the interval counter
-			$interval = 0;
+			# Reset the counter
+			$count = 0;
 		}
 
-		$interval += $step;
+		$count += $step;
 
 		sleep($step);
 	}
