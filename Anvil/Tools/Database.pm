@@ -297,7 +297,7 @@ sub add_listener
 		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
 	}
 
-	my $listen = eval { $dbh->do("LISTEN ".$trigger); };
+	my $listen = eval { $dbh->do("LISTEN ".$notify_name); };
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { listen => $listen } });
 
