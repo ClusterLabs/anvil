@@ -472,11 +472,11 @@ sub manage_database_listeners
 
 	if ($input =~ s/^list//)
 	{
-		foreach my $trigger (sort { $a cmp $b } keys %{$db_listeners})
+		foreach my $notify_name (sort { $a cmp $b } keys %{$db_listeners})
 		{
-			my $pid = $db_listeners->{$trigger};
+			my $pid = $db_listeners->{$notify_name};
 
-			pstdout($trigger.":".$pid);
+			pstdout($notify_name.":".$pid);
 		}
 
 		return 1;
@@ -495,9 +495,9 @@ sub manage_database_listeners
 
 	if ($input =~ s/^add\s+(\w+)//)
 	{
-		my $trigger = $1;
+		my $notify_name = $1;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { trigger => $trigger } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { notify_name => $notify_name } });
 
 		my $clone_fail_handler = \&handle_database_clone_connection_failure;
 
@@ -519,7 +519,7 @@ sub manage_database_listeners
 
 		my ($add_listener_code, $pid, $error) = $anvil->Database->add_listener({
 			debug            => 2,
-			name             => $trigger,
+			name             => $notify_name,
 			on_clone_fail    => $clone_fail_handler,
 			on_fork_child    => $fork_child_handler,
 			on_notify        => $notify_handler,
@@ -531,6 +531,8 @@ sub manage_database_listeners
 
 			return 0;
 		}
+
+		$db_listeners->{$notify_name} = $pid;
 
 		emit("db-listener:".$pid."-forked");
 
