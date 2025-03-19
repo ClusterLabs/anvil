@@ -481,15 +481,25 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
       const locations = Object.values(file.locations);
 
-      const syncing = locations.filter((location) => !location.ready);
+      const syncing = locations.reduce<ProvisionServerResourceSubnode[]>(
+        (previous, location) => {
+          const { ready, subnode: id } = location;
+
+          const { [id]: subnode } = resources.subnodes;
+
+          if (ready || !subnode) {
+            return previous;
+          }
+
+          previous.push(subnode);
+
+          return previous;
+        },
+        [],
+      );
 
       const status = syncing.length ? (
-        <>
-          Syncing to{' '}
-          {syncing
-            .map<string>(({ subnode }) => resources.subnodes[subnode].short)
-            .join(', ')}
-        </>
+        <>Syncing to {syncing.map<string>(({ short }) => short).join(', ')}</>
       ) : (
         <>Ready</>
       );
