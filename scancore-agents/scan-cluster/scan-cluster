@@ -946,14 +946,28 @@ sub read_last_scan
 {
 	my ($anvil) = @_;
 	
+	my $anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	if (not $anvil_uuid)
+	{
+		# If we're not in a node yet, there's nothing to do.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_cluster_log_0001"});
+		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	# Pull our old data.
 	my $query = "
 SELECT 
     scan_cluster_uuid, 
-    scan_cluster_anvil_uuid, 
     scan_cluster_name, 
-    scan_cluster_cib 
+    scan_cluster_cib, 
+    modified_date 
 FROM 
     scan_cluster 
+WHERE 
+    scan_cluster_anvil_uuid = ".$anvil->Database->quote($anvil_uuid)." 
+ORDER BY 
+    modified_date DESC
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
@@ -967,20 +981,20 @@ FROM
 	{
 		# NOTE: There's no known way to track a cluster name change, so we can't really avoid having 
 		#       an entery per cluster name.
-		my $scan_cluster_uuid       = $row->[0]; 
-		my $scan_cluster_anvil_uuid = $row->[1];
-		my $scan_cluster_name       = $row->[2]; 
-		my $scan_cluster_cib   = $row->[3];
+		my $scan_cluster_uuid = $row->[0]; 
+		my $scan_cluster_name = $row->[1]; 
+		my $scan_cluster_cib  = $row->[2];
+		my $modified_date     = $row->[3];
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"s1:scan_cluster_uuid"       => $scan_cluster_uuid,
-			"s2:scan_cluster_anvil_uuid" => $scan_cluster_anvil_uuid, 
-			"s3:scan_cluster_name"       => $scan_cluster_name,
-			"s4:scan_cluster_cib"        => $scan_cluster_cib, 
+			"s1:scan_cluster_uuid" => $scan_cluster_uuid,
+			"s2:scan_cluster_name" => $scan_cluster_name,
+			"s3:scan_cluster_cib"  => $scan_cluster_cib, 
+			"s3:modified_date"     => $modified_date, 
 		}});
 		
 		# Store the old data now.
 		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name}       = $scan_cluster_name;
-		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid} = $scan_cluster_anvil_uuid;
+		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_anvil_uuid} = $anvil_uuid;
 		$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib}        = $scan_cluster_cib;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_name"       => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_name},
@@ -988,19 +1002,53 @@ FROM
 			"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_cib"        => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib},
 		}});
 		
+		# If this is deleted, don't make this findable by the anvil uuid.
+		next if $scan_cluster_cib eq "DELETED";
+		
 		# Make it easy to look up the cluster_uuid from the anvil_uuid.
-		$anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid} = $scan_cluster_uuid;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::anvil_uuid::${scan_cluster_anvil_uuid}" => $anvil->data->{sql}{anvil_uuid}{$scan_cluster_anvil_uuid},
-		}});
+		if (not exists $anvil->data->{sql}{anvil_uuid}{$anvil_uuid})
+		{
+			$anvil->data->{sql}{anvil_uuid}{$anvil_uuid} = $scan_cluster_uuid;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sql::anvil_uuid::${anvil_uuid}" => $anvil->data->{sql}{anvil_uuid}{$anvil_uuid},
+			}});
+		}
+		else
+		{
+			# Duplicate! We sorted by date, so this is an older record, mark it as deleted.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0013", variables => { scan_cluster_uuid => $scan_cluster_uuid }});
+			my $query = "
+UPDATE 
+    scan_cluster 
+SET 
+    scan_cluster_cib  = 'DELETED',
+    modified_date     = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE 
+    scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+			
+			$anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib} = "DELETED";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"sql::scan_cluster::scan_cluster_uuid::${scan_cluster_uuid}::scan_cluster_cib" => $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib},
+			}});
+		}
 	}
 	undef $count;
 	undef $results;
 	
-	$query = "
+	if (not $anvil->data->{sql}{anvil_uuid}{$anvil_uuid})
+	{
+		#  Nothing more to load.
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0014"});
+		return(0);
+	}
+	
+	my $scan_cluster_uuid = $anvil->data->{sql}{anvil_uuid}{$anvil_uuid}; 
+	   $query             = "
 SELECT 
     scan_cluster_node_uuid, 
-    scan_cluster_node_scan_cluster_uuid, 
     scan_cluster_node_host_uuid, 
     scan_cluster_node_name, 
     scan_cluster_node_pacemaker_id, 
@@ -1010,6 +1058,8 @@ SELECT
     scan_cluster_node_maintenance_mode 
 FROM 
     scan_cluster_nodes 
+WHERE 
+    scan_cluster_node_scan_cluster_uuid = ".$anvil->Database->quote($scan_cluster_uuid)." 
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 	
@@ -1024,29 +1074,32 @@ FROM
 		# We've got an entry in the 'scan_cluster_nodes' table, so now we'll look for data in the node and 
 		# services tables.
 		my $scan_cluster_node_uuid              = $row->[0]; 
-		my $scan_cluster_node_scan_cluster_uuid = $row->[1]; 
-		my $scan_cluster_node_host_uuid         = $row->[2]; 
-		my $scan_cluster_node_name              = $row->[3]; 
-		my $scan_cluster_node_pacemaker_id      = $row->[4]; 
-		my $scan_cluster_node_in_ccm            = $row->[5]; 
-		my $scan_cluster_node_crmd_member       = $row->[6]; 
-		my $scan_cluster_node_cluster_member    = $row->[7]; 
-		my $scan_cluster_node_maintenance_mode  = $row->[8]; 
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
-			scan_cluster_node_uuid              => $scan_cluster_node_uuid,
-			scan_cluster_node_scan_cluster_uuid => $scan_cluster_node_scan_cluster_uuid,
-			scan_cluster_node_host_uuid         => $scan_cluster_node_host_uuid,
-			scan_cluster_node_name              => $scan_cluster_node_name,
-			scan_cluster_node_pacemaker_id      => $scan_cluster_node_pacemaker_id,
-			scan_cluster_node_in_ccm            => $scan_cluster_node_in_ccm,
-			scan_cluster_node_crmd_member       => $scan_cluster_node_crmd_member, 
-			scan_cluster_node_cluster_member    => $scan_cluster_node_cluster_member, 
-			scan_cluster_node_maintenance_mode  => $scan_cluster_node_maintenance_mode, 
+		my $scan_cluster_node_host_uuid         = $row->[1]; 
+		my $scan_cluster_node_name              = $row->[2]; 
+		my $scan_cluster_node_pacemaker_id      = $row->[3]; 
+		my $scan_cluster_node_in_ccm            = $row->[4]; 
+		my $scan_cluster_node_crmd_member       = $row->[5]; 
+		my $scan_cluster_node_cluster_member    = $row->[6]; 
+		my $scan_cluster_node_maintenance_mode  = $row->[7]; 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:scan_cluster_node_uuid'             => $scan_cluster_node_uuid,
+			's2:scan_cluster_node_host_uuid'        => $scan_cluster_node_host_uuid,
+			's3:scan_cluster_node_name'             => $scan_cluster_node_name,
+			's4:scan_cluster_node_pacemaker_id'     => $scan_cluster_node_pacemaker_id,
+			's5:scan_cluster_node_in_ccm'           => $scan_cluster_node_in_ccm,
+			's6:scan_cluster_node_crmd_member'      => $scan_cluster_node_crmd_member, 
+			's7:scan_cluster_node_cluster_member'   => $scan_cluster_node_cluster_member, 
+			's8:scan_cluster_node_maintenance_mode' => $scan_cluster_node_maintenance_mode, 
 		}});
+		
+		# If this node belongs to a DELETED cluster, skip it.
+		my $scan_cluster_cib = $anvil->data->{sql}{scan_cluster}{scan_cluster_uuid}{$scan_cluster_uuid}{scan_cluster_cib};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_cluster_cib => $scan_cluster_cib }});
+		next if $scan_cluster_cib eq "DELETED";
 		
 		# Store the old data now.
 		$anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid} = {
-			scan_cluster_node_scan_cluster_uuid => $scan_cluster_node_scan_cluster_uuid,
+			scan_cluster_node_scan_cluster_uuid => $scan_cluster_uuid,
 			scan_cluster_node_host_uuid         => $scan_cluster_node_host_uuid,
 			scan_cluster_node_name              => $scan_cluster_node_name,
 			scan_cluster_node_pacemaker_id      => $scan_cluster_node_pacemaker_id,
@@ -1066,9 +1119,9 @@ FROM
 			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_maintenance_mode"  => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_maintenance_mode}, 
 		}});
 		
-		$anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid} = $scan_cluster_node_uuid;
+		$anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_uuid} = $scan_cluster_node_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::scan_cluster_node_host_uuid::${scan_cluster_node_host_uuid}" => $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid},
+			"sql::scan_cluster_node_host_uuid::${scan_cluster_uuid}" => $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_uuid},
 		}});
 	}
 	
