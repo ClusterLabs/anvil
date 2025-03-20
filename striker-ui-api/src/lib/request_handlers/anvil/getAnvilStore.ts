@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_UUID } from '../../consts';
+import { DELETED, REP_UUID } from '../../consts';
 
 import { query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -52,7 +52,10 @@ export const getAnvilStore: RequestHandler<
           ON b.storage_group_uuid = c.storage_group_member_storage_group_uuid
         JOIN scan_lvm_vgs AS d
           ON c.storage_group_member_vg_uuid = d.scan_lvm_vg_internal_uuid
-        WHERE a.anvil_uuid = '${anUuid}'
+        WHERE
+            a.anvil_uuid = '${anUuid}'
+          AND
+            d.scan_lvm_vg_name != '${DELETED}'
         GROUP BY
           b.storage_group_uuid,
           b.storage_group_name,
