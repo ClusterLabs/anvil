@@ -111,14 +111,16 @@ export const buildAnvilSummary = async ({
     try {
       clusterFlags = await query(
         `SELECT
-            scan_cluster_node_in_ccm,
-            scan_cluster_node_crmd_member,
-            scan_cluster_node_cluster_member,
-            scan_cluster_node_maintenance_mode
+            a.scan_cluster_node_in_ccm,
+            a.scan_cluster_node_crmd_member,
+            a.scan_cluster_node_cluster_member,
+            a.scan_cluster_node_maintenance_mode
           FROM
-            scan_cluster_nodes
-          WHERE
-            scan_cluster_node_host_uuid = '${hostUuid}';`,
+            scan_cluster_nodes AS a
+          JOIN scan_cluster AS a2
+            ON a.scan_cluster_node_scan_cluster_uuid = a2.scan_cluster_uuid
+              AND a2.scan_cluster_cib != '${DELETED}'
+          WHERE a.scan_cluster_node_host_uuid = '${hostUuid}';`,
       );
 
       assert.ok(clusterFlags.length, 'No subnode cluster info');

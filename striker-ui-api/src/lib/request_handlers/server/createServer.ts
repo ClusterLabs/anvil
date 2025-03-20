@@ -120,8 +120,13 @@ export const createServer: RequestHandler = async (request, response) => {
             sca_clu_nod.scan_cluster_node_host_uuid AS primary_host_uuid
           FROM anvils AS anv
           JOIN scan_cluster_nodes AS sca_clu_nod
-            ON sca_clu_nod.scan_cluster_node_host_uuid = anv.anvil_node1_host_uuid
-              OR sca_clu_nod.scan_cluster_node_host_uuid = anv.anvil_node2_host_uuid
+            ON sca_clu_nod.scan_cluster_node_host_uuid IN (
+              anv.anvil_node1_host_uuid,
+              anv.anvil_node2_host_uuid
+            )
+          JOIN scan_cluster AS sca_clu
+            ON sca_clu_nod.scan_cluster_node_scan_cluster_uuid = sca_clu.scan_cluster_uuid
+              AND sca_clu.scan_cluster_cib != '${DELETED}'
           WHERE sca_clu_nod.scan_cluster_node_in_ccm
             AND sca_clu_nod.scan_cluster_node_crmd_member
             AND sca_clu_nod.scan_cluster_node_cluster_member
