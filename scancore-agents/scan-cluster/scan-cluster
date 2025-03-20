@@ -603,9 +603,11 @@ sub find_changes
 	my $stonith_enabled         = $anvil->data->{cib}{parsed}{data}{stonith}{enabled};
 	my $stonith_max_attempts    = $anvil->data->{cib}{parsed}{data}{stonith}{'max-attempts'};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		cluster_name         => $cluster_name, 
-		stonith_enabled      => $stonith_enabled,
-		stonith_max_attempts => $stonith_max_attempts, 
+		's1:scan_cluster_anvil_uuid' => $scan_cluster_anvil_uuid, 
+		's2:anvil_name'              => $anvil_name, 
+		's3:cluster_name'            => $cluster_name, 
+		's4:stonith_enabled'         => $stonith_enabled,
+		's5:stonith_max_attempts'    => $stonith_max_attempts, 
 	}});
 	
 	# If we're a full cluster member, read the CIB as well.
@@ -1119,9 +1121,9 @@ WHERE
 			"sql::scan_cluster_node::scan_cluster_node_uuid::${scan_cluster_node_uuid}::scan_cluster_node_maintenance_mode"  => $anvil->data->{sql}{scan_cluster_node}{scan_cluster_node_uuid}{$scan_cluster_node_uuid}{scan_cluster_node_maintenance_mode}, 
 		}});
 		
-		$anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_uuid} = $scan_cluster_node_uuid;
+		$anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid} = $scan_cluster_node_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			"sql::scan_cluster_node_host_uuid::${scan_cluster_uuid}" => $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_uuid},
+			"sql::scan_cluster_node_host_uuid::${scan_cluster_node_host_uuid}" => $anvil->data->{sql}{scan_cluster_node_host_uuid}{$scan_cluster_node_host_uuid},
 		}});
 	}
 	
