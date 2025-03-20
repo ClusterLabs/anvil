@@ -208,6 +208,68 @@ sub find_power_control
 		
 		$anvil->data->{sys}{progress} += $steps;
 		
+		if (not $host_ipmi)
+		{
+			# Sometimes the host_ipmi gets wiped. Can we find older entries? 
+			my $tested = {};
+			my $query  = "SELECT host_ipmi FROM history.hosts WHERE host_uuid = ".$anvil->Database->quote($host_uuid)." AND host_ipmi != '' ORDER BY modified_date DESC;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $this_host_ipmi = $row->[0];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { this_host_ipmi => $this_host_ipmi }});
+				
+				if (exists $tested->{$this_host_ipmi})
+				{
+					next;
+				}
+				$tested->{$this_host_ipmi} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { "tested->{".$this_host_ipmi."}" => $tested->{$this_host_ipmi} }});
+				
+				my $shell_call = $this_host_ipmi." -o status";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { this_host_ipmi => $this_host_ipmi }});
+				
+				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					return_code => $return_code,
+				}});
+				
+				if (($return_code eq "0") or ($return_code eq "2"))
+				{
+					# Good IPMI, use it.
+					$host_ipmi = $this_host_ipmi;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { host_ipmi => $host_ipmi }});
+				
+				if (($return_code eq "0") or ($return_code eq "2"))
+				{
+					# Good IPMI, use it.
+					$host_ipmi = $this_host_ipmi;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { host_ipmi => $host_ipmi }});
+					
+					# Update the database. 
+					my $query = "
+UPDATE 
+    hosts 
+SET 
+    host_ipmi     = ".$anvil->Database->quote($host_ipmi).", 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE
+    host_uuid     = ".$anvil->Database->quote($host_uuid)."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+				}
+				last if $host_ipmi;
+			}
+		}
+		
 		if ($host_ipmi)
 		{
 			# Got it.
@@ -216,11 +278,8 @@ sub find_power_control
 			$anvil->Job->update_progress({progress => $anvil->data->{sys}{progress}, message => "job_0327,!!host_name!".$host_name."!!"});
 			
 			# First, is the node already on?
-			my $shell_call = $host_ipmi." -o status";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { shell_call => $shell_call }});
-			
 			$anvil->data->{sys}{progress} += $steps;
-			my $problem = call_fence_agent($anvil, $shell_call, $anvil->data->{sys}{progress});
+			my $problem = call_fence_agent($anvil, $host_ipmi, $anvil->data->{sys}{progress});
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { problem => $problem }});
 			
 			# If there was no problem, we're done.
@@ -305,7 +364,12 @@ sub call_fence_agent
 		progress   => $progress,
 	}});
 	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call." -o status", secure => 1});
+	if (($shell_call !~ / -o /) && ($shell_call !~ / --action/))
+	{
+		$shell_call .= " -o status";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	}
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call, secure => 1});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output, 
 		return_code => $return_code,
