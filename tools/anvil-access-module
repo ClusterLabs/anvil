@@ -154,6 +154,7 @@ use File::Spec::Functions;
 use File::Temp qw(tempdir);
 use IO::Socket::UNIX;
 use JSON;
+use Proc::Simple;
 use Text::ParseWords;
 
 $| = 1;
@@ -341,12 +342,15 @@ sub emit
 	pstdout("event=".$_[0]);
 }
 
-sub exit_responder
+#
+# this subroutine cleans up the fork made by fork_response_process()
+#
+sub exit_response_process
 {
 	my $parameters = shift;
 	# required:
-	my $anvil      = $parameters->{anvil};
-	my $responder  = $parameters->{responder};
+	my $anvil     = $parameters->{anvil};
+	my $responder = $parameters->{responder};
 
 	emit("responder:".$$."-exit");
 
@@ -356,15 +360,16 @@ sub exit_responder
 	$anvil->nice_exit({ exit_code => 0 });
 
 	#############
-	#### END #### responder block
+	#### END #### response process block
 	#############
 }
 
-# notes:
-# - this subroutine should only run in the main process
-# - every line after the call to this function are a part of the responder process
-# - calling this subroutine requires calling exit_responder later for clean up
-sub fork_responder
+#
+# this subroutine should only run in the main process
+#
+# every line after the call to this function are a part of the responder process
+#
+sub fork_response_process
 {
 	my $parameters = shift;
 	# required:
@@ -395,7 +400,7 @@ sub fork_responder
 	}
 
 	#############
-	### BEGIN ### responder block
+	### BEGIN ### response process block
 	#############
 
 	# close the server because the child doesn't need it
@@ -644,18 +649,22 @@ sub handle_connections
 		}) and do {
 			pstdout($$."::manage_database_listeners ended with true");
 
+			$responder->shutdown(SHUT_WR);
+
 			next;
 		};
 
 		pstdout($$."::manage_database_listeners ended with false");
 
-		fork_responder({ anvil => $anvil, responder => $responder, server => $server }) or do {
-			pstdout($$."::fork_responder ended with false");
+		fork_response_process({ anvil => $anvil, responder => $responder, server => $server }) or do {
+			pstdout($$."::fork_response_process ended with false");
+
+			$responder->shutdown(SHUT_WR);
 
 			next;
 		};
 
-		pstdout($$."::fork_responder ended with true");
+		pstdout($$."::fork_response_process ended with true");
 
 		my @cmd_lines = split(/;;/, $request_line);
 
@@ -690,7 +699,7 @@ sub handle_connections
 			}
 		}
 
-		exit_responder({ anvil => $anvil, responder => $responder });
+		exit_response_process({ anvil => $anvil, responder => $responder });
 	}
 
 	close($server);
@@ -717,9 +726,9 @@ sub main
 	$anvil->Get->switches;
 
 	my $daemonize   = $anvil->data->{switches}{'daemonize'}   // 0;
-	my $script_file = $anvil->data->{switches}{'script'}      // "-";
 	my $working_dir = $anvil->data->{switches}{'working-dir'} // cwd();
 
+	emit("pid:".$$);
 	emit("initialized");
 
 	$anvil->Database->connect({ auto_inactive_destroy => 1 });
@@ -761,187 +770,44 @@ sub main
 		$anvil->nice_exit({ exit_code => 1 });
 	};
 
-	# make child processes start-and-forget because we don't need to wait for them
+	# Make child processes start-and-forget because we don't need to wait for them
 	local $SIG{CHLD} = "IGNORE";
 
 	if ($daemonize)
 	{
+		# When running as daemon, the main process shouldn't do anything other than handling connections
 		handle_connections({ anvil => $anvil, server => $server });
-		# when running as daemon, the main process shouldn't do anything other than handling connections
-		return;
+
+		close($server);
+
+		$anvil->nice_exit({ exit_code => 0 });
 	}
 
-	# make 1 child to interact on stdio
-	my $interface_pid = fork;
+	my $interface_emitter = sub { emit("interface:".$$."-".$_[0]); };
 
-	if (not defined $interface_pid)
+	my $interface = Proc::Simple->new();
+
+	my $forked = $interface->start(\&run_interface, {
+		anvil       => $anvil,
+		emit        => $interface_emitter,
+		server      => $server,
+		socket_path => $socket_path,
+	});
+
+	if (not $forked)
 	{
-		pstderr("failed to fork IO interface; cause: ".$!);
+		pstderr("failed to fork IO interface; cause: ". $!);
 
 		close($server);
 
 		$anvil->nice_exit({ exit_code => 1 });
 	}
 
-	if ($interface_pid)
-	{
-		emit("interface:".$interface_pid."-forked");
+	$interface_emitter->("forked");
 
-		handle_connections({ anvil => $anvil, server => $server });
-		# after starting a child process to handle the stdin interactions, the main process should only handle connections
-		return;
-	}
+	handle_connections({ anvil => $anvil, server => $server });
 
-	#############
-	### BEGIN ### interface block
-	#############
-
-	# close the server because the child doesn't need it
-	close($server);
-
-	my $script_file_handle;
-
-	local $SIG{INT}  = sub {
-		emit("interface:".$$."-sigint");
-
-		close($script_file_handle);
-
-		emit("interface:".$$."-exit");
-
-		$anvil->catch_sig({ signal => "INT" });
-	};
-
-	local $SIG{TERM} = sub {
-		emit("interface:".$$."-sigterm");
-
-		close($script_file_handle);
-
-		emit("interface:".$$."-exit");
-
-		$anvil->catch_sig({ signal => "TERM" });
-	};
-
-	eval {
-		# TODO: make this script read piped input
-
-		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
-
-		if ($script_file =~ /^-$/)
-		{
-			open($script_file_handle, "-");
-		}
-		else
-		{
-			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
-		}
-	} or do {
-		# open() sets $! upon error, different from the database module failure (which sets $@)
-		pstderr("failed to open ".$script_file." as script input; cause: ".$!);
-
-		$anvil->nice_exit({ exit_code => 1 });
-	};
-
-	emit("interface:".$$."-ready");
-
-	while (my $script_line = <$script_file_handle>)
-	{
-		chomp($script_line);
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
-
-		if ($script_line =~ /^(?:q|quit)\s*$/)
-		{
-			my $quitter = IO::Socket::UNIX->new(
-				Peer => $socket_path,
-				Type => SOCK_STREAM,
-			) or do {
-				pstderr("failed to create QUIT connection to ".$socket_path."; cause: $@");
-
-				$anvil->nice_exit({ exit_code => 1 });
-			};
-
-			print $quitter $script_line;
-
-			$quitter->shutdown(SHUT_RDWR);
-
-			last;
-		}
-
-		my $pid = fork; # the child process starts here when spawned successfully:
-
-		# - fork returns `undef` when it fails to spawn the child
-		# - fork returns the child's pid to the parent
-		# - fork returns `0` to the child
-
-		if (not defined $pid) {
-			pstderr("failed to fork on send; cause: ".$!);
-
-			next;
-		}
-
-		if ($pid)
-		{
-			emit("requester:".$pid."-forked");
-
-			next;
-		}
-
-		#############
-		### BEGIN ### requester block
-		#############
-
-		# the child doesn't need to process input
-		close($script_file_handle);
-
-		my $requester = IO::Socket::UNIX->new(
-			Peer => $socket_path,
-			Type => SOCK_STREAM,
-		) or do {
-			pstderr("failed to create connection to ".$socket_path."; cause: ".$@);
-
-			$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-		};
-
-		print $requester $script_line;
-
-		$requester->shutdown(SHUT_WR);
-
-		while (my $line = <$requester>)
-		{
-			chomp($line);
-
-			eval {
-				my $decoded = decode_json($line);
-				my $encoded = JSON->new->utf8->allow_blessed->pretty->encode($decoded);
-
-				pstdout($encoded);
-			} or do {
-				pstdout($line);
-			}
-		}
-
-		$requester->shutdown(SHUT_RD);
-
-		emit("requester:".$$."-exit");
-
-		$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
-
-		#############
-		#### END #### requester block
-		#############
-	}
-
-	close($script_file_handle);
-
-	emit("interface:".$$."-exit");
-
-	$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
-
-	#############
-	#### END #### interface block
-	#############
+	$anvil->nice_exit({ exit_code => 0 });
 }
 
 sub prettify
@@ -1064,4 +930,168 @@ sub pstdout
 sub pstderr
 {
 	print STDERR "error: ".$_[0]."\n" if defined $_[0];
+}
+
+sub run_interface
+{
+	my $parameters  = shift;
+	# Required:
+	my $anvil       = $parameters->{anvil};
+	my $emit        = $parameters->{emit};
+	my $server      = $parameters->{server};
+	my $socket_path = $parameters->{socket_path};
+
+	return (0) if (not $anvil);
+	return (0) if (not $server);
+
+	my $script_file = $anvil->data->{switches}{'script'} // "-";
+
+	# Close the server because the child doesn't need it.
+	close($server);
+
+	my $script_file_handle;
+
+	# Setup custom signal handlers for the child process.
+
+	local $SIG{INT}  = sub {
+		$emit->("sigint");
+
+		close($script_file_handle);
+
+		$emit->("exit");
+
+		$anvil->catch_sig({ signal => "INT" });
+	};
+
+	local $SIG{TERM} = sub {
+		$emit->("sigterm");
+
+		close($script_file_handle);
+
+		$emit->("exit");
+
+		$anvil->catch_sig({ signal => "TERM" });
+	};
+
+	eval {
+		# TODO: make this script read piped input.
+
+		$script_file = "-" if ($script_file =~ /^#!SET!#$/);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
+
+		if ($script_file =~ /^-$/)
+		{
+			open($script_file_handle, "-");
+		}
+		else
+		{
+			open($script_file_handle, "< :encoding(UTF-8)", $script_file);
+		}
+	} or do {
+		# open() sets $! upon error, different from the database module failure (which sets $@).
+		pstderr("failed to open ".$script_file." as script input; cause: ".$!);
+
+		$anvil->nice_exit({ exit_code => 1 });
+	};
+
+	$emit->("ready");
+
+	while (my $script_line = <$script_file_handle>)
+	{
+		chomp($script_line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_line => $script_line } });
+
+		if ($script_line =~ /^(?:q|quit)\s*$/)
+		{
+			my $quitter = IO::Socket::UNIX->new(
+				Peer => $socket_path,
+				Type => SOCK_STREAM,
+			) or do {
+				pstderr("failed to create QUIT connection to ".$socket_path."; cause: $@");
+
+				$anvil->nice_exit({ exit_code => 1 });
+			};
+
+			print $quitter $script_line;
+
+			$quitter->shutdown(SHUT_RDWR);
+
+			last;
+		}
+
+		local $requester_emitter = sub { emit("requester:".$$."-".$_[0]); };
+
+		my $requester = Proc::Simple->new();
+
+		$requester->start(\&run_requester, {
+			anvil       => $anvil,
+			emit        => $requester_emitter,
+			script_fh   => $script_file_handle,
+			script_line => $script_line,
+			socket_path => $socket_path,
+		});
+
+		$requester_emitter->("forked");
+	}
+
+	close($script_file_handle);
+
+	$emit->("exit");
+
+	$anvil->nice_exit({ exit_code => 0 });
+}
+
+sub run_requester
+{
+	my $parameters  = shift;
+	# Required:
+	my $anvil       = $parameters->{anvil};
+	my $emit        = $parameters->{emit};
+	my $script_fh   = $parameters->{script_fh};
+	my $script_line = $parameters->{script_line};
+	my $socket_path = $parameters->{socket_path};
+
+	return (0) if (not $anvil);
+	return (0) if (not $script_fh);
+
+	# The child doesn't need to process input.
+	close($script_fh);
+
+	my $requester = IO::Socket::UNIX->new(
+		Peer => $socket_path,
+		Type => SOCK_STREAM,
+	) or do {
+		pstderr("failed to create connection to ".$socket_path."; cause: ".$@);
+
+		# We're not using the database connection(s) here; it's not cloned.
+		# The cache is pointing to the main process's connection(s); don't close it.
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+	};
+
+	print $requester $script_line;
+
+	$requester->shutdown(SHUT_WR);
+
+	while (my $line = <$requester>)
+	{
+		chomp($line);
+
+		eval {
+			my $decoded = decode_json($line);
+			my $encoded = JSON->new->utf8->allow_blessed->pretty->encode($decoded);
+
+			pstdout($encoded);
+		} or do {
+			pstdout($line);
+		}
+	}
+
+	$requester->shutdown(SHUT_RD);
+
+	$emit->("exit");
+
+	# Same; don't close because the cache is pointing to the original connection(s).
+	$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
 }
