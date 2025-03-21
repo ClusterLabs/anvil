@@ -43,6 +43,9 @@ export const getAnvil: RequestHandler = buildGetRequestHandler(
         )
       JOIN scan_cluster_nodes AS c
         ON c.scan_cluster_node_host_uuid = b.host_uuid
+      JOIN scan_cluster AS c2
+        ON c.scan_cluster_node_scan_cluster_uuid = c2.scan_cluster_uuid
+          AND c2.scan_cluster_cib != '${DELETED}'
       LEFT JOIN scan_drbd_resources AS d
         ON d.scan_drbd_resource_host_uuid = b.host_uuid
           AND d.scan_drbd_resource_xml != '${DELETED}'

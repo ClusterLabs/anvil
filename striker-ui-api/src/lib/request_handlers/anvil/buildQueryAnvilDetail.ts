@@ -118,6 +118,7 @@ const buildQueryAnvilDetail = ({
       ON storage_group_uuid = storage_group_member_storage_group_uuid
     JOIN scan_lvm_vgs AS sca_lvm_vgs
       ON storage_group_member_vg_uuid = scan_lvm_vg_internal_uuid
+    WHERE scan_lvm_vg_name != '${DELETED}'
     GROUP BY
       storage_group_anvil_uuid,
       storage_group_uuid,

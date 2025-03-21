@@ -8,7 +8,7 @@ CREATE TABLE scan_cluster (
     scan_cluster_uuid          uuid                        primary key,
     scan_cluster_anvil_uuid    uuid                        not null,       -- The Anvil! UUID this cluster is associated with.
     scan_cluster_name          text                        not null,       -- The name of the cluster
-    scan_cluster_cib           text                        not null,       -- This is the CIB from disk, only updated when a node is a full member of the cluster.
+    scan_cluster_cib           text                        not null,       -- This is the CIB from disk, only updated when a node is a full member of the cluster. This is set to 'DELETED' if the node is gone.
     modified_date              timestamp with time zone    not null
 );
 ALTER TABLE scan_cluster OWNER TO admin;

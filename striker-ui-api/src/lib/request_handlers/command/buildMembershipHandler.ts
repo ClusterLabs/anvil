@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_UUID, SERVER_PATHS } from '../../consts';
+import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
@@ -84,10 +84,13 @@ export const buildMembershipHandler: (
   try {
     rows = await query(
       `SELECT
-          scan_cluster_node_in_ccm,
-          scan_cluster_node_crmd_member,
-          scan_cluster_node_cluster_member
-        FROM scan_cluster_nodes
+          a.scan_cluster_node_in_ccm,
+          a.scan_cluster_node_crmd_member,
+          a.scan_cluster_node_cluster_member
+        FROM scan_cluster_nodes AS a
+        JOIN scan_cluster AS a2
+          ON a.scan_cluster_node_scan_cluster_uuid = a2.scan_cluster_uuid
+            AND a2.scan_cluster_cib != '${DELETED}'
         WHERE scan_cluster_node_host_uuid = '${hostUuid}';`,
     );
 

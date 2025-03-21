@@ -100,6 +100,7 @@ export const getProvisionServerResources: RequestHandler<
       ON a.storage_group_uuid = c.storage_group_member_storage_group_uuid
     JOIN scan_lvm_vgs AS d
       ON c.storage_group_member_vg_uuid = d.scan_lvm_vg_internal_uuid
+    WHERE d.scan_lvm_vg_name != '${DELETED}'
     GROUP BY
       b.anvil_uuid,
       a.storage_group_uuid,
