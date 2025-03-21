@@ -5,9 +5,10 @@ package Anvil::Tools::Database;
 
 use strict;
 use warnings;
+use Data::Dumper;
 use DBI;
 use Scalar::Util qw(weaken isweak);
-use Data::Dumper;
+use Proc::Simple;
 use Text::Diff;
 use Time::HiRes qw(gettimeofday tv_interval);
 use XML::LibXML;
@@ -103,7 +104,9 @@ my $THIS_FILE = "Database.pm";
 # read
 # read_variable
 # refresh_timestamp
+# remove_listener
 # resync_databases
+# run_listener
 # shutdown
 # track_files
 # update_host_status
@@ -148,7 +151,9 @@ sub new
 {
 	my $class = shift;
 	my $self  = {};
-	
+
+	$self->{listeners} = {};
+
 	bless $self, $class;
 	
 	return ($self);
@@ -177,6 +182,7 @@ sub parent
 # Public methods                                                                                            #
 #############################################################################################################
 
+
 =head2 add_listener
 
 This method adds 1 listener to the primary database. The listener runs when the primary database executes a pg_notify with the matching name.
@@ -191,21 +197,17 @@ If set, the listener process will listen to database notifications indefinitely.
 
 The name of the events to listen for. This must match with the name provided to 1 pg_notify call in procedures called by database triggers.
 
-=head3 on_clone_fail (optional)
+=head3 on_failed_to_clone (optional)
 
 If set, runs the referenced subroutine when the call to clone_connection() fails with a non-zero code.
 
-=head3 on_fork_child (optional)
+=head3 on_begin_child (optional)
 
 If set, runs the referenced subroutine in the listener process after it is created.
 
 =head3 on_notify (optional)
 
 If set, runs the referenced subroutine when a database notification is received.
-
-=head3 sigchld (optional)
-
-If set, assigns the provided value to C<<local $SIG{CHLD}>>. Defaults to C<<"IGNORE">> to make the listener process start-and-forget because there's usually no need to wait for it.
 
 =head3 uuid (optional)
 
@@ -221,136 +223,36 @@ sub add_listener
 
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
 
-	my $blocking           = $parameters->{blocking}      // 1;
-	my $db_ping_interval   = $parameters->{ping_interval} // 300;
-	my $db_uuid            = $parameters->{uuid}          // $anvil->data->{sys}{database}{primary_db};
-	my $clone_fail_handler = $parameters->{on_clone_fail};
-	my $fork_child_handler = $parameters->{on_fork_child};
-	my $notify_handler     = $parameters->{on_notify};
-	my $notify_name        = $parameters->{name};
-	my $sigchld            = $parameters->{sigchld}       // "IGNORE";
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		blocking           => $blocking,
-		db_uuid            => $db_uuid,
-		clone_fail_handler => $clone_fail_handler,
-		fork_child_handler => $fork_child_handler,
-		notify_handler     => $notify_handler,
-		notify_name        => $notify_name,
-		sigchld            => $sigchld,
-	} });
+	my $notify_name = $parameters->{name};
 
 	if (not $notify_name)
 	{
-		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0020", variables => {
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0116", variables => {
 			method    => "Database->add_listener()",
 			parameter => "name",
+			value     => $notify_name,
 		} });
 
 		return (1, undef, "missing name");
 	}
 
-	if (not $db_uuid)
-	{
-		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0020", variables => {
-			method    => "Database->add_listener()",
-			parameter => "uuid",
-		} });
+	my $listener = Proc::Simple->new();
 
-		return (2, undef, "missing uuid");
+	my $forked = $listener->start(\&run_listener, $self, $parameters);
+
+	if (not $forked)
+	{
+		return (2, undef, $!);
 	}
 
-	# Set signals behaviours
-
-	local $SIG{CHLD} = $sigchld;
-
-	my $fork = fork;
-
-	if (not defined $fork)
+	if (not exists $self->{listeners}{$notify_name})
 	{
-		return (3, undef, $!);
+		$self->{listeners}{$notify_name} = {};
 	}
 
-	if ($fork)
-	{
-		# The parent must record the listener process PID for removal at a later point.
+	$self->{listeners}{$notify_name}{$listener->pid} = $listener;
 
-		return (0, $fork);
-	}
-
-	#############
-	### BEGIN ### child block
-	#############
-
-	$fork_child_handler->({ anvil => $anvil }) if (ref($fork_child_handler) eq "CODE");
-
-	my ($clone_connection_code, $dbh) = $self->clone_connection({ uuid => $db_uuid });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		clone_connection_code => $clone_connection_code,
-		dbh                   => $dbh,
-	} });
-
-	if (not $dbh)
-	{
-		$clone_fail_handler->({ anvil => $anvil }) if (ref($clone_fail_handler) eq "CODE");
-
-		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
-	}
-
-	my $listen = eval { $dbh->do("LISTEN ".$notify_name); };
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { listen => $listen } });
-
-	if (not $listen)
-	{
-		$anvil->nice_exit({ exit_code => 2 });
-	}
-
-	my $step  = 0.1;
-	my $count = 0;
-
-	while ($blocking)
-	{
-		while (my $notify = eval { $dbh->pg_notifies(); })
-		{
-			my ($name, $pid, $payload) = @$notify;
-
-			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-				name    => $name,
-				pid     => $pid,
-				payload => $payload,
-			}, prefix => "pg_notify" });
-
-			$notify_handler->({ anvil => $anvil, notify => $notify }) if (ref($notify_handler) eq "CODE");
-		}
-
-		if ($count >= $db_ping_interval)
-		{
-			my $ping = eval { $dbh->ping(); };
-
-			if (not $ping)
-			{
-				# TODO: Maybe try recovering the listener process?
-
-				$anvil->nice_exit({ exit_code => 3 });
-			}
-
-			# Reset the counter
-			$count = 0;
-		}
-
-		$count += $step;
-
-		sleep($step);
-	}
-
-	# The listener process should never reach here.
-	$anvil->nice_exit({ exit_code => 4 });
-
-	#############
-	#### END #### child block
-	#############
+	return (0, $listener);
 }
 
 
@@ -19164,6 +19066,75 @@ sub refresh_timestamp
 }
 
 
+=head2 remove_listener
+
+This method removes listener(s) registered with add_listener.
+
+Parameters;
+
+=head3 name (required)
+
+This is used to match the listeners registered under the given pg_notify name.
+
+=head3 pid (optional)
+
+If set, only the listener with the given PID will be killed, instead of all listeners registered under the given pg_notify name.
+
+=cut
+sub remove_listener
+{
+	my $self       = shift;
+	my $parameters = shift;
+	my $anvil      = $self->parent;
+	my $debug      = $parameters->{debug} // 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->remove_listener()" } });
+
+	my $listener_pid = $parameters->{pid};
+	my $notify_name  = $parameters->{name};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		listener_pid => $listener_pid,
+		notify_name  => $notify_name,
+	} });
+
+	if (not $notify_name)
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0116", variables => {
+			method    => "Database->remove_listener()",
+			parameter => "name",
+			value     => $notify_name,
+		} });
+
+		return (1);
+	}
+
+	my @listeners;
+
+	if ((defined $listener_pid) and ($listener_pid =~ /^\d+$/))
+	{
+		# Get only the listener with the given PID.
+		@listeners = ($self->{listeners}{$notify_name}{$listener_pid});
+	}
+	else
+	{
+		# Include all listeners under the notify name to the scope.
+		@listeners = values(%{$self->{listeners}{$notify_name}});
+	}
+
+	foreach my $listener (@listeners)
+	{
+		# Forget the to-be killed listener.
+		delete $self->{listeners}{$notify_name}{$listener->pid};
+
+		# Make certain the listener is dead and stays dead.
+		$listener->kill() or $listener->kill("SIGKILL");
+	}
+
+	return (0);
+}
+
+
 =head2 resync_databases
 
 This will resync the database data on this and peer database(s) if needed. It takes no arguments and will immediately return unless C<< sys::database::resync_needed >> was set.
@@ -19769,6 +19740,142 @@ sub resync_databases
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0674", variables => { took => $time_taken }});
 	
 	return(0);
+}
+
+
+=head2 run_listener
+
+This method is an indefinite loop that listens for notify calls from the primary database.
+
+The parameters are exactly the same as the ones used in add_listener.
+
+=cut
+sub run_listener
+{
+	my $self       = shift;
+	my $parameters = shift;
+	my $anvil      = $self->parent;
+	my $debug      = $parameters->{debug} // 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->run_listener()" } });
+
+	my $blocking           = $parameters->{blocking}           // 1;
+	my $db_ping_interval   = $parameters->{ping_interval}      // 300;
+	my $db_uuid            = $parameters->{uuid}               // $anvil->data->{sys}{database}{primary_db};
+	my $notify_name        = $parameters->{name};
+	my $on_begin_child     = $parameters->{on_begin_child};
+	my $on_failed_to_clone = $parameters->{on_failed_to_clone};
+	my $on_notify          = $parameters->{on_notify};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		blocking           => $blocking,
+		db_uuid            => $db_uuid,
+		notify_name        => $notify_name,
+		on_begin_child     => $on_begin_child,
+		on_failed_to_clone => $on_failed_to_clone,
+		on_notify          => $on_notify,
+	} });
+
+	# Don't disconnect on exit until we've cloned the (probably primary) database connection.
+
+	if (not $notify_name)
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0116", variables => {
+			method    => "Database->run_listener()",
+			parameter => "name",
+			value     => $notify_name,
+		} });
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
+	}
+
+	if ($db_ping_interval !~ /^\d+$/)
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0116", variables => {
+			method    => "Database->run_listener()",
+			parameter => "ping_interval",
+			value     => $db_ping_interval,
+		} });
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 2 });
+	}
+
+	if ((not $db_uuid) or (not exists $anvil->data->{database}{$db_uuid}))
+	{
+		$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0116", variables => {
+			method    => "Database->run_listener()",
+			parameter => "uuid",
+			value     => $db_uuid,
+		} });
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 3 });
+	}
+
+	$on_begin_child->({ anvil => $anvil }) if (ref($on_begin_child) eq "CODE");
+
+	my ($clone_connection_code, $dbh) = $self->clone_connection({ uuid => $db_uuid });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		clone_connection_code => $clone_connection_code,
+		dbh                   => $dbh,
+	} });
+
+	if (not $dbh)
+	{
+		$on_failed_to_clone->({ anvil => $anvil }) if (ref($on_failed_to_clone) eq "CODE");
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 4 });
+	}
+
+	# We've cloned the database connection, remember to disconnect on exit after this point.
+
+	my $listen = eval { $dbh->do("LISTEN ".$notify_name); };
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { listen => $listen } });
+
+	if (not $listen)
+	{
+		$anvil->nice_exit({ exit_code => 5 });
+	}
+
+	my $step  = 0.1;
+	my $count = 0;
+
+	while ($blocking)
+	{
+		while (my $notify = eval { $dbh->pg_notifies(); })
+		{
+			my ($name, $pid, $payload) = @$notify;
+
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+				name    => $name,
+				pid     => $pid,
+				payload => $payload,
+			}, prefix => "pg_notify" });
+
+			$on_notify->({ anvil => $anvil, notify => $notify }) if (ref($on_notify) eq "CODE");
+		}
+
+		if ($count >= $db_ping_interval)
+		{
+			my $ping = eval { $dbh->ping(); };
+
+			if (not $ping)
+			{
+				$anvil->nice_exit({ exit_code => 6 });
+			}
+
+			# Reset the counter
+			$count = 0;
+		}
+
+		$count += $step;
+
+		sleep($step);
+	}
+
+	# The listener process should never reach here.
+	$anvil->nice_exit({ exit_code => 7 });
 }
 
 
