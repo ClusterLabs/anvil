@@ -597,7 +597,7 @@ sub manage_database_listeners
 
 	if ($input =~ s/^list//)
 	{
-		my $listeners = $anvil->Database->listeners;
+		my $listeners = $anvil->Database->{listeners};
 
 		foreach my $name (sort { $a cmp $b } keys %{$listeners})
 		{
