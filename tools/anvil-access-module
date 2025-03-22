@@ -882,7 +882,7 @@ sub run_interface
 			last;
 		}
 
-		local $emit_requester_event = sub { emit("requester:".($_[1] // $$)."-".$_[0]); };
+		my $emit_requester_event = sub { emit("requester:".($_[1] // $$)."-".$_[0]); };
 
 		my $request_process = Proc::Simple->new();
 
