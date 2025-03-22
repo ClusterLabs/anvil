@@ -177,10 +177,10 @@ main();
 sub access_chain
 {
 	my $parameters = shift;
-	# required:
+	# Required:
 	my $anvil      = $parameters->{anvil};
 	my $chain_str  = $parameters->{chain};
-	# optional:
+	# Optional:
 	my $chain_args = $parameters->{chain_args} // [];
 
 	my @chain        = split(/->|[.]/, $chain_str);
@@ -266,10 +266,10 @@ sub access_chain
 sub db_access
 {
 	my $parameters = shift;
-	# required:
+	# Required:
 	my $anvil      = $parameters->{anvil};
 	my $sql        = $parameters->{sql};
-	# optional:
+	# Optional:
 	my $mode       = $parameters->{db_access_mode} // "";
 	my $uuid       = $parameters->{db_uuid};
 
@@ -311,11 +311,11 @@ sub emit
 sub get_scmd_args
 {
 	my $parameters = shift;
-	# required:
+	# Required:
 	my $anvil      = $parameters->{anvil};
 	my $input      = $parameters->{input};
 	my $get_values = $parameters->{get_values};
-	# optional:
+	# Optional:
 	my $cmd        = $parameters->{cmd};
 	my $arg_names  = $parameters->{names} // [];
 
@@ -394,7 +394,17 @@ sub handle_connections
 
 	emit("listening");
 
+	my $emit_listener_event  = sub { emit("dbl:".($_[1] // $$)."-".$_[0]); };
+	my $emit_responder_event = sub { emit("responder:".($_[1] // $$)."-".$_[0]); };
+
 	while (my $responder = $server->accept() or do {
+		#
+		# Ignore interrupt caused by auto SIGCHLD in the reaper of Proc::Simple.
+		#
+		# accept() will fail with $! set to "Interrupted system call" without ignoring the interrupt caused by SIGCHLD.
+		#
+		next if $!{EINTR};
+
 		pstderr("failed to accept connections; cause: ".$!);
 
 		close($server);
@@ -404,10 +414,10 @@ sub handle_connections
 	{
 		my $request_line = <$responder>;
 
-		chomp($request_line);
-
 		# Responder is done reading
 		$responder->shutdown(SHUT_RD);
+
+		chomp($request_line);
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { request_line => $request_line } });
 
@@ -417,8 +427,6 @@ sub handle_connections
 
 			last;
 		}
-
-		my $emit_listener_event = sub { emit("dbl:".($_[1] // $$)."-".$_[0]); };
 
 		manage_database_listeners({
 			anvil     => $anvil,
@@ -435,8 +443,6 @@ sub handle_connections
 		};
 
 		pstdout($$."::manage_database_listeners ended with false");
-
-		my $emit_responder_event = sub { emit("responder:".($_[1] // $$)."-".$_[0]); };
 
 		my $response_process = Proc::Simple->new();
 
@@ -800,9 +806,6 @@ sub run_interface
 	my $server      = $parameters->{server};
 	my $socket_path = $parameters->{socket_path};
 
-	return (0) if (not $anvil);
-	return (0) if (not $server);
-
 	my $script_file = $anvil->data->{switches}{'script'} // "-";
 
 	# Close the server because the child doesn't need it.
@@ -915,9 +918,6 @@ sub run_requester
 	my $script_fh   = $parameters->{script_fh};
 	my $script_line = $parameters->{script_line};
 	my $socket_path = $parameters->{socket_path};
-
-	return (0) if (not $anvil);
-	return (0) if (not $script_fh);
 
 	# The child doesn't need to process input.
 	close($script_fh);
