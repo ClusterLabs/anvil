@@ -642,7 +642,7 @@ sub manage_database_listeners
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name } }); 
 
-		my ($add_listener_code, $pid, $error) = $anvil->Database->add_listener({
+		my ($add_listener_code, $listener, $error) = $anvil->Database->add_listener({
 			debug              => 2,
 			name               => $name,
 			on_failed_to_clone => \&handle_clone_database_connection_failure,
@@ -669,7 +669,7 @@ sub manage_database_listeners
 			return 0;
 		}
 
-		$emit->("forked", $pid);
+		$emit->("forked", $listener->pid);
 
 		return 1;
 	}
