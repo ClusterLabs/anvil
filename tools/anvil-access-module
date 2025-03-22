@@ -523,7 +523,7 @@ sub main
 
 	if (not $daemonize)
 	{
-		my $emit_interface_event = sub { emit("interface:".$$."-".$_[0]); };
+		my $emit_interface_event = sub { emit("interface:".($_[1] // $$)."-".$_[0]); };
 
 		my $interface_process = Proc::Simple->new();
 
@@ -540,7 +540,7 @@ sub main
 			$anvil->nice_exit({ exit_code => 1 });
 		};
 
-		$emit_interface_event->("forked");
+		$emit_interface_event->("forked", $interface_process->pid);
 	}
 
 	local $SIG{INT}  = sub {
@@ -636,8 +636,6 @@ sub manage_database_listeners
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name } }); 
 
-
-
 		my ($add_listener_code, $pid, $error) = $anvil->Database->add_listener({
 			debug              => 2,
 			name               => $name,
@@ -665,7 +663,7 @@ sub manage_database_listeners
 			return 0;
 		}
 
-		$emit->("forked");
+		$emit->("forked", $pid);
 
 		return 1;
 	}
