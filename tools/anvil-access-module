@@ -842,9 +842,9 @@ sub run_interface
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { script_file => $script_file } });
 
-		if ($script_file =~ /^-$/)
+		if ($script_file eq "-")
 		{
-			open($script_file_handle, "-");
+			open($script_file_handle, $script_file);
 		}
 		else
 		{
@@ -955,7 +955,7 @@ sub run_requester
 
 	$emit->("exit");
 
-	# Same; don't close because the cache is pointing to the original connection(s).
+	# Same; don't disconnect because the cache is pointing to the original connection(s).
 	$anvil->nice_exit({ db_disconnect => 0, exit_code => 0 });
 }
 
