@@ -347,11 +347,9 @@ sub handle_clone_database_connection_failure
 	my $anvil      = $parameters->{anvil};
 	my $responder  = $parameters->{responder};
 
-	print $responder "failed to clone primary database handle\n";
+	pstderr("failed to clone primary database handle");
 
 	$responder->shutdown(SHUT_RDWR);
-
-	$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
 }
 
 sub handle_responder_output_setup
@@ -435,14 +433,10 @@ sub handle_connections
 			responder => $responder,
 			server    => $server,
 		}) and do {
-			pstdout($$."::manage_database_listeners ended with true");
-
-			$responder->shutdown(SHUT_WR);
+			# Don't close the responder because it's being used by the listener to send data.
 
 			next;
 		};
-
-		pstdout($$."::manage_database_listeners ended with false");
 
 		my $response_process = Proc::Simple->new();
 
@@ -640,26 +634,46 @@ sub manage_database_listeners
 	{
 		my $name = $1;
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name } }); 
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name } });
+
+		my $handle_begin_child     = sub {
+			# Close the server because the child doesn't need it
+			close($server);
+
+			handle_responder_output_setup({ anvil => $anvil, responder => $responder })
+		};
+
+		my $handle_failed_to_clone = sub {
+			handle_clone_database_connection_failure({ anvil => $anvil, responder => $responder });
+		};
+
+		my $handle_failed_to_ping  = sub {
+			pstderr("failed to ping database");
+
+			$responder->shutdown(SHUT_RDWR);
+		};
+
+		my $handle_notify          = sub {
+			my $parameters = shift;
+			my $notify     = $parameters->{notify};
+
+			my ($name, $pid, $payload) = @$notify;
+
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				name    => $name,
+				pid     => $pid,
+				payload => $payload,
+			}, prefix => "handle_notify" });
+
+			pstdout($name.":".$pid.":".$payload);
+		};
 
 		my ($add_listener_code, $listener, $error) = $anvil->Database->add_listener({
 			debug              => 2,
 			name               => $name,
-			on_failed_to_clone => \&handle_clone_database_connection_failure,
-			on_begin_child     => sub {
-				# Close the server because the child doesn't need it
-				close($server);
-
-				handle_responder_output_setup({ anvil => $anvil, responder => $responder });
-			},
-			on_notify          => sub {
-				my $parameters = shift;
-				my $notify     = $parameters->{notify};
-
-				my ($name, $pid, $payload) = @$notify;
-
-				pstdout($name.":".$pid.":".$payload);
-			},
+			on_begin_child     => $handle_begin_child,
+			on_failed_to_clone => $handle_failed_to_clone,
+			on_notify          => $handle_notify,
 		});
 
 		if ($add_listener_code != 0)
@@ -983,6 +997,8 @@ sub run_responder
 	if (not $clone)
 	{
 		handle_clone_database_connection_failure({ anvil => $anvil, responder => $responder });
+
+		$anvil->nice_exit({ db_disconnect => 0, exit_code => 1 });
 	}
 
 	my @cmd_lines = split(/;;/, $line);
