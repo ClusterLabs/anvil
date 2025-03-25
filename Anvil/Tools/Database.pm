@@ -19760,11 +19760,12 @@ sub run_listener
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->run_listener()" } });
 
 	my $blocking           = $parameters->{blocking}           // 1;
-	my $db_ping_interval   = $parameters->{ping_interval}      // 300;
+	my $db_ping_interval   = $parameters->{ping_interval}      // 1500;
 	my $db_uuid            = $parameters->{uuid}               // $anvil->data->{sys}{database}{primary_db};
 	my $notify_name        = $parameters->{name};
 	my $on_begin_child     = $parameters->{on_begin_child};
 	my $on_failed_to_clone = $parameters->{on_failed_to_clone};
+	my $on_failed_to_ping  = $parameters->{on_failed_to_ping};
 	my $on_notify          = $parameters->{on_notify};
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
@@ -19838,7 +19839,7 @@ sub run_listener
 		$anvil->nice_exit({ exit_code => 5 });
 	}
 
-	my $step  = 0.1;
+	my $step  = 0.2;
 	my $count = 0;
 
 	while ($blocking)
@@ -19860,8 +19861,12 @@ sub run_listener
 		{
 			my $ping = eval { $dbh->ping(); };
 
+			$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { ping => $ping } });
+
 			if (not $ping)
 			{
+				$on_failed_to_ping->({ anvil => $anvil }) if (ref($on_failed_to_ping) eq "CODE");
+
 				$anvil->nice_exit({ exit_code => 6 });
 			}
 
