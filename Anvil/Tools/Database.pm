@@ -10,7 +10,7 @@ use DBI;
 use Scalar::Util qw(weaken isweak);
 use Proc::Simple;
 use Text::Diff;
-use Time::HiRes qw(gettimeofday tv_interval);
+use Time::HiRes qw(gettimeofday sleep tv_interval);
 use XML::LibXML;
 
 our $VERSION  = "3.0.0";
@@ -187,31 +187,13 @@ sub parent
 
 This method adds 1 listener to the primary database. The listener runs when the primary database executes a pg_notify with the matching name.
 
+It takes the same parameters as run_listener, with the following additions.
+
 Parameters;
-
-=head3 blocking (optional, default 1)
-
-If set, the listener process will listen to database notifications indefinitely.
 
 =head3 name (required)
 
 The name of the events to listen for. This must match with the name provided to 1 pg_notify call in procedures called by database triggers.
-
-=head3 on_failed_to_clone (optional)
-
-If set, runs the referenced subroutine when the call to clone_connection() fails with a non-zero code.
-
-=head3 on_begin_child (optional)
-
-If set, runs the referenced subroutine in the listener process after it is created.
-
-=head3 on_notify (optional)
-
-If set, runs the referenced subroutine when a database notification is received.
-
-=head3 uuid (optional)
-
-If set, the listener will be added to the connection of the database identified with the provided UUID.
 
 =cut
 sub add_listener
@@ -224,6 +206,8 @@ sub add_listener
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->add_listener()" } });
 
 	my $notify_name = $parameters->{name};
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { notify_name => $notify_name } });
 
 	if (not $notify_name)
 	{
@@ -19747,7 +19731,40 @@ sub resync_databases
 
 This method is an indefinite loop that listens for notify calls from the primary database.
 
-The parameters are exactly the same as the ones used in add_listener.
+Parameters;
+
+=head3 blocking (optional, default 1)
+
+If set, the listener process will listen to database notifications indefinitely.
+
+=head3 name (required)
+
+The name of the events to listen for. This must match with the name provided to 1 pg_notify call in procedures called by database triggers.
+
+=head3 on_child_forked (optional)
+
+If set, runs the referenced subroutine in the listener process after it is created.
+
+=head3 on_failed_to_clone (optional)
+
+If set, runs the referenced subroutine when the call to clone_connection() fails with a non-zero code.
+
+=head3 on_failed_to_ping (optional)
+
+If set, runs the referenced subroutine when a ping to database fails during the blocking check for notify. Likely used for clean up before terminating.
+
+=head3 on_notify (optional)
+
+If set, runs the referenced subroutine when a database notification is received.
+
+=head3 ping_interval (optional, default 60)
+
+Determines the interval in B<< seconds >> between pinging the database to ensure the connection is healthy. The listener will terminate if a ping fails.
+
+=head3 uuid (optional)
+
+If set, the listener will be added to the connection of the database identified with the provided UUID.
+
 
 =cut
 sub run_listener
@@ -19760,10 +19777,10 @@ sub run_listener
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->run_listener()" } });
 
 	my $blocking           = $parameters->{blocking}           // 1;
-	my $db_ping_interval   = $parameters->{ping_interval}      // 1500;
+	my $db_ping_interval   = $parameters->{ping_interval}      // 60;
 	my $db_uuid            = $parameters->{uuid}               // $anvil->data->{sys}{database}{primary_db};
 	my $notify_name        = $parameters->{name};
-	my $on_begin_child     = $parameters->{on_begin_child};
+	my $on_child_forked    = $parameters->{on_child_forked};
 	my $on_failed_to_clone = $parameters->{on_failed_to_clone};
 	my $on_failed_to_ping  = $parameters->{on_failed_to_ping};
 	my $on_notify          = $parameters->{on_notify};
@@ -19772,7 +19789,7 @@ sub run_listener
 		blocking           => $blocking,
 		db_uuid            => $db_uuid,
 		notify_name        => $notify_name,
-		on_begin_child     => $on_begin_child,
+		on_child_forked    => $on_child_forked,
 		on_failed_to_clone => $on_failed_to_clone,
 		on_notify          => $on_notify,
 	} });
@@ -19812,7 +19829,7 @@ sub run_listener
 		$anvil->nice_exit({ db_disconnect => 0, exit_code => 3 });
 	}
 
-	$on_begin_child->({ anvil => $anvil }) if (ref($on_begin_child) eq "CODE");
+	$on_child_forked->({ anvil => $anvil }) if (ref($on_child_forked) eq "CODE");
 
 	my ($clone_connection_code, $dbh) = $self->clone_connection({ uuid => $db_uuid });
 
@@ -19839,7 +19856,7 @@ sub run_listener
 		$anvil->nice_exit({ exit_code => 5 });
 	}
 
-	my $step  = 0.2;
+	my $step  = 0.1;
 	my $count = 0;
 
 	while ($blocking)
