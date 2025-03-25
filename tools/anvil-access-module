@@ -636,7 +636,7 @@ sub manage_database_listeners
 
 		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { name => $name } });
 
-		my $handle_begin_child     = sub {
+		my $handle_child_forked    = sub {
 			# Close the server because the child doesn't need it
 			close($server);
 
@@ -665,20 +665,35 @@ sub manage_database_listeners
 				payload => $payload,
 			}, prefix => "handle_notify" });
 
-			pstdout($name.":".$pid.":".$payload);
+			$emit->($name.":".$payload);
+		};
+
+		local $SIG{INT}  = sub {
+			$emit->("sigint");
+			$emit->("exit");
+
+			$anvil->catch_sig({ signal => "INT" });
+		};
+
+		local $SIG{TERM} = sub {
+			$emit->("sigterm");
+			$emit->("exit");
+
+			$anvil->catch_sig({ signal => "TERM" });
 		};
 
 		my ($add_listener_code, $listener, $error) = $anvil->Database->add_listener({
 			debug              => 2,
 			name               => $name,
-			on_begin_child     => $handle_begin_child,
+			on_child_forked    => $handle_child_forked,
 			on_failed_to_clone => $handle_failed_to_clone,
+			on_failed_to_ping  => $handle_failed_to_ping,
 			on_notify          => $handle_notify,
 		});
 
 		if ($add_listener_code != 0)
 		{
-			pstdout("failed to fork on receive; cause: ".$error);
+			pstderr("failed to fork on receive; cause: ".$error);
 
 			return 0;
 		}
