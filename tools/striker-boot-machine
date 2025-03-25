@@ -247,14 +247,14 @@ sub find_power_control
 					$host_ipmi = $this_host_ipmi;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { host_ipmi => $host_ipmi }});
 				
-				if (($return_code eq "0") or ($return_code eq "2"))
-				{
-					# Good IPMI, use it.
-					$host_ipmi = $this_host_ipmi;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { host_ipmi => $host_ipmi }});
-					
-					# Update the database. 
-					my $query = "
+					if (($return_code eq "0") or ($return_code eq "2"))
+					{
+						# Good IPMI, use it.
+						$host_ipmi = $this_host_ipmi;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 1, list => { host_ipmi => $host_ipmi }});
+						
+						# Update the database. 
+						my $query = "
 UPDATE 
     hosts 
 SET 
@@ -263,10 +263,11 @@ SET
 WHERE
     host_uuid     = ".$anvil->Database->quote($host_uuid)."
 ;";
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
-					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+						$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					}
+					last if $host_ipmi;
 				}
-				last if $host_ipmi;
 			}
 		}
 		
