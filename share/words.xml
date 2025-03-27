@@ -494,7 +494,7 @@ Output (if any):
 		<key name="error_0320">The host name: [#!variable!host!#] was not found in the database, unable to find IPs.</key>
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
 		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
-		<key name="error_0323">#!free!#</key>
+		<key name="error_0323">The job to delete the server: [#!variable!server_name!# (#!variable!server_uuid!#)] to the subnode: [#!variable!host_name!# (#!variable!host_uuid!#)]. The new job UUID is: [#!variable!job_uuid!#].</key>
 		<key name="error_0324">#!free!#</key>
 		<key name="error_0325">#!free!#</key>
 		<key name="error_0326">#!free!#</key>
@@ -1408,7 +1408,7 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
 		<key name="job_0141">About to rename the old file: [#!variable!old_file!#] to: [#!variable!new_file!#].</key>
 		<key name="job_0142">File renamed successfully.</key>
 		<key name="job_0143">I was asked to add a network interface to: [#!variable!server!#], but the server is runnong on: [#!variable!host_name!#]. Assigning a job to have that host do the add.</key>
-		<key name="job_0144">#!free!#</key>
+		<key name="job_0144">Reassigned the job.</key>
 		<key name="job_0145">The file: [#!variable!file_path!#]'s mode has been set to: [#!variable!new_mode!#].</key>
 		<key name="job_0146">No need to set the mode on the file: [#!variable!file_path!#], it doesn't exist here.</key>
 		<key name="job_0147">Provision a new server</key>
