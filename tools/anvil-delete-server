@@ -69,27 +69,6 @@ if ($anvil->data->{switches}{'job-uuid'})
 		job_picked_up_at => time, 
 		message          => "message_0217", 
 	});
-
-	# Are we in an Anvil! system or are we a DR host?
-	my $host_type = $anvil->Get->host_type();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
-	if ((not $anvil->data->{sys}{anvil_uuid}) && ($host_type ne "dr"))
-	{
-		# We're not in an Anvil!.
-		if ($anvil->data->{switches}{'job-uuid'})
-		{
-			# Mark the job as failed.
-			$anvil->Job->update_progress({
-				progress   => 100,
-				message    => "error_0217", 
-				job_status => "failed", 
-			});
-		}
-		
-		# Log an exit.
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, 'print' => 1, level => 0, priority => 'err', key => "error_0217"});
-		$anvil->nice_exit({exit_code => 1});
-	}
 	
 	# Job data will be in $anvil->data->{jobs}{job_data}
 	run_jobs($anvil);
@@ -127,6 +106,7 @@ sub run_jobs
 	# This parses the jobs::job_data intp variables.
 	parse_job_data($anvil);
 	
+	$anvil->Database->get_hosts();
 	my $host_type   = $anvil->Get->host_type();
 	my $server_uuid = $anvil->data->{job}{server_uuid};
 	my $server_name = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_name};
@@ -135,6 +115,73 @@ sub run_jobs
 		server_uuid => $server_uuid,
 		server_name => $server_name, 
 	}});
+
+	# Are we in an Anvil! system or are we a DR host?
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+	if ((not $anvil->data->{sys}{anvil_uuid}) && ($host_type ne "dr"))
+	{
+		# Can we find the host Anvil?
+		my $anvil_uuid                  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $anvil_name                  = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		my $server_host_uuid            = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_host_uuid};
+		   $server_host_uuid            = "" if $server_host_uuid eq "NULL";
+		my $server_short_host_name      = $server_host_uuid ? $anvil->data->{hosts}{host_uuid}{$server_host_uuid}{short_host_name} : "";
+		my $server_state                = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		my $anvil_node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $anvil_node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$anvil_node1_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:anvil_uuid'                  => $anvil_uuid, 
+			's2:anvil_name'                  => $anvil_name, 
+			's3:server_host_uuid'            => $server_host_uuid,
+			's4:server_short_host_name'      => $server_short_host_name, 
+			's5:server_state'                => $server_state, 
+			's6:anvil_node1_host_uuid'       => $anvil_node1_host_uuid, 
+			's7:anvil_node1_short_host_name' => $anvil_node1_short_host_name, 
+		}});
+		
+		# If the server is off, assign the job to the first node.
+		my $job_host_uuid       = $server_host_uuid ? $server_host_uuid : $anvil_node1_host_uuid;
+		my $job_short_host_name = $anvil->data->{hosts}{host_uuid}{$job_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:job_host_uuid'       => $job_host_uuid, 
+			's2:job_short_host_name' => $job_short_host_name, 
+		}});
+		
+		# Reassign the job now.
+		if ($job_host_uuid)
+		{
+			my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+				debug           => 2, 
+				job_command     => $anvil->data->{path}{exe}{'anvil-delete-server'}.$anvil->Log->switches, 
+				job_data        => "server_uuid=".$server_uuid, 
+				job_name        => "server::delete", 
+				job_title       => "job_0208", 
+				job_description => "job_0209", 
+				job_progress    => 0,
+				job_host_uuid   => $job_host_uuid, 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+			
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, 'print' => 1, level => 0, priority => 'err', key => "error_0323", variables => {
+				server_name => $server_name,
+				server_uuid => $server_uuid,
+				host_name   => $job_short_host_name,
+				host_uuid   => $job_host_uuid,
+				job_uuid    => $job_uuid, 
+			}});
+		}
+		
+		# Mark the job as reassigned and exit.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			'print'    => 1, 
+			level      => 1,
+			priority   => 'err',
+			message    => "job_0144", 
+			job_status => "reassigned", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	# Before we start, we need to know if this server is on DR hosts. To do this, we'll parse the DRBD 
 	# config file and look for DR hosts.

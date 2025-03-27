@@ -206,13 +206,15 @@ sub ask_target_anvil
 	#$anvil->Database->get_storage_group_data({debug => 2});
 	my $server_uuid       = $anvil->data->{relocate}{server_uuid};
 	my $server_name       = $anvil->data->{relocate}{server_name};
+	my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
 	my $server_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
 	my $short_host_name   = $anvil->Get->short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server_uuid       => $server_uuid, 
-		server_name       => $server_name, 
-		server_anvil_uuid => $server_anvil_uuid, 
-		short_host_name   => $short_host_name, 
+		's1:server_uuid'       => $server_uuid, 
+		's2:server_name'       => $server_name, 
+		's3:server_state'      => $server_state, 
+		's4:server_anvil_uuid' => $server_anvil_uuid, 
+		's5:short_host_name'   => $short_host_name, 
 	}});
 	
 	# How much disk space, RAM and CPU does the server have, and which targets have enough space?
