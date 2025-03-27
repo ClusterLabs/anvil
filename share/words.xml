@@ -1503,7 +1503,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0221">The server: [#!variable!server_name!#] was not found in the cluster configuration. This can happen if a server was partially deleted and we're trying again.</key>
 		<key name="job_0222">Preparing to delete the server: [#!variable!server_name!#].</key>
 		<key name="job_0223">Using virsh to destroy (force off) the server: [#!variable!server_name!#], if it is still running.</key>
-		<key name="job_0224">Enabled the HA repository for CentOS Stream.</key>
+		<key name="job_0224">Enabled the HA repository.</key>
 		<key name="job_0225">Initialize Stage-1 installed systems into a full Anvil!.</key>
 		<key name="job_0226">This program is designed the automation of turning a set of stage-1 (bare OS + anvil-repo) systems and turn them into a fully functioning Anvil! system.</key>
 		<key name="job_0227">We need to setup pairing with Striker: [#!variable!number!#]. We will wait for it to come up. Be sure that you're run 'striker-auto-initialize-all' on it.</key>

@@ -491,7 +491,7 @@ sub email
 	my $email = defined $parameter->{email} ? $parameter->{email} : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { email => $email }});
 	
-	# Validating email ourself is madness... See (TODO: link to email validation email). So we use 
+	# Validating email ourself is madness... See (https://www.youtube.com/watch?v=xxX81WmXjPg). So we use
 	# 'Mail::RFC822::Address'.
 	my $valid = 0;
 	if (valid($email))
