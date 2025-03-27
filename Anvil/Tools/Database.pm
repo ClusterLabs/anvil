@@ -177,6 +177,17 @@ sub parent
 	return ($self->{HANDLE}{TOOLS});
 }
 
+sub DESTROY
+{
+	my $self = shift;
+
+	# Clean up all lingering database listeners
+	foreach my $notify_name (keys %{$self->{listeners}})
+	{
+		$self->remove_listener({ name => $notify_name });
+	}
+}
+
 
 #############################################################################################################
 # Public methods                                                                                            #
