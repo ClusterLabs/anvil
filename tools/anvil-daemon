@@ -2627,7 +2627,7 @@ sub check_job_listener
 	my $count = 0;
 
 	# Loop through job listeners only, there should only be 1.
-	foreach my $pid (key %{$listeners})
+	foreach my $pid (keys %{$listeners})
 	{
 		my $listener = $listeners->{$pid};
 
