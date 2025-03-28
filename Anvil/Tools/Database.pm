@@ -181,10 +181,19 @@ sub DESTROY
 {
 	my $self = shift;
 
+	my $listeners = $self->{listeners};
+
 	# Clean up all lingering database listeners
-	foreach my $notify_name (keys %{$self->{listeners}})
+	foreach my $forks (values %{$listeners})
 	{
-		$self->remove_listener({ name => $notify_name });
+		foreach my $fork (values %{$forks})
+		{
+			next if not $fork->poll();
+
+			print "Database listener with PID: [".$fork->pid."] exiting on DESTROY.\n";
+
+			$fork->kill() or $fork->kill("SIGKILL");
+		}
 	}
 }
 
