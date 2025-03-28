@@ -514,7 +514,11 @@ sub handle_periodic_tasks
 		
 		# This checks to see if the strikers in the DB are also in anvil.conf
 		check_strikers($anvil);
-		
+
+		# Check if the job listener is alive, try spawning it if not.
+		# Let the next minute try again if the spawn fails.
+		spawn_job_listener($anvil) if (not check_job_listener($anvil));
+
 		# Do Striker-specific minute tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
@@ -1422,7 +1426,10 @@ sub run_once
 	
 	# Make sure we don't spam the hell out of the console with network manager messages on boot
 	check_sysctl($anvil);
-	
+
+	# Start listening for jobs.
+	spawn_job_listener($anvil);
+
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
@@ -1964,7 +1971,7 @@ AND
 	handle_special_cases($anvil);
 	
 	# Now look for jobs that have a job status of 'anvil_startup'
-	run_jobs($anvil, 1);
+	run_jobs($anvil, { startup => 1 });
 	
 	# Check to make sure that we don't have conflicts with the Striker WebUI
 	check_for_conflicting_web_ports($anvil);
@@ -2094,7 +2101,7 @@ sub keep_running
 	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
-	run_jobs($anvil, 0);
+	run_jobs($anvil);
 	
 	return(0);
 }
@@ -2104,8 +2111,16 @@ sub keep_running
 # invoked to handle it.
 sub run_jobs
 {
-	my ($anvil, $startup) = @_;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup => $startup }});
+	my $anvil      = shift;
+	my $parameters = shift;
+	# Specifies whether we're in the main process, which needs to make way for the database listener to avoid race conditions.
+	my $in_main    = $parameters->{in_main} // 1;
+	my $startup    = $parameters->{startup} // 0;
+
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		in_main => $in_main,
+		startup => $startup,
+	}});
 	
 	# Don't start jobs for 30 seconds after startup.
 	if (not $startup)
@@ -2181,7 +2196,16 @@ sub run_jobs
 				's13:started_seconds_ago'  => $started_seconds_ago, 
 				's14:updated_seconds_ago'  => $updated_seconds_ago, 
 			}});
-			
+
+			# Let the database listener pick up jobs first, then let the main process pick up any leftovers.
+			if (($in_main) and (not $anvil->data->{seen_jobs}{$job_uuid}))
+			{
+				# We haven't seen this job, mark it as seen but don't process it.
+				$anvil->data->{seen_jobs}{$job_uuid} = 1;
+
+				next;
+			}
+
 			# If we're not configured, we will only run the 'anvil-configure-host' job
 			my $configured = $anvil->System->check_if_configured;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
@@ -2235,6 +2259,9 @@ sub run_jobs
 					job_picked_up_by             => $job_picked_up_by, 
 					"jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started},
 				}});
+
+				# Clean up the "seen" flag for this completed job.
+				delete $anvil->data->{seen_jobs}{$job_uuid} if ($in_main);
 			}
 			else
 			{
@@ -2589,4 +2616,82 @@ sub check_files
 	$anvil->Storage->check_files({debug => 2});
 	
 	return(0);
+}
+
+sub check_job_listener
+{
+	my $anvil = shift;
+
+	my $listeners = $anvil->Database->{listeners}{"after_insert_or_update_job"};
+
+	my $count = 0;
+
+	# Loop through job listeners only, there should only be 1.
+	foreach my $pid (key %{$listeners})
+	{
+		my $listener = $listeners->{$pid};
+
+		if ($listener->poll())
+		{
+			# Adjust the return code, any greater than 0 is a pass.
+			$count += 1;
+		}
+		else
+		{
+			# The job listener was found dead during a periodic check, dispose the remains.
+			delete $listeners->{$pid};
+			# Beat it just to make sure it's actually dead.
+			$listener->kill() or $listener->kill("SIGKILL");
+		}
+	}
+
+	return ($count);
+}
+
+sub spawn_job_listener
+{
+	my $anvil = shift;
+
+	my $handle_notify = sub {
+		my $params = shift;
+		my $notify = $params->{notify};
+
+		my ($name, $pid, $payload) = @$notify;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			name    => $name,
+			pid     => $pid,
+			payload => $payload,
+		}, prefix => "handle_notify" });
+
+		my $job = eval { decode_json($payload); };
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { job => $job } });
+
+		if (not $job)
+		{
+			# Ignore job(s) with malformed payload.
+			return (0);
+		}
+
+		if ($job->{job_progress} != 0)
+		{
+			# Ignore running or finished job(s).
+			return (0);
+		}
+
+		run_jobs($anvil, { in_main => 0 });
+	};
+
+	my ($add_listener_code, $listener, $error) = $anvil->Database->add_listener({
+		name      => "after_insert_or_update_job",
+		on_notify => $handle_notify,
+	});
+
+	if ($add_listener_code != 0)
+	{
+		return (0, undef, $error);
+	}
+
+	return (1, $listener);
 }
