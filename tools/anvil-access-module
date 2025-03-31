@@ -164,9 +164,9 @@ my $running_directory   =  ($0 =~ /^(.*?)\/$THIS_FILE$/)[0];
 
 $running_directory =~ s/^\./$ENV{PWD}/ if $running_directory =~ /^\./ && $ENV{PWD};
 
-my $scmd_db_read   = "r";
-my $scmd_db_write  = "w";
-my $scmd_execute   = "x";
+my $scmd_db_read  = "r";
+my $scmd_db_write = "w";
+my $scmd_execute  = "x";
 
 main();
 
