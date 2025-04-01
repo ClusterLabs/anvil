@@ -984,20 +984,35 @@ sub clone_connection
 
 	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->clone_connection()" } });
 
-	my $disconnect_base = $parameters->{disconnect_base} // 0;
 	my $db_uuid         = $parameters->{uuid}            // $anvil->data->{sys}{database}{primary_db};
+	my $disconnect_base = $parameters->{disconnect_base} // 0;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		db_uuid         => $db_uuid,
+		disconnect_base => $disconnect_base,
+	} });
+
+	my $return_code = 0;
 
 	if (not $db_uuid)
 	{
-		return (1);
+		$return_code = 1;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }, prefix => "Database->clone_connection()" });
+		return ($return_code);
 	}
 
 	# Get the copied parent's database handle, which was made when fork()
 	my $dbh = $anvil->data->{cache}{database_handle}{$db_uuid};
 
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { dbh => $dbh } });
+
 	if ((not $dbh) or (not $dbh->ping()))
 	{
-		return (2);
+		$return_code = 2;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }, prefix => "Database->clone_connection()" });
+		return ($return_code);
 	}
 
 	# Clone the parent's database handle for child use
@@ -1007,21 +1022,20 @@ sub clone_connection
 		pg_enable_utf8 => 1,
 	}); };
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		base_dbh      => $dbh,
-		clone_dbh     => $clone,
-		database_uuid => $db_uuid,
-	} });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $dbh, clone => $clone }, prefix => "dbh" });
 
 	if (not $clone)
 	{
 		# Failed to clone the parent's database handle
-		return (3);
+		$return_code = 3;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }, prefix => "Database->clone_connection()" });
+		return ($return_code);
 	}
 
 	if ($disconnect_base)
 	{
-		$dbh->disconnect();
+		$dbh->disconnect({ debug => $debug });
 	}
 
 	# Release the reference to the copied parent's dbh; this will not close the parent's original database handle when auto_inactive_destroy is set
@@ -1030,7 +1044,11 @@ sub clone_connection
 	# Add the cloned child's database handle
 	$anvil->data->{cache}{database_handle}{$db_uuid} = $clone;
 
-	return (0, $clone);
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		"cache::database_handle::${db_uuid}" => $anvil->data->{cache}{database_handle}{$db_uuid},
+	} });
+
+	return ($return_code, $clone);
 }
 
 
