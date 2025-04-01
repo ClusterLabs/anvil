@@ -1971,7 +1971,7 @@ AND
 	handle_special_cases($anvil);
 	
 	# Now look for jobs that have a job status of 'anvil_startup'
-	run_jobs($anvil, { startup => 1 });
+	run_jobs($anvil, 1);
 	
 	# Check to make sure that we don't have conflicts with the Striker WebUI
 	check_for_conflicting_web_ports($anvil);
@@ -2101,7 +2101,7 @@ sub keep_running
 	}
 	
 	# Run any pending jobs by calling 'anvil-jobs' with the 'job_uuid' as a background process.
-	run_jobs($anvil);
+	run_jobs($anvil, 0);
 	
 	return(0);
 }
@@ -2111,16 +2111,11 @@ sub keep_running
 # invoked to handle it.
 sub run_jobs
 {
-	my $anvil      = shift;
-	my $parameters = shift;
-	# Specifies whether we're in the main process, which needs to make way for the database listener to avoid race conditions.
-	my $in_main    = $parameters->{in_main} // 1;
-	my $startup    = $parameters->{startup} // 0;
+	my ($anvil, $startup) = @_;
 
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		in_main => $in_main,
-		startup => $startup,
-	}});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup => $startup }});
+
+	$startup = $startup // 0;
 	
 	# Don't start jobs for 30 seconds after startup.
 	if (not $startup)
@@ -2197,15 +2192,6 @@ sub run_jobs
 				's14:updated_seconds_ago'  => $updated_seconds_ago, 
 			}});
 
-			# Let the database listener pick up jobs first, then let the main process pick up any leftovers.
-			if (($in_main) and (not $anvil->data->{seen_jobs}{$job_uuid}))
-			{
-				# We haven't seen this job, mark it as seen but don't process it.
-				$anvil->data->{seen_jobs}{$job_uuid} = 1;
-
-				next;
-			}
-
 			# If we're not configured, we will only run the 'anvil-configure-host' job
 			my $configured = $anvil->System->check_if_configured;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { configured => $configured }});
@@ -2259,9 +2245,6 @@ sub run_jobs
 					job_picked_up_by             => $job_picked_up_by, 
 					"jobs::${job_uuid}::started" => $anvil->data->{jobs}{$job_uuid}{started},
 				}});
-
-				# Clean up the "seen" flag for this completed job.
-				delete $anvil->data->{seen_jobs}{$job_uuid} if ($in_main);
 			}
 			else
 			{
@@ -2666,7 +2649,7 @@ sub spawn_job_listener
 
 		my $job = eval { decode_json($payload); };
 
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => { job => $job } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 3, list => { job => $job } });
 
 		if (not $job)
 		{
@@ -2674,16 +2657,19 @@ sub spawn_job_listener
 			return (0);
 		}
 
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => 2, list => $job, prefix => "notify" });
+
 		if ($job->{job_progress} != 0)
 		{
 			# Ignore running or finished job(s).
 			return (0);
 		}
 
-		run_jobs($anvil, { in_main => 0 });
+		run_jobs($anvil, 0);
 	};
 
 	my ($add_listener_code, $listener, $error) = $anvil->Database->add_listener({
+		debug     => 2,
 		name      => "after_insert_or_update_job",
 		on_notify => $handle_notify,
 	});
