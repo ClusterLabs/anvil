@@ -1001,7 +1001,11 @@ sub clone_connection
 	}
 
 	# Clone the parent's database handle for child use
-	my $clone = eval { $dbh->clone(); };
+	my $clone = eval { $dbh->clone({
+		RaiseError     => 1,
+		AutoCommit     => 1,
+		pg_enable_utf8 => 1,
+	}); };
 
 	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		base_dbh      => $dbh,
