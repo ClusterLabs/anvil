@@ -1015,14 +1015,22 @@ sub clone_connection
 		return ($return_code);
 	}
 
+	# Clear the error container before the clone.
+	local $@;
+
 	# Clone the parent's database handle for child use
 	my $clone = eval { $dbh->clone({
-		RaiseError     => 1,
-		AutoCommit     => 1,
-		pg_enable_utf8 => 1,
+		RaiseError          => 1,
+		AutoCommit          => 1,
+		AutoInactiveDestroy => 1,
+		pg_enable_utf8      => 1,
 	}); };
 
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { base => $dbh, clone => $clone }, prefix => "dbh" });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		'$@'  => $@,
+		base  => $dbh,
+		clone => $clone,
+	}, prefix => "dbh" });
 
 	if (not $clone)
 	{
