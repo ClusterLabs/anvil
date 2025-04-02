@@ -177,26 +177,6 @@ sub parent
 	return ($self->{HANDLE}{TOOLS});
 }
 
-sub DESTROY
-{
-	my $self = shift;
-
-	my $listeners = $self->{listeners};
-
-	# Clean up all lingering database listeners
-	foreach my $forks (values %{$listeners})
-	{
-		foreach my $fork (values %{$forks})
-		{
-			next if not $fork->poll();
-
-			print "Database listener with PID: [".$fork->pid."] exiting on DESTROY.\n";
-
-			$fork->kill() or $fork->kill("SIGKILL");
-		}
-	}
-}
-
 
 #############################################################################################################
 # Public methods                                                                                            #
@@ -241,6 +221,11 @@ sub add_listener
 	}
 
 	my $listener = Proc::Simple->new();
+
+	# The reference of all listeners are stored in $self->{listeners}, which will be removed on DESTROY of $self.
+	#
+	# Set the flag to kill the listener when all references to it are removed.
+	$listener->kill_on_destroy(1);
 
 	my $forked = $listener->start(\&run_listener, $self, $parameters);
 
