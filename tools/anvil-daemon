@@ -2326,7 +2326,7 @@ sub run_jobs
 					}
 				}
 			}
-			else
+			elsif ($job_progress == 0) # The race condition handling should only look at not-started jobs.
 			{
 				# Maybe the database doesn't know about the job yet, try to find it in the processes.
 				#
