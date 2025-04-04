@@ -125,7 +125,15 @@ sub manage_group
 	}});
 	if ($group eq "#!SET!#")
 	{
-		print "When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.\n";
+		# When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0366", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -134,7 +142,15 @@ sub manage_group
 	    (($anvil->data->{switches}{add}) && ($anvil->data->{switches}{'rename'})) or
 	    (($anvil->data->{switches}{remove}) && ($anvil->data->{switches}{'rename'})))
 	{
-		print "You can only use '--add', '--remove' or '--rename', please use only one at a time.\n";
+		# You can only use '--add', '--remove' or '--rename', please use only one at a time.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0399", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -144,11 +160,30 @@ sub manage_group
 	{
 		if ($anvil->data->{switches}{anvil})
 		{
-			print "The Anvil! node: [".$anvil->data->{switches}{anvil}."] was not found.\n";
+			# The Anvil! node was not found.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0433", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					anvil => $anvil->data->{switches}{anvil}, 
+				}
+			});
 		}
 		else
 		{
-			print "When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.\n";
+			# When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0492", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -158,7 +193,15 @@ sub manage_group
 	# If the group is 'DELETED', um, what the fuck?
 	if (($group eq "DELETED") or ($new_name eq "DELETED"))
 	{
-		print "You want to name your group 'DELETED'? Well that's cheaky... Exiting.\n";
+		# They wanted to name the group 'DELETED', cheaky...
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0493", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -188,7 +231,19 @@ sub manage_group
 		# Does it already exist?
 		if ($storage_group_uuid)
 		{
-			print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] already exists, nothing to do.\n";
+			# The storage group already exists, nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0170", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					sg_name    => $storage_group_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -199,7 +254,20 @@ sub manage_group
 			storage_group_name       => $storage_group_name,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been created with the UUID: [".$storage_group_uuid."].\n";
+		# The storage group on the Anvil! node has been created.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0171", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				sg_uuid    => $storage_group_uuid, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	elsif ($anvil->data->{switches}{remove})
@@ -207,7 +275,19 @@ sub manage_group
 		# Does it exist?
 		if (not $storage_group_uuid)
 		{
-			print "The storage group: [".$group."] wasn't found on the Anvil! node: [".$anvil_name."], nothing to do.\n";
+			# The storage group wasn't found on the Anvil! node, nothing to do.\n";
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0172", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					group      => $group, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -219,7 +299,19 @@ sub manage_group
 			storage_group_name       => $storage_group_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been deleted.\n";
+		# The storage group on the Anvil! node has been deleted.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0173", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	elsif ($anvil->data->{switches}{'rename'})
@@ -227,14 +319,38 @@ sub manage_group
 		# Do we have a new name?
 		if (not $new_name)
 		{
-			print "The storage group: [".$storage_group_name."] exists on the Anvil! node: [".$anvil_name."], but no new name was given via '--new-name <name>' nothing to do.\n";
+			# The storage group exists on the Anvil! node, but no new name was given via '--new-name <name>' nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0493", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					sg_name    => $storage_group_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
 		# Has the name changed?
 		if (($storage_group_name) eq ($new_name))
 		{
-			print "The storage group: [".$new_name."] already has the desired name on the: [".$anvil_name."], nothing to do.\n";
+			# The storage group already has the desired name on the Anvil! node, nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0174", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					new_name   => $new_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -246,7 +362,20 @@ sub manage_group
 			storage_group_name       => $new_name,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been renamed to: [".$new_name."].\n";
+		# The storage group on the Anvil! node has been renamed.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0176", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				new_name   => $new_name, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 
