@@ -495,13 +495,18 @@ Output (if any):
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
 		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
 		<key name="error_0323">The job to delete the server: [#!variable!server_name!# (#!variable!server_uuid!#)] to the subnode: [#!variable!host_name!# (#!variable!host_uuid!#)]. The new job UUID is: [#!variable!job_uuid!#].</key>
-		<key name="error_0324">#!free!#</key>
-		<key name="error_0325">#!free!#</key>
-		<key name="error_0326">#!free!#</key>
-		<key name="error_0327">#!free!#</key>
-		<key name="error_0328">#!free!#</key>
-		<key name="error_0329">#!free!#</key>
-		<key name="error_0330">#!free!#</key>
+		<key name="error_0324">The Anvil! node: [#!variable!anvil!#] was not found.</key>
+		<key name="error_0325"><![CDATA[When managing a storage group members, '--anvil <name or UUID>' is required as storage group names are not globally unique.]]>></key>
+		<key name="error_0326">The storage group: [#!variable!group!#] was not found on the Anvil! node: [#!variable!anvil!#].
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0327">Both '--add' and '--remove' specified, please use only one at a time.</key>
+		<key name="error_0328">The volume group with the internal UUID: [#!variable!vg_uuid!#] was not found.
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0329">The volume group: [#!variable!vg_name!#] is on the deleted host: [#!variable!host_name!#]
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0330">The volume group: [#!variable!vg_name!#] is on the Striker dashboard: [#!variable!host_name!#].
+There's no point in a Striker being part of a storage group.
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
 		<key name="error_0331">[ Error ] - The IPMI BMC administrator (oem) user was not found. The output (if any) of the call: [#!variable!shell_call!#] was:
 ====
 #!variable!output!#
@@ -562,7 +567,8 @@ The output, if any, was;
 		<key name="error_0359">There are no databases available, exiting.</key>
 		<key name="error_0360">Unable to find the Anvil! information for the Anvil! UUID: [#!variable!anvil_uuid!#].</key>
 		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
-		<key name="error_0362">#!free!#</key>
+		<key name="error_0362">The volume group: [#!variable!vg_name!#] is on the sub node: [#!variable!host_name!#]. This is part of
+the Anvil! node: [#!variable!on_node_name!#], but: [#!variable!node_name!#] was specified with '--anvil'.</key>
 		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the duplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
@@ -3011,24 +3017,24 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">The '--confirm' switch was used, proceeding.</key>
 		<key name="message_0151">Are you sure you want to reset: [#!variable!server_name!#]? [y/N].</key>
-		<key name="message_0152">#!free!#</key>
+		<key name="message_0152">Beginning to manage Storage Groups.</key>
 		<key name="message_0153">Local repository</key>
-		<key name="message_0154">#!free!#</key>
-		<key name="message_0155">#!free!#</key>
-		<key name="message_0156">#!free!#</key>
-		<key name="message_0157">#!free!#</key>
-		<key name="message_0158">#!free!#</key>
+		<key name="message_0154">Anvil Node: [#!variable!name!#] - #!variable!description!#</key>
+		<key name="message_0155">- Subnode: [#!variable!subnode!#] volume groups;</key>
+		<key name="message_0156"> - [#!variable!vg_name!#], size: [#!variable!size!#], free: [#!variable!free!#], internal UUID: [#!variable!uuid!#]</key>
+		<key name="message_0157">- Storage group: [#!variable!sg_name!#], UUID: [#!variable!uuid!#]</key>
+		<key name="message_0158"> - [#!variable!host_name!#]:[#!variable!vg_name!#]</key>
 		<key name="message_0159">Updated module metadata.</key>
 		<key name="message_0160">Back-Channel Network</key>
 		<key name="message_0161">Storage Network</key>
 		<key name="message_0162">Internet-Facing Network</key>
-		<key name="message_0163">#!free!#</key>
-		<key name="message_0164">#!free!#</key>
-		<key name="message_0165">#!free!#</key>
-		<key name="message_0166">#!free!#</key>
-		<key name="message_0167">#!free!#</key>
-		<key name="message_0168">#!free!#</key>
-		<key name="message_0169">#!free!#</key>
+		<key name="message_0163">Disaster Recovery Hosts:</key>
+		<key name="message_0164">- DR Host: [#!variable!host_name!#] VGs:</key>
+		<key name="message_0165">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] is already a member of the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0166">Added the volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] to the storage group: [#!variable!sg_name!#]. The new member UUID is: [#!variable!sg_uuid!#].</key>
+		<key name="message_0167">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has never been a member of the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0168">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has already been removed from the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0169">Added the volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has been removed from storage group: [#!variable!sg_name!#].</key>
 		<key name="message_0170">#!free!#</key>
 		<key name="message_0171">#!free!#</key>
 		<key name="message_0172">#!free!#</key>
