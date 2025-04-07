@@ -759,8 +759,9 @@ sub show_data
 		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
 		{
 			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
-			# Show the storage group
-			print $anvil->Words->string({key => "message_0157", variables => { 
+			# Show the storage group, if the members exist and aren't deleted.
+			my $vg_count = 0;
+			my $display  = $anvil->Words->string({key => "message_0157", variables => { 
 				sg_name => $storage_group_name, 
 				uuid    => $storage_group_uuid, 
 			}})."\n";
@@ -770,11 +771,16 @@ sub show_data
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
 				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
 				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
+				   $vg_count++;
 				# Show the member host name / VG name
-				print $anvil->Words->string({key => "message_0158", variables => { 
+				$display .= $anvil->Words->string({key => "message_0158", variables => { 
 					host_name => $member_short_host_name, 
 					vg_name   => $vg_name, 
 				}})."\n";
+			}
+			if ($vg_count >= 2)
+			{
+				print $display;
 			}
 		}
 

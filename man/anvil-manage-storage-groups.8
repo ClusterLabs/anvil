@@ -58,10 +58,12 @@ When used with \fB\-\-rename\fR and \fB\-\-group <name or UUID>\fR, this specifi
 This shows the storage groups on each Anvil! node (or just the one specified with \fB\-\-anvil <name or UUID>\fR), and the available DR hosts.
 .TP
 .SH EXAMPLES
-
+.RE
+Show existing storage group details
+.RS
+anvil-manage-storage-groups --show
 .RE
 Add a VG to a storage group
-
 .RS
 anvil-manage-storage-groups --anvil vm-anvil-01 --group "Storage group 1" --add --member edrYMv-Fl2D-o0tO-g8ok-idOh-oBIh-65LuD6
 .IP
