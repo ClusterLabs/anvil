@@ -55,6 +55,8 @@ export const getAnvilStorageGroup: RequestHandler<
         WHERE
             a.anvil_uuid = '${anUuid}'
           AND
+            b.storage_group_name != '${DELETED}'
+          AND
             d.scan_lvm_vg_name != '${DELETED}'
         GROUP BY
           b.storage_group_uuid,
