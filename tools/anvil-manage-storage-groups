@@ -9,9 +9,9 @@
 # 1 = Any problem that causes an early exit.
 #
 # Examples;
-#  - TODO: Write the man page!
 # - anvil-manage-storage-groups -vv --log-secure --anvil mk-anvil-07 --rename --group "Storage group 2" --new-name "HDD Group 1"
 # - anvil-manage-storage-groups -vv --log-secure --anvil mk-anvil-07 --add --group "HDD Group 1" --member xidRiS-KT4K-cmVN-MRbK-tI2c-jhK6-VCCLau
+# - 
 
 use strict;
 use warnings;
@@ -35,7 +35,9 @@ my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches({list => [
 	"add",
-	"anvil",
+	"anvil", 
+	"confirm", 
+	"dr", 
 	"remove",
 	"rename",
 	"group",
@@ -56,6 +58,21 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "error_0306"});
 	sleep 10;
 	$anvil->nice_exit({exit_code => 1});
+}
+
+# Pick up the job, if any.
+if ($anvil->data->{switches}{'job-uuid'})
+{
+	$anvil->Jobs->get_job_details({debug => 2});
+	$anvil->Jobs->clear({debug => 2});
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 1}), 
+		message   => "message_0152", 
+		'print'   => 1,
+		log_level => 1,
+		file      => $THIS_FILE, 
+		line      => __LINE__,
+	});
 }
 
 $anvil->Database->get_hosts({include_deleted => 1});
@@ -80,7 +97,17 @@ if ($anvil->data->{switches}{group})
 	manage_group($anvil);
 }
 
-show_data($anvil);
+#show_data($anvil);
+
+# We're done
+$anvil->Job->update_progress({
+	progress  => 100, 
+	message   => "job_0281", 
+	'print'   => 1,
+	log_level => 1,
+	file      => $THIS_FILE, 
+	line      => __LINE__,
+});
 $anvil->nice_exit({exit_code => 0});
 
 
@@ -100,7 +127,15 @@ sub manage_group
 	}});
 	if ($group eq "#!SET!#")
 	{
-		print "When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.\n";
+		# When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0366", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -109,7 +144,15 @@ sub manage_group
 	    (($anvil->data->{switches}{add}) && ($anvil->data->{switches}{'rename'})) or
 	    (($anvil->data->{switches}{remove}) && ($anvil->data->{switches}{'rename'})))
 	{
-		print "You can only use '--add', '--remove' or '--rename', please use only one at a time.\n";
+		# You can only use '--add', '--remove' or '--rename', please use only one at a time.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0399", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -119,11 +162,30 @@ sub manage_group
 	{
 		if ($anvil->data->{switches}{anvil})
 		{
-			print "The Anvil! node: [".$anvil->data->{switches}{anvil}."] was not found.\n";
+			# The Anvil! node was not found.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0433", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					anvil => $anvil->data->{switches}{anvil}, 
+				}
+			});
 		}
 		else
 		{
-			print "When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.\n";
+			# When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0492", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -133,7 +195,15 @@ sub manage_group
 	# If the group is 'DELETED', um, what the fuck?
 	if (($group eq "DELETED") or ($new_name eq "DELETED"))
 	{
-		print "You want to name your group 'DELETED'? Well that's cheaky... Exiting.\n";
+		# They wanted to name the group 'DELETED', cheaky...
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0493", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -157,13 +227,30 @@ sub manage_group
 			storage_group_name => $storage_group_name,
 		}});
 	}
+	elsif (($group) && ($anvil->data->{switches}{add}))
+	{
+		$storage_group_name = $group;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_name => $storage_group_name }});
+	}
 
 	if ($anvil->data->{switches}{add})
 	{
 		# Does it already exist?
 		if ($storage_group_uuid)
 		{
-			print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] already exists, nothing to do.\n";
+			# The storage group already exists, nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0170", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					sg_name    => $storage_group_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -173,8 +260,25 @@ sub manage_group
 			storage_group_anvil_uuid => $anvil_uuid,
 			storage_group_name       => $storage_group_name,
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been created with the UUID: [".$storage_group_uuid."].\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			storage_group_uuid => $storage_group_uuid,
+			storage_group_name => $storage_group_name, 
+		}});
+		
+		# The storage group on the Anvil! node has been created.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0171", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				sg_uuid    => $storage_group_uuid, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	elsif ($anvil->data->{switches}{remove})
@@ -182,19 +286,60 @@ sub manage_group
 		# Does it exist?
 		if (not $storage_group_uuid)
 		{
-			print "The storage group: [".$group."] wasn't found on the Anvil! node: [".$anvil_name."], nothing to do.\n";
+			# The storage group wasn't found on the Anvil! node, nothing to do.\n";
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0172", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					group      => $group, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
-
+		
+		# Did the user confirm?
+		if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
+		{
+			print $anvil->Words->string({key => "message_0199", variables => {
+				sg_name    => $storage_group_name, 
+				anvil_name => $anvil_name, 
+			}})."\n";
+			print $anvil->Words->string({key => "message_0021"})." ";
+			my $answer = <STDIN>;
+			chomp($answer);
+			if ($answer !~ /^y/i)
+			{
+				print $anvil->Words->string({key => "message_0022"})."\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		
 		# Remove it.
 		$storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
 			debug                    => 2,
 			storage_group_anvil_uuid => $anvil_uuid,
 			storage_group_name       => "DELETED",
-			storage_group_name       => $storage_group_uuid,
+			storage_group_uuid       => $storage_group_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been deleted.\n";
+		# The storage group on the Anvil! node has been deleted.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0173", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	elsif ($anvil->data->{switches}{'rename'})
@@ -202,14 +347,38 @@ sub manage_group
 		# Do we have a new name?
 		if (not $new_name)
 		{
-			print "The storage group: [".$storage_group_name."] exists on the Anvil! node: [".$anvil_name."], but no new name was given via '--new-name <name>' nothing to do.\n";
+			# The storage group exists on the Anvil! node, but no new name was given via '--new-name <name>' nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0493", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					sg_name    => $storage_group_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
 		# Has the name changed?
 		if (($storage_group_name) eq ($new_name))
 		{
-			print "The storage group: [".$new_name."] already has the desired name on the: [".$anvil_name."], nothing to do.\n";
+			# The storage group already has the desired name on the Anvil! node, nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0174", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__, 
+				variables => {
+					new_name   => $new_name, 
+					anvil_name => $anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -221,7 +390,20 @@ sub manage_group
 			storage_group_name       => $new_name,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
-		print "The storage group: [".$storage_group_name."] on the Anvil! node: [".$anvil_name."] has been renamed to: [".$new_name."].\n";
+		# The storage group on the Anvil! node has been renamed.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0176", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__, 
+			variables => {
+				sg_name    => $storage_group_name, 
+				new_name   => $new_name, 
+				anvil_name => $anvil_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 
@@ -239,11 +421,30 @@ sub manage_group_member
 	{
 		if ($anvil->data->{switches}{anvil})
 		{
-			print "The Anvil! node: [".$anvil->data->{switches}{anvil}."] was not found.\n";
+			# The Anvil! node was not found.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0324", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					anvil => $anvil->data->{switches}{anvil},
+				},
+			});
 		}
 		else
 		{
-			print "When managing a storage group members, '--anvil <name or UUID>' is required as storage group names are not globally unique.\n";
+			# Not called with '--anvil'
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0325", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+			});
 		}
 		$anvil->nice_exit({exit_code => 1});
 	}
@@ -275,9 +476,19 @@ sub manage_group_member
 
 	if (not $storage_group_uuid)
 	{
-		# Group not found.
-		print "The storage group: [".$group."] was not found on the Anvil! node: [".$anvil_name."].\n";
-		print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+		# Group not found on the specified node
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "error_0326", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+			variables => {
+				anvil => $anvil_name, 
+				group => $group, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -290,7 +501,15 @@ sub manage_group_member
 		# If both are set, what?
 		if (($anvil->data->{switches}{add}) && ($anvil->data->{switches}{remove}))
 		{
-			print "Both '--add' and '--remove' specified, please use only one at a time.\n";
+			# Can't use both at the same time.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0327", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
@@ -301,8 +520,18 @@ sub manage_group_member
 		# Find the VG internal UUID.
 		if (not exists $anvil->data->{vgs}{scan_lvm_vg_internal_uuid}{$member_vg_uuid})
 		{
-			print "The volume group with the internal UUID: [".$member_vg_uuid."] was not found.\n";
-			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			# VG internal UUID wasn't found
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0328", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_uuid => $member_vg_uuid, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
@@ -328,23 +557,57 @@ sub manage_group_member
 		}});
 		if ($host_key eq "DELETED")
 		{
-			print "The volume group: [".$lvm_vg_name."] is on the deleted host: [".$host_name."]\n";
-			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			# The host is deleted.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0329", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_name   => $lvm_vg_name, 
+					host_name => $host_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
 		if ($host_type eq "striker")
 		{
-			print "The volume group: [".$lvm_vg_name."] is on the Striker dashboard: [".$host_name."].\n";
-			print "There's no point in a Striker being part of a storage group.\n";
-			print "Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.\n";
+			# Can't use VGs from strikers.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0330", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_name   => $lvm_vg_name, 
+					host_name => $host_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 
 		if (($host_type eq "node") && ($anvil_uuid ne $host_anvil_uuid))
 		{
-			print "The volume group: [".$lvm_vg_name."] is on the sub node: [".$host_name."]. This is part of\n";
-			print "the Anvil! node: [".$host_anvil_name."], but: [".$anvil_name."] was specified with '--anvil'.\n";
+			# VG is on a subnode in another node
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "error_0362", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_name      => $lvm_vg_name, 
+					host_name    => $host_name, 
+					node_name    => $anvil_name, 
+					on_node_name => $host_anvil_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 1});
 		}
 	}
@@ -361,8 +624,20 @@ sub manage_group_member
 
 			if ($storage_group_member_note ne "DELETED")
 			{
-				# Nothing to do.
-				print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] is already a member of the storage group: [".$storage_group_name."]. Nothing to do.\n";
+				# Already a member, nothing to do.
+				$anvil->Job->update_progress({
+					progress  => 100, 
+					message   => "message_0165", 
+					'print'   => 1,
+					log_level => 1,
+					file      => $THIS_FILE, 
+					line      => __LINE__,
+					variables => {
+						vg_name   => $lvm_vg_name, 
+						host_name => $short_host_name, 
+						sg_name   => $storage_group_name, 
+					},
+				});
 				$anvil->nice_exit({exit_code => 0});
 			}
 		}
@@ -375,7 +650,23 @@ sub manage_group_member
 			storage_group_member_vg_uuid            => $internal_vg_uuid,
 			storage_group_member_note               => "user-created",
 		});
-		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] to the storage group: [".$storage_group_name."]. The new member UUID is: [".$storage_group_member_uuid."].\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_uuid => $storage_group_member_uuid }});
+		
+		# Tell the user
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0166", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+			variables => {
+				vg_name   => $lvm_vg_name, 
+				host_name => $short_host_name, 
+				sg_name   => $storage_group_name, 
+				sg_uuid   => $storage_group_member_uuid, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 	else
@@ -383,16 +674,40 @@ sub manage_group_member
 		# If there's no existing entry, there's nothing to remove.
 		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid})
 		{
-			# Nothing to do.
-			print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has never been a member of the storage group: [".$storage_group_name."]. Nothing to do.\n";
+			# Never been a memberm nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0167", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_name   => $lvm_vg_name, 
+					host_name => $short_host_name, 
+					sg_name   => $storage_group_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
 		# If the note is not 'DELETED', we don't need to add it.
 		if ($anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{storage_group_member_note} eq "DELETED")
 		{
-			# Nothing to do.
-			print "The volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has already been removed from the storage group: [".$storage_group_name."]. Nothing to do.\n";
+			# Already removed, nothing to do.
+			$anvil->Job->update_progress({
+				progress  => 100, 
+				message   => "message_0168", 
+				'print'   => 1,
+				log_level => 1,
+				file      => $THIS_FILE, 
+				line      => __LINE__,
+				variables => {
+					vg_name   => $lvm_vg_name, 
+					host_name => $short_host_name, 
+					sg_name   => $storage_group_name, 
+				},
+			});
 			$anvil->nice_exit({exit_code => 0});
 		}
 
@@ -404,7 +719,22 @@ sub manage_group_member
 			storage_group_member_vg_uuid            => $internal_vg_uuid,
 			storage_group_member_note               => "DELETED",
 		});
-		print "Added the volume group: [".$lvm_vg_name."] on the host: [".$short_host_name."] has been removed from storage group: [".$storage_group_name."].\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_uuid => $storage_group_member_uuid }});
+		
+		# Tell them it's been removed.
+		$anvil->Job->update_progress({
+			progress  => 100, 
+			message   => "message_0169", 
+			'print'   => 1,
+			log_level => 1,
+			file      => $THIS_FILE, 
+			line      => __LINE__,
+			variables => {
+				vg_name   => $lvm_vg_name, 
+				host_name => $short_host_name, 
+				sg_name   => $storage_group_name, 
+			},
+		});
 		$anvil->nice_exit({exit_code => 0});
 	}
 
@@ -424,71 +754,151 @@ sub show_data
 		my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"            => $anvil_name, 
+			"s2:anvil_uuid"            => $anvil_uuid, 
+			"s3:anvil_description"     => $anvil_description, 
+			"s4:anvil_node1_host_uuid" => $anvil_node1_host_uuid, 
+			"s5:anvil_node2_host_uuid" => $anvil_node2_host_uuid, 
+		}});
 		if (($show_anvil_uuid) && ($anvil_uuid ne $show_anvil_uuid))
 		{
 			next;
 		}
-
-		print "Anvil Node: [".$anvil_name."] - ".$anvil_description."\n";
+		
+		# Show the Anvil! node and description
+		print $anvil->Words->string({key => "message_0154", variables => { 
+			name        => $anvil_name,
+			description => $anvil_description, 
+		}})."\n";
 		foreach my $node_host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
 		{
 			my $node_host_name = $anvil->data->{hosts}{host_uuid}{$node_host_uuid}{short_host_name};
-			print "- Subnode: [".$node_host_name."] volume groups;\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:node_host_uuid" => $node_host_uuid, 
+				"s2:node_host_name" => $node_host_name, 
+			}});
+			# Show the subnode
+			print $anvil->Words->string({key => "message_0155", variables => { subnode => $node_host_name }})."\n";
 			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}})
 			{
-				next if $scan_lvm_vg_name eq "DELETED";
 				my $scan_lvm_vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
 				my $scan_lvm_vg_size          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size};
 				my $scan_lvm_vg_free          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free};
 				my $say_size_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size});
 				my $say_free_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free});
-				print " - [".$scan_lvm_vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$scan_lvm_vg_internal_uuid."]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:scan_lvm_vg_name"          => $scan_lvm_vg_name, 
+					"s2:scan_lvm_vg_internal_uuid" => $scan_lvm_vg_internal_uuid, 
+					"s3:scan_lvm_vg_size"          => $scan_lvm_vg_size, 
+					"s4:scan_lvm_vg_free"          => $scan_lvm_vg_free, 
+					"s5:say_size_hr"               => $say_size_hr, 
+					"s6:say_free_hr"               => $say_free_hr, 
+				}});
+				next if $scan_lvm_vg_name eq "DELETED";
+				
+				# Show the volume group name
+				print $anvil->Words->string({key => "message_0156", variables => { 
+					vg_name => $scan_lvm_vg_name, 
+					size    => $say_size_hr, 
+					free    => $say_free_hr, 
+					uuid    => $scan_lvm_vg_internal_uuid, 
+				}})."\n";
 			}
 		}
 		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
 		{
 			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
-			print "- Storage group: [".$storage_group_name."], UUID: [".$storage_group_uuid."]\n";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:storage_group_name" => $storage_group_name, 
+				"s2:storage_group_uuid" => $storage_group_uuid, 
+			}});
+			next if $storage_group_name eq "DELETED";
+			
+			# Show the storage group, if the members exist and aren't deleted.
+			my $member_count = 0;
+			print $anvil->Words->string({key => "message_0157", variables => { 
+				sg_name => $storage_group_name, 
+				uuid    => $storage_group_uuid, 
+			}})."\n";
 			foreach my $member_short_host_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}})
 			{
 				my $member_host_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{short_host_name}{$member_short_host_name}{host_uuid};
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
 				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
 				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
-				print " - [".$member_short_host_name."]:[".$vg_name."]\n";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:member_short_host_name"    => $member_short_host_name, 
+					"s2:member_host_uuid"          => $member_host_uuid, 
+					"s3:storage_group_member_uuid" => $storage_group_member_uuid, 
+					"s4:vg_internal_uuid"          => $vg_internal_uuid, 
+					"s5:vg_name"                   => $vg_name, 
+				}});
+				next if $vg_name eq "DELETED";
+				$member_count++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { member_count => $member_count }});
+				
+				# Show the member host name / VG name
+				print $anvil->Words->string({key => "message_0158", variables => { 
+					host_name => $member_short_host_name, 
+					vg_name   => $vg_name, 
+				}})."\n";
+			}
+			if (not $member_count)
+			{
+				print $anvil->Words->string({key => "message_0207"})."\n";
 			}
 		}
-
 		print "\n";
 	}
 
 	# Show DR hosts and their VGs
-	print "Disaster Recovery Hosts:\n";
-	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	if ($anvil->data->{switches}{dr})
 	{
-		my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
-		my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
-		my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-			host_uuid       => $host_uuid,
-			host_name       => $host_name,
-			host_type       => $host_type,
-			short_host_name => $short_host_name,
-		}});
-		next if $host_type ne "dr";
-
-		print "- DR Host: [".$short_host_name."] VGs:\n";
-		foreach my $vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}})
+		print $anvil->Words->string({key => "message_0163"})."\n";
+		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
-			my $vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}{$vg_name}{scan_lvm_vg_internal_uuid};
-			my $vg_size          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_size};
-			my $vg_free          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_free};
-			my $say_size_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size});
-			my $say_free_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
-			print " - [".$vg_name."], size: [".$say_size_hr."], free: [".$say_free_hr."], internal UUID: [".$vg_internal_uuid."]\n";
+			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+			my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
+			my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				"s1:host_uuid"       => $host_uuid,
+				"s2:host_name"       => $host_name,
+				"s3:host_type"       => $host_type,
+				"s4:short_host_name" => $short_host_name,
+			}});
+			next if $host_type ne "dr";
+			
+			# Show the DR host
+			print $anvil->Words->string({key => "message_0164", variables => { host_name => $short_host_name }})."\n";
+			foreach my $vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}})
+			{
+				my $vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}{$vg_name}{scan_lvm_vg_internal_uuid};
+				my $vg_size          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_size};
+				my $vg_free          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_free};
+				my $say_size_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size});
+				my $say_free_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					"s1:vg_name"          => $vg_name,
+					"s2:vg_internal_uuid" => $vg_internal_uuid,
+					"s3:vg_size"          => $vg_size,
+					"s4:vg_free"          => $vg_free,
+					"s5:say_size_hr"      => $say_size_hr, 
+					"s6:say_free_hr"      => $say_free_hr, 
+				}});
+				next if $vg_name eq "DELETED";
+				
+				# Show the VG
+				print $anvil->Words->string({key => "message_0156", variables => { 
+					vg_name => $short_host_name,
+					size    => $say_size_hr, 
+					free    => $say_free_hr, 
+					uuid    => $vg_internal_uuid, 
+				}})."\n";
+			}
 		}
+		print "\n";
 	}
-	print "\n";
 
 	return(0);
 }

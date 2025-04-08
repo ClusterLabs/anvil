@@ -495,13 +495,18 @@ Output (if any):
 		<key name="error_0321">The bad key: [#!variable!key!#] was not found. Has it already been removed? Exiting.</key>
 		<key name="error_0322"><![CDATA[Failed to parse the bad algorithm and key from the job data: [#!variable!job_data!#] (should be 'bad_key=<algo> <key>'), unable to proceed.]]></key>
 		<key name="error_0323">The job to delete the server: [#!variable!server_name!# (#!variable!server_uuid!#)] to the subnode: [#!variable!host_name!# (#!variable!host_uuid!#)]. The new job UUID is: [#!variable!job_uuid!#].</key>
-		<key name="error_0324">#!free!#</key>
-		<key name="error_0325">#!free!#</key>
-		<key name="error_0326">#!free!#</key>
-		<key name="error_0327">#!free!#</key>
-		<key name="error_0328">#!free!#</key>
-		<key name="error_0329">#!free!#</key>
-		<key name="error_0330">#!free!#</key>
+		<key name="error_0324">The Anvil! node: [#!variable!anvil!#] was not found.</key>
+		<key name="error_0325"><![CDATA[When managing a storage group members, '--anvil <name or UUID>' is required as storage group names are not globally unique.]]></key>
+		<key name="error_0326">The storage group: [#!variable!group!#] was not found on the Anvil! node: [#!variable!anvil!#].
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0327">Both '--add' and '--remove' specified, please use only one at a time.</key>
+		<key name="error_0328">The volume group with the internal UUID: [#!variable!vg_uuid!#] was not found.
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0329">The volume group: [#!variable!vg_name!#] is on the deleted host: [#!variable!host_name!#]
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
+		<key name="error_0330">The volume group: [#!variable!vg_name!#] is on the Striker dashboard: [#!variable!host_name!#].
+There's no point in a Striker being part of a storage group.
+Call with '--show' to see Anvil! nodes, DR hosts and existing storage groups.</key>
 		<key name="error_0331">[ Error ] - The IPMI BMC administrator (oem) user was not found. The output (if any) of the call: [#!variable!shell_call!#] was:
 ====
 #!variable!output!#
@@ -562,11 +567,12 @@ The output, if any, was;
 		<key name="error_0359">There are no databases available, exiting.</key>
 		<key name="error_0360">Unable to find the Anvil! information for the Anvil! UUID: [#!variable!anvil_uuid!#].</key>
 		<key name="error_0361">Unable to find the DRBD config from either node in the Anvil! with the Anvil! UUID: [#!variable!anvil_uuid!#]. Has scan_drbd (as part of scancore) run on either nodes?</key>
-		<key name="error_0362">#!free!#</key>
+		<key name="error_0362">The volume group: [#!variable!vg_name!#] is on the sub node: [#!variable!host_name!#]. This is part of
+the Anvil! node: [#!variable!on_node_name!#], but: [#!variable!node_name!#] was specified with '--anvil'.</key>
 		<key name="error_0363">There are two or more entries on the host: [#!variable!host!#] in the history table: [#!variable!table!#]! The duplicate modidied_date and column UUID are: [#!variable!key!#] (time is UTC), and the query that exposed the duplicate was: [#!variable!query!#]. This is likely caused by two database writes where the 'modified_date' wasn't updated between writes.</key>
 		<key name="error_0364">[ Error ] - There was a problem purging records. The details of the problem should be in the logs.</key>
 		<key name="error_0365">The table: [#!variable!table!#] has an entry in the history schema that doesn't have a corresponding record in the public schema. This is likely a resync artifact of a deleted record. Purging the record: [#!variable!uuid_column!#:#!variable!column_uuid!#] from all databases.</key>
-		<key name="error_0366">#!free!#</key>
+		<key name="error_0366">When adding, removing or renaming a group, '--group' needs to be set to the (new) group name.</key>
 		<key name="error_0367"><![CDATA[[ Error ] - I was asked to parse the server definition XML, but it looks like I was passed in the output of a 'virsh dumpxml <server>' for a server that was not running.
 
 The definition data passed in was:
@@ -626,7 +632,7 @@ The definition data passed in was:
 		<key name="error_0396">[ Error ] - The Anvil! UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="error_0397">[ Error ] - The DR link UUID: [#!variable!uuid!#] was not found.</key>
 		<key name="error_0398">[ Error ] - There was a problem processing the requested network: [#!variable!network!#]. Details should be logged.</key>
-		<key name="error_0399">#!free!#</key>
+		<key name="error_0399">You can only use '--add', '--remove' or '--rename', please use only one at a time.</key>
 		<key name="error_0400">[ Error ] - The requested DR host: [#!variable!dr_host!#] was not found.</key>
 		<key name="error_0401">#!free!#</key>
 		<key name="error_0402">There are multiple DR hosts connected to this Anvil! node. Please specify which you want to use to protect this server;</key>
@@ -685,7 +691,7 @@ The error was:
 </key>
 		<key name="error_0432">Failed!
 [ Error ] - The peers did not connect in the expected period of time.</key>
-		<key name="error_0433">#!free!#</key>
+		<key name="error_0433">The Anvil! node: [#!variable!anvil!#] was not found.</key>
 		<key name="error_0434">
 [ Error ] - The definition file read here appears to be invalid after trying to attach the disk! It is unsafe
 [ Error ] - to update the on disk and in DB definition. It's likely the attach has failed.
@@ -826,6 +832,9 @@ The XML that failed sanity check was:
 		<key name="error_0489">[ Error ] - Failed to map the IP address: [#!variable!ip_address!#] to a network manager connection UUID!</key>
 		<key name="error_0490">[ Error ] - Both the netbios name: [#!variable!wanted_link_name!#] and the old device name: [#!variable!old_device!#] are the same, 'match.interface-name' would break!</key>
 		<key name="error_0491">[ Error ] - Neither an Anvil! name or a host name was specified, nothing to purge.</key>
+		<key name="error_0492"><![CDATA[When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.]]></key>
+		<key name="error_0493">You want to name your group 'DELETED'? Well that's cheaky... Exiting.</key>
+		<key name="error_0494"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -3011,31 +3020,31 @@ About to try to download approximately: [#!variable!packages!#] packages needed 
 		<key name="message_0149">The target: [#!variable!target!#]'s host key has changed. If the target has been rebuilt, or the target IP reused, the old key will need to be removed. If this is the case, remove line: [#!variable!line!#] from: [#!variable!file!#].</key>
 		<key name="message_0150">The '--confirm' switch was used, proceeding.</key>
 		<key name="message_0151">Are you sure you want to reset: [#!variable!server_name!#]? [y/N].</key>
-		<key name="message_0152">#!free!#</key>
+		<key name="message_0152">Beginning to manage Storage Groups.</key>
 		<key name="message_0153">Local repository</key>
-		<key name="message_0154">#!free!#</key>
-		<key name="message_0155">#!free!#</key>
-		<key name="message_0156">#!free!#</key>
-		<key name="message_0157">#!free!#</key>
-		<key name="message_0158">#!free!#</key>
+		<key name="message_0154">Anvil Node: [#!variable!name!#] - #!variable!description!#</key>
+		<key name="message_0155">- Subnode: [#!variable!subnode!#] volume groups;</key>
+		<key name="message_0156"> - [#!variable!vg_name!#], size: [#!variable!size!#], free: [#!variable!free!#], internal UUID: [#!variable!uuid!#]</key>
+		<key name="message_0157">- Storage group: [#!variable!sg_name!#], UUID: [#!variable!uuid!#]</key>
+		<key name="message_0158"> - [#!variable!host_name!#]:[#!variable!vg_name!#]</key>
 		<key name="message_0159">Updated module metadata.</key>
 		<key name="message_0160">Back-Channel Network</key>
 		<key name="message_0161">Storage Network</key>
 		<key name="message_0162">Internet-Facing Network</key>
-		<key name="message_0163">#!free!#</key>
-		<key name="message_0164">#!free!#</key>
-		<key name="message_0165">#!free!#</key>
-		<key name="message_0166">#!free!#</key>
-		<key name="message_0167">#!free!#</key>
-		<key name="message_0168">#!free!#</key>
-		<key name="message_0169">#!free!#</key>
-		<key name="message_0170">#!free!#</key>
-		<key name="message_0171">#!free!#</key>
-		<key name="message_0172">#!free!#</key>
-		<key name="message_0173">#!free!#</key>
-		<key name="message_0174">#!free!#</key>
+		<key name="message_0163">Disaster Recovery Hosts:</key>
+		<key name="message_0164">- DR Host: [#!variable!host_name!#] VGs:</key>
+		<key name="message_0165">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] is already a member of the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0166">Added the volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] to the storage group: [#!variable!sg_name!#]. The new member UUID is: [#!variable!sg_uuid!#].</key>
+		<key name="message_0167">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has never been a member of the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0168">The volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has already been removed from the storage group: [#!variable!sg_name!#]. Nothing to do.</key>
+		<key name="message_0169">Added the volume group: [#!variable!vg_name!#] on the host: [#!variable!host_name!#] has been removed from storage group: [#!variable!sg_name!#].</key>
+		<key name="message_0170">The storage group: [#!variable!sg_name!#] on the Anvil! node: [#!variable!anvil_name!#] already exists, nothing to do.</key>
+		<key name="message_0171">The storage group: [#!variable!sg_name!#] on the Anvil! node: [#!variable!anvil_name!#] has been created with the UUID: [#!variable!sg_uuid!#].</key>
+		<key name="message_0172">The storage group: [#!variable!group!#] wasn't found on the Anvil! node: [#!variable!anvil_name!#], nothing to do.</key>
+		<key name="message_0173">The storage group: [#!variable!sg_name!#] on the Anvil! node: [#!variable!anvil_name!#] has been deleted.</key>
+		<key name="message_0174">The storage group: [#!variable!new_name!#] already has the desired name on the: [#!variable!anvil_name!#], nothing to do.</key>
 		<key name="message_0175">Thank you, proceeding.</key>
-		<key name="message_0176">#!free!#</key>
+		<key name="message_0176">The storage group: [#!variable!sg_name!#] on the Anvil! node: [#!variable!anvil_name!#] has been renamed to: [#!variable!new_name!#].</key>
 		<key name="message_0177">
 ##] anvil-daemon [###########################################################################################
 # NOTE: The /etc/hosts file is managed by the Anvil! system. Manual additions will be retained, but         #
@@ -3074,7 +3083,7 @@ Please be patient, this could take a bit for large files.</key>
 		<key name="message_0196">Registering the file to be downloaded to host: [#!variable!host!#]. Hosts that are not online will sync the file when they do return.</key>
 		<key name="message_0197">Upload is complete!</key>
 		<key name="message_0198">Processing the pull of a file from Striker.</key>
-		<key name="message_0199">#!free!#</key>
+		<key name="message_0199">About to delete the storage group: [#!variable!sg_name!#] from the Anvil! node: [#!variable!anvil_name!#]</key>
 		<key name="message_0200">Beginning rsync from: [#!variable!source_file!#] to: [#!variable!target_directory!#], please be patient...</key>
 		<key name="message_0201">Download appears to be complete, calculating md5sum to verify, please be patient...</key>
 		<key name="message_0202">Success! The file has been successfully downloaded.</key>
@@ -3082,7 +3091,7 @@ Please be patient, this could take a bit for large files.</key>
 		<key name="message_0204">Processing an uploaded file.</key>
 		<key name="message_0205">Processing a file mode check.</key>
 		<key name="message_0206">Proceed? [Y/n]</key>	<!-- Default no is message_0021 -->
-		<key name="message_0207">#!free!#</key>
+		<key name="message_0207"><![CDATA[ - <no members in this storage group yet>]]></key>
 		<key name="message_0208">-=] Listing servers on the Anvil! [#!variable!anvil_name!#].</key>
 		<key name="message_0209">(No servers found).</key>
 		<key name="message_0210">Which server would you like to delete?</key>
