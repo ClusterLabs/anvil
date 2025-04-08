@@ -650,6 +650,7 @@ sub manage_group_member
 			storage_group_member_vg_uuid            => $internal_vg_uuid,
 			storage_group_member_note               => "user-created",
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 		
 		# Tell the user
 		$anvil->Job->update_progress({
@@ -718,6 +719,7 @@ sub manage_group_member
 			storage_group_member_vg_uuid            => $internal_vg_uuid,
 			storage_group_member_note               => "DELETED",
 		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_member_uuid => $storage_group_member_uuid }});
 		
 		# Tell them it's been removed.
 		$anvil->Job->update_progress({
@@ -752,6 +754,13 @@ sub show_data
 		my $anvil_description     = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_description};
 		my $anvil_node1_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node1_host_uuid};
 		my $anvil_node2_host_uuid = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_node2_host_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"            => $anvil_name, 
+			"s2:anvil_uuid"            => $anvil_uuid, 
+			"s3:anvil_description"     => $anvil_description, 
+			"s4:anvil_node1_host_uuid" => $anvil_node1_host_uuid, 
+			"s5:anvil_node2_host_uuid" => $anvil_node2_host_uuid, 
+		}});
 		if (($show_anvil_uuid) && ($anvil_uuid ne $show_anvil_uuid))
 		{
 			next;
@@ -765,16 +774,29 @@ sub show_data
 		foreach my $node_host_uuid ($anvil_node1_host_uuid, $anvil_node2_host_uuid)
 		{
 			my $node_host_name = $anvil->data->{hosts}{host_uuid}{$node_host_uuid}{short_host_name};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:node_host_uuid" => $node_host_uuid, 
+				"s2:node_host_name" => $node_host_name, 
+			}});
 			# Show the subnode
 			print $anvil->Words->string({key => "message_0155", variables => { subnode => $node_host_name }})."\n";
 			foreach my $scan_lvm_vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}})
 			{
-				next if $scan_lvm_vg_name eq "DELETED";
 				my $scan_lvm_vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_name}{$scan_lvm_vg_name}{scan_lvm_vg_internal_uuid};
 				my $scan_lvm_vg_size          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_size};
 				my $scan_lvm_vg_free          = $anvil->data->{vgs}{host_uuid}{$node_host_uuid}{scan_lvm_vg_internal_uuid}{$scan_lvm_vg_internal_uuid}{scan_lvm_vg_free};
 				my $say_size_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size});
 				my $say_free_hr               = $anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_free});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:scan_lvm_vg_name"          => $scan_lvm_vg_name, 
+					"s2:scan_lvm_vg_internal_uuid" => $scan_lvm_vg_internal_uuid, 
+					"s3:scan_lvm_vg_size"          => $scan_lvm_vg_size, 
+					"s4:scan_lvm_vg_free"          => $scan_lvm_vg_free, 
+					"s5:say_size_hr"               => $say_size_hr, 
+					"s6:say_free_hr"               => $say_free_hr, 
+				}});
+				next if $scan_lvm_vg_name eq "DELETED";
+				
 				# Show the volume group name
 				print $anvil->Words->string({key => "message_0156", variables => { 
 					vg_name => $scan_lvm_vg_name, 
@@ -787,9 +809,15 @@ sub show_data
 		foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
 		{
 			my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"s1:storage_group_name" => $storage_group_name, 
+				"s2:storage_group_uuid" => $storage_group_uuid, 
+			}});
+			next if $storage_group_name eq "DELETED";
+			
 			# Show the storage group, if the members exist and aren't deleted.
-			my $vg_count = 0;
-			my $display  = $anvil->Words->string({key => "message_0157", variables => { 
+			my $member_count = 0;
+			print $anvil->Words->string({key => "message_0157", variables => { 
 				sg_name => $storage_group_name, 
 				uuid    => $storage_group_uuid, 
 			}})."\n";
@@ -799,19 +827,28 @@ sub show_data
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
 				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
 				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
-				   $vg_count++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"s1:member_short_host_name"    => $member_short_host_name, 
+					"s2:member_host_uuid"          => $member_host_uuid, 
+					"s3:storage_group_member_uuid" => $storage_group_member_uuid, 
+					"s4:vg_internal_uuid"          => $vg_internal_uuid, 
+					"s5:vg_name"                   => $vg_name, 
+				}});
+				next if $vg_name eq "DELETED";
+				$member_count++;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { member_count => $member_count }});
+				
 				# Show the member host name / VG name
-				$display .= $anvil->Words->string({key => "message_0158", variables => { 
+				print $anvil->Words->string({key => "message_0158", variables => { 
 					host_name => $member_short_host_name, 
 					vg_name   => $vg_name, 
 				}})."\n";
 			}
-			if ($vg_count >= 2)
+			if (not $member_count)
 			{
-				print $display;
+				print $anvil->Words->string({key => "message_0207"})."\n";
 			}
 		}
-
 		print "\n";
 	}
 
@@ -825,10 +862,10 @@ sub show_data
 			my $host_type       = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_type};
 			my $short_host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-				host_uuid       => $host_uuid,
-				host_name       => $host_name,
-				host_type       => $host_type,
-				short_host_name => $short_host_name,
+				"s1:host_uuid"       => $host_uuid,
+				"s2:host_name"       => $host_name,
+				"s3:host_type"       => $host_type,
+				"s4:short_host_name" => $short_host_name,
 			}});
 			next if $host_type ne "dr";
 			
@@ -836,12 +873,21 @@ sub show_data
 			print $anvil->Words->string({key => "message_0164", variables => { host_name => $short_host_name }})."\n";
 			foreach my $vg_name (sort {$a cmp $b} keys %{$anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}})
 			{
-				next if $vg_name eq "DELETED";
 				my $vg_internal_uuid = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_name}{$vg_name}{scan_lvm_vg_internal_uuid};
 				my $vg_size          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_size};
 				my $vg_free          = $anvil->data->{vgs}{host_uuid}{$host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_free};
 				my $say_size_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size});
 				my $say_free_hr      = $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+					"s1:vg_name"          => $vg_name,
+					"s2:vg_internal_uuid" => $vg_internal_uuid,
+					"s3:vg_size"          => $vg_size,
+					"s4:vg_free"          => $vg_free,
+					"s5:say_size_hr"      => $say_size_hr, 
+					"s6:say_free_hr"      => $say_free_hr, 
+				}});
+				next if $vg_name eq "DELETED";
+				
 				# Show the VG
 				print $anvil->Words->string({key => "message_0156", variables => { 
 					vg_name => $short_host_name,

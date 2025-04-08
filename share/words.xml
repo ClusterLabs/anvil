@@ -3091,7 +3091,7 @@ Please be patient, this could take a bit for large files.</key>
 		<key name="message_0204">Processing an uploaded file.</key>
 		<key name="message_0205">Processing a file mode check.</key>
 		<key name="message_0206">Proceed? [Y/n]</key>	<!-- Default no is message_0021 -->
-		<key name="message_0207">#!free!#</key>
+		<key name="message_0207"><![CDATA[ - <no members in this storage group yet>]]></key>
 		<key name="message_0208">-=] Listing servers on the Anvil! [#!variable!anvil_name!#].</key>
 		<key name="message_0209">(No servers found).</key>
 		<key name="message_0210">Which server would you like to delete?</key>
