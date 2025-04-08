@@ -15090,10 +15090,10 @@ sub insert_or_update_storage_groups
 		return('!!error!!');
 	}
 	
-	if ($storage_group_name)
+	if ((not $storage_group_uuid) && ($storage_group_name) && ($storage_group_name ne "DELETED"))
 	{
 		# Make sure the name isn't already used.
-		my $query     = "
+		my $query = "
 SELECT 
     storage_group_uuid 
 FROM 
@@ -15121,7 +15121,8 @@ AND
 			return('!!error!!');
 		}
 	}
-	else
+	
+	if (not $storage_group_name)
 	{
 		my $vg_group_number = 0;
 		until ($storage_group_name)

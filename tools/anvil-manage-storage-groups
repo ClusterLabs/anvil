@@ -296,7 +296,7 @@ sub manage_group
 			debug                    => 2,
 			storage_group_anvil_uuid => $anvil_uuid,
 			storage_group_name       => "DELETED",
-			storage_group_name       => $storage_group_uuid,
+			storage_group_uuid       => $storage_group_uuid,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { storage_group_uuid => $storage_group_uuid }});
 		# The storage group on the Anvil! node has been deleted.
