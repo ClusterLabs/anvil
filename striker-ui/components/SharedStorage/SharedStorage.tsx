@@ -32,7 +32,7 @@ const SharedStorage = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const { data, loading } = useFetch<AnvilSharedStorage>(
-    `/anvil/${uuid}/store`,
+    `/anvil/${uuid}/storage-group`,
     {
       periodic: true,
     },
