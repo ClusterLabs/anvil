@@ -3083,7 +3083,7 @@ Please be patient, this could take a bit for large files.</key>
 		<key name="message_0196">Registering the file to be downloaded to host: [#!variable!host!#]. Hosts that are not online will sync the file when they do return.</key>
 		<key name="message_0197">Upload is complete!</key>
 		<key name="message_0198">Processing the pull of a file from Striker.</key>
-		<key name="message_0199">#!free!#</key>
+		<key name="message_0199">About to delete the storage group: [#!variable!sg_name!#] from the Anvil! node: [#!variable!anvil_name!#]</key>
 		<key name="message_0200">Beginning rsync from: [#!variable!source_file!#] to: [#!variable!target_directory!#], please be patient...</key>
 		<key name="message_0201">Download appears to be complete, calculating md5sum to verify, please be patient...</key>
 		<key name="message_0202">Success! The file has been successfully downloaded.</key>

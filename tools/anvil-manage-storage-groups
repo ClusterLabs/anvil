@@ -35,7 +35,8 @@ my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches({list => [
 	"add",
-	"anvil",
+	"anvil", 
+	"confirm", 
 	"dr", 
 	"remove",
 	"rename",
@@ -300,7 +301,24 @@ sub manage_group
 			});
 			$anvil->nice_exit({exit_code => 0});
 		}
-
+		
+		# Did the user confirm?
+		if ((not $anvil->data->{switches}{confirm}) && (not $anvil->data->{switches}{'job-uuid'}))
+		{
+			print $anvil->Words->string({key => "message_0199", variables => {
+				sg_name    => $storage_group_name, 
+				anvil_name => $anvil_name, 
+			}})."\n";
+			print $anvil->Words->string({key => "message_0021"})." ";
+			my $answer = <STDIN>;
+			chomp($answer);
+			if ($answer !~ /^y/i)
+			{
+				print $anvil->Words->string({key => "message_0022"})."\n";
+				$anvil->nice_exit({exit_code => 0});
+			}
+		}
+		
 		# Remove it.
 		$storage_group_uuid = $anvil->Database->insert_or_update_storage_groups({
 			debug                    => 2,
