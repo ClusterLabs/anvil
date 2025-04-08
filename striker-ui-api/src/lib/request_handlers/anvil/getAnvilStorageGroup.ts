@@ -7,7 +7,7 @@ import { query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
-export const getAnvilStore: RequestHandler<
+export const getAnvilStorageGroup: RequestHandler<
   AnvilDetailParamsDictionary
 > = async (request, response) => {
   const {
