@@ -11,60 +11,65 @@ This tool manages storage groups. Storage Groups are collections of LVM Volume G
 .IP
 .SH OPTIONS
 \-?, \-h, \fB\-\-help\fR
+.IP
 Show this man page.
 .TP
 \fB\-\-log\-secure\fR
+.IP
 When logging, record sensitive data, like passwords.
 .TP
 \-v, \-vv, \-vvv
+.IP
 Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a significant amount of log data.
 .IP
 .SS "Commands:"
 .TP
 \fB\-\-add\fR
-.TP
+.IP
 When managing a Storage Group, this adds a component, like a volume group.
-.TP
+.IP
 This can also be used to create a new Storage Group on a given Anvil! node. Requires \fB\-\-group\fR <name>.
 .TP
-\fB\-\-anvil <name or UUID>\fR
-.TP
+\fB\-\-anvil\fR <name or UUID>
+.IP
 This is the Anvil! node whose storage groups you want to see or work on.
 .TP
-\fB\-\-remove <group name or UUID>\fR
+\fB\-\-dr\fR
+.IP
+When using \fB\-\-show\fR, this will show the DR hosts as well as the nodes.
 .TP
+\fB\-\-remove\fR <group name or UUID>
+.IP
 This deletes a storage group entirely.
 .TP
 \fB\-\-rename\fR
-.TP
-This is used along with \fB\-\-new\-name <new name>\fR and \fB\-\-group <name or UUID>\fR to change the name of an existing storage group.
+.IP
+This is used along with \fB\-\-new\-name\fR <new name> and \fB\-\-group\fR <name or UUID> to change the name of an existing storage group.
 .TP
 \fB\-\-group\fR <name or UUID>
-.TP
+.IP
 The is the storage group name or UUID that is being worked with.
 .TP
 \fB\-\-member\fR <VG internal UUID>
-.TP
-This is the LVM volume group's 
-.B internal
-UUID (as shown by \fBvgdisplay\fR or with \fB\-\-show\fR. It is used to specify which volume group is being added or removed.
+.IP
+This is the LVM volume group's INTERNAL UUID (as shown by \fBvgdisplay\fR or with \fB\-\-show\fR. It is used to specify which volume group is being added or removed.
 .TP
 \fB\-\-new\-name\fR <new name>
-.TP
-When used with \fB\-\-rename\fR and \fB\-\-group <name or UUID>\fR, this specifies the new storage group name.
+.IP
+When used with \fB\-\-rename\fR and \fB\-\-group\fR <name or UUID>, this specifies the new storage group name.
 .TP
 \fB\-\-show\fR
-.TP
-This shows the storage groups on each Anvil! node (or just the one specified with \fB\-\-anvil <name or UUID>\fR), and the available DR hosts.
+.IP
+This shows the storage groups on each Anvil! node (or just the one specified with \fB\-\-anvil\fR <name or UUID>). To also see DR hosts, use \fB\-\-dr\fR along with this switch.
 .TP
 .SH EXAMPLES
-.RE
+.TP
 Show existing storage group details
-.RS
+.IP
 anvil-manage-storage-groups --show
-.RE
+.TP
 Add a VG to a storage group
-.RS
+.IP
 anvil-manage-storage-groups --anvil vm-anvil-01 --group "Storage group 1" --add --member edrYMv-Fl2D-o0tO-g8ok-idOh-oBIh-65LuD6
 .IP
 .SH AUTHOR
