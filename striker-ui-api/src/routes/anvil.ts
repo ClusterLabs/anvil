@@ -7,7 +7,7 @@ import {
   getAnvilDetail,
   getAnvilMemory,
   getAnvilNetwork,
-  getAnvilStore,
+  getAnvilStorageGroup,
 } from '../lib/request_handlers/anvil';
 
 const router = express.Router();
@@ -18,7 +18,7 @@ router
   .get('/:anvilUuid/cpu', getAnvilCpu)
   .get('/:anvilUuid/memory', getAnvilMemory)
   .get('/:anvilUuid/network', getAnvilNetwork)
-  .get('/:anvilUuid/store', getAnvilStore)
+  .get('/:anvilUuid/storage-group', getAnvilStorageGroup)
   .get('/:anvilUuid', getAnvilDetail);
 
 export default router;
