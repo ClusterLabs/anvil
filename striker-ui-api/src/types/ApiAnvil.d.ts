@@ -159,6 +159,42 @@ type AnvilDetailStoreSummary = {
   total_size: string;
 };
 
+type AnvilDetailVolumeGroup = {
+  free: string;
+  internalUuid: string;
+  name: string;
+  size: string;
+  uuid: string;
+};
+
+type AnvilDetailStorageGroupMember = {
+  volumeGroup: AnvilDetailVolumeGroup;
+  host: {
+    name: string;
+    short: string;
+    uuid: string;
+  };
+  uuid: string;
+};
+
+type AnvilDetailStorageGroup = {
+  free: string;
+  members: Record<string, AnvilDetailStorageGroupMember>;
+  name: string;
+  total: string;
+  used: string;
+  uuid: string;
+};
+
+type AnvilDetailStorageGroupSummary = {
+  storageGroups: Record<string, AnvilDetailStorageGroup>;
+  totals: {
+    free: string;
+    size: string;
+    used: string;
+  };
+};
+
 type AnvilOverviewHost = {
   hostClusterMembership: string;
   hostDrbdResources: Record<string, AnvilHostDrbdResource>;
