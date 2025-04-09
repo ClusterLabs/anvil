@@ -4,28 +4,16 @@ import { RequestHandler } from 'express';
 import { DELETED, REP_UUID } from '../../consts';
 
 import { query } from '../../accessModule';
-import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
 
 export const getAnvilStorageGroup: RequestHandler<
-  AnvilDetailParamsDictionary
+  Express.RhParamsDictionary,
+  AnvilDetailStoreSummary,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
 > = async (request, response) => {
-  const {
-    params: { anvilUuid: rAnUuid },
-  } = request;
-
-  const anUuid = sanitize(rAnUuid, 'string', { modifierType: 'sql' });
-
-  try {
-    assert(
-      REP_UUID.test(anUuid),
-      `Param UUID must be a valid UUIDv4; got [${anUuid}]`,
-    );
-  } catch (error) {
-    perr(`Failed to assert value during get anvil storage; CAUSE: ${error}`);
-
-    return response.status(400).send();
-  }
+  const anvilUuid = response.locals.target.uuid;
 
   let rows: [
     uuid: string,
@@ -53,7 +41,7 @@ export const getAnvilStorageGroup: RequestHandler<
         JOIN scan_lvm_vgs AS d
           ON c.storage_group_member_vg_uuid = d.scan_lvm_vg_internal_uuid
         WHERE
-            a.anvil_uuid = '${anUuid}'
+            a.anvil_uuid = '${anvilUuid}'
           AND
             b.storage_group_name != '${DELETED}'
           AND

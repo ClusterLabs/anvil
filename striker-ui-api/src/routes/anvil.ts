@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTarget } from '../middlewares';
 import {
   getAnvil,
   getAnvilCpu,
@@ -10,6 +11,10 @@ import {
   getAnvilStorageGroup,
 } from '../lib/request_handlers/anvil';
 
+const single = express.Router();
+
+single.get('/storage-group', getAnvilStorageGroup);
+
 const router = express.Router();
 
 router
@@ -18,7 +23,8 @@ router
   .get('/:anvilUuid/cpu', getAnvilCpu)
   .get('/:anvilUuid/memory', getAnvilMemory)
   .get('/:anvilUuid/network', getAnvilNetwork)
-  .get('/:anvilUuid/storage-group', getAnvilStorageGroup)
   .get('/:anvilUuid', getAnvilDetail);
+
+router.use('/:uuid', validateRequestTarget(), single);
 
 export default router;
