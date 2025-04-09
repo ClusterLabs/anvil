@@ -1,11 +1,15 @@
 import { Box, styled } from '@mui/material';
+import { AxiosError } from 'axios';
 import { useContext } from 'react';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 import { AnvilContext } from '../AnvilContext';
-import { Panel, InnerPanel, InnerPanelHeader } from '../Panels';
-import SharedStorageHost from './SharedStorageHost';
+import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
+import handleAPIError from '../../lib/handleAPIError';
+import MessageBox from '../MessageBox';
+import { Panel, InnerPanel, InnerPanelHeader, PanelHeader } from '../Panels';
+import StorageGroup from './StorageGroup';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
@@ -28,41 +32,73 @@ const StyledDiv = styled('div')(({ theme }) => ({
   },
 }));
 
+const SharedStorageContent: React.FC<
+  SharedStorageContentProps<AxiosError<unknown, AnvilSharedStorage>>
+> = (props) => {
+  const { error, loading, storage } = props;
+
+  if (loading) {
+    return <Spinner />;
+  }
+
+  if (!storage) {
+    let emsg: Message;
+
+    if (error) {
+      emsg = handleAPIError(error);
+
+      emsg.children = <>Failed to get storage information. {emsg.children}</>;
+    } else {
+      emsg = {
+        children: <>Cannot find storage information.</>,
+        type: 'warning',
+      };
+    }
+
+    return <MessageBox {...emsg} />;
+  }
+
+  const values = Object.values(storage.storageGroups);
+
+  return (
+    <StyledDiv>
+      <Box className={classes.root}>
+        {values.map(
+          (storageGroup): JSX.Element => (
+            <InnerPanel key={storageGroup.uuid}>
+              <InnerPanelHeader>
+                <BodyText text={storageGroup.name} />
+              </InnerPanelHeader>
+              <StorageGroup storageGroup={storageGroup} />
+            </InnerPanel>
+          ),
+        )}
+      </Box>
+    </StyledDiv>
+  );
+};
+
 const SharedStorage = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
-  const { data, loading } = useFetch<AnvilSharedStorage>(
+  const {
+    altData: storage,
+    error,
+    loading,
+  } = useFetch<AnvilSharedStorage, APIAnvilSharedStorageOverview>(
     `/anvil/${uuid}/storage-group`,
     {
+      mod: toAnvilSharedStorageOverview,
       periodic: true,
     },
   );
 
   return (
     <Panel>
-      <StyledDiv>
-        <HeaderText text="Shared Storage" />
-        {!loading ? (
-          <Box className={classes.root}>
-            {data?.storage_groups &&
-              data.storage_groups.map(
-                (storageGroup: AnvilSharedStorageGroup): JSX.Element => (
-                  <InnerPanel key={storageGroup.storage_group_uuid}>
-                    <InnerPanelHeader>
-                      <BodyText text={storageGroup.storage_group_name} />
-                    </InnerPanelHeader>
-                    <SharedStorageHost
-                      group={storageGroup}
-                      key={storageGroup.storage_group_uuid}
-                    />
-                  </InnerPanel>
-                ),
-              )}
-          </Box>
-        ) : (
-          <Spinner />
-        )}
-      </StyledDiv>
+      <PanelHeader>
+        <HeaderText>Shared Storage</HeaderText>
+      </PanelHeader>
+      <SharedStorageContent error={error} loading={loading} storage={storage} />
     </Panel>
   );
 };
