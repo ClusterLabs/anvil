@@ -5,7 +5,7 @@ import { AllocationBar } from '../Bars';
 import { toBinaryByte } from '../../lib/format_data_size_wrappers';
 import { BodyText } from '../Text';
 
-const PREFIX = 'SharedStorageHost';
+const PREFIX = 'StorageGroup';
 
 const classes = {
   fs: `${PREFIX}-fs`,
@@ -29,20 +29,14 @@ const StyledDiv = styled('div')(() => ({
   },
 }));
 
-const SharedStorageHost = ({
-  group,
-}: {
-  group: AnvilSharedStorageGroup;
-}): JSX.Element => {
-  const { storage_group_free: sgFree, storage_group_total: sgTotal } = group;
+const StorageGroup: React.FC<StorageGroupProps> = (props) => {
+  const { storageGroup: group } = props;
 
-  const nFree = useMemo(() => BigInt(sgFree), [sgFree]);
-  const nTotal = useMemo(() => BigInt(sgTotal), [sgTotal]);
+  const { free: nFree, size: nTotal, used: nUsed } = group;
 
-  const nAllocated = useMemo(() => nTotal - nFree, [nFree, nTotal]);
   const percentAllocated = useMemo(
-    () => Number((nAllocated * BigInt(100)) / nTotal),
-    [nAllocated, nTotal],
+    () => Number((nUsed * BigInt(100)) / nTotal),
+    [nUsed, nTotal],
   );
 
   return (
@@ -67,4 +61,4 @@ const SharedStorageHost = ({
   );
 };
 
-export default SharedStorageHost;
+export default StorageGroup;
