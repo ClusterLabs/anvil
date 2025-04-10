@@ -1,7 +1,6 @@
-import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { DELETED, REP_UUID } from '../../consts';
+import { DELETED } from '../../consts';
 
 import { query } from '../../accessModule';
 import { perr } from '../../shell';
