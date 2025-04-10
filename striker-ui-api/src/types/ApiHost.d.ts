@@ -61,6 +61,8 @@ type HostOverview = {
   shortHostName: string;
 };
 
+type HostOverviewList = Record<string, HostOverview>;
+
 type HostDetail = HostOverview & {
   ipmi: HostIpmi;
 } & Tree<string>;

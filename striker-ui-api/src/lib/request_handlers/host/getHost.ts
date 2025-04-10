@@ -1,31 +1,47 @@
 import { DELETED } from '../../consts';
 
 import { getLocalHostUUID } from '../../accessModule';
-import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildQueryHostDetail } from './buildQueryHostDetail';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { getShortHostName } from '../../disassembleHostName';
-import { sanitize } from '../../sanitize';
+import join from '../../join';
+import { getHostQueryStringSchema } from './schemas';
 
-export const getHost = buildGetRequestHandler((request, hooks) => {
-  const { hostUUIDs, types: hostTypes } = request.query;
+export const getHost = buildGetRequestHandler<
+  Express.RhParamsDictionary,
+  HostOverviewList,
+  Express.RhReqBody,
+  {
+    node?: string | string[];
+    type?: string | string[];
+  }
+>(async (request, hooks) => {
+  const qs = await getHostQueryStringSchema.validate(request.query);
 
-  const localHostUUID: string = getLocalHostUUID();
+  const { node: lsnode, type: lstype } = qs;
+
+  const localHostUuid: string = getLocalHostUUID();
 
   let condition = `WHERE a.host_key != '${DELETED}'`;
 
-  const { after: typeCondition } = buildUnknownIDCondition(
-    hostTypes,
-    'a.host_type',
-  );
-
-  if (typeCondition) {
-    condition += ` AND ${typeCondition}`;
+  if (lsnode) {
+    condition += join(lsnode, {
+      beforeReturn: (csv) => (csv ? ` AND b.anvil_uuid IN (${csv})` : ''),
+      elementWrapper: "'",
+      separator: ', ',
+    });
   }
 
-  let query = `
+  if (lstype) {
+    condition += join(lstype, {
+      beforeReturn: (csv) => (csv ? ` AND a.host_type IN (${csv})` : ''),
+      elementWrapper: "'",
+      separator: ', ',
+    });
+  }
+
+  const query = `
     SELECT
       a.host_name,
       a.host_status,
@@ -47,20 +63,20 @@ export const getHost = buildGetRequestHandler((request, hooks) => {
     ${condition}
     ORDER BY a.host_name ASC;`;
 
-  let afterQueryReturn: QueryResultModifierFunction | undefined =
+  const afterQueryReturn: QueryResultModifierFunction | undefined =
     buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
       (previous, row) => {
         const [
           hostName,
           hostStatus,
           hostType,
-          hostUUID,
+          hostUuid,
           anUuid,
           anName,
           hostConfigured,
         ] = row;
 
-        const key = toLocal(hostUUID, localHostUUID);
+        const key = toLocal(hostUuid, localHostUuid);
 
         let anvil: HostOverview['anvil'];
 
@@ -74,7 +90,7 @@ export const getHost = buildGetRequestHandler((request, hooks) => {
           hostName,
           hostStatus,
           hostType,
-          hostUUID,
+          hostUUID: hostUuid,
           shortHostName: getShortHostName(hostName),
         };
 
@@ -82,17 +98,6 @@ export const getHost = buildGetRequestHandler((request, hooks) => {
       },
       {},
     );
-
-  if (hostUUIDs) {
-    // TODO: the output of host detail is designed to only contain one
-    // host, correct it to support multiple hosts to allow selecting
-    // multiple hosts' detail.
-    ({ query, afterQueryReturn } = buildQueryHostDetail({
-      keys: sanitize(hostUUIDs, 'string[]', {
-        modifierType: 'sql',
-      }),
-    }));
-  }
 
   hooks.afterQueryReturn = afterQueryReturn;
 
