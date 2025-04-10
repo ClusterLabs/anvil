@@ -3857,7 +3857,7 @@ proceeding.
 		<key name="striker_0277">#!free!#</key>
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
-		<key name="striker_0280">Storage group #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
+		<key name="striker_0280">Node #!variable!anvil_name!#, SG #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
 		<key name="striker_0281">#!free!#</key>
 		<key name="striker_0282">#!free!#</key>
 		<key name="striker_0283">#!free!#</key>

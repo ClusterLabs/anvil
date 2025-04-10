@@ -15124,11 +15124,21 @@ AND
 	
 	if (not $storage_group_name)
 	{
+		if (not exists $anvil->data->{anvils}{anvil_uuid}{$storage_group_anvil_uuid})
+		{
+			$anvil->Database->get_anvils({debug => $debug});
+		}
 		my $vg_group_number = 0;
+		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$storage_group_anvil_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+		
 		until ($storage_group_name)
 		{
 			$vg_group_number++; 
-			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { number => $vg_group_number }});
+			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { 
+				anvil_name => $anvil_name,
+				number     => $vg_group_number,
+			}});
 			my $query     = "
 SELECT 
     storage_group_uuid 
