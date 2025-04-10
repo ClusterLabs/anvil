@@ -140,7 +140,7 @@ const ManageManifestPanel: FC = () => {
     data: hostOverviews,
     loading: isLoadingHostOverviews,
     mutate: getHostOverviews,
-  } = useFetch<APIHostOverviewList>('/host?types=node');
+  } = useFetch<APIHostOverviewList>('/host?type=subnode');
 
   const formUtils = useFormUtils(
     [

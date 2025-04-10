@@ -87,7 +87,7 @@ const ManageFilePanel: FC = () => {
   });
 
   const { data: drHosts, loading: loadingDrHosts } =
-    useFetch<APIHostOverviewList>('/host?types=dr', {
+    useFetch<APIHostOverviewList>('/host?type=dr', {
       onError: (error) => {
         setApiMessage({
           children: <>Failed to get DR host list. {error}</>,
