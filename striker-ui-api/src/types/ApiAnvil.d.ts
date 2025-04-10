@@ -69,13 +69,6 @@ type AnvilDetailServerForProvisionServer = {
   serverMemory: string;
 };
 
-type AnvilDetailStore = {
-  storage_group_free: string;
-  storage_group_name: string;
-  storage_group_total: string;
-  storage_group_uuid: string;
-};
-
 type AnvilDetailStoreForProvisionServer = {
   storageGroupUUID: string;
   storageGroupName: string;
@@ -153,17 +146,12 @@ type AnvilDetailParamsDictionary = {
   anvilUuid: string;
 };
 
-type AnvilDetailStoreSummary = {
-  storage_groups: AnvilDetailStore[];
-  total_free: string;
-  total_size: string;
-};
-
 type AnvilDetailVolumeGroup = {
   free: string;
   internalUuid: string;
   name: string;
   size: string;
+  used: string;
   uuid: string;
 };
 
@@ -186,14 +174,7 @@ type AnvilDetailStorageGroup = {
   uuid: string;
 };
 
-type AnvilDetailStorageGroupSummary = {
-  storageGroups: Record<string, AnvilDetailStorageGroup>;
-  totals: {
-    free: string;
-    size: string;
-    used: string;
-  };
-};
+type AnvilDetailStorageGroupList = Record<string, AnvilDetailStorageGroup>;
 
 type AnvilOverviewHost = {
   hostClusterMembership: string;
