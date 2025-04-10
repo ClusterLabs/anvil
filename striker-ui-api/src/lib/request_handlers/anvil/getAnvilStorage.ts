@@ -21,6 +21,11 @@ export const getAnvilStorage: RequestHandler<
 
   const storages: AnvilDetailStorageList = {
     storageGroups: {},
+    storageGroupTotals: {
+      free: '',
+      size: '',
+      used: '',
+    },
     volumeGroups: {},
   };
 
@@ -57,6 +62,16 @@ export const getAnvilStorage: RequestHandler<
     );
   }
 
+  const totals: {
+    free: bigint;
+    size: bigint;
+    used: bigint;
+  } = {
+    free: BigInt(0),
+    size: BigInt(0),
+    used: BigInt(0),
+  };
+
   rows.forEach((row) => {
     const [uuid, name, sgSize, sgFree] = row;
 
@@ -67,6 +82,10 @@ export const getAnvilStorage: RequestHandler<
       const sgnSize = BigInt(sgSize);
 
       sgnUsed = sgnSize - sgnFree;
+
+      totals.free += sgnFree;
+      totals.size += sgnSize;
+      totals.used += sgnUsed;
     } catch (error) {
       // Something's wrong with the storage group's sizes; ignore.
       return;
@@ -81,6 +100,10 @@ export const getAnvilStorage: RequestHandler<
       uuid,
     };
   });
+
+  storages.storageGroupTotals.free = String(totals.free);
+  storages.storageGroupTotals.size = String(totals.size);
+  storages.storageGroupTotals.used = String(totals.used);
 
   try {
     rows = await query(

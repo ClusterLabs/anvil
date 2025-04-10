@@ -176,6 +176,11 @@ type AnvilDetailStorageGroup = {
 
 type AnvilDetailStorageList = {
   storageGroups: Record<string, AnvilDetailStorageGroup>;
+  storageGroupTotals: {
+    free: string;
+    size: string;
+    used: string;
+  };
   volumeGroups: Record<string, AnvilDetailVolumeGroup>;
 };
 
