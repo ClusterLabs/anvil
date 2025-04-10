@@ -14,7 +14,7 @@ const ServerMigration: FC<ServerMigrationProps> = (props) => {
   const { altData: peer } = useFetch<
     APIHostOverviewList,
     APIHostOverview | undefined
-  >('/host?types=node', {
+  >('/host?type=subnode', {
     mod: (data) => {
       const values = Object.values(data);
 
