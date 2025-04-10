@@ -2,7 +2,13 @@ import call from './call';
 
 const join: JoinFunction = (
   elements,
-  { beforeReturn, elementWrapper = '', onEach, separator = '' } = {},
+  {
+    beforeReturn,
+    elementWrapper = '',
+    fallback = '',
+    onEach,
+    separator = '',
+  } = {},
 ) => {
   const joinSeparator = `${elementWrapper}${separator}${elementWrapper}`;
 
@@ -16,9 +22,9 @@ const join: JoinFunction = (
             })}`,
           elements[0],
         )}${elementWrapper}`
-      : undefined;
+      : fallback;
 
-  return call<string | undefined>(beforeReturn, {
+  return call<string>(beforeReturn, {
     notCallableReturn: toReturn,
     parameters: [toReturn],
   });
