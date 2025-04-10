@@ -17,7 +17,7 @@ const buildIDCondition = (
     beforeReturn,
     elementWrapper: "'",
     separator: ', ',
-  }) as string;
+  });
 
 export const buildUnknownIDCondition = (
   keys: unknown,
