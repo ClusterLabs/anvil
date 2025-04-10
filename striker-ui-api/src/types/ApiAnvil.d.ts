@@ -148,6 +148,11 @@ type AnvilDetailParamsDictionary = {
 
 type AnvilDetailVolumeGroup = {
   free: string;
+  host: {
+    name: string;
+    short: string;
+    uuid: string;
+  };
   internalUuid: string;
   name: string;
   size: string;
@@ -157,11 +162,6 @@ type AnvilDetailVolumeGroup = {
 
 type AnvilDetailStorageGroupMember = {
   volumeGroup: AnvilDetailVolumeGroup;
-  host: {
-    name: string;
-    short: string;
-    uuid: string;
-  };
   uuid: string;
 };
 
@@ -174,7 +174,10 @@ type AnvilDetailStorageGroup = {
   uuid: string;
 };
 
-type AnvilDetailStorageGroupList = Record<string, AnvilDetailStorageGroup>;
+type AnvilDetailStorageList = {
+  storageGroups: Record<string, AnvilDetailStorageGroup>;
+  volumeGroups: Record<string, AnvilDetailVolumeGroup>;
+};
 
 type AnvilOverviewHost = {
   hostClusterMembership: string;

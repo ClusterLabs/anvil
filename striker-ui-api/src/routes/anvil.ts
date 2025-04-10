@@ -8,12 +8,12 @@ import {
   getAnvilDetail,
   getAnvilMemory,
   getAnvilNetwork,
-  getAnvilStorageGroup,
+  getAnvilStorage,
 } from '../lib/request_handlers/anvil';
 
 const single = express.Router();
 
-single.get('/storage-group', getAnvilStorageGroup);
+single.get('/storage', getAnvilStorage);
 
 const router = express.Router();
 

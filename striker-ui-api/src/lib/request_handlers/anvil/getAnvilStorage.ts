@@ -6,9 +6,9 @@ import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import { Responder } from '../../Responder';
 
-export const getAnvilStorageGroup: RequestHandler<
+export const getAnvilStorage: RequestHandler<
   Express.RhParamsDictionary,
-  AnvilDetailStorageGroupList,
+  AnvilDetailStorageList,
   Express.RhReqBody,
   Express.RhReqQuery,
   LocalsRequestTarget
@@ -19,15 +19,18 @@ export const getAnvilStorageGroup: RequestHandler<
 
   let rows: string[][];
 
-  const storageGroups: AnvilDetailStorageGroupList = {};
+  const storages: AnvilDetailStorageList = {
+    storageGroups: {},
+    volumeGroups: {},
+  };
 
   try {
     rows = await query(
       `SELECT
           a.storage_group_uuid,
           a.storage_group_name,
-          MIN(d.scan_lvm_vg_size) AS sg_size,
-          MIN(d.scan_lvm_vg_free) AS sg_free
+          MIN(c.scan_lvm_vg_size) AS sg_size,
+          MIN(c.scan_lvm_vg_free) AS sg_free
         FROM storage_groups AS a
         JOIN storage_group_members AS b
           ON a.storage_group_uuid = b.storage_group_member_storage_group_uuid
@@ -42,8 +45,8 @@ export const getAnvilStorageGroup: RequestHandler<
         GROUP BY
           a.storage_group_uuid,
           a.storage_group_name,
-          d.scan_lvm_vg_size,
-          d.scan_lvm_vg_free
+          c.scan_lvm_vg_size,
+          c.scan_lvm_vg_free
         ORDER BY
           a.storage_group_name;`,
     );
@@ -69,7 +72,7 @@ export const getAnvilStorageGroup: RequestHandler<
       return;
     }
 
-    storageGroups[uuid] = {
+    storages.storageGroups[uuid] = {
       free: sgFree,
       members: {},
       name,
@@ -82,21 +85,34 @@ export const getAnvilStorageGroup: RequestHandler<
   try {
     rows = await query(
       `SELECT
-          a.storage_group_member_uuid,
-          a.storage_group_member_storage_group_uuid,
-          b.scan_lvm_vg_uuid,
-          b.scan_lvm_vg_internal_uuid,
-          b.scan_lvm_vg_name,
-          b.scan_lvm_vg_size,
-          b.scan_lvm_vg_free,
-          c.host_uuid,
-          c.host_name
-        FROM storage_group_members AS a
-        JOIN scan_lvm_vgs AS b
-          ON a.storage_group_member_vg_uuid = b.scan_lvm_vg_internal_uuid
-        JOIN hosts AS c
-          ON a.storage_group_member_host_uuid = c.host_uuid
-        WHERE b.scan_lvm_vg_name != '${DELETED}';`,
+          a.scan_lvm_vg_uuid,
+          a.scan_lvm_vg_internal_uuid,
+          a.scan_lvm_vg_name,
+          a.scan_lvm_vg_size,
+          a.scan_lvm_vg_free,
+          b.host_uuid,
+          b.host_name,
+          c.storage_group_member_uuid,
+          c.storage_group_member_storage_group_uuid
+        FROM scan_lvm_vgs AS a
+        JOIN hosts AS b
+          ON a.scan_lvm_vg_host_uuid = b.host_uuid
+        LEFT JOIN storage_group_members AS c
+          ON a.scan_lvm_vg_internal_uuid = c.storage_group_member_vg_uuid
+        WHERE
+            a.scan_lvm_vg_name != '${DELETED}'
+          AND
+            a.scan_lvm_vg_host_uuid IN (
+              SELECT
+                UNNEST(
+                  ARRAY[
+                    anvil_node1_host_uuid,
+                    anvil_node2_host_uuid
+                  ]
+                )
+              FROM anvils
+              WHERE anvil_uuid = '${anvilUuid}'
+            );`,
     );
   } catch (error) {
     return respond.s500(
@@ -107,8 +123,6 @@ export const getAnvilStorageGroup: RequestHandler<
 
   rows.forEach((row) => {
     const [
-      sgmUuid,
-      sgUuid,
       vgUuid,
       vgInternalUuid,
       vgName,
@@ -116,13 +130,9 @@ export const getAnvilStorageGroup: RequestHandler<
       vgFree,
       hostUuid,
       hostName,
+      sgmUuid,
+      sgUuid,
     ] = row;
-
-    const { [sgUuid]: sg } = storageGroups;
-
-    if (!sg) {
-      return;
-    }
 
     let vgnUsed: bigint;
 
@@ -138,23 +148,39 @@ export const getAnvilStorageGroup: RequestHandler<
 
     const shortHostName = getShortHostName(hostName);
 
-    sg.members[sgmUuid] = {
-      volumeGroup: {
-        free: vgFree,
-        internalUuid: vgInternalUuid,
-        name: vgName,
-        size: vgSize,
-        used: String(vgnUsed),
-        uuid: vgUuid,
-      },
+    const vg: AnvilDetailVolumeGroup = {
+      free: vgFree,
       host: {
         name: hostName,
         short: shortHostName,
         uuid: hostUuid,
       },
+      internalUuid: vgInternalUuid,
+      name: vgName,
+      size: vgSize,
+      used: String(vgnUsed),
+      uuid: vgUuid,
+    };
+
+    if (!sgUuid) {
+      // This vg is not part of any storage groups; add to the usable list.
+      storages.volumeGroups[vgUuid] = vg;
+
+      return;
+    }
+
+    const { [sgUuid]: sg } = storages.storageGroups;
+
+    if (!sg) {
+      // This vg is part of a storage group which is likely marked as DELETED; ignore.
+      return;
+    }
+
+    sg.members[sgmUuid] = {
+      volumeGroup: vg,
       uuid: sgmUuid,
     };
   });
 
-  return respond.s200(storageGroups);
+  return respond.s200(storages);
 };
