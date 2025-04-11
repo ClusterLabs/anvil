@@ -169,7 +169,7 @@ type AnvilDetailStorageGroup = {
   free: string;
   members: Record<string, AnvilDetailStorageGroupMember>;
   name: string;
-  total: string;
+  size: string;
   used: string;
   uuid: string;
 };
