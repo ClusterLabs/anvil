@@ -95,7 +95,7 @@ export const getAnvilStorage: RequestHandler<
       free: sgFree,
       members: {},
       name,
-      total: sgSize,
+      size: sgSize,
       used: String(sgnUsed),
       uuid,
     };
