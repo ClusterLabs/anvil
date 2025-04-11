@@ -46,9 +46,9 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
   );
 
   const { altData: sgs } = useFetch<
-    AnvilSharedStorage,
+    APIAnvilStorageList,
     APIAnvilSharedStorageOverview
-  >(`/anvil/${detail.anvil.uuid}/storage-group`, {
+  >(`/anvil/${detail.anvil.uuid}/storage`, {
     mod: toAnvilSharedStorageOverview,
     refreshInterval: 5000,
   });

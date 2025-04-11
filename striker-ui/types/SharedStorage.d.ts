@@ -1,7 +1,7 @@
 type SharedStorageContentProps<E extends Error = Error> = {
   error?: E;
   loading?: boolean;
-  storage?: APIAnvilSharedStorageOverview;
+  storages?: APIAnvilSharedStorageOverview;
 };
 
 type StorageGroupProps = {

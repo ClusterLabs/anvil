@@ -77,19 +77,6 @@ type AnvilServer = {
 
 type AnvilServers = AnvilServer[];
 
-type AnvilSharedStorageGroup = {
-  storage_group_free: string;
-  storage_group_name: string;
-  storage_group_total: string;
-  storage_group_uuid: string;
-};
-
-type AnvilSharedStorage = {
-  storage_groups: AnvilSharedStorageGroup[];
-  total_size: string;
-  total_free: string;
-};
-
 type AnvilStatusHost = {
   host_name: string;
   host_uuid: string;
@@ -172,8 +159,66 @@ type APIAnvilOverviewList = {
   [uuid: string]: APIAnvilOverview;
 };
 
+type APIAnvilVolumeGroup = {
+  free: string;
+  host: {
+    name: string;
+    short: string;
+    uuid: string;
+  };
+  internalUuid: string;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type APIAnvilStorageGroupMember = {
+  volumeGroup: APIAnvilVolumeGroup;
+  uuid: string;
+};
+
+type APIAnvilStorageGroup = {
+  free: string;
+  members: Record<string, APIAnvilStorageGroupMember>;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type APIAnvilStorageList = {
+  storageGroupTotals: {
+    free: string;
+    size: string;
+    used: string;
+  };
+  storageGroups: Record<string, APIAnvilStorageGroup>;
+  volumeGroups: Record<string, APIAnvilVolumeGroup>;
+};
+
+type APIAnvilVolumeGroupCalcable = {
+  free: bigint;
+  host: {
+    name: string;
+    short: string;
+    uuid: string;
+  };
+  internalUuid: string;
+  name: string;
+  size: bigint;
+  used: bigint;
+  uuid: string;
+};
+
+type APIAnvilStorageGroupMemberCalcable = {
+  volumeGroup: APIAnvilVolumeGroupCalcable;
+  uuid: string;
+};
+
 type APIAnvilStorageGroupCalcable = {
   free: bigint;
+  members: Record<string, APIAnvilStorageGroupMemberCalcable>;
   name: string;
   size: bigint;
   used: bigint;
@@ -181,9 +226,7 @@ type APIAnvilStorageGroupCalcable = {
 };
 
 type APIAnvilSharedStorageOverview = {
-  storageGroups: {
-    [uuid: string]: APIAnvilStorageGroupCalcable;
-  };
+  storageGroups: Record<string, APIAnvilStorageGroupCalcable>;
   totalFree: bigint;
   totalSize: bigint;
   totalUsed: bigint;
