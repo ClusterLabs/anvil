@@ -66,9 +66,9 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   });
 
   const { altData: storages, loading: loadingStorages } = useFetch<
-    AnvilSharedStorage,
+    APIAnvilStorageList,
     APIAnvilSharedStorageOverview
-  >(`/anvil/${anvilUuid}/storage-group`, {
+  >(`/anvil/${anvilUuid}/storage`, {
     mod: toAnvilSharedStorageOverview,
     refreshInterval,
   });

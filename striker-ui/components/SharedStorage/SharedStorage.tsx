@@ -33,9 +33,9 @@ const StyledDiv = styled('div')(({ theme }) => ({
 }));
 
 const SharedStorageContent: React.FC<
-  SharedStorageContentProps<AxiosError<unknown, AnvilSharedStorage>>
+  SharedStorageContentProps<AxiosError<unknown, APIAnvilStorageList>>
 > = (props) => {
-  const { error, loading, storage } = props;
+  const { error, loading, storages: storage } = props;
 
   if (loading) {
     return <Spinner />;
@@ -82,11 +82,11 @@ const SharedStorage = (): JSX.Element => {
   const { uuid } = useContext(AnvilContext);
 
   const {
-    altData: storage,
+    altData: storages,
     error,
     loading,
-  } = useFetch<AnvilSharedStorage, APIAnvilSharedStorageOverview>(
-    `/anvil/${uuid}/storage-group`,
+  } = useFetch<APIAnvilStorageList, APIAnvilSharedStorageOverview>(
+    `/anvil/${uuid}/storage`,
     {
       mod: toAnvilSharedStorageOverview,
       periodic: true,
@@ -98,7 +98,11 @@ const SharedStorage = (): JSX.Element => {
       <PanelHeader>
         <HeaderText>Shared Storage</HeaderText>
       </PanelHeader>
-      <SharedStorageContent error={error} loading={loading} storage={storage} />
+      <SharedStorageContent
+        error={error}
+        loading={loading}
+        storages={storages}
+      />
     </Panel>
   );
 };
