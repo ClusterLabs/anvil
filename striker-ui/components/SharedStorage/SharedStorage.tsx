@@ -8,10 +8,10 @@ import { AnvilContext } from '../AnvilContext';
 import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageBox from '../MessageBox';
-import { Panel, InnerPanel, InnerPanelHeader, PanelHeader } from '../Panels';
+import { Panel, PanelHeader } from '../Panels';
 import StorageGroup from './StorageGroup';
 import Spinner from '../Spinner';
-import { BodyText, HeaderText } from '../Text';
+import { HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'SharedStorage';
@@ -65,12 +65,7 @@ const SharedStorageContent: React.FC<
       <Box className={classes.root}>
         {values.map(
           (storageGroup): JSX.Element => (
-            <InnerPanel key={storageGroup.uuid}>
-              <InnerPanelHeader>
-                <BodyText text={storageGroup.name} />
-              </InnerPanelHeader>
-              <StorageGroup storageGroup={storageGroup} />
-            </InnerPanel>
+            <StorageGroup key={storageGroup.uuid} storageGroup={storageGroup} />
           ),
         )}
       </Box>
