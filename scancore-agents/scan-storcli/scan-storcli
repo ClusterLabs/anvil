@@ -1335,6 +1335,7 @@ INSERT INTO
 					delete $anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_drive_groups'}{source_uuid}{$scan_storcli_drive_group_uuid}{$type}{$variable};
 					
 					# If the old value is already 'VANISHED', ignore it.
+					next if not $variable_uuid;
 					next if $old_variable_value eq "VANISHED";
 					
 					### NOTE: For now, we're going to use warning level because variables
@@ -6558,6 +6559,7 @@ INSERT INTO
 					delete $anvil->data->{sql}{scan_storcli_variables}{scan_storcli_variable_uuid}{source_table}{'scan_storcli_controllers'}{source_uuid}{$controller_uuid}{$type}{$variable};
 					
 					# If the old value is already 'VANISHED', ignore it.
+					next if not $variable_uuid;
 					next if $old_variable_value eq "VANISHED";
 					
 					### NOTE: For now, we're going to use warning level because variables
