@@ -9,6 +9,7 @@ import {
   toAnvilMemoryCalcable,
   toAnvilSharedStorageOverview,
 } from '../../lib/api_converters';
+import { StorageBar } from '../Bars';
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
@@ -257,18 +258,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
               </InlineMonoText>
             </BodyText>
           </FlexBox>
-          <StackBar
-            thin
-            value={{
-              allocated: {
-                value: Number(
-                  ((storages.totalSize - storages.totalFree) * N_100) /
-                    storages.totalSize,
-                ),
-                colour: { 0: BLUE, 70: PURPLE, 90: RED },
-              },
-            }}
-          />
+          <StorageBar storages={storages} thin />
         </FlexBox>
       ),
     [storages],
