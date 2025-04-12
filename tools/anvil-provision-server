@@ -1314,9 +1314,9 @@ sub create_md
 		return_code => $return_code,
 	}});
 	
-	# 0 == Success (MD exists)
+	# 0 == Success (MD exists if not Diskless)
 	# 1 == No MD, create
-	if (not $return_code)
+	if ((not $return_code) && ($output !~ /^Diskless/))
 	{
 		# Metadata already exists.
 		$anvil->Job->update_progress({
