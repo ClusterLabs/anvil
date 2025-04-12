@@ -302,7 +302,7 @@ The error was:
 		<key name="error_0195">Unable to get the install ISO to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
-		<key name="error_0198">The new server's name: [#!variable!server_name!#] is already in use. Has this job already run?</key>
+		<key name="error_0198">#!free!#</key>
 		<key name="error_0199">The storage group UUID: [#!variable!storage_group_uuid!#] wasn't found in the database.</key>
 		<key name="error_0200">The new DRBD resource will need a "minor" number and a TCP port. One or both are not provided or are invalid.</key>
 		<key name="error_0201">Failed to create the logical volume: [#!variable!lv_path!#]. Without this, we can't create the replicated storage backing the server, aborting.
@@ -1445,11 +1445,11 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
  - Allocated to servers: [#!variable!ram_allocated!#]
  - Node 1 RAM (total): . [#!variable!ram_node1!#]
  - Node 2 RAM (total): . [#!variable!ram_node2!#]</key>
-		<key name="job_0168">#!free!#</key>
+		<key name="job_0168">The DRBD resource config file: [#!variable!file!#] already exists, skipping creation.</key>
 		<key name="job_0169">      Available on Anvil!: [#!variable!vg_free!#], Total: [#!variable!vg_size!#]</key>
 		<key name="job_0170">Storage Group: . [#!variable!storage_group!#]</key>
 		<key name="job_0171">* Please enter a number beside the storage group you want to use.</key>
-		<key name="job_0172">#!free!#</key>
+		<key name="job_0172">The DRBD resource: [#!variable!resource!#] metadata already exists, skipping MD creation.</key>
 		<key name="job_0173">Storage Size: .. [#!variable!storage_size!#]</key>
 		<key name="job_0174">* Please enter a size up to: [#!variable!max_size!#].</key>
 		<key name="job_0175">-=] Storage group: [#!variable!storage_group!#], Available Space: [#!variable!available_size!#]
@@ -1540,7 +1540,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0249">Trying to connect to: [#!variable!machine!#] using IP: [#!variable!ip!#] with the desired password.</key>
 		<key name="job_0250">Connected! We will initialize using the IP: [#!variable!ip!#]</key>
 		<key name="job_0251">Failed to connect to: [#!variable!machine!#] using any IP address. We'll sleep and then try again shortly.</key>
-		<key name="job_0252">#!free!#</key>
+		<key name="job_0252">The server: [#!variable!server_name!#] is already running on: [#!variable!host_name!#]. Skipping provision.</key>
 		<key name="job_0253">All machines should now be initializing. Waiting now for all machines to register in the database.</key>
 		<key name="job_0254">The machine: [#!variable!machine!#] hasn't connected to the database yet.</key>
 		<key name="job_0255">One (or more) machines have not yet initialized. Waiting a few seconds, then checking again.</key>
@@ -4104,7 +4104,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
 		<key name="warning_0021">[ Warning ] - Changing the default zone to IFN1.</key>
-		<key name="warning_0022">#!free!#</key>
+		<key name="warning_0022">The new server's name: [#!variable!server_name!#] is already in use. Will check for incomplete steps.</key>
 		<key name="warning_0023">#!free!#</key>
 		<key name="warning_0024">#!free!#</key>
 		<key name="warning_0025">#!free!#</key>
