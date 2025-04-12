@@ -286,10 +286,11 @@ sub pre_process_health
 				}});
 				
 				my $value = $anvil->data->{virtual_drive}{$id_string}{drive_group}{$drive_group}{variable}{$variable};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { value => $value }});
 				if ($value eq "Partially Degraded")
 				{
 					# Partially degraded array
-					my $health_source_name                              = "drive_group:".$id_string,"-".$drive_group.":".$variable;
+					my $health_source_name                              = "drive_group:".$id_string."-".$drive_group.":".$variable;
 					   $anvil->data->{health}{new}{$health_source_name} = 5;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"health::new::$health_source_name" => $anvil->data->{health}{new}{$health_source_name}, 
@@ -298,7 +299,7 @@ sub pre_process_health
 				elsif ($value eq "Degraded")
 				{
 					# Degraded array
-					my $health_source_name                              = "drive_group:".$id_string,"-".$drive_group.":".$variable;
+					my $health_source_name                              = "drive_group:".$id_string."-".$drive_group.":".$variable;
 					   $anvil->data->{health}{new}{$health_source_name} = 10;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						"health::new::$health_source_name" => $anvil->data->{health}{new}{$health_source_name}, 
