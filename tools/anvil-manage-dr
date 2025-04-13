@@ -45,6 +45,7 @@ $anvil->Get->switches({list => [
 	"protect",
 	"protocol",
 	"remove",
+	"restore",
 	"server",
 	"show", 
 	"unlink",
@@ -81,6 +82,12 @@ elsif ($anvil->data->{switches}{show})
 	show_list($anvil);
 }
 
+# Are we looking for servers that should be protected by us, but aren't.
+if ($anvil->data->{switches}{restore})
+{
+	handle_restore($anvil);
+}
+
 my $terminal = "";
 if (not $anvil->data->{switches}{'job-uuid'})
 {
@@ -103,6 +110,317 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+sub handle_restore
+{
+	my ($anvil) = @_;
+	
+	# If we're not a DR host, there's nothing to do.
+	my $host_type = $anvil->Get->host_type();
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		host_type => $host_type,
+		host_uuid => $host_uuid, 
+	}});
+	
+	if ($host_type ne "dr")
+	{
+		print $anvil->Words->string({key => "message_0218"})."\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 5}),
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0222", 
+	});
+	
+	# Load data
+	$anvil->Database->get_hosts();
+	$anvil->Database->get_storage_group_data({debug => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	$anvil->Database->get_servers();
+	
+	# Which Anvil! nodes are we linked to?
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_name}})
+	{
+		my $dr_link_uuid = $anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_name}{$anvil_name}{dr_link_uuid};
+		my $anvil_uuid   = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_anvil_uuid};
+		my $dr_link_note = $anvil->data->{dr_links}{dr_link_uuid}{$dr_link_uuid}{dr_link_note};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_name"   => $anvil_name,
+			"s2:dr_link_uuid" => $dr_link_uuid, 
+			"s3:anvil_uuid"   => $anvil_uuid, 
+			"s4:dr_link_note" => $dr_link_note, 
+		}});
+		next if $dr_link_note eq "DELETED";
+		
+		my $anvil_description     = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+		my $anvil_password        = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+		my $node1_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+		my $node1_short_host_name = $anvil->data->{hosts}{host_uuid}{$node1_host_uuid}{short_host_name};
+		my $node2_host_uuid       = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+		my $node2_short_host_name = $anvil->data->{hosts}{host_uuid}{$node2_host_uuid}{short_host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:anvil_description"     => $anvil_description,
+			"s2:anvil_password"        => $anvil->Log->is_secure($anvil_password), 
+			"s3:node1_host_uuid"       => $node1_host_uuid, 
+			"s4:node1_short_host_name" => $node1_short_host_name, 
+			"s5:node2_host_uuid"       => $node2_host_uuid, 
+			"s6:node2_short_host_name" => $node2_short_host_name, 
+		}});
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			log_level => 1,
+			'print'   => 1, 
+			message   => "message_0223", 
+			variables => {
+				anvil_name        => $anvil_name, 
+				anvil_description => $anvil_description, 
+			},
+		});
+		
+		# Can I access both subnodes?
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			log_level => 1,
+			'print'   => 1, 
+			message   => "message_0224", 
+			variables => {
+				subnode_name => $node1_short_host_name, 
+			},
+		});
+		my ($node1_target_ip, $node1_target_network) = $anvil->Network->find_target_ip({
+			debug       => 3, 
+			host_uuid   => $node1_host_uuid,
+			ping        => 1, 
+			test_access => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:node1_target_ip"      => $node1_target_ip,
+			"s2:node1_target_network" => $node1_target_network, 
+		}});
+		if ($node1_target_ip)
+		{
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0225", 
+				variables => {
+					ip_address => $node1_target_ip, 
+					network    => $node1_target_network, 
+				},
+			});
+		}
+		else
+		{
+			# No access
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0226", 
+			});
+		}
+		
+		 my ($node2_target_ip, $node2_target_network) = $anvil->Network->find_target_ip({
+			debug       => 3, 
+			host_uuid   => $node2_host_uuid,
+			ping        => 1, 
+			test_access => 1,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"s1:node2_target_ip"      => $node2_target_ip,
+			"s2:node2_target_network" => $node2_target_network, 
+		}});
+		if ($node2_target_ip)
+		{
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0225", 
+				variables => {
+					ip_address => $node2_target_ip, 
+					network    => $node2_target_network, 
+				},
+			});
+		}
+		else
+		{
+			# No access
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0226", 
+			});
+		}
+		
+		# Can we proceed?
+		if ((not $node1_target_ip) && (not $node2_target_ip))
+		{
+			# Nope. 
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0247", 
+			});
+			next;
+		}
+		
+		my $use_ip        = $node1_target_ip ? $node1_target_ip       : $node2_target_ip;
+		my $use_host_name = $node1_target_ip ? $node1_short_host_name : $node2_short_host_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			use_ip        => $use_ip,
+			use_host_name => $use_host_name, 
+		}});
+		
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			log_level => 1,
+			'print'   => 1, 
+			message   => "message_0249", 
+			variables => {
+				subnode_name => $use_host_name, 
+			},
+		});
+		
+		# Read in all of the DRBD resource files on the host.
+		my $shell_call = $anvil->data->{path}{exe}{ls}." ".$anvil->data->{path}{directories}{drbd_resources};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { use_ip => $use_ip }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $use_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		foreach my $file (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
+			next if $file !~ /\.res$/;
+			
+			# Read the file:
+			my $full_path =  $anvil->data->{path}{directories}{drbd_resources}."/".$file;
+			   $full_path =~ s/\/\//\//g;
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0252", 
+				variables => {
+					file => $full_path, 
+				},
+			});
+			
+			if (-e $full_path)
+			{
+				# It's already here, skip it.
+				$anvil->Job->update_progress({
+					progress  => $anvil->Job->bump_progress({steps => 1}),
+					log_level => 1,
+					'print'   => 1, 
+					message   => "message_0255", 
+				});
+				next;
+			}
+			
+			# Read it from the peer
+			my $resource_config = $anvil->Storage->read_file({
+				file     => $full_path,
+				target   => $use_ip, 
+				password => $anvil_password,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_config => $resource_config }});
+			
+			my $in_on          = 0;
+			my $in_volume      = "";
+			my $this_device    = "";
+			my $this_disk      = "";
+			my $this_host_name = "";
+			my $this_host_uuid = "";
+			foreach my $line (split/\n/, $resource_config)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /\}/)
+				{
+					if ($in_volume ne "")
+					{
+						$in_volume = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
+					}
+					elsif ($in_on)
+					{
+						# Record the data.
+						if ($in_volume eq "")
+						{
+							die "Reached end of section without a volume.\n";
+						}
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{drbd_device} = $this_device;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_path}     = $this_disk;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_size}     = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"s1:drbd_resource::${file}::host_name::${this_host_name}::volume::${in_volume}::drbd_device" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{drbd_device},
+							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${in_volume}::lv_path"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_path},
+						}});
+						
+						$in_on          = 0;
+						$this_host_name = "";
+						$this_host_uuid = "";
+						$this_device    = "";
+						$this_disk      = "";
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							in_on          => $in_on, 
+							this_host_name => $this_host_name,
+							this_host_uuid => $this_host_uuid, 
+							this_device    => $this_device, 
+							this_disk      => $this_disk, 
+						}});
+					}
+				}
+				if ($line =~ /on (.*?) \{/)
+				{
+					$this_host_name = $1;
+					$this_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $this_host_name});
+					$in_on          = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_host_name => $this_host_name,
+						this_host_uuid => $this_host_uuid, 
+						in_on          => $in_on, 
+					}});
+				}
+				if ($line =~ /volume (\d+) \{/)
+				{
+					$in_volume = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
+				}
+				if ($line =~ /device\s+(.*?)\s+minor/)
+				{
+					$this_device = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_device => $this_device }});
+				}
+				if ($line =~ /disk\s+(.*?);/)
+				{
+					$this_disk = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_disk => $this_disk }});
+				}
+			}
+		}
+	}
+	
+	
+	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
 
 sub show_list
 {
@@ -382,8 +700,10 @@ sub sanity_check
 	
 	# Begin sanity checks
 	$anvil->Job->update_progress({
-		progress => 10,
-		message  => "job_0358", 
+		progress  => 10,
+		log_level => 1,
+		'print'   => 1, 
+		message   => "job_0358", 
 	});
 
 	# Somehow, duplicate entries are being created in dr_links. Look for and purge them.
@@ -403,9 +723,10 @@ sub sanity_check
 	{
 		# This has to be run on an Anvil! sub-node. (For now at least. We need to make a menu to let
 		# the user select a VM interactively).
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0404"});
 		$anvil->Job->update_progress({
 			progress   => 100,
+			log_level  => 1,
+			'print'    => 1, 
 			message    => "error_0404",
 			job_status => "failed",
 		});
@@ -451,9 +772,10 @@ sub sanity_check
 		if (not $anvil->data->{switches}{server})
 		{
 			# Please specify the server to manager using '--server <name or uuid>'.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0340"});
 			$anvil->Job->update_progress({
 				progress   => 100,
+				log_level  => 1,
+				'print'    => 1, 
 				message    => "error_0340",
 				job_status => "failed",
 			});
@@ -464,13 +786,15 @@ sub sanity_check
 		}
 		if (not $server_uuid)
 		{
-			my $variables = { server => $anvil->data->{switches}{server} };
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0411", variables => $variables});
 			$anvil->Job->update_progress({
 				progress   => 100,
-				message    => "error_0411",
-				variables  => $variables,
+				log_level  => 1,
+				'print'    => 1, 
 				job_status => "failed",
+				message    => "error_0411",
+				variables  => { 
+					server => $anvil->data->{switches}{server},
+				},
 			});
 
 			# Show the servers on this anvil and exit.
@@ -534,16 +858,16 @@ sub sanity_check
 				else
 				{
 					# We're not linked to this Anvil! node.
-					my $variables = {
-						server => $server_name,
-						anvil  => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
-					};
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0012", variables => $variables});
 					$anvil->Job->update_progress({
 						progress   => 100,
-						message    => "error_0012",
-						variables  => $variables,
+						log_level  => 1,
+						'print'    => 1, 
 						job_status => "failed",
+						message    => "error_0012",
+						variables  => {
+							server => $server_name,
+							anvil  => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
+						},
 					});
 
 					# Show the servers on this anvil and exit.
@@ -554,17 +878,17 @@ sub sanity_check
 			else
 			{
 				# Server isn't here.
-				my $variables = {
-					server     => $server_name,
-					this_anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
-					on_anvil   => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
-				};
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0412", variables => $variables});
 				$anvil->Job->update_progress({
 					progress   => 100,
-					message    => "error_0412",
-					variables  => $variables,
+					log_level  => 1,
+					'print'    => 1, 
 					job_status => "failed",
+					message    => "error_0412",
+					variables  => {
+						server     => $server_name,
+						this_anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+						on_anvil   => $anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name},
+					},
 				});
 
 				# Show the servers on this anvil and exit.
@@ -584,16 +908,16 @@ sub sanity_check
 		if (not -e $config_file)
 		{
 			# Can't connect an unprotected server.
-			my $variables = {
-				server      => $server_name, 
-				config_file => $config_file, 
-			};
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0371", variables => $variables});
 			$anvil->Job->update_progress({
 				progress   => 100,
-				message    => "error_0371", 
-				variables  => $variables, 
+				log_level  => 1,
+				'print'    => 1, 
 				job_status => "failed", 
+				message    => "error_0371", 
+				variables  => {
+					server      => $server_name, 
+					config_file => $config_file, 
+				}, 
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
@@ -607,9 +931,10 @@ sub sanity_check
 		if (($host_type eq "node") && (not $anvil_uuid))
 		{
 			# This must be run on a node active in the cluster hosting the server being managed.
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0332"});
 			$anvil->Job->update_progress({
 				progress   => 100,
+				log_level  => 1,
+				'print'    => 1, 
 				message    => "error_0332", 
 				job_status => "failed", 
 			});
@@ -3626,7 +3951,7 @@ sub load_job
 		message          => "message_0267", 
 	});
 	
-	print "Loading the job: [".$anvil->data->{switches}{'job-uuid'}."]...\n";
+	#print "Loading the job: [".$anvil->data->{switches}{'job-uuid'}."]...\n";
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		"jobs::job_command"  => $anvil->data->{jobs}{job_command},
@@ -3637,7 +3962,7 @@ sub load_job
 	
 	# Break up the job data into switches.
 	$anvil->data->{switches}{Yes} = 1;
-	print "- Set the switch: [--Yes] to true.\n";
+	#print "- Set the switch: [--Yes] to true.\n";
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -3655,10 +3980,10 @@ sub load_job
 				"switches::${key}" => $anvil->data->{switches}{$key}, 
 			}});
 			
-			print "* Set the switch: [--".$key."] to: [".$value."]\n";
+			#print "* Set the switch: [--".$key."] to: [".$value."]\n";
 		}
 	}
-	print "Job loaded successfully.\n\n";
+	#print "Job loaded successfully.\n\n";
 	
 	return(0);
 }
