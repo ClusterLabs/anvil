@@ -1708,7 +1708,7 @@ sub host_uuid_from_name
 	
 	# We use Database->get_hosts(), first looping for an exact match. If that fails, we'll loop again, 
 	# reducing all host names to short version.
-	$anvil->Database->get_hosts({debug => 2});
+	$anvil->Database->get_hosts({debug => $debug});
 	
 	if (exists $anvil->data->{sys}{hosts}{by_name}{$host_name})
 	{

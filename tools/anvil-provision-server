@@ -346,8 +346,7 @@ sub run_jobs
 	$anvil->Network->manage_firewall();
 	
 	# Create the DRBD metadata, if needed.
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'job::initialize_drbd' => $anvil->data->{job}{initialize_drbd} }});
-	create_md($anvil) if $anvil->data->{job}{initialize_drbd};
+	create_md($anvil);
 	
 	### NOTE: This function also forces the resource to be UpToDate if this is not a peer job and we 
 	###       created the LV.
@@ -539,391 +538,428 @@ sub provision_server
 {
 	my ($anvil) = @_;
 	
-	# The logic behind this is explained here: https://libvirt.org/formatdomain.html#elementsTime
-	my $server       = $anvil->data->{job}{server_name};
-	my $clock_offset = $anvil->data->{job}{os} =~ /win/i ? "localtime" : "utc";
-	my $say_memory   =  sprintf("%.0f", ($anvil->data->{job}{ram} /= (2 ** 20)));
+	# If we're re-running, the server might already exist. Check for it. 
+	my $do_provision     = 1;
+	my $server_host_name = $anvil->Server->locate({
+		debug       => 2,
+		anvil_uuid  => $anvil->data->{job}{anvil_uuid},
+		server_name => $anvil->data->{job}{server_name}, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_host_name => $server_host_name }});
+	if (($server_host_name) && ($server_host_name ne "!!error!!"))
+	{
+		# Don't provision.
+		$anvil->Job->update_progress({
+			progress  => 85,
+			log_level => 1, 
+			'print'   => 1,
+			message   => "job_0200", 
+			variables => {
+				server_name => $anvil->data->{job}{server_name}, 
+				host_name   => $server_host_name, 
+			},
+		});
+		$do_provision = 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { do_provision => $do_provision }});
+	}
+	
+	my $server          = $anvil->data->{job}{server_name};
+	my $server_uuid     = $anvil->data->{job}{server_uuid} ? $anvil->data->{job}{server_uuid} : $anvil->Get->uuid();
+	my $short_host_name = $anvil->Get->short_host_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		clock_offset => $clock_offset,
-		say_memory   => $say_memory,
+		server          => $server, 
+		server_uuid     => $server_uuid, 
+		short_host_name => $short_host_name, 
 	}});
-	
-	### TODO: Support disk images (ie: sysprep) via '--import'. The device used for booting is the first 
-	###       device specified via "--disk"
-	###       Consider support for TPM, RNG and watchdog devices
-	my $server_uuid = $anvil->data->{job}{server_uuid} ? $anvil->data->{job}{server_uuid} : $anvil->Get->uuid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		"job::os"   => $anvil->data->{job}{os}, 
-		server_uuid => $server_uuid, 
-	}});
-	my $disk_bus = ",target.bus=virtio";
-	if ($anvil->data->{job}{os} eq "win7")
+	if ($do_provision)
 	{
-		$disk_bus = "";
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disk_bus => $disk_bus }});
-	
-	# Setup the network line
-	my $nic = "bridge=";
-	if ($anvil->data->{job}{network}{bridge})
-	{
-		$nic .= $anvil->data->{job}{network}{bridge};
-	}
-	else
-	{
-		$nic .= "ifn1_bridge1";
-	}
-	if ($anvil->data->{job}{network}{model})
-	{
-		$nic .= ",model.type=".$anvil->data->{job}{network}{model};
-	}
-	elsif ($anvil->data->{job}{os} eq "win7")
-	{
-		$nic .= ",model.type=e1000e";
-	}
-	if ($anvil->data->{job}{network}{mac})
-	{
-		$nic .= ",mac.address=".$anvil->data->{job}{network}{mac};
-	}
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nic => $nic }});
-	
-	my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
-	   $shell_call .= "--name ".$server." \\\n";
-	   $shell_call .= " --os-variant ".$anvil->data->{job}{os}." \\\n";
-	   $shell_call .= " --memory ".$say_memory." \\\n";
-	   $shell_call .= " --events on_poweroff=destroy,on_reboot=restart \\\n";
-	   $shell_call .= " --vcpus ".$anvil->data->{job}{cpu_cores}.",sockets=1,cores=".$anvil->data->{job}{cpu_cores}." \\\n";
-	   $shell_call .= " --cpu host \\\n";
-	   $shell_call .= " --network ".$nic." \\\n";
-	   $shell_call .= " --graphics vnc \\\n";
-	   $shell_call .= " --sound ich9 \\\n";
-	   $shell_call .= " --clock offset=".$clock_offset.",rtc_tickpolicy=catchup \\\n";
-	   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0".$disk_bus.",driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
-	   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
-	   $shell_call .= " --uuid=".$server_uuid." \\\n";
-	if ($anvil->data->{job}{driver_iso_path})
-	{
-		$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
-	}
-	
-	# Windows 11 need TPM
-	if ($anvil->data->{job}{os} eq "win11")
-	{
-		$shell_call .= " --tpm backend.type=emulator,backend.version=2.0,model=tpm-tis \\\n";
-		$shell_call .= " --boot menu=on,loader=/usr/share/OVMF/OVMF_CODE.secboot.fd,loader_ro=yes,loader_type=pflash,nvram_template=/usr/share/OVMF/OVMF_VARS.fd \\\n";
-	}
-	else
-	{
-		$shell_call .= " --boot menu=on \\\n";
-	}
-	
-	$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	
-	$anvil->Job->update_progress({
-		progress => 70,
-		message  => "job_0199,!!shell_call!".$shell_call."!!", 
-	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0199", variables => { shell_call => $shell_call }});
-	
-	# Write the command out to /mnt/shared/provision/
-	my $provision_file = $anvil->data->{path}{directories}{shared}{provision}."/".$server.".sh";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	my $problem = $anvil->Storage->write_file({
-		overwrite => 1, 
-		backup    => 1,
-		file      => $provision_file, 
-		body      => $shell_call, 
-		mode      => "0755",
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-	
-	# Also, record the provision command 
-	my $variable_uuid = $anvil->Database->insert_or_update_variables({
-		variable_name         => "server::provision_script",
-		variable_value        => $shell_call,
-		variable_default      => "", 
-		variable_description  => "striker_0293", 
-		variable_section      => "servers", 
-		variable_source_uuid  => $server_uuid, 
-		variable_source_table => "servers", 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-	
-	# Wait until file(s) are ready.
-	my $waiting   = 1;
-	my $host_uuid = $anvil->Get->host_uuid();
-	my @files     = ($anvil->data->{job}{install_iso_path});
-	if ($anvil->data->{job}{driver_iso_path})
-	{
-		push @files, $anvil->data->{job}{driver_iso_path};
-	}
-	while ($waiting)
-	{
-		# This loads files and file locations.
-		$anvil->Storage->check_files({debug => 2});
-		$waiting = 0;
-		foreach my $file_path (sort {$a cmp $b} @files)
+		# The logic behind this is explained here: https://libvirt.org/formatdomain.html#elementsTime
+		my $clock_offset = $anvil->data->{job}{os} =~ /win/i ? "localtime" : "utc";
+		my $say_memory   =  sprintf("%.0f", ($anvil->data->{job}{ram} /= (2 ** 20)));
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			clock_offset => $clock_offset,
+			say_memory   => $say_memory,
+		}});
+		
+		### TODO: Support disk images (ie: sysprep) via '--import'. The device used for booting is 
+		###       the first device specified via "--disk". Consider support for TPM, RNG and 
+		###       watchdog devices
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "job::os" => $anvil->data->{job}{os} }});
+		my $disk_bus = ",target.bus=virtio";
+		if ($anvil->data->{job}{os} eq "win7")
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_path => $file_path }});
-			
-			$anvil->data->{file_uuid}{$file_path} = "" if not exists $anvil->data->{uuid}{$file_path}{file_uuid};
-			
-			# What's this file's file_uuid?
-			my $file_uuid = $anvil->data->{file_uuid}{$file_path};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
-			
-			my $file_location_uuid = "";
-			if (not $file_uuid)
+			$disk_bus = "";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { disk_bus => $disk_bus }});
+		
+		# Setup the network line
+		my $nic = "bridge=";
+		if ($anvil->data->{job}{network}{bridge})
+		{
+			$nic .= $anvil->data->{job}{network}{bridge};
+		}
+		else
+		{
+			$nic .= "ifn1_bridge1";
+		}
+		if ($anvil->data->{job}{network}{model})
+		{
+			$nic .= ",model.type=".$anvil->data->{job}{network}{model};
+		}
+		elsif ($anvil->data->{job}{os} eq "win7")
+		{
+			$nic .= ",model.type=e1000e";
+		}
+		if ($anvil->data->{job}{network}{mac})
+		{
+			$nic .= ",mac.address=".$anvil->data->{job}{network}{mac};
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nic => $nic }});
+		
+		my $shell_call =  $anvil->data->{path}{exe}{'virt-install'}." --connect qemu:///system \\\n";
+		   $shell_call .= "--name ".$server." \\\n";
+		   $shell_call .= " --os-variant ".$anvil->data->{job}{os}." \\\n";
+		   $shell_call .= " --memory ".$say_memory." \\\n";
+		   $shell_call .= " --events on_poweroff=destroy,on_reboot=restart \\\n";
+		   $shell_call .= " --vcpus ".$anvil->data->{job}{cpu_cores}.",sockets=1,cores=".$anvil->data->{job}{cpu_cores}." \\\n";
+		   $shell_call .= " --cpu host \\\n";
+		   $shell_call .= " --network ".$nic." \\\n";
+		   $shell_call .= " --graphics vnc \\\n";
+		   $shell_call .= " --sound ich9 \\\n";
+		   $shell_call .= " --clock offset=".$clock_offset.",rtc_tickpolicy=catchup \\\n";
+		   $shell_call .= " --disk path=/dev/drbd/by-res/".$server."/0".$disk_bus.",driver.io=threads,cache=writeback,driver.discard=unmap,boot.order=1 \\\n";
+		   $shell_call .= " --disk path=".$anvil->data->{job}{install_iso_path}.",device=cdrom,shareable=on,boot.order=2 \\\n";
+		   $shell_call .= " --uuid=".$server_uuid." \\\n";
+		if ($anvil->data->{job}{driver_iso_path})
+		{
+			$shell_call .= " --disk path=".$anvil->data->{job}{driver_iso_path}.",device=cdrom,shareable=on,boot.order=3 --force \\\n";
+		}
+		
+		# Windows 11 need TPM
+		if ($anvil->data->{job}{os} eq "win11")
+		{
+			$shell_call .= " --tpm backend.type=emulator,backend.version=2.0,model=tpm-tis \\\n";
+			$shell_call .= " --boot menu=on,loader=/usr/share/OVMF/OVMF_CODE.secboot.fd,loader_ro=yes,loader_type=pflash,nvram_template=/usr/share/OVMF/OVMF_VARS.fd \\\n";
+		}
+		else
+		{
+			$shell_call .= " --boot menu=on \\\n";
+		}
+		
+		$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		$anvil->Job->update_progress({
+			progress => 70,
+			message  => "job_0199,!!shell_call!".$shell_call."!!", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0199", variables => { shell_call => $shell_call }});
+		
+		# Write the command out to /mnt/shared/provision/
+		my $provision_file = $anvil->data->{path}{directories}{shared}{provision}."/".$server.".sh";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my $problem = $anvil->Storage->write_file({
+			overwrite => 1, 
+			backup    => 1,
+			file      => $provision_file, 
+			body      => $shell_call, 
+			mode      => "0755",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		
+		# Also, record the provision command 
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => "server::provision_script",
+			variable_value        => $shell_call,
+			variable_default      => "", 
+			variable_description  => "striker_0293", 
+			variable_section      => "servers", 
+			variable_source_uuid  => $server_uuid, 
+			variable_source_table => "servers", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+		
+		# Wait until file(s) are ready.
+		my $waiting   = 1;
+		my $host_uuid = $anvil->Get->host_uuid();
+		my @files     = ($anvil->data->{job}{install_iso_path});
+		if ($anvil->data->{job}{driver_iso_path})
+		{
+			push @files, $anvil->data->{job}{driver_iso_path};
+		}
+		while ($waiting)
+		{
+			# This loads files and file locations.
+			$anvil->Storage->check_files({debug => 2});
+			$waiting = 0;
+			foreach my $file_path (sort {$a cmp $b} @files)
 			{
-				foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{files}{file_uuid}})
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_path => $file_path }});
+				
+				$anvil->data->{file_uuid}{$file_path} = "" if not exists $anvil->data->{uuid}{$file_path}{file_uuid};
+				
+				# What's this file's file_uuid?
+				my $file_uuid = $anvil->data->{file_uuid}{$file_path};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+				
+				my $file_location_uuid = "";
+				if (not $file_uuid)
 				{
-					my $this_file_path =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
-					   $this_file_path =~ s/\/\//\//g;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						this_file_uuid => $this_file_uuid, 
-						this_file_path => $this_file_path,
-					}});
-					if ($this_file_path eq $file_path)
+					foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{files}{file_uuid}})
 					{
-						# Found it.
-						$file_uuid = $this_file_uuid;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
-						last;
+						my $this_file_path =  $anvil->data->{files}{file_uuid}{$this_file_uuid}{file_directory}."/".$anvil->data->{files}{file_uuid}{$this_file_uuid}{file_name};
+						   $this_file_path =~ s/\/\//\//g;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							this_file_uuid => $this_file_uuid, 
+							this_file_path => $this_file_path,
+						}});
+						if ($this_file_path eq $file_path)
+						{
+							# Found it.
+							$file_uuid = $this_file_uuid;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file_uuid => $file_uuid }});
+							last;
+						}
 					}
 				}
-			}
-			
-			# Did we find the file?
-			if (not $file_uuid)
-			{
-				# Nope.
-				$waiting = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0154", variables => {
-					file_path   => $file_path, 
-					server_name => $server, 
+				
+				# Did we find the file?
+				if (not $file_uuid)
+				{
+					# Nope.
+					$waiting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0154", variables => {
+						file_path   => $file_path, 
+						server_name => $server, 
+					}});
+					next;
+				}
+				
+				# Yes, now do we have the file_location_uuid?
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"file_locations::host_uuid::${host_uuid}::file_uuid::${file_uuid}" => exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid} ? 1 : 0,
 				}});
-				next;
-			}
-			
-			# Yes, now do we have the file_location_uuid?
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				"file_locations::host_uuid::${host_uuid}::file_uuid::${file_uuid}" => exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid} ? 1 : 0,
-			}});
-			if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
-			{
-				# Nope
-				$waiting = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0155", variables => {
-					file_path   => $file_path, 
-					server_name => $server, 
+				if (not exists $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid})
+				{
+					# Nope
+					$waiting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0155", variables => {
+						file_path   => $file_path, 
+						server_name => $server, 
+					}});
+					
+					# This is being hit improperly somehow. Added logging to help 
+					# diagnose.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:Get->host_uuid' => $anvil->Get->host_uuid,
+						's2:host_uuid'      => $host_uuid, 
+						's3:file_uuid'      => $file_uuid,
+					}});
+					foreach my $this_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}})
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							's1:this_host_uuid' => $this_host_uuid,
+							's2:this_host_name' => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+						}});
+						foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}})
+						{
+							my $this_file_location_uuid = $anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}{$this_file_uuid}{file_location_uuid};
+							my $this_anvil_uuid         = $anvil->data->{file_locations}{file_location_uuid}{$this_file_location_uuid}{file_location_anvil_uuid};
+							my $this_file_name          = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{file_uuid}{$this_file_uuid}{file_name};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:this_file_uuid'          => $this_file_uuid,
+								's2:this_file_location_uuid' => $this_file_location_uuid,
+								's3:this_anvil_uuid'         => $this_anvil_uuid, 
+								's4:this_file_name'          => $this_file_name, 
+							}});
+						}
+					}
+					next;
+				}
+				
+				   $file_location_uuid  = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
+				my $file_location_ready = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					file_location_uuid  => $file_location_uuid,
+					file_location_ready => $file_location_ready, 
 				}});
 				
-				# This is being hit improperly somehow. Added logging to help diagnose.
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					's1:Get->host_uuid' => $anvil->Get->host_uuid,
-					's2:host_uuid'      => $host_uuid, 
-					's3:file_uuid'      => $file_uuid,
-				}});
-				foreach my $this_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}})
+				if (not $file_location_ready)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						's1:this_host_uuid' => $this_host_uuid,
-						's2:this_host_name' => $anvil->Get->host_name_from_uuid({host_uuid => $this_host_uuid}),
+					$waiting = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0156", variables => {
+						file_path   => $file_path, 
+						server_name => $server, 
 					}});
-					foreach my $this_file_uuid (sort {$a cmp $b} keys %{$anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}})
-					{
-						my $this_file_location_uuid = $anvil->data->{file_locations}{host_uuid}{$this_host_uuid}{file_uuid}{$this_file_uuid}{file_location_uuid};
-						my $this_anvil_uuid         = $anvil->data->{file_locations}{file_location_uuid}{$this_file_location_uuid}{file_location_anvil_uuid};
-						my $this_file_name          = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{file_uuid}{$this_file_uuid}{file_name};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:this_file_uuid'          => $this_file_uuid,
-							's2:this_file_location_uuid' => $this_file_location_uuid,
-							's3:this_anvil_uuid'         => $this_anvil_uuid, 
-							's4:this_file_name'          => $this_file_name, 
-						}});
-					}
+					next;
 				}
-				next;
 			}
 			
-			   $file_location_uuid  = $anvil->data->{file_locations}{host_uuid}{$host_uuid}{file_uuid}{$file_uuid}{file_location_uuid};
-			my $file_location_ready = $anvil->data->{file_locations}{file_location_uuid}{$file_location_uuid}{file_location_ready};
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				file_location_uuid  => $file_location_uuid,
-				file_location_ready => $file_location_ready, 
-			}});
-			
-			if (not $file_location_ready)
+			if ($waiting)
 			{
-				$waiting = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0156", variables => {
-					file_path   => $file_path, 
-					server_name => $server, 
-				}});
-				next;
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0157"});
+				sleep 10;
 			}
 		}
 		
-		if ($waiting)
-		{
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "alert", key => "warning_0157"});
-			sleep 10;
-		}
-	}
-	
-	# Call as a background process.
-	my ($handle, $return_code) = $anvil->System->call({
-		background  => 1, 
-		shell_call  => $shell_call,
-		stdout_file => "/var/log/anvil-server_".$server.".stdout",
-		stderr_file => "/var/log/anvil-server_".$server.".stderr", 
-	});
-	my $pid = $handle->pid();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		pid         => $pid,
-		return_code => $return_code,
-	}});
-	
-	$anvil->Job->update_progress({
-		progress => 80,
-		message  => "job_0200", 
-	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0200"});
-	
-	# Loop for up to 10 seconds waiting to see the server start running.
-	my $timeout    = 120;
-	my $wait_until = time + $timeout;
-	   $waiting    = 1;
-	my $status     = "";
-	while($waiting)
-	{
-		my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all"});
+		# Call as a background process.
+		my ($handle, $return_code) = $anvil->System->call({
+			background  => 1, 
+			shell_call  => $shell_call,
+			stdout_file => "/var/log/anvil-server_".$server.".stdout",
+			stderr_file => "/var/log/anvil-server_".$server.".stderr", 
+		});
+		my $pid = $handle->pid();
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			output      => $output,
+			pid         => $pid,
 			return_code => $return_code,
 		}});
 		
-		foreach my $line (split/\n/, $output)
+		$anvil->Job->update_progress({
+			progress => 80,
+			message  => "job_0200", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0200"});
+		
+		# Loop for up to 10 seconds waiting to see the server start running.
+		my $timeout    = 120;
+		my $wait_until = time + $timeout;
+		   $waiting    = 1;
+		my $status     = "";
+		while($waiting)
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
-			if ($line =~ /.*?$server\s+(.*)$/)
+			my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." list --all"});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code,
+			}});
+			
+			foreach my $line (split/\n/, $output)
 			{
-				$status = $1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
-				if ($status eq "running")
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+				if ($line =~ /.*?$server\s+(.*)$/)
 				{
+					$status = $1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { status => $status }});
+					if ($status eq "running")
+					{
+						$waiting = 0;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					}
+					elsif ($status eq "shut off")
+					{
+						# Try to boot it.
+						my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." start ".$server});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							output      => $output,
+							return_code => $return_code,
+						}});
+					}
+				}
+				if (($waiting) && (time > $wait_until))
+				{
+					# Didn't boot, give up
 					$waiting = 0;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+					$anvil->Job->update_progress({
+						progress   => 100,
+						message    => "error_0210", 
+						job_status => "failed", 
+						'print'    => 1, 
+						level      => 0, 
+						priority   => 'err',
+						variables  => {
+							timeout => $timeout,
+							status  => $status,
+						},
+					});
+					$anvil->nice_exit({exit_code => 1});
 				}
-				elsif ($status eq "shut off")
-				{
-					# Try to boot it.
-					my ($output, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." start ".$server});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						output      => $output,
-						return_code => $return_code,
-					}});
-				}
+				sleep 1;
 			}
-			if (($waiting) && (time > $wait_until))
-			{
-				# Didn't boot, give up
-				$waiting = 0;
-				$anvil->Job->update_progress({
-					progress   => 100,
-					message    => "error_0210", 
-					job_status => "failed", 
-					'print'    => 1, 
-					level      => 0, 
-					priority   => 'err',
-					variables  => {
-						timeout => $timeout,
-						status  => $status,
-					},
-				});
-				$anvil->nice_exit({exit_code => 1});
-			}
-			sleep 1;
 		}
+		
+		$anvil->Job->update_progress({
+			progress => 85,
+			message  => "job_0201", 
+		});
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0201"});
 	}
-	
-	$anvil->Job->update_progress({
-		progress => 85,
-		message  => "job_0201", 
-	});
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "job_0201"});
 	
 	# Dump the server's XML.
-	(my $server_definition_xml, $return_code) = $anvil->System->call({shell_call => $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$server});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		server_definition_xml => $server_definition_xml,
-		return_code           => $return_code,
-	}});
-
-	$problem = $anvil->Server->parse_definition({
-		debug      => 2,
-		server     => $server, 
-		source     => "from_virsh",
-		definition => $server_definition_xml, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-	if ($problem)
+	if (($do_provision) or ($server_host_name eq $short_host_name))
 	{
-		# Something went wrong with the provision
-		$anvil->Job->update_progress({
-			progress   => 100,
-			message    => "error_0209,!!shell_call!".$shell_call."!!", 
-			job_status => "failed", 
+		my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." dumpxml ".$server;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		my ($server_definition_xml, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_definition_xml => $server_definition_xml,
+			return_code           => $return_code,
+		}});
+
+		my $problem = $anvil->Server->parse_definition({
+			debug      => 2,
+			server     => $server, 
+			source     => "from_virsh",
+			definition => $server_definition_xml, 
 		});
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0209", variables => { shell_call => $shell_call }});
-		$anvil->nice_exit({exit_code => 1});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+		if ($problem)
+		{
+			# Something went wrong with the provision
+			$anvil->Job->update_progress({
+				progress   => 100,
+				message    => "error_0209,!!shell_call!".$shell_call."!!", 
+				job_status => "failed", 
+			});
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0209", variables => { shell_call => $shell_call }});
+			$anvil->nice_exit({exit_code => 1});
+		}
+		
+		# Write out the definition file.
+		my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
+		$problem = $anvil->Storage->write_file({
+			overwrite => 1, 
+			backup    => 1,
+			file      => $definition_file, 
+			body      => $server_definition_xml, 
+			mode      => "0644",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+			
+		# Add the server to the 'servers' table
+		my $anvil_uuid      = $anvil->data->{job}{anvil_uuid};
+		my $got_server_uuid = $anvil->Database->insert_or_update_servers({
+			server_uuid           => $server_uuid, 
+			server_name           => $server, 
+			server_state          => "running", 
+			server_anvil_uuid     => $anvil_uuid, 
+			server_host_uuid      => $anvil->Get->host_uuid, 
+			server_ram_in_use     => $anvil->data->{job}{ram}, 
+			server_configured_ram => $anvil->data->{job}{ram}, 
+			server_boot_time      => time,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
+		
+		# Save the definition.
+		my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
+			server_definition_server_uuid => $got_server_uuid, 
+			server_definition_xml         => $server_definition_xml, 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
 	}
 	
-	# Write out the definition file.
-	my $definition_file = $anvil->data->{path}{directories}{shared}{definitions}."/".$server.".xml";
-	$problem = $anvil->Storage->write_file({
-		overwrite => 1, 
-		backup    => 1,
-		file      => $definition_file, 
-		body      => $server_definition_xml, 
-		mode      => "0644",
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
-		
-	# Add the server to the 'servers' table
-	my $anvil_uuid      = $anvil->data->{job}{anvil_uuid};
-	my $short_host_name = $anvil->Get->short_host_name;
-	my $got_server_uuid = $anvil->Database->insert_or_update_servers({
-		server_uuid           => $server_uuid, 
-		server_name           => $server, 
-		server_state          => "running", 
-		server_anvil_uuid     => $anvil_uuid, 
-		server_host_uuid      => $anvil->Get->host_uuid, 
-		server_ram_in_use     => $anvil->data->{job}{ram}, 
-		server_configured_ram => $anvil->data->{job}{ram}, 
-		server_boot_time      => time,
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { got_server_uuid => $got_server_uuid }});
-	
-	# Save the definition.
-	my $server_definition_uuid = $anvil->Database->insert_or_update_server_definitions({
-		server_definition_server_uuid => $got_server_uuid, 
-		server_definition_xml         => $server_definition_xml, 
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
-	
 	# Undefine the server
-	$shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server;
+	my $shell_call = $anvil->data->{path}{exe}{setsid}." --wait ".$anvil->data->{path}{exe}{virsh}." undefine ".$server;
 	if ($anvil->data->{server}{$short_host_name}{$server}{from_virsh}{nvram}{data})
 	{
 		$shell_call .= " --nvram";
 	}
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code,
@@ -1268,12 +1304,39 @@ sub create_md
 {
 	my ($anvil) = @_;
 	
-	### NOTE: The '--max-peers=3' is needed to make space for future DR additions
-	# Create the DRBD metadata
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
+	# Before we create, see if there's existing metadata.
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." dstate ".$anvil->data->{job}{server_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 
 	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+		output      => $output,
+		return_code => $return_code,
+	}});
+	
+	# 0 == Success (MD exists if not Diskless)
+	# 1 == No MD, create
+	if ((not $return_code) && ($output !~ /^Diskless/))
+	{
+		# Metadata already exists.
+		$anvil->Job->update_progress({
+			progress  => 50,
+			log_level => 1, 
+			'print'   => 1, 
+			message   => "job_0172", 
+			variables => {
+				resource => $anvil->data->{job}{server_name},
+			},
+		});
+		return(0);
+	}
+	
+	### NOTE: The '--max-peers=3' is needed to make space for future DR additions
+	# Create the DRBD metadata
+	$shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$anvil->data->{job}{server_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+
+	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
 		output      => $output,
 		return_code => $return_code,
@@ -1410,6 +1473,26 @@ sub create_resource_file
 {
 	my ($anvil) = @_;
 	
+	# Does the file already exist?
+	my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$anvil->data->{job}{server_name}.".res";
+	   $drbd_res_file =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+	
+	if (-e $drbd_res_file)
+	{
+		# If does, don't replace it.
+		$anvil->Job->update_progress({
+			progress  => 40,
+			log_level => 2, 
+			'print'   => 1,
+			message   => "job_0168",
+			variables => {
+				file => $drbd_res_file,
+			},
+		});
+		return(0);
+	}
+	
 	# Create the resource configuration body
 	my $drbd_res_body = $anvil->Words->string({key => "file_0001", variables => {
 		server           => $anvil->data->{job}{server_name}, 
@@ -1426,10 +1509,6 @@ sub create_resource_file
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_body => $drbd_res_body }});
 	
 	# Write the file, then call drbdadm to validate it.
-	my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$anvil->data->{job}{server_name}.".res";
-	   $drbd_res_file =~ s/\/\//\//g;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
-	
 	my $problem = $anvil->Storage->write_file({
 		overwrite => 1, 
 		backup    => 1,
@@ -1644,6 +1723,84 @@ sub check_drbd_minor_and_port
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
+	# Does the DRBD resource file already exist?
+	my $drbd_res_file =  $anvil->data->{path}{directories}{drbd_resources}."/".$anvil->data->{job}{server_name}.".res";
+	   $drbd_res_file =~ s/\/\//\//g;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { drbd_res_file => $drbd_res_file }});
+	if (-e $drbd_res_file)
+	{
+		# It does, read it in and pull the data from in.
+		my $short_host_name = $anvil->Get->short_host_name();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { short_host_name => $short_host_name }});
+		
+		my $drbd_res_body = $anvil->Storage->read_file({debug => 3, file => $drbd_res_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { drbd_res_body => $drbd_res_body }});
+		
+		my $in_our_host = 0;
+		my $in_volume   = 0;
+		foreach my $line (split/\n/, $drbd_res_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /on $short_host_name \{/)
+			{
+				$in_our_host = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_our_host => $in_our_host }});
+				next;
+			}
+			if ($in_our_host)
+			{
+				if ($line =~ /volume 0 \{/)
+				{
+					$in_volume = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
+					next;
+				}
+			}
+			if ($in_volume)
+			{
+				if ($line =~ /device\s+(.*?) minor (\d+);/)
+				{
+					my $local_lv                       = $1;
+					   $anvil->data->{job}{drbd_minor} = $2;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						local_lv          => $local_lv,
+						"job::drbd_minor" => $anvil->data->{job}{drbd_minor}, 
+					}});
+					next;
+				}
+				if ($line =~ /\}/)
+				{
+					$in_volume = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
+				}
+			}
+			elsif ($in_our_host)
+			{
+				if ($line =~ /\}/)
+				{
+					$in_our_host = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_our_host => $in_our_host }});
+				}
+			}
+			if ($line =~ /host\s+$short_host_name\s+address\s+(.*?):(\d+);/)
+			{
+				my $sn_ip                             = $1;
+				   $anvil->data->{job}{drbd_tcp_port} = $2;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					sn_ip                => $sn_ip,
+					"job::drbd_tcp_port" => $anvil->data->{job}{drbd_tcp_port}, 
+				}});
+			}
+			last if (($anvil->data->{job}{drbd_minor}) && ($anvil->data->{job}{drbd_tcp_port}));
+		}
+	}
+	
+	if (($anvil->data->{job}{drbd_minor}) && ($anvil->data->{job}{drbd_tcp_port}))
+	{
+		# We're done.
+		return(0);
+	}
+	
 	if (not $anvil->data->{job}{peer_mode})
 	{
 		# We're primary, so query the minor number and TCP port
@@ -1689,6 +1846,7 @@ sub parse_job_data
 	$anvil->data->{job}{drbd_minor}         = "";
 	$anvil->data->{job}{drbd_tcp_port}      = "";
 	$anvil->data->{job}{peer_mode}          = 0;
+	$anvil->data->{job}{check_for_missing}  = 0;
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
@@ -1787,7 +1945,8 @@ sub parse_job_data
 					job_status => "failed", 
 				});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0398", variables => { job_uuid => $anvil->data->{job}{network}{raw} }});
-				$anvil->nice_exit({exit_code => 1});
+				$anvil->data->{job}{check_for_missing} = 1;
+				#$anvil->nice_exit({exit_code => 1});
 			}
 		}
 	}
@@ -1857,12 +2016,18 @@ sub parse_job_data
 			{
 				# Duplicate name
 				$anvil->Job->update_progress({
-					progress   => 100,
-					message    => "error_0198,!!server_name!".$anvil->data->{job}{server_name}."!!", 
-					job_status => "failed", 
+					progress  => 3,
+					log_level => 1, 
+					'print'   => 1, 
+					message   => "warning_0022", 
+					variables => {
+						server_name => $anvil->data->{job}{server_name},
+					}, 
 				});
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => 'err', key => "error_0198", variables => { server_name => $anvil->data->{job}{server_name} }});
-				$anvil->nice_exit({exit_code => 1});
+				$anvil->data->{job}{check_for_missing} = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					"job::check_for_missing" => $anvil->data->{job}{check_for_missing}, 
+				}});
 			}
 		}
 		

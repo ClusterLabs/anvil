@@ -68,13 +68,27 @@ This shows the storage groups on each Anvil! node (or just the one specified wit
 .TP
 .SH EXAMPLES
 .TP
+There is more information on our wiki; https://www.alteeve.com/w/Storage_Groups
+.TP
 Show existing storage group details
 .IP
 anvil-manage-storage-groups --show
 .TP
+Show existing storage group details, include DR hosts
+.IP
+anvil-manage-storage-groups --show --dr
+.TP
+Add a storage group
+.IP
+anvil-manage-storage-groups --anvil an-anvil-01 --add --group "Storage Group 1"
+.TP
 Add a VG to a storage group
 .IP
-anvil-manage-storage-groups --anvil vm-anvil-01 --group "Storage group 1" --add --member edrYMv-Fl2D-o0tO-g8ok-idOh-oBIh-65LuD6
+anvil-manage-storage-groups --anvil an-anvil-01 --add --group "Storage Group 1" --member m3Qkdi-ts8I-ZOwG-Dw41-117f-X0fz-g8gI1f
+.TP
+Rename a storage group
+.IP
+anvil-manage-storage-groups --rename --anvil an-anvil-01 --group "Storage Group 1" --new-name "NVMe Group A"
 .IP
 .SH AUTHOR
 Written by Madison Kelly, Alteeve staff and the Anvil! project contributors.

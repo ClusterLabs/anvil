@@ -382,15 +382,26 @@ ORDER BY
 				name => $bridge_name,
 			}});
 			
-			my $queries = [];
-			push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = '".$bridge_uuid."';";
-			push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = '".$bridge_uuid."';";
-			foreach my $query (@{$queries})
+			# Is there a bond connected to this? If so, don't delete, we'd hit a foreign key 
+			# constraint.
+			my $subquery = "SELECT COUNT(*) FROM bonds WHERE bond_bridge_uuid = ".$anvil->Database->quote($bridge_uuid).";";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { subquery => $subquery }});
+			
+			my $count = $anvil->Database->query({query => $subquery, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+			
+			if (not $count)
 			{
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				my $queries = [];
+				push @{$queries}, "DELETE FROM history.bridges WHERE bridge_uuid = '".$bridge_uuid."';";
+				push @{$queries}, "DELETE FROM bridges WHERE bridge_uuid = '".$bridge_uuid."';";
+				foreach my $query (@{$queries})
+				{
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				}
+				# Write to both DBs.
+				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 			}
-			# Write to both DBs.
-			$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
 	}
 	

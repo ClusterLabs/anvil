@@ -6524,7 +6524,13 @@ ORDER BY
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::host_uuid::${storage_group_member_host_uuid}::storage_group_member_note" => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$storage_group_member_host_uuid}{storage_group_member_note},
 			"storage_groups::anvil_uuid::${storage_group_anvil_uuid}::storage_group_uuid::${storage_group_uuid}::free_space"                                                              => $anvil->data->{storage_groups}{anvil_uuid}{$storage_group_anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{free_space}, 
 		}});
-
+		
+		# Make it easy to get the storage group name from the UUID.
+		$anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name} = $storage_group_name;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"storage_groups::storage_group_uuid::${storage_group_uuid}::storage_group_name" => $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name},
+		}});
+		
 		# Make it easier to use the VG UUID to find the storage_group_uuid.
 		$anvil->data->{storage_groups}{vg_uuid}{$storage_group_member_vg_uuid}{storage_group_uuid} = $storage_group_uuid;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
@@ -15124,11 +15130,21 @@ AND
 	
 	if (not $storage_group_name)
 	{
+		if (not exists $anvil->data->{anvils}{anvil_uuid}{$storage_group_anvil_uuid})
+		{
+			$anvil->Database->get_anvils({debug => $debug});
+		}
 		my $vg_group_number = 0;
+		my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$storage_group_anvil_uuid}{anvil_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { anvil_name => $anvil_name }});
+		
 		until ($storage_group_name)
 		{
 			$vg_group_number++; 
-			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { number => $vg_group_number }});
+			my $test_name = $anvil->Words->string({debug => $debug, key => "striker_0280", variables => { 
+				anvil_name => $anvil_name,
+				number     => $vg_group_number,
+			}});
 			my $query     = "
 SELECT 
     storage_group_uuid 

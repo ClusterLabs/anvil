@@ -302,7 +302,7 @@ The error was:
 		<key name="error_0195">Unable to get the install ISO to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
-		<key name="error_0198">The new server's name: [#!variable!server_name!#] is already in use. Has this job already run?</key>
+		<key name="error_0198">#!free!#</key>
 		<key name="error_0199">The storage group UUID: [#!variable!storage_group_uuid!#] wasn't found in the database.</key>
 		<key name="error_0200">The new DRBD resource will need a "minor" number and a TCP port. One or both are not provided or are invalid.</key>
 		<key name="error_0201">Failed to create the logical volume: [#!variable!lv_path!#]. Without this, we can't create the replicated storage backing the server, aborting.
@@ -1445,11 +1445,11 @@ Failure! The return code: [#!variable!return_code!#] was received ('0' was expec
  - Allocated to servers: [#!variable!ram_allocated!#]
  - Node 1 RAM (total): . [#!variable!ram_node1!#]
  - Node 2 RAM (total): . [#!variable!ram_node2!#]</key>
-		<key name="job_0168">#!free!#</key>
+		<key name="job_0168">The DRBD resource config file: [#!variable!file!#] already exists, skipping creation.</key>
 		<key name="job_0169">      Available on Anvil!: [#!variable!vg_free!#], Total: [#!variable!vg_size!#]</key>
 		<key name="job_0170">Storage Group: . [#!variable!storage_group!#]</key>
 		<key name="job_0171">* Please enter a number beside the storage group you want to use.</key>
-		<key name="job_0172">#!free!#</key>
+		<key name="job_0172">The DRBD resource: [#!variable!resource!#] metadata already exists, skipping MD creation.</key>
 		<key name="job_0173">Storage Size: .. [#!variable!storage_size!#]</key>
 		<key name="job_0174">* Please enter a size up to: [#!variable!max_size!#].</key>
 		<key name="job_0175">-=] Storage group: [#!variable!storage_group!#], Available Space: [#!variable!available_size!#]
@@ -1540,7 +1540,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0249">Trying to connect to: [#!variable!machine!#] using IP: [#!variable!ip!#] with the desired password.</key>
 		<key name="job_0250">Connected! We will initialize using the IP: [#!variable!ip!#]</key>
 		<key name="job_0251">Failed to connect to: [#!variable!machine!#] using any IP address. We'll sleep and then try again shortly.</key>
-		<key name="job_0252">#!free!#</key>
+		<key name="job_0252">The server: [#!variable!server_name!#] is already running on: [#!variable!host_name!#]. Skipping provision.</key>
 		<key name="job_0253">All machines should now be initializing. Waiting now for all machines to register in the database.</key>
 		<key name="job_0254">The machine: [#!variable!machine!#] hasn't connected to the database yet.</key>
 		<key name="job_0255">One (or more) machines have not yet initialized. Waiting a few seconds, then checking again.</key>
@@ -3103,15 +3103,15 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0215">The server is not running anywhere, assigning the job to this host.</key>
 		<key name="message_0216">The server is running here, assigning the job to this host.</key>
 		<key name="message_0217">Preparing to delete a server.</key>
-		<key name="message_0218">#!free!#</key>
+		<key name="message_0218">This is not a DR host, please run this on the DR host you want to restore server protection on.</key>
 		<key name="message_0219">- #!variable!server_name!# (Current state: [#!variable!server_state!#])</key>
 		<key name="message_0220">- * #!variable!server_name!# (Deleted, name can be reused)</key>
 		<key name="message_0221">We're Striker: [#!variable!striker!#], and we're now configured, so we're done. Striker 1 will finish configuration.</key>
-		<key name="message_0222">#!free!#</key>
-		<key name="message_0223">#!free!#</key>
-		<key name="message_0224">#!free!#</key>
-		<key name="message_0225">#!free!#</key>
-		<key name="message_0226">#!free!#</key>
+		<key name="message_0222">Checking for servers that should be protected by this host, but aren't.</key>
+		<key name="message_0223">- Checking the Anvil! node: [#!variable!anvil_name!#]: [#!variable!anvil_description!#]</key>
+		<key name="message_0224"> - Testing access to the subnode: [#!variable!subnode_name!#]</key>
+		<key name="message_0225">  - Access found using the IP: [#!variable!ip_address!#] over the network: [#!variable!network!#].</key>
+		<key name="message_0226">  - Access not found!</key>
 		<key name="message_0227">The 'anvil-safe-start' tool is enabled on both this node and on the peer.</key>
 		<key name="message_0228">The 'anvil-safe-start' tool is disabled on both this node and on the peer.</key>
 		<key name="message_0229">The 'anvil-safe-start' tool is enabled on this node and disabled on the peer.</key>
@@ -3132,29 +3132,36 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0244">- Host name: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
 		<key name="message_0245">Now purging: [#!variable!host_name!#] (host UUID: [#!variable!host_uuid!#]:</key>
 		<key name="message_0246">Purging the Anvil!: [#!variable!anvil_name!#] (UUID: [#!variable!anvil_uuid!#]:</key>
-		<key name="message_0247">#!free!#</key>
+		<key name="message_0247"> - No access found to either subnode, unable to check this node! Skipping it.</key>
 		<key name="message_0248">Created the journald directory: [#!variable!directory!#].</key>
-		<key name="message_0249">#!free!#</key>
+		<key name="message_0249"> - Looking for DRBD configuration files on the subnode: [#!variable!subnode_name!#]</key>
 		<key name="message_0250">The daemon: [#!variable!daemon!#] was not running, starting it now.</key>
 		<key name="message_0251">Preparing to manage a server.</key>
-		<key name="message_0252">#!free!#</key>
+		<key name="message_0252">  - Checking if the resource file: [#!variable!file!#] for the server: [#!variable!server_name!#] is one we're interested in.</key>
 		<key name="message_0253">The fence delay to prefer the node: [#!variable!node!#] has been removed.</key>
 		<key name="message_0254">The fence delay now prefers the node: [#!variable!node!#].</key>
-		<key name="message_0255">#!free!#</key>
-		<key name="message_0256">#!free!#</key>
-		<key name="message_0257">#!free!#</key>
-		<key name="message_0258">#!free!#</key>
-		<key name="message_0259">#!free!#</key>
-		<key name="message_0260">#!free!#</key>
-		<key name="message_0261">#!free!#</key>
-		<key name="message_0262">#!free!#</key>
+		<key name="message_0255">  - The config file is already here, skipping it.</key>
+		<key name="message_0256">  - Checking if the DRBD resource: [#!variable!drbd_device!#] needs to be created here.</key>
+		<key name="message_0257">   - It exists, nothing to do.</key>
+		<key name="message_0258">   - The backing LV: [#!variable!lv_path!#] already exists, nothing to do.</key>
+		<key name="message_0259">[ NOTE ] - We need to recreate volume: [#!variable!volume!#], but we're not a member of the storage group: [#!variable!storage_group!#]!
+[ NOTE ] - We need to join am SG with at least: [#!variable!hr_size!#] (#!variable!bytes!# bytes) of space available.
+[ NOTE ] - Please use 'anvil-manage-storage-groups' or Striker to add our VG to the SG.</key>
+		<key name="message_0260">  - We do need to recreate the LV! The VG: [#!variable!vg_name!#] has: [#!variable!free_space_hr!#] free.
+    We will create the LV: [#!variable!new_lv_name!#] and it will be: [#!variable!needed_space_hr!#] in size.</key>
+		<key name="message_0261">[ Note ] - The LV name has changed from: [#!variable!old_lv_name!#] to: [#!variable!new_lv_name!#].
+[ Note ] - This requires updating the definition file on the subnodes. 
+[ Note ] - There is a small chance that this could interrupt the server. 
+Proceed? [y/N]</key>
+		<key name="message_0262">Proceeding, please do NOT interrupt this process!</key>
 		<key name="message_0263">Preparing to get server VM screenshot.</key>
 		<key name="message_0264">Finished getting server VM screenshot.</key>
 		<key name="message_0265">Failed to get server VM screenshot; got non-zero return code.</key>
 		<key name="message_0266">Finished attempting to get server VM screenshot; no operations happened because requirements not met.</key>
 		<key name="message_0267">Preparing to manage DR for a server.</key>
-		<key name="message_0268">#!free!#</key>
-		<key name="message_0269">#!free!#</key>
+		<key name="message_0268">OK, skipping this volume. You can re-run this when you're ready.</key>
+		<key name="message_0269">  - We need to recreate the original LV: [#!variable!lv_path!#] now.
+   - It will be: [#!variable!lv_size!#] (#!variable!extent_count!# x #!variable!extent_size!# extents).</key>
 		<key name="message_0270">Marking this host as configured.</key>
 		<key name="message_0271">This host is already marked as configured.</key>
 		<key name="message_0272">Marking this host as configured.</key>
@@ -3295,12 +3302,12 @@ Proceed? [y/N]</key>
 		<key name="message_0319">Preparing to update the entire Anvil! cluster.</key>
 		<key name="message_0320">It looks like there's a kmod-drbd package conflict. Removing old packages and trying to reinstall.</key>
 		<key name="message_0321">Removing the old drbd-kmod RPMs now.</key>
-		<key name="message_0322">#!free!#</key>
-		<key name="message_0323">#!free!#</key>
+		<key name="message_0322">  - Writing out the resource config file: [#!variable!file!#].</key>
+		<key name="message_0323">  - Creating the meta-data for: [#!variable!server_name!#/#!variable!volume!#].</key>
 		<key name="message_0324">Update almost complete. Picked this job up after a '--no-db' run, and now we have database access again.</key>
 		<key name="message_0325">[ Note ] - It looks like 'dnf' (pid(s): [#!variable!pids!#]) is running, holding our start up until it's done (in case the system is being updated now).</key>
 		<key name="message_0326">This daemon just started. Holding off starting jobs for another: [#!variable!will_start_in!#] second(s).</key>
-		<key name="message_0327">#!free!#</key>
+		<key name="message_0327"> - All volumes created, 'adjusting' to connect the resource for: [#!variable!server_name!#].</key>
 		<key name="message_0328">[ Note ] - The DRBD (replicated storage) kernel module appears to not exist. This is normal after an OS update, will try building the kernel module now. Please be patient.</key>
 		<key name="message_0329">[ Note ] - Deleting the old drbd fenced attribute: [#!variable!attribute!#] for the node: [#!variable!node_name!#] (ID: [#!variable!node_id!#]) from the CIB.</key>
 		<key name="message_0330">[ Note ]  - The size can be in percent, ie: '50%' or '100%', a number in bytes, or a human-readable size.
@@ -3334,8 +3341,8 @@ Proceed? [y/N]</key>
 		<key name="message_0352">The job to: [#!variable!task!#] this host has been picked up.</key>
 		<key name="message_0353">Preparing to manage general systems for a server.</key>
 		<key name="message_0354">Preparing to manage the network for a server.</key>
-		<key name="message_0355">#!free!#</key>
-		<key name="message_0356">#!free!#</key>
+		<key name="message_0355">- All servers on the Anvil! node: [#!variable!node_name!#] processed.</key>
+		<key name="message_0356">All nodes processed, completed!</key>
 		<key name="message_0357">No hosts with IPMI found, done.</key>
 		<key name="message_0358">Searching for free space to grow PVs into.</key>
 		<key name="message_0359">- The '--confirm' switch was used, proceeding with removing the host: [#!variable!host!#]'s old key.</key>
@@ -3539,6 +3546,8 @@ proceeding.
 		<key name="message_0515">#!variable!timestamp!#; Connected on: [#!variable!target_ip!#] via: [#!variable!network_name!#]</key>
 		<key name="message_0516">#!variable!timestamp!#; No access! Skipping.</key>
 		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
+		<key name="message_0518">  - Calling: [#!variable!scan_agent!#] to record the record the new config.</key>
+		<key name="message_0519">- Checking that all firewall ports are opened using 'anvil-manage-firewall'.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
@@ -3857,7 +3866,7 @@ proceeding.
 		<key name="striker_0277">#!free!#</key>
 		<key name="striker_0278">This is a condition record, used by programs like scan agents to track how long a condition has existed for.</key>
 		<key name="striker_0279">This indicated why a machine was powered off. This is used by ScanCore to decide if or when to power up the target host.</key>
-		<key name="striker_0280">Storage group #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
+		<key name="striker_0280">Node #!variable!anvil_name!#, SG #!variable!number!#</key>		<!-- This is used for auto-generated VG groups -->
 		<key name="striker_0281">#!free!#</key>
 		<key name="striker_0282">#!free!#</key>
 		<key name="striker_0283">#!free!#</key>
@@ -4104,11 +4113,12 @@ The duplicate will be removed.</key>
 		<key name="warning_0019">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!ip_address!#] is not a valid IPv4 address.</key>
 		<key name="warning_0020">[ Warning ] - The passed in parameter '#!variable!parameter!#': [#!variable!subnet_mask!#] is not a valid IPv4 subnet mask.</key>
 		<key name="warning_0021">[ Warning ] - Changing the default zone to IFN1.</key>
-		<key name="warning_0022">#!free!#</key>
-		<key name="warning_0023">#!free!#</key>
-		<key name="warning_0024">#!free!#</key>
-		<key name="warning_0025">#!free!#</key>
-		<key name="warning_0026">#!free!#</key>
+		<key name="warning_0022">The new server's name: [#!variable!server_name!#] is already in use. Will check for incomplete steps.</key>
+		<key name="warning_0023">[ Warning ] - Failed to find the storage group for this volume, unable to restore!</key>
+		<key name="warning_0024">[ Warning ] - The VG: [#!variable!vg_name!#] has: [#!variable!free_space_hr!# (#!variable!free_space_bytes!#)] free, but we need: [#!variable!needed_space_hr!# (#!variable!needed_space_bytes!# bytes). Unable to restore this volume!
+[ Warning ] - If this is a freshly rebuild DR host, 'anvil-manage-host --auto-grow-pv' might regain free space.</key>
+		<key name="warning_0025">[ Warning ] - The needed space is not set, this is likely a program error. Unable to proceed with this volume.</key>
+		<key name="warning_0026">[ Warning ] - It appears that the creation of the LV failed! Skipping this device for now.</key>
 		<key name="warning_0027">#!free!#</key>
 		<key name="warning_0028">[ Warning ] - Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
 		<key name="warning_0029">[ Warning ] - While resyncing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and is probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
