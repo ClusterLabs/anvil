@@ -10,8 +10,9 @@ export const getHostQueryStringSchema = yup.object({
       yup
         .string()
         .required()
-        .oneOf(['dr', 'striker', 'subnode'])
-        .transform((value) => (value === 'subnode' ? 'node' : value)),
+        // Transforms run before validation!
+        .transform((value) => (value === 'subnode' ? 'node' : value))
+        .oneOf(['dr', 'node', 'striker']),
     )
     .ensure(),
 });
