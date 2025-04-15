@@ -806,12 +806,12 @@ CREATE TABLE history.jobs (
 );
 ALTER TABLE history.jobs OWNER TO admin;
 
-CREATE FUNCTION history_jobs() RETURNS trigger
+CREATE OR REPLACE FUNCTION history_jobs() RETURNS trigger
 AS $$
 DECLARE
     history_jobs RECORD;
 BEGIN
-    SELECT INTO history_jobs * FROM jobs WHERE job_uuid = new.job_uuid;
+    SELECT INTO history_jobs * FROM jobs WHERE job_uuid = NEW.job_uuid;
     INSERT INTO history.jobs
         (job_uuid, 
          job_host_uuid, 
@@ -840,6 +840,7 @@ BEGIN
          history_jobs.job_description, 
          history_jobs.job_status, 
          history_jobs.modified_date);
+    PERFORM pg_notify('after_insert_or_update_job', row_to_json(NEW)::text);
     RETURN NULL;
 END;
 $$
