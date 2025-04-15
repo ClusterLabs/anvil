@@ -12,7 +12,7 @@ const ManageHostNetwork: FC = () => {
   const [hostUuid, setHostUuid] = useState<false | string>(false);
 
   const { data: hosts } = useFetch<APIHostOverviewList>(
-    '/host?type=dr,subnode',
+    '/host?type=dr&type=subnode',
   );
 
   const hostValues = useMemo<APIHostOverview[] | undefined>(
