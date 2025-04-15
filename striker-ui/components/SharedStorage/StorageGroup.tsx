@@ -9,7 +9,7 @@ import { BodyText, InlineMonoText } from '../Text';
 const StorageGroup: React.FC<StorageGroupProps> = (props) => {
   const { storageGroup } = props;
 
-  const { members, name } = storageGroup;
+  const { name } = storageGroup;
 
   const sgFree = useMemo<string>(
     () => dSizeStr(storageGroup.free, { toUnit: 'ibyte' }) ?? 'none',
@@ -26,6 +26,45 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
     [storageGroup.used],
   );
 
+  const members = useMemo<APIAnvilStorageGroupMemberCalcable[]>(
+    () => Object.values(storageGroup.members),
+    [storageGroup.members],
+  );
+
+  const volumeGroups = useMemo<React.ReactNode[]>(
+    () =>
+      members.map<React.ReactNode>((member) => {
+        const { volumeGroup } = member;
+
+        const vgFree =
+          dSizeStr(volumeGroup.free, { toUnit: 'ibyte' }) ?? 'none';
+
+        const vgSize =
+          dSizeStr(volumeGroup.size, { toUnit: 'ibyte' }) ?? 'none';
+
+        return (
+          <Grid item key={member.uuid} width="100%">
+            <Grid container>
+              <Grid item xs>
+                <BodyText variant="caption">{volumeGroup.host.short}</BodyText>
+              </Grid>
+              <Grid item textAlign="right">
+                <BodyText mb="-.3em" variant="caption">
+                  Free
+                  <InlineMonoText>{vgFree}</InlineMonoText>/
+                  <InlineMonoText>{vgSize}</InlineMonoText>
+                </BodyText>
+              </Grid>
+              <Grid item width="100%">
+                <StorageBar volumeGroup={volumeGroup} />
+              </Grid>
+            </Grid>
+          </Grid>
+        );
+      }),
+    [members],
+  );
+
   return (
     <InnerPanel>
       <InnerPanelHeader>
@@ -39,13 +78,15 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
                 <Grid container>
                   <Grid item>
                     <BodyText>
-                      Used: <InlineMonoText>{sgUsed}</InlineMonoText>
+                      Used <InlineMonoText>{sgUsed}</InlineMonoText>
                     </BodyText>
                   </Grid>
                   <Grid item xs />
                   <Grid item textAlign="right">
                     <BodyText>
-                      Free: <InlineMonoText>{sgFree}</InlineMonoText>
+                      Free
+                      <InlineMonoText>{sgFree}</InlineMonoText>/
+                      <InlineMonoText>{sgSize}</InlineMonoText>
                     </BodyText>
                   </Grid>
                 </Grid>
@@ -53,47 +94,9 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
               <Grid item width="100%">
                 <StorageBar storageGroup={storageGroup} />
               </Grid>
-              <Grid item width="100%">
-                <BodyText>
-                  Total: <InlineMonoText>{sgSize}</InlineMonoText>
-                </BodyText>
-              </Grid>
             </Grid>
           </Grid>
-          {Object.values(members).map((member) => {
-            const { volumeGroup } = member;
-
-            const vgFree =
-              dSizeStr(volumeGroup.free, { toUnit: 'ibyte' }) ?? 'none';
-
-            const vgSize =
-              dSizeStr(volumeGroup.size, { toUnit: 'ibyte' }) ?? 'none';
-
-            return (
-              <Grid item key={member.uuid} width="100%">
-                <Grid container>
-                  <Grid item width="100%">
-                    <BodyText>{volumeGroup.name}</BodyText>
-                  </Grid>
-                  <Grid item xs>
-                    <BodyText variant="caption">
-                      {volumeGroup.host.short}
-                    </BodyText>
-                  </Grid>
-                  <Grid item xs>
-                    <BodyText mb="-.3em" variant="caption">
-                      Free
-                      <InlineMonoText>{vgFree}</InlineMonoText>/
-                      <InlineMonoText>{vgSize}</InlineMonoText>
-                    </BodyText>
-                  </Grid>
-                  <Grid item width="100%">
-                    <StorageBar volumeGroup={volumeGroup} />
-                  </Grid>
-                </Grid>
-              </Grid>
-            );
-          })}
+          {...volumeGroups}
         </Grid>
       </InnerPanelBody>
     </InnerPanel>
