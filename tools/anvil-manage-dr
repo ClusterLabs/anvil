@@ -36,6 +36,7 @@ my $anvil = Anvil::Tools->new();
 
 $anvil->Get->switches({list => [
 	"anvil",
+	"confirm",
 	"connect",
 	"disconnect",
 	"dr-host",
@@ -141,6 +142,7 @@ sub handle_restore
 	$anvil->Database->get_storage_group_data({debug => 2});
 	$anvil->Database->get_dr_links({debug => 2});
 	$anvil->Database->get_servers();
+	$anvil->Database->get_lvm_data({debug => 2});
 	
 	# Which Anvil! nodes are we linked to?
 	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_name}})
@@ -309,15 +311,18 @@ sub handle_restore
 			next if $file !~ /\.res$/;
 			
 			# Read the file:
-			my $full_path =  $anvil->data->{path}{directories}{drbd_resources}."/".$file;
-			   $full_path =~ s/\/\//\//g;
+			my $server_name =  $file;
+			   $server_name =~ s/\.res$//;
+			my $full_path   =  $anvil->data->{path}{directories}{drbd_resources}."/".$file;
+			   $full_path   =~ s/\/\//\//g;
 			$anvil->Job->update_progress({
 				progress  => $anvil->Job->bump_progress({steps => 1}),
 				log_level => 1,
 				'print'   => 1, 
 				message   => "message_0252", 
 				variables => {
-					file => $full_path, 
+					file        => $full_path, 
+					server_name => $server_name,
 				},
 			});
 			
@@ -342,7 +347,8 @@ sub handle_restore
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_config => $resource_config }});
 			
 			my $in_on          = 0;
-			my $in_volume      = "";
+			my $in_volume      = 0;
+			my $this_volume    = "";
 			my $this_device    = "";
 			my $this_disk      = "";
 			my $this_host_name = "";
@@ -352,24 +358,48 @@ sub handle_restore
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				if ($line =~ /\}/)
 				{
-					if ($in_volume ne "")
+					if ($in_volume)
 					{
-						$in_volume = "";
+						$in_volume = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
 					}
 					elsif ($in_on)
 					{
 						# Record the data.
-						if ($in_volume eq "")
+						if ($this_volume eq "")
 						{
 							die "Reached end of section without a volume.\n";
 						}
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{drbd_device} = $this_device;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_path}     = $this_disk;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_size}     = 0;
+						
+						# How big is this LV?
+						my $this_short_host_name = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{short_host_name};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_short_host_name => $this_short_host_name }});
+						
+						my $this_lv_size  = 0;
+						my $this_lv_on_vg = "";
+						if (exists $anvil->data->{lvm}{host_name}{$this_short_host_name}{lv_path}{$this_disk})
+						{
+							my $scan_lvm_lv_name     = $anvil->data->{lvm}{host_name}{$this_short_host_name}{lv_path}{$this_disk}{scan_lvm_lv_name};
+							   $this_lv_size         = $anvil->data->{lvm}{host_name}{$this_short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_size};
+							   $this_lv_on_vg        = $anvil->data->{lvm}{host_name}{$this_short_host_name}{lv}{$scan_lvm_lv_name}{scan_lvm_lv_on_vg};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:scan_lvm_lv_name' => $scan_lvm_lv_name, 
+								's2:this_lv_size'     => $this_lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $this_lv_size}).")",
+								's3:this_lv_on_vg'    => $this_lv_on_vg, 
+							}});
+						}
+						
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid}                         = $this_host_uuid;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device} = $this_device;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path}     = $this_disk;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}     = $this_lv_size;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}    = $this_lv_on_vg;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"s1:drbd_resource::${file}::host_name::${this_host_name}::volume::${in_volume}::drbd_device" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{drbd_device},
-							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${in_volume}::lv_path"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$in_volume}{lv_path},
+							"s1:drbd_resource::${file}::host_name::${this_host_name}::host_uuid"                           => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid},
+							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::drbd_device" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device},
+							"s3:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_path"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path},
+							"s4:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_size"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}}).")",
+							"s5:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_on_vg"    => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}, 
 						}});
 						
 						$in_on          = 0;
@@ -399,25 +429,447 @@ sub handle_restore
 				}
 				if ($line =~ /volume (\d+) \{/)
 				{
-					$in_volume = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_volume => $in_volume }});
+					$this_volume = $1;
+					$in_volume   = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						this_volume => $this_volume,
+						in_volume   => $in_volume, 
+					}});
 				}
 				if ($line =~ /device\s+(.*?)\s+minor/)
 				{
 					$this_device = $1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_device => $this_device }});
 				}
-				if ($line =~ /disk\s+(.*?);/)
+				if ($line =~ /\sdisk\s+(.*?);/)
 				{
 					$this_disk = $1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_disk => $this_disk }});
 				}
 			}
+			
+			# Get the LV sizes we'll need to create.
+			foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}})
+			{
+				my $this_host_uuid = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					this_host_name => $this_host_name,
+					this_host_uuid => $this_host_uuid, 
+				}});
+				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
+				{
+					my $drbd_device   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
+					my $lv_path       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
+					my $lv_size       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size};
+					my $this_lv_on_vg = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:this_volume'   => $this_volume, 
+						's2:drbd_device'   => $drbd_device, 
+						's3:lv_path'       => $lv_path, 
+						's4:lv_size'       => $lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")",
+						's5:this_lv_on_vg' => $this_lv_on_vg, 
+					}});
+					
+					if ((not exists $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}) or 
+					    ($lv_size > $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}))
+					{
+						$anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size} = $lv_size;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+							"drbd_resource::${file}::volume::${this_volume}::needed_size" => $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}}).")",
+						}});
+					}
+					
+					foreach my $this_storage_group_uuid (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}})
+					{
+						next if $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{storage_group_uuid};
+						if (exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$this_storage_group_uuid}{host_uuid}{$this_host_uuid})
+						{
+							my $this_vg_name = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$this_storage_group_uuid}{host_uuid}{$this_host_uuid}{vg_name};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_vg_name => $this_vg_name }});
+							
+							if ($this_lv_on_vg eq $this_vg_name)
+							{
+								$anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{storage_group_uuid} = $this_storage_group_uuid;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									"drbd_resource::${file}::volume::${this_volume}::storage_group_uuid" => $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{storage_group_uuid},
+								}});
+							}
+						}
+					}
+				}
+			}
+			
+			# Do I need to make this LV?
+			foreach my $this_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}})
+			{
+				my $this_host_uuid = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					this_host_name => $this_host_name,
+					this_host_uuid => $this_host_uuid, 
+				}});
+				next if $this_host_uuid ne $host_uuid;
+				
+				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
+				{
+					my $drbd_device        = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
+					my $original_lv_path   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
+					my $this_lv_on_vg      = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
+					my $needed_size        = $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size};
+					my $storage_group_uuid = $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{storage_group_uuid};
+					my $storage_group_name = $storage_group_uuid ? $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{storage_group_name} : "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:this_volume'        => $this_volume,
+						's2:drbd_device'        => $drbd_device, 
+						's3:original_lv_path'   => $original_lv_path, 
+						's4:this_lv_on_vg'      => $this_lv_on_vg, 
+						's5:needed_size'        => $needed_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}).")", 
+						's6:storage_group_uuid' => $storage_group_uuid, 
+						's7:storage_group_name' => $storage_group_name, 
+					}});
+					
+					# Do I have a storage group?
+					if (not $storage_group_uuid)
+					{
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "warning_0023", 
+						});
+						next;
+					}
+					
+					if (not $needed_size)
+					{
+						# Something went wrong with calculating the space we needed.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "warning_0025", 
+						});
+						next;
+					}
+					
+					$anvil->Job->update_progress({
+						progress  => $anvil->Job->bump_progress({steps => 1}),
+						log_level => 1,
+						'print'   => 1, 
+						message   => "message_0256", 
+						variables => {
+							drbd_device => $drbd_device,
+						},
+					});
+					if (-e $drbd_device)
+					{
+						# The DRBD device exists, nothing to do.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "message_0257", 
+						});
+						next;
+					}
+					elsif (-e $original_lv_path)
+					{
+						# The LV exists, nothing to do.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "message_0258", 
+							variables => {
+								lv_path => $original_lv_path,
+							},
+						});
+						next;
+					}
+					
+					# If we're still here, we need to create the LV. What VG though? It 
+					# might have changed names.
+					if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid})
+					{
+						# We're not in this storage group yet.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "message_0259", 
+							variables => {
+								volume        => $this_volume,
+								storage_group => $storage_group_name,
+								'bytes'       => $anvil->Convert->add_commas({number => $needed_size}), 
+								hr_size       => $anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}),
+							},
+						});
+						next;
+					}
+					
+					# Do I have enough space?
+					my $vg_name      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_name};
+					my $vg_size      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_size};
+					my $vg_free      = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_free};
+					my $extent_size  = $anvil->data->{storage_groups}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid}{vg_extent_size};
+					my $extent_count = int($needed_size / $extent_size);
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:vg_name'      => $vg_name,
+						's2:vg_size'      => $vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_size}).")", 
+						's3:vg_free'      => $vg_free." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}).")", 
+						's4:needed_size'  => $needed_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}).")", 
+						's5:extent_size'  => $extent_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $extent_size}).")", 
+						's6:extent_count' => $extent_count, 
+					}});
+					
+					if ($needed_size > $vg_free)
+					{
+						# Not enough space.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "warning_0024", 
+							variables => {
+								vg_name            => $vg_name, 
+								needed_space_bytes => $anvil->Convert->add_commas({number => $needed_size}), 
+								needed_space_hr    => $anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}), 
+								free_space_bytes   => $anvil->Convert->add_commas({number => $vg_free}), 
+								free_space_hr      => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}), 
+							},
+						});
+						next;
+					}
+					
+					# Has the new LV path changed?
+					my $new_lv_name =  $server_name."_".$this_volume;
+					my $new_lv_path = "/dev/".$vg_name."/".$new_lv_name;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:server_name' => $server_name,
+						's2:new_lv_name' => $new_lv_name, 
+						's3:new_lv_path' => $new_lv_path, 
+					}});
+					$anvil->Job->update_progress({
+						progress  => $anvil->Job->bump_progress({steps => 1}),
+						log_level => 1,
+						'print'   => 1, 
+						message   => "message_0260", 
+						variables => {
+							vg_name            => $vg_name, 
+							new_lv_name        => $new_lv_name, 
+							needed_space_bytes => $anvil->Convert->add_commas({number => $needed_size}), 
+							needed_space_hr    => $anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}), 
+							free_space_bytes   => $anvil->Convert->add_commas({number => $vg_free}), 
+							free_space_hr      => $anvil->Convert->bytes_to_human_readable({'bytes' => $vg_free}), 
+						},
+					});
+					
+					# If the LV path is a different name, warn the user we'll be updating
+					# the DRBD resource config and updating the nodes. Confirm before 
+					# proceeding.
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:new_lv_path'      => $new_lv_path, 
+						's2:original_lv_path' => $original_lv_path, 
+					}});
+					if ($new_lv_path ne $original_lv_path)
+					{
+						# Ask for confirmation.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0261", variables => {
+							new_lv_name => $new_lv_name, 
+							old_lv_name => $original_lv_path, 
+						}});
+						if ($anvil->data->{switches}{confirm})
+						{
+							# Don't prompt.
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0150"});
+						}
+						else
+						{
+							my $answer = <STDIN>;
+							chomp $answer;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { answer => $answer }});
+							if ($answer =~ /^y/i)
+							{
+								# Proceed
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0262"});
+							}
+							else
+							{
+								# Skip
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0268"});
+								next;
+							}
+						}
+					}
+					else
+					{
+						# The LV path is the same, so we can safely just proceed.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0269", variables => { 
+							lv_path      => $new_lv_path,
+							lv_size      => $anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}), 
+							extent_count => $anvil->Convert->add_commas({number => $extent_count}), 
+							extent_size  => $anvil->Convert->bytes_to_human_readable({'bytes' => $extent_size}), 
+						}});
+					}
+					
+					# Create the LV
+					my $shell_call = $anvil->data->{path}{exe}{lvcreate}." -l ".$extent_count." -n ".$new_lv_name." ".$vg_name." -y";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call });
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+					
+					sleep 1;
+					# Does it exist now?
+					if (not -e $new_lv_path)
+					{
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "warning_0026", 
+						});
+						next;
+					}
+					
+					# Call scan-lvm
+					run_scanagent($anvil, "scan-lvm");
+					
+					# Write out the resource file (if we didn't in a previous volume).
+					if (not -e $full_path)
+					{
+						# Write out a test file.
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "message_0322", 
+							variables => {
+								file => $full_path, 
+							},
+						});
+						my ($problem) = $anvil->Storage->write_file({
+							debug     => 2,
+							backup    => 1,
+							overwrite => 1,
+							file      => $full_path, 
+							body      => $resource_config,
+							user      => "root", 
+							group     => "root", 
+							mode      => "0644",
+						});
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+					}
+					
+					# Created, now create the MD. 
+					$anvil->Job->update_progress({
+						progress  => $anvil->Job->bump_progress({steps => 1}),
+						log_level => 1,
+						'print'   => 1, 
+						message   => "message_0323", 
+						variables => {
+							server_name => $server_name, 
+							volume      => $this_volume, 
+						},
+					});
+					$shell_call = $anvil->data->{path}{exe}{drbdadm}." --force create-md --max-peers=3 ".$server_name."/".$this_volume;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					($output, $return_code) = $anvil->System->call({shell_call => $shell_call });
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+			}
+			
+			# Adjust the DRBD resource.
+			$anvil->Job->update_progress({
+				progress  => $anvil->Job->bump_progress({steps => 1}),
+				log_level => 1,
+				'print'   => 1, 
+				message   => "message_0327", 
+				variables => {
+					server_name => $server_name, 
+				},
+			});
+			my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call });
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				output      => $output,
+				return_code => $return_code, 
+			}});
+			
+			sleep 1;
+			
+			# Call scan-drbd
+			run_scanagent($anvil, "scan-drbd");
 		}
+		# All servers on this Anvil! node processed.
+		$anvil->Job->update_progress({
+			progress  => $anvil->Job->bump_progress({steps => 1}),
+			log_level => 1,
+			'print'   => 1, 
+			message   => "message_0355", 
+			variables => {
+				node_name => $anvil_name, 
+			},
+		});
 	}
 	
+	# Make sure the firewall is updated.
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 5}),
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0519", 
+	});
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-firewall'}.$anvil->Log->switches();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	
+	# All nodes processed, we're done.
+	$anvil->Job->update_progress({
+		progress  => 100,
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0356", 
+	});
 	
 	$anvil->nice_exit({exit_code => 0});
+	
+	return(0);
+}
+
+sub run_scanagent
+{
+	my ($anvil, $agent) = @_;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent => $agent }});
+	
+	# Call scan-lvm
+	$anvil->Job->update_progress({
+		progress  => $anvil->Job->bump_progress({steps => 1}),
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0518", 
+		variables => {
+			scan_agent => $agent,
+		},
+	});
+	my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
 	
 	return(0);
 }
@@ -3950,6 +4402,10 @@ sub load_job
 		job_picked_up_at => time, 
 		message          => "message_0267", 
 	});
+	
+	# We're a job, so '--confirm' is assumed.
+	$anvil->data->{switches}{confirm} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "switches::confirm" => $anvil->data->{switches}{confirm} }});
 	
 	#print "Loading the job: [".$anvil->data->{switches}{'job-uuid'}."]...\n";
 	

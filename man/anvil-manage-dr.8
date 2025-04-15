@@ -23,6 +23,11 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 \fB\-\-anvil\fR
 When linking or unlinking a DR host to an Anvil! node, this switch indicates the Anvil! being linked or unlinked to.
 .TP
+\fB\-\-confirm\fR
+When doing a \fB\-\-restore\fB, if the new LV path changes the DRBD resource file will need to be updated on the subnodes. This could be a risk, and so the user will be asked to confirm. This switch prevents asking the user to confirm.
+.TP
+Note that when running as a job, there will be no promp and this switch is not needed.
+.TP
 \fB\-\-connect\fR
 Connect a server already on DR to it's DR copy, update the data there if needed and begin streaming replication.
 .TP
