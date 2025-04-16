@@ -2,6 +2,8 @@ import express from 'express';
 
 import { validateRequestTarget } from '../middlewares';
 import {
+  createAnvilStorageGroup,
+  deleteAnvilStorageGroup,
   getAnvil,
   getAnvilCpu,
   getAnvilSummary,
@@ -9,11 +11,17 @@ import {
   getAnvilMemory,
   getAnvilNetwork,
   getAnvilStorage,
+  updateAnvilStorageGroup,
 } from '../lib/request_handlers/anvil';
 
 const single = express.Router();
 
-single.get('/storage', getAnvilStorage);
+single
+  .route('/storage')
+  .delete(deleteAnvilStorageGroup)
+  .get(getAnvilStorage)
+  .post(createAnvilStorageGroup)
+  .put(updateAnvilStorageGroup);
 
 const router = express.Router();
 
