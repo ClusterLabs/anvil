@@ -1,37 +1,42 @@
-const toMemberCalcable = (
+const toVolumeGroupCalcable = (sVolumeGroup: APIAnvilVolumeGroup) => {
+  const { free: sFree, size: sSize, used: sUsed, uuid, ...rest } = sVolumeGroup;
+
+  const free = BigInt(sFree);
+  const size = BigInt(sSize);
+  const used = BigInt(sUsed);
+
+  return {
+    ...rest,
+    free,
+    size,
+    used,
+    uuid,
+  };
+};
+
+const toMemberCalcableRecord = (
   members: Record<string, APIAnvilStorageGroupMemberCalcable>,
   sMember: APIAnvilStorageGroupMember,
 ): Record<string, APIAnvilStorageGroupMemberCalcable> => {
   const { uuid, volumeGroup: sVolumeGroup } = sMember;
 
-  const { free: sFree, size: sSize, used: sUsed, ...rest } = sVolumeGroup;
-
-  let free: bigint;
-  let size: bigint;
-  let used: bigint;
+  let volumeGroup: APIAnvilVolumeGroupCalcable;
 
   try {
-    free = BigInt(sFree);
-    size = BigInt(sSize);
-    used = BigInt(sUsed);
+    volumeGroup = toVolumeGroupCalcable(sVolumeGroup);
   } catch (error) {
     return members;
   }
 
   members[uuid] = {
     uuid,
-    volumeGroup: {
-      ...rest,
-      free,
-      size,
-      used,
-    },
+    volumeGroup,
   };
 
   return members;
 };
 
-const toStorageGroupCalcable = (
+const toStorageGroupCalcableRecord = (
   storageGroups: Record<string, APIAnvilStorageGroupCalcable>,
   sStorageGroup: APIAnvilStorageGroup,
 ): Record<string, APIAnvilStorageGroupCalcable> => {
@@ -58,7 +63,7 @@ const toStorageGroupCalcable = (
 
   const members = Object.values(sMembers).reduce<
     Record<string, APIAnvilStorageGroupMemberCalcable>
-  >(toMemberCalcable, {});
+  >(toMemberCalcableRecord, {});
 
   storageGroups[uuid] = {
     ...rest,
@@ -72,14 +77,41 @@ const toStorageGroupCalcable = (
   return storageGroups;
 };
 
+const toVolumeGroupCalcableRecord = (
+  volumeGroups: Record<string, APIAnvilVolumeGroupCalcable>,
+  sVolumeGroup: APIAnvilVolumeGroup,
+) => {
+  const { uuid } = sVolumeGroup;
+
+  let volumeGroup: APIAnvilVolumeGroupCalcable;
+
+  try {
+    volumeGroup = toVolumeGroupCalcable(sVolumeGroup);
+  } catch (error) {
+    return volumeGroups;
+  }
+
+  volumeGroups[uuid] = volumeGroup;
+
+  return volumeGroups;
+};
+
 const toAnvilSharedStorageOverview = (
   data: APIAnvilStorageList,
 ): APIAnvilSharedStorageOverview => {
-  const { storageGroupTotals, storageGroups: sStorageGroups } = data;
+  const {
+    storageGroupTotals,
+    storageGroups: sStorageGroups,
+    volumeGroups: sVolumeGroups,
+  } = data;
 
   const storageGroups = Object.values(sStorageGroups).reduce<
     Record<string, APIAnvilStorageGroupCalcable>
-  >(toStorageGroupCalcable, {});
+  >(toStorageGroupCalcableRecord, {});
+
+  const volumeGroups = Object.values(sVolumeGroups).reduce<
+    Record<string, APIAnvilVolumeGroupCalcable>
+  >(toVolumeGroupCalcableRecord, {});
 
   let totalFree: bigint;
   let totalSize: bigint;
@@ -95,6 +127,7 @@ const toAnvilSharedStorageOverview = (
       totalFree: BigInt(0),
       totalSize: BigInt(0),
       totalUsed: BigInt(0),
+      volumeGroups,
     };
   }
 
@@ -103,6 +136,7 @@ const toAnvilSharedStorageOverview = (
     totalFree,
     totalSize,
     totalUsed,
+    volumeGroups,
   };
 };
 
