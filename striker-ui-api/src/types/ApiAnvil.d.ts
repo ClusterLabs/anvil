@@ -161,8 +161,8 @@ type AnvilDetailVolumeGroup = {
 };
 
 type AnvilDetailStorageGroupMember = {
-  volumeGroup: AnvilDetailVolumeGroup;
   uuid: string;
+  volumeGroup: AnvilDetailVolumeGroup;
 };
 
 type AnvilDetailStorageGroup = {
@@ -200,4 +200,20 @@ type AnvilOverview = {
   anvilStatus: AnvilStatus;
   anvilUUID: string;
   hosts: AnvilOverviewHost[];
+};
+
+type CreateAnvilStorageGroupRequestBody = {
+  add?: string[];
+  name: string;
+};
+
+type UpdateAnvilStorageGroupRequestBody = {
+  add?: string[];
+  name: string;
+  remove?: string[];
+  rename?: string;
+};
+
+type DeleteAnvilStorageGroupRequestBody = {
+  name: string;
 };
