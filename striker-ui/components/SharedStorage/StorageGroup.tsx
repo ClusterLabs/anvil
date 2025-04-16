@@ -56,7 +56,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
                 </BodyText>
               </Grid>
               <Grid item width="100%">
-                <StorageBar volumeGroup={volumeGroup} />
+                <StorageBar thin volumeGroup={volumeGroup} />
               </Grid>
             </Grid>
           </Grid>
