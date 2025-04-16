@@ -16,3 +16,15 @@ export const yupIpv4 = () =>
   yup.string().matches(REP_IPV4, {
     message: '${path} must be a valid IPv4 address',
   });
+
+export const yupDynamicObject = <S extends yup.Schema>(
+  input: yup.AnyObject,
+  schema: S,
+): Record<string, S> =>
+  Object.keys(input).reduce<Record<string, S>>(
+    (previous, key) => ({
+      ...previous,
+      [key]: schema,
+    }),
+    {},
+  );
