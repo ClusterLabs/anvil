@@ -230,4 +230,5 @@ type APIAnvilSharedStorageOverview = {
   totalFree: bigint;
   totalSize: bigint;
   totalUsed: bigint;
+  volumeGroups: Record<string, APIAnvilVolumeGroupCalcable>;
 };
