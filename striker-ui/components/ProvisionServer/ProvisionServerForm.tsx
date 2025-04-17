@@ -102,7 +102,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
         '0': {
           size: {
             unit: 'GiB',
-            value: '10',
+            value: '20',
           },
           storageGroup: null,
         },
