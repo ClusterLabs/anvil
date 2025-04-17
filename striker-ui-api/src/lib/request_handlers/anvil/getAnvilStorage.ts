@@ -128,14 +128,18 @@ export const getAnvilStorage: RequestHandler<
           AND
             a.scan_lvm_vg_host_uuid IN (
               SELECT
-                UNNEST(
-                  ARRAY[
-                    anvil_node1_host_uuid,
-                    anvil_node2_host_uuid
-                  ]
-                )
-              FROM anvils
-              WHERE anvil_uuid = '${anvilUuid}'
+                a.host_uuid
+              FROM hosts AS a
+              LEFT JOIN anvils AS b
+                ON
+                    a.host_uuid in (
+                      b.anvil_node1_host_uuid,
+                      b.anvil_node2_host_uuid
+                    )
+                  AND
+                    b.anvil_uuid = '${anvilUuid}'
+              WHERE
+                a.host_type in ('dr', 'node')
             );`,
     );
   } catch (error) {
