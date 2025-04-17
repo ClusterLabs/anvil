@@ -194,7 +194,9 @@ export const getAnvilStorage: RequestHandler<
     storages.volumeGroups[vgUuid] = vg;
 
     if (!sgUuid) {
-      // This volume group is not part of any storage group; don't continue.
+      // This volume group is not part of any storage group; list it as unused.
+      storages.unusedVolumeGroups.push(vgUuid);
+
       return;
     }
 

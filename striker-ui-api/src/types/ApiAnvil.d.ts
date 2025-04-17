@@ -175,12 +175,12 @@ type AnvilDetailStorageGroup = {
 };
 
 type AnvilDetailStorageList = {
-  storageGroups: Record<string, AnvilDetailStorageGroup>;
   storageGroupTotals: {
     free: string;
     size: string;
     used: string;
   };
+  storageGroups: Record<string, AnvilDetailStorageGroup>;
   unusedVolumeGroups: string[];
   volumeGroups: Record<string, AnvilDetailVolumeGroup>;
 };
