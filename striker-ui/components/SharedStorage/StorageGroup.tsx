@@ -1,20 +1,21 @@
 import { Grid } from '@mui/material';
-import { dSizeStr } from 'format-data-size';
+import { dSize, dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
 import { StorageBar } from '../Bars';
+import IconButton from '../IconButton';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import { BodyText, InlineMonoText } from '../Text';
 
 const StorageGroup: React.FC<StorageGroupProps> = (props) => {
-  const { storages, uuid: sgUuid } = props;
+  const { formDialogRef, storages, target, uuid: sgUuid } = props;
 
   const { [sgUuid]: storageGroup } = storages.storageGroups;
 
   const { name } = storageGroup;
 
   const sgFree = useMemo<string>(
-    () => dSizeStr(storageGroup.free, { toUnit: 'ibyte' }) ?? 'none',
+    () => dSize(storageGroup.free, { toUnit: 'ibyte' })?.value ?? 'none',
     [storageGroup.free],
   );
 
@@ -43,7 +44,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
         const { [volumeGroup.host]: host } = storages.hosts;
 
         const vgFree =
-          dSizeStr(volumeGroup.free, { toUnit: 'ibyte' }) ?? 'none';
+          dSize(volumeGroup.free, { toUnit: 'ibyte' })?.value ?? 'none';
 
         const vgSize =
           dSizeStr(volumeGroup.size, { toUnit: 'ibyte' }) ?? 'none';
@@ -55,7 +56,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
                 <BodyText variant="caption">{host.short}</BodyText>
               </Grid>
               <Grid item textAlign="right">
-                <BodyText mb="-.3em" variant="caption">
+                <BodyText variant="caption">
                   Free
                   <InlineMonoText>{vgFree}</InlineMonoText>/
                   <InlineMonoText>{vgSize}</InlineMonoText>
@@ -75,6 +76,16 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
     <InnerPanel>
       <InnerPanelHeader>
         <BodyText>{name}</BodyText>
+        <IconButton
+          mapPreset="edit"
+          onClick={() => {
+            target.set(sgUuid);
+
+            formDialogRef.current?.setOpen(true);
+          }}
+          size="small"
+          state="false"
+        />
       </InnerPanelHeader>
       <InnerPanelBody>
         <Grid container rowSpacing="1em">

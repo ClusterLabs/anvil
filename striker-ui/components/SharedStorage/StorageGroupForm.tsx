@@ -14,43 +14,36 @@ const buildFormikInitialValues = (
 ): StorageGroupFormikValues => {
   const { [sgUuid]: storageGroup } = storages.storageGroups;
 
-  if (!storageGroup) {
-    const hosts = hostUuids.reduce<
-      Record<string, StorageGroupMemberFormikValues>
-    >((previous, hostUuid) => {
-      previous[hostUuid] = {
-        vg: null,
-      };
-
-      return previous;
-    }, {});
-
-    return {
-      hosts,
-      name: '',
-    };
-  }
-
-  const { members, name } = storageGroup;
-
-  const hosts = Object.values(members).reduce<
+  const hosts = hostUuids.reduce<
     Record<string, StorageGroupMemberFormikValues>
-  >((previous, member) => {
-    const { [member.volumeGroup]: volumeGroup } = storages.volumeGroups;
-
-    const { host: hostUuid, uuid: vgUuid } = volumeGroup;
-
+  >((previous, hostUuid) => {
     previous[hostUuid] = {
-      vg: vgUuid,
+      vg: null,
     };
 
     return previous;
   }, {});
 
-  return {
+  const values: StorageGroupFormikValues = {
     hosts,
-    name,
+    name: '',
   };
+
+  if (!storageGroup) {
+    return values;
+  }
+
+  values.name = storageGroup.name;
+
+  Object.values(storageGroup.members).forEach((member) => {
+    const { [member.volumeGroup]: volumeGroup } = storages.volumeGroups;
+
+    const { host: hostUuid, uuid: vgUuid } = volumeGroup;
+
+    hosts[hostUuid].vg = vgUuid;
+  });
+
+  return values;
 };
 
 const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
@@ -59,11 +52,6 @@ const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
   const hostUuids = useMemo(
     () => Object.keys(storages.hosts),
     [storages.hosts],
-  );
-
-  const vgUuids = useMemo(
-    () => Object.keys(storages.volumeGroups),
-    [storages.volumeGroups],
   );
 
   const formikUtils = useFormikUtils<StorageGroupFormikValues>({
@@ -100,7 +88,12 @@ const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
             />
           </Grid>
           <Grid item>
-            <IconButton mapPreset="delete" size="small" />
+            <IconButton
+              disabled={!sgUuid}
+              mapPreset="delete"
+              size="small"
+              variant="redcontained"
+            />
           </Grid>
         </Grid>
       </Grid>
@@ -110,7 +103,6 @@ const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
             formikUtils={formikUtils}
             host={uuid}
             storages={storages}
-            vgs={vgUuids}
           />
         </Grid>
       ))}
