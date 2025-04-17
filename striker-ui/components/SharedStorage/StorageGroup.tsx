@@ -7,7 +7,9 @@ import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import { BodyText, InlineMonoText } from '../Text';
 
 const StorageGroup: React.FC<StorageGroupProps> = (props) => {
-  const { storageGroup } = props;
+  const { storages, uuid: sgUuid } = props;
+
+  const { [sgUuid]: storageGroup } = storages.storageGroups;
 
   const { name } = storageGroup;
 
@@ -34,7 +36,11 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
   const volumeGroups = useMemo<React.ReactNode[]>(
     () =>
       members.map<React.ReactNode>((member) => {
-        const { volumeGroup } = member;
+        const { volumeGroup: vgUuid } = member;
+
+        const { [vgUuid]: volumeGroup } = storages.volumeGroups;
+
+        const { [volumeGroup.host]: host } = storages.hosts;
 
         const vgFree =
           dSizeStr(volumeGroup.free, { toUnit: 'ibyte' }) ?? 'none';
@@ -46,7 +52,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
           <Grid item key={member.uuid} width="100%">
             <Grid container>
               <Grid item xs>
-                <BodyText variant="caption">{volumeGroup.host.short}</BodyText>
+                <BodyText variant="caption">{host.short}</BodyText>
               </Grid>
               <Grid item textAlign="right">
                 <BodyText mb="-.3em" variant="caption">
@@ -62,7 +68,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
           </Grid>
         );
       }),
-    [members],
+    [members, storages.hosts, storages.volumeGroups],
   );
 
   return (

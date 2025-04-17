@@ -14,35 +14,12 @@ const toVolumeGroupCalcable = (sVolumeGroup: APIAnvilVolumeGroup) => {
   };
 };
 
-const toMemberCalcableRecord = (
-  members: Record<string, APIAnvilStorageGroupMemberCalcable>,
-  sMember: APIAnvilStorageGroupMember,
-): Record<string, APIAnvilStorageGroupMemberCalcable> => {
-  const { uuid, volumeGroup: sVolumeGroup } = sMember;
-
-  let volumeGroup: APIAnvilVolumeGroupCalcable;
-
-  try {
-    volumeGroup = toVolumeGroupCalcable(sVolumeGroup);
-  } catch (error) {
-    return members;
-  }
-
-  members[uuid] = {
-    uuid,
-    volumeGroup,
-  };
-
-  return members;
-};
-
 const toStorageGroupCalcableRecord = (
   storageGroups: Record<string, APIAnvilStorageGroupCalcable>,
   sStorageGroup: APIAnvilStorageGroup,
 ): Record<string, APIAnvilStorageGroupCalcable> => {
   const {
     free: sFree,
-    members: sMembers,
     size: sSize,
     used: sUsed,
     uuid,
@@ -61,14 +38,9 @@ const toStorageGroupCalcableRecord = (
     return storageGroups;
   }
 
-  const members = Object.values(sMembers).reduce<
-    Record<string, APIAnvilStorageGroupMemberCalcable>
-  >(toMemberCalcableRecord, {});
-
   storageGroups[uuid] = {
     ...rest,
     free,
-    members,
     size,
     used,
     uuid,
@@ -103,6 +75,7 @@ const toAnvilSharedStorageOverview = (
     storageGroupTotals,
     storageGroups: sStorageGroups,
     volumeGroups: sVolumeGroups,
+    ...rest
   } = data;
 
   const storageGroups = Object.values(sStorageGroups).reduce<
@@ -123,6 +96,7 @@ const toAnvilSharedStorageOverview = (
     totalUsed = BigInt(storageGroupTotals.used);
   } catch (error) {
     return {
+      ...rest,
       storageGroups,
       totalFree: BigInt(0),
       totalSize: BigInt(0),
@@ -132,6 +106,7 @@ const toAnvilSharedStorageOverview = (
   }
 
   return {
+    ...rest,
     storageGroups,
     totalFree,
     totalSize,
