@@ -162,7 +162,7 @@ type AnvilDetailVolumeGroup = {
 
 type AnvilDetailStorageGroupMember = {
   uuid: string;
-  volumeGroup: AnvilDetailVolumeGroup;
+  volumeGroup: string;
 };
 
 type AnvilDetailStorageGroup = {
@@ -181,6 +181,7 @@ type AnvilDetailStorageList = {
     size: string;
     used: string;
   };
+  unusedVolumeGroups: string[];
   volumeGroups: Record<string, AnvilDetailVolumeGroup>;
 };
 
