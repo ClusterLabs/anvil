@@ -1,6 +1,6 @@
 import { Box, styled } from '@mui/material';
 import { AxiosError } from 'axios';
-import { useContext, useRef } from 'react';
+import { useContext, useRef, useState } from 'react';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
@@ -38,7 +38,7 @@ const StyledDiv = styled('div')(({ theme }) => ({
 const SharedStorageContent: React.FC<
   SharedStorageContentProps<AxiosError<unknown, APIAnvilStorageList>>
 > = (props) => {
-  const { error, formDialogRef, loading, storages } = props;
+  const { error, formDialogRef, loading, storages, target } = props;
 
   if (loading) {
     return <Spinner />;
@@ -63,34 +63,47 @@ const SharedStorageContent: React.FC<
 
   const values = Object.values(storages.storageGroups);
 
+  let formDialogHeader: React.ReactNode = 'Add storage group';
+
+  if (target.value) {
+    const { [target.value]: sg } = storages.storageGroups;
+
+    formDialogHeader = `Update ${sg.name.toLocaleLowerCase()}`;
+  }
+
   return (
     <StyledDiv>
       <Box className={classes.root}>
         {values.map(
-          (storageGroup): JSX.Element => (
+          ({ uuid }): React.ReactNode => (
             <StorageGroup
-              key={storageGroup.uuid}
+              formDialogRef={formDialogRef}
+              key={uuid}
               storages={storages}
-              uuid={storageGroup.uuid}
+              target={target}
+              uuid={uuid}
             />
           ),
         )}
       </Box>
       <DialogWithHeader
-        header="Manage storage group"
+        header={formDialogHeader}
         ref={formDialogRef}
         showClose
+        wide
       >
-        <StorageGroupForm storages={storages} />
+        <StorageGroupForm storages={storages} uuid={target.value} />
       </DialogWithHeader>
     </StyledDiv>
   );
 };
 
 const SharedStorage = (): JSX.Element => {
+  const { uuid } = useContext(AnvilContext);
+
   const formDialogRef = useRef<DialogForwardedRefContent>(null);
 
-  const { uuid } = useContext(AnvilContext);
+  const [target, setTarget] = useState<string | undefined>();
 
   const {
     altData: storages,
@@ -111,6 +124,8 @@ const SharedStorage = (): JSX.Element => {
         <IconButton
           mapPreset="add"
           onClick={() => {
+            setTarget(undefined);
+
             formDialogRef.current?.setOpen(true);
           }}
         />
@@ -120,6 +135,10 @@ const SharedStorage = (): JSX.Element => {
         formDialogRef={formDialogRef}
         loading={loading}
         storages={storages}
+        target={{
+          set: setTarget,
+          value: target,
+        }}
       />
     </Panel>
   );

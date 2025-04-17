@@ -7,15 +7,23 @@ type StorageGroupFormikValues = {
   name: string;
 };
 
+type SharedStorageEditTarget<T> = {
+  set: (value: T) => void;
+  value: T;
+};
+
 type SharedStorageContentProps<E extends Error = Error> = {
   error?: E;
   formDialogRef: React.RefObject<DialogForwardedRefContent>;
   loading?: boolean;
   storages?: APIAnvilSharedStorageOverview;
+  target: SharedStorageEditTarget<string | undefined>;
 };
 
 type StorageGroupProps = {
+  formDialogRef: React.RefObject<DialogForwardedRefContent>;
   storages: APIAnvilSharedStorageOverview;
+  target: SharedStorageEditTarget<string | undefined>;
   uuid: string;
 };
 
@@ -31,5 +39,4 @@ type StorageGroupMemberFormProps<Values extends StorageGroupFormikValues> = {
   formikUtils: FormikUtils<Values>;
   host: string;
   storages: APIAnvilSharedStorageOverview;
-  vgs: string[];
 };
