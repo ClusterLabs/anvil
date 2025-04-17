@@ -4,6 +4,7 @@ import { DELETED } from '../../consts';
 
 import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
+import join from '../../join';
 import { Responder } from '../../Responder';
 
 export const getAnvilStorage: RequestHandler<
@@ -20,6 +21,7 @@ export const getAnvilStorage: RequestHandler<
   let rows: string[][];
 
   const storages: AnvilDetailStorageList = {
+    hosts: {},
     storageGroups: {},
     storageGroupTotals: {
       free: '',
@@ -109,38 +111,59 @@ export const getAnvilStorage: RequestHandler<
   try {
     rows = await query(
       `SELECT
+          a.host_uuid,
+          a.host_name
+        FROM hosts AS a
+        LEFT JOIN anvils AS b
+          ON
+              a.host_uuid in (
+                b.anvil_node1_host_uuid,
+                b.anvil_node2_host_uuid
+              )
+            AND
+              b.anvil_uuid = '${anvilUuid}'
+        WHERE
+          a.host_type in ('dr', 'node');`,
+    );
+  } catch (error) {
+    return respond.s500('b22ef49', `Failed to get hosts; CAUSE: ${error}`);
+  }
+
+  rows.forEach((row) => {
+    const [uuid, name] = row;
+
+    const short = getShortHostName(name);
+
+    storages.hosts[uuid] = {
+      name,
+      short,
+      uuid,
+    };
+  });
+
+  const hostUuidsCsv = join(Object.keys(storages.hosts), {
+    elementWrapper: "'",
+    separator: ', ',
+  });
+
+  try {
+    rows = await query(
+      `SELECT
           a.scan_lvm_vg_uuid,
           a.scan_lvm_vg_internal_uuid,
           a.scan_lvm_vg_name,
           a.scan_lvm_vg_size,
           a.scan_lvm_vg_free,
-          b.host_uuid,
-          b.host_name,
+          a.scan_lvm_vg_host_uuid,
           c.storage_group_member_uuid,
           c.storage_group_member_storage_group_uuid
         FROM scan_lvm_vgs AS a
-        JOIN hosts AS b
-          ON a.scan_lvm_vg_host_uuid = b.host_uuid
         LEFT JOIN storage_group_members AS c
           ON a.scan_lvm_vg_internal_uuid = c.storage_group_member_vg_uuid
         WHERE
             a.scan_lvm_vg_name != '${DELETED}'
           AND
-            a.scan_lvm_vg_host_uuid IN (
-              SELECT
-                a.host_uuid
-              FROM hosts AS a
-              LEFT JOIN anvils AS b
-                ON
-                    a.host_uuid in (
-                      b.anvil_node1_host_uuid,
-                      b.anvil_node2_host_uuid
-                    )
-                  AND
-                    b.anvil_uuid = '${anvilUuid}'
-              WHERE
-                a.host_type in ('dr', 'node')
-            );`,
+            a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv});`,
     );
   } catch (error) {
     return respond.s500(
@@ -157,7 +180,6 @@ export const getAnvilStorage: RequestHandler<
       vgSize,
       vgFree,
       hostUuid,
-      hostName,
       sgmUuid,
       sgUuid,
     ] = row;
@@ -174,15 +196,9 @@ export const getAnvilStorage: RequestHandler<
       return;
     }
 
-    const shortHostName = getShortHostName(hostName);
-
     const vg: AnvilDetailVolumeGroup = {
       free: vgFree,
-      host: {
-        name: hostName,
-        short: shortHostName,
-        uuid: hostUuid,
-      },
+      host: hostUuid,
       internalUuid: vgInternalUuid,
       name: vgName,
       size: vgSize,
