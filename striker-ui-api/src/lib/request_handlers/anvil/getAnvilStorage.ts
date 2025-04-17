@@ -26,6 +26,7 @@ export const getAnvilStorage: RequestHandler<
       size: '',
       used: '',
     },
+    unusedVolumeGroups: [],
     volumeGroups: {},
   };
 
@@ -185,10 +186,11 @@ export const getAnvilStorage: RequestHandler<
       uuid: vgUuid,
     };
 
-    if (!sgUuid) {
-      // This vg is not part of any storage groups; add to the usable list.
-      storages.volumeGroups[vgUuid] = vg;
+    // Add this volume group to the list.
+    storages.volumeGroups[vgUuid] = vg;
 
+    if (!sgUuid) {
+      // This volume group is not part of any storage group; don't continue.
       return;
     }
 
@@ -200,7 +202,7 @@ export const getAnvilStorage: RequestHandler<
     }
 
     sg.members[sgmUuid] = {
-      volumeGroup: vg,
+      volumeGroup: vgUuid,
       uuid: sgmUuid,
     };
   });
