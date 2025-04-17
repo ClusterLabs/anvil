@@ -1,16 +1,19 @@
 import { Box, styled } from '@mui/material';
 import { AxiosError } from 'axios';
-import { useContext } from 'react';
+import { useContext, useRef } from 'react';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
 import { AnvilContext } from '../AnvilContext';
 import { toAnvilSharedStorageOverview } from '../../lib/api_converters';
+import { DialogWithHeader } from '../Dialog';
 import handleAPIError from '../../lib/handleAPIError';
+import IconButton from '../IconButton';
 import MessageBox from '../MessageBox';
 import { Panel, PanelHeader } from '../Panels';
-import StorageGroup from './StorageGroup';
 import Spinner from '../Spinner';
+import StorageGroup from './StorageGroup';
+import StorageGroupForm from './StorageGroupForm';
 import { HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
@@ -35,13 +38,13 @@ const StyledDiv = styled('div')(({ theme }) => ({
 const SharedStorageContent: React.FC<
   SharedStorageContentProps<AxiosError<unknown, APIAnvilStorageList>>
 > = (props) => {
-  const { error, loading, storages: storage } = props;
+  const { error, formDialogRef, loading, storages } = props;
 
   if (loading) {
     return <Spinner />;
   }
 
-  if (!storage) {
+  if (!storages) {
     let emsg: Message;
 
     if (error) {
@@ -58,22 +61,35 @@ const SharedStorageContent: React.FC<
     return <MessageBox {...emsg} />;
   }
 
-  const values = Object.values(storage.storageGroups);
+  const values = Object.values(storages.storageGroups);
 
   return (
     <StyledDiv>
       <Box className={classes.root}>
         {values.map(
           (storageGroup): JSX.Element => (
-            <StorageGroup key={storageGroup.uuid} storageGroup={storageGroup} />
+            <StorageGroup
+              key={storageGroup.uuid}
+              storages={storages}
+              uuid={storageGroup.uuid}
+            />
           ),
         )}
       </Box>
+      <DialogWithHeader
+        header="Manage storage group"
+        ref={formDialogRef}
+        showClose
+      >
+        <StorageGroupForm storages={storages} />
+      </DialogWithHeader>
     </StyledDiv>
   );
 };
 
 const SharedStorage = (): JSX.Element => {
+  const formDialogRef = useRef<DialogForwardedRefContent>(null);
+
   const { uuid } = useContext(AnvilContext);
 
   const {
@@ -92,9 +108,16 @@ const SharedStorage = (): JSX.Element => {
     <Panel>
       <PanelHeader>
         <HeaderText>Shared Storage</HeaderText>
+        <IconButton
+          mapPreset="add"
+          onClick={() => {
+            formDialogRef.current?.setOpen(true);
+          }}
+        />
       </PanelHeader>
       <SharedStorageContent
         error={error}
+        formDialogRef={formDialogRef}
         loading={loading}
         storages={storages}
       />
