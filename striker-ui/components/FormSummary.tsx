@@ -1,4 +1,5 @@
 import { Box, List as MUIList, ListItem as MUIListItem } from '@mui/material';
+import { isEmpty } from 'lodash';
 import { FC, ReactElement } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
@@ -24,10 +25,7 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
 const renderEntryValueBase: RenderFormValueFunction = (args) => {
   const { entry, hasPassword } = args;
 
-  if (
-    ['', null, undefined].some((bad) => entry === bad) ||
-    Number.isNaN(entry)
-  ) {
+  if (isEmpty(entry)) {
     return <BodyText>none</BodyText>;
   }
 
@@ -53,6 +51,9 @@ const renderEntryBase: RenderFormEntryFunction = (args) => {
 };
 
 const skipBase: SkipFormEntryFunction = ({ key }) => /confirm|uuid/i.test(key);
+
+const nestBase = <T,>(entry: T) =>
+  entry !== null && typeof entry === 'object' && !isEmpty(entry);
 
 const buildEntryList = <T extends FormEntries>({
   depth = 0,
@@ -84,7 +85,7 @@ const buildEntryList = <T extends FormEntries>({
   Object.entries(entries).forEach(([itemKey, entry]) => {
     const itemId = `form-summary-entry-${itemKey}`;
 
-    const nest = entry !== null && typeof entry === 'object';
+    const nest = nestBase(entry);
 
     const value = nest ? null : entry;
 
