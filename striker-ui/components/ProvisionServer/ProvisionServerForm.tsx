@@ -204,6 +204,8 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
               );
 
               finishConfirm('Error', emsg);
+
+              setSubmitting(false);
             });
         },
         titleText: `Provision ${values.name}?`,

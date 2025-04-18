@@ -190,6 +190,8 @@ const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
               );
 
               confirm.finishConfirm('Error', emsg);
+
+              setSubmitting(false);
             });
         },
         titleText: `${operation} ${
@@ -282,6 +284,8 @@ const StorageGroupForm: React.FC<StorageGroupFormProps> = (props) => {
                         );
 
                         confirm.finishConfirm('Error', emsg);
+
+                        formik.setSubmitting(false);
                       });
                   },
                   proceedColour: 'red',
