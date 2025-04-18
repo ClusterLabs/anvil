@@ -116,14 +116,22 @@ export const getAnvilStorage: RequestHandler<
         FROM hosts AS a
         LEFT JOIN anvils AS b
           ON
-              a.host_uuid in (
-                b.anvil_node1_host_uuid,
-                b.anvil_node2_host_uuid
-              )
+            a.host_uuid in (
+              b.anvil_node1_host_uuid,
+              b.anvil_node2_host_uuid
+            )
+        LEFT JOIN dr_links AS c
+          ON
+              a.host_uuid = c.dr_link_host_uuid
             AND
-              b.anvil_uuid = '${anvilUuid}'
+              c.dr_link_note != '${DELETED}'
         WHERE
-          a.host_type in ('dr', 'node');`,
+          COALESCE(
+            b.anvil_uuid,
+            c.dr_link_anvil_uuid
+          ) = '${anvilUuid}'
+        ORDER BY
+          a.host_name;`,
     );
   } catch (error) {
     return respond.s500('b22ef49', `Failed to get hosts; CAUSE: ${error}`);
@@ -163,7 +171,9 @@ export const getAnvilStorage: RequestHandler<
         WHERE
             a.scan_lvm_vg_name != '${DELETED}'
           AND
-            a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv});`,
+            a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+        ORDER BY
+          a.scan_lvm_vg_name;`,
     );
   } catch (error) {
     return respond.s500(
