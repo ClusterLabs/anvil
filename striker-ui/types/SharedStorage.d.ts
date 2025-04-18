@@ -13,6 +13,8 @@ type SharedStorageEditTarget<T> = {
 };
 
 type SharedStorageContentProps<E extends Error = Error> = {
+  anvil: string;
+  confirm: ConfirmDialogUtils;
   error?: E;
   formDialogRef: React.RefObject<DialogForwardedRefContent>;
   loading?: boolean;
@@ -32,6 +34,8 @@ type StorageGroupFormOptionalProps = {
 };
 
 type StorageGroupFormProps = StorageGroupFormOptionalProps & {
+  anvil: string;
+  confirm: ConfirmDialogUtils;
   storages: APIAnvilSharedStorageOverview;
 };
 
