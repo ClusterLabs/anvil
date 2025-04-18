@@ -216,7 +216,7 @@ const Autocomplete = <
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <MUIAutocomplete
         autoHighlight
-        autoSelect
+        autoSelect={required}
         PaperComponent={GrowPaper}
         {...autocompleteRestProps}
         ListboxProps={mergedListboxProps}

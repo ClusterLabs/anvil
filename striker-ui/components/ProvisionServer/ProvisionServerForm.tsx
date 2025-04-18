@@ -689,7 +689,6 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
             </Grid>
             <Grid item width="100%">
               <Autocomplete
-                autoSelect={false}
                 filterOptions={filterFileOptions}
                 getOptionDisabled={(uuid) => uuid === formik.values.install}
                 getOptionLabel={getFileOptionLabel}
