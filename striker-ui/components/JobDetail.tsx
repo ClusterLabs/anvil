@@ -1,5 +1,12 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  FC,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
@@ -71,9 +78,13 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     refreshInterval,
   });
 
+  const clearDialogHeader = useCallback(() => {
+    dialog?.setHeader('');
+  }, [dialog]);
+
   useEffect(() => {
     if (!(dialog && job)) {
-      return;
+      return clearDialogHeader;
     }
 
     dialog.setHeader(
@@ -82,7 +93,9 @@ const JobDetail: FC<JobDetailProps> = (props) => {
         <SyncIndicator syncing={validatingJob} />
       </>,
     );
-  }, [dialog, job, validatingJob]);
+
+    return clearDialogHeader;
+  }, [clearDialogHeader, dialog, job, validatingJob]);
 
   const status = useJobStatus(job?.status);
 
