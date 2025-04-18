@@ -47,13 +47,20 @@ const useFetch = <
 
       return response.data;
     },
-    ...config
+    refreshInterval,
+    ...restConfig
   } = options;
 
-  let refreshInterval: number | undefined;
+  let ri: SWRConfiguration<
+    ResData,
+    Err,
+    BareFetcher<ResData>
+  >['refreshInterval'];
 
   if (periodic) {
-    refreshInterval = 5000;
+    ri = 5000;
+  } else {
+    ri = refreshInterval;
   }
 
   const {
@@ -62,8 +69,8 @@ const useFetch = <
     isValidating: validating,
     mutate,
   } = useSWR<ResData, Err>(url, fetcher, {
-    refreshInterval,
-    ...config,
+    refreshInterval: ri,
+    ...restConfig,
   });
 
   const altData = useMemo<AltResData | undefined>(
