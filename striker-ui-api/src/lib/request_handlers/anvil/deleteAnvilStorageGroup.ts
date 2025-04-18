@@ -30,9 +30,9 @@ export const deleteAnvilStorageGroup: RequestHandler = async (
 
   const commandCommonArgs: string[] = [
     '--anvil',
-    anvilUuid,
+    `'${anvilUuid}'`,
     '--group',
-    storageGroupName,
+    `'${storageGroupName}'`,
   ];
 
   try {
