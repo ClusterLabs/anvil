@@ -13,7 +13,7 @@ export const REP_IPV4 = new RegExp(`^${P_IPV4}$`);
 
 export const REP_IPV4_CSV = new RegExp(`(?:${P_IPV4},)*${P_IPV4}`);
 
-export const REP_LVM_UUID = new RegExp(`^${P_LVM_UUID}$`);
+export const REP_LVM_UUID = new RegExp(`^${P_LVM_UUID}$`, 'i');
 
 export const REP_MAC = new RegExp(`^${P_HEX}{2}(?::${P_HEX}{2}){5}$`);
 
