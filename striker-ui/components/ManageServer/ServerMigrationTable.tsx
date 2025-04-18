@@ -12,7 +12,7 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
   const { altData: hostValues } = useFetch<
     APIHostOverviewList,
     APIHostOverview[]
-  >('/host?types=node', {
+  >('/host?type=subnode', {
     mod: (data) => {
       const values = Object.values(data);
 

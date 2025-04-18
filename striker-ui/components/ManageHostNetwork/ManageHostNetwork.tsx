@@ -11,7 +11,9 @@ import Spinner from '../Spinner';
 const ManageHostNetwork: FC = () => {
   const [hostUuid, setHostUuid] = useState<false | string>(false);
 
-  const { data: hosts } = useFetch<APIHostOverviewList>('/host?types=dr,node');
+  const { data: hosts } = useFetch<APIHostOverviewList>(
+    '/host?type=dr&type=subnode',
+  );
 
   const hostValues = useMemo<APIHostOverview[] | undefined>(
     () => hosts && Object.values(hosts),

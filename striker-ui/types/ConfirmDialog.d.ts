@@ -30,3 +30,14 @@ type ConfirmDialogProps = Omit<DialogWithHeaderProps, 'header'> &
 type ConfirmDialogForwardedRefContent = {
   setOpen?: (value: boolean) => void;
 };
+
+type ConfirmDialogUtils = {
+  confirmDialog: React.ReactElement;
+  confirmDialogRef: React.MutableRefObject<ConfirmDialogForwardedRefContent | null>;
+  setConfirmDialogLoading: (value: boolean) => void;
+  setConfirmDialogOpen: (value: boolean) => void;
+  setConfirmDialogProps: React.Dispatch<
+    React.SetStateAction<ConfirmDialogProps>
+  >;
+  finishConfirm: (title: React.ReactNode, message: Message) => void;
+};

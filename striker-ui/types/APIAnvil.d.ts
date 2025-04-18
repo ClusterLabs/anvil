@@ -77,19 +77,6 @@ type AnvilServer = {
 
 type AnvilServers = AnvilServer[];
 
-type AnvilSharedStorageGroup = {
-  storage_group_free: string;
-  storage_group_name: string;
-  storage_group_total: string;
-  storage_group_uuid: string;
-};
-
-type AnvilSharedStorage = {
-  storage_groups: AnvilSharedStorageGroup[];
-  total_size: string;
-  total_free: string;
-};
-
 type AnvilStatusHost = {
   host_name: string;
   host_uuid: string;
@@ -172,8 +159,66 @@ type APIAnvilOverviewList = {
   [uuid: string]: APIAnvilOverview;
 };
 
+type APIAnvilStorageHost = {
+  name: string;
+  short: string;
+  uuid: string;
+};
+
+type APIAnvilVolumeGroup = {
+  free: string;
+  host: string;
+  internalUuid: string;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type APIAnvilStorageGroupMember = {
+  volumeGroup: string;
+  uuid: string;
+};
+
+type APIAnvilStorageGroup = {
+  free: string;
+  members: Record<string, APIAnvilStorageGroupMember>;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type APIAnvilStorageList = {
+  hosts: Record<string, APIAnvilStorageHost>;
+  storageGroupTotals: {
+    free: string;
+    size: string;
+    used: string;
+  };
+  storageGroups: Record<string, APIAnvilStorageGroup>;
+  unusedVolumeGroups: string[];
+  volumeGroups: Record<string, APIAnvilVolumeGroup>;
+};
+
+type APIAnvilVolumeGroupCalcable = {
+  free: bigint;
+  host: string;
+  internalUuid: string;
+  name: string;
+  size: bigint;
+  used: bigint;
+  uuid: string;
+};
+
+type APIAnvilStorageGroupMemberCalcable = {
+  volumeGroup: string;
+  uuid: string;
+};
+
 type APIAnvilStorageGroupCalcable = {
   free: bigint;
+  members: Record<string, APIAnvilStorageGroupMemberCalcable>;
   name: string;
   size: bigint;
   used: bigint;
@@ -181,10 +226,11 @@ type APIAnvilStorageGroupCalcable = {
 };
 
 type APIAnvilSharedStorageOverview = {
-  storageGroups: {
-    [uuid: string]: APIAnvilStorageGroupCalcable;
-  };
+  hosts: Record<string, APIAnvilStorageHost>;
+  storageGroups: Record<string, APIAnvilStorageGroupCalcable>;
   totalFree: bigint;
   totalSize: bigint;
   totalUsed: bigint;
+  unusedVolumeGroups: string[];
+  volumeGroups: Record<string, APIAnvilVolumeGroupCalcable>;
 };

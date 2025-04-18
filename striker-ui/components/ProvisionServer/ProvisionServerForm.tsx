@@ -102,7 +102,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
         '0': {
           size: {
             unit: 'GiB',
-            value: '10',
+            value: '20',
           },
           storageGroup: null,
         },
@@ -204,6 +204,8 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
               );
 
               finishConfirm('Error', emsg);
+
+              setSubmitting(false);
             });
         },
         titleText: `Provision ${values.name}?`,
@@ -689,7 +691,6 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
             </Grid>
             <Grid item width="100%">
               <Autocomplete
-                autoSelect={false}
                 filterOptions={filterFileOptions}
                 getOptionDisabled={(uuid) => uuid === formik.values.install}
                 getOptionLabel={getFileOptionLabel}
