@@ -15,6 +15,7 @@ import Spinner from '../Spinner';
 import StorageGroup from './StorageGroup';
 import StorageGroupForm from './StorageGroupForm';
 import { HeaderText } from '../Text';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
 const PREFIX = 'SharedStorage';
@@ -38,7 +39,15 @@ const StyledDiv = styled('div')(({ theme }) => ({
 const SharedStorageContent: React.FC<
   SharedStorageContentProps<AxiosError<unknown, APIAnvilStorageList>>
 > = (props) => {
-  const { error, formDialogRef, loading, storages, target } = props;
+  const {
+    anvil: anvilUuid,
+    confirm,
+    error,
+    formDialogRef,
+    loading,
+    storages,
+    target,
+  } = props;
 
   if (loading) {
     return <Spinner />;
@@ -61,6 +70,8 @@ const SharedStorageContent: React.FC<
     return <MessageBox {...emsg} />;
   }
 
+  const { confirmDialog } = confirm;
+
   const values = Object.values(storages.storageGroups);
 
   let formDialogHeader: React.ReactNode = 'Add storage group';
@@ -68,7 +79,7 @@ const SharedStorageContent: React.FC<
   if (target.value) {
     const { [target.value]: sg } = storages.storageGroups;
 
-    formDialogHeader = `Update ${sg.name.toLocaleLowerCase()}`;
+    formDialogHeader = `Update ${sg.name}`;
   }
 
   return (
@@ -92,16 +103,24 @@ const SharedStorageContent: React.FC<
         showClose
         wide
       >
-        <StorageGroupForm storages={storages} uuid={target.value} />
+        <StorageGroupForm
+          anvil={anvilUuid}
+          confirm={confirm}
+          storages={storages}
+          uuid={target.value}
+        />
       </DialogWithHeader>
+      {confirmDialog}
     </StyledDiv>
   );
 };
 
 const SharedStorage = (): JSX.Element => {
-  const { uuid } = useContext(AnvilContext);
+  const { uuid: anvilUuid } = useContext(AnvilContext);
 
   const formDialogRef = useRef<DialogForwardedRefContent>(null);
+
+  const confirm = useConfirmDialog();
 
   const [target, setTarget] = useState<string | undefined>();
 
@@ -110,7 +129,7 @@ const SharedStorage = (): JSX.Element => {
     error,
     loading,
   } = useFetch<APIAnvilStorageList, APIAnvilSharedStorageOverview>(
-    `/anvil/${uuid}/storage`,
+    `/anvil/${anvilUuid}/storage`,
     {
       mod: toAnvilSharedStorageOverview,
       periodic: true,
@@ -131,6 +150,8 @@ const SharedStorage = (): JSX.Element => {
         />
       </PanelHeader>
       <SharedStorageContent
+        anvil={anvilUuid}
+        confirm={confirm}
         error={error}
         formDialogRef={formDialogRef}
         loading={loading}
