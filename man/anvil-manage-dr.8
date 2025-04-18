@@ -1,6 +1,6 @@
 .\" Manpage for the Anvil! DR hosts
 .\" Contact mkelly@alteeve.com to report issues, concerns or suggestions.
-.TH anvil-manage-dr "8" "August 15 2024" "Anvil! Intelligent Availability™ Platform"
+.TH anvil-manage-dr "8" "April 17 2025" "Anvil! Intelligent Availability™ Platform"
 .SH NAME
 anvil-manage-dr \- This program manages if a server is (and when) a server is protected by a DR host.
 .SH SYNOPSIS
@@ -25,6 +25,8 @@ When linking or unlinking a DR host to an Anvil! node, this switch indicates the
 .TP
 \fB\-\-confirm\fR
 When doing a \fB\-\-restore\fB, if the new LV path changes the DRBD resource file will need to be updated on the subnodes. This could be a risk, and so the user will be asked to confirm. This switch prevents asking the user to confirm.
+.TP
+Use carefully with '\fB\-\-protect\fB' and '\fB\-\-remove\fB'! If the '\fB\-\-job\-uuid\fB' is set, this is assumed and no prompt will be presented.
 .TP
 Note that when running as a job, there will be no promp and this switch is not needed.
 .TP
@@ -101,8 +103,8 @@ This takes an --anvil and a --dr-host to disable using the DR host as a target f
 \fB\-\-update\fB
 This tells the DR to be connected and sync. Once the volume(s) on DR are 'UpToDate', the connection is closed. This provides a point in time update of the server's image on DR.
 .TP
-\fB\-\-Yes\fB
-Note the capital 'Y'. This can be set to proceed without confirmation. Use carefully with '\-\-protect' and '\-\-remove'! If the '\-\-job-uuid' is set, this is assumed and no prompt will be presented.
+\fB\-\-Yes\fB (deprecated, use '--confirm')
+Note the capital 'Y'. This can be set to proceed without confirmation. Use carefully with '\fB\-\-protect\fB' and '\fB\-\-remove\fB'! If the '\fB\-\-job\-uuid\fB' is set, this is assumed and no prompt will be presented.
 .IP
 .SH EXAMPLES
 

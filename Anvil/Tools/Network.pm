@@ -5940,6 +5940,11 @@ sub _manage_dr_firewall
 	my @ifn_services = ("audit", "ssh", "zabbix-agent", "zabbix-server");
 	my @sn_services  = ("ssh");	# May use as a backup corosync network later
 	
+	# We'll use the IPs of ports to open the appropriate zones.
+	$anvil->Database->get_ip_addresses({debug => $debug});
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	
 	# We need to make sure that the postgresql service is open for all networks.
 	if ($zone =~ /BCN/)
 	{
@@ -6045,26 +6050,40 @@ sub _manage_dr_firewall
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 			}
 		}
-		
-		# Open all the ports DRBD needs.
-		foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+	}
+	
+	# Open all the ports DRBD needs. This can be on any network on a DR host.
+	foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+	{
+		my $ips = $anvil->data->{firewall}{drbd}{port}{$port};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			port => $port,
+			ips  => $ips, 
+		}});
+		my $on_network = "";
+		foreach my $ip_address (split/,/, $ips)
 		{
+			next if not exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address};
+			$on_network = $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address}{on_network};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				port => $port,
-				zone => $zone,
+				's1:ip_address' => $ip_address, 
+				's2:on_network' => $on_network,
 			}});
-			my $chenged = $anvil->Network->_manage_port({
-				debug    => $debug, 
-				port     => $port, 
-				protocol => "tcp", 
-				task     => "open",
-				zone     => $zone,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
-			if ($chenged)
+			if (uc($on_network) eq $zone)
 			{
-				$changes = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+				my $chenged = $anvil->Network->_manage_port({
+					debug    => $debug, 
+					port     => $port, 
+					protocol => "tcp", 
+					task     => "open",
+					zone     => $zone,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+				if ($chenged)
+				{
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+				}
 			}
 		}
 	}
@@ -6114,6 +6133,11 @@ sub _manage_node_firewall
 	my @ifn_services = ("audit", "ssh", "zabbix-agent", "zabbix-server");
 	my @sn_services  = ("high-availability", "ssh");	# May use as a backup corosync network later
 	my @mn_services  = ("high-availability", "ssh");	# May use as a backup corosync network later
+	
+	# We'll use the IPs of ports to open the appropriate zones.
+	$anvil->Database->get_ip_addresses({debug => $debug});
+	my $host_uuid = $anvil->Get->host_uuid();
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
 	
 	# We need to make sure that the postgresql service is open for all networks.
 	if ($zone =~ /BCN/)
@@ -6195,28 +6219,6 @@ sub _manage_node_firewall
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 			}
 		}
-		
-		# Open all the ports DRBD needs.
-		foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
-		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				port => $port,
-				zone => $zone,
-			}});
-			my $chenged = $anvil->Network->_manage_port({
-				debug    => $debug, 
-				port     => $port, 
-				protocol => "tcp", 
-				task     => "open",
-				zone     => $zone,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
-			if ($chenged)
-			{
-				$changes = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
-			}
-		}
 	}
 	
 	if ($zone =~ /MN/)
@@ -6266,6 +6268,42 @@ sub _manage_node_firewall
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
 		}
 		
+	}
+	
+	# Open all the ports DRBD needs. This can be on any network on a DR host.
+	foreach my $port (sort {$a <=> $b} keys %{$anvil->data->{firewall}{drbd}{port}})
+	{
+		my $ips = $anvil->data->{firewall}{drbd}{port}{$port};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			port => $port,
+			ips  => $ips, 
+		}});
+		my $on_network = "";
+		foreach my $ip_address (split/,/, $ips)
+		{
+			next if not exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address};
+			$on_network = $anvil->data->{hosts}{host_uuid}{$host_uuid}{ip_address}{$ip_address}{on_network};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:ip_address' => $ip_address, 
+				's2:on_network' => $on_network,
+			}});
+			if (uc($on_network) eq $zone)
+			{
+				my $chenged = $anvil->Network->_manage_port({
+					debug    => $debug, 
+					port     => $port, 
+					protocol => "tcp", 
+					task     => "open",
+					zone     => $zone,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { chenged => $chenged }});
+				if ($chenged)
+				{
+					$changes = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { changes => $changes }});
+				}
+			}
+		}
 	}
 	
 	# Open DRBD proxy ports for all networks.
