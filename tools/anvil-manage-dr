@@ -66,6 +66,15 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Backwards support.
+if ($anvil->data->{switches}{Yes})
+{
+	$anvil->data->{switches}{confirm} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::confirm" => $anvil->data->{switches}{confirm}, 
+	}});
+}
+
 # Are we linking or unlinking?
 if (($anvil->data->{switches}{'link'}) or ($anvil->data->{switches}{'unlink'}))
 {
@@ -1912,7 +1921,7 @@ sub process_update
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2184,7 +2193,7 @@ sub process_disconnect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2312,7 +2321,7 @@ sub process_connect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2562,7 +2571,7 @@ sub process_remove
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -3533,7 +3542,7 @@ sub process_protect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		# If there's no config file, this might be being run from DR which doesn't have info about 
 		# the resource yet.
@@ -4417,7 +4426,6 @@ sub load_job
 	}});
 	
 	# Break up the job data into switches.
-	$anvil->data->{switches}{Yes} = 1;
 	#print "- Set the switch: [--Yes] to true.\n";
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{
