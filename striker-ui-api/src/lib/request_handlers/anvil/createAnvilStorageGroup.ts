@@ -33,9 +33,9 @@ export const createAnvilStorageGroup: RequestHandler<
 
   const commandCommonArgs: string[] = [
     '--anvil',
-    anvilUuid,
+    `'${anvilUuid}'`,
     '--group',
-    storageGroupName,
+    `'${storageGroupName}'`,
     '--add',
   ];
 
@@ -72,7 +72,7 @@ export const createAnvilStorageGroup: RequestHandler<
           command,
           ...commandCommonArgs,
           '--member',
-          lvmVgUuid,
+          `'${lvmVgUuid}'`,
         ].join(' '),
         job_name: `storage-group-member::add`,
         job_description: 'none',

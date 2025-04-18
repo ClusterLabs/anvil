@@ -31,9 +31,9 @@ export const updateAnvilStorageGroup: RequestHandler<
 
   const commandCommonArgs: string[] = [
     '--anvil',
-    anvilUuid,
+    `'${anvilUuid}'`,
     '--group',
-    existingSgName,
+    `'${existingSgName}'`,
   ];
 
   if (newSgName) {
@@ -45,7 +45,7 @@ export const updateAnvilStorageGroup: RequestHandler<
           ...commandCommonArgs,
           '--rename',
           '--new-name',
-          newSgName,
+          `'${newSgName}'`,
         ].join(' '),
         job_name: `storage-group::rename`,
         job_description: 'none',
@@ -75,7 +75,7 @@ export const updateAnvilStorageGroup: RequestHandler<
             ...commandCommonArgs,
             '--add',
             '--member',
-            lvmVgUuid,
+            `'${lvmVgUuid}'`,
           ].join(' '),
           job_name: `storage-group-member::add::${lvmVgUuid}`,
           job_description: 'none',
@@ -104,7 +104,7 @@ export const updateAnvilStorageGroup: RequestHandler<
             ...commandCommonArgs,
             '--remove',
             '--member',
-            lvmVgUuid,
+            `'${lvmVgUuid}'`,
           ].join(' '),
           job_name: `storage-group-member::remove::${lvmVgUuid}`,
           job_description: 'none',
