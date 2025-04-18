@@ -683,7 +683,7 @@ sub handle_restore
 					{
 						# Ask for confirmation.
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0261", variables => {
-							new_lv_name => $new_lv_name, 
+							new_lv_name => $new_lv_path, 
 							old_lv_name => $original_lv_path, 
 						}});
 						if ($anvil->data->{switches}{confirm})
@@ -700,6 +700,15 @@ sub handle_restore
 							{
 								# Proceed
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0262"});
+							}
+							elsif ($answer =~ /^a/i)
+							{
+								# Proceed with all.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0520"});
+								$anvil->data->{switches}{confirm} = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									'switches::confirm' => $anvil->data->{switches}{confirm}, 
+								}});
 							}
 							else
 							{
