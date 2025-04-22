@@ -94,6 +94,12 @@ wait_for_etc_hosts($anvil);
 # Wait until we can ping our peer on all networks.
 wait_for_access($anvil);
 
+# See if we can assemble any storage groups.
+$anvil->Cluster->assemble_storage_groups({debug => 2});
+
+# Check for replacement VGs
+check_for_replaced_vgs($anvil);
+
 # (wait for out peer and) Configure pacemaker
 configure_pacemaker($anvil);
 
@@ -136,6 +142,173 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# Check for replacement VGs
+sub check_for_replaced_vgs
+{
+	my ($anvil) = @_;
+	# If there's only one, it might be a replacement during a node rebuild. Is there a 
+	# group with a matching size but missing a VG?
+	$anvil->Database->get_storage_group_data({debug => 3});
+	$anvil->Cluster->get_peers({debug => 3});
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid();
+	my $host_uuid       = $anvil->Get->host_uuid();
+	my $node1_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node1_host_uuid};
+	my $node2_host_uuid = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_node2_host_uuid};
+	my $peer_host_uuid  = $anvil->Get->host_uuid() eq $node1_host_uuid ? $node2_host_uuid : $node1_host_uuid;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:anvil_uuid'      => $anvil_uuid,
+		's2:host_uuid'       => $host_uuid, 
+		's3:peer_host_uuid'  => $peer_host_uuid, 
+		's4:node1_host_uuid' => $node1_host_uuid, 
+		's5:node2_host_uuid' => $node2_host_uuid, 
+	}});
+	foreach my $storage_group_name (sort {$a cmp $b} keys %{$anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}})
+	{
+		my $storage_group_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_name}{$storage_group_name}{storage_group_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:storage_group_name' => $storage_group_name, 
+			's2:storage_group_uuid' => $storage_group_uuid,
+		}});
+		
+		if (not exists $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$host_uuid})
+		{
+			# This will be the minimum size of the replacement VG.
+			my $needed_size                   = 0;
+			my $old_storage_group_member_uuid = "";
+			
+			# We're not a member in this group, did we used to?
+			my $query = "
+SELECT 
+    a.storage_group_member_uuid, 
+    a.storage_group_member_host_uuid, 
+    a.storage_group_member_vg_uuid, 
+    b.scan_lvm_vg_name, 
+    b.scan_lvm_vg_size 
+FROM 
+    storage_group_members a, 
+    scan_lvm_vgs b 
+WHERE 
+    a.storage_group_member_storage_group_uuid = ".$anvil->Database->quote($storage_group_uuid)." 
+AND 
+    a.storage_group_member_vg_uuid = b.scan_lvm_vg_internal_uuid
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			
+			my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+			my $count   = @{$results};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				results => $results, 
+				count   => $count, 
+			}});
+			foreach my $row (@{$results})
+			{
+				my $storage_group_member_uuid      = $row->[0];
+				my $storage_group_member_host_uuid = $row->[1];
+				my $storage_group_member_vg_uuid   = $row->[2];
+				my $scan_lvm_vg_name               = $row->[3];
+				my $scan_lvm_vg_size               = $row->[4];
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:storage_group_member_uuid'      => $storage_group_member_uuid, 
+					's2:storage_group_member_host_uuid' => $storage_group_member_host_uuid, 
+					's3:storage_group_member_vg_uuid'   => $storage_group_member_vg_uuid, 
+					's4:scan_lvm_vg_name'               => $scan_lvm_vg_name, 
+					's5:scan_lvm_vg_size'               => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+				}});
+				
+				if ($storage_group_member_host_uuid eq $peer_host_uuid)
+				{
+					$needed_size = $scan_lvm_vg_size;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						needed_size => $needed_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $needed_size}).")", 
+					}});
+				}
+				elsif (($storage_group_member_host_uuid eq $host_uuid) && ($scan_lvm_vg_name eq "DELETED"))
+				{
+					$old_storage_group_member_uuid = $storage_group_member_uuid;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						old_storage_group_member_uuid => $old_storage_group_member_uuid, 
+					}});
+				}
+			}
+			
+			# If we have a needed size, see if we can find a new VG that's close.
+			if (($needed_size) && ($old_storage_group_member_uuid))
+			{
+				my $query = "
+SELECT 
+    scan_lvm_vg_internal_uuid, 
+    scan_lvm_vg_name, 
+    scan_lvm_vg_size 
+FROM 
+    scan_lvm_vgs 
+WHERE 
+    scan_lvm_vg_name != 'DELETED' 
+AND 
+    scan_lvm_vg_host_uuid = 'b76d8b17-f529-e311-8aa8-f80f41f8ab12' 
+ORDER BY 
+    scan_lvm_vg_size ASC
+;";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+				
+				my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+				my $count   = @{$results};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					results => $results, 
+					count   => $count, 
+				}});
+				foreach my $row (@{$results})
+				{
+					my $scan_lvm_vg_internal_uuid = $row->[0];
+					my $scan_lvm_vg_name          = $row->[1];
+					my $scan_lvm_vg_size          = $row->[2];
+					my $this_storage_group_uuid   = exists $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid} ? $anvil->data->{storage_groups}{vg_uuid}{$scan_lvm_vg_internal_uuid}{storage_group_uuid} : "";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						scan_lvm_vg_internal_uuid => $scan_lvm_vg_internal_uuid, 
+						scan_lvm_vg_name          => $scan_lvm_vg_name, 
+						scan_lvm_vg_size          => $scan_lvm_vg_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $scan_lvm_vg_size}).")", 
+						this_storage_group_uuid   => $this_storage_group_uuid, 
+					}});
+					
+					# Is this VG in another SG?
+					next if $needed_size > $scan_lvm_vg_size;
+					next if $this_storage_group_uuid;
+					
+					# Still here? Use this one.
+					my $difference = $scan_lvm_vg_size - $needed_size;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						difference => $difference." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $difference}).")", 
+					}});
+					
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, priority => "err", key => "log_0351", variables => { 
+						storage_group_name => $storage_group_name,
+						vg_name            => $scan_lvm_vg_name, 
+					}});
+					update_progress($anvil, ($anvil->data->{job}{progress} += 2), "log_0351,!!storage_group_name!".$storage_group_name.",!!vg_name!".$scan_lvm_vg_name."!!");
+					
+					# Update the SG. 
+					my $query = "
+UPDATE 
+    storage_group_members 
+SET 
+    storage_group_member_vg_uuid = ".$anvil->Database->quote($scan_lvm_vg_internal_uuid).",
+    modified_date                = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
+WHERE
+    storage_group_member_uuid    = ".$anvil->Database->quote($old_storage_group_member_uuid)."
+;";
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+					$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+					
+					# Reload the Storage Group data.
+					$anvil->Database->get_storage_group_data({debug => 3});
+					last;
+				}
+			}
+		}
+	}
+	
+	return(0);
+}
 
 # This looks for servers to add.
 sub configure_servers
@@ -3102,9 +3275,6 @@ sub configure_pacemaker
 	# Make sure ScanCore's DB is updated.
 	print __LINE__.": Running scan-cluster prior to checking Storage Groups.\n";
 	$anvil->ScanCore->call_scan_agents({debug => 2, agent => "scan-cluster"});
-	
-	# See if we can assemble any storage groups.
-	$anvil->Cluster->assemble_storage_groups({debug => 2});
 	
 	return(0);
 }

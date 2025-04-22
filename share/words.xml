@@ -2289,7 +2289,7 @@ Job Details;
 * job_description: [#!variable!job_description!#]
 [ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
-		<key name="log_0351">#!free!#</key>
+		<key name="log_0351">Updating the Storage Group: [#!variable!storage_group_name!#] to use the new local VG: [#!variable!vg_name!#].</key>
 		<key name="log_0352">#!free!#</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0354">The migration was successfully completed in: [#!variable!migration_time!#].</key>
