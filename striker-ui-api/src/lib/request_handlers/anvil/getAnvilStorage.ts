@@ -37,8 +37,8 @@ export const getAnvilStorage: RequestHandler<
       `SELECT
           a.storage_group_uuid,
           a.storage_group_name,
-          MIN(c.scan_lvm_vg_size) AS sg_size,
-          MIN(c.scan_lvm_vg_free) AS sg_free
+          MIN(c.scan_lvm_vg_size) AS min_sg_size,
+          MIN(c.scan_lvm_vg_free) AS min_sg_free
         FROM storage_groups AS a
         JOIN storage_group_members AS b
           ON a.storage_group_uuid = b.storage_group_member_storage_group_uuid
@@ -52,9 +52,7 @@ export const getAnvilStorage: RequestHandler<
             c.scan_lvm_vg_name != '${DELETED}'
         GROUP BY
           a.storage_group_uuid,
-          a.storage_group_name,
-          c.scan_lvm_vg_size,
-          c.scan_lvm_vg_free
+          a.storage_group_name
         ORDER BY
           a.storage_group_name;`,
     );
