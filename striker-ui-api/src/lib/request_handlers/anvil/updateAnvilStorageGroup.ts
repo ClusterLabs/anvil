@@ -48,10 +48,8 @@ export const updateAnvilStorageGroup: RequestHandler<
           `'${newSgName}'`,
         ].join(' '),
         job_name: `storage-group::rename`,
-        job_description: 'none',
-        job_title: 'none',
-        // DEBUG
-        job_progress: 100,
+        job_description: 'job_0536',
+        job_title: 'job_0535',
       });
     } catch (error) {
       return respond.s500(
@@ -78,10 +76,8 @@ export const updateAnvilStorageGroup: RequestHandler<
             `'${lvmVgUuid}'`,
           ].join(' '),
           job_name: `storage-group-member::add::${lvmVgUuid}`,
-          job_description: 'none',
-          job_title: 'none',
-          // DEBUG
-          job_progress: 100,
+          job_description: 'job_0534',
+          job_title: 'job_0533',
         });
       } catch (error) {
         return respond.s500(
@@ -107,10 +103,8 @@ export const updateAnvilStorageGroup: RequestHandler<
             `'${lvmVgUuid}'`,
           ].join(' '),
           job_name: `storage-group-member::remove::${lvmVgUuid}`,
-          job_description: 'none',
-          job_title: 'none',
-          // DEBUG
-          job_progress: 100,
+          job_description: 'job_0540',
+          job_title: 'job_0539',
         });
       } catch (error) {
         return respond.s500(

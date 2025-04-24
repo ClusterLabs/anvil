@@ -40,10 +40,8 @@ export const deleteAnvilStorageGroup: RequestHandler = async (
       file: __filename,
       job_command: [command, ...commandCommonArgs, '--remove'].join(' '),
       job_name: `storage-group::remove`,
-      job_description: 'none',
-      job_title: 'none',
-      // DEBUG
-      job_progress: 100,
+      job_description: 'job_0538',
+      job_title: 'job_0537',
     });
   } catch (error) {
     return respond.s500(

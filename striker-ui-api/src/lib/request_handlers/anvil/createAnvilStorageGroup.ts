@@ -44,10 +44,8 @@ export const createAnvilStorageGroup: RequestHandler<
       file: __filename,
       job_command: [command, ...commandCommonArgs].join(' '),
       job_name: `storage-group::add`,
-      job_description: 'none',
-      job_title: 'none',
-      // DEBUG
-      job_progress: 100,
+      job_description: 'job_0532',
+      job_title: 'job_0531',
     });
   } catch (error) {
     return respond.s500(
@@ -74,11 +72,9 @@ export const createAnvilStorageGroup: RequestHandler<
           '--member',
           `'${lvmVgUuid}'`,
         ].join(' '),
-        job_name: `storage-group-member::add`,
-        job_description: 'none',
-        job_title: 'none',
-        // DEBUG
-        job_progress: 100,
+        job_name: `storage-group-member::add::${lvmVgUuid}`,
+        job_description: 'job_0534',
+        job_title: 'job_0533',
       });
     } catch (error) {
       return respond.s500(
