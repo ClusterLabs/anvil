@@ -3549,6 +3549,12 @@ proceeding.
 		<key name="message_0518">  - Calling: [#!variable!scan_agent!#] to record the record the new config.</key>
 		<key name="message_0519">- Checking that all firewall ports are opened using 'anvil-manage-firewall'.</key>
 		<key name="message_0520">All are confirmed, proceeding, please do NOT interrupt this process!</key>
+		<key name="message_0521">  - Created the new LV: [#!variable!lv_path!#].</key>
+		<key name="message_0522">  - The resource config file: [#!variable!file!#] has changed and will be updated. The difference is:
+==============
+#!variable!difference!#
+==============</key>
+		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
