@@ -161,11 +161,17 @@ export const getAnvilStorage: RequestHandler<
           a.scan_lvm_vg_size,
           a.scan_lvm_vg_free,
           a.scan_lvm_vg_host_uuid,
-          c.storage_group_member_uuid,
-          c.storage_group_member_storage_group_uuid
+          b.storage_group_member_uuid,
+          CASE
+            WHEN c.storage_group_name != '${DELETED}'
+              THEN c.storage_group_uuid
+            ELSE NULL
+          END AS storage_group_uuid
         FROM scan_lvm_vgs AS a
-        LEFT JOIN storage_group_members AS c
-          ON a.scan_lvm_vg_internal_uuid = c.storage_group_member_vg_uuid
+        LEFT JOIN storage_group_members AS b
+          ON a.scan_lvm_vg_internal_uuid = b.storage_group_member_vg_uuid
+        JOIN storage_groups AS c
+          ON b.storage_group_member_storage_group_uuid = c.storage_group_uuid
         WHERE
             a.scan_lvm_vg_name != '${DELETED}'
           AND
