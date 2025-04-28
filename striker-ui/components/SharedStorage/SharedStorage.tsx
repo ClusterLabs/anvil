@@ -1,6 +1,6 @@
 import { Box, styled } from '@mui/material';
 import { AxiosError } from 'axios';
-import { useContext, useRef, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 
@@ -49,73 +49,79 @@ const SharedStorageContent: React.FC<
     target,
   } = props;
 
-  if (loading) {
-    return <Spinner />;
-  }
-
-  if (!storages) {
-    let emsg: Message;
-
-    if (error) {
-      emsg = handleAPIError(error);
-
-      emsg.children = <>Failed to get storage information. {emsg.children}</>;
-    } else {
-      emsg = {
-        children: <>Cannot find storage information.</>,
-        type: 'warning',
-      };
+  const component = useMemo<React.ReactElement>(() => {
+    if (loading) {
+      return <Spinner />;
     }
 
-    return <MessageBox {...emsg} />;
-  }
+    if (!storages) {
+      let emsg: Message;
 
-  const { confirmDialog } = confirm;
+      if (error) {
+        emsg = handleAPIError(error);
 
-  const values = Object.values(storages.storageGroups);
+        emsg.children = <>Failed to get storage information. {emsg.children}</>;
+      } else {
+        emsg = {
+          children: <>Cannot find storage information.</>,
+          type: 'warning',
+        };
+      }
 
-  let formDialogHeader: React.ReactNode = 'Add storage group';
+      return <MessageBox {...emsg} />;
+    }
 
-  if (target.value) {
-    const { [target.value]: sg } = storages.storageGroups;
+    const { confirmDialog } = confirm;
 
-    formDialogHeader = `Update ${sg.name}`;
-  }
+    const values = Object.values(storages.storageGroups);
 
-  return (
-    <StyledDiv>
-      <Box className={classes.root}>
-        {values.map(
-          ({ uuid }): React.ReactNode => (
-            <StorageGroup
-              formDialogRef={formDialogRef}
-              key={uuid}
-              storages={storages}
-              target={target}
-              uuid={uuid}
-            />
-          ),
-        )}
-      </Box>
-      <DialogWithHeader
-        header={formDialogHeader}
-        onTransitionExited={() => {
-          target.set();
-        }}
-        ref={formDialogRef}
-        showClose
-        wide
-      >
-        <StorageGroupForm
-          anvil={anvilUuid}
-          confirm={confirm}
-          storages={storages}
-          uuid={target.value}
-        />
-      </DialogWithHeader>
-      {confirmDialog}
-    </StyledDiv>
-  );
+    let formDialogHeader: React.ReactNode = 'Add storage group';
+
+    if (target.value) {
+      const { [target.value]: sg } = storages.storageGroups;
+
+      if (sg) {
+        formDialogHeader = `Update ${sg.name}`;
+      }
+    }
+
+    return (
+      <StyledDiv>
+        <Box className={classes.root}>
+          {values.map(
+            ({ uuid }): React.ReactNode => (
+              <StorageGroup
+                formDialogRef={formDialogRef}
+                key={uuid}
+                storages={storages}
+                target={target}
+                uuid={uuid}
+              />
+            ),
+          )}
+        </Box>
+        <DialogWithHeader
+          header={formDialogHeader}
+          onTransitionExited={() => {
+            target.set();
+          }}
+          ref={formDialogRef}
+          showClose
+          wide
+        >
+          <StorageGroupForm
+            anvil={anvilUuid}
+            confirm={confirm}
+            storages={storages}
+            uuid={target.value}
+          />
+        </DialogWithHeader>
+        {confirmDialog}
+      </StyledDiv>
+    );
+  }, [anvilUuid, confirm, error, formDialogRef, loading, storages, target]);
+
+  return component;
 };
 
 const SharedStorage: React.FC = () => {
