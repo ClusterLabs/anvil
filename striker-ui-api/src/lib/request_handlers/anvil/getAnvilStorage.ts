@@ -6,6 +6,7 @@ import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
 import { Responder } from '../../Responder';
+import { perr } from '../../shell';
 
 export const getAnvilStorage: RequestHandler<
   Express.RhParamsDictionary,
@@ -94,6 +95,10 @@ export const getAnvilStorage: RequestHandler<
       totals.used += sgnUsed;
     } catch (error) {
       // Something's wrong with the storage group's sizes; ignore.
+      perr(
+        `Failed to calculate storage group [${name}] sizes, skipping; CAUSE: ${error}`,
+      );
+
       return;
     }
 
@@ -212,6 +217,10 @@ export const getAnvilStorage: RequestHandler<
       vgnUsed = vgnSize - vgnFree;
     } catch (error) {
       // Something's wrong with the member's sizes; ignore.
+      perr(
+        `Failed to calculate volume group [${vgName}] sizes, skipping; CAUSE: ${error}`,
+      );
+
       return;
     }
 
