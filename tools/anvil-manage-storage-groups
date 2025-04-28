@@ -63,8 +63,8 @@ if (not $anvil->data->{sys}{database}{connections})
 # Pick up the job, if any.
 if ($anvil->data->{switches}{'job-uuid'})
 {
-	$anvil->Jobs->get_job_details({debug => 2});
-	$anvil->Jobs->clear({debug => 2});
+	$anvil->Job->get_job_details({debug => 2});
+	$anvil->Job->clear({debug => 2});
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 1}), 
 		message   => "message_0152", 
