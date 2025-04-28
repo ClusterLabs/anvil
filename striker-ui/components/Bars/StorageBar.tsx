@@ -5,7 +5,8 @@ import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 
 import StackBar from './StackBar';
 
-const N_100 = BigInt(100);
+const n100 = BigInt(100);
+const nZero = BigInt(0);
 
 const StorageBar: FC<
   {
@@ -25,8 +26,8 @@ const StorageBar: FC<
   } = props;
 
   const storage = useMemo<{ size: bigint; used: bigint }>(() => {
-    let size: bigint = BigInt(1);
-    let used: bigint = BigInt(0);
+    let size: bigint = nZero;
+    let used: bigint = nZero;
 
     if (storageGroup) {
       ({ size, used } = storageGroup);
@@ -61,19 +62,23 @@ const StorageBar: FC<
 
   const usedColour = useMemo(() => ({ 0: BLUE, 70: PURPLE, 90: RED }), []);
 
-  const mergedValue = useMemo(
-    () =>
-      merge(
-        {
-          target: {
-            value: Number((storage.used * N_100) / storage.size),
-            colour: usedColour,
-          },
+  const mergedValue = useMemo(() => {
+    let percentage = 0;
+
+    if (storage.size) {
+      percentage = Number((storage.used * n100) / storage.size);
+    }
+
+    return merge(
+      {
+        target: {
+          value: percentage,
+          colour: usedColour,
         },
-        value,
-      ),
-    [storage.size, storage.used, usedColour, value],
-  );
+      },
+      value,
+    );
+  }, [storage.size, storage.used, usedColour, value]);
 
   return <StackBar {...restProps} value={mergedValue} />;
 };

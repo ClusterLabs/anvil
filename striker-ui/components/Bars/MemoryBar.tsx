@@ -5,7 +5,7 @@ import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 
 import StackBar from './StackBar';
 
-const N_100 = BigInt(100);
+const n100 = BigInt(100);
 
 const MemoryBar: FC<
   {
@@ -19,7 +19,7 @@ const MemoryBar: FC<
   const allocatedColour = useMemo(() => {
     const usable: bigint = total - reserved;
 
-    const max = Number((usable * N_100) / total);
+    const max = Number((usable * n100) / total);
 
     const colour = {
       0: BLUE,
@@ -30,23 +30,29 @@ const MemoryBar: FC<
     return colour;
   }, [reserved, total]);
 
-  const mergedValue = useMemo(
-    () =>
-      merge(
-        {
-          reserved: {
-            barProps: { sx: { rotate: '180deg' } },
-            value: Number((reserved * N_100) / total),
-          },
-          allocated: {
-            value: Number((allocated * N_100) / total),
-            colour: allocatedColour,
-          },
+  const mergedValue = useMemo(() => {
+    let percentAllocated = 0;
+    let percentReserved = 0;
+
+    if (total) {
+      percentAllocated = Number((allocated * n100) / total);
+      percentReserved = Number((reserved * n100) / total);
+    }
+
+    return merge(
+      {
+        reserved: {
+          barProps: { sx: { rotate: '180deg' } },
+          value: percentReserved,
         },
-        value,
-      ),
-    [allocated, allocatedColour, reserved, total, value],
-  );
+        allocated: {
+          value: percentAllocated,
+          colour: allocatedColour,
+        },
+      },
+      value,
+    );
+  }, [allocated, allocatedColour, reserved, total, value]);
 
   return <StackBar {...restProps} value={mergedValue} />;
 };
