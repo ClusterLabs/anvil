@@ -8,7 +8,7 @@ type StorageGroupFormikValues = {
 };
 
 type SharedStorageEditTarget<T> = {
-  set: (value: T) => void;
+  set: (value?: T) => void;
   value: T;
 };
 

@@ -99,6 +99,9 @@ const SharedStorageContent: React.FC<
       </Box>
       <DialogWithHeader
         header={formDialogHeader}
+        onTransitionExited={() => {
+          target.set();
+        }}
         ref={formDialogRef}
         showClose
         wide
@@ -115,7 +118,7 @@ const SharedStorageContent: React.FC<
   );
 };
 
-const SharedStorage = (): JSX.Element => {
+const SharedStorage: React.FC = () => {
   const { uuid: anvilUuid } = useContext(AnvilContext);
 
   const formDialogRef = useRef<DialogForwardedRefContent>(null);
