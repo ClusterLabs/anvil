@@ -46,7 +46,10 @@ export const getAnvilStorage: RequestHandler<
           ) AS min_sg_free
         FROM storage_groups AS a
         LEFT JOIN storage_group_members AS b
-          ON a.storage_group_uuid = b.storage_group_member_storage_group_uuid
+          ON
+              b.storage_group_member_note != '${DELETED}'
+            AND
+              a.storage_group_uuid = b.storage_group_member_storage_group_uuid
         LEFT JOIN scan_lvm_vgs AS c
           ON
               c.scan_lvm_vg_name != '${DELETED}'
@@ -172,16 +175,18 @@ export const getAnvilStorage: RequestHandler<
           a.scan_lvm_vg_free,
           a.scan_lvm_vg_host_uuid,
           b.storage_group_member_uuid,
-          CASE
-            WHEN c.storage_group_name != '${DELETED}'
-              THEN c.storage_group_uuid
-            ELSE NULL
-          END AS storage_group_uuid
+          c.storage_group_uuid
         FROM scan_lvm_vgs AS a
         LEFT JOIN storage_group_members AS b
-          ON a.scan_lvm_vg_internal_uuid = b.storage_group_member_vg_uuid
-        JOIN storage_groups AS c
-          ON b.storage_group_member_storage_group_uuid = c.storage_group_uuid
+          ON
+              b.storage_group_member_note != '${DELETED}'
+            AND
+              a.scan_lvm_vg_internal_uuid = b.storage_group_member_vg_uuid
+        LEFT JOIN storage_groups AS c
+          ON
+              c.storage_group_name != '${DELETED}'
+            AND
+              b.storage_group_member_storage_group_uuid = c.storage_group_uuid
         WHERE
             a.scan_lvm_vg_name != '${DELETED}'
           AND
