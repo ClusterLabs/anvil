@@ -3,7 +3,9 @@ import * as yup from 'yup';
 import buildYupDynamicObject from '../../lib/buildYupDynamicObject';
 import { yupLaxUuid } from '../../lib/yupCommons';
 
-const fileLocationSchema = yup.object({ active: yup.boolean().required() });
+const fileLocationSchema = yup.object({
+  active: yup.boolean().required(),
+});
 
 const fileLocationAnvilSchema = yup.lazy((anvils) =>
   yup.object(buildYupDynamicObject(anvils, fileLocationSchema)),

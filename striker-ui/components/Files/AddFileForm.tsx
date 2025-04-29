@@ -168,7 +168,7 @@ const AddFileForm: React.FC<AddFileFormProps> = (props) => {
         {},
       );
 
-      formik.setValues(values);
+      formik.setValues(values, true);
     },
     [formik],
   );
