@@ -1,6 +1,5 @@
 import { styled } from '@mui/material';
-import { FC, ReactElement, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useMemo } from 'react';
 
 import ContainedButton from './ContainedButton';
 import FlexBox from './FlexBox';
@@ -11,16 +10,24 @@ const FlexEndBox = styled(FlexBox)({
   width: '100%',
 });
 
-const ActionGroup: FC<ActionGroupProps> = (props) => {
+const ActionGroup: React.FC<ActionGroupProps> = (props) => {
   const { actions = [], loading } = props;
 
   const elements = useMemo(
     () =>
-      actions.map<ReactElement>((actionProps) => (
-        <ContainedButton key={uuidv4()} {...actionProps}>
-          {actionProps.children}
-        </ContainedButton>
-      )),
+      actions.map<React.ReactElement>((actionProps) => {
+        const { children } = actionProps;
+
+        const key = `action-${
+          ['number', 'string'].includes(typeof children) ? children : 'none'
+        }`;
+
+        return (
+          <ContainedButton key={key} {...actionProps}>
+            {children}
+          </ContainedButton>
+        );
+      }),
     [actions],
   );
 
