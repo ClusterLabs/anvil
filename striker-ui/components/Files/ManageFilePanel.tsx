@@ -56,14 +56,17 @@ const ManageFilePanel: FC = () => {
   });
 
   const setApiMessage = useCallback(
-    (message: Message) =>
+    (message?: Message) =>
       messageGroupRef.current.setMessage?.call(null, 'api', message),
     [],
   );
 
   const { fetch: getFile, loading: loadingFile } =
     useActiveFetch<APIFileDetail>({
-      onData: (data) => setFile(data),
+      onData: (data) => {
+        setApiMessage();
+        setFile(data);
+      },
       onError: ({ children: previous, ...rest }) => {
         setApiMessage({
           children: <>Failed to get file detail. {previous}</>,
@@ -78,23 +81,10 @@ const ManageFilePanel: FC = () => {
     APIAnvilOverviewList
   >('/anvil', {
     mod: toAnvilOverviewList,
-    onError: (error) => {
-      setApiMessage({
-        children: <>Failed to get node list. {error}</>,
-        type: 'warning',
-      });
-    },
   });
 
   const { data: drHosts, loading: loadingDrHosts } =
-    useFetch<APIHostOverviewList>('/host?type=dr', {
-      onError: (error) => {
-        setApiMessage({
-          children: <>Failed to get DR host list. {error}</>,
-          type: 'warning',
-        });
-      },
-    });
+    useFetch<APIHostOverviewList>('/host?type=dr');
 
   const list = useMemo(
     () => (
@@ -211,13 +201,6 @@ const ManageFilePanel: FC = () => {
     [loadingFiles, list],
   );
 
-  const messageArea = useMemo(
-    () => (
-      <MessageGroup count={1} ref={messageGroupRef} usePlaceholder={false} />
-    ),
-    [],
-  );
-
   const loadingAddForm = useMemo<boolean>(
     () => loadingFiles || loadingAnvils || loadingDrHosts,
     [loadingAnvils, loadingDrHosts, loadingFiles],
@@ -257,7 +240,7 @@ const ManageFilePanel: FC = () => {
         <PanelHeader>
           <HeaderText>Files</HeaderText>
         </PanelHeader>
-        {messageArea}
+        <MessageGroup ref={messageGroupRef} />
         {panelContent}
       </Panel>
       <DialogWithHeader

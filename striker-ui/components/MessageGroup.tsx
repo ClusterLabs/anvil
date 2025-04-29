@@ -1,6 +1,5 @@
 import {
   forwardRef,
-  ReactNode,
   useCallback,
   useImperativeHandle,
   useMemo,
@@ -121,11 +120,11 @@ const MessageGroup = forwardRef<
       [onSet],
     );
 
-    const messageElements = useMemo(() => {
+    const messageElements = useMemo<React.ReactElement[]>(() => {
       const pairs = Object.entries(messages);
       const isValidCount = count > 0;
       const limit = isValidCount ? count : pairs.length;
-      const result: ReactNode[] = [];
+      const result: React.ReactElement[] = [];
 
       pairs.every(([messageKey, message]) => {
         const { children: messageChildren, type = defaultMessageType } =

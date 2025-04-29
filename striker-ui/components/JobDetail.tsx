@@ -13,6 +13,7 @@ import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 import { ProgressBar } from './Bars';
 import { DialogScrollBox, DialogWithHeaderContext } from './Dialog';
 import FlexBox from './FlexBox';
+import handleAPIError from '../lib/handleAPIError';
 import IconButton from './IconButton';
 import MessageBox, { Message } from './MessageBox';
 import pad from '../lib/pad';
@@ -66,10 +67,15 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     validating: validatingJob,
   } = useFetch<APIJobDetail>(`/job/${uuid}`, {
     onError: (error) => {
-      setApiMessage({
-        children: `Failed to get job ${uuid} details. Error: ${error}`,
-        type: 'error',
-      });
+      const emsg = handleAPIError(error);
+
+      emsg.children = (
+        <>
+          Failed to get job {uuid} details. {emsg.children}
+        </>
+      );
+
+      setApiMessage(emsg);
     },
     onSuccess: (data) => {
       dialog?.setHeader(data.title);
