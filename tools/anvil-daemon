@@ -2399,9 +2399,11 @@ sub run_jobs
 						if ($started_job_uuid eq $job_uuid)
 						{
 							# We're restarting.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0741", variables => { 
+							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0032", variables => { 
 								command  => $job_command,
 								job_uuid => $job_uuid, 
+								old_pid  => $job_picked_up_by, 
+								percent  => $job_progress,
 							}});
 						}
 						elsif ($anvil->data->{jobs}{running}{$started_job_uuid}{job_progress} != 100)

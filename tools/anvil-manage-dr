@@ -66,6 +66,15 @@ if (not $anvil->data->{sys}{database}{connections})
 	$anvil->nice_exit({exit_code => 1});
 }
 
+# Backwards support.
+if ($anvil->data->{switches}{Yes})
+{
+	$anvil->data->{switches}{confirm} = 1;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		"switches::confirm" => $anvil->data->{switches}{confirm}, 
+	}});
+}
+
 # Are we linking or unlinking?
 if (($anvil->data->{switches}{'link'}) or ($anvil->data->{switches}{'unlink'}))
 {
@@ -305,6 +314,7 @@ sub handle_restore
 			return_code => $return_code, 
 		}});
 		
+		# This will be updated, if needed, and pushed back to the source nodes if it changes.
 		foreach my $file (split/\n/, $output)
 		{
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { file => $file }});
@@ -339,12 +349,13 @@ sub handle_restore
 			}
 			
 			# Read it from the peer
-			my $resource_config = $anvil->Storage->read_file({
+			my $new_resource_body = "";
+			my $resource_body = $anvil->Storage->read_file({
 				file     => $full_path,
 				target   => $use_ip, 
 				password => $anvil_password,
 			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_config => $resource_config }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_body => $resource_body }});
 			
 			my $in_on          = 0;
 			my $in_volume      = 0;
@@ -353,7 +364,7 @@ sub handle_restore
 			my $this_disk      = "";
 			my $this_host_name = "";
 			my $this_host_uuid = "";
-			foreach my $line (split/\n/, $resource_config)
+			foreach my $line (split/\n/, $resource_body)
 			{
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
 				if ($line =~ /\}/)
@@ -674,7 +685,7 @@ sub handle_restore
 					{
 						# Ask for confirmation.
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0261", variables => {
-							new_lv_name => $new_lv_name, 
+							new_lv_name => $new_lv_path, 
 							old_lv_name => $original_lv_path, 
 						}});
 						if ($anvil->data->{switches}{confirm})
@@ -691,6 +702,15 @@ sub handle_restore
 							{
 								# Proceed
 								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0262"});
+							}
+							elsif ($answer =~ /^a/i)
+							{
+								# Proceed with all.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0520"});
+								$anvil->data->{switches}{confirm} = 1;
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+									'switches::confirm' => $anvil->data->{switches}{confirm}, 
+								}});
 							}
 							else
 							{
@@ -733,11 +753,57 @@ sub handle_restore
 						next;
 					}
 					
+					# Tell the user we create the LV
+					$anvil->Job->update_progress({
+						progress  => $anvil->Job->bump_progress({steps => 1}),
+						log_level => 1,
+						'print'   => 1, 
+						message   => "message_0521", 
+						variables => {
+							lv_path => $new_lv_name, 
+						},
+					});
+					
+					# Update the DRBD resource file.
+					foreach my $line (split/\n/, $resource_body)
+					{
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { '>>line' => $line }});
+						$line =~ s/$original_lv_path/$new_lv_path/;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { '<<line' => $line }});
+						
+						$new_resource_body .= $line."\n";
+					}
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_resource_body => $new_resource_body }});
+					
+					my $difference = diff \$resource_body, \$new_resource_body, { STYLE => 'Unified' };
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+					
+					if ($difference)
+					{
+						$resource_body = $new_resource_body;
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { resource_body => $resource_body }});
+						
+						# Verify that the new config is valid
+						test_config($anvil, $server_name, $full_path, $resource_body);
+						
+						# Tell the user we're updating the peers'
+						$anvil->Job->update_progress({
+							progress  => $anvil->Job->bump_progress({steps => 1}),
+							log_level => 1,
+							'print'   => 1, 
+							message   => "message_0522", 
+							variables => {
+								file       => $full_path, 
+								difference => $difference, 
+							},
+						});
+					}
+					
 					# Call scan-lvm
 					run_scanagent($anvil, "scan-lvm");
 					
-					# Write out the resource file (if we didn't in a previous volume).
-					if (not -e $full_path)
+					# Write out the resource file (if we didn't in a previous volume or it changed).
+					if ((not -e $full_path) or ($difference))
 					{
 						# Write out a test file.
 						$anvil->Job->update_progress({
@@ -754,12 +820,60 @@ sub handle_restore
 							backup    => 1,
 							overwrite => 1,
 							file      => $full_path, 
-							body      => $resource_config,
+							body      => $resource_body,
 							user      => "root", 
 							group     => "root", 
 							mode      => "0644",
 						});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+					}
+					
+					# If there's a difference, update the peers, to.
+					if ($difference)
+					{
+						foreach my $target_ip ($node1_target_ip, $node2_target_ip)
+						{
+							# Tell the user we're updating the peers'
+							$anvil->Job->update_progress({
+								progress  => $anvil->Job->bump_progress({steps => 1}),
+								log_level => 1,
+								'print'   => 1, 
+								message   => "message_0523", 
+								variables => {
+									file      => $full_path, 
+									target_ip => $target_ip, 
+									resource  => $server_name, 
+								},
+							});
+							
+							# Write the new config.
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { target_ip => $target_ip }});
+							my ($problem) = $anvil->Storage->write_file({
+								backup    => 1,
+								overwrite => 1,
+								file      => $full_path, 
+								body      => $resource_body,
+								user      => "root", 
+								group     => "root", 
+								mode      => "0644",
+								target    => $target_ip, 
+								password  => $anvil_password,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+							
+							my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+							my ($output, $error, $return_code) = $anvil->Remote->call({
+								target     => $target_ip, 
+								password   => $anvil_password,
+								shell_call => $shell_call,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								error       => $error,
+								output      => $output,
+								return_code => $return_code, 
+							}});
+						}
 					}
 					
 					# Created, now create the MD. 
@@ -1912,7 +2026,7 @@ sub process_update
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2184,7 +2298,7 @@ sub process_disconnect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2312,7 +2426,7 @@ sub process_connect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2562,7 +2676,7 @@ sub process_remove
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		my $variables = {
 			server => $server_name, 
@@ -2876,48 +2990,9 @@ sub process_remove
 	
 	my $difference = diff \$old_resource_config, \$new_resource_config, { STYLE => 'Unified' };
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
-
-	# Write out a test file.
-	my $test_file = $anvil->data->{path}{directories}{temp}."/test-".$server_name.".res";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
-	my ($problem) = $anvil->Storage->write_file({
-		debug     => 2,
-		backup    => 0,
-		overwrite => 1,
-		file      => $test_file, 
-		body      => $new_resource_config,
-		user      => "root", 
-		group     => "root", 
-		mode      => "0644",
-	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 	
-	# Validate.
-	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$config_file." sh-nop";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
-	if ($return_code)
-	{
-		# Something went wrong.
-		my $variables = {
-			return_code => $return_code, 
-			output      => $output, 
-		};
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0345", variables => $variables});
-		$anvil->Job->update_progress({
-			progress  => 100,
-			message   => "error_0345", 
-			variables => $variables, 
-		});
-		$anvil->nice_exit({exit_code => 1});
-	}
-	
-	# Remove the test file.
-	unlink $test_file;
+	# Test the config,
+	test_config($anvil, $server_name, $config_file, $new_resource_config);
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0412"});
 	$anvil->Job->update_progress({
@@ -3075,6 +3150,55 @@ sub process_remove
 		message   => "job_0416", 
 		variables => $variables, 
 	});
+	
+	return(0);
+}
+
+sub test_config
+{
+	my ($anvil, $server_name, $config_file, $new_resource_config) = @_;
+	
+	# Write out a test file.
+	my $test_file = $anvil->data->{path}{directories}{temp}."/test-".$server_name.".res";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_file => $test_file }});
+	my ($problem) = $anvil->Storage->write_file({
+		debug     => 2,
+		backup    => 0,
+		overwrite => 1,
+		file      => $test_file, 
+		body      => $new_resource_config,
+		user      => "root", 
+		group     => "root", 
+		mode      => "0644",
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+	
+	# Validate.
+	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --config-to-test ".$test_file." --config-to-exclude ".$config_file." sh-nop";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code, 
+	}});
+	if ($return_code)
+	{
+		# Something went wrong.
+		my $variables = {
+			return_code => $return_code, 
+			output      => $output, 
+		};
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0345", variables => $variables});
+		$anvil->Job->update_progress({
+			progress  => 100,
+			message   => "error_0345", 
+			variables => $variables, 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Remove the test file.
+	unlink $test_file;
 	
 	return(0);
 }
@@ -3533,7 +3657,7 @@ sub process_protect
 	
 	### NOTE: 'Yes' is set when a job is picked up, so this won't re-register the job.
 	my $record_job = 0;
-	if (not $anvil->data->{switches}{Yes})
+	if (not $anvil->data->{switches}{confirm})
 	{
 		# If there's no config file, this might be being run from DR which doesn't have info about 
 		# the resource yet.
@@ -4417,7 +4541,6 @@ sub load_job
 	}});
 	
 	# Break up the job data into switches.
-	$anvil->data->{switches}{Yes} = 1;
 	#print "- Set the switch: [--Yes] to true.\n";
 	foreach my $line (split/\n/, $anvil->data->{jobs}{job_data})
 	{

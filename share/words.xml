@@ -2289,7 +2289,7 @@ Job Details;
 * job_description: [#!variable!job_description!#]
 [ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
-		<key name="log_0351">#!free!#</key>
+		<key name="log_0351">Updating the Storage Group: [#!variable!storage_group_name!#] to use the new local VG: [#!variable!vg_name!#].</key>
 		<key name="log_0352">#!free!#</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0354">The migration was successfully completed in: [#!variable!migration_time!#].</key>
@@ -3152,7 +3152,7 @@ Are you sure that you want to delete the server: [#!variable!server_name!#]? [Ty
 		<key name="message_0261">[ Note ] - The LV name has changed from: [#!variable!old_lv_name!#] to: [#!variable!new_lv_name!#].
 [ Note ] - This requires updating the definition file on the subnodes. 
 [ Note ] - There is a small chance that this could interrupt the server. 
-Proceed? [y/N]</key>
+Proceed? [a/y/N] (a = yes to all)</key>
 		<key name="message_0262">Proceeding, please do NOT interrupt this process!</key>
 		<key name="message_0263">Preparing to get server VM screenshot.</key>
 		<key name="message_0264">Finished getting server VM screenshot.</key>
@@ -3548,6 +3548,13 @@ proceeding.
 		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
 		<key name="message_0518">  - Calling: [#!variable!scan_agent!#] to record the record the new config.</key>
 		<key name="message_0519">- Checking that all firewall ports are opened using 'anvil-manage-firewall'.</key>
+		<key name="message_0520">All are confirmed, proceeding, please do NOT interrupt this process!</key>
+		<key name="message_0521">  - Created the new LV: [#!variable!lv_path!#].</key>
+		<key name="message_0522">  - The resource config file: [#!variable!file!#] has changed and will be updated. The difference is:
+==============
+#!variable!difference!#
+==============</key>
+		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
@@ -4124,7 +4131,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0029">[ Warning ] - While resyncing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and is probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
 		<key name="warning_0030">[ Warning ] - Database->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
 		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
-		<key name="warning_0032">#!free!#</key>
+		<key name="warning_0032">[ Warning ] - Restarting the job: [#!variable!command!# --job-uuid #!variable!job_uuid!#]. It appears to have exited at: [#!variable!percent!#%] complete with the prior PID: [#!variable!pid!#].</key>
 		<key name="warning_0033">#!free!#</key>
 		<key name="warning_0034">#!free!#</key>
 		<key name="warning_0035">#!free!#</key>

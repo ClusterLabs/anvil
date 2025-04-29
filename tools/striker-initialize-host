@@ -826,29 +826,33 @@ EOF
 					error       => $error, 
 					return_code => $return_code,
 				}});
-				
-				# If successful, we now need to configure the repo.
-				$shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --yes";
-				if ($enterprise_key)
-				{
-					$shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --key ".$enterprise_key." --yes";
-				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-				($output, $error, $return_code) = $anvil->Remote->call({
-					debug       => 2,
-					shell_call  => $shell_call,
-					password    => $anvil->data->{data}{password}, 
-					port        => $anvil->data->{data}{ssh_port}, 
-					target      => $anvil->data->{data}{host_ip_address},
-					remote_user => "root", 
-				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output, 
-					error       => $error, 
-					return_code => $return_code,
-				}});
 			}
 		}
+	}
+	
+	# Do we need to activate the Alteeve repo?
+	if (not -e $anvil->data->{path}{configs}{'alteeve-release.repo'})
+	{
+		# We now need to configure the repo.
+		my $shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --yes";
+		if ($enterprise_key)
+		{
+			$shell_call = $anvil->data->{path}{exe}{'alteeve-repo-setup'}." --key ".$enterprise_key." --yes";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => 2,
+			shell_call  => $shell_call,
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			error       => $error, 
+			return_code => $return_code,
+		}});
 	}
 	
 	# Install the anvil package now.
