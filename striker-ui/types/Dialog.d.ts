@@ -6,6 +6,7 @@ type DialogContext = {
 type DialogOptionalProps = {
   dialogProps?: Partial<import('@mui/material').DialogProps>;
   loading?: boolean;
+  onTransitionExited?: import('@mui/material/transitions').TransitionProps['onExited'];
   openInitially?: boolean;
   wide?: boolean;
 };

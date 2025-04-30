@@ -1,11 +1,19 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import { FC, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  FC,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
 import { ProgressBar } from './Bars';
 import { DialogScrollBox, DialogWithHeaderContext } from './Dialog';
 import FlexBox from './FlexBox';
+import handleAPIError from '../lib/handleAPIError';
 import IconButton from './IconButton';
 import MessageBox, { Message } from './MessageBox';
 import pad from '../lib/pad';
@@ -59,10 +67,15 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     validating: validatingJob,
   } = useFetch<APIJobDetail>(`/job/${uuid}`, {
     onError: (error) => {
-      setApiMessage({
-        children: `Failed to get job ${uuid} details. Error: ${error}`,
-        type: 'error',
-      });
+      const emsg = handleAPIError(error);
+
+      emsg.children = (
+        <>
+          Failed to get job {uuid} details. {emsg.children}
+        </>
+      );
+
+      setApiMessage(emsg);
     },
     onSuccess: (data) => {
       dialog?.setHeader(data.title);
@@ -71,9 +84,13 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     refreshInterval,
   });
 
+  const clearDialogHeader = useCallback(() => {
+    dialog?.setHeader('');
+  }, [dialog]);
+
   useEffect(() => {
     if (!(dialog && job)) {
-      return;
+      return clearDialogHeader;
     }
 
     dialog.setHeader(
@@ -82,7 +99,9 @@ const JobDetail: FC<JobDetailProps> = (props) => {
         <SyncIndicator syncing={validatingJob} />
       </>,
     );
-  }, [dialog, job, validatingJob]);
+
+    return clearDialogHeader;
+  }, [clearDialogHeader, dialog, job, validatingJob]);
 
   const status = useJobStatus(job?.status);
 

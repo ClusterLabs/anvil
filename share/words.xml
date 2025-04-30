@@ -1860,6 +1860,16 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0528">Starts a system update on the striker.</key>
 		<key name="job_0529">- Which server do you want to relocate? [#!variable!server!#]</key>
 		<key name="job_0530">-=] Server Relocation Menu</key>
+		<key name="job_0531">Add storage group</key>
+		<key name="job_0532">Adds an empty storage group to the specified node.</key>
+		<key name="job_0533">Add storage group member</key>
+		<key name="job_0534">Add an existing LVM volume group as a member of the specified storage group.</key>
+		<key name="job_0535">Rename storage group</key>
+		<key name="job_0536">Changes the name of a storage group to the specified new name.</key>
+		<key name="job_0537">Remove storage group</key>
+		<key name="job_0538">Removes a storage group and its members, but doesn't remove the LVM volume groups connected by the member records.</key>
+		<key name="job_0539">Remove storage group member</key>
+		<key name="job_0540">Removes a storage group member from a specified storage group, but doesn't remove the connected LVM volume group.</key>
 
 		<!-- Log entries -->
 		<key name="log_0001">Starting: [#!variable!program!#].</key>

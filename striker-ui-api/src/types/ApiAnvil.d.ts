@@ -69,13 +69,6 @@ type AnvilDetailServerForProvisionServer = {
   serverMemory: string;
 };
 
-type AnvilDetailStore = {
-  storage_group_free: string;
-  storage_group_name: string;
-  storage_group_total: string;
-  storage_group_uuid: string;
-};
-
 type AnvilDetailStoreForProvisionServer = {
   storageGroupUUID: string;
   storageGroupName: string;
@@ -153,10 +146,47 @@ type AnvilDetailParamsDictionary = {
   anvilUuid: string;
 };
 
-type AnvilDetailStoreSummary = {
-  storage_groups: AnvilDetailStore[];
-  total_free: string;
-  total_size: string;
+type AnvilDetailVolumeGroup = {
+  free: string;
+  host: string;
+  internalUuid: string;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type AnvilDetailStorageGroupMember = {
+  uuid: string;
+  volumeGroup: string;
+};
+
+type AnvilDetailStorageGroup = {
+  free: string;
+  members: Record<string, AnvilDetailStorageGroupMember>;
+  name: string;
+  size: string;
+  used: string;
+  uuid: string;
+};
+
+type AnvilDetailStorageList = {
+  hosts: Record<
+    string,
+    {
+      name: string;
+      short: string;
+      uuid: string;
+    }
+  >;
+  storageGroupTotals: {
+    free: string;
+    size: string;
+    used: string;
+  };
+  storageGroups: Record<string, AnvilDetailStorageGroup>;
+  unusedVolumeGroups: string[];
+  volumeGroups: Record<string, AnvilDetailVolumeGroup>;
 };
 
 type AnvilOverviewHost = {
@@ -175,4 +205,20 @@ type AnvilOverview = {
   anvilStatus: AnvilStatus;
   anvilUUID: string;
   hosts: AnvilOverviewHost[];
+};
+
+type CreateAnvilStorageGroupRequestBody = {
+  add?: string[];
+  name: string;
+};
+
+type UpdateAnvilStorageGroupRequestBody = {
+  add?: string[];
+  name: string;
+  remove?: string[];
+  rename?: string;
+};
+
+type DeleteAnvilStorageGroupRequestBody = {
+  name: string;
 };

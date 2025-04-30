@@ -29,7 +29,7 @@ const ManageHost: React.FC<ManageHostProps> = (props) => {
       }}
       addHeader="Initialize host"
       editHeader=""
-      entriesUrl="/host?types=dr,node"
+      entriesUrl="/host?type=dr&type=subnode"
       entryUrlPrefix="/host"
       getDeleteErrorMessage={(children, ...rest) => ({
         ...rest,

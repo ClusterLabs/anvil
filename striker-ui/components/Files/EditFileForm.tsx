@@ -1,14 +1,13 @@
-import { useFormik } from 'formik';
-import { FC, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
-import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import fileListSchema from './schema';
+import useFormikUtils from '../../hooks/useFormikUtils';
 
 const toEditFileRequestBody = (
   file: FileFormikFile,
@@ -65,7 +64,7 @@ const toEditFileRequestBody = (
   return { fileLocations, fileName, fileType, fileUUID };
 };
 
-const EditFileForm: FC<EditFileFormProps> = (props) => {
+const EditFileForm: React.FC<EditFileFormProps> = (props) => {
   const { anvils, drHosts, onSuccess, previous: file } = props;
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
@@ -109,7 +108,7 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
     };
   }, [anvils, drHosts, file]);
 
-  const formik = useFormik<FileFormikValues>({
+  const formikUtils = useFormikUtils<FileFormikValues>({
     initialValues: formikInitialValues,
     onSubmit: (values, { setSubmitting }) => {
       const body = toEditFileRequestBody(values[file.uuid], file);
@@ -135,19 +134,7 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
     validationSchema: fileListSchema,
   });
 
-  const formikErrors = useMemo<Messages>(
-    () => getFormikErrorMessages(formik.errors),
-    [formik.errors],
-  );
-
-  const disableProceed = useMemo<boolean>(
-    () =>
-      !formik.dirty ||
-      !formik.isValid ||
-      formik.isValidating ||
-      formik.isSubmitting,
-    [formik.dirty, formik.isSubmitting, formik.isValid, formik.isValidating],
-  );
+  const { formik, disabledSubmit, formikErrors } = formikUtils;
 
   return (
     <FlexBox
@@ -173,7 +160,7 @@ const EditFileForm: FC<EditFileFormProps> = (props) => {
           {
             background: 'blue',
             children: 'Update',
-            disabled: disableProceed,
+            disabled: disabledSubmit,
             type: 'submit',
           },
         ]}

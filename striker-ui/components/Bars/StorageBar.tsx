@@ -5,54 +5,89 @@ import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 
 import StackBar from './StackBar';
 
-const N_100 = BigInt(100);
+const n100 = BigInt(100);
+const nZero = BigInt(0);
 
 const StorageBar: FC<
   {
-    storages: APIAnvilSharedStorageOverview;
+    storageGroup?: APIAnvilStorageGroupCalcable;
+    storages?: APIAnvilSharedStorageOverview;
     target?: string;
+    volumeGroup?: APIAnvilVolumeGroupCalcable;
   } & Partial<StackBarProps>
 > = (props) => {
-  const { storages, target: sgUuid, value, ...restProps } = props;
+  const {
+    storageGroup,
+    storages,
+    target: storageGroupUuid,
+    volumeGroup,
+    value,
+    ...restProps
+  } = props;
 
-  const { totalSize, totalUsed } = storages;
+  const storage = useMemo<{ size: bigint; used: bigint }>(() => {
+    let size: bigint = nZero;
+    let used: bigint = nZero;
 
-  const targetSg = useMemo(() => {
-    if (!sgUuid) return undefined;
+    if (storageGroup) {
+      ({ size, used } = storageGroup);
 
-    const sg = storages.storageGroups?.[sgUuid];
+      return { size, used };
+    }
 
-    if (!sg) return undefined;
+    if (volumeGroup) {
+      ({ size, used } = volumeGroup);
 
-    return sg;
-  }, [sgUuid, storages.storageGroups]);
+      return { size, used };
+    }
+
+    if (!storages) {
+      return { size, used };
+    }
+
+    if (storageGroupUuid) {
+      const { [storageGroupUuid]: sg } = storages.storageGroups;
+
+      if (sg) {
+        ({ size, used } = sg);
+      }
+
+      return { size, used };
+    }
+
+    ({ totalSize: size, totalUsed: used } = storages);
+
+    return { size, used };
+  }, [storageGroup, storageGroupUuid, storages, volumeGroup]);
 
   const usedColour = useMemo(() => ({ 0: BLUE, 70: PURPLE, 90: RED }), []);
 
-  const mergedValue = useMemo(
-    () =>
-      merge(
-        targetSg
-          ? {
-              target: {
-                value: Number((targetSg.used * N_100) / targetSg.size),
-                colour: usedColour,
-              },
-            }
-          : {
-              base: {
-                value: Number((totalUsed * N_100) / totalSize),
-                colour: usedColour,
-              },
-            },
-        value,
-      ),
-    [totalUsed, usedColour, targetSg, totalSize, value],
-  );
+  const mergedValue = useMemo(() => {
+    let percentage = 0;
+
+    if (storage.size) {
+      percentage = Number((storage.used * n100) / storage.size);
+    }
+
+    return merge(
+      {
+        target: {
+          value: percentage,
+          colour: usedColour,
+        },
+      },
+      value,
+    );
+  }, [storage.size, storage.used, usedColour, value]);
 
   return <StackBar {...restProps} value={mergedValue} />;
 };
 
-StorageBar.defaultProps = { target: undefined };
+StorageBar.defaultProps = {
+  storageGroup: undefined,
+  storages: undefined,
+  target: undefined,
+  volumeGroup: undefined,
+};
 
 export default StorageBar;

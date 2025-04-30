@@ -2,22 +2,20 @@ import { Grid, gridClasses } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { FC, ReactNode, useMemo } from 'react';
 
-import { BLUE, GREY, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
+import { BLUE, GREY, PURPLE } from '../../lib/consts/DEFAULT_THEME';
 
 import {
   toAnvilDetail,
   toAnvilMemoryCalcable,
   toAnvilSharedStorageOverview,
 } from '../../lib/api_converters';
+import { MemoryBar, StorageBar } from '../Bars';
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
-import StackBar from '../Bars/StackBar';
 import { BodyText, InlineMonoText, MonoText } from '../Text';
 import { ago } from '../../lib/time';
 import useFetch from '../../hooks/useFetch';
-
-const N_100 = BigInt(100);
 
 const MAP_TO_ANVIL_STATE_COLOUR: Record<string, string> = {
   offline: GREY,
@@ -66,9 +64,9 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   });
 
   const { altData: storages, loading: loadingStorages } = useFetch<
-    AnvilSharedStorage,
+    APIAnvilStorageList,
     APIAnvilSharedStorageOverview
-  >(`/anvil/${anvilUuid}/store`, {
+  >(`/anvil/${anvilUuid}/storage`, {
     mod: toAnvilSharedStorageOverview,
     refreshInterval,
   });
@@ -222,20 +220,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
               </InlineMonoText>
             </BodyText>
           </FlexBox>
-          <StackBar
-            thin
-            value={{
-              reserved: {
-                value: Number((memory.reserved * N_100) / memory.total),
-              },
-              allocated: {
-                value: Number(
-                  ((memory.reserved + memory.allocated) * N_100) / memory.total,
-                ),
-                colour: { 0: BLUE, 70: PURPLE, 90: RED },
-              },
-            }}
-          />
+          <MemoryBar memory={memory} thin />
         </FlexBox>
       ),
     [memory],
@@ -257,18 +242,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
               </InlineMonoText>
             </BodyText>
           </FlexBox>
-          <StackBar
-            thin
-            value={{
-              allocated: {
-                value: Number(
-                  ((storages.totalSize - storages.totalFree) * N_100) /
-                    storages.totalSize,
-                ),
-                colour: { 0: BLUE, 70: PURPLE, 90: RED },
-              },
-            }}
-          />
+          <StorageBar storages={storages} thin />
         </FlexBox>
       ),
     [storages],

@@ -35,10 +35,14 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
   const { data: changedKeys, loading } =
     useFetch<APISSHKeyConflictOverviewList>(`/ssh-key/conflict`, {
       onError: (error) => {
-        setApiMessage({
-          children: `Failed to fetch SSH key conflicts. Error: ${error}`,
-          type: 'error',
-        });
+        const emsg = handleAPIError(error);
+
+        emsg.children = <>Failed to fetch SSH key conflicts. {emsg.children}</>;
+
+        setApiMessage(emsg);
+      },
+      onSuccess: () => {
+        setApiMessage(undefined);
       },
       refreshInterval,
     });

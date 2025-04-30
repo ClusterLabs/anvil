@@ -1,14 +1,5 @@
 import { AxiosRequestConfig } from 'axios';
-import { useFormik } from 'formik';
-import {
-  ChangeEventHandler,
-  FC,
-  ReactElement,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
@@ -16,11 +7,11 @@ import api from '../../lib/api';
 import ContainedButton from '../ContainedButton';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
-import getFormikErrorMessages from '../../lib/getFormikErrorMessages';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import fileListSchema from './schema';
 import UploadFileProgress from './UploadFileProgress';
+import useFormikUtils from '../../hooks/useFormikUtils';
 
 const REQUEST_INCOMPLETE_UPLOAD_LIMIT = 99;
 
@@ -36,7 +27,7 @@ const setUploadProgress: (
   return { ...previous };
 };
 
-const AddFileForm: FC<AddFileFormProps> = (props) => {
+const AddFileForm: React.FC<AddFileFormProps> = (props) => {
   const { anvils, drHosts } = props;
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
@@ -51,7 +42,7 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
     [],
   );
 
-  const formik = useFormik<FileFormikValues>({
+  const formikUtils = useFormikUtils<FileFormikValues>({
     initialValues: {},
     onSubmit: (values) => {
       const files = Object.values(values);
@@ -150,21 +141,11 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
     validationSchema: fileListSchema,
   });
 
-  const formikErrors = useMemo<Messages>(
-    () => getFormikErrorMessages(formik.errors),
-    [formik.errors],
-  );
+  const { disabledSubmit, formik, formikErrors } = formikUtils;
 
-  const disableProceed = useMemo<boolean>(
-    () =>
-      !formik.dirty ||
-      !formik.isValid ||
-      formik.isValidating ||
-      formik.isSubmitting,
-    [formik.dirty, formik.isSubmitting, formik.isValid, formik.isValidating],
-  );
-
-  const handleSelectFiles = useCallback<ChangeEventHandler<HTMLInputElement>>(
+  const handleSelectFiles = useCallback<
+    React.ChangeEventHandler<HTMLInputElement>
+  >(
     (event) => {
       const {
         target: { files },
@@ -187,15 +168,14 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
         {},
       );
 
-      formik.setValues(values);
+      formik.setValues(values, true);
     },
     [formik],
   );
 
-  const fileInputs = useMemo<ReactElement[]>(
+  const fileInputs = useMemo<React.ReactElement[]>(
     () =>
-      formik.values &&
-      Object.values(formik.values).map((file) => {
+      Object.values<FileFormikFile>(formik.values).map((file) => {
         const { uuid: fileUuid } = file;
 
         return (
@@ -248,7 +228,7 @@ const AddFileForm: FC<AddFileFormProps> = (props) => {
               {
                 background: 'blue',
                 children: 'Add',
-                disabled: disableProceed,
+                disabled: disabledSubmit,
                 type: 'submit',
               },
             ]}

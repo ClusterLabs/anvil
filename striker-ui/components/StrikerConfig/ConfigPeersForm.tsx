@@ -21,7 +21,7 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
   const addPeerDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
 
-  const [apiMessage, setApiMessage] = useState<Message | undefined>(undefined);
+  const [apiMessage, setApiMessage] = useState<Message | undefined>();
   const [confirmDialogProps, setConfirmDialogProps] =
     useState<ConfirmDialogProps>({
       actionProceedText: '',
@@ -51,10 +51,11 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
     {
       refreshInterval,
       onError: (error) => {
-        setApiMessage({
-          children: `Failed to get connection data. Error: ${error}`,
-          type: 'error',
-        });
+        const emsg = handleAPIError(error);
+
+        emsg.children = <>Failed to get connection data. {emsg.children}</>;
+
+        setApiMessage(emsg);
       },
       onSuccess: ({
         local: {
@@ -62,6 +63,8 @@ const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
           peer,
         },
       }) => {
+        setApiMessage(undefined);
+
         setInboundConnections((previous) =>
           Object.entries(ipAddressList).reduce<InboundConnectionList>(
             (

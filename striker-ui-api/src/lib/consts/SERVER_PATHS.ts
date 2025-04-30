@@ -49,6 +49,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-manage-server-network': {},
       'anvil-manage-server-storage': {},
       'anvil-manage-server-system': {},
+      'anvil-manage-storage-groups': {},
       'anvil-provision-server': {},
       'anvil-rename-server': {},
       'anvil-safe-start': {},

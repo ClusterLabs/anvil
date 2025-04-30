@@ -1,14 +1,4 @@
-import {
-  Dispatch,
-  MutableRefObject,
-  ReactElement,
-  ReactNode,
-  SetStateAction,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import ConfirmDialog from '../components/ConfirmDialog';
 import MessageBox from '../components/MessageBox';
@@ -17,14 +7,7 @@ const useConfirmDialog = (
   args: {
     initial?: Partial<ConfirmDialogProps>;
   } = {},
-): {
-  confirmDialog: ReactElement;
-  confirmDialogRef: MutableRefObject<ConfirmDialogForwardedRefContent | null>;
-  setConfirmDialogLoading: (value: boolean) => void;
-  setConfirmDialogOpen: (value: boolean) => void;
-  setConfirmDialogProps: Dispatch<SetStateAction<ConfirmDialogProps>>;
-  finishConfirm: (title: ReactNode, message: Message) => void;
-} => {
+): ConfirmDialogUtils => {
   const {
     initial: {
       actionProceedText = '',
@@ -60,7 +43,7 @@ const useConfirmDialog = (
   );
 
   const finishConfirm = useCallback(
-    (title: ReactNode, message: Message) =>
+    (title: React.ReactNode, message: Message) =>
       setConfirmDialogProps({
         actionProceedText: '',
         content: <MessageBox {...message} />,
@@ -71,7 +54,7 @@ const useConfirmDialog = (
     [],
   );
 
-  const confirmDialog = useMemo<ReactElement>(
+  const confirmDialog = useMemo<React.ReactElement>(
     () => (
       <ConfirmDialog
         {...restInitialProps}
