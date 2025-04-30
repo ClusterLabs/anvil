@@ -4402,6 +4402,7 @@ The older key will be preserved and the subsequent keys will be removed.
 		<key name="warning_0190">[ Warning ] - Tried to insert or update a host before any databases are connected, ignoring.</key>
 		<key name="warning_0191">[ Warning ] - I've been asked to configure the postgres server, but I am not running as root (real UID: [#!variable!real_uid!#], effective UID: [#!variable!effective_uid!#]). This is likely to fail.</key>
 		<key name="warning_0192">[ Warning ] - Timed out trying to test access to the target: [#!variable!target!#]! It was given: [#!variable!timeout!#] seconds, and alarmed with: [#!variable!error!#].</key>
+		<key name="warning_0193">[ Warning ] - Failed to connect to: [#!variable!target!#], aborting connection to libvirtd.</key>
 		
 	</language>
 	<!-- 日本語 -->

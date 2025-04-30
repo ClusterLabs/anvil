@@ -385,11 +385,18 @@ sub connect_to_libvirt
 	if (not $anvil->data->{libvirtd}{$target}{connection})
 	{
 		# Make sure the target is known.
-		my $problem = $anvil->Remote->add_target_to_known_hosts({
+		my $access = $anvil->Remote->test_access({
 			debug  => $debug, 
 			target => $target_ip, 
 		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 0, list => { problem => $problem }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
+		if (not $access)
+		{
+			# Don't bother trying to connect.
+			$anvil->data->{libvirtd}{$target}{connection} = 0;
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0193", variables => { target => $target_ip }});
+			return(1);
+		}
 		
 		### NOTE: For some reason, the below 'alarm'/SIGALRM' hook doesn't work if the ssh target's
 		###       fingerprint isn't known, hence the call above. Whatever is causing this though 
