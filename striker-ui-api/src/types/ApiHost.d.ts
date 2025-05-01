@@ -67,6 +67,40 @@ type HostDetail = HostOverview & {
   ipmi: HostIpmi;
 } & Tree<string>;
 
+type HostOverviewAlt = {
+  anvil?: {
+    description: string;
+    name: string;
+    uuid: string;
+  };
+  configured: boolean;
+  name: string;
+  short: string;
+  status: string;
+  type: string;
+  uuid: string;
+};
+
+type HostNetwork = Tree<number | string> & {
+  ip: string;
+  sequence: number;
+  subnetMask: string;
+  type: string;
+};
+
+type HostDetailAlt = HostOverviewAlt &
+  Tree<boolean | string> & {
+    ipmi: HostIpmi;
+    netconf: {
+      dns: string;
+      gateway: string;
+      gatewayInterface: string;
+      networks: Record<string, HostNetwork>;
+    };
+  };
+
+type HostDetailList = Record<string, HostDetailAlt>;
+
 type InitializeStrikerNetworkForm = {
   createBridge?: string;
   interfaces: (
