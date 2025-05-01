@@ -1,3 +1,4 @@
+export * from './sqlFiles';
 export * from './sqlHosts';
 export * from './sqlIfaceAlias';
 export * from './sqlIpAddresses';
@@ -6,5 +7,6 @@ export * from './sqlScanDrbdPeers';
 export * from './sqlScanDrbdResources';
 export * from './sqlScanDrbdVolumes';
 export * from './sqlScanLvmVgs';
+export * from './sqlServers';
 export * from './sqlStorageGroupMembers';
 export * from './sqlStorageGroups';

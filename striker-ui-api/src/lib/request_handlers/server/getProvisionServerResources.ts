@@ -2,10 +2,18 @@ import { RequestHandler } from 'express';
 import { XMLParser } from 'fast-xml-parser';
 import { dSize } from 'format-data-size';
 
-import { DELETED, NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
+import { NODE_AND_DR_RESERVED_MEMORY_SIZE } from '../../consts';
 
 import { query } from '../../accessModule';
 import { Responder } from '../../Responder';
+import {
+  sqlFiles,
+  sqlHosts,
+  sqlScanLvmVgs,
+  sqlServers,
+  sqlStorageGroupMembers,
+  sqlStorageGroups,
+} from '../../sqls';
 
 const memorySystem = {
   bigint: BigInt(NODE_AND_DR_RESERVED_MEMORY_SIZE),
@@ -33,7 +41,7 @@ export const getProvisionServerResources: RequestHandler<
       a.file_uuid,
       a.file_name,
       c.anvil_uuid
-    FROM files AS a
+    FROM (${sqlFiles()}) AS a
     JOIN file_locations AS b
       ON a.file_uuid = b.file_location_file_uuid
     JOIN anvils AS c
@@ -56,7 +64,7 @@ export const getProvisionServerResources: RequestHandler<
       b.file_location_host_uuid,
       b.file_location_active,
       b.file_location_ready
-    FROM files AS a
+    FROM (${sqlFiles()}) AS a
     LEFT JOIN file_locations AS b
       ON a.file_uuid = b.file_location_file_uuid
     WHERE a.file_type = 'iso'
@@ -76,12 +84,11 @@ export const getProvisionServerResources: RequestHandler<
       a.server_uuid,
       a.server_name,
       c.server_definition_xml
-    FROM servers AS a
+    FROM (${sqlServers()}) AS a
     JOIN anvils AS b
-      ON a.server_anvil_uuid = b. anvil_uuid
+      ON a.server_anvil_uuid = b.anvil_uuid
     JOIN server_definitions AS c
       ON a.server_uuid = c.server_definition_server_uuid
-    WHERE a.server_state != '${DELETED}'
     ORDER BY
       a.server_name ASC,
       b.anvil_name ASC;`;
@@ -91,16 +98,19 @@ export const getProvisionServerResources: RequestHandler<
       b.anvil_uuid,
       a.storage_group_uuid,
       a.storage_group_name,
-      MIN(d.scan_lvm_vg_size) AS storage_group_size,
-      MIN(d.scan_lvm_vg_free) AS storage_group_free
-    FROM storage_groups AS a
+      MIN(
+        COALESCE(d.scan_lvm_vg_size, 0 )
+      ) AS min_sg_size,
+      MIN(
+        COALESCE(d.scan_lvm_vg_free, 0)
+      ) AS min_sg_free
+    FROM (${sqlStorageGroups()}) AS a
     JOIN anvils AS b
       ON a.storage_group_anvil_uuid = b.anvil_uuid
-    JOIN storage_group_members AS c
+    JOIN (${sqlStorageGroupMembers()}) AS c
       ON a.storage_group_uuid = c.storage_group_member_storage_group_uuid
-    JOIN scan_lvm_vgs AS d
+    JOIN (${sqlScanLvmVgs()}) AS d
       ON c.storage_group_member_vg_uuid = d.scan_lvm_vg_internal_uuid
-    WHERE d.scan_lvm_vg_name != '${DELETED}'
     GROUP BY
       b.anvil_uuid,
       a.storage_group_uuid,
@@ -117,7 +127,7 @@ export const getProvisionServerResources: RequestHandler<
       SUBSTRING(a.host_name, '^([^.]+)') AS short_host_name,
       c.scan_hardware_cpu_cores,
       c.scan_hardware_ram_total
-    FROM hosts AS a
+    FROM (${sqlHosts()}) AS a
     JOIN anvils AS b
       ON a.host_uuid IN (
         b.anvil_node1_host_uuid,
@@ -163,8 +173,7 @@ export const getProvisionServerResources: RequestHandler<
     WHERE
       s.server_name NOT IN (
         SELECT server_name
-        FROM servers
-        WHERE server_state != '${DELETED}'
+        FROM (${sqlServers()})
       );`;
 
   const promises = [
