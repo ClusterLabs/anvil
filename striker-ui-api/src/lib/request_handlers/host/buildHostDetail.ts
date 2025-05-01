@@ -25,22 +25,24 @@ const setvarParams: Record<
   form: (parts, original) => {
     const [, part2 = ''] = parts;
 
-    const [first = '', ...rest] = part2.split('_');
+    const part = part2.toLocaleLowerCase();
 
-    const head = first.toLocaleLowerCase();
+    const [head = '', ...rest] = part.split('_');
 
-    const chain = ['netconf'];
-
-    if (patterns.network.id.test(head)) {
-      chain.push('networks', head, camel(...rest));
-    } else {
-      chain.push(camel(head, ...rest));
-    }
+    let chain: string[];
 
     let value: boolean | string = original;
 
-    if (/create_bridge/.test(part2)) {
-      value = original === '1';
+    if (patterns.network.id.test(head)) {
+      chain = ['netconf', 'networks', head, camel(...rest)];
+
+      if (/create_bridge/.test(part2)) {
+        value = original === '1';
+      }
+    } else if (/^dns$|^gateway|count$/.test(part)) {
+      chain = ['netconf', camel(head, ...rest)];
+    } else {
+      chain = [camel(head, ...rest)];
     }
 
     return [chain, value];
