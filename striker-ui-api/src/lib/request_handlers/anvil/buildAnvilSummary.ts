@@ -4,6 +4,11 @@ import { DELETED } from '../../consts';
 
 import { query } from '../../accessModule';
 import { perr } from '../../shell';
+import {
+  sqlScanDrbdPeers,
+  sqlScanDrbdResources,
+  sqlScanDrbdVolumes,
+} from '../../sqls';
 
 const buildHostStateMessage = (postfix = 2) => `message_022${postfix}`;
 
@@ -168,15 +173,12 @@ export const buildAnvilSummary = async ({
             c.scan_drbd_peer_connection_state,
             c.scan_drbd_peer_local_disk_state,
             c.scan_drbd_peer_estimated_time_to_sync
-          FROM scan_drbd_resources AS a
-          LEFT JOIN scan_drbd_volumes AS b
+          FROM (${sqlScanDrbdResources()}) AS a
+          LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
             ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
-              AND b.scan_drbd_volume_device_path != '${DELETED}'
-          LEFT JOIN scan_drbd_peers AS c
+          LEFT JOIN (${sqlScanDrbdPeers()}) AS c
             ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
-              AND c.scan_drbd_peer_connection_state != '${DELETED}'
-          WHERE a.scan_drbd_resource_host_uuid = '${hostUuid}'
-            AND a.scan_drbd_resource_xml != '${DELETED}';`,
+          WHERE a.scan_drbd_resource_host_uuid = '${hostUuid}';`,
       );
 
       assert.ok(drbdResources.length, 'No subnode DRBD resources');
