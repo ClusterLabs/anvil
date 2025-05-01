@@ -1,7 +1,5 @@
 import { RequestHandler } from 'express';
 
-import { DELETED } from '../../consts';
-
 import { query } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
@@ -127,17 +125,12 @@ export const getAnvilStorage: RequestHandler<
               b.anvil_node1_host_uuid,
               b.anvil_node2_host_uuid
             )
-        LEFT JOIN dr_links AS c
-          ON
-              a.host_uuid = c.dr_link_host_uuid
-            AND
-              c.dr_link_note != '${DELETED}'
         WHERE
-          COALESCE(
-            b.anvil_uuid,
-            c.dr_link_anvil_uuid
-          ) = '${anvilUuid}'
+            a.host_type = 'dr'
+          OR
+            b.anvil_uuid = '${anvilUuid}'
         ORDER BY
+          a.host_type DESC,
           a.host_name;`,
     );
   } catch (error) {
