@@ -7,7 +7,12 @@ import { getHostIpmi } from '../../disassembleCommand';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
 import { perr, poutvar } from '../../shell';
-import { sqlIfaceAlias } from '../../sqls';
+import {
+  sqlHosts,
+  sqlIfaceAlias,
+  sqlIpAddresses,
+  sqlNetworkInterfaces,
+} from '../../sqls';
 
 const regexps = {
   network: {
@@ -89,7 +94,7 @@ export const buildHostDetailList = async ({
       b.anvil_uuid,
       b.anvil_name,
       b.anvil_description
-    FROM hosts AS a
+    FROM (${sqlHosts()}) AS a
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
         b.anvil_node1_host_uuid,
@@ -177,28 +182,21 @@ export const buildHostDetailList = async ({
       e.ip_address_gateway,
       e.ip_address_default_gateway,
       e.ip_address_dns
-    FROM network_interfaces AS a
+    FROM (${sqlNetworkInterfaces()}) AS a
     JOIN (${sqlIfaceAlias()}) AS b
       ON b.network_interface_uuid = a.network_interface_uuid
     LEFT JOIN bridges AS c
       ON c.bridge_mac_address = a.network_interface_mac_address
     LEFT JOIN bonds AS d
       ON d.bond_mac_address = a.network_interface_mac_address
-    LEFT JOIN ip_addresses as e
-      ON
-          e.ip_address_note != '${DELETED}'
-        AND
-          e.ip_address_on_uuid IN (
-            a.network_interface_uuid,
-            c.bridge_uuid,
-            d.bond_uuid
-          )
-    WHERE
-        a.network_interface_operational != '${DELETED}'
-      AND
-        a.network_interface_host_uuid IN (${hostUuidsCsv})
-    ORDER BY
-      b.network_interface_alias;`;
+    LEFT JOIN (${sqlIpAddresses()}) as e
+      ON e.ip_address_on_uuid IN (
+        a.network_interface_uuid,
+        c.bridge_uuid,
+        d.bond_uuid
+      )
+    WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
+    ORDER BY b.network_interface_alias;`;
 
   try {
     rows = await query(sqlGetIfaces);
@@ -273,7 +271,7 @@ export const buildHostDetailList = async ({
       a.variable_value,
       b.network_interface_uuid
     FROM variables AS a
-    LEFT JOIN network_interfaces AS b
+    LEFT JOIN (${sqlNetworkInterfaces()}) AS b
       ON b.network_interface_mac_address = a.variable_value
     WHERE
         a.variable_source_uuid IN (${hostUuidsCsv})
