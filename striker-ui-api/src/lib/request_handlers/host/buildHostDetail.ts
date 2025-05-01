@@ -185,15 +185,18 @@ export const buildHostDetailList = async ({
     FROM (${sqlNetworkInterfaces()}) AS a
     JOIN (${sqlIfaceAlias()}) AS b
       ON b.network_interface_uuid = a.network_interface_uuid
-    LEFT JOIN bridges AS c
-      ON c.bridge_mac_address = a.network_interface_mac_address
-    LEFT JOIN bonds AS d
-      ON d.bond_mac_address = a.network_interface_mac_address
+    LEFT JOIN bonds AS c
+      ON c.bond_uuid = a.network_interface_bond_uuid
+    LEFT JOIN bridges AS d
+      ON d.bridge_uuid IN (
+        a.network_interface_bridge_uuid,
+        c.bond_bridge_uuid
+      )
     LEFT JOIN (${sqlIpAddresses()}) as e
       ON e.ip_address_on_uuid IN (
         a.network_interface_uuid,
-        c.bridge_uuid,
-        d.bond_uuid
+        c.bond_uuid,
+        d.bridge_uuid
       )
     WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
     ORDER BY b.network_interface_alias;`;

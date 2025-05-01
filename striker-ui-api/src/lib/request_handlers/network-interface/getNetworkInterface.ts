@@ -1,8 +1,9 @@
-import { DELETED, LOCAL } from '../../consts';
+import { LOCAL } from '../../consts';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toHostUUID } from '../../convertHostUUID';
+import { sqlIpAddresses, sqlNetworkInterfaces } from '../../sqls';
 
 export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
   const {
@@ -28,28 +29,22 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
       d.ip_address_subnet_mask,
       d.ip_address_gateway,
       d.ip_address_dns
-    FROM network_interfaces AS a
-    LEFT JOIN bridges AS b
-      ON b.bridge_mac_address = a.network_interface_mac_address
-    LEFT JOIN bonds AS c
-      ON c.bond_mac_address = a.network_interface_mac_address
-    LEFT JOIN ip_addresses AS d
-      ON
-          d.ip_address_note != '${DELETED}'
-        AND
-          d.ip_address_on_uuid IN (
-            a.network_interface_uuid,
-            b.bridge_uuid,
-            c.bond_uuid
-          )
-    WHERE
-        a.network_interface_operational != '${DELETED}'
-      AND
-        a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
-      AND
-        a.network_interface_host_uuid = '${hostUuid}'
-    ORDER BY
-      a.network_interface_name;`;
+    FROM (${sqlNetworkInterfaces()}) AS a
+    LEFT JOIN bonds AS b
+      ON b.bond_uuid = a.network_interface_bond_uuid
+    LEFT JOIN bridges AS c
+      ON c.bridge_uuid IN (
+        a.network_interface_bridge_uuid,
+        b.bond_bridge_uuid
+      )
+    LEFT JOIN (${sqlIpAddresses()}) AS d
+      ON d.ip_address_on_uuid IN (
+        a.network_interface_uuid,
+        b.bond_uuid,
+        c.bridge_uuid
+      )
+    WHERE a.network_interface_host_uuid = '${hostUuid}'
+    ORDER BY a.network_interface_name;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultReducer<NetworkInterfaceOverviewList>((previous, row) => {
