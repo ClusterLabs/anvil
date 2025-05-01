@@ -1,11 +1,15 @@
+import { RequestHandler } from 'express';
+
 import { DELETED } from '../../consts';
 
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
+import { buildHostDetailList } from './buildHostDetail';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
+import { Responder } from '../../Responder';
 import { getHostQueryStringSchema } from './schemas';
 
 export const getHost = buildGetRequestHandler<
@@ -103,3 +107,23 @@ export const getHost = buildGetRequestHandler<
 
   return query;
 });
+
+export const getHostAlt: RequestHandler<
+  Express.RhParamsDictionary,
+  HostDetailList
+> = async (request, response) => {
+  const respond = new Responder(response);
+
+  let hosts: HostDetailList;
+
+  try {
+    hosts = await buildHostDetailList();
+  } catch (error) {
+    return respond.s500(
+      '4fd118b',
+      `Failed to get host detail list; CAUSE: ${error}`,
+    );
+  }
+
+  return respond.s200(hosts);
+};

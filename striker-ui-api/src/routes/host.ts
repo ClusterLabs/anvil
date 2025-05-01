@@ -6,6 +6,7 @@ import {
   createHostConnection,
   deleteHostConnection,
   getHost,
+  getHostAlt,
   getHostConnection,
   getHostDetail,
   getHostDetailAlt,
@@ -22,6 +23,7 @@ const router = express.Router();
 
 router
   .get('/', getHost)
+  .get('/alt', getHostAlt)
   .get('/:hostUUID', getHostDetail)
   .post('/', createHost)
   .put('/prepare', prepareHost)
