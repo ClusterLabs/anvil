@@ -31,18 +31,26 @@ const setvarParams: Record<
 
     let chain: string[];
 
-    let value: boolean | string = original;
+    let value: boolean | number | string = original;
 
     if (patterns.network.id.test(head)) {
       chain = ['netconf', 'networks', head, camel(...rest)];
 
-      if (/create_bridge/.test(part2)) {
+      if (/create_bridge/.test(part)) {
         value = original === '1';
       }
     } else if (/^dns$|^gateway|count$/.test(part)) {
       chain = ['netconf', camel(head, ...rest)];
+
+      if (/count$/.test(part)) {
+        value = Number(original);
+      }
     } else {
       chain = [camel(head, ...rest)];
+
+      if (/sequence/.test(part)) {
+        value = Number(original);
+      }
     }
 
     return [chain, value];
