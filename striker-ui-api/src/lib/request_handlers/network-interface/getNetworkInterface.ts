@@ -12,30 +12,44 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
   const hostUuid = toHostUUID(rHostUuid);
 
   const query = `
-      SELECT
-        a.network_interface_uuid,
-        a.network_interface_mac_address,
-        a.network_interface_name,
-        CASE
-          WHEN a.network_interface_link_state = '1'
-            AND a.network_interface_operational = 'up'
-            THEN 'up'
-          ELSE 'down'
-        END AS iface_state,
-        a.network_interface_speed,
-        ROW_NUMBER() OVER(ORDER BY a.modified_date DESC) AS iface_order,
-        b.ip_address_address,
-        b.ip_address_subnet_mask,
-        b.ip_address_gateway,
-        b.ip_address_dns
-      FROM network_interfaces AS a
-      LEFT JOIN ip_addresses AS b
-        ON b.ip_address_note != '${DELETED}'
-          AND b.ip_address_on_uuid = a.network_interface_uuid
-      WHERE a.network_interface_operational != '${DELETED}'
-        AND a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
-        AND a.network_interface_host_uuid = '${hostUuid}'
-      ORDER BY a.network_interface_name;`;
+    SELECT
+      a.network_interface_uuid,
+      a.network_interface_mac_address,
+      a.network_interface_name,
+      CASE
+        WHEN a.network_interface_link_state = '1'
+          AND a.network_interface_operational = 'up'
+          THEN 'up'
+        ELSE 'down'
+      END AS iface_state,
+      a.network_interface_speed,
+      ROW_NUMBER() OVER(ORDER BY a.modified_date DESC) AS iface_order,
+      d.ip_address_address,
+      d.ip_address_subnet_mask,
+      d.ip_address_gateway,
+      d.ip_address_dns
+    FROM network_interfaces AS a
+    LEFT JOIN bridges AS b
+      ON b.bridge_mac_address = a.network_interface_mac_address
+    LEFT JOIN bonds AS c
+      ON c.bond_mac_address = a.network_interface_mac_address
+    LEFT JOIN ip_addresses AS d
+      ON
+          d.ip_address_note != '${DELETED}'
+        AND
+          d.ip_address_on_uuid IN (
+            a.network_interface_uuid,
+            b.bridge_uuid,
+            c.bond_uuid
+          )
+    WHERE
+        a.network_interface_operational != '${DELETED}'
+      AND
+        a.network_interface_name NOT SIMILAR TO '(vnet\\d+|virbr\\d+-nic)%'
+      AND
+        a.network_interface_host_uuid = '${hostUuid}'
+    ORDER BY
+      a.network_interface_name;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultReducer<NetworkInterfaceOverviewList>((previous, row) => {

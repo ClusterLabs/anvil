@@ -172,22 +172,31 @@ export const buildHostDetailList = async ({
       SUBSTRING(
         b.network_interface_alias, '${ifaceAliasReps.xLink}'
       ) AS network_link,
-      c.ip_address_address,
-      c.ip_address_subnet_mask,
-      c.ip_address_gateway,
-      c.ip_address_default_gateway,
-      c.ip_address_dns
+      e.ip_address_address,
+      e.ip_address_subnet_mask,
+      e.ip_address_gateway,
+      e.ip_address_default_gateway,
+      e.ip_address_dns
     FROM network_interfaces AS a
     JOIN (${selectIfaceAlias()}) AS b
       ON b.network_interface_uuid = a.network_interface_uuid
-    LEFT JOIN ip_addresses as c
-      ON c.ip_address_on_uuid
-        IN (
-          a.network_interface_uuid,
-          a.network_interface_bond_uuid,
-          a.network_interface_bridge_uuid
-        )
-    WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
+    LEFT JOIN bridges AS c
+      ON c.bridge_mac_address = a.network_interface_mac_address
+    LEFT JOIN bonds AS d
+      ON d.bond_mac_address = a.network_interface_mac_address
+    LEFT JOIN ip_addresses as e
+      ON
+          e.ip_address_note != '${DELETED}'
+        AND
+          e.ip_address_on_uuid IN (
+            a.network_interface_uuid,
+            c.bridge_uuid,
+            d.bond_uuid
+          )
+    WHERE
+        a.network_interface_operational != '${DELETED}'
+      AND
+        a.network_interface_host_uuid IN (${hostUuidsCsv})
     ORDER BY
       b.network_interface_alias;`;
 
@@ -274,6 +283,12 @@ export const buildHostDetailList = async ({
             'form::config_step%',
             'install-target::enabled',
             'system::configured'
+          ]
+        )
+      AND
+        a.variable_name NOT LIKE ANY (
+          ARRAY[
+            '%host_name%'
           ]
         )
     ORDER BY
