@@ -7,6 +7,12 @@ import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
 import { Responder } from '../../Responder';
 import { perr } from '../../shell';
+import {
+  sqlHosts,
+  sqlScanLvmVgs,
+  sqlStorageGroupMembers,
+  sqlStorageGroups,
+} from '../../sqls';
 
 export const getAnvilStorage: RequestHandler<
   Express.RhParamsDictionary,
@@ -44,26 +50,16 @@ export const getAnvilStorage: RequestHandler<
           MIN(
             COALESCE(c.scan_lvm_vg_free, 0)
           ) AS min_sg_free
-        FROM storage_groups AS a
-        LEFT JOIN storage_group_members AS b
-          ON
-              b.storage_group_member_note != '${DELETED}'
-            AND
-              a.storage_group_uuid = b.storage_group_member_storage_group_uuid
-        LEFT JOIN scan_lvm_vgs AS c
-          ON
-              c.scan_lvm_vg_name != '${DELETED}'
-            AND
-              b.storage_group_member_vg_uuid = c.scan_lvm_vg_internal_uuid
-        WHERE
-            a.storage_group_name != '${DELETED}'
-          AND
-            a.storage_group_anvil_uuid = '${anvilUuid}'
+        FROM (${sqlStorageGroups()}) AS a
+        LEFT JOIN (${sqlStorageGroupMembers()}) AS b
+          ON a.storage_group_uuid = b.storage_group_member_storage_group_uuid
+        LEFT JOIN (${sqlScanLvmVgs()}) AS c
+          ON b.storage_group_member_vg_uuid = c.scan_lvm_vg_internal_uuid
+        WHERE a.storage_group_anvil_uuid = '${anvilUuid}'
         GROUP BY
           a.storage_group_uuid,
           a.storage_group_name
-        ORDER BY
-          a.storage_group_name;`,
+        ORDER BY a.storage_group_name;`,
     );
   } catch (error) {
     return respond.s500(
@@ -124,7 +120,7 @@ export const getAnvilStorage: RequestHandler<
       `SELECT
           a.host_uuid,
           a.host_name
-        FROM hosts AS a
+        FROM (${sqlHosts()}) AS a
         LEFT JOIN anvils AS b
           ON
             a.host_uuid in (
@@ -176,23 +172,13 @@ export const getAnvilStorage: RequestHandler<
           a.scan_lvm_vg_host_uuid,
           b.storage_group_member_uuid,
           c.storage_group_uuid
-        FROM scan_lvm_vgs AS a
-        LEFT JOIN storage_group_members AS b
-          ON
-              b.storage_group_member_note != '${DELETED}'
-            AND
-              a.scan_lvm_vg_internal_uuid = b.storage_group_member_vg_uuid
-        LEFT JOIN storage_groups AS c
-          ON
-              c.storage_group_name != '${DELETED}'
-            AND
-              b.storage_group_member_storage_group_uuid = c.storage_group_uuid
-        WHERE
-            a.scan_lvm_vg_name != '${DELETED}'
-          AND
-            a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
-        ORDER BY
-          a.scan_lvm_vg_name;`,
+        FROM (${sqlScanLvmVgs()}) AS a
+        LEFT JOIN (${sqlStorageGroupMembers()}) AS b
+          ON a.scan_lvm_vg_internal_uuid = b.storage_group_member_vg_uuid
+        LEFT JOIN (${sqlStorageGroups()}) AS c
+          ON b.storage_group_member_storage_group_uuid = c.storage_group_uuid
+        WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+        ORDER BY a.scan_lvm_vg_name;`,
     );
   } catch (error) {
     return respond.s500(

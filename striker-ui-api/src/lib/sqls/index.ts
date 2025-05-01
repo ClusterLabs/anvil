@@ -5,3 +5,6 @@ export * from './sqlNetworkInterfaces';
 export * from './sqlScanDrbdPeers';
 export * from './sqlScanDrbdResources';
 export * from './sqlScanDrbdVolumes';
+export * from './sqlScanLvmVgs';
+export * from './sqlStorageGroupMembers';
+export * from './sqlStorageGroups';
