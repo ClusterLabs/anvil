@@ -1,4 +1,4 @@
-import { DELETED, P_IF } from '../../consts';
+import { P_IF } from '../../consts';
 
 import { query } from '../../accessModule';
 import { camel } from '../../camel';
@@ -72,7 +72,7 @@ export const buildHostDetailList = async ({
 }: {
   uuids?: string[];
 } = {}): Promise<HostDetailList> => {
-  let conditions = `a.host_key != '${DELETED}'`;
+  let conditions = 'TRUE';
 
   if (uuids.length) {
     conditions += join(uuids, {
