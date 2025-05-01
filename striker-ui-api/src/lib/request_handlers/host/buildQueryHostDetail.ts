@@ -1,18 +1,18 @@
-import { DELETED } from '../../consts';
+import { DELETED, P_IF } from '../../consts';
 
 import { buildKnownIDCondition } from '../../buildCondition';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
 import { camel } from '../../camel';
 import { getShortHostName } from '../../disassembleHostName';
-import { ifaceAliasReps, selectIfaceAlias } from '../network-interface';
 import { pout } from '../../shell';
+import { sqlIfaceAlias } from '../../sqls';
 
 const CVAR_PREFIX = 'form::config_step';
 
 const PATTERNS = {
   network: {
-    id: new RegExp(`^${ifaceAliasReps.id}`),
-    ip: new RegExp(`^${ifaceAliasReps.id}_ip$`),
+    id: new RegExp(`^${P_IF.id}`),
+    ip: new RegExp(`^${P_IF.id}_ip$`),
   },
 };
 
@@ -79,13 +79,13 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       b.anvil_name,
       c.network_interface_uuid,
       SUBSTRING(
-        d.network_interface_alias, '${ifaceAliasReps.xType}'
+        d.network_interface_alias, '${P_IF.xType}'
       ) AS network_type,
       SUBSTRING(
-        d.network_interface_alias, '${ifaceAliasReps.xNum}'
+        d.network_interface_alias, '${P_IF.xNum}'
       ) AS network_number,
       SUBSTRING(
-        d.network_interface_alias, '${ifaceAliasReps.xLink}'
+        d.network_interface_alias, '${P_IF.xLink}'
       ) AS network_link,
       c.network_interface_mac_address,
       e.ip_address_address,
@@ -104,7 +104,7 @@ export const buildQueryHostDetail: BuildQueryDetailFunction = ({
       )
     LEFT JOIN network_interfaces AS c
       ON c.network_interface_host_uuid = a.host_uuid
-    LEFT JOIN (${selectIfaceAlias()}) AS d
+    LEFT JOIN (${sqlIfaceAlias()}) AS d
       ON d.network_interface_uuid = c.network_interface_uuid
     LEFT JOIN ip_addresses as e
       ON e.ip_address_on_uuid

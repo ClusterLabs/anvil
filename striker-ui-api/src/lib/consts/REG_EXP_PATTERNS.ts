@@ -7,6 +7,23 @@ export const P_IPV4 = `(?:${P_OCTET}[.]){3}${P_OCTET}`;
 export const P_LVM_UUID = `${P_ALPHANUM}{6}-(?:${P_ALPHANUM}{4}-){5}${P_ALPHANUM}{6}`;
 export const P_UUID = `${P_HEX}{8}-(?:${P_HEX}{4}-){3}${P_HEX}{12}`;
 
+const P_IFLINK = 'link\\d+';
+const P_IFNUM = '\\d+';
+const P_IFTYPE = '[a-z]+n';
+
+const P_IFID = `${P_IFTYPE}${P_IFNUM}`;
+
+export const P_IF = {
+  full: `${P_IFID}_${P_IFLINK}`,
+  id: P_IFID,
+  link: P_IFLINK,
+  num: P_IFNUM,
+  type: P_IFTYPE,
+  xLink: `${P_IFID}_(${P_IFLINK})`,
+  xNum: `${P_IFTYPE}(${P_IFNUM})_${P_IFLINK}`,
+  xType: `(${P_IFTYPE})${P_IFNUM}_${P_IFLINK}`,
+};
+
 export const REP_INTEGER = /^\d+$/;
 
 export const REP_IPV4 = new RegExp(`^${P_IPV4}$`);

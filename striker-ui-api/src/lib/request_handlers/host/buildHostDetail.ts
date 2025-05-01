@@ -1,4 +1,4 @@
-import { DELETED } from '../../consts';
+import { DELETED, P_IF } from '../../consts';
 
 import { query } from '../../accessModule';
 import { camel } from '../../camel';
@@ -6,12 +6,12 @@ import { setChain } from '../../chain';
 import { getHostIpmi } from '../../disassembleCommand';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
-import { ifaceAliasReps, selectIfaceAlias } from '../network-interface';
 import { perr, poutvar } from '../../shell';
+import { sqlIfaceAlias } from '../../sqls';
 
-const patterns = {
+const regexps = {
   network: {
-    id: new RegExp(`^${ifaceAliasReps.id}`),
+    id: new RegExp(`^${P_IF.id}`),
   },
 };
 
@@ -33,7 +33,7 @@ const setvarParams: Record<
 
     let value: boolean | number | string = original;
 
-    if (patterns.network.id.test(head)) {
+    if (regexps.network.id.test(head)) {
       chain = ['netconf', 'networks', head, camel(...rest)];
 
       if (/create_bridge/.test(part)) {
@@ -151,7 +151,7 @@ export const buildHostDetailList = async ({
     hosts[uuid] = host;
   });
 
-  poutvar(hosts, 'hosts=');
+  poutvar(hosts, 'After getting hosts; hosts=');
 
   const hostUuidsCsv = join(Object.keys(hosts), {
     elementWrapper: "'",
@@ -164,13 +164,13 @@ export const buildHostDetailList = async ({
       a.network_interface_host_uuid,
       a.network_interface_mac_address,
       SUBSTRING(
-        b.network_interface_alias, '${ifaceAliasReps.xType}'
+        b.network_interface_alias, '${P_IF.xType}'
       ) AS network_type,
       SUBSTRING(
-        b.network_interface_alias, '${ifaceAliasReps.xNum}'
+        b.network_interface_alias, '${P_IF.xNum}'
       ) AS network_number,
       SUBSTRING(
-        b.network_interface_alias, '${ifaceAliasReps.xLink}'
+        b.network_interface_alias, '${P_IF.xLink}'
       ) AS network_link,
       e.ip_address_address,
       e.ip_address_subnet_mask,
@@ -178,7 +178,7 @@ export const buildHostDetailList = async ({
       e.ip_address_default_gateway,
       e.ip_address_dns
     FROM network_interfaces AS a
-    JOIN (${selectIfaceAlias()}) AS b
+    JOIN (${sqlIfaceAlias()}) AS b
       ON b.network_interface_uuid = a.network_interface_uuid
     LEFT JOIN bridges AS c
       ON c.bridge_mac_address = a.network_interface_mac_address
@@ -264,7 +264,7 @@ export const buildHostDetailList = async ({
     }
   });
 
-  poutvar(hosts, 'hosts=');
+  poutvar(hosts, 'After getting network interfaces; hosts=');
 
   const sqlGetVariables = `
     SELECT
@@ -340,7 +340,7 @@ export const buildHostDetailList = async ({
 
     setChain(chain, ifaceUuid, host);
 
-    const matches = name.match(patterns.network.id);
+    const matches = name.match(regexps.network.id);
 
     if (!matches) {
       return;
@@ -364,7 +364,7 @@ export const buildHostDetailList = async ({
     });
   });
 
-  poutvar(hosts, 'hosts=');
+  poutvar(hosts, 'After getting variables; hosts=');
 
   return hosts;
 };
