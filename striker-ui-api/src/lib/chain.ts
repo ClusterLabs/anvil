@@ -11,7 +11,11 @@ export const setChain = <T extends boolean | number | string>(
 
   const { [key]: existing } = parent;
 
-  if (length > 1 && typeof existing === 'object' && existing !== null) {
+  if (
+    length > 1 &&
+    (existing === undefined ||
+      (typeof existing === 'object' && existing !== null))
+  ) {
     parent[key] = setChain(chain.slice(1), value, existing);
   } else {
     parent[key] = value;
