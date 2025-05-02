@@ -1,3 +1,5 @@
+export * from './sqlDrLinked';
+export * from './sqlDrLinks';
 export * from './sqlFiles';
 export * from './sqlHosts';
 export * from './sqlIfaceAlias';
