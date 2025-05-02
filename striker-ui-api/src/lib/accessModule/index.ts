@@ -17,6 +17,7 @@ export * from './getUpsSpec';
 export * from './getVncInfo';
 export * from './instance';
 export * from './job';
+export * from './jobDone';
 export * from './listNicModels';
 export * from './mutateData';
 export * from './query';
