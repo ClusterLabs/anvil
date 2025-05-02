@@ -22,7 +22,10 @@ export const sqlDrLinked = (anvilUuid: string, sqlHostUuids: string) => {
     WHERE
         a.host_type = 'dr'
       AND
-        a.host_uuid IN (${sqlHostUuids});`;
+        a.host_uuid IN (${sqlHostUuids})
+    GROUP BY
+      a.host_uuid,
+      b.dr_link_uuid;`;
 
   return sql;
 };
