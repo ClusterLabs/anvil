@@ -192,7 +192,7 @@ export const buildHostDetailList = async ({
         a.network_interface_bridge_uuid,
         c.bond_bridge_uuid
       )
-    LEFT JOIN (${sqlIpAddresses()}) as e
+    LEFT JOIN (${sqlIpAddresses()}) AS e
       ON e.ip_address_on_uuid IN (
         a.network_interface_uuid,
         c.bond_uuid,

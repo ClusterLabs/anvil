@@ -172,8 +172,8 @@ export const getProvisionServerResources: RequestHandler<
     ) AS s
     WHERE
       s.server_name NOT IN (
-        SELECT server_name
-        FROM (${sqlServers()})
+        SELECT s1.server_name
+        FROM (${sqlServers()}) AS s1
       );`;
 
   const promises = [

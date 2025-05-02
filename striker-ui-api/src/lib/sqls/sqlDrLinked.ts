@@ -34,9 +34,9 @@ export const sqlDrLinkedFromVg = (anvilUuid: string, lvmVgUuids: string[]) => {
   });
 
   const sqlHostUuids = `
-    SELECT scan_lvm_vg_host_uuid
-    FROM (${sqlScanLvmVgs()})
-    WHERE scan_lvm_vg_internal_uuid IN (${lvmVgUuidsCsv})`;
+    SELECT a.scan_lvm_vg_host_uuid
+    FROM (${sqlScanLvmVgs()}) AS a
+    WHERE a.scan_lvm_vg_internal_uuid IN (${lvmVgUuidsCsv})`;
 
   const sql = sqlDrLinked(anvilUuid, sqlHostUuids);
 
