@@ -3,6 +3,7 @@ import { RequestHandler } from 'express';
 import { SERVER_PATHS } from '../../consts';
 
 import { job } from '../../accessModule';
+import { linkDrFrom } from '../../drLink';
 import { Responder } from '../../Responder';
 import { createAnvilStorageGroupRequestBodySchema } from './schemas';
 
@@ -43,8 +44,8 @@ export const createAnvilStorageGroup: RequestHandler<
     await job({
       file: __filename,
       job_command: [command, ...commandCommonArgs].join(' '),
-      job_name: `storage-group::add`,
       job_description: 'job_0532',
+      job_name: `storage-group::add`,
       job_title: 'job_0531',
     });
   } catch (error) {
@@ -60,7 +61,18 @@ export const createAnvilStorageGroup: RequestHandler<
     return respond.s201();
   }
 
-  // 2: add each member to the empty storage group
+  // 2: try to link dr host(s) if we're adding vg(s) from dr host(s)
+
+  try {
+    linkDrFrom(anvilUuid, { lvmVgUuids });
+  } catch (error) {
+    return respond.s500(
+      '0ec003b',
+      `Failed to link DR host(s); CAUSE: ${error}`,
+    );
+  }
+
+  // 3: add each member to the empty storage group
 
   for (const lvmVgUuid of lvmVgUuids) {
     try {
@@ -72,8 +84,8 @@ export const createAnvilStorageGroup: RequestHandler<
           '--member',
           `'${lvmVgUuid}'`,
         ].join(' '),
-        job_name: `storage-group-member::add::${lvmVgUuid}`,
         job_description: 'job_0534',
+        job_name: `storage-group-member::add::${lvmVgUuid}`,
         job_title: 'job_0533',
       });
     } catch (error) {
