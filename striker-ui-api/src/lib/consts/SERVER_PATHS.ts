@@ -43,6 +43,7 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'anvil-join-anvil': {},
       'anvil-migrate-server': {},
       'anvil-manage-alerts': {},
+      'anvil-manage-dr': {},
       'anvil-manage-keys': {},
       'anvil-manage-power': {},
       'anvil-manage-server': {},
