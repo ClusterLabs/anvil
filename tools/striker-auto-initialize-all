@@ -496,7 +496,6 @@ sub run_manifests
 		my $manifest_name   = $anvil->data->{process}{anvil}{$anvil_number}{manifest_name};
 		my $node1_host_uuid = $anvil->data->{process}{anvil}{$anvil_number}{node1}{host_uuid};
 		my $node2_host_uuid = $anvil->data->{process}{anvil}{$anvil_number}{node2}{host_uuid};
-		my $dr1_host_uuid   = exists $anvil->data->{process}{anvil}{$anvil_number}{dr1}{host_uuid} ? $anvil->data->{process}{anvil}{$anvil_number}{dr1}{host_uuid} : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			's1:anvil_number'    => $anvil_number, 
 			's2:anvil_name'      => $anvil_name, 
@@ -504,7 +503,6 @@ sub run_manifests
 			's4:manifest_uuid'   => $manifest_uuid, 
 			's5:node1_host_uuid' => $node1_host_uuid, 
 			's6:node2_host_uuid' => $node2_host_uuid, 
-			's7:dr1_host_uuid'   => $dr1_host_uuid, 
 		}});
 		
 		my ($anvil_uuid) = $anvil->Database->insert_or_update_anvils({
@@ -514,7 +512,6 @@ sub run_manifests
 			anvil_password        => $anvil->data->{base}{password}{desired}, 
 			anvil_node1_host_uuid => $node1_host_uuid, 
 			anvil_node2_host_uuid => $node2_host_uuid, 
-			anvil_dr1_host_uuid   => $dr1_host_uuid, 
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0258", variables => {
@@ -558,27 +555,6 @@ sub run_manifests
 			job_uuid     => $node2_job_uuid, 
 		}});
 		push @{$job_uuids}, $node2_job_uuid;
-		
-		if ($dr1_host_uuid)
-		{
-			my ($dr1_job_uuid) = $anvil->Database->insert_or_update_jobs({
-				job_host_uuid   => $dr1_host_uuid, 
-				job_command     => $anvil->data->{path}{exe}{'anvil-join-anvil'}.$anvil->Log->switches, 
-				job_data        => "as_machine=dr1,manifest_uuid=".$manifest_uuid.",anvil_uuid=".$anvil_uuid, 
-				job_name        => "join_anvil::dr1", 
-				job_title       => "job_0072", 
-				job_description => "job_0073", 
-				job_progress    => 0,
-			});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr1_job_uuid => $dr1_job_uuid }});
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0259", variables => {
-				machine_name => "dr1",
-				anvil_name   => $anvil_name, 
-				host_uuid    => $dr1_host_uuid, 
-				job_uuid     => $dr1_job_uuid, 
-			}});
-			push @{$job_uuids}, $dr1_job_uuid;
-		}
 	}
 	
 	update_progress($anvil, 90, "job_0257");
@@ -809,10 +785,9 @@ sub initialize_machines
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0253"});
 	
 	# Now wait until all machines are in the database.
-	my $waiting = 1;
+	my $waiting         = 1;
 	my $node1_host_uuid = "";
 	my $node2_host_uuid = "";
-	my $dr1_host_uuid   = "";
 	while($waiting)
 	{
 		$waiting = 0;
@@ -971,140 +946,136 @@ sub create_manifest
 			}});
 		}
 		
-		foreach my $machine_type ("node", "dr")
+		foreach my $machine_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{node}})
 		{
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_type => $machine_type }});
-			foreach my $machine_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}})
+			my $machine = "node".$machine_number;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				machine        => $machine, 
+				machine_number => $machine_number,
+			}});
+			
+			$anvil->data->{cgi}{bcn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{bcn}};
+			$anvil->data->{cgi}{sn_count}{value}  = keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{sn}};
+			$anvil->data->{cgi}{ifn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{ifn}};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value}, 
+				"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value}, 
+				"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value}, 
+			}});
+			
+			# The machine might already be initialized, so we'll look in our database for
+			# any entries ith the same MAC addresses. If none are found, we'll wait to 
+			# ping it on the startup IP and then initialize it.
+			my $machine_host_uuid = "";
+			my $machine_ips       = [];
+			my $startup_ip        = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{startup_ip};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_ip => $startup_ip }});
+			
+			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}})
 			{
-				my $machine = $machine_type.$machine_number;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					machine        => $machine, 
-					machine_number => $machine_number,
-				}});
-				
-				$anvil->data->{cgi}{bcn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{bcn}};
-				$anvil->data->{cgi}{sn_count}{value}  = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{sn}};
-				$anvil->data->{cgi}{ifn_count}{value} = keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{ifn}};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"cgi::bcn_count::value" => $anvil->data->{cgi}{bcn_count}{value}, 
-					"cgi::sn_count::value"  => $anvil->data->{cgi}{sn_count}{value}, 
-					"cgi::ifn_count::value" => $anvil->data->{cgi}{ifn_count}{value}, 
-				}});
-				
-				# The machine might already be initialized, so we'll look in our database for
-				# any entries ith the same MAC addresses. If none are found, we'll wait to 
-				# ping it on the startup IP and then initialize it.
-				my $machine_host_uuid = "";
-				my $machine_ips       = [];
-				my $startup_ip        = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{startup_ip};
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { startup_ip => $startup_ip }});
-				
-				foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}})
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
+				foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}})
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
-					foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}})
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_number => $network_number }});
+					
+					my $ip_address  = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}{$network_number}{ip};
+					my $subnet_mask = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}{$network_number}{subnet_mask};
+					my $link1_mac   = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
+					my $link2_mac   = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}{$network_number}{'link'}{2}{mac};
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						's1:ip_address'  => $ip_address, 
+						's2:subnet_mask' => $subnet_mask, 
+						's3:link1_mac'   => $link1_mac, 
+						's4:link2_mac'   => $link2_mac,
+					}});
+					push @{$machine_ips}, $ip_address."/".$subnet_mask;
+					
+					if (not $machine_host_uuid)
 					{
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network_number => $network_number }});
-						
-						my $ip_address  = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{ip};
-						my $subnet_mask = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{subnet_mask};
-						my $link1_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{1}{mac};
-						my $link2_mac   = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{'link'}{2}{mac};
+						$machine_host_uuid = get_host_uuid_from_mac($anvil, $link1_mac);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+					}
+					if (not $machine_host_uuid)
+					{
+						$machine_host_uuid = get_host_uuid_from_mac($anvil, $link2_mac);
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
+					}
+					
+					my $network_name = $network.$network_number;
+					my $network_key  = $network_name."_network";
+					my $subnet_key   = $network_name."_subnet";
+					my $gateway_key  = $network_name."_gateway";
+					my $ip_key       = $machine."_".$network_name."_ip";
+					$anvil->data->{cgi}{$network_key}{value} = $anvil->Network->get_network({ip => $ip_address, subnet_mask => $subnet_mask});
+					$anvil->data->{cgi}{$subnet_key}{value}  = $subnet_mask;
+					$anvil->data->{cgi}{$gateway_key}{value} = $anvil->data->{base}{gateway_network} eq $network_name ? $anvil->data->{base}{gateway} : "";
+					$anvil->data->{cgi}{$ip_key}{value}      = $ip_address;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value}, 
+						"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value}, 
+						"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value}, 
+						"cgi::${ip_key}::value"      => $anvil->data->{cgi}{$ip_key}{value}, 
+					}});
+					
+					if ($network_name eq "bcn1")
+					{
+						my $ipmi_ip_key                             = $machine."_ipmi_ip";
+						   $anvil->data->{cgi}{$ipmi_ip_key}{value} = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{network}{$network}{$network_number}{ipmi_ip};
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:ip_address'  => $ip_address, 
-							's2:subnet_mask' => $subnet_mask, 
-							's3:link1_mac'   => $link1_mac, 
-							's4:link2_mac'   => $link2_mac,
-						}});
-						push @{$machine_ips}, $ip_address."/".$subnet_mask;
-						
-						if (not $machine_host_uuid)
-						{
-							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link1_mac);
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
-						}
-						if (not $machine_host_uuid)
-						{
-							$machine_host_uuid = get_host_uuid_from_mac($anvil, $link2_mac);
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { machine_host_uuid => $machine_host_uuid }});
-						}
-						
-						my $network_name = $network.$network_number;
-						my $network_key  = $network_name."_network";
-						my $subnet_key   = $network_name."_subnet";
-						my $gateway_key  = $network_name."_gateway";
-						my $ip_key       = $machine."_".$network_name."_ip";
-						$anvil->data->{cgi}{$network_key}{value} = $anvil->Network->get_network({ip => $ip_address, subnet_mask => $subnet_mask});
-						$anvil->data->{cgi}{$subnet_key}{value}  = $subnet_mask;
-						$anvil->data->{cgi}{$gateway_key}{value} = $anvil->data->{base}{gateway_network} eq $network_name ? $anvil->data->{base}{gateway} : "";
-						$anvil->data->{cgi}{$ip_key}{value}      = $ip_address;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"cgi::${network_key}::value" => $anvil->data->{cgi}{$network_key}{value}, 
-							"cgi::${subnet_key}::value"  => $anvil->data->{cgi}{$subnet_key}{value}, 
-							"cgi::${gateway_key}::value" => $anvil->data->{cgi}{$gateway_key}{value}, 
-							"cgi::${ip_key}::value"      => $anvil->data->{cgi}{$ip_key}{value}, 
+							"cgi::${ipmi_ip_key}::value" => $anvil->data->{cgi}{$ipmi_ip_key}{value}, 
 						}});
 						
-						if ($network_name eq "bcn1")
+						### Find the UPSes.
+						# Preset all known UPSes to not used
+						foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
 						{
-							my $ipmi_ip_key                             = $machine."_ipmi_ip";
-							   $anvil->data->{cgi}{$ipmi_ip_key}{value} = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}{$network_number}{ipmi_ip};
+							my $ups_key                             = $machine."_ups_".$ups_name;
+							   $anvil->data->{cgi}{$ups_key}{value} = "";
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								"cgi::${ipmi_ip_key}::value" => $anvil->data->{cgi}{$ipmi_ip_key}{value}, 
+								"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
+							}});
+						}
+						# Now flip on the ones configured for use
+						foreach my $ups_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{ups}})
+						{
+							my $ups_name = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{ups}{$ups_number}{name};
+							my $ups_key  = $machine."_ups_".$ups_name;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								ups_number => $ups_number,
+								ups_name   => $ups_name,
 							}});
 							
-							### Find the UPSes.
-							# Preset all known UPSes to not used
-							foreach my $ups_name (sort {$a cmp $b} keys %{$anvil->data->{upses}{ups_name}})
-							{
-								my $ups_key                             = $machine."_ups_".$ups_name;
-								   $anvil->data->{cgi}{$ups_key}{value} = "";
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
-								}});
-							}
-							# Now flip on the ones configured for use
-							foreach my $ups_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{ups}})
-							{
-								my $ups_name = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{ups}{$ups_number}{name};
-								my $ups_key  = $machine."_ups_".$ups_name;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									ups_number => $ups_number,
-									ups_name   => $ups_name,
-								}});
-								
-								$anvil->data->{cgi}{$ups_key}{value} = 1;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
-								}});
-							}
+							$anvil->data->{cgi}{$ups_key}{value} = 1;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"cgi::${ups_key}::value" => $anvil->data->{cgi}{$ups_key}{value}, 
+							}});
+						}
+						
+						### Find the Fence devices.
+						# Preset all known fence devices to have no port.
+						foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
+						{
+							my $fence_key                             = $machine."_fence_".$fence_name;
+							   $anvil->data->{cgi}{$fence_key}{value} = "" if not defined $anvil->data->{cgi}{$fence_key}{value};
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
+							}});
+						}
+						foreach my $fence_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{fence}})
+						{
+							my $fence_name = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{fence}{$fence_number}{name};
+							my $fence_port = $anvil->data->{anvil}{$anvil_number}{node}{$machine_number}{fence}{$fence_number}{port};
+							my $fence_key  = $machine."_fence_".$fence_name;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								fence_number => $fence_number,
+								fence_name   => $fence_name,
+								fence_port   => $fence_port,
+							}});
 							
-							### Find the Fence devices.
-							# Preset all known fence devices to have no port.
-							foreach my $fence_name (sort {$a cmp $b} keys %{$anvil->data->{fences}{fence_name}})
-							{
-								my $fence_key                             = $machine."_fence_".$fence_name;
-								   $anvil->data->{cgi}{$fence_key}{value} = "" if not defined $anvil->data->{cgi}{$fence_key}{value};
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
-								}});
-							}
-							foreach my $fence_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}})
-							{
-								my $fence_name = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}{$fence_number}{name};
-								my $fence_port = $anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{fence}{$fence_number}{port};
-								my $fence_key  = $machine."_fence_".$fence_name;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									fence_number => $fence_number,
-									fence_name   => $fence_name,
-									fence_port   => $fence_port,
-								}});
-								
-								$anvil->data->{cgi}{$fence_key}{value} = $fence_port;
-								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-									"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
-								}});
-							}
+							$anvil->data->{cgi}{$fence_key}{value} = $fence_port;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								"cgi::${fence_key}::value" => $anvil->data->{cgi}{$fence_key}{value}, 
+							}});
 						}
 					}
 				}
