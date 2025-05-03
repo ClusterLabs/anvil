@@ -49,7 +49,7 @@ export const sqlDrLinkedFromVg = (anvilUuid: string, lvmVgUuids: string[]) => {
 export const sqlDrLinkedFromSg = (
   anvilUuid: string,
   sgValue: string,
-  sgKey = 'uuid',
+  sgKey: 'name' | 'uuid' = 'uuid',
 ) => {
   const sqlHostUuids = `
     SELECT b.storage_group_member_host_uuid

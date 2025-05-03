@@ -2,7 +2,7 @@ import { SERVER_PATHS } from './consts';
 
 import { job, query } from './accessModule';
 import { buildJobDataFromObject } from './buildJobData';
-import { perr } from './shell';
+import { perr, poutvar } from './shell';
 import { sqlDrLinkedFromSg, sqlDrLinkedFromVg } from './sqls';
 
 export const linkDr = async (
@@ -10,6 +10,15 @@ export const linkDr = async (
   drUuid: string,
   link = true,
 ) => {
+  poutvar(
+    {
+      anvilUuid,
+      drUuid,
+      link,
+    },
+    `In linkDr: `,
+  );
+
   // select link or unlink operation
 
   let operation: 'link' | 'unlink';
@@ -29,8 +38,9 @@ export const linkDr = async (
         'dr-host': drUuid,
         anvil: anvilUuid,
       }),
-      job_name: `dr::${operation}`,
+      job_host_uuid: drUuid,
       job_description: 'job_0384',
+      job_name: `dr::${operation}`,
       job_title: 'job_0385',
     });
   } catch (error) {
@@ -56,6 +66,16 @@ export const linkDrFrom = async (
     sgName?: string;
   } = {},
 ) => {
+  poutvar(
+    {
+      anvilUuid,
+      link,
+      lvmVgUuids,
+      sgName,
+    },
+    `In linkDrFrom: `,
+  );
+
   // get the current link state of the DR host(s)
 
   let rows: string[][];

@@ -57,7 +57,7 @@ export const createAnvilStorageGroup: RequestHandler<
 
   const { add: lvmVgUuids } = body;
 
-  if (!lvmVgUuids) {
+  if (!lvmVgUuids || !lvmVgUuids.length) {
     return respond.s201();
   }
 
