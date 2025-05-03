@@ -65,7 +65,7 @@ export const updateAnvilStorageGroup: RequestHandler<
 
   const { add } = body;
 
-  if (add) {
+  if (add && add.length) {
     try {
       linkDrFrom(anvilUuid, { lvmVgUuids: add });
     } catch (error) {
@@ -101,7 +101,7 @@ export const updateAnvilStorageGroup: RequestHandler<
 
   const { remove } = body;
 
-  if (remove) {
+  if (remove && remove.length) {
     const jobUuids: string[] = [];
 
     for (const lvmVgUuid of remove) {
