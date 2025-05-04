@@ -844,7 +844,7 @@ resource "#!variable!server!#" {
 	on #!variable!node1_short_name!# {
 		node-id 0;
 		volume 0 {
-			device    /dev/drbd_#!variable!server!#_0 minor #!variable!minor!#;
+			device    minor #!variable!minor!#;
 			disk      #!variable!node1_lv_path!#;
 			meta-disk internal;
 		}
@@ -853,7 +853,7 @@ resource "#!variable!server!#" {
 	on #!variable!node2_short_name!# {
 		node-id 1;
 		volume 0 {
-			device    /dev/drbd_#!variable!server!#_0 minor #!variable!minor!#;
+			device    minor #!variable!minor!#;
 			disk      #!variable!node2_lv_path!#;
 			meta-disk internal;
 		}
@@ -1084,7 +1084,7 @@ sys::manage::firewall						=	1
 ]]></key>
 		<key name="file_0004"><![CDATA[
 		volume #!variable!volume!# {
-			device    #!variable!drbd_path!# minor #!variable!minor!#;
+			device    minor #!variable!minor!#;
 			disk      #!variable!lv_path!#;
 			meta-disk #!variable!meta_data!#;
 		}
