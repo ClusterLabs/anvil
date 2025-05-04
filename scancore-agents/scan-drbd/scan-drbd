@@ -89,7 +89,8 @@ if ($anvil->DRBD->gather_data({debug => 2}))
 $problem = $anvil->Storage->manage_lvm_conf({debug => 2});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 
-# TODO: Remove this eventually.
+# TODO: Remove these eventually.
+update_res_files($anvil);
 check_schema($anvil);
 
 read_last_scan($anvil);
@@ -97,8 +98,6 @@ read_last_scan($anvil);
 find_changes($anvil);
 
 check_config($anvil);
-
-find_missing_resources($anvil);
 
 fix_things($anvil);
 
@@ -110,13 +109,65 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 # Functions                                                                                                 #
 #############################################################################################################
 
-# If this node has been rebuilt, we'll need to add missing DRBD resources. This isn't done in 
-# anvil-join-anvil as the backing VG may not show free space if the user simply deleted the '/home' 
-# partition.
-sub find_missing_resources
+# With the deprecation of device fancy names in DRBD resource file's device statements.
+# See: https://github.com/LINBIT/drbd-utils/commit/1678d5fdedb4f38a66b743a27e4b33fedc9d6042
+sub update_res_files
 {
 	my ($anvil) = @_;
 	
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+	{
+		my $config_file = $anvil->data->{new}{resource}{$resource}{config_file};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { config_file => $config_file }});
+		
+		my $valid_file      = 0;
+		my $new_config_body = "";
+		my $old_config_body = $anvil->Storage->read_file({file => $config_file});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { old_config_body => $old_config_body }});
+		foreach my $line (split/\n/, $old_config_body)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /resource "$resource" \{/)
+			{
+				$valid_file = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { valid_file => $valid_file }});
+			}
+			if ($line =~ /device\s+(\/dev\/.*?)\s+minor\s+(\d+);/)
+			{
+				my $device =  $1;
+				     $line =~ s/$device\s+//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:device' => $device,
+					's2:line'   => $line,
+				}});
+			}
+			$new_config_body .= $line."\n";
+		}
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { new_config_body => $new_config_body }});
+		
+		my $difference = diff \$old_config_body, \$new_config_body, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { difference => $difference }});
+		
+		if (($difference) && ($valid_file))
+		{
+			# Update the config.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_drbd_message_0033", variables => {
+				file => $config_file,
+				diff => $difference, 
+			}});
+			
+			$anvil->Storage->write_file({
+				debug     => 3,
+				body      => $new_config_body,
+				file      => $config_file,
+				backup    => 1,
+				overwrite => 1,
+				group     => "root",
+				user      => "root",
+				mode      => "0644",
+			});
+		}
+	}
 	
 	return(0);
 }

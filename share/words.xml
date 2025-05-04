@@ -1067,14 +1067,12 @@ sys::manage::firewall						=	1
 # run '/usr/bin/osinfo-query os' on any machine in the Anvil!. 
 #sys::servers::os_short_list					=	rhel9.4,ubuntu22.04,win10,win2k22
 ]]></key>
-		<key name="file_0003"><![CDATA[
-        on #!variable!short_host_name!# {
+		<key name="file_0003"><![CDATA[        on #!variable!short_host_name!# {
                 node-id #!variable!node_id!#;
 		#!variable!volumes!#
         }
 ]]></key>
-		<key name="file_0004"><![CDATA[
-		volume #!variable!volume!# {
+		<key name="file_0004"><![CDATA[		volume #!variable!volume!# {
 			device    minor #!variable!minor!#;
 			disk      #!variable!lv_path!#;
 			meta-disk #!variable!meta_data!#;
