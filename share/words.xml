@@ -3563,6 +3563,7 @@ proceeding.
 #!variable!difference!#
 ==============</key>
 		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
+		<key name="message_0524">Manually calling 'scan-drbd' to make sure the device path is removed from resource files.</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
