@@ -112,6 +112,23 @@ sub striker_checks
 	return(0);
 }
 
+# Scan scan-drbd to make sure the DRBD resource files device entries have the path removed, which is
+# needed for DRBD 9.2.13
+sub update_resource_files
+{
+	my ($anvil) = @_;
+	
+	my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd";
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 2, key => "message_0524"});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output,
+		return_code => $return_code,
+	}});
+	
+	return(0);
+}
+
 # Check for things that need to happen on Anvil! Subnodes.
 sub node_checks
 {
@@ -119,6 +136,10 @@ sub node_checks
 	
 	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 	handle_bz1961562($anvil);
+	
+	# Scan scan-drbd to make sure the DRBD resource files device entries have the path removed, which is
+	# needed for DRBD 9.2.13
+	update_resource_files($anvil);
 	
 	# Make sure DRBD compiled after a kernel upgrade.
 	$anvil->DRBD->_initialize_kmod({debug => 2});
@@ -137,6 +158,10 @@ sub dr_checks
 	
 	# RHBZ #1961562 - https://bugzilla.redhat.com/show_bug.cgi?id=1961562#c16
 	handle_bz1961562($anvil);
+	
+	# Scan scan-drbd to make sure the DRBD resource files device entries have the path removed, which is
+	# needed for DRBD 9.2.13
+	update_resource_files($anvil);
 	
 	# Make sure DRBD compiled after a kernel upgrade.
 	$anvil->DRBD->_initialize_kmod({debug => 2});

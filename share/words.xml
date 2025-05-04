@@ -3527,6 +3527,8 @@ proceeding.
 		<key name="message_0516">#!variable!timestamp!#; No access! Skipping.</key>
 		<key name="message_0517">[ Note ] - Created the sysctl config file: [#!variable!file!#] to prevent network manager from spamming the terminal at boot.</key>
 
+		<key name="message_0524">Manually calling 'scan-drbd' to make sure the device path is removed from resource files.</key>
+
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
 		<key name="name_0002">Encrypted Password</key>	<!-- encrypted in mail-server -->
