@@ -1,7 +1,6 @@
 import { SERVER_PATHS } from './consts';
 
 import { job, query } from './accessModule';
-import { buildJobDataFromObject } from './buildJobData';
 import { perr, poutvar } from './shell';
 import { sqlDrLinkedFromSg, sqlDrLinkedFromVg } from './sqls';
 
@@ -29,15 +28,20 @@ export const linkDr = async (
     operation = 'unlink';
   }
 
+  const command = SERVER_PATHS.usr.sbin['anvil-manage-dr'].self;
+
+  const commandArgs = [
+    `--${operation}`,
+    '--dr-host',
+    drUuid,
+    '--anvil',
+    anvilUuid,
+  ];
+
   try {
     await job({
       file: __filename,
-      job_command: SERVER_PATHS.usr.sbin['anvil-manage-dr'].self,
-      job_data: buildJobDataFromObject({
-        [operation]: 1,
-        'dr-host': drUuid,
-        anvil: anvilUuid,
-      }),
+      job_command: [command, ...commandArgs].join(' '),
       job_host_uuid: drUuid,
       job_description: 'job_0384',
       job_name: `dr::${operation}`,
