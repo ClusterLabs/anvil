@@ -1172,11 +1172,26 @@ sub handle_links
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 		if ($anvil->data->{switches}{anvil})
 		{
-			print $anvil->Words->string({key => "error_0405", variables => { anvil => $anvil->data->{switches}{anvil} }})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				job_status => "failed",
+				message    => "error_0405",
+				variables  => {
+					anvil  => $anvil->data->{switches}{anvil},
+				},
+			});
 		}
 		else
 		{
-			print $anvil->Words->string({key => "error_0406"})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				job_status => "failed",
+				message    => "error_0406",
+			});
 		}
 		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
 		{
@@ -1200,7 +1215,16 @@ sub handle_links
 				show_hosts => $show_hosts,
 				problem    => $problem,
 			}});
-			print $anvil->Words->string({key => "error_0408", variables => { host => $anvil->data->{switches}{'dr-host'} }})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				job_status => "failed",
+				message    => "error_0408",
+				variables  => {
+					host   => $anvil->data->{switches}{'dr-host'},
+				},
+			});
 		}
 	}
 	else
@@ -1213,11 +1237,26 @@ sub handle_links
 		}});
 		if ($anvil->data->{switches}{anvil})
 		{
-			print "\n".$anvil->Words->string({key => "error_0407", variables => { host => $anvil->data->{switches}{'dr-host'} }})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				job_status => "failed",
+				message    => "error_0407",
+				variables  => {
+					host   => $anvil->data->{switches}{'dr-host'},
+				},
+			});
 		}
 		else
 		{
-			print "\n".$anvil->Words->string({key => "error_0409"})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				job_status => "failed",
+				message    => "error_0409",
+			});
 		}
 	}
 
@@ -1244,7 +1283,13 @@ sub handle_links
 	
 	if ($problem)
 	{
-		print "\n".$anvil->Words->string({key => "error_0410"})."\n";
+		$anvil->Job->update_progress({
+			progress   => $anvil->Job->bump_progress({ steps => 1 }),
+			log_level  => 1,
+			'print'    => 1,
+			job_status => "failed",
+			message    => "error_0410",
+		});
 		foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
 		{
 			my $this_anvil_uuid   = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
@@ -1258,6 +1303,7 @@ sub handle_links
 			}
 		}
 		print "\n";
+		$anvil->Job->update_progress({ progress => 100 });
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1333,10 +1379,16 @@ sub handle_links
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { returned_dr_link_uuid => $returned_dr_link_uuid }});
 		
-		print "\n".$anvil->Words->string({key => "log_0734", variables => {
-			host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
-			anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
-		}})."\n";
+		$anvil->Job->update_progress({
+			progress   => $anvil->Job->bump_progress({ steps => 1 }),
+			log_level  => 1,
+			'print'    => 1,
+			message    => "log_0734",
+			variables  => {
+				host   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
+				anvil  => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+			},
+		});
 	}
 	elsif ($anvil->data->{switches}{'unlink'})
 	{
@@ -1348,20 +1400,33 @@ sub handle_links
 				dr_link_uuid => $dr_link_uuid,
 				'delete'     => 1,
 			});
-			print "\n".$anvil->Words->string({key => "log_0735", variables => {
-				host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{shost_host_name},
-				anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
-			}})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				message    => "log_0735",
+				variables  => {
+					host   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
+					anvil  => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+				},
+			});
 		}
 		else
 		{
 			# Link didn't exist, nothing to unlink.
-			print "\n".$anvil->Words->string({key => "log_0736", variables => {
-				host  => $anvil->data->{hosts}{host_uuid}{$host_uuid}{shost_host_name},
-				anvil => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
-			}})."\n";
+			$anvil->Job->update_progress({
+				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				log_level  => 1,
+				'print'    => 1,
+				message    => "log_0736",
+				variables  => {
+					host   => $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name},
+					anvil  => $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name},
+				},
+			});
 		}
 	}
+	$anvil->Job->update_progress({ progress => 100 });
 	$anvil->nice_exit({exit_code => 0});
 
 	return(0);
