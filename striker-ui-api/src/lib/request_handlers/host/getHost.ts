@@ -4,7 +4,7 @@ import { DELETED } from '../../consts';
 
 import { getLocalHostUUID } from '../../accessModule';
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildHostDetailList } from './buildHostDetail';
+import { buildHostDetailList } from './buildHostDetailList';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
 import { toLocal } from '../../convertHostUUID';
 import { getShortHostName } from '../../disassembleHostName';

@@ -97,6 +97,14 @@ type HostDetailAlt = HostOverviewAlt &
       gatewayInterface: string;
       networks: Record<string, HostNetwork>;
     };
+    storage: {
+      volumeGroups: Record<string, AnvilDetailVolumeGroup>;
+      volumeGroupTotals: {
+        free: string;
+        size: string;
+        used: string;
+      };
+    };
   };
 
 type HostDetailList = Record<string, HostDetailAlt>;

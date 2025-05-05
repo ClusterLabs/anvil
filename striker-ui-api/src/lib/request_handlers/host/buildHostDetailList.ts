@@ -12,6 +12,7 @@ import {
   sqlIfaceAlias,
   sqlIpAddresses,
   sqlNetworkInterfaces,
+  sqlScanLvmVgs,
 } from '../../sqls';
 
 const regexps = {
@@ -141,6 +142,14 @@ export const buildHostDetailList = async ({
       },
       short,
       status,
+      storage: {
+        volumeGroups: {},
+        volumeGroupTotals: {
+          free: '',
+          size: '',
+          used: '',
+        },
+      },
       type,
       uuid,
     };
@@ -366,6 +375,97 @@ export const buildHostDetailList = async ({
   });
 
   poutvar(hosts, 'After getting variables; hosts=');
+
+  const sqlGetVgTotals = `
+    SELECT
+      a.scan_lvm_vg_host_uuid,
+      SUM(a.scan_lvm_vg_free) AS total_free,
+      SUM(a.scan_lvm_vg_size) AS total_size,
+      SUM(
+        a.scan_lvm_vg_size - a.scan_lvm_vg_free
+      ) AS total_used
+    FROM (${sqlScanLvmVgs()}) AS a
+    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+    GROUP BY a.scan_lvm_vg_host_uuid;`;
+
+  try {
+    rows = await query(sqlGetVgTotals);
+  } catch (error) {
+    perr(`Failed to get host volume group totals; CAUSE: ${error}`);
+
+    throw error;
+  }
+
+  rows.forEach((row) => {
+    const [hostUuid, free, size, used] = row;
+
+    const { [hostUuid]: host } = hosts;
+
+    if (!host) {
+      return;
+    }
+
+    host.storage.volumeGroupTotals = {
+      free,
+      size,
+      used,
+    };
+  });
+
+  const sqlGetVgs = `
+    SELECT
+      a.scan_lvm_vg_uuid,
+      a.scan_lvm_vg_host_uuid,
+      a.scan_lvm_vg_internal_uuid,
+      a.scan_lvm_vg_name,
+      a.scan_lvm_vg_size,
+      a.scan_lvm_vg_free
+    FROM (${sqlScanLvmVgs()}) AS a
+    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+    ORDER BY a.scan_lvm_vg_name;`;
+
+  try {
+    rows = await query(sqlGetVgs);
+  } catch (error) {
+    perr(`Failed to get host volume groups; CAUSE: ${error}`);
+
+    throw error;
+  }
+
+  rows.forEach((row) => {
+    const [uuid, hostUuid, internalUuid, name, size, free] = row;
+
+    let vgnUsed: bigint;
+
+    try {
+      const vgnFree = BigInt(free);
+      const vgnSize = BigInt(size);
+
+      vgnUsed = vgnSize - vgnFree;
+    } catch (error) {
+      perr(
+        `Failed to calculate host volume group sizes, skipping; CAUSE: ${error}`,
+      );
+
+      return;
+    }
+
+    const { [hostUuid]: host } = hosts;
+
+    if (!host) {
+      return;
+    }
+
+    host.storage.volumeGroups[uuid] = {
+      free,
+      host: hostUuid,
+      internalUuid,
+      name,
+      size,
+      used: String(vgnUsed),
+      uuid,
+    };
+  });
 
   return hosts;
 };

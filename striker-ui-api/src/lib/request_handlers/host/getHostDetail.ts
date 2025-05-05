@@ -1,7 +1,7 @@
 import { RequestHandler } from 'express';
 
 import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildHostDetailList } from './buildHostDetail';
+import { buildHostDetailList } from './buildHostDetailList';
 import { buildQueryHostDetail } from './buildQueryHostDetail';
 import { toHostUUID } from '../../convertHostUUID';
 import { Responder } from '../../Responder';
