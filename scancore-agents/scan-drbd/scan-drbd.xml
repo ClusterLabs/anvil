@@ -133,7 +133,12 @@ The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] 
 Note: The fencing policy 'resource-and-stonith' must always be used between nodes. The fencing policy 'dont-care' must be used between nodes and DR hosts.
 		</key>
 		<key name="scan_drbd_message_0032">The resource: [#!variable!resource_name!#] volume: [#!variable!volume_number!#] peer: [#!variable!peer_name!#] has been deleted.</key>
-		<key name="scan_drbd_message_0033">#!free!#</key>
+		<key name="scan_drbd_message_0033">
+Updating the resource file: [#!variable!file!#] to remove the 'device' path. The difference is:
+====
+#!variable!diff!#
+====
+		</key>
 		<key name="scan_drbd_message_0034">
 The global common configuration file: [#!variable!file!#] needs to be updated. The difference is:
 ====
