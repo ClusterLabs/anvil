@@ -124,7 +124,7 @@ export const getProvisionServerResources: RequestHandler<
       b.anvil_uuid,
       a.host_uuid,
       a.host_name,
-      SUBSTRING(a.host_name, '^([^.]+)') AS short_host_name,
+      a.host_short_name,
       c.scan_hardware_cpu_cores,
       c.scan_hardware_ram_total
     FROM (${sqlHosts()}) AS a
