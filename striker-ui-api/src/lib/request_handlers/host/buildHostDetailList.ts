@@ -16,6 +16,7 @@ import {
   sqlScanDrbdResources,
   sqlScanDrbdVolumes,
   sqlScanLvmVgs,
+  sqlServers,
 } from '../../sqls';
 
 const regexps = {
@@ -143,6 +144,11 @@ export const buildHostDetailList = async ({
         gateway: '',
         gatewayInterface: '',
         networks: {},
+      },
+      servers: {
+        configured: {},
+        replicating: {},
+        running: {},
       },
       short,
       status,
@@ -387,12 +393,21 @@ export const buildHostDetailList = async ({
       a.scan_drbd_resource_name,
       c.scan_drbd_peer_connection_state,
       c.scan_drbd_peer_local_disk_state,
-      c.scan_drbd_peer_estimated_time_to_sync
+      c.scan_drbd_peer_estimated_time_to_sync,
+      d.server_uuid,
+      a.scan_drbd_resource_xml LIKE CONCAT(
+        '%', e.host_short_name, '%'
+      ) AS configured,
+      d.server_host_uuid = a.scan_drbd_resource_host_uuid AS running
     FROM (${sqlScanDrbdResources()}) AS a
     LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
       ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
     LEFT JOIN (${sqlScanDrbdPeers()}) AS c
       ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
+    LEFT JOIN (${sqlServers()}) AS d
+      ON d.server_name = a.scan_drbd_resource_name
+    LEFT JOIN (${sqlHosts()}) AS e
+      ON e.host_uuid = a.scan_drbd_resource_host_uuid
     WHERE a.scan_drbd_resource_host_uuid IN (${hostUuidsCsv})
     ORDER BY a.scan_drbd_resource_name;`;
 
@@ -412,6 +427,9 @@ export const buildHostDetailList = async ({
       connectionState,
       localDiskState,
       estimatedTimeToSync,
+      serverUuid,
+      configured,
+      running,
     ] = row;
 
     const { [hostUuid]: host } = hosts;
@@ -431,6 +449,23 @@ export const buildHostDetailList = async ({
       },
       uuid: resourceUuid,
     };
+
+    if (!serverUuid) {
+      return;
+    }
+
+    const server: HostServer = {
+      name: resourceName,
+      uuid: serverUuid,
+    };
+
+    if (configured) {
+      host.servers.configured[serverUuid] = server;
+    }
+
+    if (running) {
+      host.servers.running[serverUuid] = server;
+    }
   });
 
   const sqlGetVgTotals = `

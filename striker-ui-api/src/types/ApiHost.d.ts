@@ -88,6 +88,11 @@ type HostNetwork = Tree<number | string> & {
   type: string;
 };
 
+type HostServer = {
+  name: string;
+  uuid: string;
+};
+
 type HostDetailAlt = HostOverviewAlt &
   Tree<boolean | string> & {
     drbdResources: Record<string, AnvilHostDrbdResource>;
@@ -97,6 +102,11 @@ type HostDetailAlt = HostOverviewAlt &
       gateway: string;
       gatewayInterface: string;
       networks: Record<string, HostNetwork>;
+    };
+    servers: {
+      configured: Record<string, HostServer>;
+      replicating: Record<string, HostServer>;
+      running: Record<string, HostServer>;
     };
     storage: {
       volumeGroups: Record<string, AnvilDetailVolumeGroup>;
