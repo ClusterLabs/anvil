@@ -87,7 +87,7 @@ export const buildHostDetailList = async ({
     });
   }
 
-  let rows: string[][];
+  let hostRows: string[][];
 
   const sqlGetHosts = `
     SELECT
@@ -110,7 +110,7 @@ export const buildHostDetailList = async ({
       a.host_name;`;
 
   try {
-    rows = await query(sqlGetHosts);
+    hostRows = await query(sqlGetHosts);
   } catch (error) {
     perr(`Failed to get host(s); CAUSE: ${error}`);
 
@@ -119,7 +119,7 @@ export const buildHostDetailList = async ({
 
   const hosts: HostDetailList = {};
 
-  rows.forEach((row) => {
+  hostRows.forEach((row) => {
     const [
       uuid,
       name,
@@ -177,6 +177,12 @@ export const buildHostDetailList = async ({
 
   poutvar(hosts, 'After getting hosts; hosts=');
 
+  const hostUuids = Object.keys(hosts);
+
+  if (!hostUuids.length) {
+    return hosts;
+  }
+
   const hostUuidsCsv = join(Object.keys(hosts), {
     elementWrapper: "'",
     separator: ', ',
@@ -220,17 +226,107 @@ export const buildHostDetailList = async ({
     WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
     ORDER BY b.network_interface_alias;`;
 
+  const sqlGetVariables = `
+    SELECT
+      a.variable_source_uuid,
+      a.variable_name,
+      a.variable_value,
+      b.network_interface_uuid
+    FROM variables AS a
+    LEFT JOIN (${sqlNetworkInterfaces()}) AS b
+      ON b.network_interface_mac_address = a.variable_value
+    WHERE
+        a.variable_source_uuid IN (${hostUuidsCsv})
+      AND
+        a.variable_name LIKE ANY (
+          ARRAY[
+            'form::config_step%',
+            'install-target::enabled',
+            'system::configured'
+          ]
+        )
+      AND
+        a.variable_name NOT LIKE ANY (
+          ARRAY[
+            '%host_name%'
+          ]
+        )
+    ORDER BY
+      a.variable_name;`;
+
+  const sqlGetDrbdResources = `
+    SELECT
+      a.scan_drbd_resource_uuid,
+      a.scan_drbd_resource_host_uuid,
+      a.scan_drbd_resource_name,
+      c.scan_drbd_peer_connection_state,
+      c.scan_drbd_peer_local_disk_state,
+      c.scan_drbd_peer_estimated_time_to_sync,
+      d.server_uuid,
+      a.scan_drbd_resource_xml LIKE CONCAT(
+        '%', e.host_short_name, '%'
+      ) AS configured,
+      d.server_host_uuid = a.scan_drbd_resource_host_uuid AS running
+    FROM (${sqlScanDrbdResources()}) AS a
+    LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
+      ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
+    LEFT JOIN (${sqlScanDrbdPeers()}) AS c
+      ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
+    LEFT JOIN (${sqlServers()}) AS d
+      ON d.server_name = a.scan_drbd_resource_name
+    LEFT JOIN (${sqlHosts()}) AS e
+      ON e.host_uuid = a.scan_drbd_resource_host_uuid
+    WHERE a.scan_drbd_resource_host_uuid IN (${hostUuidsCsv})
+    ORDER BY a.scan_drbd_resource_name;`;
+
+  const sqlGetVgTotals = `
+    SELECT
+      a.scan_lvm_vg_host_uuid,
+      SUM(a.scan_lvm_vg_free) AS total_free,
+      SUM(a.scan_lvm_vg_size) AS total_size,
+      SUM(
+        a.scan_lvm_vg_size - a.scan_lvm_vg_free
+      ) AS total_used
+    FROM (${sqlScanLvmVgs()}) AS a
+    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+    GROUP BY a.scan_lvm_vg_host_uuid;`;
+
+  const sqlGetVgs = `
+    SELECT
+      a.scan_lvm_vg_uuid,
+      a.scan_lvm_vg_host_uuid,
+      a.scan_lvm_vg_internal_uuid,
+      a.scan_lvm_vg_name,
+      a.scan_lvm_vg_size,
+      a.scan_lvm_vg_free
+    FROM (${sqlScanLvmVgs()}) AS a
+    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
+    ORDER BY a.scan_lvm_vg_name;`;
+
+  const promises = [
+    sqlGetIfaces,
+    sqlGetVariables,
+    sqlGetDrbdResources,
+    sqlGetVgTotals,
+    sqlGetVgs,
+  ].map<Promise<string[][]>>((sql) => query(sql));
+
+  let results: string[][][];
+
   try {
-    rows = await query(sqlGetIfaces);
+    results = await Promise.all(promises);
   } catch (error) {
-    perr(`Failed to get host interface(s); CAUSE: ${error}`);
+    perr(`Failed to get host detail data; CAUSE: ${error}`);
 
     throw error;
   }
 
+  const [ifaceRows, variableRows, drbdResourceRows, vgTotalRows, vgRows] =
+    results;
+
   const counts: Record<string, number> = {};
 
-  rows.forEach((row) => {
+  ifaceRows.forEach((row) => {
     const [
       uuid,
       hostUuid,
@@ -286,43 +382,7 @@ export const buildHostDetailList = async ({
 
   poutvar(hosts, 'After getting network interfaces; hosts=');
 
-  const sqlGetVariables = `
-    SELECT
-      a.variable_source_uuid,
-      a.variable_name,
-      a.variable_value,
-      b.network_interface_uuid
-    FROM variables AS a
-    LEFT JOIN (${sqlNetworkInterfaces()}) AS b
-      ON b.network_interface_mac_address = a.variable_value
-    WHERE
-        a.variable_source_uuid IN (${hostUuidsCsv})
-      AND
-        a.variable_name LIKE ANY (
-          ARRAY[
-            'form::config_step%',
-            'install-target::enabled',
-            'system::configured'
-          ]
-        )
-      AND
-        a.variable_name NOT LIKE ANY (
-          ARRAY[
-            '%host_name%'
-          ]
-        )
-    ORDER BY
-      a.variable_name;`;
-
-  try {
-    rows = await query(sqlGetVariables);
-  } catch (error) {
-    perr(`Failed to get host variable(s); CAUSE: ${error}`);
-
-    throw error;
-  }
-
-  rows.forEach((row) => {
+  variableRows.forEach((row) => {
     const [hostUuid = '', name, original, ifaceUuid] = row;
 
     const { [hostUuid]: host } = hosts;
@@ -386,40 +446,7 @@ export const buildHostDetailList = async ({
 
   poutvar(hosts, 'After getting variables; hosts=');
 
-  const sqlGetDrbdResources = `
-    SELECT
-      a.scan_drbd_resource_uuid,
-      a.scan_drbd_resource_host_uuid,
-      a.scan_drbd_resource_name,
-      c.scan_drbd_peer_connection_state,
-      c.scan_drbd_peer_local_disk_state,
-      c.scan_drbd_peer_estimated_time_to_sync,
-      d.server_uuid,
-      a.scan_drbd_resource_xml LIKE CONCAT(
-        '%', e.host_short_name, '%'
-      ) AS configured,
-      d.server_host_uuid = a.scan_drbd_resource_host_uuid AS running
-    FROM (${sqlScanDrbdResources()}) AS a
-    LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
-      ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
-    LEFT JOIN (${sqlScanDrbdPeers()}) AS c
-      ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
-    LEFT JOIN (${sqlServers()}) AS d
-      ON d.server_name = a.scan_drbd_resource_name
-    LEFT JOIN (${sqlHosts()}) AS e
-      ON e.host_uuid = a.scan_drbd_resource_host_uuid
-    WHERE a.scan_drbd_resource_host_uuid IN (${hostUuidsCsv})
-    ORDER BY a.scan_drbd_resource_name;`;
-
-  try {
-    rows = await query(sqlGetDrbdResources);
-  } catch (error) {
-    perr(`Failed to get host DRBD resources; CAUSE: ${error}`);
-
-    throw error;
-  }
-
-  rows.forEach((row) => {
+  drbdResourceRows.forEach((row) => {
     const [
       resourceUuid,
       hostUuid,
@@ -468,27 +495,7 @@ export const buildHostDetailList = async ({
     }
   });
 
-  const sqlGetVgTotals = `
-    SELECT
-      a.scan_lvm_vg_host_uuid,
-      SUM(a.scan_lvm_vg_free) AS total_free,
-      SUM(a.scan_lvm_vg_size) AS total_size,
-      SUM(
-        a.scan_lvm_vg_size - a.scan_lvm_vg_free
-      ) AS total_used
-    FROM (${sqlScanLvmVgs()}) AS a
-    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
-    GROUP BY a.scan_lvm_vg_host_uuid;`;
-
-  try {
-    rows = await query(sqlGetVgTotals);
-  } catch (error) {
-    perr(`Failed to get host volume group totals; CAUSE: ${error}`);
-
-    throw error;
-  }
-
-  rows.forEach((row) => {
+  vgTotalRows.forEach((row) => {
     const [hostUuid, free, size, used] = row;
 
     const { [hostUuid]: host } = hosts;
@@ -504,27 +511,7 @@ export const buildHostDetailList = async ({
     };
   });
 
-  const sqlGetVgs = `
-    SELECT
-      a.scan_lvm_vg_uuid,
-      a.scan_lvm_vg_host_uuid,
-      a.scan_lvm_vg_internal_uuid,
-      a.scan_lvm_vg_name,
-      a.scan_lvm_vg_size,
-      a.scan_lvm_vg_free
-    FROM (${sqlScanLvmVgs()}) AS a
-    WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
-    ORDER BY a.scan_lvm_vg_name;`;
-
-  try {
-    rows = await query(sqlGetVgs);
-  } catch (error) {
-    perr(`Failed to get host volume groups; CAUSE: ${error}`);
-
-    throw error;
-  }
-
-  rows.forEach((row) => {
+  vgRows.forEach((row) => {
     const [uuid, hostUuid, internalUuid, name, size, free] = row;
 
     let vgnUsed: bigint;
