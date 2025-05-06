@@ -12,6 +12,9 @@ import {
   sqlIfaceAlias,
   sqlIpAddresses,
   sqlNetworkInterfaces,
+  sqlScanDrbdPeers,
+  sqlScanDrbdResources,
+  sqlScanDrbdVolumes,
   sqlScanLvmVgs,
 } from '../../sqls';
 
@@ -132,6 +135,7 @@ export const buildHostDetailList = async ({
 
     const host: HostDetailAlt = {
       configured: false,
+      drbdResources: {},
       ipmi,
       name,
       netconf: {
@@ -375,6 +379,59 @@ export const buildHostDetailList = async ({
   });
 
   poutvar(hosts, 'After getting variables; hosts=');
+
+  const sqlGetDrbdResources = `
+    SELECT
+      a.scan_drbd_resource_uuid,
+      a.scan_drbd_resource_host_uuid,
+      a.scan_drbd_resource_name,
+      c.scan_drbd_peer_connection_state,
+      c.scan_drbd_peer_local_disk_state,
+      c.scan_drbd_peer_estimated_time_to_sync
+    FROM (${sqlScanDrbdResources()}) AS a
+    LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
+      ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
+    LEFT JOIN (${sqlScanDrbdPeers()}) AS c
+      ON c.scan_drbd_peer_scan_drbd_volume_uuid = b.scan_drbd_volume_uuid
+    WHERE a.scan_drbd_resource_host_uuid IN (${hostUuidsCsv})
+    ORDER BY a.scan_drbd_resource_name;`;
+
+  try {
+    rows = await query(sqlGetDrbdResources);
+  } catch (error) {
+    perr(`Failed to get host DRBD resources; CAUSE: ${error}`);
+
+    throw error;
+  }
+
+  rows.forEach((row) => {
+    const [
+      resourceUuid,
+      hostUuid,
+      resourceName,
+      connectionState,
+      localDiskState,
+      estimatedTimeToSync,
+    ] = row;
+
+    const { [hostUuid]: host } = hosts;
+
+    if (!host) {
+      return;
+    }
+
+    host.drbdResources[resourceUuid] = {
+      connection: {
+        state: connectionState,
+      },
+      name: resourceName,
+      replication: {
+        estimatedTimeToSync: Number(estimatedTimeToSync),
+        state: localDiskState,
+      },
+      uuid: resourceUuid,
+    };
+  });
 
   const sqlGetVgTotals = `
     SELECT

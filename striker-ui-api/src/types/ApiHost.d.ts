@@ -90,6 +90,7 @@ type HostNetwork = Tree<number | string> & {
 
 type HostDetailAlt = HostOverviewAlt &
   Tree<boolean | string> & {
+    drbdResources: Record<string, AnvilHostDrbdResource>;
     ipmi: HostIpmi;
     netconf: {
       dns: string;
