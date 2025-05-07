@@ -73,11 +73,21 @@ const setvarParams: Record<
 };
 
 export const buildHostDetailList = async ({
+  types = [],
   uuids = [],
 }: {
+  types?: string[];
   uuids?: string[];
 } = {}): Promise<HostDetailList> => {
   let conditions = 'TRUE';
+
+  if (types.length) {
+    conditions += join(types, {
+      beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
+      elementWrapper: "'",
+      separator: ', ',
+    });
+  }
 
   if (uuids.length) {
     conditions += join(uuids, {
