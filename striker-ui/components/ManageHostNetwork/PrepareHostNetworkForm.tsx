@@ -18,7 +18,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const buildFormikInitialValues = (
   detail: APIHostDetail,
 ): PrepareHostNetworkFormikValues => {
-  const { dns = '', gateway = '', hostName = '', networks: nets } = detail;
+  const { dns = '', gateway = '', networks: nets } = detail.netconf;
 
   let networks: Record<string, HostNetFormikValues> = {
     defaultbcn: {
@@ -55,6 +55,8 @@ const buildFormikInitialValues = (
     networks = toHostNetList(nets);
   }
 
+  const { name: hostName } = detail;
+
   return {
     hostName,
     mini: false,
@@ -90,17 +92,11 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
           tools.confirm.loading(true);
 
           api
-            .put(
-              `/host/${detail.hostUUID}?handler=subnode-network`,
-              requestBody,
-            )
+            .put(`/host/${detail.uuid}?handler=subnode-network`, requestBody)
             .then(() => {
               tools.confirm.finish('Success', {
                 children: (
-                  <>
-                    Successfully started network config on{' '}
-                    {detail.shortHostName}
-                  </>
+                  <>Successfully started network config on {detail.short}</>
                 ),
               });
             })
@@ -109,8 +105,7 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
 
               emsg.children = (
                 <>
-                  Failed to prepare network on {detail.shortHostName}.{' '}
-                  {emsg.children}
+                  Failed to prepare network on {detail.short}. {emsg.children}
                 </>
               );
 
@@ -119,7 +114,7 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
               setSubmitting(false);
             });
         },
-        titleText: `Prepare network on ${detail.shortHostName} with the following?`,
+        titleText: `Prepare network on ${detail.short} with the following?`,
       });
 
       tools.confirm.open();
@@ -130,15 +125,12 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
   const hostType = useMemo(
-    () => detail.hostType.replace('node', 'subnode'),
-    [detail.hostType],
+    () => detail.type.replace('node', 'subnode'),
+    [detail.type],
   );
 
   const { parentSequence, sequence } = useMemo(() => {
-    const numbers = detail.shortHostName.replace(
-      /^.*a(\d+).*(?:n|dr)(\d+)$/,
-      '$1,$2',
-    );
+    const numbers = detail.short.replace(/^.*a(\d+).*(?:n|dr)(\d+)$/, '$1,$2');
 
     const [parentSeq, seq] = numbers.split(',', 2);
 
@@ -146,7 +138,7 @@ const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
       parentSequence: Number(parentSeq),
       sequence: Number(seq),
     };
-  }, [detail.shortHostName]);
+  }, [detail.short]);
 
   const chains = useMemo(
     () => ({

@@ -49,16 +49,20 @@ const buildFormikInitialValues = (
 
   if (detail) {
     ({
-      dns = '',
       domain: domainName = '',
-      gateway = '',
-      hostName = '',
-      sequence: hostNumber = '',
       organization: organizationName = '',
       prefix: organizationPrefix = '',
-    } = detail);
+    } = detail.variables);
 
-    const { networks: nets = {} } = detail;
+    hostName = detail.name;
+
+    const { sequence } = detail.variables;
+
+    hostNumber = sequence ? String(sequence) : '';
+
+    ({ dns = '', gateway = '' } = detail.netconf);
+
+    const { networks: nets = {} } = detail.netconf;
 
     networks = toHostNetList(nets);
   }
