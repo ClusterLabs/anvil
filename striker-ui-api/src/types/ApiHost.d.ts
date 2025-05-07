@@ -48,6 +48,18 @@ type HostIpmi = {
   username: string;
 };
 
+type HostNetwork = Tree<number | string> & {
+  ip: string;
+  sequence: number;
+  subnetMask: string;
+  type: string;
+};
+
+type HostServer = {
+  name: string;
+  uuid: string;
+};
+
 type HostOverview = {
   anvil?: {
     name: string;
@@ -63,11 +75,7 @@ type HostOverview = {
 
 type HostOverviewList = Record<string, HostOverview>;
 
-type HostDetail = HostOverview & {
-  ipmi: HostIpmi;
-} & Tree<string>;
-
-type HostOverviewAlt = {
+type HostDetail = {
   anvil?: {
     description: string;
     name: string;
@@ -79,21 +87,7 @@ type HostOverviewAlt = {
   status: string;
   type: string;
   uuid: string;
-};
-
-type HostNetwork = Tree<number | string> & {
-  ip: string;
-  sequence: number;
-  subnetMask: string;
-  type: string;
-};
-
-type HostServer = {
-  name: string;
-  uuid: string;
-};
-
-type HostDetailAlt = HostOverviewAlt & {
+} & {
   drbdResources: Record<string, AnvilHostDrbdResource>;
   ipmi: HostIpmi;
   netconf: {
@@ -119,7 +113,7 @@ type HostDetailAlt = HostOverviewAlt & {
   variables: Tree<boolean | number | string>;
 };
 
-type HostDetailList = Record<string, HostDetailAlt>;
+type HostDetailList = Record<string, HostDetail>;
 
 type InitializeStrikerNetworkForm = {
   createBridge?: string;

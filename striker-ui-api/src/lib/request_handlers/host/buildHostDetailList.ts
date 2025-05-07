@@ -154,7 +154,7 @@ export const buildHostDetailList = async (
     const ipmi = getHostIpmi(ipmiCommand);
     const short = getShortHostName(name);
 
-    const host: HostDetailAlt = {
+    const host: HostDetail = {
       configured: false,
       drbdResources: {},
       ipmi,

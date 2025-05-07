@@ -1,37 +1,21 @@
 import { RequestHandler } from 'express';
 
-import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildHostDetailList } from './buildHostDetailList';
-import { buildQueryHostDetail } from './buildQueryHostDetail';
 import { toHostUUID } from '../../convertHostUUID';
 import { Responder } from '../../Responder';
-import { sanitizeSQLParam } from '../../sanitizeSQLParam';
 
-export const getHostDetail = buildGetRequestHandler(
-  ({ params: { hostUUID: rawHostUUID } }, hooks) => {
-    const hostUUID = toHostUUID(rawHostUUID);
-    const { afterQueryReturn, query } = buildQueryHostDetail({
-      keys: [sanitizeSQLParam(hostUUID)],
-    });
-
-    hooks.afterQueryReturn = afterQueryReturn;
-
-    return query;
-  },
-);
-
-export const getHostDetailAlt: RequestHandler<
+export const getHostDetail: RequestHandler<
   Express.RhParamsDictionary,
-  HostDetailAlt,
+  HostDetail,
   Express.RhReqBody,
   Express.RhReqQuery,
   LocalsRequestTarget
 > = async (request, response) => {
   const respond = new Responder(response);
 
-  const hostUuid = response.locals.target.uuid;
+  const hostUuid = toHostUUID(response.locals.target.uuid);
 
-  let host: HostDetailAlt | undefined;
+  let host: HostDetail | undefined;
 
   try {
     const hosts = await buildHostDetailList({ lshost: [hostUuid] });

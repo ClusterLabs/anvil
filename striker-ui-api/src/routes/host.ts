@@ -8,7 +8,6 @@ import {
   getHost,
   getHostConnection,
   getHostDetail,
-  getHostDetailAlt,
   getHostNicModels,
   prepareHost,
   updateHost,
@@ -16,13 +15,12 @@ import {
 
 const single = express.Router();
 
-single.get('/alt', getHostDetailAlt).get('/nic-model', getHostNicModels);
+single.get('/', getHostDetail).get('/nic-model', getHostNicModels);
 
 const router = express.Router();
 
 router
   .get('/', getHost)
-  .get('/:hostUUID', getHostDetail)
   .post('/', createHost)
   .put('/prepare', prepareHost)
   .put('/:hostUUID?', updateHost);
