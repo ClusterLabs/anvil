@@ -56,7 +56,7 @@ const setvarParams: Record<
         value = Number(original);
       }
     } else {
-      chain = [camel(head, ...rest)];
+      chain = ['variables', camel(head, ...rest)];
 
       if (/sequence/.test(part)) {
         value = Number(original);
@@ -66,7 +66,7 @@ const setvarParams: Record<
     return [chain, value];
   },
   'install-target': (parts, original) => [
-    ['installTarget'],
+    ['variables', 'installTarget'],
     original === 'enabled',
   ],
   system: (parts, original) => [['configured'], original === '1'],
@@ -146,9 +146,10 @@ export const buildHostDetailList = async ({
         networks: {},
       },
       servers: {
-        configured: {},
-        replicating: {},
-        running: {},
+        all: {},
+        configured: [],
+        replicating: [],
+        running: [],
       },
       short,
       status,
@@ -162,6 +163,7 @@ export const buildHostDetailList = async ({
       },
       type,
       uuid,
+      variables: {},
     };
 
     if (anvilUuid) {
@@ -481,17 +483,19 @@ export const buildHostDetailList = async ({
       return;
     }
 
-    const server: HostServer = {
+    const { servers } = host;
+
+    servers.all[serverUuid] = {
       name: resourceName,
       uuid: serverUuid,
     };
 
     if (configured) {
-      host.servers.configured[serverUuid] = server;
+      servers.configured.push(serverUuid);
     }
 
     if (running) {
-      host.servers.running[serverUuid] = server;
+      servers.running.push(serverUuid);
     }
   });
 

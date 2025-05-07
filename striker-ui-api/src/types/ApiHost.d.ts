@@ -93,30 +93,31 @@ type HostServer = {
   uuid: string;
 };
 
-type HostDetailAlt = HostOverviewAlt &
-  Tree<boolean | string> & {
-    drbdResources: Record<string, AnvilHostDrbdResource>;
-    ipmi: HostIpmi;
-    netconf: {
-      dns: string;
-      gateway: string;
-      gatewayInterface: string;
-      networks: Record<string, HostNetwork>;
-    };
-    servers: {
-      configured: Record<string, HostServer>;
-      replicating: Record<string, HostServer>;
-      running: Record<string, HostServer>;
-    };
-    storage: {
-      volumeGroups: Record<string, AnvilDetailVolumeGroup>;
-      volumeGroupTotals: {
-        free: string;
-        size: string;
-        used: string;
-      };
+type HostDetailAlt = HostOverviewAlt & {
+  drbdResources: Record<string, AnvilHostDrbdResource>;
+  ipmi: HostIpmi;
+  netconf: {
+    dns: string;
+    gateway: string;
+    gatewayInterface: string;
+    networks: Record<string, HostNetwork>;
+  };
+  servers: {
+    all: Record<string, HostServer>;
+    configured: string[];
+    replicating: string[];
+    running: string[];
+  };
+  storage: {
+    volumeGroups: Record<string, AnvilDetailVolumeGroup>;
+    volumeGroupTotals: {
+      free: string;
+      size: string;
+      used: string;
     };
   };
+  variables: Tree<boolean | number | string>;
+};
 
 type HostDetailList = Record<string, HostDetailAlt>;
 
