@@ -72,26 +72,36 @@ const setvarParams: Record<
   system: (parts, original) => [['configured'], original === '1'],
 };
 
-export const buildHostDetailList = async ({
-  types = [],
-  uuids = [],
-}: {
-  types?: string[];
-  uuids?: string[];
-} = {}): Promise<HostDetailList> => {
+export const buildHostDetailList = async (
+  options: {
+    lshost?: string[];
+    lsnode?: string[];
+    lstype?: string[];
+  } = {},
+): Promise<HostDetailList> => {
+  const { lshost, lsnode, lstype } = options;
+
   let conditions = 'TRUE';
 
-  if (types.length) {
-    conditions += join(types, {
-      beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
+  if (lshost?.length) {
+    conditions += join(lshost, {
+      beforeReturn: (csv) => csv && ` AND a.host_uuid IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  if (uuids.length) {
-    conditions += join(uuids, {
-      beforeReturn: (csv) => csv && ` AND a.host_uuid IN (${csv})`,
+  if (lsnode?.length) {
+    conditions += join(lsnode, {
+      beforeReturn: (csv) => csv && ` AND b.anvil_uuid IN (${csv})`,
+      elementWrapper: "'",
+      separator: ', ',
+    });
+  }
+
+  if (lstype?.length) {
+    conditions += join(lstype, {
+      beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
