@@ -91,7 +91,7 @@ export const getHost: RequestHandler<
       ON c.variable_name = 'system::configured'
         AND c.variable_source_table = 'hosts'
         AND a.host_uuid = c.variable_source_uuid
-    ${condition}
+    WHERE ${condition}
     ORDER BY a.host_name;`;
 
   let hostRows: string[][];
