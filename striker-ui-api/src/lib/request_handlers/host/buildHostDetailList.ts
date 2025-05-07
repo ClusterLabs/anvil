@@ -267,8 +267,9 @@ export const buildHostDetailList = async ({
       d.server_uuid,
       a.scan_drbd_resource_xml LIKE CONCAT(
         '%', e.host_short_name, '%'
-      ) AS configured,
-      d.server_host_uuid = a.scan_drbd_resource_host_uuid AS running
+      ) AS server_configured,
+      c.scan_drbd_peer_estimated_time_to_sync > 0 AS server_replicating,
+      d.server_host_uuid = a.scan_drbd_resource_host_uuid AS server_running
     FROM (${sqlScanDrbdResources()}) AS a
     LEFT JOIN (${sqlScanDrbdVolumes()}) AS b
       ON b.scan_drbd_volume_scan_drbd_resource_uuid = a.scan_drbd_resource_uuid
@@ -458,6 +459,7 @@ export const buildHostDetailList = async ({
       estimatedTimeToSync,
       serverUuid,
       configured,
+      replicating,
       running,
     ] = row;
 
@@ -492,6 +494,10 @@ export const buildHostDetailList = async ({
 
     if (configured) {
       servers.configured.push(serverUuid);
+    }
+
+    if (replicating) {
+      servers.replicating.push(serverUuid);
     }
 
     if (running) {
