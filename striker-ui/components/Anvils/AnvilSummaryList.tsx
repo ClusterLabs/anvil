@@ -18,7 +18,7 @@ import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
-  const { refreshInterval = 4000 } = props;
+  const { refreshInterval = 5000 } = props;
 
   const {
     altData: anvils,

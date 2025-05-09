@@ -98,19 +98,19 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       return undefined;
     }
 
-    const { drbd } = anvil.status;
+    const { maxEstimatedTimeToSync, status } = anvil.status.drbd;
 
     let etts: string | undefined;
 
-    if (drbd.estimatedTimeToSync) {
-      etts = ago(drbd.estimatedTimeToSync);
+    if (maxEstimatedTimeToSync) {
+      etts = ago(maxEstimatedTimeToSync);
     }
 
-    const colour = MAP_TO_DRBD_STATE_COLOUR[anvil.status.drbd.status] ?? PURPLE;
+    const colour = MAP_TO_DRBD_STATE_COLOUR[status] ?? PURPLE;
 
     return (
       <MonoText inheritColour color={colour}>
-        {anvil.status.drbd.status}
+        {status}
         {etts && `(needs ~${etts})`}
       </MonoText>
     );
@@ -264,7 +264,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       }}
     >
       <Grid item xs={1}>
-        <BodyText>Node</BodyText>
+        <BodyText>Status</BodyText>
       </Grid>
       <Grid item xs={3}>
         {anvilSummary}
