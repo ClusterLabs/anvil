@@ -20,6 +20,7 @@ export * from './job';
 export * from './jobDone';
 export * from './listNicModels';
 export * from './mutateData';
+export * from './queries';
 export * from './query';
 export * from './sub';
 export * from './timestamp';
