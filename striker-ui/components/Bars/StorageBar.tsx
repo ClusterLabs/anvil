@@ -1,5 +1,5 @@
 import { merge } from 'lodash';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 
@@ -8,35 +8,45 @@ import StackBar from './StackBar';
 const n100 = BigInt(100);
 const nZero = BigInt(0);
 
-const StorageBar: FC<
+type StorageSizes = {
+  free: bigint;
+  size: bigint;
+  used: bigint;
+};
+
+type FcStorageBar<S extends StorageSizes> = React.FC<
   {
     storageGroup?: APIAnvilStorageGroupCalcable;
     storages?: APIAnvilSharedStorageOverview;
     target?: string;
+    volume?: S;
     volumeGroup?: APIAnvilVolumeGroupCalcable;
   } & Partial<StackBarProps>
-> = (props) => {
+>;
+
+const StorageBar = <S extends StorageSizes>(
+  ...[props]: Parameters<FcStorageBar<S>>
+): ReturnType<FcStorageBar<S>> => {
   const {
     storageGroup,
     storages,
     target: storageGroupUuid,
     volumeGroup,
     value,
+    // Depends on previous props
+    volume = storageGroup ?? volumeGroup,
     ...restProps
   } = props;
 
-  const storage = useMemo<{ size: bigint; used: bigint }>(() => {
+  const storage = useMemo<{
+    size: bigint;
+    used: bigint;
+  }>(() => {
     let size: bigint = nZero;
     let used: bigint = nZero;
 
-    if (storageGroup) {
-      ({ size, used } = storageGroup);
-
-      return { size, used };
-    }
-
-    if (volumeGroup) {
-      ({ size, used } = volumeGroup);
+    if (volume) {
+      ({ size, used } = volume);
 
       return { size, used };
     }
@@ -58,7 +68,7 @@ const StorageBar: FC<
     ({ totalSize: size, totalUsed: used } = storages);
 
     return { size, used };
-  }, [storageGroup, storageGroupUuid, storages, volumeGroup]);
+  }, [storageGroupUuid, storages, volume]);
 
   const usedColour = useMemo(() => ({ 0: BLUE, 70: PURPLE, 90: RED }), []);
 
