@@ -1,6 +1,6 @@
 import { P_IF } from '../../consts';
 
-import { query } from '../../accessModule';
+import { queries, query } from '../../accessModule';
 import { camel } from '../../camel';
 import { setChain } from '../../chain';
 import { getHostIpmi } from '../../disassembleCommand';
@@ -172,7 +172,13 @@ export const buildHostDetailList = async (
         running: [],
       },
       short,
-      status,
+      status: {
+        drbd: {
+          maxEstimatedTimeToSync: 0,
+          status: '',
+        },
+        system: status,
+      },
       storage: {
         volumeGroups: {},
         volumeGroupTotals: {
@@ -302,6 +308,26 @@ export const buildHostDetailList = async (
     WHERE a.scan_drbd_resource_host_uuid IN (${hostUuidsCsv})
     ORDER BY a.scan_drbd_resource_name;`;
 
+  const sqlGetDrbdSummary = `
+    SELECT
+      a.scan_drbd_peer_host_uuid,
+      COUNT(a.scan_drbd_peer_uuid) AS number_of_peers,
+      SUM(
+        CAST(a.scan_drbd_peer_connection_state = 'off' AS int)
+      ) AS connection_off,
+      SUM(
+        CAST(a.scan_drbd_peer_local_disk_state = 'uptodate' AS int)
+      ) AS local_disk_uptodate,
+      SUM(
+        CAST(a.scan_drbd_peer_disk_state = 'uptodate' AS int)
+      ) AS peer_disk_uptodate,
+      MAX(
+        a.scan_drbd_peer_estimated_time_to_sync
+      ) AS max_estimated_time_to_sync
+    FROM (${sqlScanDrbdPeers()}) AS a
+    WHERE a.scan_drbd_peer_host_uuid IN (${hostUuidsCsv})
+    GROUP BY a.scan_drbd_peer_host_uuid;`;
+
   const sqlGetVgTotals = `
     SELECT
       a.scan_lvm_vg_host_uuid,
@@ -326,26 +352,31 @@ export const buildHostDetailList = async (
     WHERE a.scan_lvm_vg_host_uuid IN (${hostUuidsCsv})
     ORDER BY a.scan_lvm_vg_name;`;
 
-  const promises = [
-    sqlGetIfaces,
-    sqlGetVariables,
-    sqlGetDrbdResources,
-    sqlGetVgTotals,
-    sqlGetVgs,
-  ].map<Promise<string[][]>>((sql) => query(sql));
-
-  let results: string[][][];
+  let results: QueryResult[];
 
   try {
-    results = await Promise.all(promises);
+    results = await queries(
+      sqlGetIfaces,
+      sqlGetVariables,
+      sqlGetDrbdResources,
+      sqlGetDrbdSummary,
+      sqlGetVgTotals,
+      sqlGetVgs,
+    );
   } catch (error) {
     perr(`Failed to get host detail data; CAUSE: ${error}`);
 
     throw error;
   }
 
-  const [ifaceRows, variableRows, drbdResourceRows, vgTotalRows, vgRows] =
-    results;
+  const [
+    ifaceRows,
+    variableRows,
+    drbdResourceRows,
+    drbdSummaryRows,
+    vgTotalRows,
+    vgRows,
+  ] = results;
 
   const counts: Record<string, number> = {};
 
@@ -362,7 +393,7 @@ export const buildHostDetailList = async (
       gateway,
       defaultGateway,
       dns,
-    ] = row;
+    ] = row as string[];
 
     const { [hostUuid]: host } = hosts;
 
@@ -406,7 +437,7 @@ export const buildHostDetailList = async (
   poutvar(hosts, 'After getting network interfaces; hosts=');
 
   variableRows.forEach((row) => {
-    const [hostUuid = '', name, original, ifaceUuid] = row;
+    const [hostUuid = '', name, original, ifaceUuid] = row as string[];
 
     const { [hostUuid]: host } = hosts;
 
@@ -481,7 +512,7 @@ export const buildHostDetailList = async (
       configured,
       replicating,
       running,
-    ] = row;
+    ] = row as string[];
 
     const { [hostUuid]: host } = hosts;
 
@@ -525,8 +556,40 @@ export const buildHostDetailList = async (
     }
   });
 
+  drbdSummaryRows.forEach((row) => {
+    const [
+      hostUuid,
+      numPeers,
+      numConnectionOff,
+      numLocalDiskUptodate,
+      numPeerDiskUptodate,
+      maxEstimatedTimeToSync,
+    ] = row as number[];
+
+    const { [hostUuid]: host } = hosts;
+
+    if (!host) {
+      return;
+    }
+
+    const { drbd } = host.status;
+
+    if (numPeers === 0) {
+      drbd.status = 'none';
+    } else if (numConnectionOff === numPeers) {
+      drbd.status = 'offline';
+    } else if (maxEstimatedTimeToSync > 0) {
+      drbd.maxEstimatedTimeToSync = maxEstimatedTimeToSync;
+      drbd.status = 'syncing';
+    } else if (numLocalDiskUptodate + numPeerDiskUptodate === numPeers * 2) {
+      drbd.status = 'optimal';
+    } else {
+      drbd.status = 'degraded';
+    }
+  });
+
   vgTotalRows.forEach((row) => {
-    const [hostUuid, free, size, used] = row;
+    const [hostUuid, free, size, used] = row as string[];
 
     const { [hostUuid]: host } = hosts;
 
@@ -542,7 +605,7 @@ export const buildHostDetailList = async (
   });
 
   vgRows.forEach((row) => {
-    const [uuid, hostUuid, internalUuid, name, size, free] = row;
+    const [uuid, hostUuid, internalUuid, name, size, free] = row as string[];
 
     let vgnUsed: bigint;
 

@@ -84,7 +84,13 @@ type HostDetail = {
   configured: boolean;
   name: string;
   short: string;
-  status: string;
+  status: {
+    drbd: {
+      maxEstimatedTimeToSync: number;
+      status: string;
+    };
+    system: string;
+  };
   type: string;
   uuid: string;
 } & {

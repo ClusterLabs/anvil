@@ -34,8 +34,8 @@ export const buildAnvilSummary = async ({
   const result: AnvilDetailSummary = {
     anvilStatus: {
       drbd: {
-        status: '',
         maxEstimatedTimeToSync: 0,
+        status: '',
       },
       system: '',
     },
@@ -276,8 +276,8 @@ export const buildAnvilSummary = async ({
     } else if (maxEstimatedTimeToSync > 0) {
       // At least 1 peer record has time-to-sync
       result.anvilStatus.drbd = {
-        status: 'syncing',
         maxEstimatedTimeToSync,
+        status: 'syncing',
       };
     } else if (numLocalDiskUptodate + numPeerDiskUptodate === numPeers * 2) {
       // All peer records have local and peer disk state as uptodate

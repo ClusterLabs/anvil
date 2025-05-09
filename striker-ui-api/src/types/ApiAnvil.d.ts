@@ -16,8 +16,8 @@ type AnvilHostDrbdResource = {
 
 type AnvilStatus = {
   drbd: {
-    status: string;
     maxEstimatedTimeToSync: number;
+    status: string;
   };
   system: string;
 };
