@@ -175,7 +175,7 @@ export const buildHostDetailList = async (
       status: {
         drbd: {
           maxEstimatedTimeToSync: 0,
-          status: '',
+          status: 'none',
         },
         system: status,
       },
@@ -574,9 +574,7 @@ export const buildHostDetailList = async (
 
     const { drbd } = host.status;
 
-    if (numPeers === 0) {
-      drbd.status = 'none';
-    } else if (numConnectionOff === numPeers) {
+    if (numConnectionOff === numPeers) {
       drbd.status = 'offline';
     } else if (maxEstimatedTimeToSync > 0) {
       drbd.maxEstimatedTimeToSync = maxEstimatedTimeToSync;

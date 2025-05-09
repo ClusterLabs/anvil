@@ -35,7 +35,7 @@ export const buildAnvilSummary = async ({
     anvilStatus: {
       drbd: {
         maxEstimatedTimeToSync: 0,
-        status: '',
+        status: 'none',
       },
       system: '',
     },
@@ -267,10 +267,7 @@ export const buildAnvilSummary = async ({
       maxEstimatedTimeToSync,
     ] = row as number[];
 
-    if (numPeers === 0) {
-      // No peer records means there is no resource
-      result.anvilStatus.drbd.status = 'none';
-    } else if (numConnectionOff === numPeers) {
+    if (numConnectionOff === numPeers) {
       // All peer records have connection state as off
       result.anvilStatus.drbd.status = 'offline';
     } else if (maxEstimatedTimeToSync > 0) {
