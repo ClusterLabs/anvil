@@ -14,11 +14,9 @@ const buildHostStateMessage = (postfix = 2) => `message_022${postfix}`;
 export const buildAnvilSummary = async ({
   anvils: nodeList,
   anvilUuid,
-  hosts: hostList,
 }: {
   anvils: AnvilDataAnvilListHash;
   anvilUuid: string;
-  hosts: AnvilDataHostListHash;
 }) => {
   const {
     anvil_uuid: { [anvilUuid]: anvilData },
@@ -46,9 +44,11 @@ export const buildAnvilSummary = async ({
     hosts: [],
   };
 
-  const sqlGetHost = `
+  const sqlGetHostServerCount = `
     SELECT
       b.host_uuid,
+      b.host_short_name,
+      b.host_status,
       COUNT(c.server_uuid) AS number_of_servers
     FROM anvils AS a
     LEFT JOIN (${sqlHosts()}) AS b
@@ -63,8 +63,9 @@ export const buildAnvilSummary = async ({
     WHERE a.anvil_uuid = '${anvilUuid}'
     GROUP BY
       b.host_uuid,
-      b.host_name
-    ORDER BY b.host_name;`;
+      b.host_short_name,
+      b.host_status
+    ORDER BY b.host_short_name;`;
 
   const sqlGetHostClusterFlags = `
     SELECT
@@ -139,7 +140,7 @@ export const buildAnvilSummary = async ({
 
   try {
     results = await queries(
-      sqlGetHost,
+      sqlGetHostServerCount,
       sqlGetHostClusterFlags,
       sqlGetHostDrbdResources,
       sqlGetNodeStatus,
@@ -153,41 +154,32 @@ export const buildAnvilSummary = async ({
 
   const hosts: Record<string, AnvilDetailHostSummary> = {};
 
-  Object.entries(hostList.host_uuid).forEach((entry) => {
-    const [uuid, host] = entry;
-
-    const { host_status: status, short_host_name: short } = host;
-
-    hosts[uuid] = {
-      hostDrbdResources: {},
-      host_name: short,
-      host_uuid: uuid,
-      maintenance_mode: false,
-      server_count: 0,
-      state: status,
-      state_message: '',
-      state_percent: 0,
-    };
-  });
-
   const [
-    hostServerCountRows,
+    hostRows,
     hostClusterFlagRows,
     hostDrbdResourceRows,
     nodeStatusRows,
     nodeDrbdSummaryRows,
   ] = results;
 
-  hostServerCountRows.forEach((row) => {
-    const [uuid, count] = row as [string, number];
+  hostRows.forEach((row) => {
+    const [uuid, short, status, count] = row as [
+      string,
+      string,
+      string,
+      number,
+    ];
 
-    const { [uuid]: host } = hosts;
-
-    if (!host) {
-      return;
-    }
-
-    host.server_count = count;
+    hosts[uuid] = {
+      hostDrbdResources: {},
+      host_name: short,
+      host_uuid: uuid,
+      maintenance_mode: false,
+      server_count: count,
+      state: status,
+      state_message: '',
+      state_percent: 0,
+    };
   });
 
   hostClusterFlagRows.forEach((row) => {
