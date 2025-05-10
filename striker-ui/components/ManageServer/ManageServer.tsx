@@ -166,7 +166,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                   orientation="vertical"
                   value={tabId}
                 >
-                  <Tab label={tabs.general.label} value={tabs.general.value} />
+                  <Tab {...tabs.general} label={detail.name} />
 
                   <Tab
                     disabled
@@ -179,35 +179,23 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                     label=""
                   />
 
-                  <Tab
-                    label={tabs.bootOrder.label}
-                    value={tabs.bootOrder.value}
-                  />
+                  <Tab {...tabs.bootOrder} />
 
-                  <Tab label={tabs.cpu.label} value={tabs.cpu.value} />
+                  <Tab {...tabs.cpu} />
 
-                  <Tab label={tabs.disks.label} value={tabs.disks.value} />
+                  <Tab {...tabs.disks} />
 
-                  <Tab
-                    label={tabs.interfaces.label}
-                    value={tabs.interfaces.value}
-                  />
+                  <Tab {...tabs.interfaces} />
 
-                  <Tab label={tabs.memory.label} value={tabs.memory.value} />
+                  <Tab {...tabs.memory} />
 
-                  <Tab
-                    label={tabs.migration.label}
-                    value={tabs.migration.value}
-                  />
+                  <Tab {...tabs.migration} />
 
-                  <Tab label={tabs.name.label} value={tabs.name.value} />
+                  <Tab {...tabs.name} />
 
-                  <Tab
-                    label={tabs.startDependency.label}
-                    value={tabs.startDependency.value}
-                  />
+                  <Tab {...tabs.startDependency} />
 
-                  <Tab label={tabs.delete.label} value={tabs.delete.value} />
+                  <Tab {...tabs.delete} />
                 </Tabs>
               </Grid>
             </Grid>
