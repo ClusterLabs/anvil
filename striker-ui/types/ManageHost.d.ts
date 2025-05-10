@@ -66,3 +66,19 @@ type ManageHostListOptionalProps = {
 };
 
 type ManageHostListProps = ManageHostListOptionalProps;
+
+/** ManageHost */
+
+type ManageHostProps = {
+  uuid: string;
+};
+
+type HostTabCommonProps = {
+  host: APIHostDetailCalcable;
+};
+
+type HostGeneralInfoProps = HostTabCommonProps;
+
+type HostServerListProps = HostTabCommonProps;
+
+type HostStorageListProps = HostTabCommonProps;
