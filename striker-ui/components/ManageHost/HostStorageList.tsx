@@ -60,7 +60,9 @@ const HostStorageList: React.FC<HostStorageListProps> = (props) => {
               <StorageBar thin volume={vg} />
             </Grid>
             <Grid item width="100%">
-              <MonoText variant="caption">{internalUuid}</MonoText>
+              <MonoText noWrap variant="caption">
+                {internalUuid}
+              </MonoText>
             </Grid>
           </Grid>
         </Grid>
