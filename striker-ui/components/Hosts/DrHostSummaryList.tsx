@@ -2,6 +2,7 @@ import { Grid } from '@mui/material';
 import { useMemo } from 'react';
 
 import DrHostSummary from './DrHostSummary';
+import Link from '../Link';
 import {
   InnerPanel,
   InnerPanelBody,
@@ -11,7 +12,7 @@ import {
 } from '../Panels';
 import Spinner from '../Spinner';
 import SyncIndicator from '../SyncIndicator';
-import { BodyText, HeaderText } from '../Text';
+import { HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const DrHostSummaryList: React.FC = () => {
@@ -40,7 +41,7 @@ const DrHostSummaryList: React.FC = () => {
               item
               key={`dr-${uuid}`}
               maxWidth={{
-                sm: '100%',
+                xs: '100%',
                 md: '50%',
                 lg: 'calc(100% / 3)',
                 xl: '25%',
@@ -49,7 +50,9 @@ const DrHostSummaryList: React.FC = () => {
             >
               <InnerPanel mv={0}>
                 <InnerPanelHeader>
-                  <BodyText>{short}</BodyText>
+                  <Link href={`/host?name=${short}`} noWrap>
+                    {short}
+                  </Link>
                 </InnerPanelHeader>
                 <InnerPanelBody>
                   <DrHostSummary host={{ short, uuid }} />
