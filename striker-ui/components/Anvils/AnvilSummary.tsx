@@ -1,5 +1,5 @@
 import { Grid, gridClasses } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { dSizeStr } from 'format-data-size';
 import { FC, ReactNode, useMemo } from 'react';
 
 import {
@@ -198,11 +198,9 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             <BodyText variant="caption">
               Free
               <InlineMonoText>
-                {
-                  dSize(memory.available, {
-                    toUnit: 'ibyte',
-                  })?.value
-                }
+                {dSizeStr(memory.available, {
+                  toUnit: 'ibyte',
+                })}
               </InlineMonoText>
               /
               <InlineMonoText edge="end">
@@ -226,11 +224,9 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
             <BodyText variant="caption">
               Total free
               <InlineMonoText>
-                {
-                  dSize(storages.totalFree, {
-                    toUnit: 'ibyte',
-                  })?.value
-                }
+                {dSizeStr(storages.totalFree, {
+                  toUnit: 'ibyte',
+                })}
               </InlineMonoText>
               /
               <InlineMonoText edge="end">

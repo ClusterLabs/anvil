@@ -1,5 +1,5 @@
 import { Grid, gridClasses } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
 import { toHostDetailCalcable } from '../../lib/api_converters';
@@ -127,9 +127,9 @@ const DrHostSummary: React.FC<DrHostSummaryProps> = (props) => {
 
     const { volumeGroupTotals: totals } = detail.storage;
 
-    const free = dSize(totals.free, {
+    const free = dSizeStr(totals.free, {
       toUnit: 'ibyte',
-    })?.value;
+    });
 
     const size = dSizeStr(totals.size, {
       toUnit: 'ibyte',

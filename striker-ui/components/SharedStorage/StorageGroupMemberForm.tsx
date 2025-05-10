@@ -1,5 +1,5 @@
 import { createFilterOptions, Grid } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
 import Autocomplete from '../Autocomplete';
@@ -66,7 +66,7 @@ const StorageGroupMemberForm = <Values extends StorageGroupFormikValues>(
           renderOption={(optionProps, uuid) => {
             const { [uuid]: vg } = storages.volumeGroups;
 
-            const vgFree = dSize(vg.free, { toUnit: 'ibyte' })?.value ?? 'none';
+            const vgFree = dSizeStr(vg.free, { toUnit: 'ibyte' }) ?? 'none';
 
             const vgSize = dSizeStr(vg.size, { toUnit: 'ibyte' }) ?? 'none';
 
