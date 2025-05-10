@@ -42,7 +42,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
 
               previous[key] = {
                 children: (
-                  <InnerPanel height="100%" mv={0}>
+                  <InnerPanel mv={0}>
                     <InnerPanelHeader>
                       <Link href={`/anvil?name=${name}`} noWrap>
                         {name}
