@@ -9,7 +9,7 @@ import PrepareHostForm from './PrepareHostForm';
 import TestAccessForm from './TestAccessForm';
 import { BodyText } from '../Text';
 
-const ManageHost: React.FC<ManageHostProps> = (props) => {
+const ManageHostList: React.FC<ManageHostListProps> = (props) => {
   const { onValidateHostsChange } = props;
 
   const [inquireHostResponse, setInquireHostResponse] = useState<
@@ -99,4 +99,4 @@ const ManageHost: React.FC<ManageHostProps> = (props) => {
   );
 };
 
-export default ManageHost;
+export default ManageHostList;
