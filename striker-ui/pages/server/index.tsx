@@ -4,6 +4,8 @@ import { useRouter } from 'next/router';
 import { useMemo } from 'react';
 
 import { FullSize } from '../../components/Display';
+import getListValueFromRouterQuery from '../../lib/getListValueFromRouterQuery';
+import getQueryParam from '../../lib/getQueryParam';
 import Header from '../../components/Header';
 import { ManageServer } from '../../components/ManageServer';
 import MessageBox from '../../components/MessageBox';
@@ -44,27 +46,17 @@ const Server = (): JSX.Element => {
     data: servers,
     error: fetchError,
     loading: loadingServers,
-  } = useFetch<APIServerOverviewList, APIServerOverview | undefined>('/server');
+  } = useFetch<APIServerOverviewList>('/server');
 
-  const server = useMemo(() => {
-    if (!servers || !router.isReady) {
-      return undefined;
-    }
-
-    let result: APIServerOverview | undefined;
-
-    const { name, uuid } = router.query;
-
-    if (name) {
-      result = Object.values(servers).find((value) => value.name === name);
-    } else if (uuid) {
-      const key = typeof uuid === 'string' ? uuid : uuid[0];
-
-      result = servers[key];
-    }
-
-    return result;
-  }, [router.isReady, router.query, servers]);
+  const server = useMemo(
+    () =>
+      getListValueFromRouterQuery(
+        servers,
+        router,
+        (name) => (value) => value.name === name,
+      ),
+    [router, servers],
+  );
 
   const view = useMemo<string>(() => {
     if (!router.isReady) {
@@ -73,11 +65,7 @@ const Server = (): JSX.Element => {
 
     const { view: value } = router.query;
 
-    if (!value) {
-      return '';
-    }
-
-    return typeof value === 'string' ? value : value[0];
+    return getQueryParam(value);
   }, [router.isReady, router.query]);
 
   if (loadingServers) {
