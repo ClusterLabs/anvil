@@ -21,6 +21,7 @@ Set the log level to 1, 2 or 3 respectively. Be aware that level 3 generates a s
 .IP
 .SS "Commands:"
 \fB\-\-boot\-after\fR <'none', 'stay-off', name or uuid>
+.TP
 This will control the boot order of the server when booting all servers (ie: after restoring power). If this is set to 'none', then the server will not wait on any other servers. When shutting down all servers, the boot order is reversed! That is to say, the specified server will shut down before the \fB\-\-boot\-after\fR server.
 .TP
 If this is set to '\fB\-\-boot\-after\fR stay-off', the server will not be booted, unless specifically asked to boot by the user.
