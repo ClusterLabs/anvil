@@ -568,7 +568,7 @@ export const buildHostDetailList = async (
 
     const { [hostUuid]: host } = hosts;
 
-    if (!host) {
+    if (!host || !numPeers) {
       return;
     }
 

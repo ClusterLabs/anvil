@@ -267,6 +267,11 @@ export const buildAnvilSummary = async ({
       maxEstimatedTimeToSync,
     ] = row as number[];
 
+    if (!numPeers) {
+      // No peer(s) found, default to 'none'
+      return;
+    }
+
     if (numConnectionOff === numPeers) {
       // All peer records have connection state as off
       result.anvilStatus.drbd.status = 'offline';
