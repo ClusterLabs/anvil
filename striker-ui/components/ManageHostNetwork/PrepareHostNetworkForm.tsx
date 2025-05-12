@@ -1,4 +1,5 @@
 import { Grid } from '@mui/material';
+import { isEmpty } from 'lodash';
 import { FC, useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
@@ -51,7 +52,7 @@ const buildFormikInitialValues = (
     },
   };
 
-  if (nets) {
+  if (!isEmpty(nets)) {
     networks = toHostNetList(nets);
   }
 
