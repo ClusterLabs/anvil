@@ -14,7 +14,7 @@ const toHostNetList = (networks: APIHostNetworkList) =>
 
       let key: string;
 
-      if (sequence === '1') {
+      if (sequence === 1) {
         key = `default${type}`;
       } else {
         key = uuidv4();
@@ -23,7 +23,7 @@ const toHostNetList = (networks: APIHostNetworkList) =>
       previous[key] = {
         interfaces: [link1Uuid, link2Uuid],
         ip,
-        sequence,
+        sequence: String(sequence),
         subnetMask,
         type,
       };
