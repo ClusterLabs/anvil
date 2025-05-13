@@ -2687,10 +2687,10 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0714">Closing the firewall port: [#!variable!port!#/#!variable!protocol!#] for the zone: [#!variable!zone!#]!</key>
 		<key name="log_0715">Closing the firewall port range: [#!variable!port!#/#!variable!protocol!#] for the zone: [#!variable!zone!#]!</key>
 		<key name="log_0716">Changes were made to the firewall, reloading now.</key>
-		<key name="log_0717">This server will boot: [#!variable!delay!#] after the server: [#!variable!server!#]. Checking if it's time to boot it or not.</key>
-		<key name="log_0718">The server: [#!variable!boot_after_server!#] hasn't booted yet, holding off booting: [#!variable!this_server!#].</key>
+		<key name="log_0717">This server will boot: [#!variable!delay!#] after the server: [#!variable!server!#] on the node: [#!variable!node!#]. Checking if it's time to boot it or not.</key>
+		<key name="log_0718">The server: [#!variable!boot_after_server!#] on the node: [#!variable!node!#] hasn't booted yet, holding off booting: [#!variable!this_server!#].</key>
 		<key name="log_0719">Evaluating the booting of the server: [#!variable!server!#].</key>
-		<key name="log_0720">The server: [#!variable!boot_after_server!#] has booted, but we need to wait: [#!variable!time_to_wait!#] seconds before we can start this server: [#!variable!this_server!#].</key>
+		<key name="log_0720">The server: [#!variable!boot_after_server!#] on the node: [#!variable!node!#] has booted, but we need to wait: [#!variable!time_to_wait!#] seconds before we can start this server: [#!variable!this_server!#].</key>
 		<key name="log_0721">The server: [#!variable!server!#] is ready to boot.</key>
 		<key name="log_0722">The server: [#!variable!server!#] was found to be running already, but it wasn't marked as booted. Marking it as if it just booted to handle any dependent servers.</key>
 		<key name="log_0723">The server: [#!variable!server!#] is configured to stay off, ignoring it.</key>

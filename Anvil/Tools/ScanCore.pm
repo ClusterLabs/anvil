@@ -2574,6 +2574,7 @@ LIMIT 1;";
 							
 							foreach my $this_switch (sort {$a cmp $b} keys %{$anvil->data->{fence_data}{$agent}{switch}})
 							{
+								next if not defined $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
 								my $this_name = $anvil->data->{fence_data}{$agent}{switch}{$this_switch}{name};
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 									this_switch => $this_switch,
