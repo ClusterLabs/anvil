@@ -16,4 +16,5 @@ export * from './setServerBootOrder';
 export * from './setServerCpu';
 export * from './setServerIfaceState';
 export * from './setServerMemory';
+export * from './setServerProtect';
 export * from './setServerStartDependency';

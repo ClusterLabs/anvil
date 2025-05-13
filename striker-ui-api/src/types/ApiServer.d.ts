@@ -315,6 +315,12 @@ type ServerSetMemoryRequestBody = {
   size: string;
 };
 
+type ServerSetProtectRequestBody = {
+  drUuid: string;
+  protect?: boolean;
+  protocol?: string;
+};
+
 type ServerSetStartDependencyRequestBody = {
   active?: boolean;
   after?: string;

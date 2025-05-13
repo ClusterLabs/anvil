@@ -20,6 +20,7 @@ import {
   setServerCpu,
   setServerIfaceState,
   setServerMemory,
+  setServerProtect,
   setServerStartDependency,
 } from '../lib/request_handlers/server';
 
@@ -38,6 +39,7 @@ single
   .put('/set-cpu', setServerCpu)
   .put('/set-interface-state', setServerIfaceState)
   .put('/set-memory', setServerMemory)
+  .put('/set-protect', setServerProtect)
   .put('/set-start-dependency', setServerStartDependency);
 
 const router = express.Router();

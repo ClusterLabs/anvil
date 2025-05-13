@@ -9,4 +9,5 @@ export * from './setBootOrderRb';
 export * from './setCpuRb';
 export * from './setIfaceStateRb';
 export * from './setMemoryRb';
+export * from './setProtectRb';
 export * from './setStartDependencyRb';
