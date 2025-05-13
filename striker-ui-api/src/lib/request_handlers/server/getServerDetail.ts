@@ -17,6 +17,7 @@ import { getShortHostName } from '../../disassembleHostName';
 import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
 import { perr, poutvar } from '../../shell';
+import { sqlHosts, sqlScanDrbdResources } from '../../sqls';
 
 type ServerSsMeta = {
   name: string;
@@ -577,7 +578,7 @@ export const getServerDetail: RequestHandler<
       };
     });
 
-    const rsBody: ServerDetail = {
+    const server: ServerDetail = {
       anvil: {
         description: anvilDescription,
         name: anvilName,
@@ -612,6 +613,7 @@ export const getServerDetail: RequestHandler<
         size: memorySize ? memorySize.value : '0',
       },
       name: serverName,
+      protect: {},
       start: {
         active: startActive,
         after: serverStartAfterServerUuid,
@@ -622,6 +624,68 @@ export const getServerDetail: RequestHandler<
       variables,
     };
 
-    return respond.s200(rsBody);
+    const sqlGetProtectStatus = `
+      WITH scope AS (
+        SELECT
+          i.scan_drbd_resource_name,
+          CAST(i.scan_drbd_resource_xml AS xml) AS resource_xml
+        FROM (${sqlScanDrbdResources()}) AS i
+      ) SELECT
+          d.host_uuid,
+          CASE
+            WHEN b.drbd_connection_protocol = 'C'
+              THEN 'sync'
+            ELSE 'short-throw'
+          END as dr_connection_protocol
+        FROM
+          scope AS a,
+          XMLTABLE(
+            'resource/connection/host'
+            PASSING resource_xml
+            COLUMNS
+              connection_host text
+                PATH '@name',
+              drbd_connection_protocol text
+                PATH '../section[@name="net"]/option[@name="protocol"]/@value'
+          ) AS b,
+          servers AS c,
+          (
+            SELECT
+              i.host_uuid,
+              i.host_short_name
+            FROM (${sqlHosts()}) AS i
+            WHERE i.host_type = 'dr'
+          ) AS d
+        WHERE
+            c.server_name = a.scan_drbd_resource_name
+          AND
+            b.connection_host = d.host_short_name
+          AND
+            c.server_uuid = '${serverUuid}'
+        GROUP BY
+          b.drbd_connection_protocol,
+          d.host_uuid;`;
+
+    let protectStatusRows: string[][];
+
+    try {
+      protectStatusRows = await query(sqlGetProtectStatus);
+    } catch (error) {
+      return respond.s500(
+        'f1921a7',
+        `Failed to get server protect status; CAUSE: ${error}`,
+      );
+    }
+
+    protectStatusRows.forEach((row) => {
+      const [drUuid, protocol] = row;
+
+      server.protect[drUuid] = {
+        drUuid,
+        protocol,
+      };
+    });
+
+    return respond.s200(server);
   }
 };
