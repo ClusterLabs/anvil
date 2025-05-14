@@ -7,21 +7,15 @@ export const setServerProtect =
       await serverSetProtectRequestBodySchema.validate(body);
     },
     async ({ body }, server, sbin) => {
-      const { drUuid, protect, protocol } = body;
+      const { drUuid, operation, protocol } = body;
 
       const command = sbin['anvil-manage-dr'].self;
 
-      const commandArgs = ['--server', server.uuid, '--dr-host', drUuid];
+      const commandArgs = ['--server', server.uuid, `--${operation}`];
 
-      let operation: string;
-
-      if (protect) {
-        operation = 'protect';
-      } else {
-        operation = 'remove';
+      if (drUuid) {
+        commandArgs.push('--dr-host', drUuid);
       }
-
-      commandArgs.push(`--${operation}`);
 
       if (protocol) {
         commandArgs.push('--protocol', protocol);

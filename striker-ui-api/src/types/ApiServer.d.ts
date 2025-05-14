@@ -325,8 +325,8 @@ type ServerSetMemoryRequestBody = {
 };
 
 type ServerSetProtectRequestBody = {
-  drUuid: string;
-  protect?: boolean;
+  drUuid?: string;
+  operation: string;
   protocol?: string;
 };
 
