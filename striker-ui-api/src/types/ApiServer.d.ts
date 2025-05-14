@@ -207,7 +207,10 @@ type ServerDetailMemory = {
 
 type ServerDetailProtect = {
   drUuid: string;
-  protocol?: string;
+  protocol: string;
+  status: {
+    connection: string;
+  };
 };
 
 type ServerDetailVariable = {
