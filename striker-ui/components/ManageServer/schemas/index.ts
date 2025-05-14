@@ -4,6 +4,7 @@ import buildMemorySchema from './buildMemorySchema';
 import buildRenameSchema from './buildRenameSchema';
 import changeIsoSchema from './changeIsoSchema';
 import cpuSchema from './cpuSchema';
+import protectSchema from './protectSchema';
 import startDependencySchema from './startDependencySchema';
 
 export {
@@ -13,5 +14,6 @@ export {
   buildRenameSchema,
   changeIsoSchema,
   cpuSchema,
+  protectSchema,
   startDependencySchema,
 };
