@@ -4,6 +4,7 @@ import toAnvilOverviewHostList from './toAnvilOverviewHostList';
 import toAnvilOverviewList from './toAnvilOverviewList';
 import toAnvilSharedStorageOverview from './toAnvilSharedStorageOverview';
 import toHostDetailCalcable from './toHostDetailCalcable';
+import toHostDetailCalcableList from './toHostDetailCalcableList';
 import toProvisionServerResources from './toProvisionServerResources';
 import toStorageCalcable from './toStorageCalcable';
 
@@ -14,6 +15,7 @@ export {
   toAnvilOverviewList,
   toAnvilSharedStorageOverview,
   toHostDetailCalcable,
+  toHostDetailCalcableList,
   toProvisionServerResources,
   toStorageCalcable,
 };
