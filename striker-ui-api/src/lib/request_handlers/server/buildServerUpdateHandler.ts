@@ -11,6 +11,9 @@ type P = RequestTarget;
 type ResBody = ServerUpdateResponseBody | ResponseErrorBody;
 
 type S = {
+  anvil: {
+    uuid: string;
+  };
   host: {
     uuid: string;
   };
@@ -46,6 +49,9 @@ export const buildServerUpdateHandler =
     }
 
     const server: S = {
+      anvil: {
+        uuid: '',
+      },
       host: {
         uuid: '',
       },
@@ -53,23 +59,25 @@ export const buildServerUpdateHandler =
       uuid: response.locals.target.uuid,
     };
 
+    const sqlGetServer = `
+      SELECT
+        a.server_name,
+        a.server_anvil_uuid,
+        COALESCE(
+          a.server_host_uuid,
+          b.anvil_node1_host_uuid
+        ) AS job_host_uuid
+      FROM servers AS a
+      JOIN anvils AS b
+        ON a.server_anvil_uuid = b.anvil_uuid
+      WHERE a.server_uuid = '${server.uuid}';`;
+
     try {
-      const rows = await query<[[string, string]]>(
-        `SELECT
-            a.server_name,
-            COALESCE(
-              a.server_host_uuid,
-              b.anvil_node1_host_uuid
-            ) AS job_host_uuid
-          FROM servers AS a
-          JOIN anvils AS b
-            ON a.server_anvil_uuid = b.anvil_uuid
-          WHERE a.server_uuid = '${server.uuid}';`,
-      );
+      const rows = await query<[[string, string, string]]>(sqlGetServer);
 
       assert.ok(rows.length, 'No record found');
 
-      [[server.name, server.host.uuid]] = rows;
+      [[server.name, server.anvil.uuid, server.host.uuid]] = rows;
     } catch (error) {
       perr(`Failed to get server host; CAUSE: ${error}`);
     }
