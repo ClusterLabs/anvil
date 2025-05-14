@@ -1,4 +1,3 @@
-import { gridClasses } from '@mui/material';
 import { FC, ReactNode, useMemo } from 'react';
 
 import AnvilSummary from './AnvilSummary';
@@ -33,7 +32,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
     () =>
       anvils && (
         <Grid
-          columns={{ xs: 1, md: 2, lg: 3, xl: 4 }}
+          alignContent="stretch"
           layout={Object.values(anvils).reduce<GridLayout>(
             (previous, current) => {
               const { description, name, uuid } = current;
@@ -63,6 +62,14 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                     </InnerPanelBody>
                   </InnerPanel>
                 ),
+                maxWidth: {
+                  xs: '100%',
+                  md: '50%',
+                  lg: 'calc(100% / 3)',
+                  xl: '25%',
+                },
+                minWidth: '24em',
+                xs: true,
               };
 
               return previous;
@@ -70,13 +77,6 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
             {},
           )}
           spacing="1em"
-          sx={{
-            alignContent: 'stretch',
-
-            [`& > .${gridClasses.item}`]: {
-              minWidth: '20em',
-            },
-          }}
         />
       ),
     [anvils, refreshInterval],

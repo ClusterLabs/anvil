@@ -32,7 +32,7 @@ const DrHostSummaryList: React.FC = () => {
     const values = Object.values(drs);
 
     return (
-      <Grid alignContent="stretch" container>
+      <Grid alignContent="stretch" container spacing="1em">
         {values.map<React.ReactNode>((dr) => {
           const { shortHostName: short, hostUUID: uuid } = dr;
 
@@ -46,6 +46,7 @@ const DrHostSummaryList: React.FC = () => {
                 lg: 'calc(100% / 3)',
                 xl: '25%',
               }}
+              minWidth="24em"
               xs
             >
               <InnerPanel mv={0}>
