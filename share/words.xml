@@ -4107,7 +4107,7 @@ Here we will inject 't_0006', which injects 't_0001' which has a variable: [#!st
 ====
 The duplicate will be removed.</key>
 		<key name="warning_0004">Unable to stop servers, failed to parse the CIB. Will try again shortly.</key>
-		<key name="warning_0005">The server: [#!variable!server_name!#] can't stop yet. It's waiting for: [#!variable!wait_for_server_name!#] to turn "off", but it's status is: [#!variable!wait_for_server_status!# (#!variable!wait_for_server_role!#)].</key>
+		<key name="warning_0005">The server: [#!variable!server_name!#] can't stop yet. It's waiting for: [#!variable!wait_for_server_name!#] on the node: [#!variable!node!#] to be "shut off", but it's status is: [#!variable!wait_for_server_status!#].</key>
 		<key name="warning_0006">Not all servers asked to stop, will check again shortly.</key>
 		<key name="warning_0007">[ Warning ] - The job: [#!variable!command!#] was picked up by: [#!variable!pid!#], but that process is not running and it appears to only be: [#!variable!percent!# %] complete. Restarting the job.</key>
 		<key name="warning_0008">[ Warning ] - Failed to connect to the local host via Sys::Virt using the URI: [#!variable!uri!#]. The error, if any, was: [#!variable!error!#].</key>
