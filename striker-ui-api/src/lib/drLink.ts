@@ -2,7 +2,7 @@ import { SERVER_PATHS } from './consts';
 
 import { job, query } from './accessModule';
 import { perr, poutvar } from './shell';
-import { sqlDrLinkedFromSg, sqlDrLinkedFromVg } from './sqls';
+import { sqlDrLinked, sqlDrLinkedFromSg, sqlDrLinkedFromVg } from './sqls';
 
 export const linkDr = async (
   anvilUuid: string,
@@ -60,11 +60,8 @@ export const unlinkDr = async (
 
 export const linkDrFrom = async (
   anvilUuid: string,
-  {
-    link = true,
-    lvmVgUuids,
-    sgName,
-  }: {
+  options: {
+    drUuid?: string;
     link?: boolean;
     lvmVgUuids?: string[];
     sgName?: string;
@@ -73,12 +70,12 @@ export const linkDrFrom = async (
   poutvar(
     {
       anvilUuid,
-      link,
-      lvmVgUuids,
-      sgName,
+      ...options,
     },
     `In linkDrFrom: `,
   );
+
+  const { drUuid, link = true, lvmVgUuids, sgName } = options;
 
   // get the current link state of the DR host(s)
 
@@ -86,7 +83,9 @@ export const linkDrFrom = async (
 
   let sql: string;
 
-  if (lvmVgUuids) {
+  if (drUuid) {
+    sql = sqlDrLinked(anvilUuid, `'${drUuid}'`);
+  } else if (lvmVgUuids) {
     sql = sqlDrLinkedFromVg(anvilUuid, lvmVgUuids);
   } else if (sgName) {
     sql = sqlDrLinkedFromSg(anvilUuid, sgName, 'name');
