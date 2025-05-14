@@ -397,7 +397,7 @@ sub boot_all_servers
 			my $stay_off_key = "server::".$server_name."::stay-off";
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stay_off_key => $stay_off_key }});
 			my ($server_stay_off, $variable_uuid, undef, undef) = $anvil->Database->read_variable({
-				debug                 => 2,
+				debug                 => 3,
 				variable_name         => $stay_off_key, 
 				variable_source_uuid  => $server_uuid, 
 				variable_source_table => "servers", 
@@ -432,14 +432,14 @@ sub boot_all_servers
 			if ($start_after_server_name)
 			{
 				# Is it booted yet?
-				my $time_since_boot    = time - $start_after_server_boot_time;
+				my $time_since_boot    = $start_after_server_boot_time ? time - $start_after_server_boot_time : 0;
 				   $server_start_delay = 30 if not $server_start_delay;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					time_since_boot    => $time_since_boot,
 					server_start_delay => $server_start_delay, 
 				}});
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0717", variables => { 
-					delay  => $start_after_server_boot_time, 
+					delay  => $server_start_delay, 
 					server => $start_after_server_name,
 					node   => $start_after_server_anvil_name, 
 				}});
@@ -452,7 +452,7 @@ sub boot_all_servers
 						$all_processed = 0;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
 						
-						my $time_to_wait = $server_start_delay - $start_after_server_boot_time;
+						my $time_to_wait = $server_start_delay - $time_since_boot;
 						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0720", variables => { 
 							boot_after_server => $start_after_server_name,
 							node              => $start_after_server_anvil_name, 
@@ -480,6 +480,8 @@ sub boot_all_servers
 				}
 			}
 			
+			# If we're here and the server isn't booted, boot it. If not, and not processed, log 
+			# it.
 			if ($server_state eq "shut off")
 			{
 				# Boot it.
@@ -494,165 +496,11 @@ sub boot_all_servers
 			elsif (not $anvil->data->{boot_server}{$server_name}{processed})
 			{
 				# It may have booted before we ran.
-				$anvil->data->{boot_server}{$server_name}{processed} = time;
+				$anvil->data->{boot_server}{$server_name}{processed} = 1;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0722", variables => { server => $server_name }});
 			}
 			
 		}
-		
-		die;
-		
-		# This will get set to 0 if any servers are waiting to boot.
-=cut
-		foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
-		{
-			my $status      = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{status};
-			my $host_name   = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{host_name};
-			my $role        = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{role};
-			my $active      = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{active};
-			my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
-			my $boot_delay  = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_delay};
-			   $boot_delay  = 0 if not $boot_delay;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				's1:server_name' => $server_name,
-				's2:status'      => $status,
-				's2:host_name'   => $host_name,
-				's4:role'        => $role,
-				's5:active'      => $active, 
-				's6:server_uuid' => $server_uuid, 
-				's7:boot_delay'  => $boot_delay, 
-			}});
-			
-			# Read to see if this server is set to stay off during auto boot.
-			my $stay_off_key = "server::".$server_name."::stay-off";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { stay_off_key => $stay_off_key }});
-			my ($server_stay_off, $variable_uuid, undef, undef) = $anvil->Database->read_variable({
-				debug                 => 2,
-				variable_name         => $stay_off_key, 
-				variable_source_uuid  => $server_uuid, 
-				variable_source_table => "servers", 
-			});
-			$server_stay_off = 0 if not $server_stay_off;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				server_stay_off => $server_stay_off, 
-				variable_uuid   => $variable_uuid,
-			}});
-			
-			if (not exists $anvil->data->{boot_server}{$server_name}{processed})
-			{
-				# This will get set to the boot time once we actually start it. This will let
-				# us time when servers that boot after this server can boot.
-				$anvil->data->{boot_server}{$server_name}{processed} = 0;
-			}
-			elsif ($anvil->data->{boot_server}{$server_name}{processed})
-			{
-				# Already processed.
-				next;
-			}
-			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0719", variables => { server => $server_name }});
-			
-			my $boot_after_server_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_start_after_server_uuid};
-			   $boot_after_server_uuid = "" if not defined $boot_after_server_uuid;
-			   $boot_after_server_uuid = "" if $boot_after_server_uuid eq "NULL";
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_after_server_uuid => $boot_after_server_uuid }});
-			if ($boot_after_server_uuid)
-			{
-				if ($server_stay_off)
-				{
-					# This server is configured to stay off. 
-					$anvil->data->{boot_server}{$server_name}{processed} = time;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-						"boot_server::${server_name}::processed" => $anvil->data->{boot_server}{$server_name}{processed},
-					}});
-					
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0723", variables => { server => $server_name }});
-					next;
-				}
-				
-				# What's the server's name.
-				my $boot_after_server_name = $anvil->data->{servers}{server_uuid}{$boot_after_server_uuid}{server_name};
-				   $boot_after_server_name = "" if not defined $boot_after_server_name;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { boot_after_server_name => $boot_after_server_name }});
-				
-				# Has this server processed?
-				if ($boot_after_server_name)
-				{
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0717", variables => { 
-						delay  => $boot_delay, 
-						server => $boot_after_server_name,
-					}});
-					if (not exists $anvil->data->{boot_server}{$boot_after_server_name})
-					{
-						$anvil->data->{boot_server}{$boot_after_server_name}{processed} = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"boot_server::${boot_after_server_name}::processed" => $anvil->data->{boot_server}{$boot_after_server_name}{processed},
-						}});
-					}
-					
-					if ($anvil->data->{boot_server}{$boot_after_server_name}{processed})
-					{
-						my $processed_seconds_ago = time - $anvil->data->{boot_server}{$boot_after_server_name}{processed};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { processed_seconds_ago => $processed_seconds_ago }});
-						if ($processed_seconds_ago > $boot_delay)
-						{
-							# Ready to boot.
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0721", variables => { server => $server_name }});
-						}
-						else
-						{
-							# Not ready yet.
-							$all_processed = 0;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
-							
-							my $time_to_wait = $boot_delay - $processed_seconds_ago;
-							$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0720", variables => { 
-								boot_after_server => $boot_after_server_name,
-								this_server       => $server_name,
-								time_to_wait      => $time_to_wait,
-							}});
-							next;
-						}
-					}
-					else
-					{
-						# The other server hasn't processed yet.
-						$all_processed = 0;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
-						
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0718", variables => { 
-							boot_after_server => $boot_after_server_name,
-							this_server       => $server_name,
-						}});
-						next; 
-					}
-				}
-			}
-			
-			if ($status eq "off")
-			{
-				# Boot it.
-				my $wait    =  $anvil->data->{switches}{'wait'} ? 1 : 0;
-				   $percent += $increment;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					'wait'  => $wait,
-					percent => $percent, 
-				}});
-				boot_server($anvil, $server_name, $wait, $percent);
-				
-				# If we're here, the server processed. 
-				$anvil->data->{boot_server}{$server_name}{processed} = time;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					"boot_server::${server_name}::processed" => $anvil->data->{boot_server}{$server_name}{processed}, 
-				}});
-			}
-			elsif (not $anvil->data->{boot_server}{$server_name}{processed})
-			{
-				# It may have booted before we ran.
-				$anvil->data->{boot_server}{$server_name}{processed} = time;
-				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, secure => 0, key => "log_0722", variables => { server => $server_name }});
-			}
-		}
-=cut
 		
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_processed => $all_processed }});
 		if ($all_processed)
