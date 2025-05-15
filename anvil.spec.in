@@ -76,7 +76,6 @@ Requires:       fence-agents-virsh
 Requires:       firewalld
 Requires:       freeipmi
 Requires:       glibc-all-langpacks
-Requires:       gpm 
 Requires:       hdparm
 Requires:       htop
 Requires:       iotop
@@ -86,9 +85,7 @@ Requires:       kernel-devel
 Requires:       kernel-headers
 Requires:       lsscsi
 Requires:       lsof
-Requires:       mlocate 
 Requires:       net-snmp-utils
-Requires:       NetworkManager-initscripts-updown
 Requires:       nvme-cli
 Requires:       parted
 Requires:       pciutils
