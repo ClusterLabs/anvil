@@ -39,6 +39,11 @@ type ServerMemoryFormikValues = {
   };
 };
 
+type ServerProtectFormikValues = {
+  lvmVgUuid: null | string;
+  protocol: null | string;
+};
+
 /**
  * @property delay - Unit: seconds
  */
@@ -149,6 +154,14 @@ type BaseServerMemoryFormProps = ServerFormProps & {
 };
 
 type ServerMemoryFormProps = ServerFormProps;
+
+/** ServerProtectForm */
+
+type BaseServerProtectFormProps = ServerFormProps & {
+  drs: APIHostDetailCalcableList;
+};
+
+type ServerProtectFormProps = ServerFormProps;
 
 /** ServerStartDependencyForm */
 

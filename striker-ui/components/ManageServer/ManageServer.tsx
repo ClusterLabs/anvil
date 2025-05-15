@@ -15,6 +15,7 @@ import ServerDiskList from './ServerDiskList';
 import ServerInterfaceList from './ServerInterfaceList';
 import ServerMemoryForm from './ServerMemoryForm';
 import ServerMigration from './ServerMigration';
+import ServerProtectForm from './ServerProtectForm';
 import ServerRenameForm from './ServerRenameForm';
 import ServerStartDependencyForm from './ServerStartDependencyForm';
 import Spinner from '../Spinner';
@@ -62,6 +63,10 @@ const tabs = {
     label: 'Name',
     value: 'name',
   },
+  protect: {
+    label: 'Disaster recovery',
+    value: 'protect',
+  },
   startDependency: {
     label: 'Start dependency',
     value: 'start-dependency',
@@ -97,7 +102,7 @@ const ManageServer: FC<ManageServerProps> = (props) => {
     useFetch<APIServerOverviewList>('/server');
 
   const { data: detail } = useFetch<APIServerDetail>(`/server/${serverUuid}`, {
-    refreshInterval: 2000,
+    refreshInterval: 3000,
   });
 
   const {
@@ -192,6 +197,8 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                   <Tab {...tabs.migration} />
 
                   <Tab {...tabs.name} />
+
+                  <Tab {...tabs.protect} />
 
                   <Tab {...tabs.startDependency} />
 
@@ -300,6 +307,13 @@ const ManageServer: FC<ManageServerProps> = (props) => {
                 tools={formTools.current}
                 servers={servers}
               />
+            </TabContent>
+
+            <TabContent changingTabId={tabId} tabId={tabs.protect.value}>
+              <PanelHeader>
+                <HeaderText>{tabs.protect.label}</HeaderText>
+              </PanelHeader>
+              <ServerProtectForm detail={detail} tools={formTools.current} />
             </TabContent>
 
             <TabContent

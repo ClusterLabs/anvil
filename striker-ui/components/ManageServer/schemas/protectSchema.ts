@@ -1,9 +1,7 @@
 import * as yup from 'yup';
 
-import { yupLaxUuid } from '../../../lib/yupCommons';
-
 const protectSchema = yup.object({
-  drUuid: yupLaxUuid().required('DR host is required.'),
+  lvmVgUuid: yup.string().required('Volume group is required.'),
   protocol: yup
     .string()
     .required()
