@@ -183,6 +183,14 @@ const JobDetail: FC<JobDetailProps> = (props) => {
         </Grid>
         <Grid columns={2} container item>
           <Grid item xs={1}>
+            <BodyText>UUID</BodyText>
+          </Grid>
+          <Grid item xs={1}>
+            <SmallText monospaced noWrap textAlign="end">
+              {job.uuid}
+            </SmallText>
+          </Grid>
+          <Grid item xs={1}>
             <BodyText>Host</BodyText>
           </Grid>
           <Grid item xs={1}>
