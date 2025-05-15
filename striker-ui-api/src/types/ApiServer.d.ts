@@ -325,7 +325,7 @@ type ServerSetMemoryRequestBody = {
 };
 
 type ServerSetProtectRequestBody = {
-  drUuid?: string;
+  lvmVgUuid?: string;
   operation: string;
   protocol?: string;
 };

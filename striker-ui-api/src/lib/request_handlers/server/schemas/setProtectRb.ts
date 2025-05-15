@@ -1,9 +1,9 @@
 import * as yup from 'yup';
 
-import { yupLaxUuid } from '../../../yupCommons';
+import { yupLvmUuid } from '../../../yupCommons';
 
 export const serverSetProtectRequestBodySchema = yup.object({
-  drUuid: yupLaxUuid().when(['operation'], (values, schema) => {
+  lvmVgUuid: yupLvmUuid().when(['operation'], (values, schema) => {
     const [operation] = values;
 
     if (operation === 'protect') {
