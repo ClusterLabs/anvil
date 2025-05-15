@@ -166,11 +166,9 @@ Requires:       createrepo
 Requires:       dejavu-sans-fonts
 Requires:       dejavu-sans-mono-fonts
 Requires:       dejavu-serif-fonts
-Requires:       dhcp-server
 Requires:       firefox
 Requires:       gcc
 Requires:       gdm
-Requires:       gnome-terminal
 Requires:       netpbm-progs
 Requires:       nmap
 Requires:       nodejs
