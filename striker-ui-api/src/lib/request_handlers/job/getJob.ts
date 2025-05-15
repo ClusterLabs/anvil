@@ -2,8 +2,9 @@ import { RequestHandler } from 'express';
 
 import { query, translate } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
-import { ResponseError } from '../../ResponseError';
-import { sanitize } from '../../sanitize';
+import join from '../../join';
+import { Responder } from '../../Responder';
+import { getJobQueryStringSchema } from './schemas';
 import { date, perr } from '../../shell';
 
 export const getJob: RequestHandler<
@@ -12,19 +13,25 @@ export const getJob: RequestHandler<
   unknown,
   JobRequestQuery
 > = async (request, response) => {
-  const {
-    query: { command: rCommand, name: rName, start: rStart },
-  } = request;
+  const respond = new Responder(response);
 
-  // Expects EPOCH in seconds
-  const start = rStart === undefined ? -1 : sanitize(rStart, 'number');
+  let qs: {
+    command?: string[];
+    name?: string[];
+    // Expects EPOCH in seconds
+    start: number;
+  };
 
-  const jobCommand = sanitize(rCommand, 'string', {
-    modifierType: 'sql',
-  });
-  const jobName = sanitize(rName, 'string', {
-    modifierType: 'sql',
-  });
+  try {
+    qs = await getJobQueryStringSchema.validate(request.query);
+  } catch (error) {
+    return respond.s400(
+      '7216e1d',
+      `Invalid request query string(s); CAUSE: ${error}`,
+    );
+  }
+
+  const { command: lsCommand, name: lsName, start } = qs;
 
   // Start with boundless value and replace when needed.
   let conditions = 'TRUE';
@@ -57,12 +64,21 @@ export const getJob: RequestHandler<
       )`;
   }
 
-  if (jobCommand) {
-    conditions = `${conditions} AND a.job_command LIKE '%${jobCommand}%'`;
+  if (lsCommand) {
+    conditions += join(lsCommand, {
+      beforeReturn: (csv) =>
+        csv && ` AND a.job_command LIKE ANY (ARRAY[${csv}])`,
+      onEach: (value) => `'%${value}%'`,
+      separator: ', ',
+    });
   }
 
-  if (jobName) {
-    conditions = `${conditions} AND a.job_name LIKE '%${jobName}%'`;
+  if (lsName) {
+    conditions += join(lsName, {
+      beforeReturn: (csv) => csv && `  AND a.job_name LIKE ANY (ARRAY[${csv}])`,
+      onEach: (value) => `'%${value}%'`,
+      separator: ', ',
+    });
   }
 
   const sql = `
@@ -89,14 +105,7 @@ export const getJob: RequestHandler<
   try {
     rows = await query<string[][]>(sql);
   } catch (error) {
-    const rserror = new ResponseError(
-      'c2b683b',
-      `Failed to get jobs; CAUSE: ${error}`,
-    );
-
-    perr(rserror.toString());
-
-    return response.status(500).send(rserror.body);
+    return respond.s500('c2b683b', `Failed to get jobs; CAUSE: ${error}`);
   }
 
   const promises = rows.map<Promise<JobOverview>>(async (row) => {
@@ -132,7 +141,7 @@ export const getJob: RequestHandler<
 
   const overviews = await Promise.all(promises);
 
-  const rsbody = overviews.reduce<JobOverviewList>((previous, overview) => {
+  const body = overviews.reduce<JobOverviewList>((previous, overview) => {
     const { uuid } = overview;
 
     previous[uuid] = overview;
@@ -140,5 +149,5 @@ export const getJob: RequestHandler<
     return previous;
   }, {});
 
-  return response.status(200).send(rsbody);
+  return respond.s200(body);
 };
