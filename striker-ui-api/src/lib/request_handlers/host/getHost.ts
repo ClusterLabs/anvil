@@ -15,6 +15,7 @@ export const getHost: RequestHandler<
   Express.RhReqBody,
   {
     detail?: boolean;
+    host?: string | string[];
     node?: string | string[];
     type?: string | string[];
   }
@@ -37,13 +38,17 @@ export const getHost: RequestHandler<
     );
   }
 
-  const { detail, host: lshost, node: lsnode, type: lstype } = qs;
+  const { detail, host: lsHost, node: lsNode, type: lsType } = qs;
 
   if (detail) {
     let hosts: HostDetailList;
 
     try {
-      hosts = await buildHostDetailList({ lshost, lsnode, lstype });
+      hosts = await buildHostDetailList({
+        lsHost: lsHost,
+        lsNode: lsNode,
+        lsType: lsType,
+      });
     } catch (error) {
       return respond.s500(
         '4fd118b',
@@ -56,16 +61,16 @@ export const getHost: RequestHandler<
 
   let condition = `TRUE`;
 
-  if (lsnode) {
-    condition += join(lsnode, {
+  if (lsNode) {
+    condition += join(lsNode, {
       beforeReturn: (csv) => csv && ` AND b.anvil_uuid IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  if (lstype) {
-    condition += join(lstype, {
+  if (lsType) {
+    condition += join(lsType, {
       beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',

@@ -74,33 +74,33 @@ const setvarParams: Record<
 
 export const buildHostDetailList = async (
   options: {
-    lshost?: string[];
-    lsnode?: string[];
-    lstype?: string[];
+    lsHost?: string[];
+    lsNode?: string[];
+    lsType?: string[];
   } = {},
 ): Promise<HostDetailList> => {
-  const { lshost, lsnode, lstype } = options;
+  const { lsHost, lsNode, lsType } = options;
 
   let conditions = 'TRUE';
 
-  if (lshost?.length) {
-    conditions += join(lshost, {
+  if (lsHost?.length) {
+    conditions += join(lsHost, {
       beforeReturn: (csv) => csv && ` AND a.host_uuid IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  if (lsnode?.length) {
-    conditions += join(lsnode, {
+  if (lsNode?.length) {
+    conditions += join(lsNode, {
       beforeReturn: (csv) => csv && ` AND b.anvil_uuid IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  if (lstype?.length) {
-    conditions += join(lstype, {
+  if (lsType?.length) {
+    conditions += join(lsType, {
       beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',

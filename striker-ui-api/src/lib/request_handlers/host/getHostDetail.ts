@@ -18,7 +18,7 @@ export const getHostDetail: RequestHandler<
   let host: HostDetail | undefined;
 
   try {
-    const hosts = await buildHostDetailList({ lshost: [hostUuid] });
+    const hosts = await buildHostDetailList({ lsHost: [hostUuid] });
 
     ({ [hostUuid]: host } = hosts);
   } catch (error) {
