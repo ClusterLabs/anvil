@@ -10,6 +10,7 @@ export * from './sqlScanClusterNodes';
 export * from './sqlScanDrbdPeers';
 export * from './sqlScanDrbdResources';
 export * from './sqlScanDrbdVolumes';
+export * from './sqlScanLvmLvs';
 export * from './sqlScanLvmVgs';
 export * from './sqlServers';
 export * from './sqlStorageGroupMembers';
