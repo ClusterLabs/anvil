@@ -1,10 +1,15 @@
-import { Grid } from '@mui/material';
+import { Box, Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
-import { useMemo } from 'react';
+import { capitalize } from 'lodash';
+import { useMemo, useState } from 'react';
 
 import { toHostDetailCalcableList } from '../../lib/api_converters';
 import Autocomplete from '../Autocomplete';
+import ContainedButton from '../ContainedButton';
+import handleAction from './handleAction';
 import handleFormSubmit from './handleFormSubmit';
+import JobProgressList from '../JobProgressList';
+import List from '../List';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
 import { protectSchema } from './schemas';
@@ -12,28 +17,62 @@ import SelectWithLabel from '../SelectWithLabel';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import Spinner from '../Spinner';
+import SwitchWithLabel from '../SwitchWithLabel';
 import { BodyText, InlineMonoText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
-import List from '../List';
-import SwitchWithLabel from '../SwitchWithLabel';
-import ContainedButton from '../ContainedButton';
 
 const nZero = BigInt(0);
 
 const protocolOptions: SelectItem[] = [
   {
-    displayValue: 'Async',
+    displayValue: (
+      <Box>
+        <BodyText inheritColour>
+          Async (
+          <InlineMonoText inheritColour noWrap>
+            short-throw
+          </InlineMonoText>
+          )
+        </BodyText>
+        <BodyText selected={false}>
+          Replication writes are considered done when the data is in the active
+          node&apos;s network transmit buffer.
+        </BodyText>
+      </Box>
+    ),
     value: 'short-throw',
   },
   {
-    displayValue: 'Sync',
+    displayValue: (
+      <Box>
+        <BodyText inheritColour>Sync</BodyText>
+        <BodyText selected={false}>
+          Replication writes are considered done when the data is written to
+          disk on the DR host.
+        </BodyText>
+      </Box>
+    ),
     value: 'sync',
   },
 ];
 
 const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
   const { detail, drs, tools } = props;
+
+  const [jobProgress, setJobProgress] = useState<number>(0);
+
+  const [jobRegistered, setJobRegistered] = useState<boolean>(false);
+
+  const jobInProgress = useMemo<boolean>(
+    () => jobRegistered && jobProgress < 100,
+    [jobRegistered, jobProgress],
+  );
+
+  const url = useMemo<string>(
+    () => `/server/${detail.uuid}/set-protect`,
+    [detail.uuid],
+  );
 
   const drVgs = useMemo(
     () =>
@@ -100,11 +139,13 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
       protocol: 'sync',
     },
     onSubmit: (values, helpers) => {
+      setJobRegistered(false);
+
       handleFormSubmit(
         values,
         helpers,
         tools,
-        () => `/server/${detail.uuid}/set-protect`,
+        () => url,
         () => `Update server protect config?`,
         {
           buildSummary: (v) => {
@@ -141,6 +182,9 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
 
             return body;
           },
+          onSuccess: () => {
+            setJobRegistered(true);
+          },
         },
       );
     },
@@ -163,23 +207,141 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
 
     const { [drUuid]: dr } = drs;
 
+    const connected = status.connection === 'connected';
+
     return (
-      <Grid container spacing="1em">
+      <Grid alignItems="center" container spacing="1em">
         <Grid item width="100%">
           <BodyText>
-            Server is configured to be protected by{' '}
+            <InlineMonoText edge="start" noWrap>
+              {detail.name}
+            </InlineMonoText>{' '}
+            is configured to be protected by{' '}
             <InlineMonoText noWrap>{dr.short}</InlineMonoText> using protocol{' '}
             <InlineMonoText noWrap>{protocol}</InlineMonoText>.
           </BodyText>
         </Grid>
         <Grid item xs>
           <SwitchWithLabel
-            checked={status.connection === 'connected'}
+            checked={connected}
             label="Connection"
+            onChange={(event, checked) => {
+              const operation = checked ? 'connect' : 'disconnect';
+
+              const label = capitalize(operation);
+
+              handleAction(
+                tools,
+                url,
+                `${label} the server on the protector DR host?`,
+                {
+                  body: {
+                    operation,
+                  },
+                  description: (
+                    <BodyText>
+                      {operation === 'connect' ? (
+                        <>
+                          This operation connects the server to its copy on the
+                          DR host and start streaming replication.
+                        </>
+                      ) : (
+                        <>
+                          This operation disconnects the server from its copy on
+                          the DR host and stop streaming replication.
+                        </>
+                      )}
+                    </BodyText>
+                  ),
+                  messages: {
+                    fail: <>Failed to register {operation} resource job.</>,
+                    proceed: label,
+                    success: (
+                      <>Successfully registered {operation} resource job</>
+                    ),
+                  },
+                },
+              );
+            }}
           />
         </Grid>
         <Grid item xs>
-          <ContainedButton>Update</ContainedButton>
+          <ContainedButton
+            onClick={() => {
+              const operation = 'update';
+
+              const label = capitalize(operation);
+
+              handleAction(
+                tools,
+                url,
+                `${label} the server on the protector DR host?`,
+                {
+                  body: {
+                    operation,
+                  },
+                  description: (
+                    <BodyText>
+                      This operation is a combination that connects, performs a
+                      sync, and disconnects.
+                    </BodyText>
+                  ),
+                  messages: {
+                    fail: <>Failed to register {operation} resource job.</>,
+                    proceed: label,
+                    success: (
+                      <>Successfully registered {operation} resource job</>
+                    ),
+                  },
+                },
+              );
+            }}
+            sx={{
+              width: '100%',
+            }}
+          >
+            Update
+          </ContainedButton>
+        </Grid>
+        <Grid item xs>
+          <ContainedButton
+            background="red"
+            onClick={() => {
+              const operation = 'remove';
+
+              const label = capitalize(operation);
+
+              handleAction(
+                tools,
+                url,
+                `${label} protection for the server on the protector DR host?`,
+                {
+                  body: {
+                    operation,
+                  },
+                  description: (
+                    <BodyText>
+                      This operation removes the server&apos;s copy on the DR
+                      host and thus removes the protection.
+                    </BodyText>
+                  ),
+                  dangerous: true,
+                  messages: {
+                    fail: <>Failed to register {operation} protection job.</>,
+                    proceed: label,
+                    success: (
+                      <>Successfully registered {operation} protection job</>
+                    ),
+                  },
+                },
+              );
+            }}
+            sx={{
+              width: '100%',
+            }}
+          >
+            Remove protection
+          </ContainedButton>
         </Grid>
       </Grid>
     );
@@ -195,7 +357,10 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
             <Grid container>
               <Grid item xs>
                 <BodyText>
-                  <InlineMonoText noWrap>{lv.name}</InlineMonoText> (
+                  <InlineMonoText edge="start" noWrap>
+                    {lv.name}
+                  </InlineMonoText>{' '}
+                  (
                   <InlineMonoText noWrap variant="caption">
                     {lv.uuid}
                   </InlineMonoText>
@@ -294,16 +459,37 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
           onChange={formik.handleChange}
           required
           selectItems={protocolOptions}
+          selectProps={{
+            renderValue: (value) => value,
+          }}
           value={formik.values.protocol}
         />
       </Grid>
+      {jobRegistered && (
+        <Grid item width="100%">
+          <JobProgressList
+            getLabel={(progress) =>
+              progress === 100 ? 'Config changed.' : 'Changing config...'
+            }
+            names={[
+              'dr::link',
+              'dr::protect',
+              `storage-group-member::add::${formik.values.lvmVgUuid}`,
+            ]}
+            progress={{
+              set: setJobProgress,
+              value: jobProgress,
+            }}
+          />
+        </Grid>
+      )}
       <Grid item width="100%">
         <MessageGroup count={1} messages={formikErrors} />
       </Grid>
       <Grid item width="100%">
         <ServerFormSubmit
           detail={detail}
-          formDisabled={disabledSubmit}
+          formDisabled={disabledSubmit || jobInProgress}
           label="Save"
         />
       </Grid>
