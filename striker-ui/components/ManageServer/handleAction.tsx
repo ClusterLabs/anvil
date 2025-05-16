@@ -19,7 +19,7 @@ const handleAction = <ReqBody = unknown,>(
     method?: Method;
     onFail?: () => void;
     onSuccess?: () => void;
-  },
+  } = {},
 ) => {
   const {
     body,
