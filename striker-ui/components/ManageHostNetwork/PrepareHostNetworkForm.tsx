@@ -19,7 +19,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const buildFormikInitialValues = (
   detail: APIHostDetail,
 ): PrepareHostNetworkFormikValues => {
-  const { dns = '', gateway = '', networks: nets } = detail.netconf;
+  const { dns = '', gateway = '', networks: nets, ntp = '' } = detail.netconf;
 
   let networks: Record<string, HostNetFormikValues> = {
     defaultbcn: {
@@ -65,6 +65,7 @@ const buildFormikInitialValues = (
       dns,
       gateway,
       networks,
+      ntp,
     },
   };
 };
