@@ -30,12 +30,12 @@ export const configStriker: RequestHandler<
     adminPassword,
     domainName,
     hostName,
-    hostNtp,
     hostNumber,
     dns,
     gateway,
     gatewayInterface,
     networks,
+    ntp,
     organizationName,
     organizationPrefix,
   } = body;
@@ -53,7 +53,7 @@ export const configStriker: RequestHandler<
     [cvar(2, 'striker_user')]: { step: 2, value: 'admin' },
     ...buildNetworkConfig(networks),
     // NTP is the only field read directly by the config perl script.
-    'network::ntp::servers': { step: 2, value: hostNtp },
+    'network::ntp::servers': { step: 2, value: ntp },
   };
 
   poutvar(configData, `Config striker with data: `);
