@@ -11,6 +11,7 @@ type HostNetInitFormikValues = {
   dns: string;
   gateway: string;
   networks: Record<string, HostNetFormikValues>;
+  ntp: string;
 };
 
 type HostNetInitFormikExtension = {

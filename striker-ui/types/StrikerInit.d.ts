@@ -3,7 +3,6 @@ type StrikerInitFormikValues = HostNetInitFormikExtension & {
   confirmAdminPassword: string;
   domainName: string;
   hostName: string;
-  hostNtp: string;
   hostNumber: string;
   organizationName: string;
   organizationPrefix: string;
