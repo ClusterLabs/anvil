@@ -237,7 +237,7 @@ sub add_server
 	my $host_name    = $anvil->Get->host_name();
 	my $server_state = defined $anvil->data->{server}{location}{$server_name}{status}    ? $anvil->data->{server}{location}{$server_name}{status}    : "";
 	my $server_host  = defined $anvil->data->{server}{location}{$server_name}{host_name} ? $anvil->data->{server}{location}{$server_name}{host_name} : "";
-	my $target_role  = $server_host ? "started" : "stopped";	# Don't use state as it could be 'paused' if caught during initialization.
+	my $target_role  = $server_host ? "Started" : "Stopped";	# Don't use state as it could be 'paused' if caught during initialization.
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		host_name    => $host_name, 
 		server_state => $server_state, 
