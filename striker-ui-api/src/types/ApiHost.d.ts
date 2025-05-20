@@ -101,6 +101,7 @@ type HostDetail = {
     gateway: string;
     gatewayInterface: string;
     networks: Record<string, HostNetwork>;
+    ntp: string;
   };
   servers: {
     all: Record<string, HostServer>;

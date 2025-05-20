@@ -69,6 +69,7 @@ const setvarParams: Record<
     ['variables', 'installTarget'],
     original === 'enabled',
   ],
+  network: (parts, original) => [['netconf', 'ntp'], original],
   system: (parts, original) => [['configured'], original === '1'],
 };
 
@@ -164,6 +165,7 @@ export const buildHostDetailList = async (
         gateway: '',
         gatewayInterface: '',
         networks: {},
+        ntp: '',
       },
       servers: {
         all: {},
@@ -270,6 +272,7 @@ export const buildHostDetailList = async (
           ARRAY[
             'form::config_step%',
             'install-target::enabled',
+            'network::ntp::servers',
             'system::configured'
           ]
         )
