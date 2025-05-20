@@ -182,6 +182,7 @@ type PrepareNetworkRequestBody = {
   gatewayInterface: string;
   hostName: string;
   networks: InitializeStrikerNetworkForm[];
+  ntp?: string;
 };
 
 type SetHostInstallTargetRequestBody = {
