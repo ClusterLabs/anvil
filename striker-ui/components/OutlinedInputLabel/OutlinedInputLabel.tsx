@@ -1,11 +1,10 @@
-import { Star as MUIRequiredIcon } from '@mui/icons-material';
 import {
-  Box,
-  InputLabel as MUIInputLabel,
+  InputLabel as MuiInputLabel,
   inputLabelClasses as muiInputLabelClasses,
-  InputLabelProps as MUIInputLabelProps,
-  svgIconClasses as muiSvgIconClasses,
+  InputLabelProps as MuiInputLabelProps,
 } from '@mui/material';
+import { merge } from 'lodash';
+import { useMemo } from 'react';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -13,67 +12,34 @@ type OutlinedInputLabelOptionalProps = {
   isNotifyRequired?: boolean;
 };
 
-type OutlinedInputLabelProps = MUIInputLabelProps &
+type OutlinedInputLabelProps = MuiInputLabelProps &
   OutlinedInputLabelOptionalProps;
 
-const OutlinedInputLabel = (
-  inputLabelProps: OutlinedInputLabelProps,
-): JSX.Element => {
-  const {
-    children,
-    isNotifyRequired,
-    sx,
-    variant = 'outlined',
-    ...inputLabelRestProps
-  } = inputLabelProps;
-  const combinedSx = {
-    color: `${GREY}9F`,
+const OutlinedInputLabel: React.FC<OutlinedInputLabelProps> = (props) => {
+  const { children, isNotifyRequired, ...restProps } = props;
 
-    [`& .${muiSvgIconClasses.root}`]: {
-      color: GREY,
-    },
+  const mergedProps = useMemo(
+    () =>
+      merge(
+        {
+          sx: {
+            color: `${GREY}9F`,
 
-    [`&.${muiInputLabelClasses.focused}`]: {
-      backgroundColor: GREY,
-      borderRadius: BORDER_RADIUS,
-      color: BLACK,
-      padding: '.1em .6em',
-    },
-
-    [`&.${muiInputLabelClasses.shrink} .${muiSvgIconClasses.root}`]: {
-      display: 'none',
-    },
-
-    ...sx,
-  };
-
-  return (
-    <MUIInputLabel
-      {...{
-        // 1. Specify default props.
-        variant,
-        // 2. Override defaults with given props.
-        ...inputLabelRestProps,
-        // 3. Combine the default and given for props that can be both extended or override.
-        sx: combinedSx,
-      }}
-    >
-      <Box
-        sx={{
-          alignItems: 'center',
-          display: 'flex',
-          flexDirection: 'row',
-        }}
-      >
-        {isNotifyRequired && (
-          <MUIRequiredIcon
-            sx={{ marginLeft: '-.2rem', marginRight: '.4rem' }}
-          />
-        )}
-        {children}
-      </Box>
-    </MUIInputLabel>
+            [`&.${muiInputLabelClasses.focused}`]: {
+              backgroundColor: GREY,
+              borderRadius: BORDER_RADIUS,
+              color: BLACK,
+              padding: '.1em .6em',
+            },
+          },
+          variant: 'outlined',
+        },
+        restProps,
+      ),
+    [restProps],
   );
+
+  return <MuiInputLabel {...mergedProps}>{children}</MuiInputLabel>;
 };
 
 export type { OutlinedInputLabelProps };
