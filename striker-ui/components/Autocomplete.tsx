@@ -164,6 +164,7 @@ const Autocomplete = <
       renderInput ??
       ((params) => {
         const { fullWidth, InputProps, InputLabelProps, inputProps } = params;
+
         const inputWithLabelProps: OutlinedInputWithLabelProps = {
           formControlProps: {
             fullWidth,
@@ -183,6 +184,7 @@ const Autocomplete = <
           },
           label,
           required,
+          value: inputProps.value,
         };
 
         extendRenderInput?.call(null, inputWithLabelProps, params);
