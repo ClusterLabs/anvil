@@ -27,6 +27,7 @@ my $THIS_FILE = "System.pm";
 # check_ssh_keys
 # check_memory
 # check_network_type
+# check_ntp
 # check_storage
 # collect_ipmi_data
 # configure_ipmi
