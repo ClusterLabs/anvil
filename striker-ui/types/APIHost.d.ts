@@ -111,6 +111,7 @@ type APIHostDetail = {
     gateway: string;
     gatewayInterface: string;
     networks: Record<string, APIHostNetwork>;
+    ntp: string;
   };
   servers: {
     // 1 server can only be protected by 1 DR host

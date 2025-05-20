@@ -23,6 +23,7 @@ const buildFormikInitialValues = (
 ): StrikerInitFormikValues => {
   let domainName = '';
   let hostName = '';
+  let hostNtp = '';
   let hostNumber = '';
 
   let dns = '';
@@ -60,7 +61,7 @@ const buildFormikInitialValues = (
 
     hostNumber = sequence ? String(sequence) : '';
 
-    ({ dns = '', gateway = '' } = detail.netconf);
+    ({ dns = '', gateway = '', ntp: hostNtp = '' } = detail.netconf);
 
     const { networks: nets = {} } = detail.netconf;
 
@@ -72,6 +73,7 @@ const buildFormikInitialValues = (
     confirmAdminPassword: '',
     domainName,
     hostName,
+    hostNtp,
     hostNumber,
     networkInit: {
       dns,
