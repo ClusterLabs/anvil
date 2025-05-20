@@ -11,7 +11,7 @@ export const setConfigVariables = async (
   const entries = Object.entries(data);
 
   for (const [key, obj] of entries) {
-    const { step = 1, value } = obj;
+    const { step = 1, value = '' } = obj;
 
     const uuid = await variable({
       file: __filename,

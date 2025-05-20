@@ -143,6 +143,7 @@ type InitializeStrikerForm = {
   gateway: string;
   gatewayInterface: string;
   hostName: string;
+  hostNtp?: string;
   hostNumber: number;
   networks: InitializeStrikerNetworkForm[];
   organizationName: string;

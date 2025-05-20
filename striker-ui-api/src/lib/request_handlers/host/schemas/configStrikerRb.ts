@@ -7,6 +7,7 @@ export const configStrikerRequestBodySchema = yup.object({
   adminPassword: yup.string().required(),
   domainName: yup.string().required(),
   hostName: yup.string().required(),
+  hostNtp: yup.string(),
   hostNumber: yup.number().required().min(1),
   dns: yup.string(),
   gateway: yupIpv4().required(),
