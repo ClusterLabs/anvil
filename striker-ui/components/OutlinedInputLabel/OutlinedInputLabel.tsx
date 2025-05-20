@@ -8,15 +8,10 @@ import { useMemo } from 'react';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
-type OutlinedInputLabelOptionalProps = {
-  isNotifyRequired?: boolean;
-};
-
-type OutlinedInputLabelProps = MuiInputLabelProps &
-  OutlinedInputLabelOptionalProps;
+type OutlinedInputLabelProps = MuiInputLabelProps;
 
 const OutlinedInputLabel: React.FC<OutlinedInputLabelProps> = (props) => {
-  const { children, isNotifyRequired, ...restProps } = props;
+  const { children, ...restProps } = props;
 
   const mergedProps = useMemo(
     () =>
