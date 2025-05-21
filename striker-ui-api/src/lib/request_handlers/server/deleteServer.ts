@@ -1,11 +1,12 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { DELETED, REP_UUID, SERVER_PATHS } from '../../consts';
+import { REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { sanitize } from '../../sanitize';
 import { perr, poutvar } from '../../shell';
+import { sqlServersWithJobHost } from '../../sqls';
 
 export const deleteServer: RequestHandler<
   { serverUuid?: string },
@@ -38,13 +39,12 @@ export const deleteServer: RequestHandler<
         `Server UUID must be a valid UUIDv4; got [${serverUuid}]`,
       );
 
-      const rows: [[string]] = await query(
-        `SELECT
-            server_host_uuid
-          FROM servers
-          WHERE server_state != '${DELETED}'
-            AND server_uuid = '${serverUuid}';`,
-      );
+      const sqlGetJobHost = `
+        SELECT a.server_job_host_uuid
+        FROM (${sqlServersWithJobHost()}) AS a
+        WHERE a.server_uuid = '${serverUuid}';`;
+
+      const rows: [[string]] = await query(sqlGetJobHost);
 
       assert.ok(rows.length, `Server ${serverUuid} not found`);
 
