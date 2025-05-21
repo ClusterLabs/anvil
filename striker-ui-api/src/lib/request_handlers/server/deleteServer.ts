@@ -4,8 +4,9 @@ import { RequestHandler } from 'express';
 import { REP_UUID, SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
+import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
-import { perr, poutvar } from '../../shell';
+import { poutvar } from '../../shell';
 import { sqlServersWithJobHost } from '../../sqls';
 
 export const deleteServer: RequestHandler<
@@ -13,6 +14,8 @@ export const deleteServer: RequestHandler<
   undefined,
   { serverUuids: string[] }
 > = async (request, response) => {
+  const respond = new Responder(response);
+
   const {
     body: { serverUuids: rServerUuids } = {},
     params: { serverUuid: rServerUuid },
@@ -60,11 +63,12 @@ export const deleteServer: RequestHandler<
         job_title: 'job_0208',
       });
     } catch (error) {
-      perr(`Failed to initiate delete server ${serverUuid}; CAUSE: ${error}`);
-
-      return response.status(500).send();
+      return respond.s500(
+        '88a5776',
+        `Failed to initiate delete server ${serverUuid}; CAUSE: ${error}`,
+      );
     }
   }
 
-  return response.status(204).send();
+  return respond.s204();
 };
