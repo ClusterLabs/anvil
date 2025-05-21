@@ -138,6 +138,55 @@ sub handle_restore
 		print $anvil->Words->string({key => "message_0218"})."\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
+
+	# If we're a DR host and we're asked to restore, see if we're connected to any anvils.
+	$anvil->Database->get_anvils({debug => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	my $link_count = 0;
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+		my $dr_link_uuid      = exists $anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_uuid}{$anvil_uuid} ? $anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_uuid}{$anvil_uuid}{dr_link_uuid} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			's1:anvil_name'        => $anvil_name,
+			's2:anvil_uuid'        => $anvil_uuid, 
+			's3:anvil_description' => $anvil_description, 
+			's4:dr_link_uuid'      => $dr_link_uuid, 
+		}});
+		if ($dr_link_uuid)
+		{
+			# We'll restore this one.
+			$link_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link_count => $link_count }});
+			
+			# Tell the user we'll look for servers to restore
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0358", variables => {
+				node_name   => $anvil_name, 
+				description => $anvil_description, 
+			}});
+		}
+		else
+		{
+			# Tell the user we will NOT look for servers to restore.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0359", variables => {
+				node_name   => $anvil_name, 
+				description => $anvil_description, 
+			}});
+		}
+	}
+	if (not $link_count)
+	{
+		# We're not linked to any nodes, nothing to do.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1,
+			'print'    => 1, 
+			message    => "error_0496", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 5}),
@@ -1323,7 +1372,7 @@ sub sanity_check
 			host_anvil_uuid => $host_anvil_uuid." (".$anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name}.")",
 		}});
 	}
-	
+
 	my $dr_link_uuid = "";
 	my $dr_link_note = "";
 	my $dr_host_uuid = "";

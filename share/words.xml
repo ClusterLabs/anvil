@@ -834,7 +834,8 @@ The XML that failed sanity check was:
 		<key name="error_0491">[ Error ] - Neither an Anvil! name or a host name was specified, nothing to purge.</key>
 		<key name="error_0492"><![CDATA[When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.]]></key>
 		<key name="error_0493">You want to name your group 'DELETED'? Well that's cheaky... Exiting.</key>
-		<key name="error_0494"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
+		<key name="error_0495"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
+		<key name="error_0496">This DR host is not connected to any Anvil! nodes yet, nothing to restore.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -2304,8 +2305,8 @@ Job Details;
 		<key name="log_0355">Re-disabling dual primary by restoring config file settings.</key>
 		<key name="log_0356">The attempt to reset DRBD to config file settings returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0357">Failure, exiting with '1'.</key>
-		<key name="log_0358">#!free!#</key>
-		<key name="log_0359">#!free!#</key>
+		<key name="log_0358">We are linked to the node: [#!variable!node_name!#] (#!variable!description!#), we will look for servers to restore.</key>
+		<key name="log_0359">We are NOT linked to the node: [#!variable!node_name!#] (#!variable!description!#), we will NOT look for servers to restore.</key>
 		<key name="log_0360">Success, exiting with '0'.</key>
 		<key name="log_0361">Running validation tests...</key>
 		<key name="log_0362">#!free!#</key>
