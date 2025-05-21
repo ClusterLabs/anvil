@@ -2,7 +2,7 @@ import { RequestHandler } from 'express';
 
 import { query, translate } from '../../accessModule';
 import { getShortHostName } from '../../disassembleHostName';
-import { ResponseError } from '../../ResponseError';
+import { Responder } from '../../Responder';
 import { poutvar } from '../../shell';
 
 /**
@@ -30,6 +30,8 @@ export const getJobDetail: RequestHandler<
   JobParamsDictionary,
   JobDetail | ResponseErrorBody
 > = async (request, response) => {
+  const respond = new Responder(response);
+
   const {
     params: { uuid: jobUuid },
   } = request;
@@ -62,21 +64,14 @@ export const getJobDetail: RequestHandler<
   try {
     rows = await query<string[][]>(sql);
   } catch (error) {
-    const rserror = new ResponseError(
+    return respond.s500(
       '249068d',
       `Failed to get job ${jobUuid}; CAUSE: ${error}`,
     );
-
-    return response.status(500).send(rserror.body);
   }
 
   if (!rows.length) {
-    const rserror = new ResponseError(
-      'b4e559c',
-      `No job found with identifier ${jobUuid}`,
-    );
-
-    return response.status(404).send(rserror.body);
+    return respond.s404();
   }
 
   const [row] = rows;
@@ -114,6 +109,8 @@ export const getJobDetail: RequestHandler<
     return previous;
   }, {});
 
+  let errorCount = 0;
+
   /**
    * List of word key prefixes generated with:
    *
@@ -124,10 +121,18 @@ export const getJobDetail: RequestHandler<
       /(?=(?:brand|email|error|file|header|job|log|message|name|ok|prefix|striker|suffix|t|title|type|unit|ups|warning)_\d{4,})/g,
     ),
   );
-  const promises = rStatusLines.map<Promise<JobStatus>>(async (line) => ({
-    // Escape newlines before translating to avoid squashing a multi-line entry.
-    value: await translate(line.replace(/\n/g, '\\n')),
-  }));
+  const promises = rStatusLines.map<Promise<JobStatus>>(async (line) => {
+    const str = line.replace(/\n/g, '\\n');
+
+    if (/^error_/.test(str)) {
+      errorCount += 1;
+    }
+
+    return {
+      // Escape newlines before translating to avoid squashing a multi-line entry.
+      value: await translate(str),
+    };
+  });
   const statusLines = await Promise.all(promises);
   const status = statusLines.reduce<JobDetail['status']>(
     (previous, s, index) => {
@@ -146,10 +151,13 @@ export const getJobDetail: RequestHandler<
     status,
   });
 
-  const rsbody: JobDetail = {
+  const job: JobDetail = {
     command,
     data,
     description,
+    error: {
+      count: errorCount,
+    },
     host: {
       name: hostName,
       shortName: hostShortName,
@@ -166,5 +174,5 @@ export const getJobDetail: RequestHandler<
     uuid,
   };
 
-  return response.status(200).send(rsbody);
+  return respond.s200(job);
 };

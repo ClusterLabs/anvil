@@ -86,24 +86,38 @@ export const getJob: RequestHandler<
       a.job_uuid,
       a.job_name,
       a.job_title,
-      b.host_uuid,
-      b.host_name,
+      c.host_uuid,
+      c.host_name,
       a.job_progress,
       a.job_picked_up_at,
+      SUM(
+        CAST(b.line LIKE 'error_%' AS int)
+      ) AS error_count,
       ROUND(
         EXTRACT(epoch from a.modified_date)
       ) AS modified_epoch
     FROM jobs AS a
-    JOIN hosts AS b
-      ON a.job_host_uuid = b.host_uuid
+    JOIN (
+      SELECT
+        job_uuid,
+        UNNEST(
+          STRING_TO_ARRAY(job_status, CHR(10))
+        ) AS line
+      FROM jobs
+    ) AS b
+      ON b.job_uuid = a.job_uuid
+    JOIN hosts AS c
+      ON a.job_host_uuid = c.host_uuid
     WHERE ${conditions}
-      AND a.job_name NOT LIKE 'get_server_screenshot%'
+    GROUP BY
+      a.job_uuid,
+      c.host_uuid
     ORDER BY a.modified_date DESC;`;
 
   let rows: string[][];
 
   try {
-    rows = await query<string[][]>(sql);
+    rows = await query(sql);
   } catch (error) {
     return respond.s500('c2b683b', `Failed to get jobs; CAUSE: ${error}`);
   }
@@ -117,6 +131,7 @@ export const getJob: RequestHandler<
       hostName,
       rProgress,
       pickedUpAt,
+      errorCount,
       modified,
     ] = row;
 
@@ -125,6 +140,9 @@ export const getJob: RequestHandler<
     const title = await translate(rTitle);
 
     return {
+      error: {
+        count: Number(errorCount),
+      },
       host: {
         name: hostName,
         shortName: hostShortName,
@@ -141,7 +159,7 @@ export const getJob: RequestHandler<
 
   const overviews = await Promise.all(promises);
 
-  const body = overviews.reduce<JobOverviewList>((previous, overview) => {
+  const jobs = overviews.reduce<JobOverviewList>((previous, overview) => {
     const { uuid } = overview;
 
     previous[uuid] = overview;
@@ -149,5 +167,5 @@ export const getJob: RequestHandler<
     return previous;
   }, {});
 
-  return respond.s200(body);
+  return respond.s200(jobs);
 };
