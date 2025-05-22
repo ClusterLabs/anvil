@@ -1144,10 +1144,26 @@ sub handle_links
 	# Do we habe an Anvil! and a DR host?
 	my $anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
 	my $host_uuid  = $anvil->Database->get_host_uuid_from_string({string => $anvil->data->{switches}{'dr-host'}});
+	my $host_type  = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		anvil_uuid => $anvil_uuid,
-		host_uuid  => $host_uuid,
+		's1:anvil_uuid' => $anvil_uuid, 
+		's2:host_uuid'  => $host_uuid, 
+		's3:host_type'  => $host_type, 
 	}});
+	
+	if ((not $host_uuid) && ($host_type eq "dr"))
+	{
+		# Use ourself.
+		$host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	}
+	
+	if ((not $anvil_uuid) && ($host_type eq "node"))
+	{
+		# Use this node.
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 
 	my $problem = 0;
 	if (not $anvil_uuid)
@@ -1225,7 +1241,7 @@ sub handle_links
 			print "- ".$short_host_name."\n";
 		}
 	}
-
+	
 	if ($problem)
 	{
 		print "\n".$anvil->Words->string({key => "error_0410"})."\n";
@@ -1242,6 +1258,60 @@ sub handle_links
 			}
 		}
 		print "\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Are there any servers using this link?
+	$anvil->Database->get_servers();
+	$anvil->Database->get_drbd_data();
+	my $protected_server_count = 0;
+	my $dr_short_host_name     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_short_host_name => $dr_short_host_name }});
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+	{
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			server_name => $server_name, 
+			server_uuid => $server_uuid, 
+		}});
+		
+		if (exists $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name})
+		{
+			my $resource_uuid = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{resource_uuid}; 
+			my $resource_up   = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{up}; 
+			my $resource_xml  = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{xml}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				resource_uuid => $resource_uuid, 
+				resource_up   => $resource_up, 
+				resource_xml  => $resource_xml, 
+			}});
+			next if $resource_xml eq "DELETED";
+			
+			# We can't unlink
+			$protected_server_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { protected_server_count => $protected_server_count }});
+			print $anvil->Words->string({key => "warning_0027", variables => { 
+				server  => $server_name, 
+				dr_name => $dr_short_host_name, 
+			}})."\n";
+		}
+	}
+	
+	if ($protected_server_count)
+	{
+		# Abort.
+		my $anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1,
+			'print'    => 1, 
+			job_status => "failed",
+			message    => "error_0198",
+			variables  => {
+				node_name => $anvil_name, 
+				dr_host   => $dr_short_host_name, 
+			}, 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 

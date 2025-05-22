@@ -302,7 +302,7 @@ The error was:
 		<key name="error_0195">Unable to get the install ISO to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
-		<key name="error_0198">#!free!#</key>
+		<key name="error_0198">Unable to unlink the DR host: [#!variable!dr_host!#] from the node: [#!variable!node_name!#] while servers from the node are protected on the DR host. Aborting.</key>
 		<key name="error_0199">The storage group UUID: [#!variable!storage_group_uuid!#] wasn't found in the database.</key>
 		<key name="error_0200">The new DRBD resource will need a "minor" number and a TCP port. One or both are not provided or are invalid.</key>
 		<key name="error_0201">Failed to create the logical volume: [#!variable!lv_path!#]. Without this, we can't create the replicated storage backing the server, aborting.
@@ -4132,7 +4132,7 @@ The duplicate will be removed.</key>
 [ Warning ] - If this is a freshly rebuild DR host, 'anvil-manage-host --auto-grow-pv' might regain free space.</key>
 		<key name="warning_0025">[ Warning ] - The needed space is not set, this is likely a program error. Unable to proceed with this volume.</key>
 		<key name="warning_0026">[ Warning ] - It appears that the creation of the LV failed! Skipping this device for now.</key>
-		<key name="warning_0027">#!free!#</key>
+		<key name="warning_0027">[ Warning ] - The server: [#!variable!server!#] is being protected by: [#!variable!dr_name!#], unable to unlink.</key>
 		<key name="warning_0028">[ Warning ] - Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
 		<key name="warning_0029">[ Warning ] - While resyncing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and is probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
 		<key name="warning_0030">[ Warning ] - Database->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
