@@ -859,10 +859,6 @@ resource "#!variable!server!#" {
 			meta-disk internal;
 		}
 	}
-	
-	### NOTE: Remember to open the appropriate firewall port!
-	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp --permanent
-	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp
 
 	connection {
 		host  #!variable!node1_short_name!#  address  #!variable!node1_sn_ip!#:#!variable!tcp_port!#;
