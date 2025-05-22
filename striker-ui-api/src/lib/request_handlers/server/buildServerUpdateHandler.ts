@@ -6,7 +6,7 @@ import { SERVER_PATHS } from '../../consts';
 import { job, query } from '../../accessModule';
 import { Responder } from '../../Responder';
 import { perr } from '../../shell';
-import { sqlServers, sqlServersWithJobHost } from '../../sqls';
+import { sqlServersWithJobHost } from '../../sqls';
 
 type P = RequestTarget;
 type ResBody = ServerUpdateResponseBody | ResponseErrorBody;

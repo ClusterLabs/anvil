@@ -665,7 +665,7 @@ export const getServerDetail: RequestHandler<
         ON iii.scan_drbd_peer_scan_drbd_volume_uuid = ii.scan_drbd_volume_uuid
       GROUP BY
         i.scan_drbd_resource_name,
-        i.scan_drbd_resource_xml`
+        i.scan_drbd_resource_xml`;
 
     const sqlGetProtectStatus = `
       WITH
