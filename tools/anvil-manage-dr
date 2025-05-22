@@ -409,7 +409,6 @@ sub handle_restore
 			my $in_on          = 0;
 			my $in_volume      = 0;
 			my $this_volume    = "";
-			my $this_device    = "";
 			my $this_disk      = "";
 			my $this_host_name = "";
 			my $this_host_uuid = "";
@@ -449,29 +448,25 @@ sub handle_restore
 							}});
 						}
 						
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid}                         = $this_host_uuid;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device} = $this_device;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path}     = $this_disk;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}     = $this_lv_size;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}    = $this_lv_on_vg;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid}                      = $this_host_uuid;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path}  = $this_disk;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}  = $this_lv_size;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg} = $this_lv_on_vg;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"s1:drbd_resource::${file}::host_name::${this_host_name}::host_uuid"                           => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid},
-							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::drbd_device" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device},
-							"s3:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_path"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path},
-							"s4:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_size"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}}).")",
-							"s5:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_on_vg"    => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}, 
+							"s1:drbd_resource::${file}::host_name::${this_host_name}::host_uuid"                        => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid},
+							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_path"  => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path},
+							"s3:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_size"  => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}}).")",
+							"s4:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_on_vg" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}, 
 						}});
 						
 						$in_on          = 0;
 						$this_host_name = "";
 						$this_host_uuid = "";
-						$this_device    = "";
 						$this_disk      = "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							in_on          => $in_on, 
 							this_host_name => $this_host_name,
 							this_host_uuid => $this_host_uuid, 
-							this_device    => $this_device, 
 							this_disk      => $this_disk, 
 						}});
 					}
@@ -496,11 +491,6 @@ sub handle_restore
 						in_volume   => $in_volume, 
 					}});
 				}
-				if ($line =~ /device\s+(.*?)\s+minor/)
-				{
-					$this_device = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_device => $this_device }});
-				}
 				if ($line =~ /\sdisk\s+(.*?);/)
 				{
 					$this_disk = $1;
@@ -518,16 +508,14 @@ sub handle_restore
 				}});
 				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
 				{
-					my $drbd_device   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
 					my $lv_path       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
 					my $lv_size       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size};
 					my $this_lv_on_vg = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						's1:this_volume'   => $this_volume, 
-						's2:drbd_device'   => $drbd_device, 
-						's3:lv_path'       => $lv_path, 
-						's4:lv_size'       => $lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")",
-						's5:this_lv_on_vg' => $this_lv_on_vg, 
+						's2:lv_path'       => $lv_path, 
+						's3:lv_size'       => $lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")",
+						's4:this_lv_on_vg' => $this_lv_on_vg, 
 					}});
 					
 					if ((not exists $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}) or 
@@ -571,7 +559,7 @@ sub handle_restore
 				
 				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
 				{
-					my $drbd_device        = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
+					my $drbd_device        = "/dev/drbd/by-res/".$server_name."/".$this_volume;
 					my $original_lv_path   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
 					my $this_lv_on_vg      = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
 					my $needed_size        = $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size};
