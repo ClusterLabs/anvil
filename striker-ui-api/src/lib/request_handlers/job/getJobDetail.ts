@@ -1,9 +1,9 @@
 import { RequestHandler } from 'express';
 
 import { query, translate } from '../../accessModule';
-import { getShortHostName } from '../../disassembleHostName';
 import { Responder } from '../../Responder';
 import { poutvar } from '../../shell';
+import { sqlHosts } from '../../sqls';
 
 /**
  * Removes empty elements from the start of the given string array.
@@ -53,9 +53,10 @@ export const getJobDetail: RequestHandler<
         EXTRACT(epoch from a.modified_date)
       ) AS modified_epoch,
       b.host_uuid,
-      b.host_name
+      b.host_name,
+      b.host_short_name
     FROM jobs AS a
-    JOIN hosts AS b
+    JOIN (${sqlHosts()}) AS b
       ON a.job_host_uuid = b.host_uuid
     WHERE a.job_uuid = '${jobUuid}';`;
 
@@ -91,12 +92,11 @@ export const getJobDetail: RequestHandler<
     modified,
     hostUuid,
     hostName,
+    hostShortName,
   ] = row;
 
   const title = await translate(rTitle);
   const description = await translate(rDescription);
-
-  const hostShortName = getShortHostName(hostName);
 
   const dataLines = trimStart(rData.split(/,|\n/));
   const data = dataLines.reduce<JobDetail['data']>((previous, entry, index) => {

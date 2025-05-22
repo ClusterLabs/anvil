@@ -1,11 +1,11 @@
 import { RequestHandler } from 'express';
 
 import { query, translate } from '../../accessModule';
-import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
 import { Responder } from '../../Responder';
 import { getJobQueryStringSchema } from './schemas';
 import { date, perr } from '../../shell';
+import { sqlHosts } from '../../sqls';
 
 export const getJob: RequestHandler<
   unknown,
@@ -88,6 +88,7 @@ export const getJob: RequestHandler<
       a.job_title,
       c.host_uuid,
       c.host_name,
+      c.host_short_name,
       a.job_progress,
       a.job_picked_up_at,
       SUM(
@@ -106,12 +107,14 @@ export const getJob: RequestHandler<
       FROM jobs
     ) AS b
       ON b.job_uuid = a.job_uuid
-    JOIN hosts AS c
+    JOIN (${sqlHosts()}) AS c
       ON a.job_host_uuid = c.host_uuid
     WHERE ${conditions}
     GROUP BY
       a.job_uuid,
-      c.host_uuid
+      c.host_uuid,
+      c.host_name,
+      c.host_short_name
     ORDER BY a.modified_date DESC;`;
 
   let rows: string[][];
@@ -129,13 +132,12 @@ export const getJob: RequestHandler<
       rTitle,
       hostUuid,
       hostName,
+      hostShortName,
       rProgress,
       pickedUpAt,
       errorCount,
       modified,
     ] = row;
-
-    const hostShortName = getShortHostName(hostName);
 
     const title = await translate(rTitle);
 
