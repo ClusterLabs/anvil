@@ -2006,45 +2006,32 @@ sub sanity_check
 					this_host_name => $this_host_name,
 				}});
 				
-				# We'll try the SN, then the BCN and finally the IFN to see which, if any, network we
-				# can reach the peer on. This is needed because the DR host could be on a totally 
-				# different network.
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = "";
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet}  = "";
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = "";
-				foreach my $check_network ("sn", "bcn", "mn", "ifn")
+				
+				# We'll try the SN, then the BCN and finally the IFN to see which, if any, network we
+				# can reach the peer on. This is needed because the DR host could be on a totally 
+				# different network.
+				my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
+					debug       => 2,
+					host_uuid   => $this_host_uuid,
+					networks    => 'sn,bcn,mn,ifn,any', 
+					ping        => 1, 
+					test_access => 1, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					target_ip      => $target_ip,
+					target_network => $target_network,
+				}});
+				if ($target_ip)
 				{
-					last if $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_network => $check_network }});
-					foreach my $this_network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}})
-					{
-						next if $this_network !~ /^$check_network/;
-						my $this_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{$this_network}{ip_address};
-						my $this_subnet = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{$this_network}{subnet_mask};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:this_ip'      => $this_ip,
-							's2:this_network' => $this_network, 
-							's3:this_subnet'  => $this_subnet,
-						}});
-						
-						# Test access.
-						my $access = $anvil->Remote->test_access({
-							target   => $this_ip,
-							password => $password,
-						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
-						if ($access)
-						{
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = $this_ip;
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet}  = $this_subnet;
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = $this_network;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								"hosts::host_uuid::${this_host_uuid}::network::use_ip"      => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip},
-								"hosts::host_uuid::${this_host_uuid}::network::use_subnet"  => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet},
-								"hosts::host_uuid::${this_host_uuid}::network::use_network" => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network},
-							}});
-						}
-					}
+					$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = $target_ip;
+					$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = $target_network;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"hosts::host_uuid::${this_host_uuid}::network::use_ip"      => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip},
+						"hosts::host_uuid::${this_host_uuid}::network::use_network" => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network},
+					}});
 				}
 				
 				if (not $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip})
