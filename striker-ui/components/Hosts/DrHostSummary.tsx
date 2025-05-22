@@ -56,7 +56,7 @@ const DrHostSummary: React.FC<DrHostSummaryProps> = (props) => {
     return (
       <MonoText color={colour} inheritColour>
         {status}
-        {etts && `(needs ~${etts})`}
+        {etts && ` (estimated ~${etts})`}
       </MonoText>
     );
   }, [detail]);

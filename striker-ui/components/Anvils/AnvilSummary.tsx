@@ -101,7 +101,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     return (
       <MonoText inheritColour color={colour}>
         {status}
-        {etts && `(needs ~${etts})`}
+        {etts && ` (estimated ~${etts})`}
       </MonoText>
     );
   }, [anvil]);
