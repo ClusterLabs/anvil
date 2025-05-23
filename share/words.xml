@@ -2295,7 +2295,7 @@ Job Details;
 [ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0351">Updating the Storage Group: [#!variable!storage_group_name!#] to use the new local VG: [#!variable!vg_name!#].</key>
-		<key name="log_0352">#!free!#</key>
+		<key name="log_0352">Restarting the DRBD resource: [#!variable!resource!#] via adjust call.</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0354">The migration was successfully completed in: [#!variable!migration_time!#].</key>
 		<key name="log_0355">Re-disabling dual primary by restoring config file settings.</key>
@@ -2305,7 +2305,7 @@ Job Details;
 		<key name="log_0359">We are NOT linked to the node: [#!variable!node_name!#] (#!variable!description!#), we will NOT look for servers to restore.</key>
 		<key name="log_0360">Success, exiting with '0'.</key>
 		<key name="log_0361">Running validation tests...</key>
-		<key name="log_0362">#!free!#</key>
+		<key name="log_0362">The DRBD resource: [#!variable!resource!#] was last seen to be down, leaving it disconnected.</key>
 		<key name="log_0363">- Server name is valid.</key>
 		<key name="log_0364">- Emulator is valid.</key>
 		<key name="log_0365">- Sufficient RAM is available.</key>
@@ -3602,7 +3602,7 @@ proceeding.
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
 		<key name="striker_0002">If you want to specify an NTP server (or servers) to use, specify them here. Note that any existing NTP servers will be removed. Multiple servers (IPs or host names) can be specified as a comma-separated list.</key>
-		<key name="striker_0003">#!free!#</key>
+		<key name="striker_0003">This records the last known connection state of a DRBD resource on the DR host. If this is '1' and the DR host reboots, it will be reconnected by 'anvil-safe-start' on boot. Otherwise, it will be ignored.</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">#!free!#</key>
 		<key name="striker_0006">This is a one to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
