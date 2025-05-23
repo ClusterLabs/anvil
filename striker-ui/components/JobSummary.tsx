@@ -122,6 +122,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
                 <FlexBox fullWidth spacing=".2em">
                   <FlexBox row spacing=".5em">
                     <PieProgress
+                      error={Boolean(job.error.count)}
                       slotProps={{
                         pie: {
                           sx: {

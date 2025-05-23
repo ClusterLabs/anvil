@@ -84,6 +84,7 @@ const JobProgressList: React.FC<JobProgressListProps> = (props) => {
       {...jobs.map<React.ReactNode>((job) => (
         <Grid item key={`${job.uuid}-progress`}>
           <PieProgress
+            error={Boolean(job.error.count)}
             slotProps={{
               pie: {
                 size: '1em',

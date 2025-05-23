@@ -176,7 +176,10 @@ const JobDetail: FC<JobDetailProps> = (props) => {
     <DialogScrollBox>
       <Grid columns={1} container rowGap=".6em">
         <Grid item width="100%">
-          <ProgressBar progressPercentage={job.progress} />
+          <ProgressBar
+            error={Boolean(job.error.count)}
+            progressPercentage={job.progress}
+          />
         </Grid>
         <Grid item width="100%">
           <BodyText>{job.description}</BodyText>
