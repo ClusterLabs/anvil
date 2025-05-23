@@ -36,8 +36,15 @@ const ServerDeletion: React.FC<ServerDeletionProps> = (props) => {
             proceed: 'Delete',
             success: <>Successfully registered server deletion job</>,
           },
-          onCancel: () => helpers.setSubmitting(false),
-          onFail: () => helpers.setSubmitting(false),
+          onCancel: () => {
+            helpers.setSubmitting(false);
+          },
+          onFail: () => {
+            helpers.setSubmitting(false);
+          },
+          onSuccess: () => {
+            window.location.replace('/');
+          },
         },
       );
     },
