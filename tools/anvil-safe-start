@@ -108,6 +108,7 @@ boot_servers($anvil);
 # Start DRBD resources locally for VMs running on the peer already
 check_drbd($anvil);
 
+# Record our runtime
 $anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "job_0281"});
 
 $anvil->nice_exit({exit_code => 0});
@@ -115,6 +116,28 @@ $anvil->nice_exit({exit_code => 0});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This records when this last ran.
+sub update_run_time
+{
+	my ($anvil) = @_;
+	
+	my $tmp_file = $anvil->data->{path}{data}{'anvil-safe-start.ran'};
+	my $time     = time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		's1:tmp_file' => $tmp_file, 
+		's2:time'     => $time, 
+	}});
+	my $error = $anvil->Storage->write_file({
+		body      => $time,
+		file      => $tmp_file,
+		overwrite => 1, 
+		backup    => 0, 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { error => $error }});
+	
+	return(0);
+}
 
 sub start_job
 {
@@ -586,14 +609,13 @@ sub wait_for_access
 	return(0);
 }
 
-### TODO: When scheduling is added, this should honour that.
 # Look for configured DRBD resources and start them
 sub start_dr
 {
 	my ($anvil) = @_;
 	
-	# We look for resources instead of just calling 'adjust' globally so that, later, we can honour 
-	# scheduling.
+	# For each configured host 
+	my $host_uuid = $anvil->Get->host_uuid;
 	local(*DIRECTORY);
 	opendir(DIRECTORY, $anvil->data->{path}{directories}{drbd_resources});
 	while(my $file = readdir(DIRECTORY))
@@ -609,19 +631,36 @@ sub start_dr
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { lineg => $line }});
 			if (($line =~ /resource \"(.*?)\"/) or ($line =~ /resource (.*?)\s+{/))
 			{
-				# Found a resource. This is where we'd check for schedules. For now, just 
-				# adjust.
+				# Check the previous state of this resource and connect if it was last up.
 				my $resource = $1;
 				$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => $anvil->Job->bump_progress({steps => 5}), message => "log_0577", variables => { resource => $resource }});
 				
-				my $shell_call = $anvil->data->{path}{exe}{'drbdadm'}." adjust ".$resource;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my $variable_name                  = "drbd::resource::dr::".$resource."::is_up";
+				my ($variable_value, undef, undef) = $anvil->Database->read_variable({
+					variable_name         => $variable_name, 
+					variable_source_table => "hosts", 
+					variable_source_uuid  => $host_uuid, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_value => $variable_value }});
 				
-				my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					output      => $output,
-					return_code => $return_code, 
-				}});
+				if ($variable_value)
+				{
+					# Adjust (start up) the resource
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0352", variables => { resource => $resource }});
+					my $shell_call = $anvil->data->{path}{exe}{'drbdadm'}." adjust ".$resource;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+					
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						output      => $output,
+						return_code => $return_code, 
+					}});
+				}
+				else
+				{
+					# Leave it off.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0362", variables => { resource => $resource }});
+				}
 			}
 		}
 	}
@@ -657,15 +696,17 @@ sub prerun_checks
 	{
 		# We're done.
 		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0598"});
+		update_run_time($anvil);
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
 	# If we're a DR Host, just adjust DRBD and call it a day.
 	if ($host_type eq "dr")
 	{
-		# Call adjust and then exit.
+		# Restart connections that were last running
 		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0570"});
 		start_dr($anvil);
+		update_run_time($anvil);
 		$anvil->nice_exit({exit_code => 0});
 	}
 	
@@ -676,6 +717,7 @@ sub prerun_checks
 	{
 		# This is a node, but not in an Anvil! yet.
 		$anvil->Job->update_progress({file => $THIS_FILE, line => __LINE__, 'print' => 1, log_level => 1, progress => 100, message => "log_0603"});
+		update_run_time($anvil);
 		$anvil->nice_exit({exit_code => 0});
 	}
 	

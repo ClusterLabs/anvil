@@ -302,7 +302,7 @@ The error was:
 		<key name="error_0195">Unable to get the install ISO to use for the new server: [#!variable!server_name!#] from the job UUID: [#!variable!job_uuid!#].</key>
 		<key name="error_0196">The install disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
 		<key name="error_0197">The driver disc ISO: [#!variable!install_iso!#] to be used for the new server: [#!variable!server_name!#] wasn't found on this system.</key>
-		<key name="error_0198">#!free!#</key>
+		<key name="error_0198">Unable to unlink the DR host: [#!variable!dr_host!#] from the node: [#!variable!node_name!#] while servers from the node are protected on the DR host. Aborting.</key>
 		<key name="error_0199">The storage group UUID: [#!variable!storage_group_uuid!#] wasn't found in the database.</key>
 		<key name="error_0200">The new DRBD resource will need a "minor" number and a TCP port. One or both are not provided or are invalid.</key>
 		<key name="error_0201">Failed to create the logical volume: [#!variable!lv_path!#]. Without this, we can't create the replicated storage backing the server, aborting.
@@ -834,7 +834,8 @@ The XML that failed sanity check was:
 		<key name="error_0491">[ Error ] - Neither an Anvil! name or a host name was specified, nothing to purge.</key>
 		<key name="error_0492"><![CDATA[When managing a storage group, '--anvil <name or UUID>' is required as storage group names are not globally unique.]]></key>
 		<key name="error_0493">You want to name your group 'DELETED'? Well that's cheaky... Exiting.</key>
-		<key name="error_0494"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
+		<key name="error_0495"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
+		<key name="error_0496">This DR host is not connected to any Anvil! nodes yet, nothing to restore.</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -858,10 +859,6 @@ resource "#!variable!server!#" {
 			meta-disk internal;
 		}
 	}
-	
-	### NOTE: Remember to open the appropriate firewall port!
-	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp --permanent
-	# firewall-cmd --zone=#!variable!sn_network!# --permanent --add-port=#!variable!tcp_port!#/tcp
 
 	connection {
 		host  #!variable!node1_short_name!#  address  #!variable!node1_sn_ip!#:#!variable!tcp_port!#;
@@ -2298,17 +2295,17 @@ Job Details;
 [ Warning ] - Confirmation of action will be assumed if you answer Yes!</key>
 		<key name="log_0350">Temporarily enabling dual primary for the resource: [#!variable!resource!#] to the node: [#!variable!target_name!# (#!variable!target_node_id!#)].</key>
 		<key name="log_0351">Updating the Storage Group: [#!variable!storage_group_name!#] to use the new local VG: [#!variable!vg_name!#].</key>
-		<key name="log_0352">#!free!#</key>
+		<key name="log_0352">Restarting the DRBD resource: [#!variable!resource!#] via adjust call.</key>
 		<key name="log_0353">The attempt to migrate the server: [#!variable!server!#] to the node: [#!variable!target!#] returned a non-zero return code [#!variable!return_code!#]. The returned output (if any) was: [#!variable!output!#].</key>
 		<key name="log_0354">The migration was successfully completed in: [#!variable!migration_time!#].</key>
 		<key name="log_0355">Re-disabling dual primary by restoring config file settings.</key>
 		<key name="log_0356">The attempt to reset DRBD to config file settings returned a non-zero return code: [#!variable!return_code!#]. The output, if any, was: [#!variable!output!#].</key>
 		<key name="log_0357">Failure, exiting with '1'.</key>
-		<key name="log_0358">#!free!#</key>
-		<key name="log_0359">#!free!#</key>
+		<key name="log_0358">We are linked to the node: [#!variable!node_name!#] (#!variable!description!#), we will look for servers to restore.</key>
+		<key name="log_0359">We are NOT linked to the node: [#!variable!node_name!#] (#!variable!description!#), we will NOT look for servers to restore.</key>
 		<key name="log_0360">Success, exiting with '0'.</key>
 		<key name="log_0361">Running validation tests...</key>
-		<key name="log_0362">#!free!#</key>
+		<key name="log_0362">The DRBD resource: [#!variable!resource!#] was last seen to be down, leaving it disconnected.</key>
 		<key name="log_0363">- Server name is valid.</key>
 		<key name="log_0364">- Emulator is valid.</key>
 		<key name="log_0365">- Sufficient RAM is available.</key>
@@ -3605,7 +3602,7 @@ proceeding.
 		<!-- General strings shown in Striker -->
 		<key name="striker_0001">When set to '1', the server will not start automatically when a (sub)node boots, or when 'anvil-boot-server --server all' is used.</key>
 		<key name="striker_0002">If you want to specify an NTP server (or servers) to use, specify them here. Note that any existing NTP servers will be removed. Multiple servers (IPs or host names) can be specified as a comma-separated list.</key>
-		<key name="striker_0003">#!free!#</key>
+		<key name="striker_0003">This records the last known connection state of a DRBD resource on the DR host. If this is '1' and the DR host reboots, it will be reconnected by 'anvil-safe-start' on boot. Otherwise, it will be ignored.</key>
 		<key name="striker_0004">This is the name of the company, organization or division that owns or maintains this #!string!brand_0006!#. This is a descriptive field and you can enter whatever makes most sense to you.</key>
 		<key name="striker_0005">#!free!#</key>
 		<key name="striker_0006">This is a one to five character prefix used to identify this organization. It is used as the prefix for host names for dashboards, nodes and foundation pack equipment. You can use letters and numbers and set whatever makes sense to you.</key>
@@ -4135,7 +4132,7 @@ The duplicate will be removed.</key>
 [ Warning ] - If this is a freshly rebuild DR host, 'anvil-manage-host --auto-grow-pv' might regain free space.</key>
 		<key name="warning_0025">[ Warning ] - The needed space is not set, this is likely a program error. Unable to proceed with this volume.</key>
 		<key name="warning_0026">[ Warning ] - It appears that the creation of the LV failed! Skipping this device for now.</key>
-		<key name="warning_0027">#!free!#</key>
+		<key name="warning_0027">[ Warning ] - The server: [#!variable!server!#] is being protected by: [#!variable!dr_name!#], unable to unlink.</key>
 		<key name="warning_0028">[ Warning ] - Failed to read the fence agent: [#!variable!agent!#] metadata. Ignoring it.</key>
 		<key name="warning_0029">[ Warning ] - While resyncing the table: [#!variable!table!#] on: [#!variable!host_name!# (#!variable!host_uuid!#)], there was an entry found in the public schema (#!variable!column!# = #!variable!uuid!#) but not in the history schema. This shouldn't happen, and is probably a bug. Switching the query's schema from public to history for the query: [#!variable!query!#] is being dropped.</key>
 		<key name="warning_0030">[ Warning ] - Database->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
