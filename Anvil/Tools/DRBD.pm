@@ -1640,9 +1640,9 @@ LIMIT 1
 			foreach my $volume_href (@{$host_href->{volume}})
 			{
 				my $volume                                                                                          = $volume_href->{vnr};
-				my $drbd_path                                                                                       = $volume_href->{device}->[0]->{content};
 				my $lv_path                                                                                         = $volume_href->{disk}->[0];
 				my $by_res                                                                                          = "/dev/drbd/by-res/".$this_resource."/".$volume;
+				my $drbd_path                                                                                       = $by_res;	# This used to be '/dev/drbd_<server_name>_<volume>' before it was phased out.
 				my $minor                                                                                           = $volume_href->{device}->[0]->{minor};
 				   $anvil->data->{drbd}{config}{$host}{resource}{$this_resource}{volume}{$volume}{drbd_path}        = "/dev/drbd".$minor;
 				   ### TODO: Anything using these are broken as the values get rewritten and 

@@ -111,8 +111,8 @@ sub handle_boot_order
 	
 	# Is the server valid?
 	my ($server_name, $server_uuid) = $anvil->Get->server_from_switch({
+		debug      => 2,
 		server     => $anvil->data->{switches}{server},
-		anvil_uuid => $this_anvil_uuid,
 	});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		server_name => $server_name,
@@ -121,24 +121,8 @@ sub handle_boot_order
 	
 	if (not $server_uuid)
 	{
-		if ($this_anvil_uuid)
-		{
-			# The server wasn't found on the Anvil! node.
-			my $anvil_name        = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_name};
-			my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$this_anvil_uuid}{anvil_description};
-			$anvil->Job->update_progress({
-				progress  => 100,
-				message   => "message_0004", 
-				log_level => 1, 
-				'print'   => 1, 
-				variables => {
-					server            => $anvil->data->{switches}{server},
-					anvil_name        => $anvil_name, 
-					anvil_description => $anvil_description, 
-				},
-			});
-		}
-		else
+		# We now support boot dependencies across nodes.
+		if (not $this_anvil_uuid)
 		{
 			# The server wasn't found anywhere on the Anvil!
 			$anvil->Job->update_progress({

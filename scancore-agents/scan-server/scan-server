@@ -543,7 +543,7 @@ sub collect_data
 			elsif ((not $anvil->data->{'scan-server'}{server_name}{$server_name}{server_boot_time}) or ($anvil->data->{servers}{server_uuid}{$server_uuid}{server_state} eq "shut off"))
 			{
 				# It booted. Record the start time.
-				my $runtime          = $anvil->Server->get_runtime({server => $server_name});
+				my $runtime          = $anvil->Server->get_runtime({debug => 2, server => $server_name});
 				   $server_boot_time = $runtime ? time - $runtime : 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					runtime          => $runtime,
@@ -555,7 +555,7 @@ sub collect_data
 		{
 			# It's not in the database yet, add it. 
 			   $added            = 1;
-			my $runtime          = $anvil->Server->get_runtime({server => $server_name});
+			my $runtime          = $anvil->Server->get_runtime({debug => 2, server => $server_name});
 			   $server_boot_time = $runtime ? time - $runtime : 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				runtime          => $runtime,
@@ -920,7 +920,7 @@ sub collect_data
 			# off".
 			if ($old_server_state eq "shut off")
 			{
-				my $runtime          = $anvil->Server->get_runtime({server => $server_name});
+				my $runtime          = $anvil->Server->get_runtime({debug => 2, server => $server_name});
 				my $server_boot_time = time - $runtime;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					server_boot_time => $server_boot_time." (".$anvil->Get->date_and_time({use_time => $server_boot_time}).")",
@@ -1556,7 +1556,7 @@ sub get_and_parse_database_definition
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { database_definition => $database_definition }});
 	
 	my $problem = $anvil->Server->parse_definition({
-		debug      => 3,
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_db", 
 		definition => $database_definition, 
@@ -1586,7 +1586,7 @@ sub get_and_parse_disk_definition
 	$anvil->Storage->get_file_stats({file_path => $xml_file});
 	
 	my $problem = $anvil->Server->parse_definition({
-		debug      => 3,
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_disk", 
 		definition => $on_disk_definition, 
@@ -1675,7 +1675,7 @@ sub get_and_parse_virsh_definition
 	}
 	
 	my $problem = $anvil->Server->parse_definition({
-		debug      => 3,
+		debug      => 2,
 		server     => $server_name,
 		source     => $source, 
 		definition => $virsh_definition_inactive, 
@@ -1743,7 +1743,7 @@ sub update_definitions_from_virsh
 	my ($anvil, $server_name, $server_uuid, $virsh_definition) = @_;
 	
 	my $problem = $anvil->Server->parse_definition({
-		debug      => 3,
+		debug      => 2,
 		server     => $server_name,
 		source     => "from_virsh", 
 		definition => $virsh_definition, 
@@ -1792,7 +1792,7 @@ sub update_database_definition
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { server_definition_uuid => $server_definition_uuid }});
 
 	my $problem = $anvil->Server->parse_definition({
-		debug      => 3,
+		debug      => 2,
 		server     => $server_name,
 		source     => "new_definition", 
 		definition => $new_definition, 
