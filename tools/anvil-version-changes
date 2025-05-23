@@ -108,7 +108,10 @@ sub striker_checks
 
 	# This adds notes to storage_group_members
 	update_host_variables($anvil);
-	
+
+	# Change the trigger of the jobs table to include the notify call.
+	update_jobs_trigger($anvil);
+
 	return(0);
 }
 
@@ -882,6 +885,58 @@ CREATE TRIGGER trigger_host_variables
 			}
 			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
 		}
+	}
+
+	return(0);
+}
+
+sub update_jobs_trigger
+{
+	my ($anvil) = @_;
+
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $sql = q|CREATE OR REPLACE FUNCTION history_jobs() RETURNS trigger
+AS $$
+DECLARE
+    history_jobs RECORD;
+BEGIN
+    SELECT INTO history_jobs * FROM jobs WHERE job_uuid = NEW.job_uuid;
+    INSERT INTO history.jobs
+        (job_uuid,
+         job_host_uuid,
+         job_command,
+         job_data,
+         job_picked_up_by,
+         job_picked_up_at,
+         job_updated,
+         job_name,
+         job_progress,
+         job_title,
+         job_description,
+         job_status,
+         modified_date)
+    VALUES
+        (history_jobs.job_uuid,
+         history_jobs.job_host_uuid,
+         history_jobs.job_command,
+         history_jobs.job_data,
+         history_jobs.job_picked_up_by,
+         history_jobs.job_picked_up_at,
+         history_jobs.job_updated,
+         history_jobs.job_name,
+         history_jobs.job_progress,
+         history_jobs.job_title,
+         history_jobs.job_description,
+         history_jobs.job_status,
+         history_jobs.modified_date);
+    PERFORM pg_notify('after_insert_or_update_job', row_to_json(NEW)::text);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+|;
+		$anvil->Database->write({debug => 2, uuid => $uuid, query => $sql, source => $THIS_FILE, line => __LINE__});
 	}
 
 	return(0);
