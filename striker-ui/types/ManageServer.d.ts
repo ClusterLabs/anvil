@@ -82,6 +82,7 @@ type ServerFormGridProps<Values extends FormikValues> =
 /** ServerFormSubmit */
 
 type ServerFormSubmitProps = {
+  dangerous?: boolean;
   detail: APIServerDetail;
   formDisabled: boolean;
   label: React.ReactNode;
