@@ -28,6 +28,10 @@ type ServerChangeIsoFormikValues = {
   file: null | string;
 };
 
+type ServerDeletionFormikValues = {
+  name: string;
+};
+
 type ServerRenameFormikValues = {
   name: string;
 };
