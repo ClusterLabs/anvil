@@ -138,6 +138,55 @@ sub handle_restore
 		print $anvil->Words->string({key => "message_0218"})."\n";
 		$anvil->nice_exit({exit_code => 1});
 	}
+
+	# If we're a DR host and we're asked to restore, see if we're connected to any anvils.
+	$anvil->Database->get_anvils({debug => 2});
+	$anvil->Database->get_dr_links({debug => 2});
+	my $link_count = 0;
+	foreach my $anvil_name (sort {$a cmp $b} keys %{$anvil->data->{anvils}{anvil_name}})
+	{
+		my $anvil_uuid        = $anvil->data->{anvils}{anvil_name}{$anvil_name}{anvil_uuid};
+		my $anvil_description = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_description};
+		my $dr_link_uuid      = exists $anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_uuid}{$anvil_uuid} ? $anvil->data->{dr_links}{by_host_uuid}{$host_uuid}{dr_link_anvil_uuid}{$anvil_uuid}{dr_link_uuid} : "";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			's1:anvil_name'        => $anvil_name,
+			's2:anvil_uuid'        => $anvil_uuid, 
+			's3:anvil_description' => $anvil_description, 
+			's4:dr_link_uuid'      => $dr_link_uuid, 
+		}});
+		if ($dr_link_uuid)
+		{
+			# We'll restore this one.
+			$link_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { link_count => $link_count }});
+			
+			# Tell the user we'll look for servers to restore
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0358", variables => {
+				node_name   => $anvil_name, 
+				description => $anvil_description, 
+			}});
+		}
+		else
+		{
+			# Tell the user we will NOT look for servers to restore.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "log_0359", variables => {
+				node_name   => $anvil_name, 
+				description => $anvil_description, 
+			}});
+		}
+	}
+	if (not $link_count)
+	{
+		# We're not linked to any nodes, nothing to do.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1,
+			'print'    => 1, 
+			message    => "error_0496", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
 	
 	$anvil->Job->update_progress({
 		progress  => $anvil->Job->bump_progress({steps => 5}),
@@ -360,7 +409,6 @@ sub handle_restore
 			my $in_on          = 0;
 			my $in_volume      = 0;
 			my $this_volume    = "";
-			my $this_device    = "";
 			my $this_disk      = "";
 			my $this_host_name = "";
 			my $this_host_uuid = "";
@@ -400,29 +448,25 @@ sub handle_restore
 							}});
 						}
 						
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid}                         = $this_host_uuid;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device} = $this_device;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path}     = $this_disk;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}     = $this_lv_size;
-						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}    = $this_lv_on_vg;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid}                      = $this_host_uuid;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path}  = $this_disk;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}  = $this_lv_size;
+						$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg} = $this_lv_on_vg;
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							"s1:drbd_resource::${file}::host_name::${this_host_name}::host_uuid"                           => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid},
-							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::drbd_device" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device},
-							"s3:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_path"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path},
-							"s4:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_size"     => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}}).")",
-							"s5:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_on_vg"    => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}, 
+							"s1:drbd_resource::${file}::host_name::${this_host_name}::host_uuid"                        => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{host_uuid},
+							"s2:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_path"  => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path},
+							"s3:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_size"  => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size}}).")",
+							"s4:drbd_resource::${file}::host_name::${this_host_name}::volume::${this_volume}::lv_on_vg" => $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg}, 
 						}});
 						
 						$in_on          = 0;
 						$this_host_name = "";
 						$this_host_uuid = "";
-						$this_device    = "";
 						$this_disk      = "";
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 							in_on          => $in_on, 
 							this_host_name => $this_host_name,
 							this_host_uuid => $this_host_uuid, 
-							this_device    => $this_device, 
 							this_disk      => $this_disk, 
 						}});
 					}
@@ -447,11 +491,6 @@ sub handle_restore
 						in_volume   => $in_volume, 
 					}});
 				}
-				if ($line =~ /device\s+(.*?)\s+minor/)
-				{
-					$this_device = $1;
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_device => $this_device }});
-				}
 				if ($line =~ /\sdisk\s+(.*?);/)
 				{
 					$this_disk = $1;
@@ -469,16 +508,14 @@ sub handle_restore
 				}});
 				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
 				{
-					my $drbd_device   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
 					my $lv_path       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
 					my $lv_size       = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_size};
 					my $this_lv_on_vg = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 						's1:this_volume'   => $this_volume, 
-						's2:drbd_device'   => $drbd_device, 
-						's3:lv_path'       => $lv_path, 
-						's4:lv_size'       => $lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")",
-						's5:this_lv_on_vg' => $this_lv_on_vg, 
+						's2:lv_path'       => $lv_path, 
+						's3:lv_size'       => $lv_size." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $lv_size}).")",
+						's4:this_lv_on_vg' => $this_lv_on_vg, 
 					}});
 					
 					if ((not exists $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size}) or 
@@ -522,7 +559,7 @@ sub handle_restore
 				
 				foreach my $this_volume (sort {$a <=> $b} keys %{$anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}})
 				{
-					my $drbd_device        = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{drbd_device};
+					my $drbd_device        = "/dev/drbd/by-res/".$server_name."/".$this_volume;
 					my $original_lv_path   = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_path};
 					my $this_lv_on_vg      = $anvil->data->{drbd_resource}{$file}{host_name}{$this_host_name}{volume}{$this_volume}{lv_on_vg};
 					my $needed_size        = $anvil->data->{drbd_resource}{$file}{volume}{$this_volume}{needed_size};
@@ -1107,10 +1144,26 @@ sub handle_links
 	# Do we habe an Anvil! and a DR host?
 	my $anvil_uuid = $anvil->Database->get_anvil_uuid_from_string({string => $anvil->data->{switches}{anvil}});
 	my $host_uuid  = $anvil->Database->get_host_uuid_from_string({string => $anvil->data->{switches}{'dr-host'}});
+	my $host_type  = $anvil->Get->host_type();
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
-		anvil_uuid => $anvil_uuid,
-		host_uuid  => $host_uuid,
+		's1:anvil_uuid' => $anvil_uuid, 
+		's2:host_uuid'  => $host_uuid, 
+		's3:host_type'  => $host_type, 
 	}});
+	
+	if ((not $host_uuid) && ($host_type eq "dr"))
+	{
+		# Use ourself.
+		$host_uuid = $anvil->Get->host_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_uuid => $host_uuid }});
+	}
+	
+	if ((not $anvil_uuid) && ($host_type eq "node"))
+	{
+		# Use this node.
+		$anvil_uuid = $anvil->Cluster->get_anvil_uuid();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { anvil_uuid => $anvil_uuid }});
+	}
 
 	my $problem = 0;
 	if (not $anvil_uuid)
@@ -1188,7 +1241,7 @@ sub handle_links
 			print "- ".$short_host_name."\n";
 		}
 	}
-
+	
 	if ($problem)
 	{
 		print "\n".$anvil->Words->string({key => "error_0410"})."\n";
@@ -1205,6 +1258,60 @@ sub handle_links
 			}
 		}
 		print "\n";
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Are there any servers using this link?
+	$anvil->Database->get_servers();
+	$anvil->Database->get_drbd_data();
+	my $protected_server_count = 0;
+	my $dr_short_host_name     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_short_host_name => $dr_short_host_name }});
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}})
+	{
+		my $server_uuid = $anvil->data->{servers}{anvil_uuid}{$anvil_uuid}{server_name}{$server_name}{server_uuid};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+			server_name => $server_name, 
+			server_uuid => $server_uuid, 
+		}});
+		
+		if (exists $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name})
+		{
+			my $resource_uuid = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{resource_uuid}; 
+			my $resource_up   = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{up}; 
+			my $resource_xml  = $anvil->data->{drbd}{host_name}{$dr_short_host_name}{resource_name}{$server_name}{xml}; 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => {
+				resource_uuid => $resource_uuid, 
+				resource_up   => $resource_up, 
+				resource_xml  => $resource_xml, 
+			}});
+			next if $resource_xml eq "DELETED";
+			
+			# We can't unlink
+			$protected_server_count++;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { protected_server_count => $protected_server_count }});
+			print $anvil->Words->string({key => "warning_0027", variables => { 
+				server  => $server_name, 
+				dr_name => $dr_short_host_name, 
+			}})."\n";
+		}
+	}
+	
+	if ($protected_server_count)
+	{
+		# Abort.
+		my $anvil_name = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1,
+			'print'    => 1, 
+			job_status => "failed",
+			message    => "error_0198",
+			variables  => {
+				node_name => $anvil_name, 
+				dr_host   => $dr_short_host_name, 
+			}, 
+		});
 		$anvil->nice_exit({exit_code => 1});
 	}
 
@@ -1323,7 +1430,7 @@ sub sanity_check
 			host_anvil_uuid => $host_anvil_uuid." (".$anvil->data->{anvils}{anvil_uuid}{$host_anvil_uuid}{anvil_name}.")",
 		}});
 	}
-	
+
 	my $dr_link_uuid = "";
 	my $dr_link_note = "";
 	my $dr_host_uuid = "";
@@ -1899,45 +2006,32 @@ sub sanity_check
 					this_host_name => $this_host_name,
 				}});
 				
-				# We'll try the SN, then the BCN and finally the IFN to see which, if any, network we
-				# can reach the peer on. This is needed because the DR host could be on a totally 
-				# different network.
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = "";
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet}  = "";
 				$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = "";
-				foreach my $check_network ("sn", "bcn", "mn", "ifn")
+				
+				# We'll try the SN, then the BCN and finally the IFN to see which, if any, network we
+				# can reach the peer on. This is needed because the DR host could be on a totally 
+				# different network.
+				my ($target_ip, $target_network) = $anvil->Network->find_target_ip({
+					debug       => 2,
+					host_uuid   => $this_host_uuid,
+					networks    => 'sn,bcn,mn,ifn,any', 
+					ping        => 1, 
+					test_access => 1, 
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					target_ip      => $target_ip,
+					target_network => $target_network,
+				}});
+				if ($target_ip)
 				{
-					last if $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip};
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { check_network => $check_network }});
-					foreach my $this_network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}})
-					{
-						next if $this_network !~ /^$check_network/;
-						my $this_ip     = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{$this_network}{ip_address};
-						my $this_subnet = $anvil->data->{hosts}{host_uuid}{$this_host_uuid}{network}{$this_network}{subnet_mask};
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-							's1:this_ip'      => $this_ip,
-							's2:this_network' => $this_network, 
-							's3:this_subnet'  => $this_subnet,
-						}});
-						
-						# Test access.
-						my $access = $anvil->Remote->test_access({
-							target   => $this_ip,
-							password => $password,
-						});
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { access => $access }});
-						if ($access)
-						{
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = $this_ip;
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet}  = $this_subnet;
-							$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = $this_network;
-							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-								"hosts::host_uuid::${this_host_uuid}::network::use_ip"      => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip},
-								"hosts::host_uuid::${this_host_uuid}::network::use_subnet"  => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_subnet},
-								"hosts::host_uuid::${this_host_uuid}::network::use_network" => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network},
-							}});
-						}
-					}
+					$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip}      = $target_ip;
+					$anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network} = $target_network;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+						"hosts::host_uuid::${this_host_uuid}::network::use_ip"      => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip},
+						"hosts::host_uuid::${this_host_uuid}::network::use_network" => $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_network},
+					}});
 				}
 				
 				if (not $anvil->data->{lookup}{host_uuid}{$this_host_uuid}{network}{use_ip})

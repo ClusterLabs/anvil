@@ -101,6 +101,8 @@ check_config($anvil);
 
 fix_things($anvil);
 
+update_dr_status($anvil);
+
 # Shut down.
 $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 
@@ -108,6 +110,67 @@ $anvil->ScanCore->agent_shutdown({agent => $THIS_FILE});
 #############################################################################################################
 # Functions                                                                                                 #
 #############################################################################################################
+
+# This records the DRBD resources that are connected or down, so that anvil-safe-start knows what to connecte
+# on reboot.
+sub update_dr_status
+{
+	my ($anvil) = @_;
+	
+	my $host_type = $anvil->Get->host_type();
+	if ($host_type ne "dr")
+	{
+		# Nothing to do, return.
+		return(0);
+	}
+	
+	# Don't update until after anvil-safe-start has run.
+	my $tmp_file = $anvil->data->{path}{data}{'anvil-safe-start.ran'};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { tmp_file => $tmp_file }});
+	if (-e $tmp_file)
+	{
+		my $uptime       = $anvil->Get->uptime();
+		my $ass_last_ran = $anvil->Storage->read_file({file => $tmp_file}); # Don't snicker
+		my $boot_time    = time - $uptime;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			uptime       => $uptime, 
+			ass_last_ran => $ass_last_ran,
+			boot_time    => $boot_time,
+		}});
+		if ($boot_time > $ass_last_ran)
+		{
+			# Don't change anything yet.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, 'print' => 1, key => "scan_drbd_message_0038"});
+			return(0);
+		}
+	}
+	
+	# Still alive? Update variables.
+	my $host_uuid = $anvil->Get->host_uuid;
+	foreach my $resource (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}})
+	{
+		my $variable_name  = "drbd::resource::dr::".$resource."::is_up";
+		my $variable_value = $anvil->data->{new}{resource}{$resource}{up} ? 1 : 0;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			's1:resource'       => $resource,
+			's2:variable_name'  => $variable_name,
+			's3:variable_value' => $variable_value, 
+		}});
+		
+		my $variable_uuid = $anvil->Database->insert_or_update_variables({
+			variable_name         => $variable_name, 
+			variable_value        => $variable_value, 
+			variable_default      => "0", 
+			variable_description  => "striker_0003", 
+			variable_section      => "dr", 
+			variable_source_uuid  => $host_uuid, 
+			variable_source_table => "hosts", 
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
+	}
+	
+	return(0);
+}
 
 # With the deprecation of device fancy names in DRBD resource file's device statements.
 # See: https://github.com/LINBIT/drbd-utils/commit/1678d5fdedb4f38a66b743a27e4b33fedc9d6042

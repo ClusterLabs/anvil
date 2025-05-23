@@ -1147,6 +1147,7 @@ sub _set_paths
 			},
 			data			=>	{
 				'.htpasswd'			=>	"/etc/httpd/.htpasswd",
+				'anvil-safe-start.ran'		=>	"/tmp/anvil-safe-start.ran",
 				'chrony.conf'			=>	"/etc/chrony.conf",
 				group				=>	"/etc/group",
 				httpd_conf			=>	"/etc/httpd/conf/httpd.conf",
