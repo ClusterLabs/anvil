@@ -11,6 +11,7 @@ outpages		= \
 			anvil.html \
 			config.html \
 			file-manager.html \
+			host.html \
 			index.html \
 			init.html \
 			login.html \
