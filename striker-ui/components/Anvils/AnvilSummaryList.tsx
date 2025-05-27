@@ -1,4 +1,3 @@
-import { gridClasses } from '@mui/material';
 import { FC, ReactNode, useMemo } from 'react';
 
 import AnvilSummary from './AnvilSummary';
@@ -18,7 +17,7 @@ import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
 const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
-  const { refreshInterval = 4000 } = props;
+  const { refreshInterval = 5000 } = props;
 
   const {
     altData: anvils,
@@ -33,7 +32,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
     () =>
       anvils && (
         <Grid
-          columns={{ xs: 1, md: 2, lg: 3, xl: 4 }}
+          alignContent="stretch"
           layout={Object.values(anvils).reduce<GridLayout>(
             (previous, current) => {
               const { description, name, uuid } = current;
@@ -42,7 +41,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
 
               previous[key] = {
                 children: (
-                  <InnerPanel height="100%" mv={0}>
+                  <InnerPanel mv={0}>
                     <InnerPanelHeader>
                       <Link href={`/anvil?name=${name}`} noWrap>
                         {name}
@@ -63,6 +62,14 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
                     </InnerPanelBody>
                   </InnerPanel>
                 ),
+                maxWidth: {
+                  xs: '100%',
+                  md: '50%',
+                  lg: 'calc(100% / 3)',
+                  xl: '25%',
+                },
+                minWidth: '24em',
+                xs: true,
               };
 
               return previous;
@@ -70,13 +77,6 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
             {},
           )}
           spacing="1em"
-          sx={{
-            alignContent: 'stretch',
-
-            [`& > .${gridClasses.item}`]: {
-              minWidth: '20em',
-            },
-          }}
         />
       ),
     [anvils, refreshInterval],

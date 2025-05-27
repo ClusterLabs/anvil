@@ -28,6 +28,10 @@ type ServerChangeIsoFormikValues = {
   file: null | string;
 };
 
+type ServerDeletionFormikValues = {
+  name: string;
+};
+
 type ServerRenameFormikValues = {
   name: string;
 };
@@ -37,6 +41,11 @@ type ServerMemoryFormikValues = {
     unit: import('format-data-size').DataSizeUnit;
     value: string;
   };
+};
+
+type ServerProtectFormikValues = {
+  lvmVgUuid: null | string;
+  protocol: null | string;
 };
 
 /**
@@ -77,6 +86,7 @@ type ServerFormGridProps<Values extends FormikValues> =
 /** ServerFormSubmit */
 
 type ServerFormSubmitProps = {
+  dangerous?: boolean;
   detail: APIServerDetail;
   formDisabled: boolean;
   label: React.ReactNode;
@@ -149,6 +159,14 @@ type BaseServerMemoryFormProps = ServerFormProps & {
 };
 
 type ServerMemoryFormProps = ServerFormProps;
+
+/** ServerProtectForm */
+
+type BaseServerProtectFormProps = ServerFormProps & {
+  drs: APIHostDetailCalcableList;
+};
+
+type ServerProtectFormProps = ServerFormProps;
 
 /** ServerStartDependencyForm */
 

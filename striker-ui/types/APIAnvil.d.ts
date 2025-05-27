@@ -90,8 +90,8 @@ type AnvilStatusHost = {
 type AnvilStatus = {
   anvilStatus: {
     drbd: {
+      maxEstimatedTimeToSync: number;
       status: string;
-      estimatedTimeToSync: number;
     };
     system: string;
   };
@@ -147,8 +147,8 @@ type APIAnvilDetail = {
   name: string;
   status: {
     drbd: {
+      maxEstimatedTimeToSync: number;
       status: string;
-      estimatedTimeToSync: number;
     };
     system: string;
   };

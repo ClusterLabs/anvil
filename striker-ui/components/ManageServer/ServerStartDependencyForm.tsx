@@ -76,12 +76,8 @@ const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
 
   const filteredServerValues = useMemo(
     () =>
-      Object.values(servers).filter(
-        (server) =>
-          server.anvil.uuid === detail.anvil.uuid &&
-          server.uuid !== detail.uuid,
-      ),
-    [detail.anvil.uuid, detail.uuid, servers],
+      Object.values(servers).filter((server) => server.uuid !== detail.uuid),
+    [detail.uuid, servers],
   );
 
   const serverOptions = useMemo<SelectItem[]>(

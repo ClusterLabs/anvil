@@ -37,7 +37,7 @@ const SelectWithLabel = <
     onBlur,
     onChange,
     onFocus,
-    required: isRequired,
+    required,
     selectProps: {
       MenuProps: selectMenuProps,
       multiple: selectMultiple,
@@ -91,21 +91,17 @@ const SelectWithLabel = <
   const selectId = useMemo(() => `${id}-select-element`, [id]);
 
   const inputElement = useMemo(
-    () => <OutlinedInput id={id} label={label} />,
-    [id, label],
+    () => <OutlinedInput id={id} label={label} required={required} />,
+    [id, label, required],
   );
   const labelElement = useMemo(
     () =>
       label && (
-        <OutlinedInputLabel
-          htmlFor={selectId}
-          isNotifyRequired={isRequired}
-          {...inputLabelProps}
-        >
+        <OutlinedInputLabel htmlFor={selectId} {...inputLabelProps}>
           {label}
         </OutlinedInputLabel>
       ),
-    [inputLabelProps, isRequired, label, selectId],
+    [inputLabelProps, label, selectId],
   );
   const menuItemElements = useMemo(() => {
     if (!selectItems.length) {

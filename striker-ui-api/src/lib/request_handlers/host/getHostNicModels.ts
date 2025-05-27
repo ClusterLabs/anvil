@@ -3,28 +3,27 @@ import { RequestHandler } from 'express';
 import { listNicModels } from '../../accessModule';
 import { Responder } from '../../Responder';
 
-type HostDetailParamsDictionary = {
-  uuid: string;
-};
-
-type HostDetailNicModels = string[];
+type HostNicModels = string[];
 
 export const getHostNicModels: RequestHandler<
-  HostDetailParamsDictionary,
-  HostDetailNicModels
+  Express.RhParamsDictionary,
+  HostNicModels,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
 > = async (request, response) => {
   const respond = new Responder(response);
 
-  const { uuid } = request.params;
+  const hostUuid = response.locals.target.uuid;
 
   let nicModels: string[];
 
   try {
-    nicModels = await listNicModels(uuid);
+    nicModels = await listNicModels(hostUuid);
   } catch (error) {
     return respond.s500(
       '5e526c2',
-      `Failed to get NIC model list for host ${uuid}; CAUSE: ${error}`,
+      `Failed to get NIC model list for host ${hostUuid}; CAUSE: ${error}`,
     );
   }
 

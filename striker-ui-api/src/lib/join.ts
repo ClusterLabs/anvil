@@ -20,7 +20,10 @@ const join: JoinFunction = (
               notCallableReturn: element,
               parameters: [element],
             })}`,
-          elements[0],
+          call<string>(onEach, {
+            notCallableReturn: elements[0],
+            parameters: [elements[0]],
+          }),
         )}${elementWrapper}`
       : fallback;
 

@@ -1,51 +1,45 @@
 import {
-  Visibility as MUIVisibilityIcon,
-  VisibilityOff as MUIVisibilityOffIcon,
+  Visibility as MuiVisibilityIcon,
+  VisibilityOff as MuiVisibilityOffIcon,
 } from '@mui/icons-material';
 import {
-  IconButton as MUIIconButton,
-  IconButtonProps as MUIIconButtonProps,
-  OutlinedInput as MUIOutlinedInput,
+  IconButton as MuiIconButton,
+  IconButtonProps as MuiIconButtonProps,
+  OutlinedInput as MuiOutlinedInput,
   outlinedInputClasses as muiOutlinedInputClasses,
-  OutlinedInputProps as MUIOutlinedInputProps,
+  OutlinedInputProps as MuiOutlinedInputProps,
 } from '@mui/material';
 import { merge } from 'lodash';
-import { cloneElement, FC, ReactElement, useMemo, useState } from 'react';
+import { cloneElement, useMemo, useState } from 'react';
 
-import { GREY, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
+import { GREY, PURPLE, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
 type OutlinedInputOptionalProps = {
   disableAutofill?: boolean;
   onPasswordVisibilityAppend?: (
     inputType: string,
-    ...restArgs: Parameters<Exclude<MUIIconButtonProps['onClick'], undefined>>
+    ...restArgs: Parameters<Exclude<MuiIconButtonProps['onClick'], undefined>>
   ) => void;
 };
 
-type OutlinedInputProps = MUIOutlinedInputProps & OutlinedInputOptionalProps;
+type OutlinedInputProps = MuiOutlinedInputProps & OutlinedInputOptionalProps;
 
-const OUTLINED_INPUT_DEFAULT_PROPS: Pick<
-  OutlinedInputOptionalProps,
-  'disableAutofill' | 'onPasswordVisibilityAppend'
-> = {
-  disableAutofill: false,
-  onPasswordVisibilityAppend: undefined,
-};
-
-const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
+const OutlinedInput: React.FC<OutlinedInputProps> = (props) => {
   const {
     disableAutofill = false,
     endAdornment,
+    inputProps: { type: baseType, ...inputRestProps } = {},
     label,
     onPasswordVisibilityAppend,
     sx,
-    inputProps: { type: baseType, ...inputRestProps } = {},
     // Input props that depend on other input props.
     type: initialType = baseType,
 
-    ...outlinedInputRestProps
-  } = outlinedInputProps;
+    ...restProps
+  } = props;
+
+  const { required, value } = props;
 
   const [type, setType] = useState<string>(initialType);
 
@@ -56,7 +50,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
     return (
       <>
         {isInitialTypePassword && (
-          <MUIIconButton
+          <MuiIconButton
             onClick={(...args) => {
               const newType = isTypePassword
                 ? INPUT_TYPES.text
@@ -66,59 +60,59 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
               onPasswordVisibilityAppend?.call(null, newType, ...args);
             }}
           >
-            {isTypePassword ? <MUIVisibilityIcon /> : <MUIVisibilityOffIcon />}
-          </MUIIconButton>
+            {isTypePassword ? <MuiVisibilityIcon /> : <MuiVisibilityOffIcon />}
+          </MuiIconButton>
         )}
       </>
     );
   }, [initialType, onPasswordVisibilityAppend, type]);
 
-  const combinedSx = useMemo(
-    () =>
-      merge(
-        {
-          color: GREY,
+  const mergedSx = useMemo(() => {
+    const remind = required && !value;
+
+    return merge(
+      {
+        color: GREY,
+
+        [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+          borderColor: remind ? PURPLE : UNSELECTED,
+        },
+
+        [`& .${muiOutlinedInputClasses.input}`]: {
+          color: TEXT,
+          margin: '10px 8.5px',
+          marginRight: '0',
+          padding: '6.5px 5.5px',
+          paddingRight: '0',
+        },
+
+        '&:hover': {
+          [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
+            borderColor: GREY,
+          },
+        },
+
+        [`&.${muiOutlinedInputClasses.focused}`]: {
+          color: TEXT,
 
           [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-            borderColor: UNSELECTED,
-          },
+            borderColor: GREY,
 
-          [`& .${muiOutlinedInputClasses.input}`]: {
-            color: TEXT,
-            margin: '10px 8.5px',
-            marginRight: '0',
-            padding: '6.5px 5.5px',
-            paddingRight: '0',
-          },
-
-          '&:hover': {
-            [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-              borderColor: GREY,
-            },
-          },
-
-          [`&.${muiOutlinedInputClasses.focused}`]: {
-            color: TEXT,
-
-            [`& .${muiOutlinedInputClasses.notchedOutline}`]: {
-              borderColor: GREY,
-
-              '& legend': {
-                paddingRight: label ? '1.2em' : 0,
-              },
+            '& legend': {
+              paddingRight: label ? '1.2em' : 0,
             },
           },
         },
-        sx,
-      ),
-    [label, sx],
-  );
+      },
+      sx,
+    );
+  }, [label, required, sx, value]);
 
   const combinedEndAdornment = useMemo(() => {
     let result;
 
     if (typeof endAdornment === 'object') {
-      const casted = endAdornment as ReactElement;
+      const casted = endAdornment as React.ReactElement;
       const {
         props: { children: castedChildren = [], ...castedRestProps },
       } = casted;
@@ -138,7 +132,7 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
   }, [passwordVisibilityButton, endAdornment]);
 
   const autofillLock = useMemo<
-    Pick<MUIOutlinedInputProps, 'onFocus' | 'readOnly'> | undefined
+    Pick<MuiOutlinedInputProps, 'onFocus' | 'readOnly'> | undefined
   >(
     () =>
       disableAutofill
@@ -148,27 +142,25 @@ const OutlinedInput: FC<OutlinedInputProps> = (outlinedInputProps) => {
 
               event.target.readOnly = false;
 
-              outlinedInputRestProps?.onFocus?.call(null, ...args);
+              restProps?.onFocus?.call(null, ...args);
             },
             readOnly: true,
           }
         : undefined,
-    [disableAutofill, outlinedInputRestProps?.onFocus],
+    [disableAutofill, restProps?.onFocus],
   );
 
   return (
-    <MUIOutlinedInput
+    <MuiOutlinedInput
       endAdornment={combinedEndAdornment}
       label={label}
       inputProps={{ type, ...inputRestProps }}
-      {...outlinedInputRestProps}
+      {...restProps}
       {...autofillLock}
-      sx={combinedSx}
+      sx={mergedSx}
     />
   );
 };
-
-OutlinedInput.defaultProps = OUTLINED_INPUT_DEFAULT_PROPS;
 
 export type { OutlinedInputProps };
 

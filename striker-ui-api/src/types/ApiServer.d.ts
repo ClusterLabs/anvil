@@ -205,6 +205,14 @@ type ServerDetailMemory = {
   size: string;
 };
 
+type ServerDetailProtect = {
+  drUuid: string;
+  protocol: string;
+  status: {
+    connection: string;
+  };
+};
+
 type ServerDetailVariable = {
   name: string;
   short: string;
@@ -230,6 +238,7 @@ type ServerDetail = ServerOverview & {
     nicModels: string[];
   };
   memory: ServerDetailMemory;
+  protect: Record<string, ServerDetailProtect>;
   start: {
     active: boolean;
     after: string;
@@ -313,6 +322,12 @@ type ServerSetIfaceStateRequestBody = {
 
 type ServerSetMemoryRequestBody = {
   size: string;
+};
+
+type ServerSetProtectRequestBody = {
+  lvmVgUuid?: string;
+  operation: string;
+  protocol?: string;
 };
 
 type ServerSetStartDependencyRequestBody = {

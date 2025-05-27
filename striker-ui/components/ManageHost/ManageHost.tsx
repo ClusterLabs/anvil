@@ -1,102 +1,119 @@
+import { Grid } from '@mui/material';
 import { useState } from 'react';
 
-import CrudList from '../CrudList';
-import { DialogScrollBox } from '../Dialog';
-import FormSummary from '../FormSummary';
-import HostListItem from './HostListItem';
-import IconButton from '../IconButton';
-import PrepareHostForm from './PrepareHostForm';
-import TestAccessForm from './TestAccessForm';
-import { BodyText } from '../Text';
+import { toHostDetailCalcable } from '../../lib/api_converters';
+import Divider from '../Divider';
+import HostGeneralInfo from './HostGeneralInfo';
+import HostServerList from './HostServerList';
+import HostStorageList from './HostStorageList';
+import { Panel, PanelHeader } from '../Panels';
+import Spinner from '../Spinner';
+import Tab from '../Tab';
+import TabContent from '../TabContent';
+import Tabs from '../Tabs';
+import { HeaderText } from '../Text';
+import useFetch from '../../hooks/useFetch';
 
-const ManageHost: React.FC<ManageHostProps> = (props) => {
-  const { onValidateHostsChange } = props;
+const tabs = {
+  general: {
+    label: 'General',
+    value: 'general',
+  },
+  servers: {
+    label: 'Servers',
+    value: 'servers',
+  },
+  storage: {
+    label: 'Storage',
+    value: 'storage',
+  },
+};
 
-  const [inquireHostResponse, setInquireHostResponse] = useState<
-    InquireHostResponse | undefined
-  >();
+const ManageDrHost: React.FC<ManageHostProps> = (props) => {
+  const { uuid } = props;
+
+  const [tabId, setTabId] = useState<string>(tabs.general.value);
+
+  const { altData: host, loading } = useFetch<
+    APIHostDetail,
+    APIHostDetailCalcable
+  >(`/host/${uuid}`, {
+    mod: toHostDetailCalcable,
+    periodic: true,
+  });
 
   return (
-    <CrudList<APIHostOverview, APIHostDetail>
-      formDialogProps={{
-        common: {
-          onClose: ({ handlers: { base } }, ...args) => {
-            base?.call(null, ...args);
-            // Delay to avoid visual changes until dialog is fully closed.
-            setTimeout(setInquireHostResponse, 500);
-          },
-        },
-      }}
-      addHeader="Initialize host"
-      editHeader=""
-      entriesUrl="/host?type=dr&type=subnode"
-      entryUrlPrefix="/host"
-      getDeleteErrorMessage={(children, ...rest) => ({
-        ...rest,
-        children: <>Failed to delete host(s). {children}</>,
-      })}
-      getDeleteHeader={(count) => `Delete the following ${count} host(s)?`}
-      getDeleteSuccessMessage={() => ({
-        children: <>Successfully deleted host(s)</>,
-      })}
-      listEmpty="No host(s) found."
-      listProps={{
-        allowAddItem: true,
-        allowEdit: false,
-        // There's no edit mode for host list right now, use the edit dialog to
-        // display the details of a host.
-        allowItemButton: true,
-      }}
-      onValidateEntriesChange={onValidateHostsChange}
-      renderAddForm={(tools) => (
-        <>
-          <TestAccessForm setResponse={setInquireHostResponse} tools={tools} />
-          {inquireHostResponse && (
-            <PrepareHostForm
-              host={inquireHostResponse}
-              setResponse={setInquireHostResponse}
-              tools={tools}
-            />
-          )}
-        </>
+    <Panel>
+      {loading && <Spinner mt={0} />}
+      {host && (
+        <Grid container spacing="1em">
+          <Grid
+            item
+            width={{
+              xs: '100%',
+              sm: '14em',
+              md: '20em',
+            }}
+          >
+            <Grid container rowSpacing="1em">
+              <Grid item width="100%">
+                <Tabs
+                  onChange={(event, id) => {
+                    setTabId(id);
+                  }}
+                  orientation="vertical"
+                  value={tabId}
+                >
+                  <Tab {...tabs.general} label={host.short} />
+
+                  <Tab
+                    disabled
+                    icon={<Divider sx={{ width: '100%' }} />}
+                    label=""
+                  />
+
+                  <Tab {...tabs.servers} />
+
+                  <Tab {...tabs.storage} />
+                </Tabs>
+              </Grid>
+            </Grid>
+          </Grid>
+          <Grid
+            display={{
+              xs: 'none',
+              sm: 'initial',
+            }}
+            item
+          >
+            <Divider orientation="vertical" />
+          </Grid>
+          <Grid item xs>
+            <TabContent changingTabId={tabId} tabId={tabs.general.value}>
+              <PanelHeader>
+                <HeaderText>{tabs.general.label}</HeaderText>
+              </PanelHeader>
+              <HostGeneralInfo host={host} />
+            </TabContent>
+
+            <TabContent changingTabId={tabId} tabId={tabs.servers.value}>
+              <PanelHeader>
+                <HeaderText>{tabs.servers.label}</HeaderText>
+              </PanelHeader>
+              <HostServerList host={host} />
+            </TabContent>
+
+            <TabContent changingTabId={tabId} tabId={tabs.storage.value}>
+              <PanelHeader>
+                <HeaderText>{tabs.storage.label}</HeaderText>
+              </PanelHeader>
+              <HostStorageList host={host} />
+            </TabContent>
+          </Grid>
+        </Grid>
       )}
-      renderDeleteItem={(hosts, { key }) => {
-        const host = hosts?.[key];
-
-        return <BodyText>{host?.shortHostName}</BodyText>;
-      }}
-      renderEditForm={(tools, detail) =>
-        detail && (
-          <DialogScrollBox>
-            <FormSummary
-              entries={detail}
-              renderEntryValue={(base, ...args) => {
-                const {
-                  0: { entry, key },
-                } = args;
-
-                if (key === 'command')
-                  return (
-                    <IconButton
-                      iconProps={{ fontSize: 'small' }}
-                      mapPreset="copy"
-                      onClick={() =>
-                        navigator.clipboard.writeText(String(entry))
-                      }
-                      size="small"
-                    />
-                  );
-
-                return base(...args);
-              }}
-              hasPassword
-            />
-          </DialogScrollBox>
-        )
-      }
-      renderListItem={(uuid, host) => <HostListItem data={host} />}
-    />
+    </Panel>
   );
 };
 
-export default ManageHost;
+export default ManageDrHost;

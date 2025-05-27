@@ -31,11 +31,41 @@ type APIHostInstallTarget = 'enabled' | 'disabled';
 
 type APIHostStatus = 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
 
+type APIHostDrbdResource = {
+  connection: {
+    state: string;
+  };
+  name: string;
+  replication: {
+    estimatedTimeToSync: number;
+    state: string;
+  };
+  uuid: string;
+};
+
 type APIHostIPMI = {
   command: string;
   ip: string;
   password: string;
   username: string;
+};
+type APIHostNetwork = Tree<boolean | number | string> & {
+  createBridge?: boolean;
+  ip: string;
+  link1MacToSet: string;
+  link1Uuid: string;
+  link2MacToSet?: string;
+  link2Uuid?: string;
+  sequence: number;
+  subnetMask: string;
+  type: string;
+};
+
+type APIHostNetworkList = Record<string, APIHostNetwork>;
+
+type APIHostServer = {
+  name: string;
+  uuid: string;
 };
 
 type APIHostOverview = {
@@ -51,40 +81,78 @@ type APIHostOverview = {
   shortHostName: string;
 };
 
-type APIHostOverviewList = {
-  [hostUUID: string]: APIHostOverview;
+type APIHostOverviewList = Record<string, APIHostOverview>;
+
+// TODO: replace type host overview with the first block of host detail after
+// making the same changes to the endpoint
+type APIHostDetail = {
+  anvil?: {
+    description: string;
+    name: string;
+    uuid: string;
+  };
+  configured: boolean;
+  name: string;
+  short: string;
+  status: {
+    drbd: {
+      maxEstimatedTimeToSync: number;
+      status: string;
+    };
+    system: string;
+  };
+  type: string;
+  uuid: string;
+} & {
+  drbdResources: Record<string, APIHostDrbdResource>;
+  ipmi: APIHostIPMI;
+  netconf: {
+    dns: string;
+    gateway: string;
+    gatewayInterface: string;
+    networks: Record<string, APIHostNetwork>;
+    ntp: string;
+  };
+  servers: {
+    // 1 server can only be protected by 1 DR host
+    all: Record<string, APIHostServer>;
+    configured: string[];
+    replicating: string[];
+    running: string[];
+  };
+  storage: {
+    volumeGroups: Record<string, APIAnvilVolumeGroup>;
+    volumeGroupTotals: {
+      free: string;
+      size: string;
+      used: string;
+    };
+  };
+  variables: Tree<boolean | number | string> & {
+    domain?: string;
+    installTarget?: APIHostInstallTarget;
+    organization?: string;
+    prefix?: string;
+    sequence?: number;
+    strikerPassword?: string;
+    strikerUser?: string;
+  };
 };
 
-type APIHostNetwork = {
-  createBridge?: NumberBoolean;
-  ip: string;
-  link1MacToSet: string;
-  link1Uuid: string;
-  link2MacToSet?: string;
-  link2Uuid?: string;
-  sequence: string;
-  subnetMask: string;
-  type: NetworkType;
+type APIHostDetailList = Record<string, APIHostDetail>;
+
+type APIHostDetailCalcable = Omit<APIHostDetail, 'storage'> & {
+  storage: {
+    volumeGroups: Record<string, APIAnvilVolumeGroupCalcable>;
+    volumeGroupTotals: {
+      free: bigint;
+      size: bigint;
+      used: bigint;
+    };
+  };
 };
 
-type APIHostNetworkList = {
-  [networkId: string]: APIHostNetwork;
-};
-
-type APIHostDetail = APIHostOverview & {
-  dns?: string;
-  domain?: string;
-  gateway?: string;
-  gatewayInterface?: string;
-  installTarget?: APIHostInstallTarget;
-  ipmi?: APIHostIPMI;
-  networks?: APIHostNetworkList;
-  organization?: string;
-  prefix?: string;
-  sequence?: string;
-  strikerPassword?: string;
-  strikerUser?: string;
-};
+type APIHostDetailCalcableList = Record<string, APIHostDetailCalcable>;
 
 type APIDeleteHostConnectionRequestBody = {
   [key: 'local' | string]: string[];

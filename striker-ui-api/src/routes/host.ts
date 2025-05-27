@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTarget } from '../middlewares';
 import {
   createHost,
   createHostConnection,
@@ -12,19 +13,24 @@ import {
   updateHost,
 } from '../lib/request_handlers/host';
 
-const CONNECTION_PATH = '/connection';
+const single = express.Router();
+
+single.get('/', getHostDetail).get('/nic-model', getHostNicModels);
 
 const router = express.Router();
 
 router
   .get('/', getHost)
-  .get(CONNECTION_PATH, getHostConnection)
-  .get('/:uuid/nic-model', getHostNicModels)
-  .get('/:hostUUID', getHostDetail)
   .post('/', createHost)
-  .post(CONNECTION_PATH, createHostConnection)
   .put('/prepare', prepareHost)
-  .put('/:hostUUID?', updateHost)
-  .delete(CONNECTION_PATH, deleteHostConnection);
+  .put('/:hostUUID?', updateHost);
+
+router
+  .route('/connection')
+  .get(getHostConnection)
+  .post(createHostConnection)
+  .delete(deleteHostConnection);
+
+router.use('/:uuid', validateRequestTarget(), single);
 
 export default router;

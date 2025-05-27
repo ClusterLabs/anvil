@@ -2,9 +2,11 @@ import { RequestHandler } from 'express';
 
 import { SERVER_PATHS } from '../../consts';
 
-import { job } from '../../accessModule';
+import { job, jobDone } from '../../accessModule';
+import { linkDrFrom, unlinkDrFrom } from '../../drLink';
 import { Responder } from '../../Responder';
 import { updateAnvilStorageGroupRequestBodySchema } from './schemas';
+import { perr } from '../../shell';
 
 export const updateAnvilStorageGroup: RequestHandler<
   undefined,
@@ -63,7 +65,16 @@ export const updateAnvilStorageGroup: RequestHandler<
 
   const { add } = body;
 
-  if (add) {
+  if (add && add.length) {
+    try {
+      linkDrFrom(anvilUuid, { lvmVgUuids: add });
+    } catch (error) {
+      return respond.s500(
+        '1fa8857',
+        `Failed to link DR host(s); CAUSE: ${error}`,
+      );
+    }
+
     for (const lvmVgUuid of add) {
       try {
         await job({
@@ -90,10 +101,14 @@ export const updateAnvilStorageGroup: RequestHandler<
 
   const { remove } = body;
 
-  if (remove) {
+  if (remove && remove.length) {
+    const jobUuids: string[] = [];
+
     for (const lvmVgUuid of remove) {
+      let jobUuid: string;
+
       try {
-        await job({
+        jobUuid = await job({
           file: __filename,
           job_command: [
             command,
@@ -112,7 +127,29 @@ export const updateAnvilStorageGroup: RequestHandler<
           `Failed to remove member [${lvmVgUuid}] from storage group [${sgName}]; CAUSE: ${error}`,
         );
       }
+
+      jobUuids.push(jobUuid);
     }
+
+    jobDone(jobUuids)
+      .then(async () => {
+        try {
+          await unlinkDrFrom(anvilUuid, { lvmVgUuids: remove });
+        } catch (error) {
+          perr(
+            `Failed to unlink DR host(s) after removing storage group member(s) [${remove.join(
+              ', ',
+            )}]; CAUSE: ${error}`,
+          );
+        }
+      })
+      .catch((error) => {
+        perr(
+          `Failed to wait for job(s) [${jobUuids.join(
+            ', ',
+          )}] to complete; CAUSE: ${error}`,
+        );
+      });
   }
 
   return respond.s200();

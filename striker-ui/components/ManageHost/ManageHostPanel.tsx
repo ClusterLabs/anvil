@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import ManageHost from './ManageHost';
+import ManageHostList from './ManageHostList';
 import { Panel, PanelHeader } from '../Panels';
 import SyncIndicator from '../SyncIndicator';
 import { HeaderText } from '../Text';
@@ -14,7 +14,7 @@ const ManageHostPanel: React.FC = () => {
         <HeaderText>Hosts</HeaderText>
         <SyncIndicator syncing={validating} />
       </PanelHeader>
-      <ManageHost
+      <ManageHostList
         onValidateHostsChange={(value) => {
           if (value !== validating) {
             setValidating(value);

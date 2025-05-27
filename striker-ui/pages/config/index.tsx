@@ -1,6 +1,6 @@
 import { Grid } from '@mui/material';
 import Head from 'next/head';
-import { FC, useState } from 'react';
+import { useState } from 'react';
 
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Header from '../../components/Header';
@@ -12,7 +12,7 @@ import useFetch from '../../hooks/useFetch';
 
 // This page can't be reused, and default is set within the render function.
 // eslint-disable-next-line react/require-default-props
-const Config: FC<{ refreshInterval?: number }> = ({
+const Config: React.FC<{ refreshInterval?: number }> = ({
   refreshInterval = 60000,
 }) => {
   const [isOpenConfirmDialog, setIsOpenConfirmDialog] =
@@ -41,9 +41,9 @@ const Config: FC<{ refreshInterval?: number }> = ({
       onError: () => {
         setSimpleOpsPanelHeader('Unknown');
       },
-      onSuccess: ({ installTarget, shortHostName }) => {
-        setSimpleOpsInstallTarget(installTarget);
-        setSimpleOpsPanelHeader(shortHostName);
+      onSuccess: ({ short, variables }) => {
+        setSimpleOpsInstallTarget(variables.installTarget);
+        setSimpleOpsPanelHeader(short);
       },
       refreshInterval,
     });
@@ -52,9 +52,7 @@ const Config: FC<{ refreshInterval?: number }> = ({
     <>
       <Head>
         <title>
-          {loadingHostDetail
-            ? 'Loading...'
-            : `${hostDetail?.shortHostName} Config`}
+          {loadingHostDetail ? 'Loading...' : `${hostDetail?.short} Config`}
         </title>
       </Head>
       <Header />

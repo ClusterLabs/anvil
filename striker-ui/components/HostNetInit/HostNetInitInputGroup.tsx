@@ -40,6 +40,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
       gateway: `${base}.gateway`,
       networkInit: base,
       networks: `${base}.networks`,
+      ntp: `${base}.ntp`,
     };
   }, []);
 
@@ -371,6 +372,19 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
               name={chains.dns}
               onChange={handleChange}
               value={formik.values.networkInit.dns}
+            />
+          }
+        />
+      </Grid>
+      <Grid item xs={1} sm md="auto">
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={chains.ntp}
+              label="NTP"
+              name={chains.ntp}
+              onChange={handleChange}
+              value={formik.values.networkInit.ntp}
             />
           }
         />

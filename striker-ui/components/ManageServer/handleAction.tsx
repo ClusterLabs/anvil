@@ -17,16 +17,20 @@ const handleAction = <ReqBody = unknown,>(
       success?: React.ReactNode;
     };
     method?: Method;
+    onCancel?: () => void;
     onFail?: () => void;
+    onProceed?: () => void;
     onSuccess?: () => void;
-  },
+  } = {},
 ) => {
   const {
     body,
     description,
     messages,
     method = 'put',
+    onCancel,
     onFail,
+    onProceed,
     onSuccess,
     dangerous = /delete/i.test(messages?.proceed ?? ''),
   } = options;
@@ -34,8 +38,13 @@ const handleAction = <ReqBody = unknown,>(
   tools.confirm.prepare({
     actionProceedText: messages?.proceed ?? 'Confirm',
     content: description,
+    onCancelAppend: () => {
+      onCancel?.call(null);
+    },
     onProceedAppend: () => {
       tools.confirm.loading(true);
+
+      onProceed?.call(null);
 
       api
         .request({

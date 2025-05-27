@@ -1,47 +1,83 @@
-import { DELETED } from '../../consts';
+import { RequestHandler } from 'express';
 
-import { getLocalHostUUID } from '../../accessModule';
-import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildQueryResultReducer } from '../../buildQueryResultModifier';
+import { getLocalHostUUID, query } from '../../accessModule';
+import { buildHostDetailList } from './buildHostDetailList';
 import { toLocal } from '../../convertHostUUID';
 import { getShortHostName } from '../../disassembleHostName';
 import join from '../../join';
+import { Responder } from '../../Responder';
 import { getHostQueryStringSchema } from './schemas';
+import { sqlHosts } from '../../sqls';
 
-export const getHost = buildGetRequestHandler<
+export const getHost: RequestHandler<
   Express.RhParamsDictionary,
-  HostOverviewList,
+  HostOverviewList | HostDetailList,
   Express.RhReqBody,
   {
+    detail?: boolean;
+    host?: string | string[];
     node?: string | string[];
     type?: string | string[];
   }
->(async (request, hooks) => {
-  const qs = await getHostQueryStringSchema.validate(request.query);
+> = async (request, response) => {
+  const respond = new Responder(response);
 
-  const { node: lsnode, type: lstype } = qs;
+  let qs: {
+    detail?: boolean;
+    host?: string[];
+    node?: string[];
+    type?: string[];
+  };
 
-  const localHostUuid: string = getLocalHostUUID();
+  try {
+    qs = await getHostQueryStringSchema.validate(request.query);
+  } catch (error) {
+    return respond.s400(
+      'b57aa0f',
+      `Invalid request query string(s); CAUSE: ${error}`,
+    );
+  }
 
-  let condition = `WHERE a.host_key != '${DELETED}'`;
+  const { detail, host: lsHost, node: lsNode, type: lsType } = qs;
 
-  if (lsnode) {
-    condition += join(lsnode, {
-      beforeReturn: (csv) => (csv ? ` AND b.anvil_uuid IN (${csv})` : ''),
+  if (detail) {
+    let hosts: HostDetailList;
+
+    try {
+      hosts = await buildHostDetailList({
+        lsHost: lsHost,
+        lsNode: lsNode,
+        lsType: lsType,
+      });
+    } catch (error) {
+      return respond.s500(
+        '4fd118b',
+        `Failed to get host detail list; CAUSE: ${error}`,
+      );
+    }
+
+    return respond.s200(hosts);
+  }
+
+  let condition = `TRUE`;
+
+  if (lsNode) {
+    condition += join(lsNode, {
+      beforeReturn: (csv) => csv && ` AND b.anvil_uuid IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  if (lstype) {
-    condition += join(lstype, {
-      beforeReturn: (csv) => (csv ? ` AND a.host_type IN (${csv})` : ''),
+  if (lsType) {
+    condition += join(lsType, {
+      beforeReturn: (csv) => csv && ` AND a.host_type IN (${csv})`,
       elementWrapper: "'",
       separator: ', ',
     });
   }
 
-  const query = `
+  const sqlGetHosts = `
     SELECT
       a.host_name,
       a.host_status,
@@ -50,7 +86,7 @@ export const getHost = buildGetRequestHandler<
       b.anvil_uuid,
       b.anvil_name,
       c.variable_value
-    FROM hosts AS a
+    FROM (${sqlHosts()}) AS a
     LEFT JOIN anvils AS b
       ON a.host_uuid IN (
         b.anvil_node1_host_uuid,
@@ -60,46 +96,50 @@ export const getHost = buildGetRequestHandler<
       ON c.variable_name = 'system::configured'
         AND c.variable_source_table = 'hosts'
         AND a.host_uuid = c.variable_source_uuid
-    ${condition}
-    ORDER BY a.host_name ASC;`;
+    WHERE ${condition}
+    ORDER BY a.host_name;`;
 
-  const afterQueryReturn: QueryResultModifierFunction | undefined =
-    buildQueryResultReducer<{ [hostUUID: string]: HostOverview }>(
-      (previous, row) => {
-        const [
-          hostName,
-          hostStatus,
-          hostType,
-          hostUuid,
-          anUuid,
-          anName,
-          hostConfigured,
-        ] = row;
+  let hostRows: string[][];
 
-        const key = toLocal(hostUuid, localHostUuid);
+  try {
+    hostRows = await query(sqlGetHosts);
+  } catch (error) {
+    return respond.s500('43476da', `Failed to get host list; CAUSE: ${error}`);
+  }
 
-        let anvil: HostOverview['anvil'];
+  const localHostUuid: string = getLocalHostUUID();
 
-        if (anUuid) {
-          anvil = { name: anName, uuid: anUuid };
-        }
+  const hosts: Record<string, HostOverview> = {};
 
-        previous[key] = {
-          anvil,
-          hostConfigured: hostConfigured === '1',
-          hostName,
-          hostStatus,
-          hostType,
-          hostUUID: hostUuid,
-          shortHostName: getShortHostName(hostName),
-        };
+  hostRows.forEach((row) => {
+    const [
+      hostName,
+      hostStatus,
+      hostType,
+      hostUuid,
+      anvilUuid,
+      anvilName,
+      hostConfigured,
+    ] = row;
 
-        return previous;
-      },
-      {},
-    );
+    const key = toLocal(hostUuid, localHostUuid);
 
-  hooks.afterQueryReturn = afterQueryReturn;
+    let anvil: HostOverview['anvil'];
 
-  return query;
-});
+    if (anvilUuid) {
+      anvil = { name: anvilName, uuid: anvilUuid };
+    }
+
+    hosts[key] = {
+      anvil,
+      hostConfigured: hostConfigured === '1',
+      hostName,
+      hostStatus,
+      hostType,
+      hostUUID: hostUuid,
+      shortHostName: getShortHostName(hostName),
+    };
+  });
+
+  return respond.s200(hosts);
+};

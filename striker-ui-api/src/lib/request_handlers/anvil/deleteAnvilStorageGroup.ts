@@ -2,9 +2,11 @@ import { RequestHandler } from 'express';
 
 import { SERVER_PATHS } from '../../consts';
 
-import { job } from '../../accessModule';
+import { job, jobDone } from '../../accessModule';
+import { unlinkDrFrom } from '../../drLink';
 import { Responder } from '../../Responder';
 import { deleteAnvilStorageGroupRequestBodySchema } from './schemas';
+import { perr } from '../../shell';
 
 export const deleteAnvilStorageGroup: RequestHandler = async (
   request,
@@ -35,12 +37,14 @@ export const deleteAnvilStorageGroup: RequestHandler = async (
     `'${storageGroupName}'`,
   ];
 
+  let jobUuid: string;
+
   try {
-    await job({
+    jobUuid = await job({
       file: __filename,
       job_command: [command, ...commandCommonArgs, '--remove'].join(' '),
-      job_name: `storage-group::remove`,
       job_description: 'job_0538',
+      job_name: `storage-group::remove`,
       job_title: 'job_0537',
     });
   } catch (error) {
@@ -49,6 +53,20 @@ export const deleteAnvilStorageGroup: RequestHandler = async (
       `Failed to remove storage group [${storageGroupName}]; CAUSE: ${error}`,
     );
   }
+
+  jobDone([jobUuid])
+    .then(async () => {
+      try {
+        await unlinkDrFrom(anvilUuid, { sgName: storageGroupName });
+      } catch (error) {
+        perr(
+          `Failed to unlink DR host(s) after removing storage group [${storageGroupName}]; CAUSE: ${error}`,
+        );
+      }
+    })
+    .catch((error) => {
+      perr(`Failed to wait for job [${jobUuid}] to complete; CAUSE: ${error}`);
+    });
 
   return respond.s204();
 };

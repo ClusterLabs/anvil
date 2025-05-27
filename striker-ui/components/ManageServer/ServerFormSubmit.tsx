@@ -5,7 +5,7 @@ import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
 const ServerFormSubmit: FC<ServerFormSubmitProps> = (props) => {
-  const { detail, formDisabled, label } = props;
+  const { dangerous, detail, formDisabled, label } = props;
 
   const { data: jobs } = useFetch<APIJobOverviewList>(
     `/job?name=${detail.uuid}::update`,
@@ -22,6 +22,14 @@ const ServerFormSubmit: FC<ServerFormSubmitProps> = (props) => {
     return formDisabled || Object.keys(jobs).length > 0;
   }, [formDisabled, jobs]);
 
+  const background = useMemo(() => {
+    if (dangerous) {
+      return 'red';
+    }
+
+    return 'blue';
+  }, [dangerous]);
+
   if (!jobs) {
     return <Spinner mt={0} />;
   }
@@ -30,7 +38,7 @@ const ServerFormSubmit: FC<ServerFormSubmitProps> = (props) => {
     <ActionGroup
       actions={[
         {
-          background: 'blue',
+          background,
           children: label,
           disabled: actionDisabled,
           type: 'submit',

@@ -1,17 +1,36 @@
-import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildQueryHostDetail } from './buildQueryHostDetail';
+import { RequestHandler } from 'express';
+
+import { buildHostDetailList } from './buildHostDetailList';
 import { toHostUUID } from '../../convertHostUUID';
-import { sanitizeSQLParam } from '../../sanitizeSQLParam';
+import { Responder } from '../../Responder';
 
-export const getHostDetail = buildGetRequestHandler(
-  ({ params: { hostUUID: rawHostUUID } }, hooks) => {
-    const hostUUID = toHostUUID(rawHostUUID);
-    const { afterQueryReturn, query } = buildQueryHostDetail({
-      keys: [sanitizeSQLParam(hostUUID)],
-    });
+export const getHostDetail: RequestHandler<
+  Express.RhParamsDictionary,
+  HostDetail,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
+> = async (request, response) => {
+  const respond = new Responder(response);
 
-    hooks.afterQueryReturn = afterQueryReturn;
+  const hostUuid = toHostUUID(response.locals.target.uuid);
 
-    return query;
-  },
-);
+  let host: HostDetail | undefined;
+
+  try {
+    const hosts = await buildHostDetailList({ lsHost: [hostUuid] });
+
+    ({ [hostUuid]: host } = hosts);
+  } catch (error) {
+    return respond.s500(
+      '8957311',
+      `Failed to get host detail; CAUSE: ${error}`,
+    );
+  }
+
+  if (!host) {
+    return respond.s404();
+  }
+
+  return respond.s200(host);
+};

@@ -27,6 +27,7 @@ my $THIS_FILE = "System.pm";
 # check_ssh_keys
 # check_memory
 # check_network_type
+# check_ntp
 # check_storage
 # collect_ipmi_data
 # configure_ipmi
@@ -1593,14 +1594,14 @@ sub check_network_type
 
 =head2 check_ntp
 
-This checks to see if the NTP needs to be updated. If the NTP congig is updated, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
+This checks to see if the NTP needs to be updated. If the NTP config is updated, C<< 1 >> is returned. Otherwise, C<< 0 >> is returned.
 
 This method looks for the NTP server(s) to use in this order;
 * Install Manifest (if a subnode)
 * variables -> variable_name = network::ntp::servers
-* /etc/anvil/anvil.con -> network::ntp::servers = X
+* /etc/anvil/anvil.conf -> network::ntp::servers = X
 
-If multiple are set, the last one is ues. Values are NOT merged.
+If multiple are set, use the last one. Values are NOT merged.
 
 This method takes no parameters.
 

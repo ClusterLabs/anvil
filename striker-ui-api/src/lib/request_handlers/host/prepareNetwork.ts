@@ -40,7 +40,7 @@ export const prepareNetwork: RequestHandler<
 
   const { hostUUID: hostUuid } = params;
 
-  const { dns, gateway, gatewayInterface, hostName, networks } = body;
+  const { dns, gateway, gatewayInterface, hostName, networks, ntp } = body;
 
   let hostType: string;
 
@@ -78,6 +78,7 @@ export const prepareNetwork: RequestHandler<
     [cvar(2, 'gateway_interface')]: { step: 2, value: gatewayInterface },
     [cvar(2, 'host_name')]: { step: 2, value: hostName },
     ...buildNetworkConfig(networks),
+    'network::ntp::servers': { step: 2, value: ntp },
   };
 
   poutvar(configData, `Prepare network on host ${hostUuid} with data: `);

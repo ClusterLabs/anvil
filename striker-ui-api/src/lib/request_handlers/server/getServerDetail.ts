@@ -17,6 +17,13 @@ import { getShortHostName } from '../../disassembleHostName';
 import { Responder } from '../../Responder';
 import { sanitize } from '../../sanitize';
 import { perr, poutvar } from '../../shell';
+import {
+  sqlHosts,
+  sqlScanDrbdPeers,
+  sqlScanDrbdResources,
+  sqlScanDrbdVolumes,
+  sqlServers,
+} from '../../sqls';
 
 type ServerSsMeta = {
   name: string;
@@ -577,7 +584,7 @@ export const getServerDetail: RequestHandler<
       };
     });
 
-    const rsBody: ServerDetail = {
+    const server: ServerDetail = {
       anvil: {
         description: anvilDescription,
         name: anvilName,
@@ -612,6 +619,7 @@ export const getServerDetail: RequestHandler<
         size: memorySize ? memorySize.value : '0',
       },
       name: serverName,
+      protect: {},
       start: {
         active: startActive,
         after: serverStartAfterServerUuid,
@@ -622,6 +630,113 @@ export const getServerDetail: RequestHandler<
       variables,
     };
 
-    return respond.s200(rsBody);
+    const sqlGetDrHosts = `${sqlHosts()} AND host_type = 'dr'`;
+
+    const sqlGetProtectScope = `
+      SELECT
+        i.scan_drbd_resource_name,
+        CAST(i.scan_drbd_resource_xml AS xml) AS resource_xml,
+        COUNT(iii.scan_drbd_peer_uuid) AS number_of_peers,
+        SUM(
+          CAST(
+            iii.scan_drbd_peer_connection_state IN (
+              'standalone'
+            ) AS int
+          )
+        ) AS number_of_standalone,
+        SUM(
+          CAST(
+            iii.scan_drbd_peer_connection_state IN (
+              'established',
+              'syncsource',
+              'synctarget'
+            ) AS int
+          )
+        ) AS number_of_connected
+      FROM (${sqlScanDrbdResources()}) AS i
+      LEFT JOIN (${sqlScanDrbdVolumes()}) AS ii
+        ON ii.scan_drbd_volume_scan_drbd_resource_uuid = i.scan_drbd_resource_uuid
+      LEFT JOIN (
+        SELECT *
+        FROM (${sqlScanDrbdPeers()}) AS i
+        JOIN (${sqlGetDrHosts}) AS ii
+          ON ii.host_uuid = i.scan_drbd_peer_host_uuid
+      ) AS iii
+        ON iii.scan_drbd_peer_scan_drbd_volume_uuid = ii.scan_drbd_volume_uuid
+      GROUP BY
+        i.scan_drbd_resource_name,
+        i.scan_drbd_resource_xml`;
+
+    const sqlGetProtectStatus = `
+      WITH
+        scope AS (${sqlGetProtectScope})
+      SELECT
+        d.host_uuid,
+        CASE
+          WHEN b.drbd_connection_protocol = 'C'
+            THEN 'sync'
+          ELSE 'short-throw'
+        END as dr_connection_protocol,
+        a.number_of_peers,
+        a.number_of_standalone,
+        a.number_of_connected
+      FROM
+        scope AS a,
+        XMLTABLE(
+          'resource/connection/host'
+          PASSING resource_xml
+          COLUMNS
+            connection_host text
+              PATH '@name',
+            drbd_connection_protocol text
+              PATH '../section[@name="net"]/option[@name="protocol"]/@value'
+        ) AS b,
+        (${sqlServers()}) AS c,
+        (${sqlGetDrHosts}) AS d
+      WHERE
+          c.server_name = a.scan_drbd_resource_name
+        AND
+          b.connection_host = d.host_short_name
+        AND
+          c.server_uuid = '${serverUuid}'
+      GROUP BY
+        a.number_of_connected,
+        a.number_of_standalone,
+        a.number_of_peers,
+        b.drbd_connection_protocol,
+        d.host_uuid;`;
+
+    let protectStatusRows: string[][];
+
+    try {
+      protectStatusRows = await query(sqlGetProtectStatus);
+    } catch (error) {
+      return respond.s500(
+        'f1921a7',
+        `Failed to get server protect status; CAUSE: ${error}`,
+      );
+    }
+
+    protectStatusRows.forEach((row) => {
+      const [drUuid, protocol, numPeers, numStandalone, numConnected] = row;
+
+      const protect: ServerDetailProtect = {
+        drUuid,
+        protocol,
+        status: {
+          connection: 'disconnected',
+        },
+      };
+
+      if (numStandalone) {
+        protect.status.connection = 'standalone';
+      } else if (numConnected === numPeers) {
+        protect.status.connection = 'connected';
+      }
+
+      server.protect[drUuid] = protect;
+    });
+
+    return respond.s200(server);
   }
 };

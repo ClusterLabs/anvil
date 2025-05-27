@@ -25,7 +25,7 @@ type ListOptionalProps<T = unknown> = {
   listItemIconMinWidth?: number | string;
   listItemKeyPrefix?: string;
   listItemProps?: import('@mui/material').ListItemProps;
-  listItems?: Record<string, T>;
+  listItems?: T[] | Record<string, T>;
   listProps?: import('@mui/material').ListProps;
   loading?: boolean;
   onAdd?: import('../components/IconButton').IconButtonProps['onClick'];

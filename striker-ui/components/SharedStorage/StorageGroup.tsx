@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { dSize, dSizeStr } from 'format-data-size';
+import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
 import { StorageBar } from '../Bars';
@@ -15,7 +15,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
   const { name } = storageGroup;
 
   const sgFree = useMemo<string>(
-    () => dSize(storageGroup.free, { toUnit: 'ibyte' })?.value ?? 'none',
+    () => dSizeStr(storageGroup.free, { toUnit: 'ibyte' }) ?? 'none',
     [storageGroup.free],
   );
 
@@ -44,7 +44,7 @@ const StorageGroup: React.FC<StorageGroupProps> = (props) => {
         const { [volumeGroup.host]: host } = storages.hosts;
 
         const vgFree =
-          dSize(volumeGroup.free, { toUnit: 'ibyte' })?.value ?? 'none';
+          dSizeStr(volumeGroup.free, { toUnit: 'ibyte' }) ?? 'none';
 
         const vgSize =
           dSizeStr(volumeGroup.size, { toUnit: 'ibyte' }) ?? 'none';

@@ -59,10 +59,26 @@ type DeleteSshKeyConflictProgressProps = Pick<
   };
 };
 
-/** ManageHost */
+/** ManageHostList */
 
-type ManageHostOptionalProps = {
+type ManageHostListOptionalProps = {
   onValidateHostsChange?: (value: boolean) => void;
 };
 
-type ManageHostProps = ManageHostOptionalProps;
+type ManageHostListProps = ManageHostListOptionalProps;
+
+/** ManageHost */
+
+type ManageHostProps = {
+  uuid: string;
+};
+
+type HostTabCommonProps = {
+  host: APIHostDetailCalcable;
+};
+
+type HostGeneralInfoProps = HostTabCommonProps;
+
+type HostServerListProps = HostTabCommonProps;
+
+type HostStorageListProps = HostTabCommonProps;

@@ -267,6 +267,14 @@ type APIServerDetailMemory = {
   size: string;
 };
 
+type APIServerDetailProtect = {
+  drUuid: string;
+  protocol: string;
+  status: {
+    connection: string;
+  };
+};
+
 type APIServerDetailHostBridge = {
   id: string;
   mac: string;
@@ -289,6 +297,7 @@ type APIServerDetail = APIServerOverview & {
     nicModels: string[];
   };
   memory: APIServerDetailMemory;
+  protect: Record<string, APIServerDetailProtect>;
   start: {
     active: boolean;
     after: null | string;
@@ -306,6 +315,12 @@ type APIServerDetailScreenshot = {
 
 type APIServerRenameRequestBody = {
   newName: string;
+};
+
+type APIServerProtectRequestBody = {
+  lvmVgUuid?: string;
+  operation: string;
+  protocol?: string;
 };
 
 type APIServerUpdateResponseBody = {

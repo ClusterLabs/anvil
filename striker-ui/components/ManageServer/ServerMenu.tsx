@@ -33,14 +33,17 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     edit: { open: () => null },
   });
 
-  const off = useMemo(
-    () => ['shut off'].includes(server.state),
+  const off = useMemo(() => server.state === 'shut off', [server.state]);
+
+  const provisioning = useMemo(
+    () => server.state === 'provisioning',
     [server.state],
   );
 
   const options = useMemo<Record<string, ServerOption>>(() => {
     const ops: Record<string, ServerOption> = {
       server: {
+        disabled: () => provisioning,
         href: () => `/server?name=${server.name}`,
         render: () => (
           <BodyText inheritColour noWrap>
@@ -210,7 +213,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     ops['force off'] = forceOff;
 
     return ops;
-  }, [node.name, off, server.name, server.uuid]);
+  }, [node.name, off, provisioning, server.name, server.uuid]);
 
   return (
     <Box>

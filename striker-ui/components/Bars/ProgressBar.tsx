@@ -1,47 +1,65 @@
 import { styled } from '@mui/material';
+import { useMemo } from 'react';
 
-import { PURPLE, BLUE } from '../../lib/consts/DEFAULT_THEME';
+import { PURPLE, BLUE, RED } from '../../lib/consts/DEFAULT_THEME';
 
 import BorderLinearProgress from './BorderLinearProgress';
 import Underline from './Underline';
 
+type ProgressBarProps = {
+  error?: boolean;
+  progressPercentage: number;
+};
+
 const PREFIX = 'ProgressBar';
 
 const classes = {
-  barOk: `${PREFIX}-barOk`,
-  barInProgress: `${PREFIX}-barInProgress`,
+  error: `${PREFIX}-error`,
+  ok: `${PREFIX}-ok`,
+  inProgress: `${PREFIX}-inProgress`,
 };
 
 const StyledDiv = styled('div')(() => ({
-  [`& .${classes.barOk}`]: {
+  [`& .${classes.error}`]: {
+    backgroundColor: RED,
+  },
+
+  [`& .${classes.ok}`]: {
     backgroundColor: BLUE,
   },
 
-  [`& .${classes.barInProgress}`]: {
+  [`& .${classes.inProgress}`]: {
     backgroundColor: PURPLE,
   },
 }));
 
-const completed = 100;
+const ProgressBar: React.FC<ProgressBarProps> = (props) => {
+  const { error, progressPercentage } = props;
 
-const ProgressBar = ({
-  progressPercentage,
-}: {
-  progressPercentage: number;
-}): JSX.Element => (
-  <StyledDiv>
-    <BorderLinearProgress
-      classes={{
-        bar:
-          progressPercentage < completed
-            ? classes.barInProgress
-            : classes.barOk,
-      }}
-      variant="determinate"
-      value={progressPercentage}
-    />
-    <Underline />
-  </StyledDiv>
-);
+  const barClasses = useMemo(() => {
+    if (error) {
+      return classes.error;
+    }
+
+    if (progressPercentage === 100) {
+      return classes.ok;
+    }
+
+    return classes.inProgress;
+  }, [error, progressPercentage]);
+
+  return (
+    <StyledDiv>
+      <BorderLinearProgress
+        classes={{
+          bar: barClasses,
+        }}
+        variant="determinate"
+        value={progressPercentage}
+      />
+      <Underline />
+    </StyledDiv>
+  );
+};
 
 export default ProgressBar;

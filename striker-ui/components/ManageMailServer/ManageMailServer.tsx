@@ -30,7 +30,10 @@ const ManageMailServer: FC = () => {
         listEmpty="No mail server(s) found"
         renderAddForm={(tools) =>
           host && (
-            <AddMailServerForm localhostDomain={host.domain} tools={tools} />
+            <AddMailServerForm
+              localhostDomain={host.variables.domain}
+              tools={tools}
+            />
           )
         }
         renderDeleteItem={(mailServers, { key }) => {

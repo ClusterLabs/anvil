@@ -3,6 +3,8 @@ import * as yup from 'yup';
 import { yupLaxUuid } from '../../../yupCommons';
 
 export const getHostQueryStringSchema = yup.object({
+  detail: yup.boolean(),
+  host: yup.array().of(yupLaxUuid().required()).ensure(),
   node: yup.array().of(yupLaxUuid().required()).ensure(),
   type: yup
     .array()

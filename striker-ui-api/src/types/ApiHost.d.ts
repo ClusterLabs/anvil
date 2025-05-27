@@ -48,6 +48,18 @@ type HostIpmi = {
   username: string;
 };
 
+type HostNetwork = Tree<number | string> & {
+  ip: string;
+  sequence: number;
+  subnetMask: string;
+  type: string;
+};
+
+type HostServer = {
+  name: string;
+  uuid: string;
+};
+
 type HostOverview = {
   anvil?: {
     name: string;
@@ -63,9 +75,52 @@ type HostOverview = {
 
 type HostOverviewList = Record<string, HostOverview>;
 
-type HostDetail = HostOverview & {
+type HostDetail = {
+  anvil?: {
+    description: string;
+    name: string;
+    uuid: string;
+  };
+  configured: boolean;
+  name: string;
+  short: string;
+  status: {
+    drbd: {
+      maxEstimatedTimeToSync: number;
+      status: string;
+    };
+    system: string;
+  };
+  type: string;
+  uuid: string;
+} & {
+  drbdResources: Record<string, AnvilHostDrbdResource>;
   ipmi: HostIpmi;
-} & Tree<string>;
+  netconf: {
+    dns: string;
+    gateway: string;
+    gatewayInterface: string;
+    networks: Record<string, HostNetwork>;
+    ntp: string;
+  };
+  servers: {
+    all: Record<string, HostServer>;
+    configured: string[];
+    replicating: string[];
+    running: string[];
+  };
+  storage: {
+    volumeGroups: Record<string, AnvilDetailVolumeGroup>;
+    volumeGroupTotals: {
+      free: string;
+      size: string;
+      used: string;
+    };
+  };
+  variables: Tree<boolean | number | string>;
+};
+
+type HostDetailList = Record<string, HostDetail>;
 
 type InitializeStrikerNetworkForm = {
   createBridge?: string;
@@ -91,6 +146,7 @@ type InitializeStrikerForm = {
   hostName: string;
   hostNumber: number;
   networks: InitializeStrikerNetworkForm[];
+  ntp?: string;
   organizationName: string;
   organizationPrefix: string;
 };
@@ -126,6 +182,7 @@ type PrepareNetworkRequestBody = {
   gatewayInterface: string;
   hostName: string;
   networks: InitializeStrikerNetworkForm[];
+  ntp?: string;
 };
 
 type SetHostInstallTargetRequestBody = {

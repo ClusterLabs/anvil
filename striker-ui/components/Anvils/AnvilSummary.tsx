@@ -2,35 +2,23 @@ import { Grid, gridClasses } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { FC, ReactNode, useMemo } from 'react';
 
-import { BLUE, GREY, PURPLE } from '../../lib/consts/DEFAULT_THEME';
-
 import {
   toAnvilDetail,
   toAnvilMemoryCalcable,
   toAnvilSharedStorageOverview,
 } from '../../lib/api_converters';
 import { MemoryBar, StorageBar } from '../Bars';
+import {
+  toAnvilStatusColour,
+  toDrbdStatusColour,
+  toHostStatusColour,
+} from '../../lib/colours';
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
 import Spinner from '../Spinner';
 import { BodyText, InlineMonoText, MonoText } from '../Text';
 import { ago } from '../../lib/time';
 import useFetch from '../../hooks/useFetch';
-
-const MAP_TO_ANVIL_STATE_COLOUR: Record<string, string> = {
-  offline: GREY,
-  optimal: BLUE,
-};
-
-const MAP_TO_DRBD_STATE_COLOUR: Record<string, string> = {
-  offline: GREY,
-  optimal: BLUE,
-};
-
-const MAP_TO_HOST_STATE_COLOUR: Record<string, string> = {
-  offline: GREY,
-  online: BLUE,
-};
 
 const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
   const { anvilUuid, refreshInterval = 5000 } = props;
@@ -84,11 +72,13 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       return undefined;
     }
 
-    const colour = MAP_TO_ANVIL_STATE_COLOUR[anvil.status.system] ?? PURPLE;
+    const { system } = anvil.status;
+
+    const colour = toAnvilStatusColour(system);
 
     return (
       <MonoText inheritColour color={colour}>
-        {anvil.status.system}
+        {system}
       </MonoText>
     );
   }, [anvil]);
@@ -98,20 +88,20 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       return undefined;
     }
 
-    const { drbd } = anvil.status;
+    const { maxEstimatedTimeToSync, status } = anvil.status.drbd;
+
+    const colour = toDrbdStatusColour(status);
 
     let etts: string | undefined;
 
-    if (drbd.estimatedTimeToSync) {
-      etts = ago(drbd.estimatedTimeToSync);
+    if (maxEstimatedTimeToSync) {
+      etts = ago(maxEstimatedTimeToSync);
     }
-
-    const colour = MAP_TO_DRBD_STATE_COLOUR[anvil.status.drbd.status] ?? PURPLE;
 
     return (
       <MonoText inheritColour color={colour}>
-        {anvil.status.drbd.status}
-        {etts && `(needs ~${etts})`}
+        {status}
+        {etts && ` (estimated ~${etts})`}
       </MonoText>
     );
   }, [anvil]);
@@ -123,8 +113,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
           {Object.values(anvil.hosts).map<ReactNode>((host) => {
             const { name, serverCount, state, stateProgress, uuid } = host;
 
-            const stateColour: string =
-              MAP_TO_HOST_STATE_COLOUR[state] ?? PURPLE;
+            const colour = toHostStatusColour(state);
 
             let stateValue: string = state;
 
@@ -138,7 +127,6 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
                 columnSpacing="0.5em"
                 container
                 key={`subnode-${uuid}`}
-                sx={{}}
               >
                 <Grid item xs="auto">
                   <BodyText variant="caption" whiteSpace="nowrap">
@@ -146,7 +134,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
                   </BodyText>
                 </Grid>
                 <Grid item xs="auto">
-                  <MonoText inheritColour color={stateColour}>
+                  <MonoText inheritColour color={colour}>
                     {stateValue}
                   </MonoText>
                 </Grid>
@@ -207,7 +195,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       memory && (
         <FlexBox spacing={0}>
           <FlexBox row justifyContent="flex-end">
-            <BodyText mb="-.3em" variant="caption">
+            <BodyText variant="caption">
               Free
               <InlineMonoText>
                 {dSizeStr(memory.available, {
@@ -215,8 +203,10 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
                 })}
               </InlineMonoText>
               /
-              <InlineMonoText sx={{ paddingRight: 0 }}>
-                {dSizeStr(memory.total, { toUnit: 'ibyte' })}
+              <InlineMonoText edge="end">
+                {dSizeStr(memory.total, {
+                  toUnit: 'ibyte',
+                })}
               </InlineMonoText>
             </BodyText>
           </FlexBox>
@@ -231,14 +221,18 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       storages && (
         <FlexBox spacing={0}>
           <FlexBox row justifyContent="flex-end">
-            <BodyText mb="-.3em" variant="caption">
+            <BodyText variant="caption">
               Total free
               <InlineMonoText>
-                {dSizeStr(storages.totalFree, { toUnit: 'ibyte' })}
+                {dSizeStr(storages.totalFree, {
+                  toUnit: 'ibyte',
+                })}
               </InlineMonoText>
               /
-              <InlineMonoText sx={{ paddingRight: 0 }}>
-                {dSizeStr(storages.totalSize, { toUnit: 'ibyte' })}
+              <InlineMonoText edge="end">
+                {dSizeStr(storages.totalSize, {
+                  toUnit: 'ibyte',
+                })}
               </InlineMonoText>
             </BodyText>
           </FlexBox>
@@ -264,7 +258,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       }}
     >
       <Grid item xs={1}>
-        <BodyText>Node</BodyText>
+        <BodyText>Status</BodyText>
       </Grid>
       <Grid item xs={3}>
         {anvilSummary}

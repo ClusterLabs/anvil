@@ -2,6 +2,9 @@
  * @prop started - EPOCH seconds that specify when the job started.
  */
 type JobOverview = {
+  error: {
+    count: number;
+  };
   host: {
     name: string;
     shortName: string;

@@ -12,6 +12,7 @@ export const configStrikerRequestBodySchema = yup.object({
   gateway: yupIpv4().required(),
   gatewayInterface: yup.string().required(),
   networks: yup.array(hostNetworkRequestBodySchema).required(),
+  ntp: yup.string(),
   organizationName: yup.string().required(),
   organizationPrefix: yup
     .string()

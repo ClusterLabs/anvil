@@ -43,22 +43,27 @@ const buildFormikInitialValues = (
       type: 'ifn',
     },
   };
+  let ntp = '';
 
   let organizationName = '';
   let organizationPrefix = '';
 
   if (detail) {
     ({
-      dns = '',
       domain: domainName = '',
-      gateway = '',
-      hostName = '',
-      sequence: hostNumber = '',
       organization: organizationName = '',
       prefix: organizationPrefix = '',
-    } = detail);
+    } = detail.variables);
 
-    const { networks: nets = {} } = detail;
+    hostName = detail.name;
+
+    const { sequence } = detail.variables;
+
+    hostNumber = sequence ? String(sequence) : '';
+
+    ({ dns = '', gateway = '', ntp = '' } = detail.netconf);
+
+    const { networks: nets = {} } = detail.netconf;
 
     networks = toHostNetList(nets);
   }
@@ -73,6 +78,7 @@ const buildFormikInitialValues = (
       dns,
       gateway,
       networks,
+      ntp,
     },
     organizationName,
     organizationPrefix,

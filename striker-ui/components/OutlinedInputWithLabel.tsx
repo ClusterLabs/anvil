@@ -129,11 +129,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
 
   return (
     <MUIFormControl fullWidth {...formControlProps}>
-      <OutlinedInputLabel
-        htmlFor={id}
-        isNotifyRequired={required}
-        {...inputLabelProps}
-      >
+      <OutlinedInputLabel htmlFor={id} {...inputLabelProps}>
         {label}
       </OutlinedInputLabel>
       <OutlinedInput
@@ -171,6 +167,7 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
         onBlur={onBlur}
         onChange={onChange}
         onFocus={onFocus}
+        required={required}
         type={type}
         value={value}
         {...restInputProps}
