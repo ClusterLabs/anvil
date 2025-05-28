@@ -101,10 +101,11 @@ if ($anvil->data->{switches}{restore})
 my $terminal = "";
 if (not $anvil->data->{switches}{'job-uuid'})
 {
+	my $term    = $ENV{TERM} ? $ENV{TERM} : "xterm-256color";
 	my $termios = new POSIX::Termios;
 	$termios->getattr;
 	my $ospeed   = $termios->getospeed;
-	   $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	   $terminal = Tgetent Term::Cap { TERM => $term, OSPEED => $ospeed };
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { terminal => $terminal }});
 	
 	$terminal->Trequire(qw/ce ku kd/);
