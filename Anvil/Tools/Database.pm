@@ -931,10 +931,62 @@ sub configure_pgsql
 		}
 	}
 	
-	# First, is it running and is it initialized?
+	# First, is it running and is it initialized? We check for both pg_hba.conf and PG_VERSION because a
+	# failed previous initdb call could leave the pg_hba.conf but not the PG_VERSION. This allows us to
+	# catch both cases. 
 	my $initialized = 0;
 	my $running     = $anvil->System->check_daemon({debug => $debug, daemon => $anvil->data->{sys}{daemon}{postgresql}});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { running => $running }});
+	
+	# If it's not running, is it failed?
+	if (not $running)
+	{
+		# Is it failed?
+		my $shell_call = $anvil->data->{path}{exe}{systemctl}." is-failed ".$anvil->data->{sys}{daemon}{postgresql};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+		my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			output      => $output, 
+			return_code => $return_code,
+		}});
+		if ($return_code eq "0")
+		{
+			# Failed, if there was a failed init, the 
+			my $pg_data =  $anvil->data->{path}{directories}{pgsql}."/data";
+			   $pg_data =~ s/\/\//\//;
+			my $pg_base =  $pg_data."/base";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+				's1:pg_data' => $pg_data,
+				's2:pg_base' => $pg_base, 
+			}});
+			if ((-d $pg_data) && (not -d $pg_base))
+			{
+				# Move the bad DB directory.
+				my $backup_dir =  $anvil->data->{path}{directories}{pgsql}."/bad.data";
+				   $backup_dir =~ s/\/\//\//;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { backup_dir => $backup_dir }});
+				if (not -d $backup_dir)
+				{
+					# Move the directory.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "warning_0033", variables => {
+						old_dir => $pg_data,
+						new_dir => $backup_dir,
+					}});
+					my $shell_call = $anvil->data->{path}{exe}{mv}." ".$pg_data." ".$backup_dir;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+					my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+						output      => $output, 
+						return_code => $return_code,
+					}});
+				}
+			}
+		}
+	}
+	
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		'path::configs::pg_hba.conf' => $anvil->data->{path}{configs}{'pg_hba.conf'},
+	}});
 	if (not -e $anvil->data->{path}{configs}{'pg_hba.conf'})
 	{
 		# Initialize. Record that we did so, so that we know to start the daemon.

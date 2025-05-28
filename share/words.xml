@@ -4138,7 +4138,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0030">[ Warning ] - Database->insert_or_update_variables() was called with 'update_value_only' set, but the 'variable_uuid' wasn't passed or the 'variable_uuid' wasn't found given the 'variable_name'. Unable to update. Passed in values are logged below this message</key>
 		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
 		<key name="warning_0032">[ Warning ] - Restarting the job: [#!variable!command!# --job-uuid #!variable!job_uuid!#]. It appears to have exited at: [#!variable!percent!#%] complete with the prior PID: [#!variable!pid!#].</key>
-		<key name="warning_0033">#!free!#</key>
+		<key name="warning_0033">[ Warning ] - It appears there was a problem initialising the postgres database. Moving: [#!variable!old_dir!#] to: [#!variable!new_dir!#] before trying again.</key>
 		<key name="warning_0034">#!free!#</key>
 		<key name="warning_0035">#!free!#</key>
 		<key name="warning_0036">#!free!#</key>
