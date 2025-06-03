@@ -4184,7 +4184,9 @@ sub maintenance_mode
 
 =head2 manage_authorized_keys
 
-This takes a host's UUID and will adds or removes their ssh public key to the target host user (or users). On success, C<< 0 >> is returned. Otherwise, C<< 1 >> is returned.
+This takes a host's UUID and will adds or removes their ssh public key to the target host user (or users). If the C<< host_uuid >> isn't found or there is no recorded key for thath host, C<< !!error!! >> is returned. 
+
+If the host's key is added to one or more C<< ~/.ssh/authorized_keys >> file, C<< 1 >> is returned. If the key was not added, C<< 0 >> is returned.
 
 Parameters;
 
@@ -4228,6 +4230,7 @@ sub manage_authorized_keys
 	my $target      = defined $parameter->{target}      ? $parameter->{target}      : "";
 	my $users       = defined $parameter->{users}       ? $parameter->{users}       : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid   => $host_uuid, 
 		target      => $target, 
 		port        => $port, 
 		remote_user => $remote_user, 
@@ -4241,6 +4244,41 @@ sub manage_authorized_keys
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { users => $users }});
 	}
 	
+	# What are the keys for this host?
+	$anvil->Database->get_hosts({debug => 3});
+	$anvil->Database->get_ssh_keys({debug => 3});
+	if (not exists $anvil->data->{hosts}{host_uuid}{$host_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0034", variables => { host_uuid => $host_uuid }});
+		return('!!error!!');
+	}
+	
+	my $host_name = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_name};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+	if (not exists $anvil->data->{ssh_keys}{host_uuid}{$host_uuid})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "warning_0035", variables => { host_uuid => $host_uuid }});
+		return('!!error!!');
+	}
+	
+	foreach my $ssh_key_user_name (sort {$a cmp $b} keys %{$anvil->data->{ssh_keys}{host_uuid}{$host_uuid}{ssh_key_user_name}})
+	{
+		my $ssh_key_public_key =  $anvil->data->{ssh_keys}{host_uuid}{$host_uuid}{ssh_key_user_name}{$ssh_key_user_name}{ssh_key_public_key};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			's1:ssh_key_user_name'  => $ssh_key_user_name,
+			's2:ssh_key_public_key' => $ssh_key_public_key,
+		}});
+		
+		$ssh_key_public_key                                         =~ s/(^\w.*?)\s+(.*?)\s.*$/$1 $2/;
+		$anvil->data->{needed_keys}{$ssh_key_user_name}{public_key} =  $ssh_key_public_key;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			"needed_keys::${ssh_key_user_name}::public_key" => $anvil->data->{needed_keys}{$ssh_key_user_name}{public_key},
+		}});
+	}
+	
+	my $updated          = 0;
+	my $host_key         = $anvil->data->{hosts}{host_uuid}{$host_uuid}{host_key};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_key => $host_key }});
 	foreach my $user (split/,/, $users)
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { user => $user }});
@@ -4259,9 +4297,61 @@ sub manage_authorized_keys
 			file  => $authorized_keys_file,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_authorized_keys_body => $old_authorized_keys_body }});
+		my $new_authorized_keys_body = $old_authorized_keys_body;
+		
+		# Are we missing any keys?
+		foreach my $ssh_key_user_name (sort {$a cmp $b} keys %{$anvil->data->{needed_keys}})
+		{
+			my $key_found  = 0;
+			my $public_key = $anvil->data->{needed_keys}{$ssh_key_user_name}{public_key};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { public_key => $public_key }});
+			foreach my $line (split/\n/, $old_authorized_keys_body)
+			{
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
+				if ($line =~ /\Q$public_key\E/)
+				{
+					$key_found = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_found => $key_found }});
+				}
+				last if $key_found;
+			}
+			if (not $key_found)
+			{
+				$updated = 1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { updated => $updated }});
+				
+				$new_authorized_keys_body .= "# Key added by the Anvil! on: [".$anvil->Get->date_and_time."] using data from the 'ssh_keys' database table.\n";
+				$new_authorized_keys_body .= $public_key." ".$ssh_key_user_name."\@".$host_name."\n";
+				
+				# Tell the user.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "message_0525", variables => { 
+					user     => $user,
+					file     => $authorized_keys_file, 
+					ssh_user => $ssh_key_user_name, 
+					ssh_host => $host_name,
+				}});
+			}
+		}
+		
+		my $difference = diff \$old_authorized_keys_body, \$new_authorized_keys_body, { STYLE => 'Unified' };
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { difference => $difference }});
+		if ($difference)
+		{
+			my $failed = $anvil->Storage->write_file({
+				debug     => $debug,
+				overwrite => 1, 
+				backup    => 1, 
+				file      => $authorized_keys_file, 
+				body      => $new_authorized_keys_body, 
+				user      => $user, 
+				group     => $user, 
+				mode      => "0644", 
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { failed => $failed }});
+		}
 	}
 	
-	return(0);
+	return($updated);
 }
 
 =head2 pids

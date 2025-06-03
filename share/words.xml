@@ -634,7 +634,7 @@ The definition data passed in was:
 		<key name="error_0398">[ Error ] - There was a problem processing the requested network: [#!variable!network!#]. Details should be logged.</key>
 		<key name="error_0399">You can only use '--add', '--remove' or '--rename', please use only one at a time.</key>
 		<key name="error_0400">[ Error ] - The requested DR host: [#!variable!dr_host!#] was not found.</key>
-		<key name="error_0401">#!free!#</key>
+		<key name="error_0401">[#!free!#]</key>
 		<key name="error_0402">There are multiple DR hosts connected to this Anvil! node. Please specify which you want to use to protect this server;</key>
 		<key name="error_0403"> - DR Host: [#!variable!host_name!#], Host UUID: [#!variable!host_uuid!#].</key>
 		<key name="error_0404">This needs to be run on an Anvil! sub-node.</key>
@@ -3561,6 +3561,7 @@ proceeding.
 ==============</key>
 		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
 		<key name="message_0524">Manually calling 'scan-drbd' to make sure the device path is removed from resource files.</key>
+		<key name="message_0525">[ Note ] - Updating the user: [#!variable!user!#]'s authorized_keys file: [#!variable!file!#] to add the key for the user: [#!variable!ssh_user!#] on the host: [#!variable!ssh_host!#].</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
@@ -4139,8 +4140,8 @@ The duplicate will be removed.</key>
 		<key name="warning_0031">[ Warning ] - No internet detected (couldn't ping: [#!variable!domain!#]). Skipping attempt to download RPMs.</key>
 		<key name="warning_0032">[ Warning ] - Restarting the job: [#!variable!command!# --job-uuid #!variable!job_uuid!#]. It appears to have exited at: [#!variable!percent!#%] complete with the prior PID: [#!variable!pid!#].</key>
 		<key name="warning_0033">[ Warning ] - It appears there was a problem initialising the postgres database. Moving: [#!variable!old_dir!#] to: [#!variable!new_dir!#] before trying again.</key>
-		<key name="warning_0034">#!free!#</key>
-		<key name="warning_0035">#!free!#</key>
+		<key name="warning_0034">[ Warning ] - The host UUID: [#!variable!host_uuid!#] wasn't found. Unable to add any authorized keys.</key>
+		<key name="warning_0035">[ Warning ] - The host UUID: [#!variable!host_uuid!#] has not users with SSH public keys registered. Nothing to add any authorized keys files.</key>
 		<key name="warning_0036">#!free!#</key>
 		<key name="warning_0037">#!free!#</key>
 		<key name="warning_0038">#!free!#</key>

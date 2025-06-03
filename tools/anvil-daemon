@@ -515,6 +515,9 @@ sub handle_periodic_tasks
 		# This checks to see if the strikers in the DB are also in anvil.conf
 		check_strikers($anvil);
 		
+		# This checks to see if there are any keys in the DB that need to be added to authorized_keys.
+		check_authorized_keys($anvil);
+		
 		# Do Striker-specific minute tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
@@ -1426,6 +1429,27 @@ sub run_once
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+# This loops through known hosts and, for each host, checks to see if there are known/trusted keys to be 
+# added to authotized_keys.
+sub check_authorized_keys
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts();
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+			host_name => $host_name,
+			host_uuid => $host_uuid,
+		}});
+		my $updated = $anvil->System->manage_authorized_keys({host_uuid => $host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { updated => $updated }});
 	}
 	
 	return(0);
