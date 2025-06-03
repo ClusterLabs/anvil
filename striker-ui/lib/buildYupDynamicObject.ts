@@ -2,7 +2,7 @@ import * as yup from 'yup';
 
 const buildYupDynamicObject = <S extends yup.Schema>(
   obj: yup.AnyObject,
-  schema: S,
+  schema: S | ((key: string, value: unknown) => S),
 ): Record<string, S> => {
   let keys: string[];
 
@@ -12,13 +12,15 @@ const buildYupDynamicObject = <S extends yup.Schema>(
     keys = [];
   }
 
-  return keys.reduce<Record<string, S>>(
-    (previous, key) => ({
-      ...previous,
-      [key]: schema,
-    }),
-    {},
-  );
+  const getSchema = typeof schema === 'function' ? schema : () => schema;
+
+  return keys.reduce<Record<string, S>>((previous, key) => {
+    const { [key]: value } = obj;
+
+    previous[key] = getSchema(key, value);
+
+    return previous;
+  }, {});
 };
 
 export default buildYupDynamicObject;
