@@ -128,16 +128,24 @@ export class Access extends EventEmitter {
           cids.shift();
 
           this.emit(Access.EVT_KEYS.command.out(cid), out);
-        } else if (/FATAL/.test(line)) {
-          // When the line is a failed password authentication attempt, then
-          // try to reconnect to the database because probably
-          // anvil-change-password just finished running.
-          if (
-            ['DBI connect', 'password authentication'].every((phrase) =>
-              line.includes(phrase),
-            )
-          ) {
-            this.restart();
+        } else if (/failed|fatal/i.test(line)) {
+          if (line.includes('DBI connect')) {
+            // When the line is a failed password authentication attempt,
+            // then try to reconnect to the database because probably
+            // anvil-change-password just finished running.
+            //
+            // On connection refused, also try to reconnect.
+            if (
+              ['password authentication', 'connection refused'].some(
+                (phrase) => {
+                  const rep = new RegExp(phrase, 'i');
+
+                  return rep.test(line);
+                },
+              )
+            ) {
+              this.restart();
+            }
           }
 
           const cid = cids.shift();
