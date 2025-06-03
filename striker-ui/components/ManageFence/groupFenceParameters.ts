@@ -1,3 +1,5 @@
+import requiredFenceParameter from './requiredFenceParameter';
+
 const groupFenceParameters = (agent?: APIFenceSpec): FenceParameterGroups => {
   const result: FenceParameterGroups = {
     optional: {},
@@ -17,13 +19,7 @@ const groupFenceParameters = (agent?: APIFenceSpec): FenceParameterGroups => {
   return entries.reduce<FenceParameterGroups>((previous, entry) => {
     const [id, parameter] = entry;
 
-    let required = false;
-
-    if (/plug|port/i.test(id)) {
-      required = false;
-    } else if (Number(parameter.required) === 1) {
-      required = true;
-    }
+    const required = requiredFenceParameter(id, parameter);
 
     const group: keyof typeof previous = required ? 'required' : 'optional';
 
