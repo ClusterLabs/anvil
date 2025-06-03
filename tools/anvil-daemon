@@ -859,12 +859,77 @@ sub handle_periodic_tasks
 			update_qemu_data($anvil);
 		}
 		
+		my $host_uuid  = $anvil->Get->host_uuid;
+		my $primary_db = $anvil->data->{sys}{database}{primary_db};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_uuid  => $host_uuid,
+			primary_db => $primary_db, 
+		}});
+		if ($anvil->Get->host_uuid eq $anvil->data->{sys}{database}{primary_db})
+		{
+			# Alert on any hosts that aren't accessible.
+			check_cluster_machines($anvil);
+		}
+		
 		# Update the next check time.
 		$anvil->data->{timing}{next_daily_check} = $now_time + $anvil->data->{timing}{daily_checks};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
+	}
+	
+	return(0);
+}
+
+# Alert on any hosts that aren't accessible.
+sub check_cluster_machines
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts();
+	my $offline_found = 0;
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0863", variables => { host_name => $host_name }});
+		my $target_ip = $anvil->Network->find_target_ip({
+			host_uuid   => $host_uuid,
+			ping        => 1,
+			test_access => 1, 
+		});
+		if (not $target_ip)
+		{
+			# Failed to access!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0865", variables => { host_name => $host_name }});
+			
+			# Register an alert.
+			$anvil->Alert->register({
+				debug       => 3,
+				alert_level => "notice", 
+				set_by      => $THIS_FILE, 
+				title       => "message_0527",
+				message     => "message_0526", 
+				variables   => {
+					host_name => $host_name, 
+				},
+			});
+			
+			$offline_found = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offline_found => $offline_found }});
+		}
+		else
+		{
+			# - Access verified.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0864", variables => { host_name => $host_name }});
+		}
+	}
+	
+	if ($offline_found)
+	{
+		$anvil->Email->send_alerts({debug => 3});
 	}
 	
 	return(0);

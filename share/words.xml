@@ -2847,6 +2847,9 @@ The file: [#!variable!file!#] needs to be updated. The difference is:
 		<key name="log_0860">Processed: [#!variable!count!#] records, [#!variable!records_left!#] remaining.</key>
 		<key name="log_0861">No server was specified to relocate.</key>
 		<key name="log_0862">We're starting another copy of: [#!variable!command!#] with the job UUID: [#!variable!this_job_uuid!#].</key>
+		<key name="log_0863">Checking if we can access: [#!variable!host_name!#].</key>
+		<key name="log_0864">The host: [#!variable!host_name!#] is accessible.</key>
+		<key name="log_0865">The host: [#!variable!host_name!#] is NOT accessible!</key>
 
 		<!-- Messages for users (less technical than log entries), though sometimes used for logs, too. -->
 		<key name="message_0001">The host name: [#!variable!target!#] does not resolve to an IP address.</key>
@@ -3562,6 +3565,8 @@ proceeding.
 		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
 		<key name="message_0524">Manually calling 'scan-drbd' to make sure the device path is removed from resource files.</key>
 		<key name="message_0525">[ Note ] - Updating the user: [#!variable!user!#]'s authorized_keys file: [#!variable!file!#] to add the key for the user: [#!variable!ssh_user!#] on the host: [#!variable!ssh_host!#].</key>
+		<key name="message_0526">Unable to access the host: [#!variable!host_name!#]! is it down?</key>
+		<key name="message_0527">Inaccessible machine!</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
