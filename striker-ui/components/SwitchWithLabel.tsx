@@ -59,6 +59,7 @@ const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
         hidden
         id={switchId}
         readOnly
+        type="checkbox"
         {...baseInputProps}
       />
     </>
