@@ -168,7 +168,7 @@ const ManageMailRecipient: FC = () => {
         })}
         getEditLoading={(previous) => previous || loadingAlertOverrides}
         listEmpty="No mail recipient(s) found."
-        onItemClick={(base, ...args) => {
+        onItemClick={(base, { args }) => {
           const [, mailRecipientUuid] = args;
 
           base(...args);
