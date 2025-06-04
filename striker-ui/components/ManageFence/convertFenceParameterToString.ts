@@ -5,7 +5,7 @@ const convertFenceParameterToString = (
   let str: string;
 
   if (type === 'boolean') {
-    str = value ? '1' : '0';
+    str = value ? '1' : '';
   } else {
     str = String(value);
   }
