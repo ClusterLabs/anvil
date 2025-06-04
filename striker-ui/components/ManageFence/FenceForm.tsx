@@ -178,8 +178,6 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
 
             const { [id]: parameter } = spec.parameters;
 
-            const { [id]: initial } = initialValues.parameters;
-
             const str = convertFenceParameterToString(
               value,
               parameter.content_type,
@@ -189,7 +187,7 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
               return previous;
             }
 
-            if ([parameter.default, String(initial?.value)].includes(str)) {
+            if (str === parameter.default) {
               return previous;
             }
 
