@@ -49,7 +49,9 @@ const ManageFenceList: React.FC = () => {
       }}
       renderAddForm={(tools, fences) =>
         fences &&
-        fenceTemplate && <FenceForm fences={fences} template={fenceTemplate} />
+        fenceTemplate && (
+          <FenceForm fences={fences} template={fenceTemplate} tools={tools} />
+        )
       }
       renderDeleteItem={(fences, { key: uuid }) => {
         const fence = fences?.[uuid];
@@ -59,7 +61,12 @@ const ManageFenceList: React.FC = () => {
       renderEditForm={(tools, fence, fences) =>
         fences &&
         fenceTemplate && (
-          <FenceForm fence={fence} fences={fences} template={fenceTemplate} />
+          <FenceForm
+            fence={fence}
+            fences={fences}
+            template={fenceTemplate}
+            tools={tools}
+          />
         )
       }
       renderListItem={(uuid, fence) => {

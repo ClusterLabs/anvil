@@ -45,3 +45,9 @@ type APIFenceSpec = {
 };
 
 type APIFenceTemplate = Record<string, APIFenceSpec>;
+
+type APIFenceRequestBody = {
+  agent: string;
+  name: string;
+  parameters: Record<string, string>;
+};

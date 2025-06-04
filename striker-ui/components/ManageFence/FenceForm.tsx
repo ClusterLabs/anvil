@@ -1,10 +1,15 @@
 import { Box, Grid } from '@mui/material';
+import { capitalize } from 'lodash';
 import { useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';
+import api from '../../lib/api';
 import Autocomplete from '../Autocomplete';
+import convertFenceParameterToString from './convertFenceParameterToString';
 import FenceParameterInput from './FenceParameterInput';
+import FormSummary from '../FormSummary';
 import groupFenceParameters from './groupFenceParameters';
+import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { ExpandablePanel } from '../Panels';
@@ -20,9 +25,40 @@ type FenceFormOptionalProps = {
 type FenceFormProps = FenceFormOptionalProps & {
   fences: APIFenceOverviewList;
   template: APIFenceTemplate;
+  tools: CrudListFormTools;
 };
 
+const buildFormikFenceParameters = (
+  spec: APIFenceSpec,
+  existing?: APIFenceOverview,
+): FenceFormikValues['parameters'] =>
+  Object.entries(spec.parameters).reduce<FenceFormikValues['parameters']>(
+    (previous, entry) => {
+      const [id, parameter] = entry;
+
+      const { content_type: type } = parameter;
+
+      const str = existing?.fenceParameters[id] ?? parameter.default ?? '';
+
+      let value: FenceParameter['value'];
+
+      if (type === 'boolean') {
+        value = ['1', 'on'].some((v) => v === str);
+      } else {
+        value = String(str);
+      }
+
+      previous[id] = {
+        value,
+      };
+
+      return previous;
+    },
+    {},
+  );
+
 const buildFormikInitialValues = (
+  template: APIFenceTemplate,
   fence?: APIFenceOverview,
 ): FenceFormikValues => {
   const values: FenceFormikValues = {
@@ -33,28 +69,12 @@ const buildFormikInitialValues = (
   };
 
   if (fence) {
-    const {
-      fenceAgent: agent,
-      fenceName: name,
-      fenceParameters: parameters,
-      fenceUUID: uuid,
-    } = fence;
+    const { fenceAgent: agent, fenceName: name, fenceUUID: uuid } = fence;
 
     values.agent = agent;
     values.name = name;
 
-    Object.entries(parameters).reduce<Record<string, FenceParameter>>(
-      (previous, parameter) => {
-        const [id, value] = parameter;
-
-        previous[id] = {
-          value,
-        };
-
-        return previous;
-      },
-      values.parameters,
-    );
+    values.parameters = buildFormikFenceParameters(template[agent], fence);
 
     values.uuid = uuid;
   }
@@ -94,30 +114,152 @@ const buildInputs = <Values extends FenceFormikValues>(
 };
 
 const FenceForm: React.FC<FenceFormProps> = (props) => {
-  const { fence, fences, template } = props;
+  const { fence, fences, template, tools } = props;
 
   const edit = fence !== undefined;
 
-  const agentOptions = useMemo(() => Object.keys(template), [template]);
+  const operation = useMemo(() => {
+    let capped: string;
+    let method: 'post' | 'put';
+    let url: string;
+    let value: string;
+
+    if (edit) {
+      method = 'put';
+      url = `/fence/${fence.fenceUUID}`;
+      value = 'update';
+
+      capped = capitalize(value);
+    } else {
+      method = 'post';
+      url = `/fence`;
+      value = 'add';
+
+      capped = capitalize(value);
+    }
+
+    return {
+      capped,
+      method,
+      url,
+      value,
+    };
+  }, [edit, fence?.fenceUUID]);
+
+  const agentOptions = useMemo(
+    () => Object.keys(template).sort((a, b) => a.localeCompare(b)),
+    [template],
+  );
+
+  const initialValues = useMemo<FenceFormikValues>(
+    () => buildFormikInitialValues(template, fence),
+    [fence, template],
+  );
 
   const formikUtils = useFormikUtils<FenceFormikValues>({
-    initialValues: buildFormikInitialValues(fence),
-    onSubmit: () => {},
-    validationSchema: buildFenceSchema(fence?.fenceUUID, fences, agentOptions),
+    initialValues,
+    onSubmit: (values, { setSubmitting }) => {
+      const { name, parameters } = values;
+
+      const agent = String(values.agent);
+
+      const data: APIFenceRequestBody = {
+        agent,
+        name,
+        parameters: Object.entries(parameters).reduce<Record<string, string>>(
+          (previous, entry) => {
+            const [id, { value }] = entry;
+
+            const { [agent]: spec } = template;
+
+            if (!spec) {
+              return previous;
+            }
+
+            const { [id]: parameter } = spec.parameters;
+
+            const { [id]: initial } = initialValues.parameters;
+
+            const str = convertFenceParameterToString(
+              value,
+              parameter.content_type,
+            );
+
+            if (!edit && !str) {
+              return previous;
+            }
+
+            if ([parameter.default, String(initial?.value)].includes(str)) {
+              return previous;
+            }
+
+            previous[id] = str;
+
+            return previous;
+          },
+          {},
+        ),
+      };
+
+      tools.confirm.prepare({
+        actionProceedText: operation.capped,
+        content: (
+          <FormSummary
+            entries={data}
+            hasPassword
+            getEntryLabel={({ cap, depth, key }) => (depth ? key : cap(key))}
+          />
+        ),
+        onCancelAppend: () => setSubmitting(false),
+        onProceedAppend: () => {
+          tools.confirm.loading(true);
+
+          api
+            .request({
+              data,
+              method: operation.method,
+              url: operation.url,
+            })
+            .then(() => {
+              tools.confirm.finish('Success', {
+                children: (
+                  <>
+                    {operation.capped}ed fence device {name}
+                  </>
+                ),
+              });
+
+              tools.add.open(false);
+            })
+            .catch((error) => {
+              const emsg = handleAPIError(error);
+
+              emsg.children = (
+                <>
+                  Failed to {operation.value} fence device. {emsg.children}
+                </>
+              );
+
+              tools.confirm.finish('Error', emsg);
+
+              setSubmitting(false);
+            });
+        },
+        titleText: `${operation.capped} fence device with the following?`,
+      });
+
+      tools.confirm.open();
+    },
+    validationSchema: buildFenceSchema(fence?.fenceUUID, fences, template),
   });
 
-  const {
-    changeFieldValue,
-    disabledSubmit,
-    formik,
-    formikErrors,
-    handleChange,
-  } = formikUtils;
+  const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 
   const chains = useMemo(
     () => ({
       agent: 'agent',
       name: 'name',
+      parameters: 'parameters',
     }),
     [],
   );
@@ -162,7 +304,18 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
               label="Fence device type"
               noOptionsText="No matching fence device type"
               onChange={(event, value) => {
-                changeFieldValue(chains.agent, value, true);
+                const clone: FenceFormikValues = {
+                  ...formik.values,
+                  agent: value,
+                };
+
+                if (value) {
+                  const { [value]: spec } = template;
+
+                  clone.parameters = buildFormikFenceParameters(spec, fence);
+                }
+
+                formik.setValues(clone, true);
               }}
               openOnFocus
               options={agentOptions}
@@ -238,7 +391,7 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
           actions={[
             {
               background: 'blue',
-              children: edit ? 'Save' : 'Add',
+              children: operation.capped,
               disabled: disabledSubmit,
               type: 'submit',
             },

@@ -21,12 +21,6 @@ type FenceParameterInputProps<Values extends FenceFormikValues> =
     parameter: APIFenceSpecParameter;
   };
 
-const getValue = <Values extends FenceFormikValues>(
-  formik: Formik<Values>,
-  id: string,
-  parameterDefault: boolean | number | string = '',
-) => formik.values.parameters[id]?.value ?? parameterDefault;
-
 const FenceParameterInput = <Values extends FenceFormikValues>(
   ...[props]: Parameters<React.FC<FenceParameterInputProps<Values>>>
 ): ReturnType<React.FC<FenceParameterInputProps<Values>>> => {
@@ -45,13 +39,7 @@ const FenceParameterInput = <Values extends FenceFormikValues>(
 
   const input = useMemo<React.ReactElement>(() => {
     if (parameterType === 'boolean') {
-      const checked = Boolean(
-        getValue(
-          formik,
-          id,
-          ['1', 'on'].some((v) => v === parameterDefault),
-        ),
-      );
+      const checked = Boolean(formik.values.parameters[id].value);
 
       return (
         <SwitchWithLabel
@@ -66,7 +54,7 @@ const FenceParameterInput = <Values extends FenceFormikValues>(
       );
     }
 
-    const value = String(getValue(formik, id, parameterDefault));
+    const value = String(formik.values.parameters[id].value);
 
     if (parameterType === 'select') {
       return (
