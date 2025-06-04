@@ -13,7 +13,7 @@ const groupFenceParameters = (agent?: APIFenceSpec): FenceParameterGroups => {
   const { parameters } = agent;
 
   const entries = Object.entries(parameters).sort(([a], [b]) =>
-    a > b ? 1 : -1,
+    a.localeCompare(b),
   );
 
   return entries.reduce<FenceParameterGroups>((previous, entry) => {
