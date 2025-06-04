@@ -83,8 +83,9 @@ const ManageFenceList: React.FC = () => {
             </Grid>
             <Grid item xs>
               <BodyText noWrap>
-                {Object.entries(parameters).reduce<React.ReactNode>(
-                  (previous, parameter) => {
+                {Object.entries(parameters)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .reduce<React.ReactNode>((previous, parameter) => {
                     const [id, value] = parameter;
 
                     let current: React.ReactNode = <>{id}=&quot;</>;
@@ -113,9 +114,7 @@ const ManageFenceList: React.FC = () => {
                         {previous} {current}&quot;
                       </>
                     );
-                  },
-                  agent,
-                )}
+                  }, agent)}
               </BodyText>
             </Grid>
           </Grid>
