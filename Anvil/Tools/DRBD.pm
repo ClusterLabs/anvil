@@ -3123,6 +3123,9 @@ sub remove_backing_lv
 		output      => $output, 
 		return_code => $return_code,
 	}});
+	
+	# Call scan-lvm to update our view.
+	$anvil->ScanCore->call_scan_agents({debug => $debug, agent => "scan-lvm"});
 
 	return($return_code);
 }
