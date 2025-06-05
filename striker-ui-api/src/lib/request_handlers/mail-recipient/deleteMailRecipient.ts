@@ -4,6 +4,7 @@ import { query } from '../../accessModule';
 import { execManageAlerts } from '../../execManageAlerts';
 import { sanitize } from '../../sanitize';
 import { perr } from '../../shell';
+import { sqlAlertOverrides } from '../../sqls';
 
 export const deleteMailRecipient: RequestHandler<
   MailRecipientParamsDictionary
@@ -14,13 +15,13 @@ export const deleteMailRecipient: RequestHandler<
 
   const uuid = sanitize(rUuid, 'string', { modifierType: 'sql' });
 
+  const sqlGetAlertOverride = `
+    SELECT alert_override_uuid
+    FROM (${sqlAlertOverrides()})
+    WHERE alert_override_recipient_uuid = '${uuid}';`;
+
   try {
-    const rows = await query<[string][]>(
-      `SELECT alert_override_uuid
-        FROM alert_overrides
-        WHERE alert_override_alert_level != -1
-          AND alert_override_recipient_uuid = '${uuid}';`,
-    );
+    const rows = await query<[string][]>(sqlGetAlertOverride);
 
     rows.forEach(([u]) =>
       execManageAlerts('alert-overrides', 'delete', { uuid: u }),

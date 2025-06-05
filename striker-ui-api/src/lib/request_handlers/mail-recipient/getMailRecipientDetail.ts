@@ -14,15 +14,15 @@ export const getMailRecipientDetail = buildGetRequestHandler<
   const uuid = sanitize(rUuid, 'string', { modifierType: 'sql' });
 
   const query = `
-      SELECT
-        a.recipient_uuid,
-        a.recipient_name,
-        a.recipient_email,
-        a.recipient_language,
-        a.recipient_level
-      FROM (${sqlRecipients()}) AS a
-      WHERE a.recipient_uuid = '${uuid}'
-      ORDER BY a.recipient_name ASC;`;
+    SELECT
+      a.recipient_uuid,
+      a.recipient_name,
+      a.recipient_email,
+      a.recipient_language,
+      a.recipient_level
+    FROM (${sqlRecipients()}) AS a
+    WHERE a.recipient_uuid = '${uuid}'
+    ORDER BY a.recipient_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultModifier<MailRecipientDetail | undefined>((rows) => {

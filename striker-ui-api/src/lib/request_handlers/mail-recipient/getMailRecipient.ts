@@ -7,13 +7,13 @@ export const getMailRecipient = buildGetRequestHandler<
   MailRecipientOverviewList
 >((request, hooks) => {
   const query = `
-      SELECT
-        a.recipient_uuid,
-        a.recipient_name,
-        a.recipient_email,
-        a.recipient_level
-      FROM (${sqlRecipients()}) AS a
-      ORDER BY a.recipient_name ASC;`;
+    SELECT
+      a.recipient_uuid,
+      a.recipient_name,
+      a.recipient_email,
+      a.recipient_level
+    FROM (${sqlRecipients()}) AS a
+    ORDER BY a.recipient_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
     buildQueryResultReducer<MailRecipientOverviewList>(
