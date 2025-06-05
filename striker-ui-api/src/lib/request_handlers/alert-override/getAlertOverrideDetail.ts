@@ -1,17 +1,15 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
-import { sanitize } from '../../sanitize';
 import { sqlAlertOverrides, sqlHosts, sqlRecipients } from '../../sqls';
 
 export const getAlertOverrideDetail = buildGetRequestHandler<
-  AlertOverrideReqParams,
-  AlertOverrideDetail
->((request, hooks) => {
-  const {
-    params: { uuid: rUuid },
-  } = request;
-
-  const uuid = sanitize(rUuid, 'string', { modifierType: 'sql' });
+  Express.RhParamsDictionary,
+  AlertOverrideDetail,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
+>((request, hooks, response) => {
+  const { uuid } = response.locals.target;
 
   const query = `
     SELECT
