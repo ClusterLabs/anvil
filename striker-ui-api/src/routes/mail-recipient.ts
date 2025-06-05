@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTarget } from '../middlewares';
 import {
   createMailRecipient,
   deleteMailRecipient,
@@ -8,13 +9,17 @@ import {
   updateMailRecipient,
 } from '../lib/request_handlers/mail-recipient';
 
+const single = express.Router();
+
+single
+  .delete('/', deleteMailRecipient)
+  .get('/', getMailRecipientDetail)
+  .put('/', updateMailRecipient);
+
 const router = express.Router();
 
-router
-  .delete('/:uuid', deleteMailRecipient)
-  .get('/', getMailRecipient)
-  .get('/:uuid', getMailRecipientDetail)
-  .post('/', createMailRecipient)
-  .put('/:uuid', updateMailRecipient);
+router.get('/', getMailRecipient).post('/', createMailRecipient);
+
+router.use('/:uuid', validateRequestTarget(), single);
 
 export default router;

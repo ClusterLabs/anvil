@@ -1,17 +1,15 @@
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultModifier } from '../../buildQueryResultModifier';
-import { sanitize } from '../../sanitize';
 import { sqlRecipients } from '../../sqls';
 
 export const getMailRecipientDetail = buildGetRequestHandler<
   MailRecipientParamsDictionary,
-  MailRecipientDetail
->((request, hooks) => {
-  const {
-    params: { uuid: rUuid },
-  } = request;
-
-  const uuid = sanitize(rUuid, 'string', { modifierType: 'sql' });
+  MailRecipientDetail,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
+>((request, hooks, response) => {
+  const { uuid } = response.locals.target;
 
   const query = `
     SELECT
