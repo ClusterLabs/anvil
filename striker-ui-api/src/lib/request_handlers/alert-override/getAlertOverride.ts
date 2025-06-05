@@ -1,18 +1,14 @@
-import { RequestHandler } from 'express';
-
-import { DELETED } from '../../consts';
-
 import { buildUnknownIDCondition } from '../../buildCondition';
 import buildGetRequestHandler from '../buildGetRequestHandler';
 import { buildQueryResultReducer } from '../../buildQueryResultModifier';
-import { getShortHostName } from '../../disassembleHostName';
+import { sqlHosts, sqlRecipients } from '../../sqls';
 
-export const getAlertOverride: RequestHandler<
+export const getAlertOverride = buildGetRequestHandler<
   AlertOverrideReqParams,
-  undefined,
-  undefined,
+  AlertOverrideOverviewList,
+  Express.RhReqBody,
   AlertOverrideReqQuery
-> = buildGetRequestHandler((request, hooks) => {
+>((request, hooks) => {
   const {
     query: { 'mail-recipient': mailRecipient },
   } = request;
@@ -29,20 +25,27 @@ export const getAlertOverride: RequestHandler<
         a.alert_override_alert_level,
         b.recipient_uuid,
         b.recipient_name,
+        b.recipient_email,
+        b.recipient_level,
         c.host_uuid,
         c.host_name,
+        c.host_short_name,
         d.anvil_uuid,
         d.anvil_name
       FROM alert_overrides AS a
-      JOIN recipients AS b
+      JOIN (${sqlRecipients()}) AS b
         ON a.alert_override_recipient_uuid = b.recipient_uuid
-      JOIN hosts AS c
+      JOIN (${sqlHosts()}) AS c
         ON a.alert_override_host_uuid = c.host_uuid
       JOIN anvils AS d
-        ON c.host_uuid IN (d.anvil_node1_host_uuid, d.anvil_node2_host_uuid)
-      WHERE a.alert_override_alert_level != -1
-        AND b.recipient_name != '${DELETED}'
-        AND ${mailRecipientCond}
+        ON c.host_uuid IN (
+          d.anvil_node1_host_uuid,
+          d.anvil_node2_host_uuid
+        )
+      WHERE
+          a.alert_override_alert_level != -1
+        AND
+          ${mailRecipientCond}
       ORDER BY b.recipient_name ASC;`;
 
   const afterQueryReturn: QueryResultModifierFunction =
@@ -52,10 +55,13 @@ export const getAlertOverride: RequestHandler<
         [
           uuid,
           level,
-          mailRecipientUuid,
-          mailRecipientName,
+          recipientUuid,
+          recipientName,
+          recipientEmail,
+          recipientLevel,
           hostUuid,
           hostName,
+          hostShort,
           anvilUuid,
           anvilName,
         ],
@@ -63,8 +69,10 @@ export const getAlertOverride: RequestHandler<
         previous[uuid] = {
           level: Number(level),
           mailRecipient: {
-            name: mailRecipientName,
-            uuid: mailRecipientUuid,
+            email: recipientEmail,
+            level: Number(recipientLevel),
+            name: recipientName,
+            uuid: recipientUuid,
           },
           node: {
             name: anvilName,
@@ -72,7 +80,7 @@ export const getAlertOverride: RequestHandler<
           },
           subnode: {
             name: hostName,
-            short: getShortHostName(hostName),
+            short: hostShort,
             uuid: hostUuid,
           },
           uuid,
