@@ -11,4 +11,5 @@ type BuildQueryFunction<
 > = (
   request: import('express').Request<P, ResBody, ReqBody, ReqQuery, Locals>,
   hooks: BuildQueryHooks,
+  response: import('express').Response<ResBody, Locals>,
 ) => string | Promise<string>;

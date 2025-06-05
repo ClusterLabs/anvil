@@ -30,7 +30,7 @@ const buildGetRequestHandler =
     try {
       const sql: string =
         typeof scriptOrCallback === 'function'
-          ? await scriptOrCallback(request, buildQueryHooks)
+          ? await scriptOrCallback(request, buildQueryHooks, response)
           : scriptOrCallback;
 
       result = await query(sql);
