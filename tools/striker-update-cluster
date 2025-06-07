@@ -936,7 +936,7 @@ sub update_nodes
 													# The resource is not yet UpToDate
 													$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0464", variables => {
 														timestamp => $anvil->Get->date_and_time({time_only => 1}),
-														resource  => $$resource, 
+														resource  => $resource, 
 														volume    => $volume, 
 													}});
 												}
