@@ -515,6 +515,9 @@ sub handle_periodic_tasks
 		# This checks to see if the strikers in the DB are also in anvil.conf
 		check_strikers($anvil);
 		
+		# This checks to see if there are any keys in the DB that need to be added to authorized_keys.
+		check_authorized_keys($anvil);
+		
 		# Do Striker-specific minute tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
@@ -856,12 +859,77 @@ sub handle_periodic_tasks
 			update_qemu_data($anvil);
 		}
 		
+		my $host_uuid  = $anvil->Get->host_uuid;
+		my $primary_db = $anvil->data->{sys}{database}{primary_db};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			host_uuid  => $host_uuid,
+			primary_db => $primary_db, 
+		}});
+		if ($anvil->Get->host_uuid eq $anvil->data->{sys}{database}{primary_db})
+		{
+			# Alert on any hosts that aren't accessible.
+			check_cluster_machines($anvil);
+		}
+		
 		# Update the next check time.
 		$anvil->data->{timing}{next_daily_check} = $now_time + $anvil->data->{timing}{daily_checks};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"s1:timing::daily_checks"     => $anvil->data->{timing}{daily_checks},
 			"s2:timing::next_daily_check" => $anvil->data->{timing}{next_daily_check}, 
 		}});
+	}
+	
+	return(0);
+}
+
+# Alert on any hosts that aren't accessible.
+sub check_cluster_machines
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts();
+	my $offline_found = 0;
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		next if $host_uuid eq $anvil->Get->host_uuid;
+		
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0863", variables => { host_name => $host_name }});
+		my $target_ip = $anvil->Network->find_target_ip({
+			host_uuid   => $host_uuid,
+			ping        => 1,
+			test_access => 1, 
+		});
+		if (not $target_ip)
+		{
+			# Failed to access!
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0865", variables => { host_name => $host_name }});
+			
+			# Register an alert.
+			$anvil->Alert->register({
+				debug       => 3,
+				alert_level => "notice", 
+				set_by      => $THIS_FILE, 
+				title       => "message_0527",
+				message     => "message_0526", 
+				variables   => {
+					host_name => $host_name, 
+				},
+			});
+			
+			$offline_found = 1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { offline_found => $offline_found }});
+		}
+		else
+		{
+			# - Access verified.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0864", variables => { host_name => $host_name }});
+		}
+	}
+	
+	if ($offline_found)
+	{
+		$anvil->Email->send_alerts({debug => 3});
 	}
 	
 	return(0);
@@ -961,24 +1029,24 @@ sub update_qemu_data
 	my $xml             = "<host uuid=\"".$host_uuid."\" short_host_name=\"".$short_host_name."\">\n";
 
 	my $output = call_qemu($anvil, "-version");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /version (\d+\.\d+\.\d+)\s/)
 		{
 			my $version = $1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { version => $version }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { version => $version }});
 			$xml .= "\t<qemu_version>".$version."</qemu_version>\n";
 		}
 	}
 
 	$output = call_qemu($anvil, "-machine help");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	$xml .= "\t<machines>\n";
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /(\w.*?)\s+(\w.*?)\s+(\(.*\))/)
 		{
 			my $id         =  $1;
@@ -986,7 +1054,7 @@ sub update_qemu_data
 			my $notes      =  $anvil->Words->clean_spaces({string => $3});
 			my $deprecated =  $notes =~ /deprecated/o ? 1 : 0;
 			   $notes      =~ s/ \(deprecated\)//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:id"         => $id,
 				"s2:name"       => $name, 
 				"s3:notes"      => $notes,
@@ -1000,11 +1068,11 @@ sub update_qemu_data
 	my $machine  = "q35";
 	my $cpu_type = "host";
 	$output = call_qemu($anvil, "-machine ".$machine." -cpu ".$cpu_type." -nic model=help");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	$xml .= "\t<nics machine=\"".$machine."\" cpu=\"".$cpu_type."\">\n";
 	foreach my $line (split/\n/, $output)
 	{
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		next if $line =~ / /;
 		$xml .= "\t\t<nic_model>".$line."</nic_model>\n";
 	}
@@ -1013,17 +1081,17 @@ sub update_qemu_data
 	my $in_cpus  = 0;
 	my $in_flags = 0;
 	   $output   = call_qemu($anvil, "-cpu help");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	$xml .= "\t<cpus>\n";
 	foreach my $line (split/\n/, $output)
 	{
 		next if not $line;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		if ($line =~ /Available CPUs/i)
 		{
 			$in_cpus  = 1;
 			$in_flags = 0;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				in_cpus  => $in_cpus,
 				in_flags => $in_flags, 
 			}});
@@ -1032,7 +1100,7 @@ sub update_qemu_data
 		{
 			$in_cpus  = 0;
 			$in_flags = 1;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				in_cpus  => $in_cpus,
 				in_flags => $in_flags, 
 			}});
@@ -1044,7 +1112,7 @@ sub update_qemu_data
 			my $notes      =  $anvil->Words->clean_spaces({string => $3});
 			my $deprecated =  $notes =~ /deprecated/o ? 1 : 0;
 			   $notes      =~ s/ \(deprecated\)//;
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 				"s1:arch"       => $arch, 
 				"s2:id"         => $id,
 				"s3:notes"      => $notes,
@@ -1055,11 +1123,11 @@ sub update_qemu_data
 		elsif ($in_flags)
 		{
 			my $flags = $anvil->Words->clean_spaces({string => $line});
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { flags => $flags }});
 			foreach my $flag (split/\s/, $flags)
 			{
 				$anvil->data->{flags}{$flag} = 1;
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
 					"flags::${flag}" => $anvil->data->{flags}{$flag},
 				}});
 			}
@@ -1071,24 +1139,24 @@ sub update_qemu_data
 		$flags .= $flag." ";
 	}
 	$flags =~ s/ $//;
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { flags => $flags }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { flags => $flags }});
 	$xml .= "\t\t<flags>".$flags."</flags>\n";
 	$xml .= "\t</cpus>\n";
 
 	$output = call_qemu($anvil, "-audio driver=help");
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { output => $output }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { output => $output }});
 	$xml .= "\t<audio>\n";
 	foreach my $line (split/\n/, $output)
 	{
 		$anvil->Words->clean_spaces({string => $line});
 		next if not $line;
 		next if $line =~ / /;
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		$xml .= "\t\t<model>".$line."</model>\n";
 	}
 	$xml .= "\t</audio>\n";
 	$xml .= "</host>\n";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { xml => $xml }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { xml => $xml }});
 	
 	my $host_variable_uuid = $anvil->Database->insert_or_update_host_variables({
 		debug                   => 2, 
@@ -1096,7 +1164,7 @@ sub update_qemu_data
 		host_variable_name      => "qemu::drivers::xml", 
 		host_variable_value     => $xml, 
 	});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_variable_uuid => $host_variable_uuid }});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { host_variable_uuid => $host_variable_uuid }});
 	
 	return(0);
 }
@@ -1426,6 +1494,27 @@ sub run_once
 	if ($anvil->data->{switches}{'startup-only'})
 	{
 		$anvil->nice_exit({exit_code => 0});
+	}
+	
+	return(0);
+}
+
+# This loops through known hosts and, for each host, checks to see if there are known/trusted keys to be 
+# added to authotized_keys.
+sub check_authorized_keys
+{
+	my ($anvil) = @_;
+	
+	$anvil->Database->get_hosts();
+	foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
+	{
+		my $host_uuid = $anvil->data->{sys}{hosts}{by_name}{$host_name};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { 
+			host_name => $host_name,
+			host_uuid => $host_uuid,
+		}});
+		my $updated = $anvil->System->manage_authorized_keys({host_uuid => $host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, secure => 0, list => { updated => $updated }});
 	}
 	
 	return(0);

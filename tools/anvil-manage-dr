@@ -101,10 +101,11 @@ if ($anvil->data->{switches}{restore})
 my $terminal = "";
 if (not $anvil->data->{switches}{'job-uuid'})
 {
+	my $term    = $ENV{TERM} ? $ENV{TERM} : "xterm-256color";
 	my $termios = new POSIX::Termios;
 	$termios->getattr;
 	my $ospeed   = $termios->getospeed;
-	   $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	   $terminal = Tgetent Term::Cap { TERM => $term, OSPEED => $ospeed };
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { terminal => $terminal }});
 	
 	$terminal->Trequire(qw/ce ku kd/);
@@ -777,6 +778,9 @@ sub handle_restore
 						return_code => $return_code, 
 					}});
 					
+					# Update our LVM view
+					run_scanagent($anvil, "scan-lvm");
+					
 					sleep 1;
 					# Does it exist now?
 					if (not -e $new_lv_path)
@@ -836,9 +840,6 @@ sub handle_restore
 						});
 					}
 					
-					# Call scan-lvm
-					run_scanagent($anvil, "scan-lvm");
-					
 					# Write out the resource file (if we didn't in a previous volume or it changed).
 					if ((not -e $full_path) or ($difference))
 					{
@@ -863,6 +864,7 @@ sub handle_restore
 							mode      => "0644",
 						});
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+						run_scanagent($anvil, "scan-drbd");
 					}
 					
 					# If there's a difference, update the peers, to.
@@ -910,6 +912,21 @@ sub handle_restore
 								output      => $output,
 								return_code => $return_code, 
 							}});
+							
+							# Call 'scan-drbd' on the peer.
+							$shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+							
+							($output, $error, $return_code) = $anvil->Remote->call({
+								target     => $target_ip, 
+								password   => $anvil_password,
+								shell_call => $shell_call,
+							});
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								error       => $error,
+								output      => $output,
+								return_code => $return_code, 
+							}});
 						}
 					}
 					
@@ -931,6 +948,9 @@ sub handle_restore
 						output      => $output,
 						return_code => $return_code, 
 					}});
+					
+					# Update our DRBD view
+					run_scanagent($anvil, "scan-drbd");
 				}
 			}
 			
@@ -1013,14 +1033,7 @@ sub run_scanagent
 			scan_agent => $agent,
 		},
 	});
-	my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/".$agent."/".$agent.$anvil->Log->switches();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
+	$anvil->ScanCore->call_scan_agents({debug => 2, agent => $agent});
 	
 	return(0);
 }
@@ -1308,8 +1321,8 @@ sub handle_links
 	}
 	
 	# Are there any servers using this link?
-	$anvil->Database->get_servers();
-	$anvil->Database->get_drbd_data();
+	$anvil->Database->get_servers({debug => 2});
+	$anvil->Database->get_drbd_data({debug => 2});
 	my $protected_server_count = 0;
 	my $dr_short_host_name     = $anvil->data->{hosts}{host_uuid}{$host_uuid}{short_host_name};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { dr_short_host_name => $dr_short_host_name }});
@@ -2268,6 +2281,7 @@ sub process_update
 		progress => 60,
 		message  => "job_0388", 
 	});
+	run_scanagent($anvil, "scan-drbd");
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either/both nodes
@@ -2297,6 +2311,22 @@ sub process_update
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		
+		# Call 'scan-drbd' on the peer.
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
 	}
 	
 	# Now watch until out volume(s) are UpToDate
@@ -2407,6 +2437,7 @@ sub process_update
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	
 	# Done!
 	$variables = { server => $server_name };
@@ -2535,6 +2566,7 @@ sub process_disconnect
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	
 	# Done!
 	$variables = { server => $server_name };
@@ -2680,6 +2712,7 @@ sub process_connect
 		});
 		$anvil->nice_exit({exit_code => 1});
 	}
+	run_scanagent($anvil, "scan-drbd");
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0388", variables => $variables});
 	$anvil->Job->update_progress({
@@ -2709,6 +2742,20 @@ sub process_connect
 			target     => $peer_ip, 
 			password   => $anvil_password,
 			shell_call => $drbd_up_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
@@ -2781,6 +2828,7 @@ sub process_connect
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
 		}
 	}
+	run_scanagent($anvil, "scan-drbd");
 	
 	# Done!
 	$variables = { server => $server_name };
@@ -2919,6 +2967,7 @@ sub process_remove
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	
 	# Read through the local DRBD config file, and remove any LVs that are found to still exist.
 	$anvil->DRBD->gather_data({debug => 2});
@@ -2955,6 +3004,7 @@ sub process_remove
 		
 		# Rescan DRBD
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0418"});
+		run_scanagent($anvil, "scan-drbd");
 		$anvil->Job->update_progress({
 			progress => 50,
 			message  => "job_0418", 
@@ -3015,6 +3065,7 @@ sub process_remove
 					progress  => $progress,
 					message   => "job_0410", 
 				});
+				run_scanagent($anvil, "scan-lvm");
 			}
 		}
 		else
@@ -3228,6 +3279,23 @@ sub process_remove
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		else
+		{
+			# Call 'scan-drbd' on the peer.
+			my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+			
+			my ($output, $error, $return_code) = $anvil->Remote->call({
+				target     => $peer_ip, 
+				password   => $anvil_password,
+				shell_call => $shell_call,
+			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				error       => $error,
+				output      => $output,
+				return_code => $return_code, 
+			}});
+		}
 	}
 	
 	# Call 'drbdadm adjust <server>' to update the running configs.
@@ -3244,6 +3312,7 @@ sub process_remove
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
@@ -3267,6 +3336,21 @@ sub process_remove
 			target     => $peer_ip, 
 			password   => $anvil_password,
 			shell_call => $drbdadm_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		# Call 'scan-drbd' on the peer.
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
@@ -3299,6 +3383,8 @@ sub process_remove
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		# Call scan-drbd to update our view
+		run_scanagent($anvil, "scan-drbd");
 	}
 	
 	# Done!
@@ -4256,6 +4342,7 @@ sub process_protect
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		run_scanagent($anvil, "scan-drbd");
 		
 		# New config is good! Update the file on the peers.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0367"});
@@ -4340,6 +4427,7 @@ sub process_protect
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		run_scanagent($anvil, "scan-drbd");
 	}
 	
 	# Immediately call scan-drbd on all machines to ensure that if another run is about to happen for a 
@@ -4349,14 +4437,6 @@ sub process_protect
 		progress => 76,
 		message  => "job_0381", 
 	});
-	
-	my $scan_drbd_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd --force ".$anvil->Log->switches();
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $scan_drbd_call});
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-		output      => $output,
-		return_code => $return_code, 
-	}});
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
@@ -4376,10 +4456,26 @@ sub process_protect
 			message   => "job_0382", 
 			variables => $variables, 
 		});
+		
+	        my $scan_drbd_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd --force ".$anvil->Log->switches();
+	        $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { scan_drbd_call => $scan_drbd_call }});
 		my ($output, $error, $return_code) = $anvil->Remote->call({
 			target     => $peer_ip, 
 			password   => $anvil_password,
 			shell_call => $scan_drbd_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
@@ -4483,6 +4579,7 @@ fi";
 			});
 			$anvil->nice_exit({exit_code => 1});
 		}
+		run_scanagent($anvil, "scan-lvm");
 		
 		# Create the DRBD metadata now.
 		$create_md = 1;
@@ -4507,6 +4604,7 @@ fi";
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		run_scanagent($anvil, "scan-drbd");
 	}
 	
 	# Reload the config.
@@ -4517,11 +4615,12 @@ fi";
 	});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
-	($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 		output      => $output,
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
@@ -4554,6 +4653,19 @@ fi";
 			output      => $output,
 			return_code => $return_code, 
 		}});
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
 	}
 	
 	# If the resource is down, bring it up.
@@ -4571,6 +4683,7 @@ fi";
 		output      => $output, 
 		return_code => $return_code, 
 	}});
+	run_scanagent($anvil, "scan-drbd");
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
 	{
 		# "Peer" in this context is either a node or a DR host
@@ -4594,6 +4707,19 @@ fi";
 			target     => $peer_ip, 
 			password   => $anvil_password,
 			shell_call => $drbd_up_call,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			error       => $error,
+			output      => $output,
+			return_code => $return_code, 
+		}});
+		
+		my $shell_call = $anvil->data->{path}{directories}{scan_agents}."/scan-drbd/scan-drbd".$anvil->Log->switches();
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		($output, $error, $return_code) = $anvil->Remote->call({
+			target     => $peer_ip, 
+			password   => $anvil_password,
+			shell_call => $shell_call,
 		});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			error       => $error,
@@ -4658,6 +4784,7 @@ fi";
 			});
 			$waiting = 0;
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { waiting => $waiting }});
+			run_scanagent($anvil, "scan-drbd");
 		}
 	}
 	
