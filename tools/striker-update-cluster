@@ -1057,6 +1057,7 @@ sub update_strikers_and_dr
 	
 	foreach my $host_type ("striker", "dr")
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
 			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};
