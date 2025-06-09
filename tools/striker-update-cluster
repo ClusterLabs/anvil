@@ -1054,9 +1054,10 @@ sub update_nodes
 sub update_strikers_and_dr
 {
 	my ($anvil) = @_;
-	
+
 	foreach my $host_type ("striker", "dr")
 	{
+		$anvil->Database->get_hosts({debug => 2});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
