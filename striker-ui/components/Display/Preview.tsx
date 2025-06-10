@@ -1,10 +1,11 @@
-import { PowerSettingsNewOutlined as PowerSettingsNewOutlinedIcon } from '@mui/icons-material';
+import { PowerSettingsNewOutlined as MuiPowerSettingsNewOutlinedIcon } from '@mui/icons-material';
 import {
-  Box,
-  BoxProps,
-  circularProgressClasses,
-  IconButton,
-  IconButtonProps,
+  Box as MuiBox,
+  BoxProps as MuiBoxProps,
+  circularProgressClasses as muiCircularProgressClasses,
+  IconButton as MuiIconButton,
+  IconButtonProps as MuiIconButtonProps,
+  LinkProps as MuiLinkProps,
 } from '@mui/material';
 import { capitalize, merge } from 'lodash';
 import { cloneElement, createElement, useMemo } from 'react';
@@ -24,12 +25,12 @@ type PreviewOptionalProps = {
   href?: string;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
   slotProps?: {
-    button?: IconButtonProps;
-    screenshot?: BoxProps;
-    screenshotBox?: BoxProps;
+    button?: MuiIconButtonProps;
+    screenshot?: MuiBoxProps;
+    screenshotBox?: MuiBoxProps;
   };
   slots?: {
-    screenshotBox?: React.ReactElement<BoxProps>;
+    screenshotBox?: React.ReactElement<MuiBoxProps>;
   };
 };
 
@@ -99,7 +100,7 @@ const Preview = <Server extends ServerCore>(
                     sx: {
                       opacity: peer ? 0.6 : undefined,
 
-                      [`& .${circularProgressClasses.circle}`]: {
+                      [`& .${muiCircularProgressClasses.circle}`]: {
                         strokeLinecap: 'round',
                       },
                     },
@@ -125,7 +126,7 @@ const Preview = <Server extends ServerCore>(
       return cloneElement(
         wrapper,
         wrapperProps,
-        <PowerSettingsNewOutlinedIcon
+        <MuiPowerSettingsNewOutlinedIcon
           sx={{
             color: UNSELECTED,
             height: '100%',
@@ -160,7 +161,7 @@ const Preview = <Server extends ServerCore>(
     return cloneElement(
       wrapper,
       wrapperProps,
-      <Box
+      <MuiBox
         alt={`${capitalize(server.state)}. Preview unavailable`}
         component="img"
         src={`data:image;base64,${preview}`}
@@ -201,8 +202,8 @@ const Preview = <Server extends ServerCore>(
       ({ sx: buttonSx, ...buttonProps } = buttonProps);
     }
 
-    return createElement(
-      IconButton,
+    return createElement<MuiIconButtonProps & Pick<MuiLinkProps, 'href'>>(
+      MuiIconButton,
       {
         disabled,
         href: previewHref,

@@ -1,10 +1,14 @@
 import {
-  Close as CloseIcon,
-  Dashboard as DashboardIcon,
-  Fullscreen as FullscreenIcon,
-  Keyboard as KeyboardIcon,
+  Close as MuiCloseIcon,
+  Dashboard as MuiDashboardIcon,
+  Fullscreen as MuiFullscreenIcon,
+  Keyboard as MuiKeyboardIcon,
 } from '@mui/icons-material';
-import { Box, styled, Typography } from '@mui/material';
+import {
+  Box as MuiBox,
+  styled,
+  Typography as MuiTypography,
+} from '@mui/material';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -158,10 +162,11 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
 
   // 'disconnect' event emits when a connection fails,
   // OR when a user closes the existing connection.
-  const rfbDisconnectEventHandler = useCallback(
+  const rfbDisconnectEventHandler = useCallback<
+    Exclude<RfbConnectArgs['onDisconnect'], undefined>
+  >(
     (event) => {
-      const { detail } = event;
-      const { clean } = detail;
+      const { clean } = event.detail;
 
       if (clean) return;
 
@@ -220,24 +225,24 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
 
   const fullscreenElement = useMemo(
     () => (
-      <Box>
+      <MuiBox>
         <IconButton
           onClick={() => {
             rfbScreen.current?.requestFullscreen();
           }}
         >
-          <FullscreenIcon />
+          <MuiFullscreenIcon />
         </IconButton>
-      </Box>
+      </MuiBox>
     ),
     [],
   );
 
   const keyboardMenuElement = useMemo(
     () => (
-      <Box>
+      <MuiBox>
         <IconButton onClick={handleClickKeyboard}>
-          <KeyboardIcon />
+          <MuiKeyboardIcon />
         </IconButton>
         <Menu
           open={Boolean(anchorEl)}
@@ -251,34 +256,34 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
         >
           {keyCombinations.map(({ keys, scans }) => (
             <MenuItem key={keys} onClick={() => handleSendKeys(scans)}>
-              <Typography variant="subtitle1">{keys}</Typography>
+              <MuiTypography variant="subtitle1">{keys}</MuiTypography>
             </MenuItem>
           ))}
         </Menu>
-      </Box>
+      </MuiBox>
     ),
     [anchorEl],
   );
 
   const vncDisconnectElement = useMemo(
     () => (
-      <Box>
+      <MuiBox>
         <IconButton
           onClick={(...args) => {
             disconnectServerVnc();
             onClickCloseButton?.call(null, ...args);
           }}
         >
-          <CloseIcon />
+          <MuiCloseIcon />
         </IconButton>
-      </Box>
+      </MuiBox>
     ),
     [disconnectServerVnc, onClickCloseButton],
   );
 
   const returnHomeElement = useMemo(
     () => (
-      <Box>
+      <MuiBox>
         <IconButton
           onClick={() => {
             if (!window) return;
@@ -288,9 +293,9 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
             window.location.assign('/');
           }}
         >
-          <DashboardIcon />
+          <MuiDashboardIcon />
         </IconButton>
-      </Box>
+      </MuiBox>
     ),
     [disconnectServerVnc],
   );
@@ -336,7 +341,7 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
         {vncToolbarElement}
       </PanelHeader>
       <StyledDiv>
-        <Box
+        <MuiBox
           display={showScreen ? 'flex' : 'none'}
           className={classes.displayBox}
         >
@@ -348,9 +353,13 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
             rfbConnectArgs={rfbConnectArgs}
             rfbScreen={rfbScreen}
           />
-        </Box>
+        </MuiBox>
         {!showScreen && (
-          <Box display="flex" className={classes.spinnerBox} textAlign="center">
+          <MuiBox
+            display="flex"
+            className={classes.spinnerBox}
+            textAlign="center"
+          >
             {vncConnecting && (
               <>
                 <HeaderText>Connecting to {server.name}.</HeaderText>
@@ -367,7 +376,7 @@ const FullSize = <Node extends NodeMinimum, Server extends ServerMinimum>(
                 </HeaderText>
               </>
             )}
-          </Box>
+          </MuiBox>
         )}
       </StyledDiv>
     </Panel>
