@@ -1,10 +1,9 @@
-import { FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import AlertOverrideInputGroup from './AlertOverrideInputGroup';
 import List from '../List';
 
-const ManageAlertOverride: FC<ManageAlertOverrideProps> = (props) => {
+const ManageAlertOverride: React.FC<ManageAlertOverrideProps> = (props) => {
   const {
     alertOverrideTargetOptions,
     formikUtils,

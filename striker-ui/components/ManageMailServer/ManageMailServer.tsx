@@ -1,12 +1,10 @@
-import { FC } from 'react';
-
 import AddMailServerForm from './AddMailServerForm';
 import CrudList from '../CrudList';
 import EditMailServerForm from './EditMailServerForm';
 import { BodyText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
-const ManageMailServer: FC = () => {
+const ManageMailServer: React.FC = () => {
   const { data: host, loading: loadingHost } =
     useFetch<APIHostDetail>('/host/local');
 

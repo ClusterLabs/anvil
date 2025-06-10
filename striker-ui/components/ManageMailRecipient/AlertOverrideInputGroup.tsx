@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import Autocomplete from '../Autocomplete';
@@ -17,7 +17,9 @@ const LEVEL_OPTIONS: SelectItem<number>[] = [
   { displayValue: 'Info', value: 4 },
 ];
 
-const AlertOverrideInputGroup: FC<AlertOverrideInputGroupProps> = (props) => {
+const AlertOverrideInputGroup: React.FC<AlertOverrideInputGroupProps> = (
+  props,
+) => {
   const {
     alertOverrideTargetOptions,
     alertOverrideValueId,

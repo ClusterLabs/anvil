@@ -1,6 +1,6 @@
 import { Grid, menuClasses as muiMenuClasses } from '@mui/material';
 import { AxiosError } from 'axios';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
@@ -158,7 +158,7 @@ const getAlertOverrideRequestList = (
   );
 };
 
-const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
+const AddMailRecipientForm: React.FC<AddMailRecipientFormProps> = (props) => {
   const {
     alertOverrideTargetOptions,
     mailRecipientUuid,

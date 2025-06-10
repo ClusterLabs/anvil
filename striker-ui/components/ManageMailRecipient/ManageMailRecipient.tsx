@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import AddMailRecipientForm from './AddMailRecipientForm';
 import { toAnvilOverviewList } from '../../lib/api_converters';
@@ -8,7 +8,7 @@ import { BodyText } from '../Text';
 import useActiveFetch from '../../hooks/useActiveFetch';
 import useFetch from '../../hooks/useFetch';
 
-const ManageMailRecipient: FC = () => {
+const ManageMailRecipient: React.FC = () => {
   const [alertOverrides, setAlertOverrides] = useState<
     APIAlertOverrideOverviewList | undefined
   >();
