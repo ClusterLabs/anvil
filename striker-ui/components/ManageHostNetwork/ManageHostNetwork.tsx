@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import Divider from '../Divider';
 import HostTabs from './HostTabs';
@@ -8,7 +8,7 @@ import useFetch from '../../hooks/useFetch';
 import TabContent from '../TabContent';
 import Spinner from '../Spinner';
 
-const ManageHostNetwork: FC = () => {
+const ManageHostNetwork: React.FC = () => {
   const [hostUuid, setHostUuid] = useState<false | string>(false);
 
   const { data: hosts } = useFetch<APIHostOverviewList>(

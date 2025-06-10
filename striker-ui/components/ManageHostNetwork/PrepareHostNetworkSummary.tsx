@@ -1,10 +1,9 @@
 import { Grid } from '@mui/material';
-import { FC } from 'react';
 
 import { HostNetSummary } from '../HostNetInit';
 import { BodyText, MonoText } from '../Text';
 
-const PrepareHostNetworkSummary: FC<PrepareHostNetworkSummaryProps> = (
+const PrepareHostNetworkSummary: React.FC<PrepareHostNetworkSummaryProps> = (
   props,
 ) => {
   const { values } = props;

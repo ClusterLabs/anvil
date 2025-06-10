@@ -1,11 +1,11 @@
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import PrepareHostNetworkForm from './PrepareHostNetworkForm';
 import Spinner from '../Spinner';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
-const PrepareHostNetwork: FC<PrepareHostNetworkProps> = (props) => {
+const PrepareHostNetwork: React.FC<PrepareHostNetworkProps> = (props) => {
   const { uuid } = props;
 
   const {

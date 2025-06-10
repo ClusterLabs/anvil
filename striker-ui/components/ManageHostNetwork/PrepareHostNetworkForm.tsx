@@ -1,6 +1,6 @@
 import { Grid } from '@mui/material';
 import { isEmpty } from 'lodash';
-import { FC, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
@@ -70,7 +70,9 @@ const buildFormikInitialValues = (
   };
 };
 
-const PrepareHostNetworkForm: FC<PrepareHostNetworkFormProps> = (props) => {
+const PrepareHostNetworkForm: React.FC<PrepareHostNetworkFormProps> = (
+  props,
+) => {
   const { detail, tools, uuid } = props;
 
   const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);

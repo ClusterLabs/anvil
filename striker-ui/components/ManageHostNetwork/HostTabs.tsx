@@ -1,5 +1,7 @@
-import { Grid, gridClasses as muiGridClasses } from '@mui/material';
-import { FC } from 'react';
+import {
+  Grid2 as MuiGrid,
+  grid2Classes as muiGridClasses,
+} from '@mui/material';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
@@ -7,7 +9,7 @@ import Tab from '../Tab';
 import Tabs from '../Tabs';
 import { BodyText, MonoText } from '../Text';
 
-const HostTabs: FC<HostTabsProps> = (props) => {
+const HostTabs: React.FC<HostTabsProps> = (props) => {
   const { list: hostValues, setValue, value } = props;
 
   if (hostValues.length === 0) {
@@ -38,28 +40,30 @@ const HostTabs: FC<HostTabsProps> = (props) => {
           <Tab
             key={`host-${hostUUID}`}
             label={
-              <Grid
+              <MuiGrid
                 container
                 spacing="1em"
                 sx={{
-                  [`.${muiGridClasses.item}:not(:first-child)`]: {
+                  width: '100%',
+
+                  [`& > .${muiGridClasses.root}:not(:first-child)`]: {
                     borderLeft: `thin solid ${DIVIDER}`,
                   },
                 }}
               >
-                <Grid item xs>
+                <MuiGrid size="grow">
                   <BodyText noWrap>{type}</BodyText>
-                </Grid>
-                <Grid item xs>
+                </MuiGrid>
+                <MuiGrid size="grow">
                   <MonoText noWrap>{shortHostName}</MonoText>
-                </Grid>
-                <Grid item xs>
+                </MuiGrid>
+                <MuiGrid size="grow">
                   <BodyText noWrap>
                     {hostStatus}
                     {hostConfigured ? ', configured' : ''}
                   </BodyText>
-                </Grid>
-              </Grid>
+                </MuiGrid>
+              </MuiGrid>
             }
             sx={{ textAlign: 'left' }}
             value={hostUUID}
