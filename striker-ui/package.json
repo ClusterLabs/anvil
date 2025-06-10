@@ -39,8 +39,8 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^17.7.0",
-    "@commitlint/config-conventional": "^12.1.4",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@types/lodash": "^4.14.198",
     "@types/netmask": "^1.0.30",
     "@types/node": "^15.12.2",
