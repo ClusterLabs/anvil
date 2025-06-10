@@ -1,21 +1,21 @@
 import {
-  Delete as MUIDeleteIcon,
-  Add as MUIAddIcon,
-  Close as MUICloseIcon,
-  ContentCopy as MUIContentCopy,
-  Done as MUIDoneIcon,
-  Edit as MUIEditIcon,
-  PlayCircle as MUIPlayCircleIcon,
-  Visibility as MUIVisibilityIcon,
-  VisibilityOff as MUIVisibilityOffIcon,
+  Delete as MuiDeleteIcon,
+  Add as MuiAddIcon,
+  Close as MuiCloseIcon,
+  ContentCopy as MuiContentCopy,
+  Done as MuiDoneIcon,
+  Edit as MuiEditIcon,
+  PlayCircle as MuiPlayCircleIcon,
+  Visibility as MuiVisibilityIcon,
+  VisibilityOff as MuiVisibilityOffIcon,
 } from '@mui/icons-material';
 import {
-  IconButton as MUIIconButton,
-  IconButtonProps as MUIIconButtonProps,
+  IconButton as MuiIconButton,
+  IconButtonProps as MuiIconButtonProps,
   inputClasses as muiInputClasses,
   styled,
 } from '@mui/material';
-import { createElement, FC, ReactNode, useMemo } from 'react';
+import { createElement, useMemo } from 'react';
 
 import {
   BLACK,
@@ -26,9 +26,9 @@ import {
   RED,
 } from '../../lib/consts/DEFAULT_THEME';
 
-type IconButtonProps = IconButtonOptionalProps & MUIIconButtonProps;
+type IconButtonProps = IconButtonOptionalProps & MuiIconButtonProps;
 
-const ContainedIconButton = styled(MUIIconButton)({
+const ContainedIconButton = styled(MuiIconButton)({
   borderRadius: BORDER_RADIUS,
   backgroundColor: GREY,
   color: BLACK,
@@ -51,38 +51,38 @@ const RedContainedIconButton = styled(ContainedIconButton)({
   },
 });
 
-const NormalIconButton = styled(MUIIconButton)({
+const NormalIconButton = styled(MuiIconButton)({
   color: GREY,
 });
 
 const MAP_TO_ADD_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MUIAddIcon },
+  none: { iconType: MuiAddIcon },
 };
 
 const MAP_TO_CLOSE_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MUICloseIcon },
+  none: { iconType: MuiCloseIcon },
 };
 
 const MAP_TO_COPY_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MUIContentCopy },
+  none: { iconType: MuiContentCopy },
 };
 
 const MAP_TO_DELETE_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MUIDeleteIcon },
+  none: { iconType: MuiDeleteIcon },
 };
 
 const MAP_TO_EDIT_ICON: IconButtonMapToStateIconBundle = {
-  false: { iconType: MUIEditIcon },
-  true: { iconType: MUIDoneIcon, iconProps: { sx: { color: BLUE } } },
+  false: { iconType: MuiEditIcon },
+  true: { iconType: MuiDoneIcon, iconProps: { sx: { color: BLUE } } },
 };
 
 const MAP_TO_PLAY_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MUIPlayCircleIcon },
+  none: { iconType: MuiPlayCircleIcon },
 };
 
 const MAP_TO_VISIBILITY_ICON: IconButtonMapToStateIconBundle = {
-  false: { iconType: MUIVisibilityIcon },
-  true: { iconType: MUIVisibilityOffIcon },
+  false: { iconType: MuiVisibilityIcon },
+  true: { iconType: MuiVisibilityOffIcon },
 };
 
 const MAP_TO_MAP_PRESET: Record<
@@ -104,7 +104,7 @@ const MAP_TO_VARIANT: Record<IconButtonVariant, CreatableComponent> = {
   redcontained: RedContainedIconButton,
 };
 
-const IconButton: FC<IconButtonProps> = ({
+const IconButton: React.FC<IconButtonProps> = ({
   children,
   defaultIcon,
   iconProps,
@@ -120,7 +120,7 @@ const IconButton: FC<IconButtonProps> = ({
   );
 
   const iconButtonContent = useMemo(() => {
-    let result: ReactNode;
+    let result: React.ReactNode;
 
     if (mapToIcon) {
       const { iconType, iconProps: presetIconProps } = mapToIcon[state] ?? {

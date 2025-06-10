@@ -1,4 +1,4 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 
 import { BLUE, GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -8,7 +8,7 @@ const ifaceDragHandleClasses = {
   applied: `${PREFIX}-applied`,
 };
 
-const IfaceDragHandle = styled(Box)({
+const IfaceDragHandle = styled(MuiBox)({
   alignItems: 'center',
   display: 'flex',
   flexDirection: 'row',

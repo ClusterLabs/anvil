@@ -1,8 +1,8 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 
 const deleteButtonOffset = '.5em';
 
-const HostNetBox = styled(Box)(({ theme }) => ({
+const HostNetBox = styled(MuiBox)(({ theme }) => ({
   display: 'grid',
 
   [theme.breakpoints.up('xs')]: {

@@ -1,4 +1,4 @@
-import { Box, styled, Switch } from '@mui/material';
+import { Box as MuiBox, styled, Switch as MuiSwitch } from '@mui/material';
 import { capitalize } from 'lodash';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
@@ -13,7 +13,9 @@ import { InnerPanel, InnerPanelHeader } from '../Panels';
 import { BodyText } from '../Text';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 
-
+type AnvilHostProps = {
+  hosts: AnvilStatusHost[];
+};
 
 const PREFIX = 'AnvilHost';
 
@@ -24,7 +26,7 @@ const classes = {
   decoratorBox: `${PREFIX}-decoratorBox`,
 };
 
-const StyledBox = styled(Box)(({ theme }) => ({
+const StyledBox = styled(MuiBox)(({ theme }) => ({
   overflow: 'auto',
   height: '28vh',
   paddingLeft: '.3em',
@@ -73,7 +75,9 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement => {
+const AnvilHost: React.FC<AnvilHostProps> = (props) => {
+  const { hosts } = props;
+
   const stateRegex = /^[a-zA-Z]/;
   const messageRegex = /^(message_[0-9]+)/;
 
@@ -107,13 +111,13 @@ const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement 
           return (
             <InnerPanel key={host.host_uuid}>
               <InnerPanelHeader>
-                <Box flexGrow={1}>
+                <MuiBox flexGrow={1}>
                   <BodyText text={host.host_name} />
-                </Box>
-                <Box className={classes.decoratorBox}>
+                </MuiBox>
+                <MuiBox className={classes.decoratorBox}>
                   <Decorator colour={selectDecorator(host.state)} />
-                </Box>
-                <Box>
+                </MuiBox>
+                <MuiBox>
                   <BodyText
                     text={
                       host?.state?.replace(stateRegex, (c) =>
@@ -121,14 +125,14 @@ const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement 
                       ) || 'Not Available'
                     }
                   />
-                </Box>
+                </MuiBox>
               </InnerPanelHeader>
-              <Box display="flex" className={classes.state}>
-                <Box className={classes.label}>
+              <MuiBox display="flex" className={classes.state}>
+                <MuiBox className={classes.label}>
                   <BodyText text="Power: " />
-                </Box>
-                <Box flexGrow={1}>
-                  <Switch
+                </MuiBox>
+                <MuiBox flexGrow={1}>
+                  <MuiSwitch
                     checked={notOffline}
                     onChange={() => {
                       const action = notOffline ? 'stop' : 'start';
@@ -199,12 +203,12 @@ const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement 
                       setConfirmDialogOpen(true);
                     }}
                   />
-                </Box>
-                <Box className={classes.label}>
+                </MuiBox>
+                <MuiBox className={classes.label}>
                   <BodyText text="Member: " />
-                </Box>
-                <Box>
-                  <Switch
+                </MuiBox>
+                <MuiBox>
+                  <MuiSwitch
                     checked={online}
                     disabled={offline}
                     onChange={() => {
@@ -279,25 +283,25 @@ const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement 
                       setConfirmDialogOpen(true);
                     }}
                   />
-                </Box>
-              </Box>
+                </MuiBox>
+              </MuiBox>
               {notOnline && notOffline && (
                 <>
-                  <Box display="flex" width="100%" className={classes.state}>
-                    <Box>
+                  <MuiBox display="flex" width="100%" className={classes.state}>
+                    <MuiBox>
                       <BodyText
                         text={selectStateMessage(
                           messageRegex,
                           host.state_message,
                         )}
                       />
-                    </Box>
-                  </Box>
-                  <Box display="flex" width="100%" className={classes.bar}>
-                    <Box flexGrow={1}>
+                    </MuiBox>
+                  </MuiBox>
+                  <MuiBox display="flex" width="100%" className={classes.bar}>
+                    <MuiBox flexGrow={1}>
                       <ProgressBar progressPercentage={host.state_percent} />
-                    </Box>
-                  </Box>
+                    </MuiBox>
+                  </MuiBox>
                 </>
               )}
             </InnerPanel>

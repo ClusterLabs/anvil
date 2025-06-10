@@ -1,4 +1,4 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 
 const PREFIX = 'DragArea';
 
@@ -6,7 +6,7 @@ const dragAreaClasses = {
   dragging: `${PREFIX}-dragging`,
 };
 
-const DragArea = styled(Box)({
+const DragArea = styled(MuiBox)({
   position: 'relative',
 
   [`&.${dragAreaClasses.dragging}`]: {

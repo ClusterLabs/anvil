@@ -1,4 +1,7 @@
-import { iconButtonClasses, styled } from '@mui/material';
+import {
+  iconButtonClasses as muiIconButtonClasses,
+  styled,
+} from '@mui/material';
 import {
   DataGrid as MuiDataGrid,
   gridClasses as muiDataGridClasses,
@@ -15,7 +18,7 @@ const dragDataGridClasses = {
 const DragDataGrid = styled(MuiDataGrid)({
   color: GREY,
 
-  [`& .${iconButtonClasses.root}`]: {
+  [`& .${muiIconButtonClasses.root}`]: {
     color: 'inherit',
   },
 
