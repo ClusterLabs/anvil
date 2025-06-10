@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import { Box as MuiBox } from '@mui/material';
 import { useContext, useMemo } from 'react';
 
 import { AnvilContext } from './AnvilContext';
@@ -9,7 +9,7 @@ import Spinner from './Spinner';
 import { HeaderText, BodyText } from './Text';
 import useFetch from '../hooks/useFetch';
 
-const Memory = (): JSX.Element => {
+const Memory = (): React.ReactElement => {
   const { uuid } = useContext(AnvilContext);
 
   const {
@@ -30,20 +30,20 @@ const Memory = (): JSX.Element => {
       </PanelHeader>
       {!loading ? (
         <>
-          <Box display="flex" width="100%">
-            <Box flexGrow={1}>
+          <MuiBox display="flex" width="100%">
+            <MuiBox flexGrow={1}>
               <BodyText text={`Allocated: ${toBinaryByte(nAllocated)}`} />
-            </Box>
-            <Box>
+            </MuiBox>
+            <MuiBox>
               <BodyText
                 text={`Free: ${toBinaryByte(
                   nTotal - (nReserved + nAllocated),
                 )}`}
               />
-            </Box>
-          </Box>
-          <Box display="flex" width="100%">
-            <Box flexGrow={1}>
+            </MuiBox>
+          </MuiBox>
+          <MuiBox display="flex" width="100%">
+            <MuiBox flexGrow={1}>
               <AllocationBar
                 allocated={
                   nTotal
@@ -51,15 +51,15 @@ const Memory = (): JSX.Element => {
                     : 0
                 }
               />
-            </Box>
-          </Box>
-          <Box display="flex" justifyContent="center" width="100%">
+            </MuiBox>
+          </MuiBox>
+          <MuiBox display="flex" justifyContent="center" width="100%">
             <BodyText
               text={`Total: ${toBinaryByte(nTotal)} | Reserved: ${toBinaryByte(
                 nReserved,
               )}`}
             />
-          </Box>
+          </MuiBox>
         </>
       ) : (
         <Spinner />

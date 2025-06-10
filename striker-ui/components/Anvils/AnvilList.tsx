@@ -12,6 +12,8 @@ import Anvil from './Anvil';
 import Decorator, { Colours } from '../Decorator';
 import setQueryParam from '../../lib/setQueryParam';
 
+
+
 const PREFIX = 'AnvilList';
 
 const classes = {
@@ -60,7 +62,7 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilList = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
+const AnvilList = ({ list }: { list: AnvilListItem[] }): React.ReactElement => {
   const router = useRouter();
 
   return (

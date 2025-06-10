@@ -1,14 +1,14 @@
-import { useState } from 'react';
 import {
-  Box,
+  Box as MuiBox,
   inputLabelClasses as muiInputLabelClasses,
-  OutlinedInputProps as MUIOutlinedInputProps,
+  OutlinedInputProps as MuiOutlinedInputProps,
   outlinedInputClasses as muiOutlinedInputClasses,
-  Slider as MUISlider,
+  Slider as MuiSlider,
   sliderClasses as muiSliderClasses,
-  SliderProps as MUISliderProps,
-  FormControl,
+  SliderProps as MuiSliderProps,
+  FormControl as MuiFormControl,
 } from '@mui/material';
+import { useState } from 'react';
 
 import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -20,17 +20,17 @@ import OutlinedInputLabel, {
 } from './OutlinedInputLabel';
 import { BodyText } from './Text';
 
-type SliderOnBlur = Exclude<MUISliderProps['onBlur'], undefined>;
-type SliderOnChange = Exclude<MUISliderProps['onChange'], undefined>;
-type SliderOnFocus = Exclude<MUISliderProps['onFocus'], undefined>;
-type SliderValue = Exclude<MUISliderProps['value'], undefined>;
+type SliderOnBlur = Exclude<MuiSliderProps['onBlur'], undefined>;
+type SliderOnChange = Exclude<MuiSliderProps['onChange'], undefined>;
+type SliderOnFocus = Exclude<MuiSliderProps['onFocus'], undefined>;
+type SliderValue = Exclude<MuiSliderProps['value'], undefined>;
 
 type SliderOptionalProps = {
   inputLabelProps?: Partial<OutlinedInputLabelProps>;
   isAllowTextInput?: boolean;
   labelId?: string;
   messageBoxProps?: Partial<MessageBoxProps>;
-  sliderProps?: Omit<MUISliderProps, 'onChange'> & {
+  sliderProps?: Omit<MuiSliderProps, 'onChange'> & {
     onChange?: (value: number | number[]) => void;
   };
 };
@@ -40,15 +40,7 @@ type SliderProps = {
   value: SliderValue;
 } & SliderOptionalProps;
 
-type TextInputOnChange = Exclude<MUIOutlinedInputProps['onChange'], undefined>;
-
-const SLIDER_DEFAULT_PROPS: Required<SliderOptionalProps> = {
-  inputLabelProps: {},
-  isAllowTextInput: false,
-  labelId: '',
-  messageBoxProps: {},
-  sliderProps: {},
-};
+type TextInputOnChange = Exclude<MuiOutlinedInputProps['onChange'], undefined>;
 
 const SLIDER_INPUT_LABEL_DECORATOR_CLASS_PREFIX = 'SliderInputLabelDecorator';
 const SLIDER_INPUT_LABEL_DECORATOR_CLASSES = {
@@ -79,7 +71,7 @@ const createInputLabelDecorator = ({
   }
 
   return (
-    <Box
+    <MuiBox
       className={SLIDER_INPUT_LABEL_DECORATOR_CLASSES.root}
       sx={{
         display: 'flex',
@@ -93,7 +85,7 @@ const createInputLabelDecorator = ({
         },
       }}
     >
-      <Box
+      <MuiBox
         sx={{
           borderColor,
           borderStyle,
@@ -111,7 +103,7 @@ const createInputLabelDecorator = ({
         }}
         text={label}
       />
-      <Box
+      <MuiBox
         sx={{
           borderColor,
           borderStyle,
@@ -120,7 +112,7 @@ const createInputLabelDecorator = ({
           opacity,
         }}
       />
-    </Box>
+    </MuiBox>
   );
 };
 
@@ -157,15 +149,17 @@ const toSliderValue = (rangeString: string[], value: SliderValue) =>
     ? rangeString.map((element, index) => stringToNumber(element, value[index]))
     : stringToNumber(rangeString[0], value);
 
-const Slider = ({
-  messageBoxProps = SLIDER_DEFAULT_PROPS.messageBoxProps,
-  isAllowTextInput = SLIDER_DEFAULT_PROPS.isAllowTextInput,
-  label,
-  labelId = SLIDER_DEFAULT_PROPS.labelId,
-  inputLabelProps = SLIDER_DEFAULT_PROPS.inputLabelProps,
-  sliderProps = SLIDER_DEFAULT_PROPS.sliderProps,
-  value,
-}: SliderProps): JSX.Element => {
+const Slider: React.FC<SliderProps> = (props) => {
+  const {
+    messageBoxProps,
+    isAllowTextInput = false,
+    label,
+    labelId = '',
+    inputLabelProps,
+    sliderProps = {},
+    value,
+  } = props;
+
   const {
     max,
     min,
@@ -173,6 +167,7 @@ const Slider = ({
     sx: sliderSx,
     valueLabelDisplay: sliderValueLabelDisplay,
   } = sliderProps;
+
   let assignableValue: SliderValue = value;
 
   const [textRangeValue, SetTextRangeValue] = useState<{ range: string[] }>({
@@ -204,7 +199,7 @@ const Slider = ({
   };
 
   return (
-    <FormControl
+    <MuiFormControl
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -231,7 +226,7 @@ const Slider = ({
         {label}
       </OutlinedInputLabel>
       {createInputLabelDecorator({ isFocused, label })}
-      <Box
+      <MuiBox
         sx={{
           alignItems: 'center',
           display: 'flex',
@@ -240,7 +235,7 @@ const Slider = ({
           '> :first-child': { flexGrow: 1 },
         }}
       >
-        <MUISlider
+        <MuiSlider
           {...{
             'aria-labelledby': labelId,
             max,
@@ -285,13 +280,11 @@ const Slider = ({
             value: textValue,
           }),
         )}
-      </Box>
+      </MuiBox>
       <InputMessageBox {...messageBoxProps} />
-    </FormControl>
+    </MuiFormControl>
   );
 };
-
-Slider.defaultProps = SLIDER_DEFAULT_PROPS;
 
 export type { SliderProps };
 

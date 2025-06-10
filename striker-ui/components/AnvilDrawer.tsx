@@ -1,9 +1,14 @@
 import {
-  Dashboard as DashboardIcon,
-  Logout as LogoutIcon,
+  Dashboard as MuiDashboardIcon,
+  Logout as MuiLogoutIcon,
 } from '@mui/icons-material';
-import { Drawer, List, ListItem, ListItemButton, styled } from '@mui/material';
-import { Dispatch, SetStateAction } from 'react';
+import {
+  Drawer as MuiDrawer,
+  List as MuiList,
+  ListItem as MuiListItem,
+  ListItemButton as MuiListItemButton,
+  styled,
+} from '@mui/material';
 import { useCookies } from 'react-cookie';
 
 import { OLD_ICON } from '../lib/consts/DEFAULT_THEME';
@@ -22,7 +27,7 @@ const classes = {
   list: `${PREFIX}-list`,
 };
 
-const StyledDrawer = styled(Drawer)(() => ({
+const StyledDrawer = styled(MuiDrawer)(() => ({
   [`& .${classes.list}`]: {
     width: '200px',
   },
@@ -35,10 +40,10 @@ const StyledDrawer = styled(Drawer)(() => ({
 
 interface DrawerProps {
   open: boolean;
-  setOpen: Dispatch<SetStateAction<boolean>>;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
+const AnvilDrawer = ({ open, setOpen }: DrawerProps): React.ReactElement => {
   const [cookies] = useCookies(['suiapi.session']);
 
   const session: SessionCookie | undefined = cookies['suiapi.session'];
@@ -55,8 +60,8 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
       }}
     >
       <div role="presentation">
-        <List className={classes.list}>
-          <ListItem>
+        <MuiList className={classes.list}>
+          <MuiListItem>
             <BodyText>
               {session?.user ? (
                 <>Welcome, {session.user.name}</>
@@ -64,17 +69,17 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
                 'Unregistered'
               )}
             </BodyText>
-          </ListItem>
+          </MuiListItem>
           <Divider />
-          <ListItemButton component="a" href="/index.html">
+          <MuiListItemButton component="a" href="/index.html">
             <FlexBox fullWidth row spacing="2em">
-              <DashboardIcon className={classes.actionIcon} />
+              <MuiDashboardIcon className={classes.actionIcon} />
               <BodyText>Dashboard</BodyText>
             </FlexBox>
-          </ListItemButton>
+          </MuiListItemButton>
           {ICONS.map(
-            (icon): JSX.Element => (
-              <ListItemButton
+            (icon): React.ReactElement => (
+              <MuiListItemButton
                 key={`anvil-drawer-${icon.image}`}
                 component="a"
                 href={icon.uri}
@@ -83,10 +88,10 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
                   <img alt={icon.text} src={icon.image} {...ICON_SIZE} />
                   <BodyText>{icon.text}</BodyText>
                 </FlexBox>
-              </ListItemButton>
+              </MuiListItemButton>
             ),
           )}
-          <ListItemButton
+          <MuiListItemButton
             onClick={() => {
               api
                 .put('/auth/logout')
@@ -99,11 +104,11 @@ const AnvilDrawer = ({ open, setOpen }: DrawerProps): JSX.Element => {
             }}
           >
             <FlexBox fullWidth row spacing="2em">
-              <LogoutIcon className={classes.actionIcon} />
+              <MuiLogoutIcon className={classes.actionIcon} />
               <BodyText>Logout</BodyText>
             </FlexBox>
-          </ListItemButton>
-        </List>
+          </MuiListItemButton>
+        </MuiList>
       </div>
     </StyledDrawer>
   );

@@ -1,5 +1,3 @@
-import { FC } from 'react';
-
 import ContainedButton from './ContainedButton';
 
 type SuggestButtonOptionalProps = {
@@ -8,23 +6,17 @@ type SuggestButtonOptionalProps = {
 
 type SuggestButtonProps = ContainedButtonProps & SuggestButtonOptionalProps;
 
-const SUGGEST_BUTTON_DEFAULT_PROPS: Required<SuggestButtonOptionalProps> = {
-  show: true,
-};
-
-const SuggestButton: FC<SuggestButtonProps> = ({
+const SuggestButton: React.FC<SuggestButtonProps> = ({
   onClick,
-  show: isShow = SUGGEST_BUTTON_DEFAULT_PROPS.show,
+  show = true,
   ...restProps
 }) =>
-  isShow ? (
-    <ContainedButton {...{ onClick, tabIndex: -1, ...restProps }}>
+  show ? (
+    <ContainedButton onClick={onClick} tabIndex={-1} {...restProps}>
       Suggest
     </ContainedButton>
   ) : (
     <></>
   );
-
-SuggestButton.defaultProps = SUGGEST_BUTTON_DEFAULT_PROPS;
 
 export default SuggestButton;

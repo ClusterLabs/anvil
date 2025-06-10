@@ -1,9 +1,10 @@
-import { FC, useMemo } from 'react';
+import { merge } from 'lodash';
+import { useMemo } from 'react';
 
 import { BodyTextProps } from './BodyText';
 import SmallText from './SmallText';
 
-const InlineMonoText: FC<BodyTextProps> = ({
+const InlineMonoText: React.FC<BodyTextProps> = ({
   edge,
   sx,
   ...bodyTextRestProps
@@ -13,14 +14,16 @@ const InlineMonoText: FC<BodyTextProps> = ({
   const paddingRight = useMemo(() => (edge === 'end' ? 0 : undefined), [edge]);
 
   const combinedSx: BodyTextProps['sx'] = useMemo(
-    () => ({
-      display: 'inline',
-      padding: '.1rem .3rem',
-      paddingLeft,
-      paddingRight,
-
-      ...sx,
-    }),
+    () =>
+      merge(
+        {
+          display: 'inline',
+          padding: '.1rem .3rem',
+          paddingLeft,
+          paddingRight,
+        },
+        sx,
+      ),
     [paddingLeft, paddingRight, sx],
   );
 

@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import { ReactElement, useMemo } from 'react';
+import {  useMemo } from 'react';
 
 import Grid from '../Grid';
 import InputWithRef from '../InputWithRef';
@@ -39,7 +39,7 @@ const AnIdInputGroup = <
     prefix: previousPrefix,
     sequence: previousSequence,
   } = {},
-}: AnIdInputGroupProps<M>): ReactElement => {
+}: AnIdInputGroupProps<M>): React.ReactElement => {
   const debounceSequenceChangeHandler = useMemo(
     () => onSequenceChange && debounce(onSequenceChange, debounceWait),
     [debounceWait, onSequenceChange],

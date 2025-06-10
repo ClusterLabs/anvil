@@ -1,6 +1,9 @@
-import { Box, List as MUIList, ListItem as MUIListItem } from '@mui/material';
+import {
+  Box as MuiBox,
+  List as MuiList,
+  ListItem as MuiListItem,
+} from '@mui/material';
 import { isEmpty } from 'lodash';
-import { FC, ReactElement } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
@@ -42,10 +45,10 @@ const renderEntryBase: RenderFormEntryFunction = (args) => {
       <BodyText>
         {getLabel({ cap: disassembleCamel, depth, entry, hasPassword, key })}
       </BodyText>
-      <Box sx={{ maxWidth: '100%', overflowX: 'scroll' }}>
+      <MuiBox sx={{ maxWidth: '100%', overflowX: 'scroll' }}>
         {!nest &&
           renderValue(renderEntryValueBase, { depth, entry, hasPassword, key })}
-      </Box>
+      </MuiBox>
     </FlexBox>
   );
 };
@@ -79,8 +82,8 @@ const buildEntryList = <T extends FormEntries>({
     FormSummaryProps<T>,
     'hasPassword' | 'maxDepth' | 'renderEntry' | 'renderEntryValue' | 'skip'
   >
->): ReactElement => {
-  const result: ReactElement[] = [];
+>): React.ReactElement => {
+  const result: React.ReactElement[] = [];
 
   Object.entries(entries).forEach(([itemKey, entry]) => {
     const itemId = `form-summary-entry-${itemKey}`;
@@ -98,7 +101,7 @@ const buildEntryList = <T extends FormEntries>({
 
     if (!skip(skipBase, fnArgs)) {
       result.push(
-        <MUIListItem
+        <MuiListItem
           key={itemId}
           sx={{ paddingLeft: `${depth}em` }}
           {...getListItemProps?.call(null, fnArgs)}
@@ -112,7 +115,7 @@ const buildEntryList = <T extends FormEntries>({
             nest,
             renderValue: renderEntryValue,
           })}
-        </MUIListItem>,
+        </MuiListItem>,
       );
     }
 
@@ -136,14 +139,14 @@ const buildEntryList = <T extends FormEntries>({
   const listId = `form-summary-list-${listKey ?? 'root'}`;
 
   return (
-    <MUIList
+    <MuiList
       dense
       disablePadding
       key={listId}
       {...getListProps?.call(null, { depth, entries, key: listKey })}
     >
       {result}
-    </MUIList>
+    </MuiList>
   );
 };
 
@@ -157,7 +160,7 @@ const FormSummary = <T extends FormEntries>({
   renderEntry = renderEntryBase,
   renderEntryValue = (base, ...args) => base(...args),
   skip = (base, ...args) => base(...args),
-}: FormSummaryProps<T>): ReturnType<FC<FormSummaryProps<T>>> =>
+}: FormSummaryProps<T>): ReturnType<React.FC<FormSummaryProps<T>>> =>
   buildEntryList<T>({
     entries,
     getEntryLabel,

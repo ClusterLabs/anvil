@@ -1,14 +1,14 @@
 import {
-  Autocomplete as MUIAutocomplete,
+  Autocomplete as MuiAutocomplete,
   autocompleteClasses as muiAutocompleteClasses,
-  AutocompleteProps as MUIAutocompleteProps,
-  AutocompleteRenderInputParams as MUIAutocompleteRenderInputParams,
-  Box,
-  Grow as MUIGrow,
-  ListSubheader,
+  AutocompleteProps as MuiAutocompleteProps,
+  AutocompleteRenderInputParams as MuiAutocompleteRenderInputParams,
+  Box as MuiBox,
+  Grow as MuiGrow,
+  ListSubheader as MuiListSubheader,
   outlinedInputClasses as muiOutlinedInputClasses,
-  Paper as MUIPaper,
-  PaperProps as MUIPaperProps,
+  Paper as MuiPaper,
+  PaperProps as MuiPaperProps,
   svgIconClasses as muiSvgIconClasses,
   styled,
 } from '@mui/material';
@@ -26,7 +26,7 @@ import OutlinedInputWithLabel, {
 type AutocompleteOptionalProps = {
   extendRenderInput?: (
     inputWithLabelProps: OutlinedInputWithLabelProps,
-    renderInputParams?: MUIAutocompleteRenderInputParams,
+    renderInputParams?: MuiAutocompleteRenderInputParams,
   ) => void;
   getGroupLabel?: (group: string) => React.ReactNode;
   messageBoxProps?: Partial<MessageBoxProps>;
@@ -39,27 +39,27 @@ type AutocompleteProps<
   DisableClearable extends boolean | undefined,
   FreeSolo extends boolean | undefined,
 > = AutocompleteOptionalProps & { label: string } & Omit<
-    MUIAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
+    MuiAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
     'renderInput'
   > &
   Partial<
     Pick<
-      MUIAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
+      MuiAutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
       'renderInput'
     >
   >;
 
-const GrowPaper = (paperProps: MUIPaperProps): JSX.Element => (
-  <MUIGrow in>
-    <MUIPaper {...paperProps} />
-  </MUIGrow>
+const GrowPaper = (paperProps: MuiPaperProps): React.ReactElement => (
+  <MuiGrow in>
+    <MuiPaper {...paperProps} />
+  </MuiGrow>
 );
 
 const GroupChildren = styled('ul')({
   padding: 0,
 });
 
-const GroupHeader = ListSubheader;
+const GroupHeader = MuiListSubheader;
 
 const Autocomplete = <
   T,
@@ -68,7 +68,7 @@ const Autocomplete = <
   FreeSolo extends boolean | undefined = undefined,
 >(
   autocompleteProps: AutocompleteProps<T, Multiple, DisableClearable, FreeSolo>,
-): JSX.Element => {
+): React.ReactElement => {
   const {
     componentsProps,
     extendRenderInput,
@@ -215,8 +215,8 @@ const Autocomplete = <
   );
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-      <MUIAutocomplete
+    <MuiBox sx={{ display: 'flex', flexDirection: 'column' }}>
+      <MuiAutocomplete
         autoHighlight
         autoSelect={required}
         PaperComponent={GrowPaper}
@@ -228,7 +228,7 @@ const Autocomplete = <
         sx={mergedSx}
       />
       <InputMessageBox {...messageBoxProps} />
-    </Box>
+    </MuiBox>
   );
 };
 

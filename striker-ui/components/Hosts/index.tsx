@@ -8,7 +8,7 @@ import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
-const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): React.ReactElement => {
   const { uuid } = useContext(AnvilContext);
 
   const { data, loading } = useFetch<AnvilStatus>(`/anvil/${uuid}`, {

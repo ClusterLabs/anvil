@@ -11,14 +11,14 @@ import { GREY } from '../lib/consts/DEFAULT_THEME';
 import ListSubheader from './ListSubheader';
 import MenuItem from './MenuItem';
 
-const BaseMenu = styled(MuiMenu)({
+const StyledMenu = styled(MuiMenu)({
   [`& .${muiMenuClasses.paper}`]: {
     backgroundColor: GREY,
   },
 });
 
 const Menu = <Item = unknown,>(
-  ...[props]: Parameters<React.FC<MenuProps<Item>>>
+  ...[props]: Parameters<React.FC<React.PropsWithChildren<MenuProps<Item>>>>
 ): ReturnType<React.FC<MenuProps<Item>>> => {
   const {
     children,
@@ -84,9 +84,9 @@ const Menu = <Item = unknown,>(
   );
 
   return (
-    <BaseMenu open={open} {...slotProps?.menu}>
+    <StyledMenu open={open} {...slotProps?.menu}>
       {children || itemElements}
-    </BaseMenu>
+    </StyledMenu>
   );
 };
 

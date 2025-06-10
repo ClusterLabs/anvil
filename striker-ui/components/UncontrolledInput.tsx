@@ -1,6 +1,9 @@
 import {
+  InputProps as MuiInputProps,
+  SwitchProps as MuiSwitchProps,
+} from '@mui/material';
+import {
   ForwardedRef,
-  ReactElement,
   cloneElement,
   forwardRef,
   useCallback,
@@ -14,7 +17,12 @@ import INPUT_TYPES from '../lib/consts/INPUT_TYPES';
 import MAP_TO_VALUE_CONVERTER from '../lib/consts/MAP_TO_VALUE_CONVERTER';
 
 const UncontrolledInput = forwardRef(
-  <ValueType extends keyof MapToInputType, InputElement extends ReactElement>(
+  <
+    ValueType extends keyof MapToInputType,
+    InputElement extends React.ReactElement<
+      MuiInputProps & Pick<MuiSwitchProps, 'checked'>
+    >,
+  >(
     props: UncontrolledInputProps<InputElement>,
     ref: ForwardedRef<UncontrolledInputForwardedRefContent<ValueType>>,
   ) => {
@@ -48,11 +56,14 @@ const UncontrolledInput = forwardRef(
 
     const {
       onChange: inputOnChange,
-      [valueKey]: originValue,
+      [valueKey]: unknownValue,
       ...restInputProps
     } = inputProps;
 
-    const [value, setValue] = useState<MapToInputType[ValueType]>(originValue);
+    const originalValue = unknownValue as MapToInputType[ValueType];
+
+    const [value, setValue] =
+      useState<MapToInputType[ValueType]>(originalValue);
 
     const baseChangeEventHandler = useCallback<
       React.ChangeEventHandler<HTMLInputElement>
@@ -90,8 +101,8 @@ const UncontrolledInput = forwardRef(
 
     // Always update the input's local value when the origin changes
     useEffect(() => {
-      setValue(originValue);
-    }, [originValue]);
+      setValue(originalValue);
+    }, [originalValue]);
 
     useImperativeHandle(
       ref,

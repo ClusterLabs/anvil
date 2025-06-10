@@ -1,12 +1,12 @@
-import { MoreVert as MoreVertIcon } from '@mui/icons-material';
+import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
 import {
-  Box,
-  Checkbox,
-  Divider,
-  List,
-  ListItem,
+  Box as MuiBox,
+  Checkbox as MuiCheckbox,
+  Divider as MuiDivider,
+  List as MuiList,
+  ListItemButton as MuiListItemButton,
   styled,
-  Typography,
+  Typography as MuiTypography,
 } from '@mui/material';
 import { useState, useContext, useRef, useMemo } from 'react';
 
@@ -128,7 +128,7 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const ServerActionButtonMenuItemLabel = styled(Typography)({
+const ServerActionButtonMenuItemLabel = styled(MuiTypography)({
   [`&.${classes.on}`]: {
     color: BLUE,
   },
@@ -140,7 +140,9 @@ const ServerActionButtonMenuItemLabel = styled(Typography)({
 
 type ButtonLabels = 'on' | 'off';
 
-const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+const Servers: React.FC<{ anvil: AnvilListItem[] }> = (props) => {
+  const { anvil } = props;
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showCheckbox, setShowCheckbox] = useState<boolean>(false);
   const [allSelected, setAllSelected] = useState<boolean>(false);
@@ -282,12 +284,12 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
           </PanelHeader>
           {showCheckbox && (
             <>
-              <Box className={classes.headerPadding} display="flex">
-                <Box flexGrow={1} className={classes.dropdown}>
+              <MuiBox className={classes.headerPadding} display="flex">
+                <MuiBox flexGrow={1} className={classes.dropdown}>
                   <ContainedButton
                     disabled={noneChecked}
                     onClick={handleClick}
-                    startIcon={<MoreVertIcon />}
+                    startIcon={<MuiMoreVertIcon />}
                   >
                     Power
                   </ContainedButton>
@@ -312,11 +314,11 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       </MenuItem>
                     ))}
                   </Menu>
-                </Box>
-              </Box>
-              <Box display="flex">
-                <Box>
-                  <Checkbox
+                </MuiBox>
+              </MuiBox>
+              <MuiBox display="flex">
+                <MuiBox>
+                  <MuiCheckbox
                     style={{ color: TEXT }}
                     color="secondary"
                     checked={allSelected}
@@ -338,30 +340,29 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                       setAllSelected(!allSelected);
                     }}
                   />
-                </Box>
-                <Box className={classes.all}>
+                </MuiBox>
+                <MuiBox className={classes.all}>
                   <BodyText text="All" />
-                </Box>
-              </Box>
+                </MuiBox>
+              </MuiBox>
             </>
           )}
           {serverValues ? (
-            <Box className={classes.root}>
-              <List component="nav">
+            <MuiBox className={classes.root}>
+              <MuiList component="nav">
                 {serverValues.map((server: APIServerOverview) => (
                   <>
-                    <ListItem
-                      button
+                    <MuiListItemButton
                       className={classes.button}
                       key={server.uuid}
                       component={showCheckbox ? 'div' : 'a'}
                       href={`/server?uuid=${server.uuid}&server_name=${server.name}&server_state=${server.state}`}
                       onClick={() => handleChange(server.uuid)}
                     >
-                      <Box display="flex" flexDirection="row" width="100%">
+                      <MuiBox display="flex" flexDirection="row" width="100%">
                         {showCheckbox && (
-                          <Box className={classes.checkbox}>
-                            <Checkbox
+                          <MuiBox className={classes.checkbox}>
+                            <MuiCheckbox
                               style={{ color: TEXT }}
                               color="secondary"
                               checked={
@@ -369,29 +370,29 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                 undefined
                               }
                             />
-                          </Box>
+                          </MuiBox>
                         )}
-                        <Box p={1}>
+                        <MuiBox p={1}>
                           <Decorator colour={selectDecorator(server.state)} />
-                        </Box>
-                        <Box p={1} flexGrow={1}>
+                        </MuiBox>
+                        <MuiBox p={1} flexGrow={1}>
                           <BodyText text={server.name} />
                           <BodyText
                             text={
                               serverState.get(server.state) || 'Not Available'
                             }
                           />
-                        </Box>
-                        <Box display="flex" className={classes.hostsBox}>
+                        </MuiBox>
+                        <MuiBox display="flex" className={classes.hostsBox}>
                           {server.state !== 'shut off' &&
                             server.state !== 'crashed' &&
                             filteredHosts.map(
                               (
                                 host: AnvilStatusHost,
                                 index: number,
-                              ): JSX.Element => (
+                              ): React.ReactElement => (
                                 <>
-                                  <Box
+                                  <MuiBox
                                     p={1}
                                     key={host.host_uuid}
                                     className={classes.hostBox}
@@ -402,9 +403,9 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                         server.host?.uuid === host.host_uuid
                                       }
                                     />
-                                  </Box>
+                                  </MuiBox>
                                   {index !== filteredHosts.length - 1 && (
-                                    <Divider
+                                    <MuiDivider
                                       className={`${classes.divider} ${classes.verticalDivider}`}
                                       orientation="vertical"
                                     />
@@ -412,14 +413,14 @@ const Servers = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
                                 </>
                               ),
                             )}
-                        </Box>
-                      </Box>
-                    </ListItem>
-                    <Divider className={classes.divider} />
+                        </MuiBox>
+                      </MuiBox>
+                    </MuiListItemButton>
+                    <MuiDivider className={classes.divider} />
                   </>
                 ))}
-              </List>
-            </Box>
+              </MuiList>
+            </MuiBox>
           ) : (
             <Spinner />
           )}

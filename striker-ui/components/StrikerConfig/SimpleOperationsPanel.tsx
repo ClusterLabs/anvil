@@ -1,5 +1,5 @@
-import { Grid, Switch } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { Grid, Switch as MuiSwitch } from '@mui/material';
+import { useMemo, useState } from 'react';
 
 import api from '../../lib/api';
 import ContainedButton from '../ContainedButton';
@@ -10,11 +10,11 @@ import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
 import { BodyText, HeaderText } from '../Text';
 
-const StretchedButton: FC<ContainedButtonProps> = (props) => (
+const StretchedButton: React.FC<ContainedButtonProps> = (props) => (
   <ContainedButton {...props} sx={{ width: '100%' }} />
 );
 
-const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
+const SimpleOperationsPanel: React.FC<SimpleOperationsPanelProps> = ({
   installTarget = 'disabled',
   onSubmit,
   title,
@@ -58,7 +58,7 @@ const SimpleOperationsPanel: FC<SimpleOperationsPanelProps> = ({
         >
           <FlexBox row>
             <BodyText sx={{ flexGrow: 1 }}>Install target</BodyText>
-            <Switch
+            <MuiSwitch
               checked={installTarget === 'enabled'}
               edge="end"
               onChange={(event, isChecked) => {

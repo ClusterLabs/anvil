@@ -1,11 +1,4 @@
-import {
-  FC,
-  FormEventHandler,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
 import api from '../../lib/api';
@@ -37,7 +30,7 @@ type UpsFormData = {
 
 const getFormData = (
   upsTemplate: APIUpsTemplate,
-  ...[{ target }]: Parameters<FormEventHandler<HTMLDivElement>>
+  ...[{ target }]: Parameters<React.FormEventHandler<HTMLDivElement>>
 ): UpsFormData => {
   const { elements } = target as HTMLFormElement;
 
@@ -103,7 +96,7 @@ const buildConfirmUpsFormData = ({
   );
 };
 
-const ManageUpsPanel: FC = () => {
+const ManageUpsPanel: React.FC = () => {
   const isFirstRender = useIsFirstRender();
 
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});

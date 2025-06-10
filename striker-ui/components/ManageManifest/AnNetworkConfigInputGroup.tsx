@@ -1,5 +1,5 @@
 import { Netmask } from 'netmask';
-import { ReactElement, useCallback, useMemo } from 'react';
+import {  useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
@@ -78,7 +78,7 @@ const AnNetworkConfigInputGroup = <
     ntpCsv: previousNtpCsv,
   } = {},
   setNetworkList,
-}: AnNetworkConfigInputGroupProps<M>): ReactElement => {
+}: AnNetworkConfigInputGroupProps<M>): React.ReactElement => {
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,

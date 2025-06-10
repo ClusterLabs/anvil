@@ -1,6 +1,5 @@
-import { FC } from 'react';
 import {
-  Box,
+  Box as MuiBox,
   formControlClasses as muiFormControlClasses,
   outlinedInputClasses as muiOutlinedInputClasses,
 } from '@mui/material';
@@ -30,7 +29,7 @@ type OutlinedLabeledInputWithSelectProps =
     selectItems: SelectItem[];
   };
 
-const OutlinedLabeledInputWithSelect: FC<
+const OutlinedLabeledInputWithSelect: React.FC<
   OutlinedLabeledInputWithSelectProps
 > = ({
   id,
@@ -42,8 +41,8 @@ const OutlinedLabeledInputWithSelect: FC<
   selectWithLabelProps,
   value,
 }) => (
-  <Box>
-    <Box
+  <MuiBox>
+    <MuiBox
       sx={{
         display: 'flex',
         flexDirection: 'row',
@@ -77,16 +76,10 @@ const OutlinedLabeledInputWithSelect: FC<
         selectItems={selectItems}
         {...selectWithLabelProps}
       />
-    </Box>
+    </MuiBox>
     <InputMessageBox {...messageBoxProps} />
-  </Box>
+  </MuiBox>
 );
-
-OutlinedLabeledInputWithSelect.defaultProps = {
-  inputWithLabelProps: undefined,
-  messageBoxProps: undefined,
-  selectWithLabelProps: undefined,
-};
 
 export type { OutlinedLabeledInputWithSelectProps };
 

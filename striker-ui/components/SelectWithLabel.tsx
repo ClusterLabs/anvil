@@ -5,7 +5,7 @@ import {
   selectClasses as muiSelectClasses,
 } from '@mui/material';
 import { merge } from 'lodash';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -16,11 +16,11 @@ import OutlinedInputLabel from './OutlinedInputLabel';
 import Select from './Select';
 
 const SelectWithLabel = <
-  Value = string,
+  Value extends number | string = string,
   Display extends React.ReactNode = React.ReactNode,
 >(
-  ...[props]: Parameters<FC<SelectWithLabelProps<Value, Display>>>
-): ReturnType<FC<SelectWithLabelProps<Value, Display>>> => {
+  ...[props]: Parameters<React.FC<SelectWithLabelProps<Value, Display>>>
+): ReturnType<React.FC<SelectWithLabelProps<Value, Display>>> => {
   const {
     id,
     label,
@@ -65,14 +65,14 @@ const SelectWithLabel = <
   );
 
   const createCheckbox = useCallback(
-    (value) =>
+    (value: Value) =>
       isCheckableItems && (
         <MuiCheckbox checked={checkItem?.call(null, value)} />
       ),
     [checkItem, isCheckableItems],
   );
   const createMenuItem = useCallback(
-    (value, displayValue) => (
+    (value: Value, displayValue: Display) => (
       <MenuItem
         disabled={disableItem?.call(null, value)}
         key={`${id}-${value}`}
@@ -116,14 +116,16 @@ const SelectWithLabel = <
        * 3. item is SelectItem with both value, and displayValue
        */
 
-      if (typeof item === 'string') return createMenuItem(item, item);
+      if (typeof item === 'string') {
+        return createMenuItem(item as Value, item as Display);
+      }
 
       const {
         value,
         displayValue = String(value),
       }: SelectItem<Value, Display> = item;
 
-      return createMenuItem(value, displayValue);
+      return createMenuItem(value, displayValue as Display);
     });
   }, [createMenuItem, noOptionsText, selectItems]);
 

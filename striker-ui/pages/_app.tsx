@@ -19,7 +19,7 @@ const App = ({
   Component,
   emotionCache = clientSideEmotionCache,
   pageProps,
-}: MyAppProps): JSX.Element => {
+}: MyAppProps): React.ReactElement => {
   useSessionExpiryCheck();
 
   return (

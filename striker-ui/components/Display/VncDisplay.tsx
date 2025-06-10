@@ -74,7 +74,7 @@ const rfbDisconnect: RfbDisconnectFunction = (rfb) => {
   rfb.current = null;
 };
 
-const VncDisplay = (props: VncDisplayProps): JSX.Element => {
+const VncDisplay = (props: VncDisplayProps): React.ReactElement => {
   const {
     onConnect,
     onDisconnect,

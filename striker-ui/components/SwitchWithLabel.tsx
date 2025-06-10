@@ -1,21 +1,21 @@
 import {
-  FormControlLabel as MUIFormControlLabel,
+  FormControlLabel as MuiFormControlLabel,
   styled,
-  Switch as MUISwitch,
+  Switch as MuiSwitch,
 } from '@mui/material';
-import { FC, ReactElement, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import { BodyText } from './Text';
 
-const SwitchFormControlLabel = styled(MUIFormControlLabel)({
+const SwitchFormControlLabel = styled(MuiFormControlLabel)({
   height: '3.5em',
   marginLeft: 0,
   width: '100%',
 });
 
-const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
+const SwitchWithLabel: React.FC<SwitchWithLabelProps> = ({
   baseInputProps,
   checked: isChecked,
   formControlLabelProps,
@@ -25,7 +25,7 @@ const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
   onChange,
   switchProps,
 }) => {
-  const labelElement = useMemo<ReactElement>(
+  const labelElement = useMemo<React.ReactElement>(
     () =>
       typeof label === 'string' ? (
         <BodyText inheritColour color={`${GREY}AF`}>
@@ -40,9 +40,8 @@ const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
   return (
     <>
       <SwitchFormControlLabel
-        componentsProps={{ typography: { flexGrow: 1 } }}
         control={
-          <MUISwitch
+          <MuiSwitch
             checked={isChecked}
             edge="end"
             name={switchName}
@@ -52,6 +51,11 @@ const SwitchWithLabel: FC<SwitchWithLabelProps> = ({
         }
         label={labelElement}
         labelPlacement="start"
+        slotProps={{
+          typography: {
+            flexGrow: 1,
+          },
+        }}
         {...formControlLabelProps}
       />
       <input

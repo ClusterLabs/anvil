@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import { ReactElement, ReactNode, useMemo } from 'react';
+import {  ReactNode, useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
@@ -105,7 +105,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
   readonlyNetworkName: isReadonlyNetworkName,
   showCloseButton: isShowCloseButton,
   showGateway: isShowGateway,
-}: AnNetworkInputGroupProps<M>): ReactElement => {
+}: AnNetworkInputGroupProps<M>): React.ReactElement => {
   const networkName = useMemo(
     () => `${NETWORK_TYPES[networkType]} ${networkNumber}`,
     [networkNumber, networkType],

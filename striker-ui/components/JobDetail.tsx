@@ -1,12 +1,5 @@
 import { Grid, useMediaQuery, useTheme } from '@mui/material';
-import {
-  FC,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
@@ -48,7 +41,7 @@ const toReadableTimestamp = (seconds: number): string => {
   return `${pad(month)}-${pad(date)}, ${pad(h)}:${pad(m)}:${pad(s)}`;
 };
 
-const JobDetail: FC<JobDetailProps> = (props) => {
+const JobDetail: React.FC<JobDetailProps> = (props) => {
   const { refreshInterval, uuid } = props;
 
   const theme = useTheme();

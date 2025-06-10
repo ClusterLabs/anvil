@@ -46,7 +46,7 @@ const isAnvilOn = (anvil: AnvilListItem): boolean =>
     ) === -1
   );
 
-const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): JSX.Element => {
+const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): React.ReactElement => {
   const { uuid } = useContext(AnvilContext);
 
   const index = useMemo(

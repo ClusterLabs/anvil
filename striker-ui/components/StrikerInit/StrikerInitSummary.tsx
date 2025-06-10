@@ -1,10 +1,9 @@
 import { Grid } from '@mui/material';
-import { FC } from 'react';
 
 import { HostNetSummary } from '../HostNetInit';
 import { BodyText, MonoText } from '../Text';
 
-const StrikerInitSummary: FC<StrikerInitSummaryProps> = (props) => {
+const StrikerInitSummary: React.FC<StrikerInitSummaryProps> = (props) => {
   const { values } = props;
 
   return (

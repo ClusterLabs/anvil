@@ -1,9 +1,7 @@
-import { FC } from 'react';
-
 import BodyText, { BodyTextProps } from './BodyText';
 
-const SmallText: FC<BodyTextProps> = ({ ...bodyTextRestProps }) => (
-  <BodyText {...{ variant: 'body2', ...bodyTextRestProps }} />
+const SmallText: React.FC<BodyTextProps> = (props) => (
+  <BodyText variant="body2" {...props} />
 );
 
 export default SmallText;

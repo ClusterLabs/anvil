@@ -1,19 +1,25 @@
-import { Box, BoxProps, SxProps, Theme } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
+import { merge } from 'lodash';
+import { useMemo } from 'react';
 
-const InnerPanelBody: FC<BoxProps> = ({ sx, ...innerPanelBodyRestProps }) => {
-  const combinedSx = useMemo<SxProps<Theme>>(
-    () => ({
-      position: 'relative',
-      zIndex: 20,
-
-      ...sx,
-    }),
+const InnerPanelBody: React.FC<MuiBoxProps> = ({
+  sx,
+  ...innerPanelBodyRestProps
+}) => {
+  const combinedSx = useMemo<MuiBoxProps['sx']>(
+    () =>
+      merge(
+        {
+          position: 'relative',
+          zIndex: 20,
+        },
+        sx,
+      ),
     [sx],
   );
 
   return (
-    <Box padding=".3em .7em" {...innerPanelBodyRestProps} sx={combinedSx} />
+    <MuiBox padding=".3em .7em" {...innerPanelBodyRestProps} sx={combinedSx} />
   );
 };
 

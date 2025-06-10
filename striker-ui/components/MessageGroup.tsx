@@ -28,29 +28,17 @@ type MessageGroupForwardedRefContent = {
   setMessageRe?: (re: RegExp, message?: Message) => void;
 };
 
-const MESSAGE_GROUP_DEFAULT_PROPS: Required<
-  Omit<MessageGroupOptionalProps, 'messages' | 'onSet'>
-> &
-  Pick<MessageGroupOptionalProps, 'messages' | 'onSet'> = {
-  count: 0,
-  defaultMessageType: 'info',
-  messages: undefined,
-  onSet: undefined,
-  usePlaceholder: true,
-};
-
 const MessageGroup = forwardRef<
   MessageGroupForwardedRefContent,
   MessageGroupProps
 >(
   (
     {
-      count = MESSAGE_GROUP_DEFAULT_PROPS.count,
-      defaultMessageType = MESSAGE_GROUP_DEFAULT_PROPS.defaultMessageType,
+      count = 0,
+      defaultMessageType = 'info',
       messages: externalMessages,
       onSet,
-      usePlaceholder:
-        isUsePlaceholder = MESSAGE_GROUP_DEFAULT_PROPS.usePlaceholder,
+      usePlaceholder: addPlaceholder = true,
     },
     ref,
   ) => {
@@ -139,7 +127,7 @@ const MessageGroup = forwardRef<
         return result.length < limit;
       });
 
-      if (isUsePlaceholder && isValidCount && result.length === 0) {
+      if (addPlaceholder && isValidCount && result.length === 0) {
         const placeholderCount = count - result.length;
 
         for (let i = 0; i < placeholderCount; i += 1) {
@@ -154,7 +142,7 @@ const MessageGroup = forwardRef<
       }
 
       return result;
-    }, [count, defaultMessageType, isUsePlaceholder, messages]);
+    }, [count, defaultMessageType, addPlaceholder, messages]);
 
     useImperativeHandle(ref, () => ({ exists, setMessage, setMessageRe }), [
       exists,
@@ -166,7 +154,6 @@ const MessageGroup = forwardRef<
   },
 );
 
-MessageGroup.defaultProps = MESSAGE_GROUP_DEFAULT_PROPS;
 MessageGroup.displayName = 'MessageGroup';
 
 export type { MessageGroupForwardedRefContent };

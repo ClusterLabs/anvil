@@ -112,7 +112,9 @@ const OutlinedInput: React.FC<OutlinedInputProps> = (props) => {
     let result;
 
     if (typeof endAdornment === 'object') {
-      const casted = endAdornment as React.ReactElement;
+      const casted =
+        endAdornment as React.ReactElement<React.PropsWithChildren>;
+
       const {
         props: { children: castedChildren = [], ...castedRestProps },
       } = casted;

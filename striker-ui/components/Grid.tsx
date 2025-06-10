@@ -1,7 +1,7 @@
-import { Box as MUIBox, Grid as MUIGrid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { Box as MuiBox, Grid as MuiGrid } from '@mui/material';
+import { useMemo } from 'react';
 
-const Grid: FC<GridProps> = ({
+const Grid: React.FC<GridProps> = ({
   calculateItemBreakpoints = () => ({ xs: 1 }),
   layout,
   wrapperBoxProps,
@@ -14,7 +14,7 @@ const Grid: FC<GridProps> = ({
       const key = itemId;
 
       return itemGridProps ? (
-        <MUIGrid
+        <MuiGrid
           {...calculateItemBreakpoints(index, key)}
           key={key}
           item
@@ -26,11 +26,11 @@ const Grid: FC<GridProps> = ({
 
   return (
     // Make Grid compatible with FlexBox by adding an extra empty wrapper.
-    <MUIBox {...wrapperBoxProps}>
-      <MUIGrid container {...restGridProps}>
+    <MuiBox {...wrapperBoxProps}>
+      <MuiGrid container {...restGridProps}>
         {itemElements}
-      </MUIGrid>
-    </MUIBox>
+      </MuiGrid>
+    </MuiBox>
   );
 };
 

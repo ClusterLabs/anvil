@@ -1,14 +1,14 @@
-import { QuestionMark as MUIQuestionMarkIcon } from '@mui/icons-material';
+import { QuestionMark as MuiQuestionMarkIcon } from '@mui/icons-material';
 import {
-  FormControl as MUIFormControl,
-  FormControlProps as MUIFormControlProps,
-  IconButton as MUIIconButton,
-  IconButtonProps as MUIIconButtonProps,
+  FormControl as MuiFormControl,
+  FormControlProps as MuiFormControlProps,
+  IconButton as MuiIconButton,
+  IconButtonProps as MuiIconButtonProps,
   iconButtonClasses as muiIconButtonClasses,
-  InputAdornment as MUIInputAdornment,
-  InputBaseComponentProps as MUIInputBaseComponentProps,
+  InputAdornment as MuiInputAdornment,
+  InputBaseComponentProps as MuiInputBaseComponentProps,
 } from '@mui/material';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -20,7 +20,7 @@ import OutlinedInputLabel, {
 } from './OutlinedInputLabel';
 
 type OutlinedInputWithLabelOptionalPropsWithDefault = {
-  formControlProps?: Partial<MUIFormControlProps>;
+  formControlProps?: Partial<MuiFormControlProps>;
   helpMessageBoxProps?: Partial<MessageBoxProps>;
   id?: string;
   inputProps?: Partial<OutlinedInputProps>;
@@ -31,9 +31,9 @@ type OutlinedInputWithLabelOptionalPropsWithDefault = {
 };
 
 type OutlinedInputWithLabelOptionalPropsWithoutDefault = {
-  baseInputProps?: MUIInputBaseComponentProps;
-  onHelp?: MUIIconButtonProps['onClick'];
-  onHelpAppend?: MUIIconButtonProps['onClick'];
+  baseInputProps?: MuiInputBaseComponentProps;
+  onHelp?: MuiIconButtonProps['onClick'];
+  onHelpAppend?: MuiIconButtonProps['onClick'];
   type?: string;
 };
 
@@ -49,47 +49,26 @@ type OutlinedInputWithLabelProps = Pick<
     label: string;
   };
 
-const OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS: Required<OutlinedInputWithLabelOptionalPropsWithDefault> &
-  OutlinedInputWithLabelOptionalPropsWithoutDefault = {
-  baseInputProps: undefined,
-  formControlProps: {},
-  helpMessageBoxProps: {},
-  id: '',
-  inputProps: {},
-  inputLabelProps: {},
-  messageBoxProps: {},
-  onHelp: undefined,
-  onHelpAppend: undefined,
-  required: false,
-  type: undefined,
-  value: '',
-};
-
-const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
+const OutlinedInputWithLabel: React.FC<OutlinedInputWithLabelProps> = ({
   baseInputProps,
   disableAutofill,
-  formControlProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.formControlProps,
-  helpMessageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.helpMessageBoxProps,
-  id = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.id,
-  inputProps: {
-    endAdornment,
-    ...restInputProps
-  } = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputProps,
-  inputLabelProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.inputLabelProps,
+  formControlProps,
+  helpMessageBoxProps,
+  id = '',
+  inputProps: { endAdornment, ...restInputProps } = {},
+  inputLabelProps,
   label,
-  messageBoxProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.messageBoxProps,
+  messageBoxProps,
   name,
   onBlur,
   onChange,
   onFocus,
   onHelp,
   onHelpAppend,
-  required = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.required,
+  required,
   type,
-  value = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS.value,
+  value = '',
 }) => {
-  const { text: helpText = '' } = helpMessageBoxProps;
-
   const [isShowHelp, setIsShowHelp] = useState<boolean>(false);
 
   const helpElement = useMemo(
@@ -105,18 +84,18 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
     [helpMessageBoxProps, isShowHelp],
   );
   const isShowHelpButton: boolean = useMemo(
-    () => onHelp !== undefined || helpText.length > 0,
-    [helpText, onHelp],
+    () => onHelp !== undefined || Boolean(helpMessageBoxProps?.text),
+    [helpMessageBoxProps?.text, onHelp],
   );
 
   const createHelpHandler = useCallback<
-    () => MUIIconButtonProps['onClick']
+    () => MuiIconButtonProps['onClick']
   >(() => {
-    let handler: MUIIconButtonProps['onClick'];
+    let handler: MuiIconButtonProps['onClick'];
 
     if (onHelp) {
       handler = onHelp;
-    } else if (helpText.length > 0) {
+    } else if (helpMessageBoxProps?.text) {
       handler = (...args) => {
         setIsShowHelp((previous) => !previous);
         onHelpAppend?.call(null, ...args);
@@ -124,18 +103,18 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
     }
 
     return handler;
-  }, [helpText, onHelp, onHelpAppend]);
+  }, [helpMessageBoxProps?.text, onHelp, onHelpAppend]);
   const handleHelp = useMemo(createHelpHandler, [createHelpHandler]);
 
   return (
-    <MUIFormControl fullWidth {...formControlProps}>
+    <MuiFormControl fullWidth {...formControlProps}>
       <OutlinedInputLabel htmlFor={id} {...inputLabelProps}>
         {label}
       </OutlinedInputLabel>
       <OutlinedInput
         disableAutofill={disableAutofill}
         endAdornment={
-          <MUIInputAdornment
+          <MuiInputAdornment
             position="end"
             sx={{
               display: 'flex',
@@ -153,13 +132,13 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
           >
             {endAdornment}
             {isShowHelpButton && (
-              <MUIIconButton onClick={handleHelp} tabIndex={-1}>
-                <MUIQuestionMarkIcon />
-              </MUIIconButton>
+              <MuiIconButton onClick={handleHelp} tabIndex={-1}>
+                <MuiQuestionMarkIcon />
+              </MuiIconButton>
             )}
-          </MUIInputAdornment>
+          </MuiInputAdornment>
         }
-        fullWidth={formControlProps.fullWidth}
+        fullWidth={formControlProps?.fullWidth}
         id={id}
         inputProps={baseInputProps}
         label={label}
@@ -174,11 +153,9 @@ const OutlinedInputWithLabel: FC<OutlinedInputWithLabelProps> = ({
       />
       {helpElement}
       <InputMessageBox {...messageBoxProps} />
-    </MUIFormControl>
+    </MuiFormControl>
   );
 };
-
-OutlinedInputWithLabel.defaultProps = OUTLINED_INPUT_WITH_LABEL_DEFAULT_PROPS;
 
 export type { OutlinedInputWithLabelProps };
 

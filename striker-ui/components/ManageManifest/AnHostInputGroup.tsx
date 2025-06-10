@@ -1,4 +1,4 @@
-import { ReactElement, useMemo } from 'react';
+import {  useMemo } from 'react';
 
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
@@ -140,7 +140,7 @@ const AnHostInputGroup = <M extends MapToInputTestID>({
   } = {},
   // Props that depend on others.
   hostLabel = `${hostType.replace('node', 'subnode')} ${hostNumber}`,
-}: AnHostInputGroupProps<M>): ReactElement => {
+}: AnHostInputGroupProps<M>): React.ReactElement => {
   const fenceListEntries = useMemo(
     () => Object.entries(fenceList),
     [fenceList],

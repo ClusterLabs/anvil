@@ -1,11 +1,4 @@
-import {
-  MutableRefObject,
-  forwardRef,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { forwardRef, useCallback, useMemo, useRef, useState } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -237,7 +230,7 @@ const AddPeerDialog = forwardRef<
             onClick={() => {
               if (ref && 'current' in ref) {
                 (
-                  ref as MutableRefObject<ConfirmDialogForwardedRefContent>
+                  ref as React.RefObject<ConfirmDialogForwardedRefContent>
                 ).current.setOpen?.call(null, false);
               }
             }}

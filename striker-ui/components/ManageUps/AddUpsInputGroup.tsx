@@ -1,4 +1,4 @@
-import { ReactElement, ReactNode, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { BLACK } from '../../lib/consts/DEFAULT_THEME';
 
@@ -24,12 +24,16 @@ const AddUpsInputGroup = <
       | typeof INPUT_ID_UPS_NAME
       | typeof INPUT_ID_UPS_TYPE]: string;
   },
->({
-  formUtils,
-  loading: isExternalLoading,
-  previous = {},
-  upsTemplate,
-}: AddUpsInputGroupProps<M>): ReactElement => {
+>(
+  ...[props]: Parameters<React.FC<AddUpsInputGroupProps<M>>>
+): ReturnType<React.FC<AddUpsInputGroupProps<M>>> => {
+  const {
+    formUtils,
+    loading: isExternalLoading,
+    previous = {},
+    upsTemplate,
+  } = props;
+
   const { buildInputFirstRenderFunction, setValidity } = formUtils;
 
   const { upsTypeId: previousUpsTypeId = '' } = previous;
@@ -51,7 +55,7 @@ const AddUpsInputGroup = <
                 links: { 0: link },
               },
             ]) => {
-              let linkElement: ReactNode;
+              let linkElement: React.ReactNode;
 
               if (link) {
                 const { linkHref, linkLabel } = link;
@@ -121,7 +125,7 @@ const AddUpsInputGroup = <
     [upsTemplate, upsTypeOptions, inputUpsTypeIdValue, setValidity],
   );
 
-  const content = useMemo<ReactElement>(
+  const content = useMemo<React.ReactElement>(
     () =>
       isExternalLoading ? (
         <Spinner />

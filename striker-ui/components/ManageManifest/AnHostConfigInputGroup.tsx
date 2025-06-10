@@ -1,5 +1,5 @@
 import { Netmask } from 'netmask';
-import { ReactElement, useMemo } from 'react';
+import {  useMemo } from 'react';
 
 import AnHostInputGroup from './AnHostInputGroup';
 import Grid from '../Grid';
@@ -58,7 +58,7 @@ const AnHostConfigInputGroup = <M extends MapToInputTestID>({
   knownUpses = {},
   networkListEntries,
   previous: { hosts: previousHostList = DEFAULT_HOST_LIST } = {},
-}: AnHostConfigInputGroupProps<M>): ReactElement => {
+}: AnHostConfigInputGroupProps<M>): React.ReactElement => {
   const hostListEntries = useMemo(
     () => Object.entries(previousHostList),
     [previousHostList],

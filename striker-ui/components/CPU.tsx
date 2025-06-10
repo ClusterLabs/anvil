@@ -7,7 +7,7 @@ import Spinner from './Spinner';
 import { HeaderText, BodyText } from './Text';
 import useFetch from '../hooks/useFetch';
 
-const CPU = (): JSX.Element => {
+const CPU: React.FC = () => {
   const { uuid } = useContext(AnvilContext);
 
   const { data: { allocated = 0, cores = 0, threads = 0 } = {}, loading } =

@@ -1,6 +1,6 @@
 import { Box, linearProgressClasses, styled } from '@mui/material';
 import { merge } from 'lodash';
-import { FC, ReactElement, createElement, useMemo } from 'react';
+import { FC,  createElement, useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -38,9 +38,9 @@ const StackBar: FC<StackBarProps> = (props) => {
     [thin],
   );
 
-  const bars = useMemo<ReactElement[]>(
+  const bars = useMemo<React.ReactElement[]>(
     () =>
-      entries.map<ReactElement>(([id, barOptions], index) => {
+      entries.map<React.ReactElement>(([id, barOptions], index) => {
         const { barProps, colour = GREY, value: val } = barOptions;
 
         const backgroundColor =

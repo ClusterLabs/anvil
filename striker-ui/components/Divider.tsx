@@ -1,8 +1,8 @@
-import { Divider as MUIDivider, styled } from '@mui/material';
+import { Divider as MuiDivider, styled } from '@mui/material';
 
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 
-const Divider = styled(MUIDivider)({
+const Divider = styled(MuiDivider)({
   backgroundColor: DIVIDER,
 });
 

@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
@@ -15,7 +15,7 @@ import State from '../State';
 import { BodyText, MonoText, SmallText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
-const ConfigPeersForm: FC<ConfigPeerFormProps> = ({
+const ConfigPeersForm: React.FC<ConfigPeerFormProps> = ({
   refreshInterval = 60000,
 }) => {
   const addPeerDialogRef = useRef<ConfirmDialogForwardedRefContent>({});

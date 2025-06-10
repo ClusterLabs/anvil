@@ -1,9 +1,12 @@
-import { styled, Typography, TypographyProps } from '@mui/material';
-import { FC, useMemo } from 'react';
+import {
+  styled,
+  Typography as MuiTypography,
+  TypographyProps as MuiTypographyProps,
+} from '@mui/material';
 
 import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 
-const WhiteTypography = styled(Typography)({
+const StyledTypography = styled(MuiTypography)({
   color: TEXT,
 });
 
@@ -13,26 +16,18 @@ type HeaderTextOptionalPropsWithoutDefault = {
 
 type HeaderTextOptionalProps = HeaderTextOptionalPropsWithoutDefault;
 
-type HeaderTextProps = TypographyProps & HeaderTextOptionalProps;
+type HeaderTextProps = MuiTypographyProps & HeaderTextOptionalProps;
 
-const HEADER_TEXT_DEFAULT_PROPS: HeaderTextOptionalPropsWithoutDefault = {
-  text: undefined,
-};
-
-const HeaderText: FC<HeaderTextProps> = ({
-  children,
+const HeaderText: React.FC<HeaderTextProps> = ({
   text,
+  // Dependants:
+  children = text,
+
   ...restHeaderTextProps
-}) => {
-  const content = useMemo(() => children ?? text, [children, text]);
-
-  return (
-    <WhiteTypography variant="h4" {...restHeaderTextProps}>
-      {content}
-    </WhiteTypography>
-  );
-};
-
-HeaderText.defaultProps = HEADER_TEXT_DEFAULT_PROPS;
+}) => (
+  <StyledTypography variant="h4" {...restHeaderTextProps}>
+    {children}
+  </StyledTypography>
+);
 
 export default HeaderText;

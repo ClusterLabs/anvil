@@ -1,7 +1,9 @@
+
+
 import { BodyText } from '../Text';
 import anvilState from '../../lib/consts/ANVILS';
 
-const Anvil = ({ anvil }: { anvil: AnvilListItem }): JSX.Element => (
+const Anvil = ({ anvil }: { anvil: AnvilListItem }): React.ReactElement => (
   <>
     <BodyText text={anvil.anvil_name} />
     <BodyText

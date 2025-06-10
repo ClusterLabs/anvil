@@ -7,7 +7,9 @@ const BaseStyle = styled(ContainedButton)({
   whiteSpace: 'nowrap',
 });
 
-const MaxButton: React.FC<MaxButtonProps> = (props) => {
+const MaxButton: React.FC<React.PropsWithChildren<MaxButtonProps>> = (
+  props,
+) => {
   const { children, onClick, slotProps } = props;
 
   return (

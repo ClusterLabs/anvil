@@ -13,6 +13,8 @@ import { InnerPanel, InnerPanelHeader } from '../Panels';
 import { BodyText } from '../Text';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 
+
+
 const PREFIX = 'AnvilHost';
 
 const classes = {
@@ -71,7 +73,7 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): JSX.Element => {
+const AnvilHost = ({ hosts }: { hosts: AnvilStatusHost[] }): React.ReactElement => {
   const stateRegex = /^[a-zA-Z]/;
   const messageRegex = /^(message_[0-9]+)/;
 

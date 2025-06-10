@@ -9,7 +9,7 @@ const AnvilContext = createContext<AnvilContextValue>({
   uuid: '',
 });
 
-const AnvilProvider: React.FC = (props) => {
+const AnvilProvider: React.FC<React.PropsWithChildren> = (props) => {
   const { children } = props;
 
   const [uuid, setUuid] = useState<string>('');

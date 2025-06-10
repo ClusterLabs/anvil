@@ -3,7 +3,7 @@ import {
   checkboxClasses as muiCheckboxClasses,
   styled,
 } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { BLACK, GREY } from '../lib/consts/DEFAULT_THEME';
 
@@ -34,7 +34,7 @@ const BaseStyle = styled(MuiCheckbox)({
   },
 });
 
-const Checkbox: FC<CheckboxProps> = (props) => {
+const Checkbox: React.FC<CheckboxProps> = (props) => {
   const {
     className: baseClassName,
     invert,

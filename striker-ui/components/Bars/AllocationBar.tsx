@@ -5,6 +5,8 @@ import { PURPLE, RED, BLUE } from '../../lib/consts/DEFAULT_THEME';
 import BorderLinearProgress from './BorderLinearProgress';
 import Underline from './Underline';
 
+
+
 const PREFIX = 'AllocationBar';
 
 const classes = {
@@ -30,7 +32,7 @@ const StyledDiv = styled('div')(() => ({
 const breakpointWarning = 70;
 const breakpointAlert = 90;
 
-const AllocationBar = ({ allocated }: { allocated: number }): JSX.Element => (
+const AllocationBar = ({ allocated }: { allocated: number }): React.ReactElement => (
   <StyledDiv>
     <BorderLinearProgress
       classes={{

@@ -1,4 +1,4 @@
-import { ReactElement, useMemo, useState } from 'react';
+import {  useMemo, useState } from 'react';
 
 import AnHostConfigInputGroup from './AnHostConfigInputGroup';
 import AnIdInputGroup, {
@@ -51,7 +51,7 @@ const AddManifestInputGroup = <
     networkConfig: previousNetworkConfig = {},
     ...previousAnId
   } = {},
-}: AddManifestInputGroupProps<M>): ReactElement => {
+}: AddManifestInputGroupProps<M>): React.ReactElement => {
   const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
     previousNetworkConfig;
 

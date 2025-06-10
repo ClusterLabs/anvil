@@ -1,14 +1,14 @@
-import { Sync as SyncIcon } from '@mui/icons-material';
-import { styled, SvgIconProps } from '@mui/material';
+import { Sync as MuiSyncIcon } from '@mui/icons-material';
+import { styled, SvgIconProps as MuiSvgIconProps } from '@mui/material';
 
 import { BLUE, UNSELECTED } from '../lib/consts/DEFAULT_THEME';
 
 type BaseProps = {
   syncing?: boolean;
-} & SvgIconProps;
+} & MuiSvgIconProps;
 
 const Base: React.FC<BaseProps> = ({ syncing, ...svgIconProps }) => (
-  <SyncIcon {...svgIconProps} />
+  <MuiSyncIcon {...svgIconProps} />
 );
 
 const SyncIndicator = styled(Base)((props) => {

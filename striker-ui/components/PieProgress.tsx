@@ -1,7 +1,7 @@
 import {
-  Box,
-  CircularProgress,
-  CircularProgressProps,
+  Box as MuiBox,
+  CircularProgress as MuiCircularProgress,
+  CircularProgressProps as MuiCircularProgressProps,
   styled,
 } from '@mui/material';
 import { useMemo } from 'react';
@@ -16,7 +16,7 @@ const classes = {
   inProgress: `${PREFIX}-in-progress`,
 };
 
-const BasePieProgress = styled(CircularProgress)({
+const BasePieProgress = styled(MuiCircularProgress)({
   [`&.${classes.complete}`]: {
     color: BLUE,
   },
@@ -30,11 +30,11 @@ const BasePieProgress = styled(CircularProgress)({
   },
 });
 
-const Underline = styled(CircularProgress)({
+const Underline = styled(MuiCircularProgress)({
   color: DISABLED,
 });
 
-const PieProgressBox = styled(Box)({
+const PieProgressBox = styled(MuiBox)({
   position: 'relative',
 });
 
@@ -59,7 +59,7 @@ const PieProgress: React.FC<PieProgressProps> = (props) => {
     return classes.inProgress;
   }, [error, pieValue]);
 
-  const underlineProps = useMemo<CircularProgressProps>(() => {
+  const underlineProps = useMemo<MuiCircularProgressProps>(() => {
     const ulProps = slotProps?.underline;
 
     const thickness = ulProps?.thickness ?? 2;

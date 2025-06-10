@@ -1,4 +1,4 @@
-import { Box, createFilterOptions, Grid } from '@mui/material';
+import { Box as MuiBox, createFilterOptions, Grid } from '@mui/material';
 import { DataSize, dSize, dSizeStr } from 'format-data-size';
 import { isEqual } from 'lodash';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -508,14 +508,14 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
       return (
         <li {...optionProps} key={`${field}-op-${uuid}`}>
-          <Box width="100%">
+          <MuiBox width="100%">
             <BodyText inheritColour noWrap>
               {file.name}
             </BodyText>
             <SmallText inheritColour noWrap>
               {status}
             </SmallText>
-          </Box>
+          </MuiBox>
         </li>
       );
     },
@@ -795,14 +795,14 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
 
                   return (
                     <li {...optionProps} key={`os-op-${osKey}`}>
-                      <Box width="100%">
+                      <MuiBox width="100%">
                         <BodyText inheritColour noWrap>
                           {os}
                         </BodyText>
                         <SmallText inheritColour noWrap>
                           {osKey}
                         </SmallText>
-                      </Box>
+                      </MuiBox>
                     </li>
                   );
                 }}

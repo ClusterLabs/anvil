@@ -1,7 +1,7 @@
-import { FC, ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
-  Typography as MUITypography,
-  TypographyProps as MUITypographyProps,
+  Typography as MuiTypography,
+  TypographyProps as MuiTypographyProps,
 } from '@mui/material';
 
 import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
@@ -13,22 +13,12 @@ type BodyTextOptionalProps = {
   inverted?: boolean;
   monospaced?: boolean;
   selected?: boolean;
-  text?: null | ReactNode | string;
+  text?: null | React.ReactNode | string;
 };
 
-type BodyTextProps = MUITypographyProps & BodyTextOptionalProps;
+type BodyTextProps = MuiTypographyProps & BodyTextOptionalProps;
 
 const BODY_TEXT_CLASS_PREFIX = 'BodyText';
-
-const BODY_TEXT_DEFAULT_PROPS: Required<BodyTextOptionalProps> = {
-  edge: null,
-  inheritColour: false,
-  inline: false,
-  inverted: false,
-  monospaced: false,
-  selected: true,
-  text: null,
-};
 
 const BODY_TEXT_CLASSES = {
   inheritColour: `${BODY_TEXT_CLASS_PREFIX}-inherit-colour`,
@@ -68,16 +58,18 @@ const buildBodyTextClasses = ({
   return bodyTextClasses.join(' ');
 };
 
-const BodyText: FC<BodyTextProps> = ({
-  children,
+const BodyText: React.FC<BodyTextProps> = ({
   className,
-  inheritColour: isInheritColour = BODY_TEXT_DEFAULT_PROPS.inheritColour,
-  inline: isInline = BODY_TEXT_DEFAULT_PROPS.inline,
-  inverted: isInvert = BODY_TEXT_DEFAULT_PROPS.inverted,
-  monospaced: isMonospace = BODY_TEXT_DEFAULT_PROPS.monospaced,
-  selected: isSelect = BODY_TEXT_DEFAULT_PROPS.selected,
+  inheritColour: isInheritColour = false,
+  inline: isInline = false,
+  inverted: isInvert = false,
+  monospaced: isMonospace = false,
+  selected: isSelect = true,
   sx,
-  text = BODY_TEXT_DEFAULT_PROPS.text,
+  text = null,
+  // Dependants:
+  children = text,
+
   ...muiTypographyRestProps
 }) => {
   const sxDisplay = useMemo<string | undefined>(
@@ -95,11 +87,11 @@ const BodyText: FC<BodyTextProps> = ({
       }),
     [isInheritColour, isInvert, isMonospace, isSelect],
   );
-  const content = useMemo(() => text ?? children, [children, text]);
 
   return (
-    <MUITypography
+    <MuiTypography
       className={`${baseClassName} ${className}`}
+      // TODO: change to non-title variant!
       variant="subtitle1"
       {...muiTypographyRestProps}
       sx={{
@@ -125,12 +117,10 @@ const BodyText: FC<BodyTextProps> = ({
         ...sx,
       }}
     >
-      {content}
-    </MUITypography>
+      {children}
+    </MuiTypography>
   );
 };
-
-BodyText.defaultProps = BODY_TEXT_DEFAULT_PROPS;
 
 export type { BodyTextProps };
 

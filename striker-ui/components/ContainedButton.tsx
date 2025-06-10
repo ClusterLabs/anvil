@@ -3,7 +3,6 @@ import {
   buttonClasses as muiButtonClasses,
   styled,
 } from '@mui/material';
-import { FC } from 'react';
 
 import {
   BLACK,
@@ -20,7 +19,7 @@ const MAP_TO_COLOUR: Record<ContainedButtonBackground, string> = {
   red: RED,
 };
 
-const BaseStyle = styled(MuiButton)({
+const StyledButton = styled(MuiButton)({
   backgroundColor: GREY,
   color: BLACK,
   textTransform: 'none',
@@ -34,8 +33,8 @@ const BaseStyle = styled(MuiButton)({
   },
 });
 
-const Base: FC<ContainedButtonProps> = (props) => (
-  <BaseStyle variant="contained" {...props} />
+const Base: React.FC<ContainedButtonProps> = (props) => (
+  <StyledButton variant="contained" {...props} />
 );
 
 const ContainedButton = styled(Base)((props) => {

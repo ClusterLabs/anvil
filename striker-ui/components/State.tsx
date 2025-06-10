@@ -1,8 +1,9 @@
 import {
-  Check as MUICheckIcon,
-  Close as MUICloseIcon,
+  Check as MuiCheckIcon,
+  Close as MuiCloseIcon,
 } from '@mui/icons-material';
-import { cloneElement, createElement, FC, ReactElement } from 'react';
+import { SvgIconProps as MuiSvgIconProps } from '@mui/material';
+import { cloneElement, createElement } from 'react';
 
 import { BLUE, PURPLE } from '../lib/consts/DEFAULT_THEME';
 
@@ -13,10 +14,10 @@ type StateTypeMap = Pick<MapToType, 'boolean'>;
 
 type StateMap<TypeName extends keyof StateTypeMap> = Map<
   StateTypeMap[TypeName],
-  ReactElement
+  React.ReactElement<MuiSvgIconProps>
 >;
 
-type LabelMap = Record<'small' | 'medium', FC>;
+type LabelMap = Record<'small' | 'medium', React.FC>;
 
 type StateOptionalProps<TypeName extends keyof StateTypeMap> = {
   size?: keyof LabelMap;
@@ -36,9 +37,9 @@ const MAP_TO_TEXT_ELEMENT: LabelMap = {
 
 const STATE_DEFAULT_PROPS: Required<StateOptionalProps<'boolean'>> = {
   size: 'small',
-  stateMap: new Map<boolean, ReactElement>([
-    [false, <MUICloseIcon key="state-false" sx={{ color: PURPLE }} />],
-    [true, <MUICheckIcon key="state-true" sx={{ color: BLUE }} />],
+  stateMap: new Map<boolean, React.ReactElement<MuiSvgIconProps>>([
+    [false, <MuiCloseIcon key="state-false" sx={{ color: PURPLE }} />],
+    [true, <MuiCheckIcon key="state-true" sx={{ color: BLUE }} />],
   ]),
 };
 
@@ -47,7 +48,7 @@ const State = <TypeName extends keyof StateTypeMap>({
   size = STATE_DEFAULT_PROPS.size,
   state,
   stateMap = STATE_DEFAULT_PROPS.stateMap,
-}: StateProps<TypeName>): ReturnType<FC<StateProps<TypeName>>> => {
+}: StateProps<TypeName>): ReturnType<React.FC<StateProps<TypeName>>> => {
   const stateIcon = stateMap.get(state);
 
   return (
