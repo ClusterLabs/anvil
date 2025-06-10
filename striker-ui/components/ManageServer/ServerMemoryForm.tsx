@@ -5,7 +5,7 @@ import {
   dSizeStr,
   FormatDataSizeOptions,
 } from 'format-data-size';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
 
@@ -25,7 +25,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const DEFAULT_UNIT: DataSizeUnit = 'GiB';
 
-const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
+const BaseServerMemoryForm: React.FC<BaseServerMemoryFormProps> = (props) => {
   const { detail, memory, tools } = props;
 
   const formikUtils = useFormikUtils<ServerMemoryFormikValues>({
@@ -169,7 +169,7 @@ const BaseServerMemoryForm: FC<BaseServerMemoryFormProps> = (props) => {
   );
 };
 
-const ServerMemoryForm: FC<ServerMemoryFormProps> = (props) => {
+const ServerMemoryForm: React.FC<ServerMemoryFormProps> = (props) => {
   const { detail } = props;
 
   const { altData: memory } = useFetch<AnvilMemory, AnvilMemoryCalcable>(

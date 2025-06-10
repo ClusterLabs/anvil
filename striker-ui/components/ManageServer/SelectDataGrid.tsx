@@ -21,6 +21,6 @@ const SelectDataGrid = styled(DragDataGrid)({
       borderLeft: `thick solid ${GREY}`,
     },
   },
-});
+}) as typeof DragDataGrid;
 
 export default SelectDataGrid;

@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import handleFormSubmit from './handleFormSubmit';
 import MessageBox from '../MessageBox';
@@ -11,7 +11,7 @@ import ServerFormSubmit from './ServerFormSubmit';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerRenameForm: FC<ServerRenameFormProps> = (props) => {
+const ServerRenameForm: React.FC<ServerRenameFormProps> = (props) => {
   const { detail, servers, tools } = props;
 
   const formikUtils = useFormikUtils<ServerRenameFormikValues>({

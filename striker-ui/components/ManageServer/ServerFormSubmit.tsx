@@ -1,10 +1,10 @@
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
-const ServerFormSubmit: FC<ServerFormSubmitProps> = (props) => {
+const ServerFormSubmit: React.FC<ServerFormSubmitProps> = (props) => {
   const { dangerous, detail, formDisabled, label } = props;
 
   const { data: jobs } = useFetch<APIJobOverviewList>(
