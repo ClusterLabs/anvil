@@ -1,4 +1,4 @@
-import { Box, Grid } from '@mui/material';
+import { Box as MuiBox, Grid } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useMemo } from 'react';
 
@@ -327,10 +327,10 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
 
                 return (
                   <li {...optionProps} key={`fence-agent-${id}`}>
-                    <Box>
+                    <MuiBox>
                       <BodyText inheritColour>{id}</BodyText>
                       <BodyText selected={false}>{description}</BodyText>
-                    </Box>
+                    </MuiBox>
                   </li>
                 );
               }}

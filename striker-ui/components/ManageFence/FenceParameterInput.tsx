@@ -1,4 +1,4 @@
-import { Box, Tooltip } from '@mui/material';
+import { Box as MuiBox, Tooltip as MuiTooltip } from '@mui/material';
 import { useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
@@ -116,8 +116,11 @@ const FenceParameterInput = <Values extends FenceFormikValues>(
 
   const tooltip = useMemo(
     () => (
-      <Tooltip
-        componentsProps={{
+      <MuiTooltip
+        disableInteractive
+        key={`${id}-tooltip`}
+        placement="top-start"
+        slotProps={{
           tooltip: {
             sx: {
               maxWidth: {
@@ -126,13 +129,10 @@ const FenceParameterInput = <Values extends FenceFormikValues>(
             },
           },
         }}
-        disableInteractive
-        key={`${id}-tooltip`}
-        placement="top-start"
         title={<BodyText>{description}</BodyText>}
       >
-        <Box>{input}</Box>
-      </Tooltip>
+        <MuiBox>{input}</MuiBox>
+      </MuiTooltip>
     ),
     [description, id, input],
   );
