@@ -1,4 +1,7 @@
-import { Grid, gridClasses } from '@mui/material';
+import {
+  Grid2 as MuiGrid,
+  grid2Classes as muiGridClasses,
+} from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
@@ -19,21 +22,21 @@ const HostStorageList: React.FC<HostStorageListProps> = (props) => {
     const used = dSizeStr(nUsed, { toUnit: 'ibyte' });
 
     return (
-      <Grid item width="100%">
+      <MuiGrid width="100%">
         <BodyText>Total</BodyText>
         <StorageBar volume={volumeGroupTotals} />
-        <Grid container>
-          <Grid item>
+        <MuiGrid container width="100%">
+          <MuiGrid>
             <BodyText>Used: {used}</BodyText>
-          </Grid>
-          <Grid item textAlign="center" xs>
+          </MuiGrid>
+          <MuiGrid size="grow" textAlign="center">
             <BodyText fontWeight={400}>Free: {free}</BodyText>
-          </Grid>
-          <Grid item textAlign="right">
+          </MuiGrid>
+          <MuiGrid textAlign="right">
             <BodyText>Size: {size}</BodyText>
-          </Grid>
-        </Grid>
-      </Grid>
+          </MuiGrid>
+        </MuiGrid>
+      </MuiGrid>
     );
   }, [volumeGroupTotals]);
 
@@ -45,37 +48,39 @@ const HostStorageList: React.FC<HostStorageListProps> = (props) => {
       const size = dSizeStr(nSize, { toUnit: 'ibyte' });
 
       return (
-        <Grid item key={`vg-${uuid}`}>
-          <Grid alignItems="center" container>
-            <Grid item xs>
+        <MuiGrid key={`vg-${uuid}`}>
+          <MuiGrid alignItems="center" container width="100%">
+            <MuiGrid size="grow">
               <BodyText noWrap>{name}</BodyText>
-            </Grid>
-            <Grid item>
+            </MuiGrid>
+            <MuiGrid>
               <BodyText variant="caption">
                 Free <InlineMonoText>{free}</InlineMonoText>/
                 <InlineMonoText edge="end">{size}</InlineMonoText>
               </BodyText>
-            </Grid>
-            <Grid item width="100%">
+            </MuiGrid>
+            <MuiGrid width="100%">
               <StorageBar thin volume={vg} />
-            </Grid>
-            <Grid item width="100%">
+            </MuiGrid>
+            <MuiGrid width="100%">
               <MonoText noWrap variant="caption">
                 {internalUuid}
               </MonoText>
-            </Grid>
-          </Grid>
-        </Grid>
+            </MuiGrid>
+          </MuiGrid>
+        </MuiGrid>
       );
     });
 
     return (
-      <Grid item width="100%">
-        <Grid
+      <MuiGrid width="100%">
+        <MuiGrid
           container
           spacing="1em"
           sx={{
-            [`& > .${gridClasses.item}`]: {
+            width: '100%',
+
+            [`& > .${muiGridClasses.root}`]: {
               width: {
                 xs: '100%',
                 lg: '50%',
@@ -85,22 +90,22 @@ const HostStorageList: React.FC<HostStorageListProps> = (props) => {
           }}
         >
           {ls}
-        </Grid>
-      </Grid>
+        </MuiGrid>
+      </MuiGrid>
     );
   }, [volumeGroups]);
 
   return (
-    <Grid alignItems="center" container spacing="1em">
+    <MuiGrid alignItems="center" container spacing="1em" width="100%">
       {total}
-      <Grid item>
+      <MuiGrid>
         <BodyText>Volume Groups</BodyText>
-      </Grid>
-      <Grid item xs>
+      </MuiGrid>
+      <MuiGrid size="grow">
         <Divider />
-      </Grid>
+      </MuiGrid>
       {vgs}
-    </Grid>
+    </MuiGrid>
   );
 };
 

@@ -1,5 +1,5 @@
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
 import { Grid } from '@mui/material';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
@@ -7,13 +7,13 @@ import DeleteSshKeyConflictProgress from './DeleteSshKeyConflictProgress';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
-import UncontrolledInput from '../UncontrolledInput';
-import useFormikUtils from '../../hooks/useFormikUtils';
 import { testAccessSchema } from './schemas';
 import Spinner from '../Spinner';
 import { BodyText } from '../Text';
+import UncontrolledInput from '../UncontrolledInput';
+import useFormikUtils from '../../hooks/useFormikUtils';
 
-const TestAccessForm: FC<TestAccessFormProps> = (props) => {
+const TestAccessForm: React.FC<TestAccessFormProps> = (props) => {
   const { setResponse, tools } = props;
 
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
