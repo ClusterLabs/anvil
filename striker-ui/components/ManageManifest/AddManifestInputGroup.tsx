@@ -1,4 +1,4 @@
-import {  useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import AnHostConfigInputGroup from './AnHostConfigInputGroup';
 import AnIdInputGroup, {
@@ -42,16 +42,20 @@ const AddManifestInputGroup = <
       | typeof INPUT_ID_ANC_DNS
       | typeof INPUT_ID_ANC_NTP]: string;
   },
->({
-  formUtils,
-  knownFences,
-  knownUpses,
-  previous: {
-    hostConfig: previousHostConfig,
-    networkConfig: previousNetworkConfig = {},
-    ...previousAnId
-  } = {},
-}: AddManifestInputGroupProps<M>): React.ReactElement => {
+>(
+  ...[props]: Parameters<React.FC<AddManifestInputGroupProps<M>>>
+): ReturnType<React.FC<AddManifestInputGroupProps<M>>> => {
+  const {
+    formUtils,
+    knownFences,
+    knownUpses,
+    previous: {
+      hostConfig: previousHostConfig,
+      networkConfig: previousNetworkConfig = {},
+      ...previousAnId
+    } = {},
+  } = props;
+
   const { networks: previousNetworkList = DEFAULT_NETWORK_LIST } =
     previousNetworkConfig;
 

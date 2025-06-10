@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import {  ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
@@ -77,35 +77,39 @@ const buildInputIdANNetworkType = (networkId: string): string =>
 const buildInputIdANSubnetMask = (networkId: string): string =>
   `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-subnet-mask`;
 
-const AnNetworkInputGroup = <M extends MapToInputTestID>({
-  debounceWait = 500,
-  formUtils: {
-    buildFinishInputTestBatchFunction,
-    buildInputFirstRenderFunction,
-    buildInputUnmountFunction,
-    setMessage,
-  },
-  inputGatewayLabel = 'Gateway',
-  inputMinIpLabel = 'IP address',
-  inputSubnetMaskLabel = 'Subnet mask',
-  networkId,
-  networkNumber,
-  networkType,
-  networkTypeOptions,
-  onClose,
-  onNetworkGatewayChange,
-  onNetworkMinIpChange,
-  onNetworkSubnetMaskChange,
-  onNetworkTypeChange,
-  previous: {
-    gateway: previousGateway,
-    minIp: previousIpAddress,
-    subnetMask: previousSubnetMask,
-  } = {},
-  readonlyNetworkName: isReadonlyNetworkName,
-  showCloseButton: isShowCloseButton,
-  showGateway: isShowGateway,
-}: AnNetworkInputGroupProps<M>): React.ReactElement => {
+const AnNetworkInputGroup = <M extends MapToInputTestID>(
+  ...[props]: Parameters<React.FC<AnNetworkInputGroupProps<M>>>
+): ReturnType<React.FC<AnNetworkInputGroupProps<M>>> => {
+  const {
+    debounceWait = 500,
+    formUtils: {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      buildInputUnmountFunction,
+      setMessage,
+    },
+    inputGatewayLabel = 'Gateway',
+    inputMinIpLabel = 'IP address',
+    inputSubnetMaskLabel = 'Subnet mask',
+    networkId,
+    networkNumber,
+    networkType,
+    networkTypeOptions,
+    onClose,
+    onNetworkGatewayChange,
+    onNetworkMinIpChange,
+    onNetworkSubnetMaskChange,
+    onNetworkTypeChange,
+    previous: {
+      gateway: previousGateway,
+      minIp: previousIpAddress,
+      subnetMask: previousSubnetMask,
+    } = {},
+    readonlyNetworkName: isReadonlyNetworkName,
+    showCloseButton: isShowCloseButton,
+    showGateway: isShowGateway,
+  } = props;
+
   const networkName = useMemo(
     () => `${NETWORK_TYPES[networkType]} ${networkNumber}`,
     [networkNumber, networkType],
@@ -169,7 +173,7 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [debounceWait, onNetworkSubnetMaskChange],
   );
 
-  const closeButtonElement = useMemo<ReactNode>(
+  const closeButtonElement = useMemo<React.ReactNode>(
     () =>
       isShowCloseButton && (
         <IconButton
@@ -189,8 +193,8 @@ const AnNetworkInputGroup = <M extends MapToInputTestID>({
     [isShowCloseButton, networkId, networkType, onClose],
   );
 
-  const inputGatewayElement = useMemo<ReactNode>(() => {
-    let result: ReactNode;
+  const inputGatewayElement = useMemo<React.ReactNode>(() => {
+    let result: React.ReactNode;
 
     if (isShowGateway && inputIdGateway) {
       result = (

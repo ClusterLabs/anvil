@@ -1,6 +1,6 @@
 import { Grid } from '@mui/material';
 import { cloneDeep } from 'lodash';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -21,7 +21,7 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const NONE = '--';
 
-const RunManifestForm: FC<RunManifestFormProps> = (props) => {
+const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
   const {
     detail,
     knownFences,
