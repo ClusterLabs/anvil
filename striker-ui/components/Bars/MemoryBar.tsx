@@ -1,5 +1,5 @@
 import { merge } from 'lodash';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';
 
@@ -7,7 +7,7 @@ import StackBar from './StackBar';
 
 const n100 = BigInt(100);
 
-const MemoryBar: FC<
+const MemoryBar: React.FC<
   {
     memory: AnvilMemoryCalcable;
   } & Partial<StackBarProps>

@@ -1,6 +1,10 @@
-import { Box, linearProgressClasses, styled } from '@mui/material';
+import {
+  Box as MuiBox,
+  linearProgressClasses as muiLinearProgressClasses,
+  styled,
+} from '@mui/material';
 import { merge } from 'lodash';
-import { FC,  createElement, useMemo } from 'react';
+import { createElement, useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -15,7 +19,7 @@ const ThinUnderline = styled(Underline)({
   height: '.2em',
 });
 
-const StackBar: FC<StackBarProps> = (props) => {
+const StackBar: React.FC<StackBarProps> = (props) => {
   const { barProps: commonBarProps, thin, underlineProps, value } = props;
 
   const values = useMemo<Record<string, StackBarValue>>(
@@ -72,7 +76,7 @@ const StackBar: FC<StackBarProps> = (props) => {
                 top,
                 width,
 
-                [`& .${linearProgressClasses.bar}`]: {
+                [`& .${muiLinearProgressClasses.bar}`]: {
                   backgroundColor,
                 },
               },
@@ -88,10 +92,10 @@ const StackBar: FC<StackBarProps> = (props) => {
   );
 
   return (
-    <Box position="relative">
+    <MuiBox position="relative">
       {bars}
       {createElement(creatableUnderline, underlineProps)}
-    </Box>
+    </MuiBox>
   );
 };
 

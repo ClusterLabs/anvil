@@ -1,4 +1,4 @@
-import { Box, styled, Switch } from '@mui/material';
+import { Box as MuiBox, styled, Switch as MuiSwitch } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useContext, useMemo } from 'react';
 
@@ -18,7 +18,7 @@ const classes = {
   anvilName: `${PREFIX}-anvilName`,
 };
 
-const StyledBox = styled(Box)(() => ({
+const StyledBox = styled(MuiBox)(() => ({
   display: 'flex',
   flexDirection: 'row',
   width: '100%',
@@ -46,7 +46,11 @@ const isAnvilOn = (anvil: AnvilListItem): boolean =>
     ) === -1
   );
 
-const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): React.ReactElement => {
+const SelectedAnvil: React.FC<{
+  list: AnvilListItem[];
+}> = (props) => {
+  const { list } = props;
+
   const { uuid } = useContext(AnvilContext);
 
   const index = useMemo(
@@ -71,17 +75,17 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): React.ReactElement 
   return (
     <>
       <StyledBox>
-        <Box p={1}>
+        <MuiBox p={1}>
           <Decorator colour={selectDecorator(li.anvilStatus.system)} />
-        </Box>
-        <Box p={1} flexGrow={1} className={classes.anvilName}>
+        </MuiBox>
+        <MuiBox p={1} flexGrow={1} className={classes.anvilName}>
           <HeaderText text={li.anvil_name} />
           <HeaderText
             text={anvilState.get(li.anvilStatus.system) ?? 'State unavailable'}
           />
-        </Box>
-        <Box p={1}>
-          <Switch
+        </MuiBox>
+        <MuiBox p={1}>
+          <MuiSwitch
             checked={isAnvilOn(li)}
             onChange={() => {
               const { [index]: litem } = list;
@@ -130,7 +134,7 @@ const SelectedAnvil = ({ list }: { list: AnvilListItem[] }): React.ReactElement 
               setConfirmDialogOpen(true);
             }}
           />
-        </Box>
+        </MuiBox>
       </StyledBox>
       {confirmDialog}
     </>

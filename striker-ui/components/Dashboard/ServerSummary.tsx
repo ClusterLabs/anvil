@@ -1,4 +1,9 @@
-import { Box, circularProgressClasses, Grid, styled } from '@mui/material';
+import {
+  Box as MuiBox,
+  circularProgressClasses as muiCircularProgressClasses,
+  Grid,
+  styled,
+} from '@mui/material';
 import { capitalize } from 'lodash';
 import { useMemo } from 'react';
 
@@ -78,7 +83,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
                   sx: {
                     opacity: peer ? 0.6 : undefined,
 
-                    [`& .${circularProgressClasses.circle}`]: {
+                    [`& .${muiCircularProgressClasses.circle}`]: {
                       strokeLinecap: 'round',
                     },
                   },
@@ -154,12 +159,12 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
         </Grid>
       </Grid>
       <Grid item xs>
-        <Box>
+        <MuiBox>
           <Link href={`/anvil?name=${server.anvil.name}`} noWrap>
             {server.anvil.name}
           </Link>
           {server.host && <BodyText noWrap>{server.host.short}</BodyText>}
-        </Box>
+        </MuiBox>
       </Grid>
       <Grid item>
         <ServerMenu

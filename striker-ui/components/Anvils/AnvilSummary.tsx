@@ -1,6 +1,6 @@
-import { Grid, gridClasses } from '@mui/material';
+import { Grid, grid2Classes as muiGridClasses } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
-import { FC, ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import {
   toAnvilDetail,
@@ -20,7 +20,7 @@ import { BodyText, InlineMonoText, MonoText } from '../Text';
 import { ago } from '../../lib/time';
 import useFetch from '../../hooks/useFetch';
 
-const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
+const AnvilSummary: React.FC<AnvilSummaryProps> = (props) => {
   const { anvilUuid, refreshInterval = 5000 } = props;
 
   const { altData: anvil, loading: loadingAnvil } = useFetch<
@@ -110,7 +110,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
     () =>
       anvil && (
         <Grid columns={1} container>
-          {Object.values(anvil.hosts).map<ReactNode>((host) => {
+          {Object.values(anvil.hosts).map<React.ReactNode>((host) => {
             const { name, serverCount, state, stateProgress, uuid } = host;
 
             const colour = toHostStatusColour(state);
@@ -250,7 +250,7 @@ const AnvilSummary: FC<AnvilSummaryProps> = (props) => {
       columns={4}
       container
       sx={{
-        [`& > .${gridClasses.item}:nth-child(odd)`]: {
+        [`& > .${muiGridClasses.root}:nth-child(odd)`]: {
           alignItems: 'center',
           display: 'flex',
           height: '2.2em',

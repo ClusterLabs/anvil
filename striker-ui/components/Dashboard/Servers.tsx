@@ -1,8 +1,12 @@
 import {
-  MoreVert as MoreVertIcon,
-  Search as SearchIcon,
+  MoreVert as MuiMoreVertIcon,
+  Search as MuiSearchIcon,
 } from '@mui/icons-material';
-import { Box, boxClasses, Grid } from '@mui/material';
+import {
+  Box as MuiBox,
+  boxClasses as muiBoxClasses,
+  Grid,
+} from '@mui/material';
 import { debounce } from 'lodash';
 import { useMemo, useState } from 'react';
 
@@ -148,9 +152,9 @@ const Servers: React.FC = () => {
         <PanelHeader>
           <HeaderText>Servers</HeaderText>
           <SyncIndicator syncing={validating} />
-          <Box
+          <MuiBox
             sx={{
-              [`&.${boxClasses.root}`]: {
+              [`&.${muiBoxClasses.root}`]: {
                 marginRight: '.5em',
               },
             }}
@@ -159,7 +163,7 @@ const Servers: React.FC = () => {
               onClick={(event) => {
                 setViewAnchor(event.currentTarget);
               }}
-              startIcon={<MoreVertIcon />}
+              startIcon={<MuiMoreVertIcon />}
               sx={{
                 lineHeight: 2,
               }}
@@ -193,7 +197,7 @@ const Servers: React.FC = () => {
                 <BodyText inheritColour>List</BodyText>
               </MenuItem>
             </Menu>
-          </Box>
+          </MuiBox>
           <IconButton
             mapPreset="add"
             onClick={() => {
@@ -209,7 +213,7 @@ const Servers: React.FC = () => {
                   changeGroups(servers, value);
                 }}
                 startAdornment={
-                  <SearchIcon
+                  <MuiSearchIcon
                     sx={{
                       color: DIVIDER,
                       marginRight: '.4em',

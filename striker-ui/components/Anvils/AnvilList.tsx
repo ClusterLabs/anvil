@@ -1,5 +1,10 @@
-import { styled } from '@mui/material/styles';
-import { List, Box, Divider, ListItemButton } from '@mui/material';
+import {
+  Box as MuiBox,
+  Divider as MuiDivider,
+  List as MuiList,
+  ListItemButton as MuiListItemButton,
+  styled,
+} from '@mui/material';
 import { useRouter } from 'next/router';
 
 import {
@@ -11,8 +16,6 @@ import {
 import Anvil from './Anvil';
 import Decorator, { Colours } from '../Decorator';
 import setQueryParam from '../../lib/setQueryParam';
-
-
 
 const PREFIX = 'AnvilList';
 
@@ -62,20 +65,22 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const AnvilList = ({ list }: { list: AnvilListItem[] }): React.ReactElement => {
+const AnvilList: React.FC<{ list: AnvilListItem[] }> = (props) => {
+  const { list } = props;
+
   const router = useRouter();
 
   return (
     <StyledDiv>
-      <List
+      <MuiList
         component="nav"
         className={classes.root}
         aria-label="mailbox folders"
       >
         {list.map((anvil) => (
           <>
-            <Divider className={classes.divider} />
-            <ListItemButton
+            <MuiDivider className={classes.divider} />
+            <MuiListItemButton
               className={classes.button}
               key={anvil.anvil_uuid}
               onClick={() => {
@@ -84,20 +89,20 @@ const AnvilList = ({ list }: { list: AnvilListItem[] }): React.ReactElement => {
                 router.replace({ query }, undefined, { shallow: true });
               }}
             >
-              <Box display="flex" flexDirection="row" width="100%">
-                <Box p={1}>
+              <MuiBox display="flex" flexDirection="row" width="100%">
+                <MuiBox p={1}>
                   <Decorator
                     colour={selectDecorator(anvil.anvilStatus.system)}
                   />
-                </Box>
-                <Box p={1} flexGrow={1} className={classes.anvil}>
+                </MuiBox>
+                <MuiBox p={1} flexGrow={1} className={classes.anvil}>
                   <Anvil anvil={anvil} />
-                </Box>
-              </Box>
-            </ListItemButton>
+                </MuiBox>
+              </MuiBox>
+            </MuiListItemButton>
           </>
         ))}
-      </List>
+      </MuiList>
     </StyledDiv>
   );
 };

@@ -1,13 +1,17 @@
-import { LinearProgress, linearProgressClasses, styled } from '@mui/material';
+import {
+  LinearProgress as MuiLinearProgress,
+  linearProgressClasses as muiLinearProgressClasses,
+  styled,
+} from '@mui/material';
 
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
 
-const BorderLinearProgress = styled(LinearProgress)({
+const BorderLinearProgress = styled(MuiLinearProgress)({
   backgroundColor: 'transparent',
   borderRadius: BORDER_RADIUS,
   height: '1em',
 
-  [`& .${linearProgressClasses.bar}`]: {
+  [`& .${muiLinearProgressClasses.bar}`]: {
     borderRadius: BORDER_RADIUS,
   },
 });
