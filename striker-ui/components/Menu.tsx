@@ -38,7 +38,9 @@ const Menu = <Item = unknown,>(
       pairs.map(([key, value]) => {
         if (key.includes('subheader')) {
           return (
-            <ListSubheader>{renderItem?.call(null, key, value)}</ListSubheader>
+            <ListSubheader key={key}>
+              {renderItem?.call(null, key, value)}
+            </ListSubheader>
           );
         }
 
