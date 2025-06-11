@@ -634,7 +634,7 @@ The definition data passed in was:
 		<key name="error_0398">[ Error ] - There was a problem processing the requested network: [#!variable!network!#]. Details should be logged.</key>
 		<key name="error_0399">You can only use '--add', '--remove' or '--rename', please use only one at a time.</key>
 		<key name="error_0400">[ Error ] - The requested DR host: [#!variable!dr_host!#] was not found.</key>
-		<key name="error_0401">[#!free!#]</key>
+		<key name="error_0401">[ Error ] - Unable to delete the resource: [#!variable!resource!#], the return code: [#!variable!return_code!#] was received, '0' expected.</key>
 		<key name="error_0402">There are multiple DR hosts connected to this Anvil! node. Please specify which you want to use to protect this server;</key>
 		<key name="error_0403"> - DR Host: [#!variable!host_name!#], Host UUID: [#!variable!host_uuid!#].</key>
 		<key name="error_0404">This needs to be run on an Anvil! sub-node.</key>
@@ -4147,7 +4147,7 @@ The duplicate will be removed.</key>
 		<key name="warning_0033">[ Warning ] - It appears there was a problem initialising the postgres database. Moving: [#!variable!old_dir!#] to: [#!variable!new_dir!#] before trying again.</key>
 		<key name="warning_0034">[ Warning ] - The host UUID: [#!variable!host_uuid!#] wasn't found. Unable to add any authorized keys.</key>
 		<key name="warning_0035">[ Warning ] - The host UUID: [#!variable!host_uuid!#] has not users with SSH public keys registered. Nothing to add any authorized keys files.</key>
-		<key name="warning_0036">#!free!#</key>
+		<key name="warning_0036">[ Warning ] - Failed to down (stop) the DRBD resource: [#!variable!resource!#]</key>
 		<key name="warning_0037">#!free!#</key>
 		<key name="warning_0038">#!free!#</key>
 		<key name="warning_0039">#!free!#</key>

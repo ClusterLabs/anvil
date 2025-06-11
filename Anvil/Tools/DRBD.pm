@@ -629,17 +629,27 @@ sub delete_resource
 	}
 	
 	# Down the resource, if needed.
-	$anvil->DRBD->manage_resource({
+	my $return_code = $anvil->DRBD->manage_resource({
 		debug    => $debug,
 		resource => $resource, 
 		task     => "down",
 	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+	if ($return_code)
+	{
+		# Don't proceed, we'd leave the resource up and unusable
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0401", variables => { 
+			resource    => $resource, 
+			return_code => $return_code,
+		}});
+		return('!!error!!');
+	}
 	
 	# Wipe the DRBD MDs from each backing LV
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "log_0590", variables => { resource => $resource }});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." --force wipe-md ".$resource;
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
-	my ($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
+	(my $output, $return_code) = $anvil->System->call({shell_call => $shell_call});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		output      => $output, 
 		return_code => $return_code,
@@ -2732,6 +2742,37 @@ sub manage_resource
 			output      => $output,
 			return_code => $return_code,
 		}});
+	}
+	
+	# If the task is down, make sure it's actually down. For some reason, rarely, we can get a 0 rc with
+	# it still up.
+	if ($task eq "down")
+	{
+		my $test_directory = "/dev/drbd/by-res/".$resource;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_directory => $test_directory }});
+		if (-e $test_directory)
+		{
+			# Wait until it's gone.
+			my $waiting    = 1;
+			my $wait_until = time + 30;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wait_until => $wait_until }});
+			while ($waiting)
+			{
+				sleep 2;
+				if (not -e $test_directory)
+				{
+					# It's gone.
+					$waiting = 0;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { waiting => $waiting }});
+				}
+				elsif (time > $wait_until)
+				{
+					# Give up.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "resource", variables => { resource => $resource }});
+					return(9999);
+				}
+			}
+		}
 	}
 	
 	return($return_code);
