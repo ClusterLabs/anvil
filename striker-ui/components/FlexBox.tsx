@@ -119,7 +119,7 @@ const FlexBox: React.FC<FlexBoxProps> = ({
         },
         restMuiBoxProps,
       ),
-    [restMuiBoxProps],
+    [firstChildFlexGrow, lg, mapToSx, md, restMuiBoxProps, sm, width, xl, xs],
   );
 
   return <MuiBox {...mergedProps} />;
