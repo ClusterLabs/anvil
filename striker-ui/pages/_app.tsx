@@ -11,7 +11,6 @@ import useSessionExpiryCheck from '../hooks/useSessionExpiryCheck';
 const clientSideEmotionCache = createEmotionCache();
 
 interface MyAppProps extends AppProps {
-  // eslint-disable-next-line react/require-default-props
   emotionCache?: EmotionCache;
 }
 
