@@ -2,8 +2,6 @@ import * as yup from 'yup';
 
 import { yupLaxMac } from '../../../lib/yupCommons';
 
-/* eslint-disable no-template-curly-in-string */
-
 const buildAddInterfaceSchema = (detail: APIServerDetail) =>
   yup.object({
     bridge: yup.string().required(),

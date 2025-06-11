@@ -1,7 +1,5 @@
 import * as yup from 'yup';
 
-/* eslint-disable no-template-curly-in-string */
-
 const buildNameSchema = (skip: null | string, fences: APIFenceOverviewList) => {
   let values: APIFenceOverview[] = Object.values(fences);
 

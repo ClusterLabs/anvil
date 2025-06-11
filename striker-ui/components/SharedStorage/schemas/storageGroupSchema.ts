@@ -1,7 +1,5 @@
 import * as yup from 'yup';
 
-/* eslint-disable no-template-curly-in-string */
-
 import buildYupDynamicObject from '../../../lib/buildYupDynamicObject';
 import storageGroupMemberSchema from './storageGroupMemberSchema';
 

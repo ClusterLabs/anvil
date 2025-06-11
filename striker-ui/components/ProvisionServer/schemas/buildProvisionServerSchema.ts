@@ -9,8 +9,6 @@ import { yupLaxUuid } from '../../../lib/yupCommons';
 
 const nZero = BigInt(0);
 
-/* eslint-disable no-template-curly-in-string */
-
 const buildProvisionServerSchema = (
   scope: ProvisionServerScope,
   resources: ProvisionServerResources,
