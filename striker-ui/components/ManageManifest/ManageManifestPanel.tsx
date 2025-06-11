@@ -218,15 +218,15 @@ const ManageManifestPanel: React.FC = () => {
         {},
       );
 
-      const messages = Object.entries(counts).map((entry) => {
+      const messages = Object.entries(counts).map<React.ReactNode>((entry) => {
         const [hostName, fenceCount] = entry;
 
-        return fenceCount ? (
-          <></>
-        ) : (
-          <MessageBox key={`${hostName}-no-fence-port-message`}>
-            No fence device port specified for {hostName}.
-          </MessageBox>
+        return (
+          !fenceCount && (
+            <MessageBox key={`${hostName}-no-fence-port-message`}>
+              No fence device port specified for {hostName}.
+            </MessageBox>
+          )
         );
       });
 

@@ -11,12 +11,10 @@ const SuggestButton: React.FC<SuggestButtonProps> = ({
   show = true,
   ...restProps
 }) =>
-  show ? (
+  show && (
     <ContainedButton onClick={onClick} tabIndex={-1} {...restProps}>
       Suggest
     </ContainedButton>
-  ) : (
-    <></>
   );
 
 export default SuggestButton;

@@ -170,7 +170,7 @@ const ProvisionServerForm: React.FC<ProvisionServerFormProps> = (props) => {
             });
           } catch (error) {
             finishConfirm('Error', {
-              children: <>{error}</>,
+              children: String(error),
             });
 
             return;

@@ -21,23 +21,22 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): React.ReactElement => {
     <Panel>
       <HeaderText text="Subnodes" />
       {!loading ? (
-        <>
-          {anvilIndex !== -1 && data && (
-            <AnvilHost
-              hosts={hostsSanitizer(anvil[anvilIndex].hosts).reduce<
-                Array<AnvilStatusHost>
-              >((reducedHosts, host, index) => {
-                const hostStatus = data.hosts[index];
+        anvilIndex !== -1 &&
+        data && (
+          <AnvilHost
+            hosts={hostsSanitizer(anvil[anvilIndex].hosts).reduce<
+              Array<AnvilStatusHost>
+            >((reducedHosts, host, index) => {
+              const hostStatus = data.hosts[index];
 
-                if (hostStatus) {
-                  reducedHosts.push(hostStatus);
-                }
+              if (hostStatus) {
+                reducedHosts.push(hostStatus);
+              }
 
-                return reducedHosts;
-              }, [])}
-            />
-          )}
-        </>
+              return reducedHosts;
+            }, [])}
+          />
+        )
       ) : (
         <Spinner />
       )}

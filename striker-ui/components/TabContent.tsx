@@ -1,12 +1,11 @@
 import { Box as MuiBox } from '@mui/material';
 import { useMemo } from 'react';
 
-const TabContent = <T,>({
-  changingTabId,
-  children,
-  retain = false,
-  tabId,
-}: TabContentProps<T>): React.ReactElement => {
+const TabContent = <T,>(
+  ...[props]: Parameters<React.FC<TabContentProps<T>>>
+): ReturnType<React.FC<TabContentProps<T>>> => {
+  const { changingTabId, children, retain = false, tabId } = props;
+
   const isTabIdMatch = useMemo(
     () => changingTabId === tabId,
     [changingTabId, tabId],
@@ -23,7 +22,7 @@ const TabContent = <T,>({
     [children, isTabIdMatch, retain],
   );
 
-  return <>{result}</>;
+  return result;
 };
 
 export default TabContent;

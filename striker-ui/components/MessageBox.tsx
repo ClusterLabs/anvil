@@ -130,32 +130,32 @@ const MessageBox: React.FC<MessageBoxProps> = ({
     [boxSx],
   );
 
-  return isShow ? (
-    <MuiBox
-      {...{
-        ...boxProps,
-        className: buildMessageBoxClasses(type),
-        sx: combinedBoxSx,
-      }}
-    >
-      {buildMessageIcon(type)}
-      {buildMessage(type, text)}
-      {isShowCloseButton && (
-        <MuiIconButton
-          onClick={
-            onClose ??
-            ((...args) => {
-              setIsShow(false);
-              onCloseAppend?.call(null, ...args);
-            })
-          }
-        >
-          <MuiCloseIcon sx={{ fontSize: '1.25rem' }} />
-        </MuiIconButton>
-      )}
-    </MuiBox>
-  ) : (
-    <></>
+  return (
+    isShow && (
+      <MuiBox
+        {...{
+          ...boxProps,
+          className: buildMessageBoxClasses(type),
+          sx: combinedBoxSx,
+        }}
+      >
+        {buildMessageIcon(type)}
+        {buildMessage(type, text)}
+        {isShowCloseButton && (
+          <MuiIconButton
+            onClick={
+              onClose ??
+              ((...args) => {
+                setIsShow(false);
+                onCloseAppend?.call(null, ...args);
+              })
+            }
+          >
+            <MuiCloseIcon sx={{ fontSize: '1.25rem' }} />
+          </MuiIconButton>
+        )}
+      </MuiBox>
+    )
   );
 };
 

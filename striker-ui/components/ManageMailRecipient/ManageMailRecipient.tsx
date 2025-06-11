@@ -150,66 +150,64 @@ const ManageMailRecipient: React.FC = () => {
   }, [alertOverrides, nodes]);
 
   return (
-    <>
-      <CrudList<APIMailRecipientOverview, APIMailRecipientDetail>
-        addHeader="Add mail recipient"
-        editHeader={(entry) => `Update ${entry?.name}`}
-        entriesUrl="/mail-recipient"
-        getAddLoading={(previous) => previous || loadingNodes}
-        getDeleteErrorMessage={({ children, ...rest }) => ({
-          ...rest,
-          children: <>Failed to delete mail recipient(s). {children}</>,
-        })}
-        getDeleteHeader={(count) =>
-          `Delete the following ${count} mail recipient(s)?`
-        }
-        getDeleteSuccessMessage={() => ({
-          children: <>Successfully deleted mail recipient(s).</>,
-        })}
-        getEditLoading={(previous) => previous || loadingAlertOverrides}
-        listEmpty="No mail recipient(s) found."
-        onItemClick={(base, { args }) => {
-          const [, mailRecipientUuid] = args;
+    <CrudList<APIMailRecipientOverview, APIMailRecipientDetail>
+      addHeader="Add mail recipient"
+      editHeader={(entry) => `Update ${entry?.name}`}
+      entriesUrl="/mail-recipient"
+      getAddLoading={(previous) => previous || loadingNodes}
+      getDeleteErrorMessage={({ children, ...rest }) => ({
+        ...rest,
+        children: <>Failed to delete mail recipient(s). {children}</>,
+      })}
+      getDeleteHeader={(count) =>
+        `Delete the following ${count} mail recipient(s)?`
+      }
+      getDeleteSuccessMessage={() => ({
+        children: <>Successfully deleted mail recipient(s).</>,
+      })}
+      getEditLoading={(previous) => previous || loadingAlertOverrides}
+      listEmpty="No mail recipient(s) found."
+      onItemClick={(base, { args }) => {
+        const [, mailRecipientUuid] = args;
 
-          base(...args);
+        base(...args);
 
-          getAlertOverrides(undefined, {
-            params: { 'mail-recipient': mailRecipientUuid },
-          });
-        }}
-        renderAddForm={(tools) =>
-          alertOverrideTargetOptions && (
-            <AddMailRecipientForm
-              alertOverrideTargetOptions={alertOverrideTargetOptions}
-              tools={tools}
-            />
-          )
-        }
-        renderDeleteItem={(mailRecipientList, { key }) => {
-          const mr = mailRecipientList?.[key];
+        getAlertOverrides(undefined, {
+          params: { 'mail-recipient': mailRecipientUuid },
+        });
+      }}
+      renderAddForm={(tools) =>
+        alertOverrideTargetOptions && (
+          <AddMailRecipientForm
+            alertOverrideTargetOptions={alertOverrideTargetOptions}
+            tools={tools}
+          />
+        )
+      }
+      renderDeleteItem={(mailRecipientList, { key }) => {
+        const mr = mailRecipientList?.[key];
 
-          return <BodyText>{mr?.name}</BodyText>;
-        }}
-        renderEditForm={(tools, mailRecipient) =>
-          alertOverrideTargetOptions &&
-          mailRecipient &&
-          formikAlertOverrides && (
-            <EditMailRecipientForm
-              alertOverrideTargetOptions={alertOverrideTargetOptions}
-              mailRecipientUuid={mailRecipient.uuid}
-              previousFormikValues={{
-                [mailRecipient.uuid]: {
-                  alertOverrides: formikAlertOverrides,
-                  ...mailRecipient,
-                },
-              }}
-              tools={tools}
-            />
-          )
-        }
-        renderListItem={(uuid, { name }) => <BodyText>{name}</BodyText>}
-      />
-    </>
+        return <BodyText>{mr?.name}</BodyText>;
+      }}
+      renderEditForm={(tools, mailRecipient) =>
+        alertOverrideTargetOptions &&
+        mailRecipient &&
+        formikAlertOverrides && (
+          <EditMailRecipientForm
+            alertOverrideTargetOptions={alertOverrideTargetOptions}
+            mailRecipientUuid={mailRecipient.uuid}
+            previousFormikValues={{
+              [mailRecipient.uuid]: {
+                alertOverrides: formikAlertOverrides,
+                ...mailRecipient,
+              },
+            }}
+            tools={tools}
+          />
+        )
+      }
+      renderListItem={(uuid, { name }) => <BodyText>{name}</BodyText>}
+    />
   );
 };
 

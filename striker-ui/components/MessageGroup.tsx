@@ -150,7 +150,7 @@ const MessageGroup = forwardRef<
       setMessageRe,
     ]);
 
-    return <>{messageElements}</>;
+    return messageElements;
   },
 );
 

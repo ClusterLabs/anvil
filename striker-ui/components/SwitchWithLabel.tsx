@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
+import sxstring from '../lib/sxstring';
 import { BodyText } from './Text';
 
 const SwitchFormControlLabel = styled(MuiFormControlLabel)({
@@ -25,15 +26,12 @@ const SwitchWithLabel: React.FC<SwitchWithLabelProps> = ({
   onChange,
   switchProps,
 }) => {
-  const labelElement = useMemo<React.ReactElement>(
+  const labelElement = useMemo<React.ReactNode>(
     () =>
-      typeof label === 'string' ? (
-        <BodyText inheritColour color={`${GREY}AF`}>
-          {label}
-        </BodyText>
-      ) : (
-        <>{label}</>
-      ),
+      sxstring(label, BodyText, {
+        color: `${GREY}AF`,
+        inheritColour: true,
+      }),
     [label],
   );
 
