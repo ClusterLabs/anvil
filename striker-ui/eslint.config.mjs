@@ -1,4 +1,7 @@
+import { FlatCompat } from '@eslint/eslintrc';
 import { defineConfig, globalIgnores } from 'eslint/config';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 // Configs:
 import jsConfig from '@eslint/js';
 import prettierConfig from 'eslint-config-prettier';
@@ -6,26 +9,28 @@ import prettierConfig from 'eslint-config-prettier';
 import nextPlugin from '@next/eslint-plugin-next';
 import tsEslintPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
-import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
+// import jsxA11yPlugin from 'eslint-plugin-jsx-a11y';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
-// console.dir(
-//   {
-//     value: reactPlugin.configs.flat,
-//   },
-//   {
-//     depth: 3,
-//     showHidden: true,
-//     sorted: true,
-//   },
-// );
+// Mimic commonjs variables, which are unavailable in mjs.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Create the converter; nothing's converted at this point.
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
 
 /**
  * @type {import('eslint').Linter.Config}
  */
 const config = defineConfig([
   globalIgnores(['node_modules/', '.next/', 'out/', '**/*.config.{js,mjs}']),
+  // Previously: "airbnb"
+  //
+  // Convert the old eslintrc config
+  ...compat.extends('eslint-config-airbnb'),
   {
     // Flat configs required.
     //
@@ -40,16 +45,22 @@ const config = defineConfig([
       // Previously: "plugin:import/errors"
       //
       // Don't use "import/recommended" because it's not updated yet.
-      importPlugin.flatConfigs.errors,
+      //
+      // Already applied in "airbnb".
+      // importPlugin.flatConfigs.errors,
 
       // Previously: "plugin:import/warnings"
-      importPlugin.flatConfigs.warnings,
+      //
+      // Already applied in "airbnb".
+      // importPlugin.flatConfigs.warnings,
 
       // Previously: "plugin:import/typescript"
       importPlugin.flatConfigs.typescript,
 
       // Previously: "plugin:jsx-a11y/recommended"
-      jsxA11yPlugin.flatConfigs.recommended,
+      //
+      // Already applied in "airbnb".
+      // jsxA11yPlugin.flatConfigs.recommended,
 
       // Previously: "plugin:react/recommended"
       reactPlugin.configs.flat.recommended,
@@ -84,8 +95,84 @@ const config = defineConfig([
     },
 
     rules: {
+      // "eslint" rules:
+
       // Reduce the number of "if"s to reduce code complexity.
-      complexity: ['error', 6],
+      complexity: 'error',
+
+      /** @deprecated */
+      'global-require': 'off',
+
+      /** @deprecated */
+      'lines-around-directive': 'off',
+
+      /** @deprecated */
+      'lines-between-class-members': 'off',
+
+      /** @deprecated */
+      'no-buffer-constructor': 'off',
+
+      /** @deprecated */
+      'no-new-object': 'off',
+
+      /** @deprecated */
+      'no-new-require': 'off',
+
+      // Allow defaults on component props.
+      'no-param-reassign': [
+        'error',
+        {
+          props: false,
+        },
+      ],
+
+      /** @deprecated */
+      'no-path-concat': 'off',
+
+      /** @deprecated */
+      'no-return-await': 'off',
+
+      // Allow template curly in regular strings for "yup" schemas.
+      'no-template-curly-in-string': 'off',
+
+      /** @deprecated */
+      'spaced-comment': 'off',
+
+      // "@typescript-eslint" rules:
+
+      // Ignore unused rest or spread (...) siblings.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          caughtErrors: 'none',
+          ignoreRestSiblings: true,
+        },
+      ],
+
+      // "import" rules:
+
+      // Don't require file extensions when importing.
+      'import/extensions': [
+        'error',
+        'ignorePackages',
+        {
+          js: 'never',
+          jsx: 'never',
+          mjs: 'never',
+          ts: 'never',
+          tsx: 'never',
+        },
+      ],
+
+      // "react" rules:
+
+      // Use arrow functions when declaring components.
+      'react/function-component-definition': [
+        'error',
+        {
+          namedComponents: 'arrow-function',
+        },
+      ],
 
       // Ensure regular scripts can't use jsx.
       'react/jsx-filename-extension': [
@@ -95,13 +182,17 @@ const config = defineConfig([
         },
       ],
 
-      // Don't validate props for now.
-      //
-      // TODO: enable eventually.
+      // Allow props spreading; mostly for spreading slotProps.
+      'react/jsx-props-no-spreading': 'off',
+
+      // React v19 removed `propTypes`.
       'react/prop-types': 'off',
 
       // Don't enforce "import React..." when using jsx.
       'react/react-in-jsx-scope': 'off',
+
+      // React v19 removed `defaultProps`.
+      'react/require-default-props': 'off',
     },
 
     settings: {
