@@ -936,7 +936,7 @@ sub update_nodes
 													# The resource is not yet UpToDate
 													$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 0, key => "message_0464", variables => {
 														timestamp => $anvil->Get->date_and_time({time_only => 1}),
-														resource  => $$resource, 
+														resource  => $resource, 
 														volume    => $volume, 
 													}});
 												}
@@ -1054,9 +1054,11 @@ sub update_nodes
 sub update_strikers_and_dr
 {
 	my ($anvil) = @_;
-	
+
 	foreach my $host_type ("striker", "dr")
 	{
+		$anvil->Database->get_hosts({debug => 2});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		foreach my $host_name (sort {$a cmp $b} keys %{$anvil->data->{sys}{hosts}{by_name}})
 		{
 			my $host_uuid       = $anvil->data->{sys}{hosts}{by_name}{$host_name};

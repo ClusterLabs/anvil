@@ -1203,7 +1203,17 @@ sub test_access
 	}
 	elsif ((not $password) && ($error =~ / master process exited unexpectedly/s))
 	{
-		# Possible thta passwordless ssh wasn't setup yet, such as after a machine is rebuilt.
+		# Possible thta passwordless ssh wasn't setup yet, can we set it up now?
+		my $target_host_uuid = $anvil->Get->host_uuid_from_name({host_name => $target});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_host_uuid => $target_host_uuid }});
+		if ($target_host_uuid)
+		{
+			$anvil->System->manage_authorized_keys({
+				debug     => $debug, 
+				host_uuid => $target_host_uuid,
+			});
+		}
+		
 		# Can we access the host using one of the password we know?
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0093", variables => { target => $target }});
 		foreach my $db_host_uuid (sort {$a cmp $b} keys %{$anvil->data->{database}})

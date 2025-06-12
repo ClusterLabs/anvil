@@ -682,7 +682,8 @@ sub ask_for_server
 	$termios->getattr;
 	my $ospeed = $termios->getospeed;
 	
-	my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+	my $term     = $ENV{TERM} ? $ENV{TERM} : "xterm-256color";
+	my $terminal = Tgetent Term::Cap { TERM => $term, OSPEED => $ospeed };
 	$terminal->Trequire(qw/ce ku kd/);
 	
 	my $anvil_uuid  = $anvil->data->{sys}{anvil_uuid};

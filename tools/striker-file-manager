@@ -38,7 +38,8 @@ my $termios = new POSIX::Termios;
 $termios->getattr;
 my $ospeed = $termios->getospeed;
 
-my $terminal = Tgetent Term::Cap { TERM => undef, OSPEED => $ospeed };
+my $term     = $ENV{TERM} ? $ENV{TERM} : "xterm-256color";
+my $terminal = Tgetent Term::Cap { TERM => $term, OSPEED => $ospeed };
 $terminal->Trequire(qw/ce ku kd/);
 
 interactive_menu($anvil, $termios);

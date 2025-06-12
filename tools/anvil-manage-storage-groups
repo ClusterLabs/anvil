@@ -827,14 +827,17 @@ sub show_data
 				my $storage_group_member_uuid = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_uuid};
 				my $vg_internal_uuid          = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{vg_internal_uuid};
 				my $vg_name                   = $anvil->data->{vgs}{host_uuid}{$member_host_uuid}{scan_lvm_vg_internal_uuid}{$vg_internal_uuid}{scan_lvm_vg_name};
+				my $member_note               = $anvil->data->{storage_groups}{anvil_uuid}{$anvil_uuid}{storage_group_uuid}{$storage_group_uuid}{host_uuid}{$member_host_uuid}{storage_group_member_note};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					"s1:member_short_host_name"    => $member_short_host_name, 
 					"s2:member_host_uuid"          => $member_host_uuid, 
 					"s3:storage_group_member_uuid" => $storage_group_member_uuid, 
 					"s4:vg_internal_uuid"          => $vg_internal_uuid, 
 					"s5:vg_name"                   => $vg_name, 
+					"s6:member_note"               => $member_note, 
 				}});
-				next if $vg_name eq "DELETED";
+				next if $vg_name     eq "DELETED";
+				next if $member_note eq "DELETED";
 				$member_count++;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { member_count => $member_count }});
 				
