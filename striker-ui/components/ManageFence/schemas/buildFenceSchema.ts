@@ -5,9 +5,9 @@ import buildParameterSchema from './buildParameterSchema';
 import buildYupDynamicObject from '../../../lib/buildYupDynamicObject';
 
 const buildFenceSchema = (
-  uuid = '',
   fences: APIFenceOverviewList,
   template: APIFenceTemplate,
+  uuid = '',
 ) => {
   const agents = Object.keys(template);
 

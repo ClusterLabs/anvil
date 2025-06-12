@@ -248,7 +248,7 @@ const FenceForm: React.FC<FenceFormProps> = (props) => {
 
       tools.confirm.open();
     },
-    validationSchema: buildFenceSchema(fence?.fenceUUID, fences, template),
+    validationSchema: buildFenceSchema(fences, template, fence?.fenceUUID),
   });
 
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
