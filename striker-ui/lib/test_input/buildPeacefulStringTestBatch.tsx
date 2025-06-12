@@ -1,8 +1,13 @@
+/* eslint-disable default-param-last */
+
 import { REP_PEACEFUL_STRING } from '../consts/REG_EXP_PATTERNS';
 
 import testNotBlank from './testNotBlank';
 import { InlineMonoText } from '../../components/Text';
 
+/**
+ * @deprecated
+ */
 const buildPeacefulStringTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,

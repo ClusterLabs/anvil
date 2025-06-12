@@ -1,5 +1,8 @@
 import testInput from './testInput';
 
+/**
+ * @deprecated
+ */
 const createTestInputFunction =
   (
     tests: InputTestBatches,

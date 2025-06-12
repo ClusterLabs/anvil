@@ -1,6 +1,9 @@
 import testRange from './testRange';
 import toNumber from '../toNumber';
 
+/**
+ * @deprecated
+ */
 const buildNumberTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,
