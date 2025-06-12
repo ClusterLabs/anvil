@@ -1,5 +1,5 @@
-import RFB from '@novnc/novnc/core/rfb';
-import Websock from '@novnc/novnc/core/websock';
+import RFB from '@novnc/novnc/lib/rfb';
+import Websock from '@novnc/novnc/lib/websock';
 import { useEffect } from 'react';
 
 const rfbConnect: RfbConnectFunction = ({
