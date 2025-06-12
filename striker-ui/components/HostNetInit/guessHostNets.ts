@@ -101,7 +101,6 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
         ipo3 = String(10 + subnodeCount * (host.parentSequence - 1));
       }
 
-      // eslint-disable-next-line complexity
       slots[slotType].forEach(([key]) => {
         const slot = clone.networks[key];
 
@@ -147,7 +146,6 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
     });
   }
 
-  // eslint-disable-next-line complexity
   slots.ifn.forEach(([key]) => {
     const slot = clone.networks[key];
 

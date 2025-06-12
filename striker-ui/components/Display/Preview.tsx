@@ -73,7 +73,6 @@ const Preview = <Server extends ServerCore>(
     [slotProps?.screenshotBox],
   );
 
-  // eslint-disable-next-line complexity
   const content = useMemo(() => {
     if (server.jobs) {
       return cloneElement(
