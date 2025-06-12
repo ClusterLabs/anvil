@@ -205,13 +205,13 @@ const Servers: React.FC<{ anvil: AnvilListItem[] }> = (props) => {
     }
   };
 
-  const handleChange = (server_uuid: string): void => {
+  const handleChange = (serverUuid: string): void => {
     if (!serverValues) return;
 
-    const index = selected.indexOf(server_uuid);
+    const index = selected.indexOf(serverUuid);
 
     if (index === -1) {
-      selected.push(server_uuid);
+      selected.push(serverUuid);
     } else {
       selected.splice(index, 1);
     }
