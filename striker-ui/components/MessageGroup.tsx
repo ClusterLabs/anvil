@@ -108,11 +108,12 @@ const MessageGroup = forwardRef<
       [onSet],
     );
 
-    const messageElements = useMemo<React.ReactElement[]>(() => {
+    const messageElements = useMemo<React.ReactNode>(() => {
       const pairs = Object.entries(messages);
       const isValidCount = count > 0;
       const limit = isValidCount ? count : pairs.length;
-      const result: React.ReactElement[] = [];
+      const result: React.ReactElement<MessageBoxProps, typeof MessageBox>[] =
+        [];
 
       pairs.every(([messageKey, message]) => {
         const { children: messageChildren, type = defaultMessageType } =
@@ -150,7 +151,7 @@ const MessageGroup = forwardRef<
       setMessageRe,
     ]);
 
-    return messageElements;
+    return <>{messageElements}</>;
   },
 );
 

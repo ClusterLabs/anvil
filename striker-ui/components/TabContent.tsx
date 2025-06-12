@@ -10,6 +10,7 @@ const TabContent = <T,>(
     () => changingTabId === tabId,
     [changingTabId, tabId],
   );
+
   const result = useMemo<React.ReactNode>(
     () =>
       retain ? (
@@ -22,7 +23,7 @@ const TabContent = <T,>(
     [children, isTabIdMatch, retain],
   );
 
-  return result;
+  return <>{result}</>;
 };
 
 export default TabContent;

@@ -4,17 +4,20 @@ const getFormikErrorMessages = (
   errors: object,
   {
     build = (field, error) => {
-      let children = error;
+      let children: React.ReactNode = null;
 
-      if (typeof children === 'string') {
-        const [first, ...rest] = children.split(/\s+/);
+      if (typeof error === 'string') {
+        const [first, ...rest] = error.split(/\s+/);
 
         const name = disassembleCamel(first.replace(/^[^\s]+\.([^.]+)/, '$1'));
 
         children = [name, ...rest].join(' ');
       }
 
-      return { children, type: 'warning' };
+      return {
+        children,
+        type: 'warning',
+      };
     },
     chain = '',
     skip,

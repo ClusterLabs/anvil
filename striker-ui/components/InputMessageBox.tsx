@@ -19,6 +19,10 @@ const InputMessageBox: React.FC<Partial<MessageBoxProps>> = (props) => {
     [props],
   );
 
-  return text && <MessageBox {...mergedProps} />;
+  if (!text) {
+    return null;
+  }
+
+  return <MessageBox {...mergedProps} />;
 };
 export default InputMessageBox;

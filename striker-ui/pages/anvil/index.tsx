@@ -124,7 +124,7 @@ const AnvilSelector: React.FC<
   }, [list, router, setAnvilUuid]);
 
   if (selected) {
-    return children;
+    return <>{children}</>;
   }
 
   const loadingElement = (

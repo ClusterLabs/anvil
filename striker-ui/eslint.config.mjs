@@ -182,8 +182,27 @@ const config = defineConfig([
         },
       ],
 
+      // Allow return i.e., React.ReactNode wrapped by fragment in component
+      'react/jsx-no-useless-fragment': [
+        'error',
+        {
+          allowExpressions: true,
+        },
+      ],
+
       // Allow props spreading; mostly for spreading slotProps.
       'react/jsx-props-no-spreading': 'off',
+
+      // Allow render props.
+      //
+      // TODO: try enforcing this rule fully (also hoist memoized components)
+      // when schedule permits to see if there's a performance boost.
+      'react/no-unstable-nested-components': [
+        'error',
+        {
+          allowAsProps: true,
+        },
+      ],
 
       // React v19 removed `propTypes`.
       'react/prop-types': 'off',
