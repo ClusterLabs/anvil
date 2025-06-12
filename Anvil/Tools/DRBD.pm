@@ -686,6 +686,28 @@ sub delete_resource
 		}
 	}
 	
+	# In the off chance something brough the resource back up, take it down again.
+	my $test_directory = "/dev/drbd/by-res/".$resource;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { test_directory => $test_directory }});
+	if (-e $test_directory)
+	{
+		my $return_code = $anvil->DRBD->manage_resource({
+			debug    => $debug,
+			resource => $resource, 
+			task     => "down",
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { return_code => $return_code }});
+		if ($return_code)
+		{
+			# Don't proceed, we'd leave the resource up and unusable
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "err", key => "error_0401", variables => { 
+				resource    => $resource, 
+				return_code => $return_code,
+			}});
+			return('!!error!!');
+		}
+	}
+	
 	# Now unlink the resource config file.
 	my $resource_file = $anvil->data->{new}{resource}{$resource}{config_file};
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { resource_file => $resource_file }});
