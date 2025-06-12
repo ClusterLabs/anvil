@@ -1,5 +1,7 @@
 import ManageServer from './ManageServer';
 import SelectDataGrid from './SelectDataGrid';
-import ServerMenu from './ServerMenu';
 
-export { ManageServer, SelectDataGrid, ServerMenu };
+// Don't export ServerMenu in bucket to avoid cyclic dependency error with
+// display components.
+
+export { ManageServer, SelectDataGrid };
