@@ -1,4 +1,4 @@
-type DialogContext = {
+type DialogContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
 };
@@ -13,7 +13,7 @@ type DialogOptionalProps = {
 
 type DialogProps = DialogOptionalProps;
 
-type DialogForwardedRefContent = DialogContext;
+type DialogForwardedRefContent = DialogContextValue;
 
 /** DialogActionGroup */
 

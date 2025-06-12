@@ -14,7 +14,7 @@ import {
 import { Panel } from '../Panels';
 import Spinner from '../Spinner';
 
-const DialogContext = createContext<DialogContext | null>(null);
+const DialogContext = createContext<DialogContextValue | null>(null);
 
 const Dialog: React.ForwardRefExoticComponent<
   React.PropsWithChildren<DialogProps> &
@@ -61,6 +61,14 @@ const Dialog: React.ForwardRefExoticComponent<
       );
     }, [controlOpen, dialogProps, onTransitionExited, wide]);
 
+    const contextValue = useMemo<DialogContextValue>(
+      () => ({
+        open: muiDialogProps.open,
+        setOpen: setControlOpen,
+      }),
+      [muiDialogProps.open],
+    );
+
     const children = useMemo<React.ReactNode>(
       () => (loading ? <Spinner mt={0} /> : externalChildren),
       [externalChildren, loading],
@@ -77,12 +85,7 @@ const Dialog: React.ForwardRefExoticComponent<
 
     return (
       <MuiDialog {...muiDialogProps}>
-        <DialogContext.Provider
-          value={{
-            open: muiDialogProps.open,
-            setOpen: setControlOpen,
-          }}
-        >
+        <DialogContext.Provider value={contextValue}>
           {children}
         </DialogContext.Provider>
       </MuiDialog>

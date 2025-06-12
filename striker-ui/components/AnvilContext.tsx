@@ -1,4 +1,4 @@
-import { createContext, useState } from 'react';
+import { createContext, useMemo, useState } from 'react';
 
 interface AnvilContextValue {
   setAnvilUuid?: (uuid: string) => void;
@@ -14,19 +14,22 @@ const AnvilProvider: React.FC<React.PropsWithChildren> = (props) => {
 
   const [uuid, setUuid] = useState<string>('');
 
-  return (
-    <AnvilContext.Provider
-      value={{
-        uuid,
-        setAnvilUuid: (id) => {
-          if (id === uuid) {
-            return;
-          }
+  const contextValue = useMemo<AnvilContextValue>(
+    () => ({
+      uuid,
+      setAnvilUuid: (id) => {
+        if (id === uuid) {
+          return;
+        }
 
-          setUuid(id);
-        },
-      }}
-    >
+        setUuid(id);
+      },
+    }),
+    [uuid],
+  );
+
+  return (
+    <AnvilContext.Provider value={contextValue}>
       {children}
     </AnvilContext.Provider>
   );
