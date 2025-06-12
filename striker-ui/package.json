@@ -23,7 +23,7 @@
     "@mui/icons-material": "^6.4.12",
     "@mui/material": "^6.4.12",
     "@mui/x-data-grid": "^7.29.6",
-    "@novnc/novnc": "^1.2.0",
+    "@novnc/novnc": "https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz",
     "axios": "^1.8.2",
     "format-data-size": "^0.1.0",
     "formik": "^2.4.3",

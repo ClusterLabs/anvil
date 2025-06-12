@@ -9,7 +9,7 @@ import {
   styled,
   Typography as MuiTypography,
 } from '@mui/material';
-import RFB from '@novnc/novnc/lib/rfb';
+import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useCookies } from 'react-cookie';

@@ -1,2 +1,2 @@
-declare module '@novnc/novnc/lib/rfb';
-declare module '@novnc/novnc/lib/websock';
+declare module '@novnc/novnc/core/rfb';
+declare module '@novnc/novnc/core/websock';
