@@ -138,6 +138,11 @@ const config = defineConfig([
       /** @deprecated */
       'spaced-comment': 'off',
 
+      // "@next/next" rules:
+
+      // Can't use image optimization because the api is not part of nextjs
+      '@next/next/no-img-element': 'off',
+
       // "@typescript-eslint" rules:
 
       // Ignore unused rest or spread (...) siblings.
