@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
+import alertLevels from './alertLevels';
 import api from '../../lib/api';
 import FlexBox from '../FlexBox';
 import FormSummary from '../FormSummary';
@@ -104,13 +105,6 @@ const LEVEL_OPTIONS: SelectItem<number>[] = [
     value: 4,
   },
 ];
-
-const MAP_TO_LEVEL_LABEL: Record<number, string> = {
-  1: 'Critical',
-  2: 'Warning',
-  3: 'Notice',
-  4: 'Info',
-};
 
 const getAlertOverrideRequestList = (
   current: MailRecipientFormikMailRecipient,
@@ -348,7 +342,7 @@ const AddMailRecipientForm: React.FC<AddMailRecipientFormProps> = (props) => {
                     },
                   },
                 },
-                renderValue: (value) => MAP_TO_LEVEL_LABEL[value],
+                renderValue: (value) => alertLevels[value].label,
               }}
               value={formik.values[mrUuid].level}
             />

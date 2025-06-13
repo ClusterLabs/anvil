@@ -1,4 +1,4 @@
-import AddMailRecipientForm from './AddMailRecipientForm';
+import alertLevels from './alertLevels';
 import ManageMailRecipient from './ManageMailRecipient';
 
-export { AddMailRecipientForm, ManageMailRecipient };
+export { alertLevels, ManageMailRecipient };
