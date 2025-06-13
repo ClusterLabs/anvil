@@ -41,13 +41,14 @@ const HostTabs: React.FC<HostTabsProps> = (props) => {
             key={`host-${hostUUID}`}
             label={
               <MuiGrid
+                columnSpacing="1em"
                 container
-                spacing="1em"
                 sx={{
                   width: '100%',
 
                   [`& > .${muiGridClasses.root}:not(:first-child)`]: {
                     borderLeft: `thin solid ${DIVIDER}`,
+                    paddingLeft: '1em',
                   },
                 }}
               >

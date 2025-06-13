@@ -48,7 +48,7 @@ const HostStorageList: React.FC<HostStorageListProps> = (props) => {
       const size = dSizeStr(nSize, { toUnit: 'ibyte' });
 
       return (
-        <MuiGrid key={`vg-${uuid}`}>
+        <MuiGrid key={`vg-${uuid}`} size="grow">
           <MuiGrid alignItems="center" container width="100%">
             <MuiGrid size="grow">
               <BodyText noWrap>{name}</BodyText>

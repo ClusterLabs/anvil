@@ -130,9 +130,9 @@ const HostServerList: React.FC<HostServerListProps> = (props) => {
         },
       }}
     >
-      <MuiGrid>{configuredList}</MuiGrid>
-      <MuiGrid>{syncingList}</MuiGrid>
-      <MuiGrid>{runningList}</MuiGrid>
+      <MuiGrid size="grow">{configuredList}</MuiGrid>
+      <MuiGrid size="grow">{syncingList}</MuiGrid>
+      <MuiGrid size="grow">{runningList}</MuiGrid>
     </MuiGrid>
   );
 };
