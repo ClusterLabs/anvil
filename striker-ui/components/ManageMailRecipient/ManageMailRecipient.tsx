@@ -1,6 +1,8 @@
+import { Grid2 as MuiGrid } from '@mui/material';
 import { useMemo, useState } from 'react';
 
 import AddMailRecipientForm from './AddMailRecipientForm';
+import alertLevels from './alertLevels';
 import { toAnvilOverviewList } from '../../lib/api_converters';
 import CrudList from '../CrudList';
 import EditMailRecipientForm from './EditMailRecipientForm';
@@ -206,7 +208,24 @@ const ManageMailRecipient: React.FC = () => {
           />
         )
       }
-      renderListItem={(uuid, { name }) => <BodyText>{name}</BodyText>}
+      renderListItem={(uuid, { email, level, name }) => (
+        <MuiGrid columnSpacing="1em" container width="100%">
+          <MuiGrid size="grow">
+            <BodyText edge="start" noWrap>
+              {name}
+            </BodyText>
+            <BodyText edge="start" monospaced noWrap>
+              {email}
+            </BodyText>
+          </MuiGrid>
+          <MuiGrid textAlign="right">
+            <BodyText edge="end">Alert level</BodyText>
+            <BodyText edge="end" monospaced>
+              {alertLevels[level].label}
+            </BodyText>
+          </MuiGrid>
+        </MuiGrid>
+      )}
     />
   );
 };
