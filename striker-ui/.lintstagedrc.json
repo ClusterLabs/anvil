@@ -1,4 +1,0 @@
-{
-  "!(out/**/*)*.{js,jsx,ts,tsx}": "npm run eslint:base -- --fix",
-  "!(out/**/*)*.{js,json,jsx,md,ts,tsx}": "prettier --write"
-}
