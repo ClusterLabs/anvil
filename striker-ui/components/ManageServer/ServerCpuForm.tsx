@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
@@ -13,7 +13,7 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const BaseServerCpuForm: FC<BaseServerCpuFormProps> = (props) => {
+const BaseServerCpuForm: React.FC<BaseServerCpuFormProps> = (props) => {
   const { cpu, detail, tools } = props;
 
   const { topology: cpuTopology } = detail.cpu;
@@ -101,7 +101,7 @@ const BaseServerCpuForm: FC<BaseServerCpuFormProps> = (props) => {
   );
 };
 
-const ServerCpuForm: FC<ServerCpuFormProps> = (props) => {
+const ServerCpuForm: React.FC<ServerCpuFormProps> = (props) => {
   const { detail } = props;
 
   const { data: cpu } = useFetch<AnvilCPU>(`/anvil/${detail.anvil.uuid}/cpu`, {

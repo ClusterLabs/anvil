@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { ProgressBar } from '../Bars';
 import Link from '../Link';
@@ -12,7 +12,7 @@ import useFetch from '../../hooks/useFetch';
 import useJobStatus from '../../hooks/useJobStatus';
 import useScrollHelpers from '../../hooks/useScrollHelpers';
 
-const CenterPanel: FC = (props) => {
+const CenterPanel: React.FC<React.PropsWithChildren> = (props) => {
   const { children } = props;
 
   return (
@@ -36,10 +36,10 @@ const CenterPanel: FC = (props) => {
   );
 };
 
-const StrikerInitProgress: FC<StrikerInitProgressProps> = (props) => {
+const StrikerInitProgress: React.FC<StrikerInitProgressProps> = (props) => {
   const { jobUuid, reinit } = props;
 
-  const redirectTimeout = useRef<number | null>(null);
+  const redirectTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const redirectParams = useMemo<{ label: string; path: string }>(() => {
     let label = 'login';

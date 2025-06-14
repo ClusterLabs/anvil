@@ -2,17 +2,21 @@ import { RequestHandler } from 'express';
 
 import { execManageAlerts } from '../../execManageAlerts';
 import { getMailRecipientRequestBody } from './getMailRecipientRequestBody';
-import { perr, pout } from '../../shell';
+import { Responder } from '../../Responder';
+import { pout } from '../../shell';
 
 export const updateMailRecipient: RequestHandler<
   MailRecipientParamsDictionary,
-  undefined,
-  MailRecipientRequestBody
+  Express.RhResBody,
+  MailRecipientRequestBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
 > = (request, response) => {
-  const {
-    body: rBody = {},
-    params: { uuid },
-  } = request;
+  const respond = new Responder(response);
+
+  const { body: rBody = {} } = request;
+
+  const { uuid } = response.locals.target;
 
   pout('Begin updating mail recipient.');
 
@@ -21,18 +25,20 @@ export const updateMailRecipient: RequestHandler<
   try {
     body = getMailRecipientRequestBody(rBody, uuid);
   } catch (error) {
-    perr(`Failed to process mail recipient input; CAUSE: ${error}`);
-
-    return response.status(400).send();
+    return respond.s400(
+      'dd56a1a',
+      `Failed to process mail recipient input; CAUSE: ${error}`,
+    );
   }
 
   try {
     execManageAlerts('recipients', 'edit', { body, uuid });
   } catch (error) {
-    perr(`Failed to update mail recipient; CAUSE: ${error}`);
-
-    return response.status(500).send();
+    return respond.s500(
+      '603e3b0',
+      `Failed to update mail recipient; CAUSE: ${error}`,
+    );
   }
 
-  return response.status(200).send();
+  return respond.s200();
 };

@@ -1,7 +1,10 @@
-import { Album as AlbumIcon, Expand as ExpandIcon } from '@mui/icons-material';
+import {
+  Album as MuiAlbumIcon,
+  Expand as MuiExpandIcon,
+} from '@mui/icons-material';
 import { Grid } from '@mui/material';
 import { capitalize } from 'lodash';
-import { FC, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import FlexBox from '../FlexBox';
@@ -12,7 +15,7 @@ import ServerAddDiskForm from './ServerAddDiskForm';
 import ServerChangeIsoForm from './ServerChangeIsoForm';
 import { BodyText, MonoText } from '../Text';
 
-const ServerDiskList: FC<ServerDiskListProps> = (props) => {
+const ServerDiskList: React.FC<ServerDiskListProps> = (props) => {
   const { detail, tools } = props;
 
   const addDiskDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -100,7 +103,7 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
                         }}
                         size="small"
                       >
-                        <AlbumIcon />
+                        <MuiAlbumIcon />
                       </IconButton>
                     </Grid>
                   )}
@@ -119,7 +122,7 @@ const ServerDiskList: FC<ServerDiskListProps> = (props) => {
                         }}
                         size="small"
                       >
-                        <ExpandIcon sx={{ rotate: '90deg' }} />
+                        <MuiExpandIcon sx={{ rotate: '90deg' }} />
                       </IconButton>
                     </Grid>
                   )}

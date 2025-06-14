@@ -43,27 +43,25 @@ const OutlinedInput: React.FC<OutlinedInputProps> = (props) => {
 
   const [type, setType] = useState<string>(initialType);
 
-  const passwordVisibilityButton = useMemo(() => {
+  const passwordVisibilityButton = useMemo<React.ReactNode>(() => {
     const isInitialTypePassword = initialType === INPUT_TYPES.password;
     const isTypePassword = type === INPUT_TYPES.password;
 
     return (
-      <>
-        {isInitialTypePassword && (
-          <MuiIconButton
-            onClick={(...args) => {
-              const newType = isTypePassword
-                ? INPUT_TYPES.text
-                : INPUT_TYPES.password;
+      isInitialTypePassword && (
+        <MuiIconButton
+          onClick={(...args) => {
+            const newType = isTypePassword
+              ? INPUT_TYPES.text
+              : INPUT_TYPES.password;
 
-              setType(newType);
-              onPasswordVisibilityAppend?.call(null, newType, ...args);
-            }}
-          >
-            {isTypePassword ? <MuiVisibilityIcon /> : <MuiVisibilityOffIcon />}
-          </MuiIconButton>
-        )}
-      </>
+            setType(newType);
+            onPasswordVisibilityAppend?.call(null, newType, ...args);
+          }}
+        >
+          {isTypePassword ? <MuiVisibilityIcon /> : <MuiVisibilityOffIcon />}
+        </MuiIconButton>
+      )
     );
   }, [initialType, onPasswordVisibilityAppend, type]);
 
@@ -112,7 +110,9 @@ const OutlinedInput: React.FC<OutlinedInputProps> = (props) => {
     let result;
 
     if (typeof endAdornment === 'object') {
-      const casted = endAdornment as React.ReactElement;
+      const casted =
+        endAdornment as React.ReactElement<React.PropsWithChildren>;
+
       const {
         props: { children: castedChildren = [], ...castedRestProps },
       } = casted;

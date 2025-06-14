@@ -1,6 +1,6 @@
-import { Grid, Switch } from '@mui/material';
+import { Grid, Switch as MuiSwitch } from '@mui/material';
 import { capitalize } from 'lodash';
-import { FC, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
@@ -21,7 +21,7 @@ const STATE_LABEL: Record<string, string> = {
   up: 'plugged-in',
 };
 
-const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
+const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
   const { detail, tools } = props;
 
   const addDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -76,7 +76,7 @@ const ServerInterfaceList: FC<ServerInterfaceListProps> = (props) => {
                     <SmallText noWrap>
                       {capitalize(STATE_LABEL[state])}
                     </SmallText>
-                    <Switch
+                    <MuiSwitch
                       checked={active}
                       onChange={() => {
                         const { [state]: action } = STATE_ACTION;

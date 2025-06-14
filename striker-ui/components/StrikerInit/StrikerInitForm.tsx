@@ -1,6 +1,6 @@
 import { Grid } from '@mui/material';
 
-import { FC, useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -113,7 +113,7 @@ const guessOrgPrefix = (orgName: string, max = 5): string => {
   return result;
 };
 
-const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
+const StrikerInitForm: React.FC<StrikerInitFormProps> = (props) => {
   const { detail, onSubmitSuccess, tools } = props;
 
   const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);
@@ -248,7 +248,9 @@ const StrikerInitForm: FC<StrikerInitFormProps> = (props) => {
                   label="Organization Name"
                   name={orgNameChain}
                   onBlur={(event) => {
-                    if (getFieldChanged(orgPrefixChain)) return;
+                    if (getFieldChanged(orgPrefixChain)) {
+                      return;
+                    }
 
                     const {
                       target: { value },

@@ -1,3 +1,6 @@
+/**
+ * @deprecated
+ */
 const testRange: (args: MinimalInputTestArgs) => boolean = ({
   max,
   min,

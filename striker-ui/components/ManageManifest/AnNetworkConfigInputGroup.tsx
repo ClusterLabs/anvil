@@ -1,5 +1,5 @@
 import { Netmask } from 'netmask';
-import { ReactElement, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
@@ -70,15 +70,19 @@ const AnNetworkConfigInputGroup = <
   M extends MapToInputTestID & {
     [K in typeof INPUT_ID_ANC_DNS | typeof INPUT_ID_ANC_NTP]: string;
   },
->({
-  formUtils,
-  networkListEntries,
-  previous: {
-    dnsCsv: previousDnsCsv = DEFAULT_DNS_CSV,
-    ntpCsv: previousNtpCsv,
-  } = {},
-  setNetworkList,
-}: AnNetworkConfigInputGroupProps<M>): ReactElement => {
+>(
+  ...[props]: Parameters<React.FC<AnNetworkConfigInputGroupProps<M>>>
+): ReturnType<React.FC<AnNetworkConfigInputGroupProps<M>>> => {
+  const {
+    formUtils,
+    networkListEntries,
+    previous: {
+      dnsCsv: previousDnsCsv = DEFAULT_DNS_CSV,
+      ntpCsv: previousNtpCsv,
+    } = {},
+    setNetworkList,
+  } = props;
+
   const {
     buildFinishInputTestBatchFunction,
     buildInputFirstRenderFunction,

@@ -1,12 +1,12 @@
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as MuiAddIcon } from '@mui/icons-material';
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
 import {
   DataSizeUnit,
   dSize,
   dSizeStr,
   FormatDataSizeOptions,
 } from 'format-data-size';
+import { useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';
@@ -37,7 +37,7 @@ const UNIT_OPTIONS: SelectItem<DataSizeUnit | 'percent'>[] = [
   },
 ];
 
-const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
+const ServerAddDiskForm: React.FC<ServerAddDiskFormProps> = (props) => {
   const { device, detail, tools } = props;
 
   const working = useMemo(
@@ -229,7 +229,7 @@ const ServerAddDiskForm: FC<ServerAddDiskFormProps> = (props) => {
     () =>
       device && (
         <Grid item textAlign="center" width={{ xs: '100%', sm: 'fit-content' }}>
-          <AddIcon sx={{ color: GREY }} />
+          <MuiAddIcon sx={{ color: GREY }} />
         </Grid>
       ),
     [device],

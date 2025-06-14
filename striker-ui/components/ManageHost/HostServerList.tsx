@@ -1,4 +1,7 @@
-import { Grid, gridClasses } from '@mui/material';
+import {
+  Grid2 as MuiGrid,
+  grid2Classes as muiGridClasses,
+} from '@mui/material';
 import { useCallback, useMemo } from 'react';
 
 import Link from '../Link';
@@ -33,44 +36,43 @@ const HostServerList: React.FC<HostServerListProps> = (props) => {
       const { [name]: resource } = drbdResources;
 
       return (
-        <Grid alignItems="center" columnSpacing="1em" container width="100%">
-          <Grid item>
+        <MuiGrid alignItems="center" columnSpacing="1em" container width="100%">
+          <MuiGrid>
             <Link href={`/server?name=${name}`} noWrap>
               {name}
             </Link>
-          </Grid>
-          <Grid
-            item
+          </MuiGrid>
+          <MuiGrid
+            size="grow"
             sx={{
-              [`& > .${gridClasses.container}`]: {
+              [`& > .${muiGridClasses.container}`]: {
                 alignItems: 'center',
                 width: '100%',
 
-                [`& > .${gridClasses.item}:nth-child(odd)`]: {
+                [`& > .${muiGridClasses.root}:nth-child(odd)`]: {
                   width: '5em',
                 },
               },
             }}
-            xs
           >
-            <Grid columnSpacing="0.5em" container>
-              <Grid item>
+            <MuiGrid columnSpacing="0.5em" container>
+              <MuiGrid>
                 <BodyText>Connection</BodyText>
-              </Grid>
-              <Grid item xs>
+              </MuiGrid>
+              <MuiGrid size="grow">
                 <MonoText>{resource.connection.state}</MonoText>
-              </Grid>
-            </Grid>
-            <Grid columnSpacing="0.5em" container>
-              <Grid item>
+              </MuiGrid>
+            </MuiGrid>
+            <MuiGrid columnSpacing="0.5em" container>
+              <MuiGrid>
                 <BodyText>Disk</BodyText>
-              </Grid>
-              <Grid item xs>
+              </MuiGrid>
+              <MuiGrid size="grow">
                 <MonoText>{resource.replication.state}</MonoText>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
+              </MuiGrid>
+            </MuiGrid>
+          </MuiGrid>
+        </MuiGrid>
       );
     },
     [drbdResources, host.servers.all],
@@ -113,11 +115,13 @@ const HostServerList: React.FC<HostServerListProps> = (props) => {
   );
 
   return (
-    <Grid
+    <MuiGrid
       container
       spacing="1em"
       sx={{
-        [`& > .${gridClasses.item}`]: {
+        width: '100%',
+
+        [`& > .${muiGridClasses.root}`]: {
           width: {
             xs: '100%',
             lg: '50%',
@@ -126,10 +130,10 @@ const HostServerList: React.FC<HostServerListProps> = (props) => {
         },
       }}
     >
-      <Grid item>{configuredList}</Grid>
-      <Grid item>{syncingList}</Grid>
-      <Grid item>{runningList}</Grid>
-    </Grid>
+      <MuiGrid size="grow">{configuredList}</MuiGrid>
+      <MuiGrid size="grow">{syncingList}</MuiGrid>
+      <MuiGrid size="grow">{runningList}</MuiGrid>
+    </MuiGrid>
   );
 };
 

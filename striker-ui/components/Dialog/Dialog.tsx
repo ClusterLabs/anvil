@@ -4,10 +4,6 @@ import {
 } from '@mui/material';
 import { merge } from 'lodash';
 import {
-  ForwardRefExoticComponent,
-  PropsWithChildren,
-  ReactNode,
-  RefAttributes,
   createContext,
   forwardRef,
   useImperativeHandle,
@@ -18,78 +14,84 @@ import {
 import { Panel } from '../Panels';
 import Spinner from '../Spinner';
 
-const DialogContext = createContext<DialogContext | null>(null);
+const DialogContext = createContext<DialogContextValue | null>(null);
 
-const Dialog: ForwardRefExoticComponent<
-  PropsWithChildren<DialogProps> & RefAttributes<DialogForwardedRefContent>
-> = forwardRef<DialogForwardedRefContent, DialogProps>((props, ref) => {
-  const {
-    children: externalChildren,
-    dialogProps,
-    loading,
-    onTransitionExited,
-    openInitially = false,
-    wide,
-  } = props;
+const Dialog: React.ForwardRefExoticComponent<
+  React.PropsWithChildren<DialogProps> &
+    React.RefAttributes<DialogForwardedRefContent>
+> = forwardRef<DialogForwardedRefContent, React.PropsWithChildren<DialogProps>>(
+  (props, ref) => {
+    const {
+      children: externalChildren,
+      dialogProps,
+      loading,
+      onTransitionExited,
+      openInitially = false,
+      wide,
+    } = props;
 
-  // Do not initialize the external open state because we need it to
-  // determine whether the dialog is controlled or uncontrolled.
+    // Do not initialize the external open state because we need it to
+    // determine whether the dialog is controlled or uncontrolled.
 
-  const [controlOpen, setControlOpen] = useState<boolean>(openInitially);
+    const [controlOpen, setControlOpen] = useState<boolean>(openInitially);
 
-  const muiDialogProps = useMemo<MuiDialogProps>(() => {
-    const minWidth = wide
-      ? {
-          xs: 'calc(100%)',
-          md: '50em',
-        }
-      : undefined;
+    const muiDialogProps = useMemo<MuiDialogProps>(() => {
+      const minWidth = wide
+        ? {
+            xs: 'calc(100%)',
+            md: '50em',
+          }
+        : undefined;
 
-    return merge(
-      {
-        open: controlOpen,
-        PaperComponent: Panel,
-        PaperProps: {
-          sx: {
-            minWidth,
-            overflow: 'visible',
+      return merge(
+        {
+          open: controlOpen,
+          PaperComponent: Panel,
+          PaperProps: {
+            sx: {
+              minWidth,
+              overflow: 'visible',
+            },
+          },
+          TransitionProps: {
+            onExited: onTransitionExited,
           },
         },
-        TransitionProps: {
-          onExited: onTransitionExited,
-        },
-      },
-      dialogProps,
+        dialogProps,
+      );
+    }, [controlOpen, dialogProps, onTransitionExited, wide]);
+
+    const contextValue = useMemo<DialogContextValue>(
+      () => ({
+        open: muiDialogProps.open,
+        setOpen: setControlOpen,
+      }),
+      [muiDialogProps.open],
     );
-  }, [controlOpen, dialogProps, onTransitionExited, wide]);
 
-  const children = useMemo<ReactNode>(
-    () => (loading ? <Spinner mt={0} /> : externalChildren),
-    [externalChildren, loading],
-  );
+    const children = useMemo<React.ReactNode>(
+      () => (loading ? <Spinner mt={0} /> : externalChildren),
+      [externalChildren, loading],
+    );
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      open: muiDialogProps.open,
-      setOpen: setControlOpen,
-    }),
-    [muiDialogProps.open],
-  );
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: muiDialogProps.open,
+        setOpen: setControlOpen,
+      }),
+      [muiDialogProps.open],
+    );
 
-  return (
-    <MuiDialog {...muiDialogProps}>
-      <DialogContext.Provider
-        value={{
-          open: muiDialogProps.open,
-          setOpen: setControlOpen,
-        }}
-      >
-        {children}
-      </DialogContext.Provider>
-    </MuiDialog>
-  );
-});
+    return (
+      <MuiDialog {...muiDialogProps}>
+        <DialogContext.Provider value={contextValue}>
+          {children}
+        </DialogContext.Provider>
+      </MuiDialog>
+    );
+  },
+);
 
 Dialog.displayName = 'Dialog';
 

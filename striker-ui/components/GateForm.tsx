@@ -1,4 +1,8 @@
-import { Box, BoxProps, SxProps, Theme } from '@mui/material';
+import {
+  Box as MuiBox,
+  BoxProps as MuiBoxProps,
+  FormControlProps as MuiFormControlProps,
+} from '@mui/material';
 import {
   forwardRef,
   useImperativeHandle,
@@ -19,7 +23,7 @@ import Spinner from './Spinner';
 import { buildPeacefulStringTestBatch } from '../lib/test_input';
 import useFormUtils from '../hooks/useFormUtils';
 
-const INPUT_ROOT_SX: SxProps<Theme> = { width: '100%' };
+const INPUT_ROOT_SX: MuiFormControlProps['sx'] = { width: '100%' };
 
 const INPUT_ID_PREFIX_GATE = 'gate-input';
 
@@ -163,7 +167,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     }, [isAllowSubmit, submitElement]);
 
     const containerProps = useMemo(() => {
-      const result: BoxProps = {};
+      const result: MuiBoxProps = {};
 
       if (isFormContainer) {
         result.component = 'form';
@@ -187,7 +191,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
     }));
 
     return (
-      <Box {...containerProps}>
+      <MuiBox {...containerProps}>
         <Grid
           columns={gridColumns}
           layout={{
@@ -272,7 +276,7 @@ const GateForm = forwardRef<GateFormForwardedRefContent, GateFormProps>(
           spacing={gridSpacing}
           {...restGridProps}
         />
-      </Box>
+      </MuiBox>
     );
   },
 );

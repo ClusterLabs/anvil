@@ -1,5 +1,5 @@
-import { Box, styled } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { Box as MuiBox, styled } from '@mui/material';
+import { useMemo, useState } from 'react';
 
 import { BORDER_RADIUS, EERIE_BLACK } from '../../lib/consts/DEFAULT_THEME';
 
@@ -17,7 +17,7 @@ const MAP_TO_WRAPPER_TYPE: Record<
   small: (props) => <SmallText {...props} />,
 };
 
-const BaseStyle = styled(Box)({
+const StyledBox = styled(MuiBox)({
   backgroundColor: EERIE_BLACK,
   borderRadius: BORDER_RADIUS,
   color: EERIE_BLACK,
@@ -30,9 +30,9 @@ const BaseStyle = styled(Box)({
     color: 'unset',
     cursor: 'text',
   },
-});
+}) as typeof MuiBox;
 
-const SensitiveText: FC<SensitiveTextProps> = ({
+const SensitiveText: React.FC<React.PropsWithChildren<SensitiveTextProps>> = ({
   children,
   revealInitially = false,
   wrapper = 'none',
@@ -47,14 +47,14 @@ const SensitiveText: FC<SensitiveTextProps> = ({
   }, [children, wrapper, wrapperProps]);
 
   return (
-    <BaseStyle
+    <StyledBox
       component="span"
       onBlur={() => setReveal(false)}
       onFocus={() => setReveal(true)}
       tabIndex={0}
     >
       {reveal ? content : '*****'}
-    </BaseStyle>
+    </StyledBox>
   );
 };
 

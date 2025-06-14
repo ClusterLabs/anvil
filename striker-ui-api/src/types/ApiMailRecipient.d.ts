@@ -1,17 +1,15 @@
 type MailRecipientOverview = {
+  email: string;
+  level: number;
   name: string;
   uuid: string;
 };
 
 type MailRecipientDetail = MailRecipientOverview & {
-  email: string;
   language: string;
-  level: number;
 };
 
-type MailRecipientOverviewList = {
-  [uuid: string]: MailRecipientOverview;
-};
+type MailRecipientOverviewList = Record<string, MailRecipientOverview>;
 
 type MailRecipientParamsDictionary = {
   uuid: string;

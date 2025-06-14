@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    // No effect on the actual build output because `tsc` is only used for type
+    // checking.
+    "target": "es2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -13,9 +15,10 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
+    "incremental": true,
+    // Added options:
     "noImplicitAny": true,
-    "typeRoots": ["types"],
-    "incremental": true
+    "typeRoots": ["types"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]

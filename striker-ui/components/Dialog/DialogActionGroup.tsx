@@ -1,4 +1,4 @@
-import { FC, useCallback, useContext, useMemo } from 'react';
+import { useCallback, useContext, useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import { DialogContext } from './Dialog';
@@ -11,7 +11,7 @@ const handleAction: ExtendableEventHandler<ButtonClickEventHandler> = (
   origin?.call(null, ...args);
 };
 
-const DialogActionGroup: FC<DialogActionGroupProps> = (props) => {
+const DialogActionGroup: React.FC<DialogActionGroupProps> = (props) => {
   const {
     cancelProps,
     closeOnProceed,

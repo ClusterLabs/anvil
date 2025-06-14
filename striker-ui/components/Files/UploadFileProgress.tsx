@@ -1,11 +1,10 @@
 import { Box as MuiBox } from '@mui/material';
-import { FC } from 'react';
 
 import { ProgressBar } from '../Bars';
 import FlexBox from '../FlexBox';
 import { BodyText } from '../Text';
 
-const UploadFileProgress: FC<UploadFileProgressProps> = (props) => {
+const UploadFileProgress: React.FC<UploadFileProgressProps> = (props) => {
   const { uploads } = props;
 
   return (

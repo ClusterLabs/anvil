@@ -1,30 +1,34 @@
 import {
-  FormControl as MUIFormControl,
-  FormControlLabel as MUIFormControlLabel,
-  FormLabel as MUIFormLabel,
-  Radio as MUIRadio,
+  FormControl as MuiFormControl,
+  FormControlLabel as MuiFormControlLabel,
+  FormLabel as MuiFormLabel,
+  Radio as MuiRadio,
   radioClasses as muiRadioClasses,
-  RadioGroup as MUIRadioGroup,
+  RadioGroup as MuiRadioGroup,
 } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 import { BodyText } from './Text';
 
-const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
-  formControlProps,
-  formControlLabelProps,
-  formLabelProps,
-  id,
-  label,
-  name,
-  onChange: onRadioGroupChange,
-  radioItems,
-  radioProps: { sx: radioSx, ...restRadioProps } = {},
-  radioGroupProps,
-  value,
-}) => {
+const RadioGroupWithLabel = <Value = string,>(
+  ...[props]: Parameters<React.FC<RadioGroupWithLabelProps<Value>>>
+): ReturnType<React.FC<RadioGroupWithLabelProps<Value>>> => {
+  const {
+    formControlProps,
+    formControlLabelProps,
+    formLabelProps,
+    id,
+    label,
+    name,
+    onChange: onRadioGroupChange,
+    radioItems,
+    radioProps: { sx: radioSx, ...restRadioProps } = {},
+    radioGroupProps,
+    value,
+  } = props;
+
   const labelElement = useMemo(
     () => (typeof label === 'string' ? <BodyText>{label}</BodyText> : label),
     [label],
@@ -41,9 +45,9 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
         );
 
       return (
-        <MUIFormControlLabel
+        <MuiFormControlLabel
           control={
-            <MUIRadio
+            <MuiRadio
               {...restRadioProps}
               sx={{
                 [`&.${muiRadioClasses.root}`]: {
@@ -64,9 +68,9 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
   }, [formControlLabelProps, id, radioItems, radioSx, restRadioProps]);
 
   return (
-    <MUIFormControl {...formControlProps}>
-      <MUIFormLabel {...formLabelProps}>{labelElement}</MUIFormLabel>
-      <MUIRadioGroup
+    <MuiFormControl {...formControlProps}>
+      <MuiFormLabel {...formLabelProps}>{labelElement}</MuiFormLabel>
+      <MuiRadioGroup
         id={id}
         name={name}
         onChange={onRadioGroupChange}
@@ -75,8 +79,8 @@ const RadioGroupWithLabel: FC<RadioGroupWithLabelProps> = ({
         {...radioGroupProps}
       >
         {itemElements}
-      </MUIRadioGroup>
-    </MUIFormControl>
+      </MuiRadioGroup>
+    </MuiFormControl>
   );
 };
 

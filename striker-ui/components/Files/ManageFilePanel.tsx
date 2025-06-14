@@ -1,6 +1,6 @@
 import { Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { UPLOAD_FILE_TYPES } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
@@ -23,7 +23,7 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
 
-const ManageFilePanel: FC = () => {
+const ManageFilePanel: React.FC = () => {
   const addFormDialogRef = useRef<DialogForwardedRefContent>(null);
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const editFormDialogRef = useRef<DialogForwardedRefContent>(null);

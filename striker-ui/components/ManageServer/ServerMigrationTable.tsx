@@ -1,12 +1,12 @@
-import { GridColDef, GridColumns } from '@mui/x-data-grid';
-import { FC, useMemo } from 'react';
+import { GridColDef } from '@mui/x-data-grid';
+import { useMemo } from 'react';
 
 import ContainedButton from '../ContainedButton';
 import DragDataGrid from '../HostNetInit/DragDataGrid';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
-const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
+const ServerMigrationTable: React.FC<ServerMigrationTableProps> = (props) => {
   const { detail, servers } = props;
 
   const { altData: hostValues } = useFetch<
@@ -28,7 +28,7 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
     [detail.anvil.uuid, servers],
   );
 
-  const dataGridRows = useMemo(
+  const dataGridRows = useMemo<ServerMigrationRow[]>(
     () =>
       filteredServerValues.reduce<
         {
@@ -61,10 +61,10 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
     [detail.uuid, filteredServerValues],
   );
 
-  const dataGridColumns = useMemo<GridColumns | undefined>(
+  const dataGridColumns = useMemo(
     () =>
       hostValues &&
-      hostValues.map<GridColDef>((host) => {
+      hostValues.map<GridColDef<ServerMigrationRow, string>>((host) => {
         const { hostUUID, shortHostName } = host;
 
         return {
@@ -83,12 +83,12 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
             return value;
           },
           sortable: false,
-          valueGetter: (params) => {
-            const { row } = params;
-
+          valueGetter: (params, row) => {
             const column = row.columns[hostUUID];
 
-            if (!column) return '';
+            if (!column) {
+              return '';
+            }
 
             return column.name;
           },
@@ -102,11 +102,11 @@ const ServerMigrationTable: FC<ServerMigrationTableProps> = (props) => {
   }
 
   return (
-    <DragDataGrid
+    <DragDataGrid<ServerMigrationRow>
       autoHeight
       columns={dataGridColumns}
       disableColumnMenu
-      disableSelectionOnClick
+      disableRowSelectionOnClick
       getRowId={(row) => row.uuid}
       hideFooter
       rows={dataGridRows}

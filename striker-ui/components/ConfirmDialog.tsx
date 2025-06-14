@@ -1,8 +1,5 @@
 import { Box as MuiBox } from '@mui/material';
 import {
-  ForwardRefExoticComponent,
-  PropsWithChildren,
-  RefAttributes,
   createElement,
   forwardRef,
   useImperativeHandle,
@@ -15,10 +12,10 @@ import FlexBox from './FlexBox';
 import sxstring from '../lib/sxstring';
 import { BodyText } from './Text';
 
-const ConfirmDialog: ForwardRefExoticComponent<
-  PropsWithChildren<ConfirmDialogProps> &
-    RefAttributes<ConfirmDialogForwardedRefContent>
-> = forwardRef<ConfirmDialogForwardedRefContent, ConfirmDialogProps>(
+const ConfirmDialog = forwardRef<
+  ConfirmDialogForwardedRefContent,
+  React.PropsWithChildren<ConfirmDialogProps>
+>(
   (
     {
       actionCancelText = 'Cancel',

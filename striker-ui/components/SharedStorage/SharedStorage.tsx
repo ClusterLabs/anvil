@@ -1,4 +1,4 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 import { AxiosError } from 'axios';
 import { useContext, useMemo, useRef, useState } from 'react';
 
@@ -87,7 +87,7 @@ const SharedStorageContent: React.FC<
 
     return (
       <StyledDiv>
-        <Box className={classes.root}>
+        <MuiBox className={classes.root}>
           {values.map(
             ({ uuid }): React.ReactNode => (
               <StorageGroup
@@ -99,7 +99,7 @@ const SharedStorageContent: React.FC<
               />
             ),
           )}
-        </Box>
+        </MuiBox>
         <DialogWithHeader
           header={formDialogHeader}
           onTransitionExited={() => {

@@ -1,13 +1,12 @@
-import { SvgIconComponent } from '@mui/icons-material';
+import { SvgIconComponent as MuiSvgIconComponent } from '@mui/icons-material';
 import {
-  Box as MUIBox,
-  BoxProps as MUIBoxProps,
-  SvgIconProps,
+  Box as MuiBox,
+  BoxProps as MuiBoxProps,
+  SvgIconProps as MuiSvgIconProps,
 } from '@mui/material';
 import {
   createElement,
   forwardRef,
-  ReactNode,
   useCallback,
   useImperativeHandle,
   useMemo,
@@ -22,7 +21,7 @@ import { BodyText, BodyTextProps } from './Text';
 type IndicatorValue = boolean | number;
 
 type IconWithIndicatorOptionalPropsWithDefault = {
-  iconProps?: SvgIconProps;
+  iconProps?: MuiSvgIconProps;
   indicatorProps?: FlexBoxProps;
   indicatorTextProps?: BodyTextProps;
   initialIndicatorValue?: IndicatorValue;
@@ -30,9 +29,9 @@ type IconWithIndicatorOptionalPropsWithDefault = {
 
 type IconWithIndicatorOptionalProps = IconWithIndicatorOptionalPropsWithDefault;
 
-type IconWithIndicatorProps = MUIBoxProps &
+type IconWithIndicatorProps = MuiBoxProps &
   IconWithIndicatorOptionalProps & {
-    icon: SvgIconComponent;
+    icon: MuiSvgIconComponent;
   };
 
 type IconWithIndicatorForwardedRefContent = {
@@ -40,15 +39,11 @@ type IconWithIndicatorForwardedRefContent = {
 };
 
 const CONTAINER_LENGTH = '1.7em';
-const ICON_WITH_INDICATOR_DEFAULT_PROPS: Required<IconWithIndicatorOptionalPropsWithDefault> =
-  {
-    iconProps: {},
-    indicatorProps: {},
-    indicatorTextProps: {},
-    initialIndicatorValue: false,
-  };
+
 const INDICATOR_LENGTH = { small: '24%', medium: '50%' };
+
 const INDICATOR_MAX = 9;
+
 const INDICATOR_OFFSET = { small: '.1rem', medium: '0rem' };
 
 const IconWithIndicator = forwardRef<
@@ -62,18 +57,18 @@ const IconWithIndicator = forwardRef<
         sx: iconSx,
 
         ...restIconProps
-      } = ICON_WITH_INDICATOR_DEFAULT_PROPS.iconProps,
+      } = {},
       indicatorProps: {
         sx: indicatorSx,
 
         ...restIndicatorProps
-      } = ICON_WITH_INDICATOR_DEFAULT_PROPS.indicatorProps,
+      } = {},
       indicatorTextProps: {
         sx: indicatorTextSx,
 
         ...restIndicatorTextProps
-      } = ICON_WITH_INDICATOR_DEFAULT_PROPS.indicatorTextProps,
-      initialIndicatorValue = ICON_WITH_INDICATOR_DEFAULT_PROPS.initialIndicatorValue,
+      } = {},
+      initialIndicatorValue = false,
       sx,
     },
     ref,
@@ -84,7 +79,7 @@ const IconWithIndicator = forwardRef<
 
     const buildIndicator = useCallback(
       (
-        indicatorContent: ReactNode,
+        indicatorContent: React.ReactNode,
         indicatorLength: number | string,
         indicatorOffset: number | string,
       ) => (
@@ -164,7 +159,7 @@ const IconWithIndicator = forwardRef<
     );
 
     return (
-      <MUIBox
+      <MuiBox
         sx={{
           height: CONTAINER_LENGTH,
           width: CONTAINER_LENGTH,
@@ -178,12 +173,11 @@ const IconWithIndicator = forwardRef<
           sx: { height: '100%', width: '100%', ...iconSx },
         })}
         {indicator}
-      </MUIBox>
+      </MuiBox>
     );
   },
 );
 
-IconWithIndicator.defaultProps = ICON_WITH_INDICATOR_DEFAULT_PROPS;
 IconWithIndicator.displayName = 'IconWithIndicator';
 
 export type { IconWithIndicatorForwardedRefContent, IconWithIndicatorProps };

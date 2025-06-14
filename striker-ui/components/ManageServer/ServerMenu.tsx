@@ -1,5 +1,5 @@
-import { MoreVert as MoreVertIcon } from '@mui/icons-material';
-import { Box, Grid } from '@mui/material';
+import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
+import { Box as MuiBox, Grid } from '@mui/material';
 import { useMemo, useRef } from 'react';
 
 import ButtonWithMenu from '../ButtonWithMenu';
@@ -216,7 +216,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
   }, [node.name, off, provisioning, server.name, server.uuid]);
 
   return (
-    <Box>
+    <MuiBox>
       <ButtonWithMenu<ServerOption>
         getItemDisabled={(key, value) => value.disabled?.call(null, key, value)}
         getItemHref={(key, value) => value.href?.call(null, key, value)}
@@ -225,12 +225,12 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
         renderItem={(key, value) => value.render(key, value)}
         {...slotProps?.button}
       >
-        <MoreVertIcon
+        <MuiMoreVertIcon
           fontSize={slotProps?.button?.slotProps?.button?.icon?.size}
         />
       </ButtonWithMenu>
       {confirmDialog}
-    </Box>
+    </MuiBox>
   );
 };
 

@@ -1,14 +1,16 @@
-import { MoreVert as MoreVertIcon } from '@mui/icons-material';
-import { Box } from '@mui/material';
+import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
+import { Box as MuiBox } from '@mui/material';
 import { merge } from 'lodash';
-import { MouseEventHandler, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import ContainedButton from './ContainedButton';
 import IconButton from './IconButton/IconButton';
 import Menu from './Menu';
 
 const ButtonWithMenu = <T = unknown,>(
-  ...[props]: Parameters<React.FC<ButtonWithMenuProps<T>>>
+  ...[props]: Parameters<
+    React.FC<React.PropsWithChildren<ButtonWithMenuProps<T>>>
+  >
 ): ReturnType<React.FC<ButtonWithMenuProps<T>>> => {
   const {
     children,
@@ -29,13 +31,15 @@ const ButtonWithMenu = <T = unknown,>(
     }
 
     if (variant === 'icon') {
-      return <MoreVertIcon fontSize={slotProps?.button?.icon?.size} />;
+      return <MuiMoreVertIcon fontSize={slotProps?.button?.icon?.size} />;
     }
 
     return 'Options';
   }, [children, slotProps?.button?.icon?.size, variant]);
 
-  const buttonClickHandler = useCallback<MouseEventHandler<HTMLButtonElement>>(
+  const buttonClickHandler = useCallback<
+    React.MouseEventHandler<HTMLButtonElement>
+  >(
     (...args) => {
       const {
         0: { currentTarget },
@@ -100,7 +104,7 @@ const ButtonWithMenu = <T = unknown,>(
   );
 
   return (
-    <Box>
+    <MuiBox>
       {buttonElement}
       <Menu<T>
         onItemClick={itemClickHandler}
@@ -109,7 +113,7 @@ const ButtonWithMenu = <T = unknown,>(
         {...slotProps?.menu}
         slotProps={mergedMenuSlotProps}
       />
-    </Box>
+    </MuiBox>
   );
 };
 

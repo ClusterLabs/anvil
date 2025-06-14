@@ -1,5 +1,8 @@
-import { Box, GlobalStyles, styled } from '@mui/material';
-import { FC } from 'react';
+import {
+  Box as MuiBox,
+  GlobalStyles as MuiGlobalStyles,
+  styled,
+} from '@mui/material';
 
 import {
   BORDER_RADIUS,
@@ -16,7 +19,7 @@ const panelClasses = {
   bottomSquare: `${PREFIX}-bottomSquare`,
 };
 
-const StyledBox = styled(Box)(() => ({
+const StyledBox = styled(MuiBox)(() => ({
   margin: '1em',
   position: 'relative',
 
@@ -55,7 +58,7 @@ const StyledBox = styled(Box)(() => ({
 }));
 
 const styledScrollbars = (
-  <GlobalStyles
+  <MuiGlobalStyles
     styles={{
       '*::-webkit-scrollbar': {
         width: '.6em',
@@ -72,7 +75,7 @@ const styledScrollbars = (
   />
 );
 
-const Panel: FC<PanelProps> = ({
+const Panel: React.FC<PanelProps> = ({
   children,
   className: rootClassName,
   paperProps: { className: paperClassName, ...restPaperProps } = {},
@@ -81,14 +84,14 @@ const Panel: FC<PanelProps> = ({
 }) => (
   <StyledBox className={rootClassName} sx={rootSx} {...restRootProps}>
     {styledScrollbars}
-    <Box className={`${panelClasses.square} ${panelClasses.topSquare}`} />
-    <Box className={`${panelClasses.square} ${panelClasses.bottomSquare}`} />
-    <Box
+    <MuiBox className={`${panelClasses.square} ${panelClasses.topSquare}`} />
+    <MuiBox className={`${panelClasses.square} ${panelClasses.bottomSquare}`} />
+    <MuiBox
       {...restPaperProps}
       className={`${panelClasses.paper} ${paperClassName}`}
     >
       {children}
-    </Box>
+    </MuiBox>
   </StyledBox>
 );
 

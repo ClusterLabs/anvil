@@ -8,7 +8,7 @@ import { HeaderText } from '../Text';
 import Spinner from '../Spinner';
 import useFetch from '../../hooks/useFetch';
 
-const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
+const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): React.ReactElement => {
   const { uuid } = useContext(AnvilContext);
 
   const { data, loading } = useFetch<AnvilStatus>(`/anvil/${uuid}`, {
@@ -21,23 +21,22 @@ const Hosts = ({ anvil }: { anvil: AnvilListItem[] }): JSX.Element => {
     <Panel>
       <HeaderText text="Subnodes" />
       {!loading ? (
-        <>
-          {anvilIndex !== -1 && data && (
-            <AnvilHost
-              hosts={hostsSanitizer(anvil[anvilIndex].hosts).reduce<
-                Array<AnvilStatusHost>
-              >((reducedHosts, host, index) => {
-                const hostStatus = data.hosts[index];
+        anvilIndex !== -1 &&
+        data && (
+          <AnvilHost
+            hosts={hostsSanitizer(anvil[anvilIndex].hosts).reduce<
+              Array<AnvilStatusHost>
+            >((reducedHosts, host, index) => {
+              const hostStatus = data.hosts[index];
 
-                if (hostStatus) {
-                  reducedHosts.push(hostStatus);
-                }
+              if (hostStatus) {
+                reducedHosts.push(hostStatus);
+              }
 
-                return reducedHosts;
-              }, [])}
-            />
-          )}
-        </>
+              return reducedHosts;
+            }, [])}
+          />
+        )
       ) : (
         <Spinner />
       )}

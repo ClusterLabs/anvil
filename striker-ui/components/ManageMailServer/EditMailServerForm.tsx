@@ -1,8 +1,6 @@
-import { FC } from 'react';
-
 import AddMailServerForm from './AddMailServerForm';
 
-const EditMailServerForm: FC<EditMailServerFormProps> = (props) => (
+const EditMailServerForm: React.FC<EditMailServerFormProps> = (props) => (
   <AddMailServerForm {...props} />
 );
 

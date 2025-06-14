@@ -45,7 +45,7 @@ type ServerMemoryFormikValues = {
 
 type ServerProtectFormikValues = {
   lvmVgUuid: null | string;
-  protocol: null | string;
+  protocol: string;
 };
 
 /**
@@ -110,6 +110,16 @@ type ServerMigrationProps = ServerFormProps;
 
 /** ServerMigrationTable */
 
+type ServerMigrationRow = {
+  columns: Record<
+    string,
+    {
+      name: string;
+    }
+  >;
+  uuid: string;
+};
+
 type ServerMigrationTableProps = ServerFormProps & {
   servers: APIServerOverviewList;
 };
@@ -125,6 +135,13 @@ type ServerAddDiskFormProps = ServerFormProps & {
 type ServerAddInterfaceFormProps = ServerFormProps;
 
 /** ServerBootOrderForm */
+
+type ServerBootOrderRow = {
+  dev: string;
+  index: number;
+  name: string;
+  source: string;
+};
 
 type ServerBootOrderFormProps = ServerFormProps;
 

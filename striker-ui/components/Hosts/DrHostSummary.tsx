@@ -1,4 +1,4 @@
-import { Grid, gridClasses } from '@mui/material';
+import { Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 
@@ -69,16 +69,9 @@ const DrHostSummary: React.FC<DrHostSummaryProps> = (props) => {
     const { configured, replicating, running } = detail.servers;
 
     return (
-      <Grid
-        container
-        sx={{
-          [`& .${gridClasses.item}`]: {
-            alignSelf: 'center',
-          },
-        }}
-      >
+      <Grid alignItems="center" container>
         <Grid item width="100%">
-          <Grid columnSpacing="0.5em" container>
+          <Grid alignItems="center" columnSpacing="0.5em" container>
             <Grid item>
               <BodyText variant="caption">Configured</BodyText>
             </Grid>
@@ -91,7 +84,7 @@ const DrHostSummary: React.FC<DrHostSummaryProps> = (props) => {
           </Grid>
         </Grid>
         <Grid item width="100%">
-          <Grid columnSpacing="0.5em" container>
+          <Grid alignItems="center" columnSpacing="0.5em" container>
             <Grid item>
               <BodyText variant="caption">Syncing</BodyText>
             </Grid>
@@ -104,7 +97,7 @@ const DrHostSummary: React.FC<DrHostSummaryProps> = (props) => {
           </Grid>
         </Grid>
         <Grid item width="100%">
-          <Grid columnSpacing="0.5em" container>
+          <Grid alignItems="center" columnSpacing="0.5em" container>
             <Grid item>
               <BodyText variant="caption">Running</BodyText>
             </Grid>

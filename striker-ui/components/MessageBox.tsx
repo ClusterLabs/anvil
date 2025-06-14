@@ -1,16 +1,16 @@
-import { FC, ReactNode, useCallback, useMemo, useState } from 'react';
 import {
-  Box as MUIBox,
-  BoxProps as MUIBoxProps,
-  IconButton as MUIIconButton,
-  IconButtonProps as MUIIconButtonProps,
-} from '@mui/material';
-import {
-  Close as MUICloseIcon,
-  Error as MUIErrorIcon,
-  Info as MUIInfoIcon,
-  Warning as MUIWarningIcon,
+  Close as MuiCloseIcon,
+  Error as MuiErrorIcon,
+  Info as MuiInfoIcon,
+  Warning as MuiWarningIcon,
 } from '@mui/icons-material';
+import {
+  Box as MuiBox,
+  BoxProps as MuiBoxProps,
+  IconButton as MuiIconButton,
+  IconButtonProps as MuiIconButtonProps,
+} from '@mui/material';
+import { useCallback, useMemo, useState } from 'react';
 
 import {
   BLACK,
@@ -28,13 +28,13 @@ type MessageBoxType = 'error' | 'info' | 'warning';
 type MessageBoxOptionalProps = {
   isShowInitially?: boolean;
   isAllowClose?: boolean;
-  onClose?: MUIIconButtonProps['onClick'];
-  onCloseAppend?: MUIIconButtonProps['onClick'];
+  onClose?: MuiIconButtonProps['onClick'];
+  onCloseAppend?: MuiIconButtonProps['onClick'];
   text?: string;
   type?: MessageBoxType;
 };
 
-type MessageBoxProps = MUIBoxProps & MessageBoxOptionalProps;
+type MessageBoxProps = MuiBoxProps & MessageBoxOptionalProps;
 
 type Message = Pick<MessageBoxProps, 'children' | 'type'>;
 
@@ -47,30 +47,18 @@ const MESSAGE_BOX_CLASSES: Record<MessageBoxType, string> = {
 };
 
 const MESSAGE_BOX_TYPE_MAP_TO_ICON = {
-  error: <MUIErrorIcon />,
-  info: <MUIInfoIcon />,
-  warning: <MUIWarningIcon />,
+  error: <MuiErrorIcon />,
+  info: <MuiInfoIcon />,
+  warning: <MuiWarningIcon />,
 };
 
-const MESSAGE_BOX_DEFAULT_PROPS: Required<
-  Omit<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend' | 'text'>
-> &
-  Pick<MessageBoxOptionalProps, 'onClose' | 'onCloseAppend' | 'text'> = {
-  isShowInitially: true,
-  isAllowClose: false,
-  onClose: undefined,
-  onCloseAppend: undefined,
-  text: undefined,
-  type: 'info',
-};
-
-const MessageBox: FC<MessageBoxProps> = ({
+const MessageBox: React.FC<MessageBoxProps> = ({
   children,
-  isAllowClose = MESSAGE_BOX_DEFAULT_PROPS.isAllowClose,
-  isShowInitially = MESSAGE_BOX_DEFAULT_PROPS.isShowInitially,
+  isAllowClose = false,
+  isShowInitially = true,
   onClose,
   onCloseAppend,
-  type = MESSAGE_BOX_DEFAULT_PROPS.type,
+  type = 'info',
   text,
   ...boxProps
 }) => {
@@ -95,13 +83,13 @@ const MessageBox: FC<MessageBoxProps> = ({
     [],
   );
   const buildMessage = useCallback(
-    (messageBoxType: MessageBoxType, message: ReactNode = children) => (
+    (messageBoxType: MessageBoxType, message: React.ReactNode = children) => (
       <BodyText inverted={messageBoxType === 'info'}>{message}</BodyText>
     ),
     [children],
   );
 
-  const combinedBoxSx: MUIBoxProps['sx'] = useMemo(
+  const combinedBoxSx: MuiBoxProps['sx'] = useMemo(
     () => ({
       alignItems: 'center',
       borderRadius: BORDER_RADIUS,
@@ -142,18 +130,20 @@ const MessageBox: FC<MessageBoxProps> = ({
     [boxSx],
   );
 
-  return isShow ? (
-    <MUIBox
-      {...{
-        ...boxProps,
-        className: buildMessageBoxClasses(type),
-        sx: combinedBoxSx,
-      }}
+  if (!isShow) {
+    return null;
+  }
+
+  return (
+    <MuiBox
+      {...boxProps}
+      className={buildMessageBoxClasses(type)}
+      sx={combinedBoxSx}
     >
       {buildMessageIcon(type)}
       {buildMessage(type, text)}
       {isShowCloseButton && (
-        <MUIIconButton
+        <MuiIconButton
           onClick={
             onClose ??
             ((...args) => {
@@ -162,16 +152,12 @@ const MessageBox: FC<MessageBoxProps> = ({
             })
           }
         >
-          <MUICloseIcon sx={{ fontSize: '1.25rem' }} />
-        </MUIIconButton>
+          <MuiCloseIcon sx={{ fontSize: '1.25rem' }} />
+        </MuiIconButton>
       )}
-    </MUIBox>
-  ) : (
-    <></>
+    </MuiBox>
   );
 };
-
-MessageBox.defaultProps = MESSAGE_BOX_DEFAULT_PROPS;
 
 export type { Message, MessageBoxProps, MessageBoxType };
 

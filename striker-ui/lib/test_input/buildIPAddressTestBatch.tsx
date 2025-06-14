@@ -1,7 +1,12 @@
+/* eslint-disable default-param-last */
+
 import { REP_IPV4 } from '../consts/REG_EXP_PATTERNS';
 
 import testNotBlank from './testNotBlank';
 
+/**
+ * @deprecated
+ */
 const buildIPAddressTestBatch: BuildInputTestBatchFunction = (
   inputName,
   onSuccess,

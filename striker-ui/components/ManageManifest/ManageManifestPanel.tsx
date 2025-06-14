@@ -1,4 +1,4 @@
-import { FC, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import AddManifestInputGroup from './AddManifestInputGroup';
 import {
@@ -103,7 +103,7 @@ const getFormData = (
   );
 };
 
-const ManageManifestPanel: FC = () => {
+const ManageManifestPanel: React.FC = () => {
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const addManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const editManifestFormDialogRef = useRef<ConfirmDialogForwardedRefContent>(
@@ -218,15 +218,15 @@ const ManageManifestPanel: FC = () => {
         {},
       );
 
-      const messages = Object.entries(counts).map((entry) => {
+      const messages = Object.entries(counts).map<React.ReactNode>((entry) => {
         const [hostName, fenceCount] = entry;
 
-        return fenceCount ? (
-          <></>
-        ) : (
-          <MessageBox key={`${hostName}-no-fence-port-message`}>
-            No fence device port specified for {hostName}.
-          </MessageBox>
+        return (
+          !fenceCount && (
+            <MessageBox key={`${hostName}-no-fence-port-message`}>
+              No fence device port specified for {hostName}.
+            </MessageBox>
+          )
         );
       });
 

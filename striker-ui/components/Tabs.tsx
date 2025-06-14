@@ -1,5 +1,5 @@
 import {
-  Breakpoint,
+  Breakpoint as MuiBreakpoint,
   tabClasses as muiTabClasses,
   Tabs as MuiTabs,
   tabsClasses as muiTabsClasses,
@@ -7,14 +7,14 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { BLUE, BORDER_RADIUS } from '../lib/consts/DEFAULT_THEME';
 
 const TABS_MIN_HEIGHT = '1em';
 const TABS_VERTICAL_MIN_HEIGHT = '1.8em';
 
-const BaseTabs = styled(MuiTabs)({
+const StyledTabs = styled(MuiTabs)({
   minHeight: TABS_MIN_HEIGHT,
 
   [`&.${muiTabsClasses.vertical}`]: {
@@ -41,7 +41,7 @@ const BaseTabs = styled(MuiTabs)({
   },
 });
 
-const Tabs: FC<TabsProps> = ({
+const Tabs: React.FC<TabsProps> = ({
   orientation: rawOrientation,
   variant = 'fullWidth',
   ...restTabsProps
@@ -49,7 +49,7 @@ const Tabs: FC<TabsProps> = ({
   const theme = useTheme();
 
   const bp = useCallback(
-    (breakpoint: Breakpoint) => theme.breakpoints.up(breakpoint),
+    (breakpoint: MuiBreakpoint) => theme.breakpoints.up(breakpoint),
     [theme],
   );
 
@@ -59,7 +59,7 @@ const Tabs: FC<TabsProps> = ({
   const bplg = useMediaQuery(bp('lg'));
   const bpxl = useMediaQuery(bp('xl'));
 
-  const mapToBreakpointUp: [Breakpoint, boolean][] = useMemo(
+  const mapToBreakpointUp: [MuiBreakpoint, boolean][] = useMemo(
     () => [
       ['xs', bpxs],
       ['sm', bpsm],
@@ -89,7 +89,11 @@ const Tabs: FC<TabsProps> = ({
   }, [mapToBreakpointUp, rawOrientation]);
 
   return (
-    <BaseTabs orientation={orientation} variant={variant} {...restTabsProps} />
+    <StyledTabs
+      orientation={orientation}
+      variant={variant}
+      {...restTabsProps}
+    />
   );
 };
 

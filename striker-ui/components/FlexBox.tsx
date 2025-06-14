@@ -1,5 +1,6 @@
-import { Box as MUIBox, BoxProps as MUIBoxProps } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
+import { merge } from 'lodash';
+import { useMemo } from 'react';
 
 type FlexBoxDirection = 'column' | 'row';
 
@@ -25,44 +26,28 @@ type FlexBoxOptionalPropsWithoutDefault = {
 type FlexBoxOptionalProps = FlexBoxOptionalPropsWithDefault &
   FlexBoxOptionalPropsWithoutDefault;
 
-type FlexBoxProps = MUIBoxProps & FlexBoxOptionalProps;
+type FlexBoxProps = MuiBoxProps & FlexBoxOptionalProps;
 
-const FLEX_BOX_DEFAULT_PROPS: Required<FlexBoxOptionalPropsWithDefault> &
-  FlexBoxOptionalPropsWithoutDefault = {
-  columnSpacing: undefined,
-  fullWidth: false,
-  growFirst: false,
-  row: false,
-  rowSpacing: undefined,
-  lg: undefined,
-  md: undefined,
-  sm: undefined,
-  spacing: '1em',
-  xl: undefined,
-  xs: 'column',
-};
-
-const FlexBox: FC<FlexBoxProps> = ({
+const FlexBox: React.FC<FlexBoxProps> = ({
   fullWidth,
   growFirst,
-  lg: dLg = FLEX_BOX_DEFAULT_PROPS.lg,
-  md: dMd = FLEX_BOX_DEFAULT_PROPS.md,
+  lg: dlg,
+  md: dmd,
   row: isRow,
-  sm: dSm = FLEX_BOX_DEFAULT_PROPS.sm,
-  spacing = FLEX_BOX_DEFAULT_PROPS.spacing,
-  sx,
-  xl: dXl = FLEX_BOX_DEFAULT_PROPS.xl,
-  xs: dXs = FLEX_BOX_DEFAULT_PROPS.xs,
+  sm: dsm,
+  spacing = '1em',
+  xl: dxl,
+  xs: dxs = 'column',
   // Input props that depend on other input props.
   columnSpacing = spacing,
   rowSpacing = spacing,
-  ...muiBoxRestProps
+  ...restMuiBoxProps
 }) => {
-  const xs = useMemo(() => (isRow ? 'row' : dXs), [dXs, isRow]);
-  const sm = useMemo(() => dSm || xs, [dSm, xs]);
-  const md = useMemo(() => dMd || sm, [dMd, sm]);
-  const lg = useMemo(() => dLg || md, [dLg, md]);
-  const xl = useMemo(() => dXl || lg, [dXl, lg]);
+  const xs = useMemo(() => (isRow ? 'row' : dxs), [dxs, isRow]);
+  const sm = useMemo(() => dsm || xs, [dsm, xs]);
+  const md = useMemo(() => dmd || sm, [dmd, sm]);
+  const lg = useMemo(() => dlg || md, [dlg, md]);
+  const xl = useMemo(() => dxl || lg, [dxl, lg]);
 
   const mapToSx: Record<
     FlexBoxDirection,
@@ -86,57 +71,59 @@ const FlexBox: FC<FlexBoxProps> = ({
     }),
     [columnSpacing, rowSpacing],
   );
+
   const firstChildFlexGrow = useMemo(
     () => (growFirst ? 1 : undefined),
     [growFirst],
   );
+
   const width = useMemo(() => (fullWidth ? '100%' : undefined), [fullWidth]);
 
-  return (
-    <MUIBox
-      {...{
-        ...muiBoxRestProps,
-        sx: {
-          alignItems: {
-            xs: mapToSx[xs].alignItems,
-            sm: mapToSx[sm].alignItems,
-            md: mapToSx[md].alignItems,
-            lg: mapToSx[lg].alignItems,
-            xl: mapToSx[xl].alignItems,
-          },
-          display: 'flex',
-          flexDirection: { xs, sm, md, lg, xl },
-          width,
-
-          '& > :first-child': {
-            flexGrow: firstChildFlexGrow,
-          },
-
-          '& > :not(:first-child)': {
-            marginLeft: {
-              xs: mapToSx[xs].marginLeft,
-              sm: mapToSx[sm].marginLeft,
-              md: mapToSx[md].marginLeft,
-              lg: mapToSx[lg].marginLeft,
-              xl: mapToSx[xl].marginLeft,
+  const mergedProps = useMemo<MuiBoxProps>(
+    () =>
+      merge(
+        {
+          sx: {
+            alignItems: {
+              xs: mapToSx[xs].alignItems,
+              sm: mapToSx[sm].alignItems,
+              md: mapToSx[md].alignItems,
+              lg: mapToSx[lg].alignItems,
+              xl: mapToSx[xl].alignItems,
             },
-            marginTop: {
-              xs: mapToSx[xs].marginTop,
-              sm: mapToSx[sm].marginTop,
-              md: mapToSx[md].marginTop,
-              lg: mapToSx[lg].marginTop,
-              xl: mapToSx[xl].marginTop,
+            display: 'flex',
+            flexDirection: { xs, sm, md, lg, xl },
+            width,
+
+            '& > :first-child': {
+              flexGrow: firstChildFlexGrow,
+            },
+
+            '& > :not(:first-child)': {
+              marginLeft: {
+                xs: mapToSx[xs].marginLeft,
+                sm: mapToSx[sm].marginLeft,
+                md: mapToSx[md].marginLeft,
+                lg: mapToSx[lg].marginLeft,
+                xl: mapToSx[xl].marginLeft,
+              },
+              marginTop: {
+                xs: mapToSx[xs].marginTop,
+                sm: mapToSx[sm].marginTop,
+                md: mapToSx[md].marginTop,
+                lg: mapToSx[lg].marginTop,
+                xl: mapToSx[xl].marginTop,
+              },
             },
           },
-
-          ...sx,
         },
-      }}
-    />
+        restMuiBoxProps,
+      ),
+    [firstChildFlexGrow, lg, mapToSx, md, restMuiBoxProps, sm, width, xl, xs],
   );
-};
 
-FlexBox.defaultProps = FLEX_BOX_DEFAULT_PROPS;
+  return <MuiBox {...mergedProps} />;
+};
 
 export type { FlexBoxProps };
 

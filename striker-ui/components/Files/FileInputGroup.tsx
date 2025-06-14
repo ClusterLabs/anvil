@@ -1,6 +1,6 @@
-import { FormGroup } from '@mui/material';
+import { FormGroup as MuiFormGroup } from '@mui/material';
 import { cloneDeep, debounce } from 'lodash';
-import { FC, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';
 
@@ -12,7 +12,7 @@ import SelectWithLabel from '../SelectWithLabel';
 import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 
-const FileInputGroup: FC<FileInputGroupProps> = (props) => {
+const FileInputGroup: React.FC<FileInputGroupProps> = (props) => {
   const {
     anvils,
     drHosts,
@@ -212,14 +212,14 @@ const FileInputGroup: FC<FileInputGroupProps> = (props) => {
   );
 
   return (
-    <FormGroup sx={{ '& > :not(:first-child)': { marginTop: '1em' } }}>
+    <MuiFormGroup sx={{ '& > :not(:first-child)': { marginTop: '1em' } }}>
       <FlexBox sm="row" xs="column">
         {nameInput}
         {typeInput}
       </FlexBox>
       {syncNodeInputGroup}
       {syncDrHostInputGroup}
-    </FormGroup>
+    </MuiFormGroup>
   );
 };
 

@@ -1,3 +1,4 @@
+export * from './sqlAlertOverrides';
 export * from './sqlDrLinked';
 export * from './sqlDrLinks';
 export * from './sqlFiles';
@@ -5,6 +6,7 @@ export * from './sqlHosts';
 export * from './sqlIfaceAlias';
 export * from './sqlIpAddresses';
 export * from './sqlNetworkInterfaces';
+export * from './sqlRecipients';
 export * from './sqlScanCluster';
 export * from './sqlScanClusterNodes';
 export * from './sqlScanDrbdPeers';

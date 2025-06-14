@@ -1,11 +1,13 @@
+import { Box as MuiBox, styled } from '@mui/material';
+import { InsertLink as MuiInsertLinkIcon } from '@mui/icons-material';
 import * as prettyBytes from 'pretty-bytes';
-import { Box, Divider } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import InsertLinkIcon from '@mui/icons-material/InsertLink';
+
+import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
+
+import Decorator, { Colours } from '../Decorator';
+import Divider from '../Divider';
 import { InnerPanel, InnerPanelHeader } from '../Panels';
 import { BodyText } from '../Text';
-import Decorator, { Colours } from '../Decorator';
-import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
 const PREFIX = 'ResourceVolumes';
 
@@ -18,7 +20,7 @@ const classes = {
   divider: `${PREFIX}-divider`,
 };
 
-const StyledBox = styled(Box)(({ theme }) => ({
+const StyledBox = styled(MuiBox)(({ theme }) => ({
   overflow: 'auto',
   height: '100%',
   paddingLeft: '.3em',
@@ -71,53 +73,51 @@ const ResourceVolumes = ({
   resource,
 }: {
   resource: AnvilReplicatedStorage;
-}): JSX.Element => (
+}): React.ReactElement => (
   <StyledBox>
     {resource &&
       resource.volumes.map((volume) => (
         <InnerPanel key={volume.drbd_device_minor}>
           <InnerPanelHeader>
-            <Box display="flex" width="100%" className={classes.header}>
-              <Box flexGrow={1}>
+            <MuiBox display="flex" width="100%" className={classes.header}>
+              <MuiBox flexGrow={1}>
                 <BodyText text={`Volume: ${volume.number}`} />
-              </Box>
-              <Box>
+              </MuiBox>
+              <MuiBox>
                 <BodyText
                   text={`Size: ${prettyBytes.default(volume.size, {
                     binary: true,
                   })}`}
                 />
-              </Box>
-            </Box>
+              </MuiBox>
+            </MuiBox>
           </InnerPanelHeader>
           {volume.connections.map(
-            (connection, index): JSX.Element => (
+            (connection, index): React.ReactElement => (
               <>
-                <Box
+                <MuiBox
                   key={connection.fencing}
                   display="flex"
                   width="100%"
                   className={classes.connection}
                 >
-                  <Box className={classes.decoratorBox}>
+                  <MuiBox className={classes.decoratorBox}>
                     <Decorator
                       colour={selectDecorator(connection.connection_state)}
                     />
-                  </Box>
-                  <Box>
-                    <Box display="flex" width="100%">
+                  </MuiBox>
+                  <MuiBox>
+                    <MuiBox display="flex" width="100%">
                       <BodyText text={connection.targets[0].target_name} />
-                      <InsertLinkIcon style={{ color: DIVIDER }} />
+                      <MuiInsertLinkIcon style={{ color: DIVIDER }} />
                       <BodyText text={connection.targets[1].target_name} />
-                    </Box>
-                    <Box display="flex" justifyContent="center" width="100%">
+                    </MuiBox>
+                    <MuiBox display="flex" justifyContent="center" width="100%">
                       <BodyText text={connection.connection_state} />
-                    </Box>
-                  </Box>
-                </Box>
-                {volume.connections.length - 1 !== index ? (
-                  <Divider className={classes.divider} />
-                ) : null}
+                    </MuiBox>
+                  </MuiBox>
+                </MuiBox>
+                {volume.connections.length - 1 !== index ? <Divider /> : null}
               </>
             ),
           )}

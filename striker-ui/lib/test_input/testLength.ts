@@ -1,3 +1,6 @@
+/**
+ * @deprecated
+ */
 const testLength: (
   args: Pick<MinimalInputTestArgs, 'value'> &
     Partial<Pick<MinimalInputTestArgs, 'max' | 'min'>>,

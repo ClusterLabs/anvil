@@ -29,20 +29,19 @@ outimagesdir		= pngs
 #
 EXTRA_DIST	= \
 		$(nextoutdir) \
-		commitlint.config.js \
+		commitlint.config.mjs \
 		components \
 		.env \
-		.eslintignore \
-		.eslintrc.json \
+		eslint.config.mjs \
 		hooks \
 		lib \
-		.lintstagedrc.json \
-		next.config.js \
+		lint-staged.config.mjs \
+		next.config.mjs \
 		next-env.d.ts \
 		package.json \
 		package-lock.json \
 		pages \
-		.prettierrc.json \
+		prettier.config.mjs \
 		README.md \
 		styles \
 		theme \

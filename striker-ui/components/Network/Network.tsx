@@ -1,4 +1,4 @@
-import { Box, Divider, styled } from '@mui/material';
+import { Box as MuiBox, Divider as MuiDivider, styled } from '@mui/material';
 import { useContext, useState } from 'react';
 
 import {
@@ -67,7 +67,7 @@ const selectDecorator = (state: string): Colours => {
   }
 };
 
-const Network = (): JSX.Element => {
+const Network: React.FC = () => {
   const { uuid } = useContext(AnvilContext);
 
   const [processed, setProcessed] = useState<ProcessedNetwork | undefined>();
@@ -84,42 +84,46 @@ const Network = (): JSX.Element => {
       <StyledDiv>
         <HeaderText text="Network" />
         {!loading ? (
-          <Box className={classes.container}>
+          <MuiBox className={classes.container}>
             {processed &&
               processed.bonds.map((bond: ProcessedBond) => (
                 <>
-                  <Box
+                  <MuiBox
                     className={classes.root}
                     display="flex"
                     flexDirection="row"
                     width="100%"
                   >
-                    <Box p={1} className={classes.noPaddingLeft}>
+                    <MuiBox p={1} className={classes.noPaddingLeft}>
                       <Decorator colour={selectDecorator(bond.bond_state)} />
-                    </Box>
-                    <Box p={1} flexGrow={1} className={classes.noPaddingLeft}>
+                    </MuiBox>
+                    <MuiBox
+                      p={1}
+                      flexGrow={1}
+                      className={classes.noPaddingLeft}
+                    >
                       <BodyText text={bond.bond_name} />
                       <BodyText text={`${bond.bond_speed}Mbps`} />
-                    </Box>
-                    <Box display="flex" style={{ paddingTop: '.5em' }}>
+                    </MuiBox>
+                    <MuiBox display="flex" style={{ paddingTop: '.5em' }}>
                       {bond.hosts.map(
-                        (host, index: number): JSX.Element => (
+                        (host, index: number): React.ReactElement => (
                           <>
-                            <Box
+                            <MuiBox
                               p={1}
                               key={host.host_name}
                               style={{ paddingTop: 0, paddingBottom: 0 }}
                             >
-                              <Box>
+                              <MuiBox>
                                 <BodyText
                                   text={host.host_name}
                                   selected={false}
                                 />
                                 <BodyText text={host.link.link_name} />
-                              </Box>
-                            </Box>
+                              </MuiBox>
+                            </MuiBox>
                             {index !== bond.hosts.length - 1 && (
-                              <Divider
+                              <MuiDivider
                                 className={`${classes.divider} ${classes.verticalDivider}`}
                                 orientation="vertical"
                                 flexItem
@@ -128,12 +132,12 @@ const Network = (): JSX.Element => {
                           </>
                         ),
                       )}
-                    </Box>
-                  </Box>
-                  <Divider className={classes.divider} />
+                    </MuiBox>
+                  </MuiBox>
+                  <MuiDivider className={classes.divider} />
                 </>
               ))}
-          </Box>
+          </MuiBox>
         ) : (
           <Spinner />
         )}

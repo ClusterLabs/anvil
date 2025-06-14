@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import Autocomplete from '../Autocomplete';
 import handleFormSubmit from './handleFormSubmit';
@@ -17,7 +17,9 @@ const defaults = {
   model: 'e1000e',
 };
 
-const ServerAddInterfaceForm: FC<ServerAddInterfaceFormProps> = (props) => {
+const ServerAddInterfaceForm: React.FC<ServerAddInterfaceFormProps> = (
+  props,
+) => {
   const { detail, tools } = props;
 
   const formikUtils = useFormikUtils<ServerInterfaceFormikValues>({

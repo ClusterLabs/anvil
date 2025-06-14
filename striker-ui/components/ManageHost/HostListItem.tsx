@@ -1,5 +1,3 @@
-import { FC } from 'react';
-
 import Decorator, { Colours } from '../Decorator';
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
@@ -15,7 +13,7 @@ const MAP_TO_HOST_TYPE_DISPLAY: Record<string, string> = {
   node: 'Subnode',
 };
 
-const HostListItem: FC<HostListItemProps> = (props) => {
+const HostListItem: React.FC<HostListItemProps> = (props) => {
   const { data } = props;
 
   const { hostName, hostStatus, hostType, shortHostName } = data;

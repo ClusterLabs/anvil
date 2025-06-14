@@ -1,18 +1,25 @@
-import { FC, useMemo } from 'react';
-import { Box as MUIBox, SxProps, Theme } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
+import { useMemo } from 'react';
 
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
-const InnerPanel: FC<InnerPanelProps> = ({
+const BaseStyle = styled(MuiBox)({
+  borderWidth: '1px',
+  borderRadius: BORDER_RADIUS,
+  borderStyle: 'solid',
+  borderColor: DIVIDER,
+  paddingBottom: 0,
+  position: 'relative',
+});
+
+const InnerPanel: React.FC<InnerPanelProps> = ({
   headerMarginOffset: hmo = '.3em',
   ml,
   mv = '1.4em',
-  sx,
-  // Props that depend on others.
+  // Dependants:
   mb = mv,
   mt = mv,
-
-  ...muiBoxRestProps
+  ...restMuiBoxProps
 }) => {
   const marginLeft = useMemo(
     () => (ml ? `calc(${ml} + ${hmo})` : hmo),
@@ -24,28 +31,8 @@ const InnerPanel: FC<InnerPanelProps> = ({
     return `calc(${resultMt} + ${hmo})`;
   }, [hmo, mt]);
 
-  const combinedSx = useMemo<SxProps<Theme>>(
-    () => ({
-      borderWidth: '1px',
-      borderRadius: BORDER_RADIUS,
-      borderStyle: 'solid',
-      borderColor: DIVIDER,
-      paddingBottom: 0,
-      position: 'relative',
-
-      ...sx,
-    }),
-    [sx],
-  );
-
   return (
-    <MUIBox
-      mb={mb}
-      ml={marginLeft}
-      mt={marginTop}
-      {...muiBoxRestProps}
-      sx={combinedSx}
-    />
+    <BaseStyle mb={mb} ml={marginLeft} mt={marginTop} {...restMuiBoxProps} />
   );
 };
 

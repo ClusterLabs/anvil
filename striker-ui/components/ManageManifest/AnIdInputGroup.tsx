@@ -1,5 +1,5 @@
 import { debounce } from 'lodash';
-import { ReactElement, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import Grid from '../Grid';
 import InputWithRef from '../InputWithRef';
@@ -26,20 +26,24 @@ const AnIdInputGroup = <
       | typeof INPUT_ID_AI_PREFIX
       | typeof INPUT_ID_AI_SEQUENCE]: string;
   },
->({
-  debounceWait = 500,
-  formUtils: {
-    buildFinishInputTestBatchFunction,
-    buildInputFirstRenderFunction,
-    setMessage,
-  },
-  onSequenceChange,
-  previous: {
-    domain: previousDomain,
-    prefix: previousPrefix,
-    sequence: previousSequence,
-  } = {},
-}: AnIdInputGroupProps<M>): ReactElement => {
+>(
+  ...[props]: Parameters<React.FC<AnIdInputGroupProps<M>>>
+): ReturnType<React.FC<AnIdInputGroupProps<M>>> => {
+  const {
+    debounceWait = 500,
+    formUtils: {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      setMessage,
+    },
+    onSequenceChange,
+    previous: {
+      domain: previousDomain,
+      prefix: previousPrefix,
+      sequence: previousSequence,
+    } = {},
+  } = props;
+
   const debounceSequenceChangeHandler = useMemo(
     () => onSequenceChange && debounce(onSequenceChange, debounceWait),
     [debounceWait, onSequenceChange],

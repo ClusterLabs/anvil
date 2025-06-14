@@ -4,13 +4,13 @@ import {
   TabProps as MuiTabProps,
   styled,
 } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { BLUE, BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';
 
 import { BodyText } from './Text';
 
-const BaseTab = styled(MuiTab)({
+const StyledTab = styled(MuiTab)({
   borderRadius: BORDER_RADIUS,
   color: GREY,
   padding: '.4em .8em',
@@ -21,7 +21,10 @@ const BaseTab = styled(MuiTab)({
   },
 });
 
-const Tab: FC<MuiTabProps> = ({ label: originalLabel, ...restTabProps }) => {
+const Tab: React.FC<MuiTabProps> = ({
+  label: originalLabel,
+  ...restTabProps
+}) => {
   const label = useMemo(
     () =>
       typeof originalLabel === 'string' ? (
@@ -32,7 +35,7 @@ const Tab: FC<MuiTabProps> = ({ label: originalLabel, ...restTabProps }) => {
     [originalLabel],
   );
 
-  return <BaseTab label={label} {...restTabProps} />;
+  return <StyledTab label={label} {...restTabProps} />;
 };
 
 export default Tab;

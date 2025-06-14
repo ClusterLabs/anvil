@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
@@ -13,7 +13,7 @@ import SelectWithLabel from '../SelectWithLabel';
 import useFormikUtils from '../../hooks/useFormikUtils';
 import UncontrolledInput from '../UncontrolledInput';
 
-const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
+const AddMailServerForm: React.FC<AddMailServerFormProps> = (props) => {
   const {
     localhostDomain = '',
     mailServerUuid,
@@ -42,7 +42,7 @@ const AddMailServerForm: FC<AddMailServerFormProps> = (props) => {
         const { [msUuid]: mailServer } = values;
 
         let actionProceedText: string = 'Add';
-        let errorMessage: ReactNode = <>Failed to add mail server.</>;
+        let errorMessage: React.ReactNode = <>Failed to add mail server.</>;
         let method: 'post' | 'put' = 'post';
         let successMessage = <>Mail server added.</>;
         let titleText: string = 'Add mail server with the following?';

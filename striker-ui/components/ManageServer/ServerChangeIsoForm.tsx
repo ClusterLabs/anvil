@@ -1,7 +1,7 @@
-import { Eject as EjectIcon } from '@mui/icons-material';
-import { Box, Grid } from '@mui/material';
+import { Eject as MuiEjectIcon } from '@mui/icons-material';
+import { Box as MuiBox, Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import Autocomplete from '../Autocomplete';
 import handleFormSubmit from './handleFormSubmit';
@@ -15,7 +15,7 @@ import { BodyText, MonoText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerIsoSummary: FC<ServerIsoSummaryProps> = (props) => {
+const ServerIsoSummary: React.FC<ServerIsoSummaryProps> = (props) => {
   const { fileUuid } = props;
 
   const { data: file } = useFetch<APIFileDetail>(`/file/${fileUuid}`);
@@ -27,15 +27,15 @@ const ServerIsoSummary: FC<ServerIsoSummaryProps> = (props) => {
   const { checksum, path, size } = file;
 
   return (
-    <Box>
+    <MuiBox>
       <MonoText>{path.full}</MonoText>
       <MonoText>{dSizeStr(size, { toUnit: 'ibyte' })}</MonoText>
       <MonoText>md5: {checksum}</MonoText>
-    </Box>
+    </MuiBox>
   );
 };
 
-const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
+const ServerChangeIsoForm: React.FC<ServerChangeIsoFormProps> = (props) => {
   const { detail, device, tools } = props;
 
   const working = useMemo(
@@ -156,7 +156,7 @@ const ServerChangeIsoForm: FC<ServerChangeIsoFormProps> = (props) => {
           }}
           size="small"
         >
-          <EjectIcon />
+          <MuiEjectIcon />
         </IconButton>
       </Grid>
       {formik.values.file && (

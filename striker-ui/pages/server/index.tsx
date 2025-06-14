@@ -39,7 +39,7 @@ const StyledDiv = styled('div')(({ theme }) => ({
   },
 }));
 
-const Server = (): JSX.Element => {
+const Server = (): React.ReactElement => {
   const router = useRouter();
 
   const {

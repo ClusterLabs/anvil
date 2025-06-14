@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
@@ -23,7 +23,7 @@ const HOST_TYPE_OPTIONS: RadioItemList = {
   },
 };
 
-const PrepareHostForm: FC<PreapreHostFormProps> = (props) => {
+const PrepareHostForm: React.FC<PreapreHostFormProps> = (props) => {
   const { host, setResponse, tools } = props;
 
   const { disabledSubmit, formik, formikErrors, handleChange } =

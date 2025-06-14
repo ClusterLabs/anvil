@@ -1,11 +1,12 @@
-type APIMailRecipientOverview = { name: string; uuid: string };
-
-type APIMailRecipientOverviewList = {
-  [uuid: string]: APIMailRecipientOverview;
+type APIMailRecipientOverview = {
+  email: string;
+  level: number;
+  name: string;
+  uuid: string;
 };
 
+type APIMailRecipientOverviewList = Record<string, APIMailRecipientOverview>;
+
 type APIMailRecipientDetail = APIMailRecipientOverview & {
-  email: string;
   language: string;
-  level: number;
 };

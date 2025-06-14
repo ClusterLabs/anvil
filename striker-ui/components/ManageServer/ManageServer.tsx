@@ -1,5 +1,5 @@
 import { Grid, styled } from '@mui/material';
-import { FC, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import {
   Preview,
@@ -93,7 +93,7 @@ const PreviewBox = styled(BasePreviewBox)(({ theme }) => {
   };
 });
 
-const ManageServer: FC<ManageServerProps> = (props) => {
+const ManageServer: React.FC<ManageServerProps> = (props) => {
   const { slotProps, serverUuid } = props;
 
   const [tabId, setTabId] = useState<string>(tabs.general.value);

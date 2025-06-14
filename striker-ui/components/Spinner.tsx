@@ -4,7 +4,6 @@ import {
   CircularProgressProps as MuiCircularProgressProps,
   styled,
 } from '@mui/material';
-import { FC } from 'react';
 
 import CircularProgress from './CircularProgress';
 
@@ -14,22 +13,14 @@ type SpinnerOptionalProps = {
 
 type SpinnerProps = MuiBoxProps & SpinnerOptionalProps;
 
-const SPINNER_DEFAULT_PROPS: Required<SpinnerOptionalProps> = {
-  progressProps: {},
-};
-
 const SpinnerWrapper = styled(MuiBox)({
   alignItems: 'center',
   display: 'flex',
   justifyContent: 'center',
 });
 
-const Spinner: FC<SpinnerProps> = (props): JSX.Element => {
-  const {
-    mt = '3em',
-    progressProps = SPINNER_DEFAULT_PROPS.progressProps,
-    ...restProps
-  } = props;
+const Spinner: React.FC<SpinnerProps> = (props): React.ReactElement => {
+  const { mt = '3em', progressProps, ...restProps } = props;
 
   return (
     <SpinnerWrapper mt={mt} {...restProps}>
@@ -37,7 +28,5 @@ const Spinner: FC<SpinnerProps> = (props): JSX.Element => {
     </SpinnerWrapper>
   );
 };
-
-Spinner.defaultProps = SPINNER_DEFAULT_PROPS;
 
 export default Spinner;

@@ -2,42 +2,46 @@ import { RequestHandler } from 'express';
 
 import { query } from '../../accessModule';
 import { execManageAlerts } from '../../execManageAlerts';
-import { sanitize } from '../../sanitize';
-import { perr } from '../../shell';
+import { Responder } from '../../Responder';
+import { sqlAlertOverrides } from '../../sqls';
 
 export const deleteMailRecipient: RequestHandler<
-  MailRecipientParamsDictionary
+  MailRecipientParamsDictionary,
+  Express.RhResBody,
+  Express.RhReqBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
 > = async (request, response) => {
-  const {
-    params: { uuid: rUuid },
-  } = request;
+  const respond = new Responder(response);
 
-  const uuid = sanitize(rUuid, 'string', { modifierType: 'sql' });
+  const { uuid } = response.locals.target;
+
+  const sqlGetAlertOverride = `
+    SELECT alert_override_uuid
+    FROM (${sqlAlertOverrides()})
+    WHERE alert_override_recipient_uuid = '${uuid}';`;
 
   try {
-    const rows = await query<[string][]>(
-      `SELECT alert_override_uuid
-        FROM alert_overrides
-        WHERE alert_override_alert_level != -1
-          AND alert_override_recipient_uuid = '${uuid}';`,
-    );
+    const rows = await query<[string][]>(sqlGetAlertOverride);
 
     rows.forEach(([u]) =>
       execManageAlerts('alert-overrides', 'delete', { uuid: u }),
     );
   } catch (error) {
-    perr(`Failed to delete related alert override records; CAUSE ${error}`);
-
-    return response.status(500).send();
+    return respond.s500(
+      'ebc4ca1',
+      `Failed to delete related alert override records; CAUSE ${error}`,
+    );
   }
 
   try {
     execManageAlerts('recipients', 'delete', { uuid });
   } catch (error) {
-    perr(`Failed to delete alert recipient; CAUSE: ${error}`);
-
-    return response.status(500).send();
+    return respond.s500(
+      'e4417bd',
+      `Failed to delete alert recipient; CAUSE: ${error}`,
+    );
   }
 
-  return response.status(204).send();
+  return respond.s204();
 };

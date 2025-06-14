@@ -2,10 +2,10 @@ import {
   Check as MuiCheckIcon,
   DragHandle as MuiDragHandleIcon,
 } from '@mui/icons-material';
-import { Box, BoxProps, Grid } from '@mui/material';
-import { GridColumns } from '@mui/x-data-grid';
+import { Box as MuiBox, BoxProps as MuiBoxProps, Grid } from '@mui/material';
+import { GridColDef } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import Decorator, { Colours } from '../Decorator';
@@ -26,8 +26,8 @@ import UncontrolledInput from '../UncontrolledInput';
 import useFetch from '../../hooks/useFetch';
 
 const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
-  ...[props]: Parameters<FC<HostNetInitInputGroupProps<Values>>>
-): ReturnType<FC<HostNetInitInputGroupProps<Values>>> => {
+  ...[props]: Parameters<React.FC<HostNetInitInputGroupProps<Values>>>
+): ReturnType<React.FC<HostNetInitInputGroupProps<Values>>> => {
   const { formikUtils, host, onFetchSuccess } = props;
 
   const { formik, handleChange } = formikUtils;
@@ -101,7 +101,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
 
   const ifaceValues = useMemo(() => ifaces && Object.values(ifaces), [ifaces]);
 
-  const dragAreaProps = useMemo<BoxProps | undefined>(() => {
+  const dragAreaProps = useMemo<MuiBoxProps | undefined>(() => {
     if (!ifaceHeld) return undefined;
 
     return {
@@ -137,23 +137,23 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     return available <= slots;
   }, [appliedIfaces, hostNets, ifaceValues?.length]);
 
-  const dataColumns = useMemo<GridColumns>(
-    (): GridColumns<APINetworkInterfaceOverview> => [
+  const dataColumns = useMemo<GridColDef<APINetworkInterfaceOverview>[]>(
+    (): GridColDef<APINetworkInterfaceOverview>[] => [
       {
         align: 'center',
         field: '',
         renderCell: (cell) => {
-          const { row } = cell;
+          const { uuid } = cell.row;
 
           let className;
           let handleMouseDown:
             | React.MouseEventHandler<HTMLDivElement>
             | undefined = () => {
-            setIfaceHeld(row.uuid);
+            setIfaceHeld(uuid);
           };
           let icon = <MuiDragHandleIcon />;
 
-          if (appliedIfaces[row.uuid]) {
+          if (appliedIfaces[uuid]) {
             className = ifaceDragHandleClasses.applied;
             handleMouseDown = undefined;
             icon = <MuiCheckIcon />;
@@ -177,8 +177,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         flex: 1,
         headerName: 'Name',
         renderCell: (cell) => {
-          const { row, value } = cell;
-          const { state } = row;
+          const { name, state } = cell.row;
 
           let colour: Colours;
 
@@ -196,7 +195,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                 colour={colour}
                 sx={{ alignSelf: 'stretch', height: 'auto' }}
               />
-              <MonoText>{value}</MonoText>
+              <MonoText>{name}</MonoText>
             </FlexBox>
           );
         },
@@ -206,9 +205,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         flex: 1,
         headerName: 'MAC',
         renderCell: (cell) => {
-          const { value } = cell;
+          const { mac } = cell.row;
 
-          return <MonoText>{value}</MonoText>;
+          return <MonoText>{mac}</MonoText>;
         },
       },
       {
@@ -216,9 +215,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         flex: 1,
         headerName: 'State',
         renderCell: (cell) => {
-          const { value } = cell;
+          const { state } = cell.row;
 
-          return lostConnection ? 'Lost' : capitalize(value);
+          return lostConnection ? 'Lost' : capitalize(state);
         },
       },
       {
@@ -226,9 +225,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         flex: 1,
         headerName: 'Speed',
         renderCell: (cell) => {
-          const { value } = cell;
+          const { speed } = cell.row;
 
-          return `${value} Mbps`;
+          return `${speed} Mbps`;
         },
       },
       {
@@ -269,10 +268,25 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
               iface={ifaces[ifaceHeld]}
             />
           )}
-          <DragDataGrid
+          <DragDataGrid<APINetworkInterfaceOverview>
             autoHeight
             columns={dataColumns}
-            componentsProps={{
+            disableColumnMenu
+            disableRowSelectionOnClick
+            getRowClassName={(cell) => {
+              const { row } = cell;
+
+              return ifaceHeld || appliedIfaces[row.uuid]
+                ? ''
+                : dragDataGridClasses.draggable;
+            }}
+            getRowId={(row) => row.uuid}
+            hideFooter
+            initialState={{
+              sorting: { sortModel: [{ field: 'name', sort: 'asc' }] },
+            }}
+            rows={ifaceValues}
+            slotProps={{
               row: {
                 onMouseDown: (
                   event: React.MouseEvent<HTMLDivElement>,
@@ -291,28 +305,13 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                 },
               },
             }}
-            disableColumnMenu
-            disableSelectionOnClick
-            getRowClassName={(cell) => {
-              const { row } = cell;
-
-              return ifaceHeld || appliedIfaces[row.uuid]
-                ? ''
-                : dragDataGridClasses.draggable;
-            }}
-            getRowId={(row) => row.uuid}
-            hideFooter
-            initialState={{
-              sorting: { sortModel: [{ field: 'name', sort: 'asc' }] },
-            }}
-            rows={ifaceValues}
           />
           <HostNetBox>
             {hostNets.map((entry) => {
               const [key] = entry;
 
               return (
-                <Box key={`hostnet-${key}`}>
+                <MuiBox key={`hostnet-${key}`}>
                   <HostNetInputGroup<Values>
                     appliedIfaces={appliedIfaces}
                     formikUtils={formikUtils}
@@ -322,7 +321,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
                     ifaceValues={ifaceValues}
                     netId={key}
                   />
-                </Box>
+                </MuiBox>
               );
             })}
           </HostNetBox>

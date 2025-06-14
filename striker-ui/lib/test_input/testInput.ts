@@ -1,3 +1,5 @@
+/* eslint-disable complexity */
+
 type TestCallbacks = Pick<InputTest, 'onFailure' | 'onSuccess'>;
 
 const cbEmptySetter = () => ({});
@@ -35,6 +37,9 @@ const evalIsIgnoreOnCallbacks = ({
 const nullishSet = <T>(a: T | undefined, b: T) => a ?? b;
 const orSet = <T>(a: T | undefined, b: T) => a || b;
 
+/**
+ * @deprecated
+ */
 const testInput: TestInputFunction = ({
   excludeTestIds = [],
   excludeTestIdsRe,

@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 import { REP_UUID } from '../../lib/consts/REG_EXP_PATTERNS';
@@ -17,8 +17,8 @@ const getNetShort = (type: string, seq: string) =>
 
 // This component requires a 2-column grid container as its parent.
 const HostNetSummary = <Values extends HostNetInitFormikExtension>(
-  ...[props]: Parameters<FC<HostNetSummaryProps<Values>>>
-): ReturnType<FC<HostNetSummaryProps<Values>>> => {
+  ...[props]: Parameters<React.FC<HostNetSummaryProps<Values>>>
+): ReturnType<React.FC<HostNetSummaryProps<Values>>> => {
   const { gatewayIface, ifaces, values } = props;
 
   const nets = useMemo(

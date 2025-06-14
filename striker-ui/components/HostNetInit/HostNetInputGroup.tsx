@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
@@ -22,8 +22,8 @@ const NETOPS: Record<string, string[]> = {
 const netSeqInputWidth = '3.4em';
 
 const HostNetInputGroup = <Values extends HostNetInitFormikExtension>(
-  ...[props]: Parameters<FC<HostNetInputGroupProps<Values>>>
-): ReturnType<FC<HostNetInputGroupProps<Values>>> => {
+  ...[props]: Parameters<React.FC<HostNetInputGroupProps<Values>>>
+): ReturnType<React.FC<HostNetInputGroupProps<Values>>> => {
   const {
     appliedIfaces,
     formikUtils,

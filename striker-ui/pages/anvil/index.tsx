@@ -1,4 +1,4 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 import Head from 'next/head';
 import { NextRouter, useRouter } from 'next/router';
 import { createElement, useContext, useMemo } from 'react';
@@ -59,7 +59,7 @@ const StyledDiv = styled('div')(({ theme }) => ({
   },
 }));
 
-const CenterPanel: React.FC = (props) => {
+const CenterPanel: React.FC<React.PropsWithChildren> = (props) => {
   const { children } = props;
 
   return createElement(
@@ -78,11 +78,11 @@ const CenterPanel: React.FC = (props) => {
 };
 
 const getAnvilUuid = (router: NextRouter, list?: AnvilList): string => {
-  if (!router.isReady || !list) {
+  if ([router.isReady, list].some((v) => !v)) {
     return '';
   }
 
-  const { anvils: ls } = list;
+  const { anvils: ls } = list as AnvilList;
 
   const { name, uuid } = router.query;
 
@@ -94,18 +94,21 @@ const getAnvilUuid = (router: NextRouter, list?: AnvilList): string => {
     anvil = ls.find((li) => li.anvil_uuid === uuid);
   }
 
-  if (!anvil) {
-    const [first = { anvil_uuid: '' }] = ls;
-
-    return first.anvil_uuid;
+  if (anvil) {
+    return anvil.anvil_uuid;
   }
 
-  return anvil.anvil_uuid;
+  const [first = { anvil_uuid: '' }] = ls;
+
+  return first.anvil_uuid;
 };
 
-const AnvilSelector: React.FC<{ list?: AnvilList; loading: boolean }> = (
-  props,
-) => {
+const AnvilSelector: React.FC<
+  React.PropsWithChildren<{
+    list?: AnvilList;
+    loading: boolean;
+  }>
+> = (props) => {
   const { children, list, loading } = props;
 
   const router = useRouter();
@@ -168,40 +171,40 @@ const Anvil: React.FC = () => {
 
     if (width > LARGE_MOBILE_BREAKPOINT) {
       return (
-        <Box className={classes.container}>
-          <Box className={classes.child}>
+        <MuiBox className={classes.container}>
+          <MuiBox className={classes.child}>
             <Anvils list={summary} />
             <Hosts anvil={summary.anvils} />
-          </Box>
-          <Box className={classes.server}>
+          </MuiBox>
+          <MuiBox className={classes.server}>
             <Servers anvil={summary.anvils} />
-          </Box>
-          <Box className={classes.child}>
+          </MuiBox>
+          <MuiBox className={classes.child}>
             <SharedStorage />
-          </Box>
-          <Box className={classes.child}>
+          </MuiBox>
+          <MuiBox className={classes.child}>
             <Network />
             <CPU />
             <Memory />
-          </Box>
-        </Box>
+          </MuiBox>
+        </MuiBox>
       );
     }
 
     return (
-      <Box className={classes.container}>
-        <Box className={classes.child}>
+      <MuiBox className={classes.container}>
+        <MuiBox className={classes.child}>
           <Servers anvil={summary.anvils} />
           <Anvils list={summary} />
           <Hosts anvil={summary.anvils} />
-        </Box>
-        <Box className={classes.child}>
+        </MuiBox>
+        <MuiBox className={classes.child}>
           <Network />
           <SharedStorage />
           <CPU />
           <Memory />
-        </Box>
-      </Box>
+        </MuiBox>
+      </MuiBox>
     );
   }, [summary, width]);
 

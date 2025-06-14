@@ -1,5 +1,11 @@
-import { iconButtonClasses, styled } from '@mui/material';
-import { DataGrid, gridClasses } from '@mui/x-data-grid';
+import {
+  iconButtonClasses as muiIconButtonClasses,
+  styled,
+} from '@mui/material';
+import {
+  DataGrid as MuiDataGrid,
+  gridClasses as muiDataGridClasses,
+} from '@mui/x-data-grid';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -9,14 +15,14 @@ const dragDataGridClasses = {
   draggable: `${PREFIX}-draggable`,
 };
 
-const DragDataGrid = styled(DataGrid)({
+const DragDataGrid = styled(MuiDataGrid)({
   color: GREY,
 
-  [`& .${iconButtonClasses.root}`]: {
+  [`& .${muiIconButtonClasses.root}`]: {
     color: 'inherit',
   },
 
-  [`& .${gridClasses.cell}`]: {
+  [`& .${muiDataGridClasses.cell}`]: {
     '&:focus': {
       outline: 'none',
     },
@@ -26,16 +32,16 @@ const DragDataGrid = styled(DataGrid)({
     },
   },
 
-  [`& .${gridClasses.row}`]: {
+  [`& .${muiDataGridClasses.row}`]: {
     [`&.${dragDataGridClasses.draggable}:hover`]: {
       cursor: 'grab',
 
-      [`& .${gridClasses.cell} p`]: {
+      [`& .${muiDataGridClasses.cell} p`]: {
         cursor: 'auto',
       },
     },
   },
-});
+}) as typeof MuiDataGrid;
 
 export { dragDataGridClasses };
 

@@ -1,9 +1,9 @@
 import {
-  ExpandLess as ExpandLessIcon,
-  ExpandMore as ExpandMoreIcon,
+  ExpandLess as MuiExpandLessIcon,
+  ExpandMore as MuiExpandMoreIcon,
 } from '@mui/icons-material';
-import { Box, IconButton } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { Box as MuiBox, IconButton as MuiIconButton } from '@mui/material';
+import { useMemo, useState } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -16,7 +16,9 @@ import { BodyText } from '../Text';
 
 const HEADER_SPINNER_LENGTH = '1.2em';
 
-const ExpandablePanel: FC<ExpandablePanelProps> = ({
+const ExpandablePanel: React.FC<
+  React.PropsWithChildren<ExpandablePanelProps>
+> = ({
   children,
   expandInitially: isExpandInitially = false,
   header,
@@ -27,7 +29,7 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
   const [isExpand, setIsExpand] = useState<boolean>(isExpandInitially);
 
   const expandButtonIcon = useMemo(
-    () => (isExpand ? <ExpandLessIcon /> : <ExpandMoreIcon />),
+    () => (isExpand ? <MuiExpandLessIcon /> : <MuiExpandMoreIcon />),
     [isExpand],
   );
   const contentHeight = useMemo(() => (isExpand ? 'auto' : '.2em'), [isExpand]);
@@ -66,16 +68,18 @@ const ExpandablePanel: FC<ExpandablePanelProps> = ({
           {headerElement}
           {headerSpinner}
         </FlexBox>
-        <IconButton
+        <MuiIconButton
           onClick={() => {
             setIsExpand((previous) => !previous);
           }}
           sx={{ color: GREY, padding: '.2em' }}
         >
           {expandButtonIcon}
-        </IconButton>
+        </MuiIconButton>
       </InnerPanelHeader>
-      <Box sx={{ height: contentHeight, overflowY: 'hidden' }}>{content}</Box>
+      <MuiBox sx={{ height: contentHeight, overflowY: 'hidden' }}>
+        {content}
+      </MuiBox>
     </InnerPanel>
   );
 };

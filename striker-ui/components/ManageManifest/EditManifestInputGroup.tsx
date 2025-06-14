@@ -1,5 +1,3 @@
-import { ReactElement } from 'react';
-
 import {
   INPUT_ID_AI_DOMAIN,
   INPUT_ID_AI_PREFIX,
@@ -25,7 +23,7 @@ const EditManifestInputGroup = <
   knownFences,
   knownUpses,
   previous,
-}: EditManifestInputGroupProps<M>): ReactElement => (
+}: EditManifestInputGroupProps<M>): React.ReactElement => (
   <AddManifestInputGroup
     formUtils={formUtils}
     knownFences={knownFences}

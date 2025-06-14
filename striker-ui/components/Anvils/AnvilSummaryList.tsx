@@ -1,4 +1,4 @@
-import { FC, ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import AnvilSummary from './AnvilSummary';
 import { toAnvilOverviewList } from '../../lib/api_converters';
@@ -16,7 +16,7 @@ import SyncIndicator from '../SyncIndicator';
 import { BodyText, HeaderText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
-const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
+const AnvilSummaryList: React.FC<AnvilSummaryListProps> = (props) => {
   const { refreshInterval = 5000 } = props;
 
   const {
@@ -28,7 +28,7 @@ const AnvilSummaryList: FC<AnvilSummaryListProps> = (props) => {
     refreshInterval,
   });
 
-  const grid = useMemo<ReactNode>(
+  const grid = useMemo<React.ReactNode>(
     () =>
       anvils && (
         <Grid

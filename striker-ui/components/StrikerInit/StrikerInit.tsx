@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
@@ -8,7 +8,7 @@ import { HeaderText } from '../Text';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
-const StrikerInit: FC = () => {
+const StrikerInit: React.FC = () => {
   const [initJobUuid, setInitJobUuid] = useState<string | undefined>();
 
   const {

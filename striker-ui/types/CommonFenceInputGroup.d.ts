@@ -12,7 +12,7 @@ type FenceParameterInputBuilderParameters<M extends MapToInputTestID> = {
 
 type FenceParameterInputBuilder<M extends MapToInputTestID> = (
   args: FenceParameterInputBuilderParameters<M>,
-) => ReactElement;
+) => React.ReactElement;
 
 type MapToInputBuilder<M extends MapToInputTestID> = Partial<
   Record<Exclude<FenceParameterType, 'string'>, FenceParameterInputBuilder<M>>

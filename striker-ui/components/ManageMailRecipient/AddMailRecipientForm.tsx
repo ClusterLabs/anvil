@@ -1,9 +1,10 @@
 import { Grid, menuClasses as muiMenuClasses } from '@mui/material';
 import { AxiosError } from 'axios';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import ActionGroup from '../ActionGroup';
+import alertLevels from './alertLevels';
 import api from '../../lib/api';
 import FlexBox from '../FlexBox';
 import FormSummary from '../FormSummary';
@@ -105,13 +106,6 @@ const LEVEL_OPTIONS: SelectItem<number>[] = [
   },
 ];
 
-const MAP_TO_LEVEL_LABEL: Record<number, string> = {
-  1: 'Critical',
-  2: 'Warning',
-  3: 'Notice',
-  4: 'Info',
-};
-
 const getAlertOverrideRequestList = (
   current: MailRecipientFormikMailRecipient,
   initial?: MailRecipientFormikMailRecipient,
@@ -158,7 +152,7 @@ const getAlertOverrideRequestList = (
   );
 };
 
-const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
+const AddMailRecipientForm: React.FC<AddMailRecipientFormProps> = (props) => {
   const {
     alertOverrideTargetOptions,
     mailRecipientUuid,
@@ -348,7 +342,7 @@ const AddMailRecipientForm: FC<AddMailRecipientFormProps> = (props) => {
                     },
                   },
                 },
-                renderValue: (value) => MAP_TO_LEVEL_LABEL[value],
+                renderValue: (value) => alertLevels[value].label,
               }}
               value={formik.values[mrUuid].level}
             />

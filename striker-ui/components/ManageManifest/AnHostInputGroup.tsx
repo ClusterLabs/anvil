@@ -1,4 +1,4 @@
-import { ReactElement, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import FlexBox from '../FlexBox';
 import Grid from '../Grid';
@@ -122,25 +122,29 @@ const buildInputIdAHNetworkIp = (hostId: string, networkId: string): string =>
 const buildInputIdAHUpsPowerHost = (hostId: string, upsId: string): string =>
   `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${upsId}-power-host`;
 
-const AnHostInputGroup = <M extends MapToInputTestID>({
-  formUtils: {
-    buildFinishInputTestBatchFunction,
-    buildInputFirstRenderFunction,
-    buildInputUnmountFunction,
-    setMessage,
-  },
-  hostId,
-  hostNumber,
-  hostType,
-  previous: {
-    fences: fenceList = {},
-    ipmiIp: previousIpmiIp,
-    networks: networkList = {},
-    upses: upsList = {},
-  } = {},
-  // Props that depend on others.
-  hostLabel = `${hostType.replace('node', 'subnode')} ${hostNumber}`,
-}: AnHostInputGroupProps<M>): ReactElement => {
+const AnHostInputGroup = <M extends MapToInputTestID>(
+  ...[props]: Parameters<React.FC<AnHostInputGroupProps<M>>>
+): ReturnType<React.FC<AnHostInputGroupProps<M>>> => {
+  const {
+    formUtils: {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      buildInputUnmountFunction,
+      setMessage,
+    },
+    hostId,
+    hostNumber,
+    hostType,
+    previous: {
+      fences: fenceList = {},
+      ipmiIp: previousIpmiIp,
+      networks: networkList = {},
+      upses: upsList = {},
+    } = {},
+    // Props that depend on others.
+    hostLabel = `${hostType.replace('node', 'subnode')} ${hostNumber}`,
+  } = props;
+
   const fenceListEntries = useMemo(
     () => Object.entries(fenceList),
     [fenceList],

@@ -1,4 +1,4 @@
-import { BoxProps } from '@mui/material';
+import { BoxProps as MuiBoxProps } from '@mui/material';
 
 import { InnerPanel, InnerPanelHeader } from '../Panels';
 import ServerMenu from '../ManageServer/ServerMenu';
@@ -9,13 +9,15 @@ type PreviewFrameProps<Server extends APIServerOverview> = {
   server: Server;
   showControls?: boolean;
   slotProps?: {
-    header?: Partial<BoxProps>;
+    header?: Partial<MuiBoxProps>;
     panel?: Partial<InnerPanelProps>;
   };
 };
 
 const PreviewFrame = <Server extends APIServerOverview>(
-  ...[props]: Parameters<React.FC<PreviewFrameProps<Server>>>
+  ...[props]: Parameters<
+    React.FC<React.PropsWithChildren<PreviewFrameProps<Server>>>
+  >
 ): ReturnType<React.FC<PreviewFrameProps<Server>>> => {
   const {
     children,

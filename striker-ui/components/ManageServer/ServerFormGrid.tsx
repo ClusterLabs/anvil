@@ -1,9 +1,8 @@
 import { Grid } from '@mui/material';
-import { FC } from 'react';
 
 const ServerFormGrid = <Values extends FormikValues>(
-  ...[props]: Parameters<FC<ServerFormGridProps<Values>>>
-): ReturnType<FC<ServerFormGridProps<Values>>> => {
+  ...[props]: Parameters<React.FC<ServerFormGridProps<Values>>>
+): ReturnType<React.FC<ServerFormGridProps<Values>>> => {
   const { children, formik, ...restProps } = props;
 
   return (

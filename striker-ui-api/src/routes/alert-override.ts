@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTarget } from '../middlewares';
 import {
   createAlertOverride,
   deleteAlertOverride,
@@ -8,13 +9,17 @@ import {
   updateAlertOverride,
 } from '../lib/request_handlers/alert-override';
 
+const single = express.Router();
+
+single
+  .delete('/', deleteAlertOverride)
+  .get('/', getAlertOverrideDetail)
+  .put('/', updateAlertOverride);
+
 const router = express.Router();
 
-router
-  .delete('/:uuid', deleteAlertOverride)
-  .get('/', getAlertOverride)
-  .get('/:uuid', getAlertOverrideDetail)
-  .post('/', createAlertOverride)
-  .put('/:uuid', updateAlertOverride);
+router.get('/', getAlertOverride).post('/', createAlertOverride);
+
+router.use('/:uuid', validateRequestTarget(), single);
 
 export default router;

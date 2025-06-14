@@ -1,5 +1,4 @@
 import { Grid } from '@mui/material';
-import { FC } from 'react';
 
 import ContainedButton from '../ContainedButton';
 import handleAction from './handleAction';
@@ -8,7 +7,7 @@ import Spinner from '../Spinner';
 import { BodyText } from '../Text';
 import useFetch from '../../hooks/useFetch';
 
-const ServerMigration: FC<ServerMigrationProps> = (props) => {
+const ServerMigration: React.FC<ServerMigrationProps> = (props) => {
   const { detail, tools } = props;
 
   const { altData: peer } = useFetch<

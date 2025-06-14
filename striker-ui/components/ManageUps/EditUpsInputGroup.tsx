@@ -1,4 +1,4 @@
-import { ReactElement, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
 import { INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME } from './CommonUpsInputGroup';
@@ -13,14 +13,18 @@ const EditUpsInputGroup = <
       | typeof INPUT_ID_UPS_NAME
       | typeof INPUT_ID_UPS_TYPE]: string;
   },
->({
-  formUtils,
-  loading: isExternalLoading,
-  previous,
-  upsTemplate,
-  upsUUID,
-}: EditUpsInputGroupProps<M>): ReactElement => {
-  const content = useMemo<ReactElement>(
+>(
+  ...[props]: Parameters<React.FC<EditUpsInputGroupProps<M>>>
+): ReturnType<React.FC<EditUpsInputGroupProps<M>>> => {
+  const {
+    formUtils,
+    loading: isExternalLoading,
+    previous,
+    upsTemplate,
+    upsUUID,
+  } = props;
+
+  const content = useMemo<React.ReactElement>(
     () =>
       isExternalLoading ? (
         <Spinner />

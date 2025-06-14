@@ -1,12 +1,12 @@
-import { Box, BoxProps } from '@mui/material';
+import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
 
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
 
-const Pre: React.FC<BoxProps> = (props) => {
+const Pre: React.FC<MuiBoxProps> = (props) => {
   const { children, ...restProps } = props;
 
   return (
-    <Box
+    <MuiBox
       color={TEXT}
       component="pre"
       whiteSpace="pre-wrap"
@@ -14,7 +14,7 @@ const Pre: React.FC<BoxProps> = (props) => {
       {...restProps}
     >
       {children}
-    </Box>
+    </MuiBox>
   );
 };
 

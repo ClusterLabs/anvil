@@ -1,12 +1,11 @@
 import { useRouter } from 'next/router';
-import { FC } from 'react';
 
 import api from '../lib/api';
 import GateForm from './GateForm';
 import handleAPIError from '../lib/handleAPIError';
 import { Panel } from './Panels';
 
-const GatePanel: FC = () => {
+const GatePanel: React.FC = () => {
   const {
     query: { rt: returnTo },
   } = useRouter();

@@ -1,4 +1,4 @@
-import { Menu } from '@mui/material';
+import { Menu as MuiMenu } from '@mui/material';
 import {
   forwardRef,
   useImperativeHandle,
@@ -37,21 +37,14 @@ type JobSummaryForwardedRefContent = {
 };
 
 const JOB_LIST_LENGTH = '20em';
-const JOB_SUMMARY_DEFAULT_PROPS: Required<JobSummaryOptionalPropsWithDefault> &
-  JobSummaryOptionalPropsWithoutDefault = {
-  getJobUrl: () => `/job`,
-  onFetchSuccessAppend: undefined,
-  openInitially: false,
-  refreshInterval: undefined,
-};
 
 const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
   (
     {
-      getJobUrl = JOB_SUMMARY_DEFAULT_PROPS.getJobUrl,
+      getJobUrl = () => '/job',
       onFetchSuccessAppend,
-      openInitially = JOB_SUMMARY_DEFAULT_PROPS.openInitially,
-      refreshInterval = JOB_SUMMARY_DEFAULT_PROPS.refreshInterval,
+      openInitially = false,
+      refreshInterval,
     },
     ref,
   ) => {
@@ -155,7 +148,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
     return (
       <>
-        <Menu
+        <MuiMenu
           anchorEl={menuAnchorElement}
           onClose={() => {
             setIsOpenJobSummary(false);
@@ -165,7 +158,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
           variant="menu"
         >
           {jobList}
-        </Menu>
+        </MuiMenu>
         <DialogWithHeader header="" ref={detailDialogRef} showClose wide>
           {jobUuid && <JobDetail uuid={jobUuid} />}
         </DialogWithHeader>
@@ -174,7 +167,6 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
   },
 );
 
-JobSummary.defaultProps = JOB_SUMMARY_DEFAULT_PROPS;
 JobSummary.displayName = 'JobSummary';
 
 export type { JobSummaryForwardedRefContent, JobSummaryProps };

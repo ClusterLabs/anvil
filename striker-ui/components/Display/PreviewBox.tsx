@@ -1,6 +1,6 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 
-const PreviewBox = styled(Box)({
+const PreviewBox = styled(MuiBox)({
   alignItems: 'center',
   display: 'flex',
   justifyContent: 'center',

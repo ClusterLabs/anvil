@@ -1,20 +1,20 @@
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as MuiCloseIcon } from '@mui/icons-material';
 import {
-  IconButton as MUIIconButton,
+  IconButton as MuiIconButton,
   iconButtonClasses as muiIconButtonClasses,
-  inputClasses,
-  Select as MUISelect,
+  inputClasses as muiInputClasses,
+  Select as MuiSelect,
   selectClasses as muiSelectClasses,
-  InputAdornment as MUIInputAdornment,
+  InputAdornment as MuiInputAdornment,
   inputAdornmentClasses as muiInputAdornmentClasses,
 } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 
 const Select = <Value = string,>(
-  ...[props]: Parameters<FC<SelectProps<Value>>>
-) => {
+  ...[props]: Parameters<React.FC<SelectProps<Value>>>
+): ReturnType<React.FC<SelectProps<Value>>> => {
   const { onClearIndicatorClick, ...muiSelectProps } = props;
   const { sx: selectSx, value, ...restMuiSelectProps } = muiSelectProps;
 
@@ -34,7 +34,7 @@ const Select = <Value = string,>(
       },
 
       [`&:hover .${muiInputAdornmentClasses.root} .${muiIconButtonClasses.root},
-      &.${inputClasses.focused} .${muiInputAdornmentClasses.root} .${muiIconButtonClasses.root}`]:
+      &.${muiInputClasses.focused} .${muiInputAdornmentClasses.root} .${muiIconButtonClasses.root}`]:
         {
           visibility: 'visible',
         },
@@ -48,16 +48,16 @@ const Select = <Value = string,>(
     if (!value || !onClearIndicatorClick) return undefined;
 
     return (
-      <MUIInputAdornment position="end">
-        <MUIIconButton onClick={onClearIndicatorClick} tabIndex={-1}>
-          <CloseIcon fontSize="small" />
-        </MUIIconButton>
-      </MUIInputAdornment>
+      <MuiInputAdornment position="end">
+        <MuiIconButton onClick={onClearIndicatorClick} tabIndex={-1}>
+          <MuiCloseIcon fontSize="small" />
+        </MuiIconButton>
+      </MuiInputAdornment>
     );
   }, [onClearIndicatorClick, value]);
 
   return (
-    <MUISelect<Value>
+    <MuiSelect<Value>
       endAdornment={clearIndicatorElement}
       value={value}
       {...restMuiSelectProps}

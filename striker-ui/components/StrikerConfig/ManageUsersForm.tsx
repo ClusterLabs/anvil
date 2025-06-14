@@ -1,4 +1,4 @@
-import { FC, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import CommonUserInputGroup, {
   INPUT_ID_USER_CONFIRM_PASSWORD,
@@ -39,7 +39,7 @@ const getFormEntries = (
   return { password, userName };
 };
 
-const ManageUsersForm: FC = () => {
+const ManageUsersForm: React.FC = () => {
   const addUserFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const editUserFormDialogRef = useRef<ConfirmDialogForwardedRefContent>({});

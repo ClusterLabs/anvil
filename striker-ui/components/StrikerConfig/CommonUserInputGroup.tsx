@@ -1,4 +1,4 @@
-import { ReactElement, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 
@@ -25,18 +25,22 @@ const CommonUserInputGroup = <
       | typeof INPUT_ID_USER_NAME
       | typeof INPUT_ID_USER_PASSWORD]: string;
   },
->({
-  formUtils: {
-    buildFinishInputTestBatchFunction,
-    buildInputFirstRenderFunction,
-    setMessage,
-    setValidity,
-  },
-  previous: { name: previousName } = {},
-  readOnlyUserName,
-  requirePassword = false,
-  showPasswordField,
-}: CommonUserInputGroupProps<M>): ReactElement => {
+>(
+  ...[props]: Parameters<React.FC<CommonUserInputGroupProps<M>>>
+): ReturnType<React.FC<CommonUserInputGroupProps<M>>> => {
+  const {
+    formUtils: {
+      buildFinishInputTestBatchFunction,
+      buildInputFirstRenderFunction,
+      setMessage,
+      setValidity,
+    },
+    previous: { name: previousName } = {},
+    readOnlyUserName,
+    requirePassword = false,
+    showPasswordField,
+  } = props;
+
   const userPasswordInputRef = useRef<InputForwardedRefContent<'string'>>({});
   const userConfirmPasswordInputRef = useRef<
     InputForwardedRefContent<'string'>

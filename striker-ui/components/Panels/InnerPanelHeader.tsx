@@ -1,11 +1,15 @@
-import { FC } from 'react';
-import { Box } from '@mui/material';
+import { Box as MuiBox } from '@mui/material';
 
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 
-const InnerPanelHeader: FC = ({ children }) => (
-  <Box sx={{ position: 'relative', whiteSpace: 'pre-wrap' }}>
-    <Box
+const InnerPanelHeader: React.FC<React.PropsWithChildren> = ({ children }) => (
+  <MuiBox
+    sx={{
+      position: 'relative',
+      whiteSpace: 'pre-wrap',
+    }}
+  >
+    <MuiBox
       sx={{
         alignItems: 'center',
         borderColor: DIVIDER,
@@ -33,8 +37,8 @@ const InnerPanelHeader: FC = ({ children }) => (
       }}
     >
       {children}
-    </Box>
-    <Box
+    </MuiBox>
+    <MuiBox
       sx={{
         display: 'flex',
         paddingBottom: '.4em',
@@ -43,8 +47,8 @@ const InnerPanelHeader: FC = ({ children }) => (
       }}
     >
       {children}
-    </Box>
-  </Box>
+    </MuiBox>
+  </MuiBox>
 );
 
 export default InnerPanelHeader;

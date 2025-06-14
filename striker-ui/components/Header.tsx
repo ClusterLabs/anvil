@@ -1,5 +1,11 @@
-import { Assignment as AssignmentIcon } from '@mui/icons-material';
-import { AppBar, Box, Button, IconButton, styled } from '@mui/material';
+import { Assignment as MuiAssignmentIcon } from '@mui/icons-material';
+import {
+  AppBar as MuiAppBar,
+  Box as MuiBox,
+  Button as MuiButton,
+  IconButton as MuiIconButton,
+  styled,
+} from '@mui/material';
 import { useRef, useState } from 'react';
 
 import { BORDER_RADIUS, OLD_ICON, RED } from '../lib/consts/DEFAULT_THEME';
@@ -21,7 +27,7 @@ const classes = {
   icons: `${PREFIX}-icons`,
 };
 
-const StyledAppBar = styled(AppBar)(({ theme }) => ({
+const StyledAppBar = styled(MuiAppBar)(({ theme }) => ({
   paddingTop: theme.spacing(0.5),
   paddingBottom: theme.spacing(0.5),
   paddingLeft: theme.spacing(3),
@@ -60,7 +66,7 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
   },
 }));
 
-const Header = (): JSX.Element => {
+const Header: React.FC = () => {
   const jobIconRef = useRef<IconWithIndicatorForwardedRefContent>({});
   const jobSummaryRef = useRef<JobSummaryForwardedRefContent>({});
 
@@ -71,26 +77,30 @@ const Header = (): JSX.Element => {
   return (
     <>
       <StyledAppBar>
-        <Box display="flex" justifyContent="space-between" flexDirection="row">
+        <MuiBox
+          display="flex"
+          justifyContent="space-between"
+          flexDirection="row"
+        >
           <FlexBox row>
-            <Button onClick={toggleDrawer}>
+            <MuiButton onClick={toggleDrawer}>
               <img alt="" src="/pngs/logo.png" width="160" height="40" />
-            </Button>
+            </MuiButton>
           </FlexBox>
           <FlexBox className={classes.iconBox} row spacing={0}>
-            <Box>
-              <IconButton
+            <MuiBox>
+              <MuiIconButton
                 onClick={({ currentTarget }) => {
                   jobSummaryRef.current.setAnchor?.call(null, currentTarget);
                   jobSummaryRef.current.setOpen?.call(null, true);
                 }}
                 sx={{ color: OLD_ICON, padding: '0 .1rem' }}
               >
-                <IconWithIndicator icon={AssignmentIcon} ref={jobIconRef} />
-              </IconButton>
-            </Box>
+                <IconWithIndicator icon={MuiAssignmentIcon} ref={jobIconRef} />
+              </MuiIconButton>
+            </MuiBox>
           </FlexBox>
-        </Box>
+        </MuiBox>
       </StyledAppBar>
       <AnvilDrawer open={open} setOpen={setOpen} />
       <JobSummary

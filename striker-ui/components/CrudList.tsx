@@ -36,7 +36,7 @@ const CrudList = <
     getEditLoading = (previous?: boolean) => previous,
     listEmpty,
     listProps,
-    onItemClick = (base, ...args) => base(...args),
+    onItemClick = (base, { args }) => base(...args),
     onValidateEntriesChange,
     refreshInterval = 5000,
     renderAddForm,
@@ -122,6 +122,14 @@ const CrudList = <
     setCheck,
   } = useChecklist({ list: entries });
 
+  const entryRef = useMemo<CrudListEntryRef<Detail>>(
+    () => ({
+      set: setEntry,
+      value: entry,
+    }),
+    [entry],
+  );
+
   return (
     <>
       <List<Overview>
@@ -179,11 +187,18 @@ const CrudList = <
         }}
         onEdit={() => setEdit((previous) => !previous)}
         onItemClick={(...args) =>
-          onItemClick((value, key) => {
-            editDialogRef?.current?.setOpen(true);
+          onItemClick(
+            (value, key) => {
+              editDialogRef?.current?.setOpen(true);
 
-            getEntry(`/${key}`);
-          }, ...args)
+              getEntry(`/${key}`);
+            },
+            {
+              args,
+              entry: entryRef,
+              tools: formTools,
+            },
+          )
         }
         renderListItem={renderListItem}
         {...listProps}
@@ -196,7 +211,7 @@ const CrudList = <
         {...formDialogProps?.common}
         {...formDialogProps?.add}
       >
-        {renderAddForm(formTools)}
+        {renderAddForm(formTools, entries)}
       </DialogWithHeader>
       <DialogWithHeader
         header={editHeader}
@@ -206,7 +221,7 @@ const CrudList = <
         {...formDialogProps?.common}
         {...formDialogProps?.edit}
       >
-        {renderEditForm(formTools, entry)}
+        {renderEditForm(formTools, entry, entries)}
       </DialogWithHeader>
       {confirmDialog}
     </>

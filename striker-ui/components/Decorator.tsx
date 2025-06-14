@@ -1,5 +1,4 @@
-import { Box, BoxProps, styled } from '@mui/material';
-import { FC } from 'react';
+import { Box as MuiBox, BoxProps as MuiBoxProps, styled } from '@mui/material';
 
 import {
   BLUE,
@@ -11,7 +10,7 @@ import {
 
 type Colours = 'ok' | 'off' | 'error' | 'warning';
 
-type DecoratorProps = BoxProps & {
+type DecoratorProps = MuiBoxProps & {
   colour: Colours;
 };
 
@@ -24,7 +23,7 @@ const classes = {
   off: `${PREFIX}-off`,
 };
 
-const BaseBox = styled(Box)({
+const BaseBox = styled(MuiBox)({
   borderRadius: BORDER_RADIUS,
   height: '100%',
   width: '1.4em',
@@ -46,9 +45,10 @@ const BaseBox = styled(Box)({
   },
 });
 
-const Decorator: FC<DecoratorProps> = ({ colour, ...restDecoratorProps }) => (
-  <BaseBox {...restDecoratorProps} className={classes[colour]} />
-);
+const Decorator: React.FC<DecoratorProps> = ({
+  colour,
+  ...restDecoratorProps
+}) => <BaseBox {...restDecoratorProps} className={classes[colour]} />;
 
 export type { Colours };
 

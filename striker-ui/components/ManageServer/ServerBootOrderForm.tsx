@@ -1,11 +1,11 @@
 import {
-  ArrowDownward as ArrowDownwardIcon,
-  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as MuiArrowDownwardIcon,
+  ArrowUpward as MuiArrowUpwardIcon,
 } from '@mui/icons-material';
 import { Grid } from '@mui/material';
-import { GridColumns } from '@mui/x-data-grid';
+import { GridColDef } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';
-import { FC, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import FlexBox from '../FlexBox';
 import handleFormSubmit from './handleFormSubmit';
@@ -16,7 +16,7 @@ import ServerFormSubmit from './ServerFormSubmit';
 import { MonoText } from '../Text';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
+const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
   const { detail, tools } = props;
 
   const [selectedRowId, setSelectedRowId] = useState<number | undefined>();
@@ -92,12 +92,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
   const dataGridRows = useMemo(() => {
     const ls: number[] = formik.values.order;
 
-    return ls.map<{
-      dev: string;
-      index: number;
-      name: string;
-      source: string;
-    }>((diskIndex) => {
+    return ls.map<ServerBootOrderRow>((diskIndex) => {
       const {
         [diskIndex]: {
           device,
@@ -118,14 +113,14 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
     });
   }, [detail.devices.disks, formik.values.order]);
 
-  const dataGridColumns = useMemo<GridColumns>(
+  const dataGridColumns = useMemo<GridColDef<ServerBootOrderRow, string>[]>(
     () => [
       {
         field: 'name',
         flex: 0,
         headerName: 'Name',
         renderCell: (cell) => {
-          const { value: name } = cell;
+          const { value: name = '' } = cell;
 
           let label: string = name;
 
@@ -195,7 +190,7 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
               formik.setFieldValue(chains.order, clone, true);
             }}
           >
-            <ArrowUpwardIcon fontSize="small" />
+            <MuiArrowUpwardIcon fontSize="small" />
           </IconButton>
           <IconButton
             disabled={disableDown}
@@ -219,18 +214,18 @@ const ServerBootOrderForm: FC<ServerBootOrderFormProps> = (props) => {
               formik.setFieldValue(chains.order, clone, true);
             }}
           >
-            <ArrowDownwardIcon fontSize="small" />
+            <MuiArrowDownwardIcon fontSize="small" />
           </IconButton>
         </FlexBox>
       </Grid>
       <Grid item flexGrow={1}>
-        <SelectDataGrid
+        <SelectDataGrid<ServerBootOrderRow>
           autoHeight
           columns={dataGridColumns}
           disableColumnMenu
           getRowId={(row) => row.index}
           hideFooter
-          onSelectionModelChange={(model) => {
+          onRowSelectionModelChange={(model) => {
             const [rowId] = model;
 
             setSelectedRowId(Number(rowId));

@@ -16,14 +16,14 @@ type SharedStorageContentProps<E extends Error = Error> = {
   anvil: string;
   confirm: ConfirmDialogUtils;
   error?: E;
-  formDialogRef: React.RefObject<DialogForwardedRefContent>;
+  formDialogRef: React.RefObject<DialogForwardedRefContent | null>;
   loading?: boolean;
   storages?: APIAnvilSharedStorageOverview;
   target: SharedStorageEditTarget<string | undefined>;
 };
 
 type StorageGroupProps = {
-  formDialogRef: React.RefObject<DialogForwardedRefContent>;
+  formDialogRef: React.RefObject<DialogForwardedRefContent | null>;
   storages: APIAnvilSharedStorageOverview;
   target: SharedStorageEditTarget<string | undefined>;
   uuid: string;

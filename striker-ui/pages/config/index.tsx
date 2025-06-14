@@ -11,7 +11,6 @@ import {
 import useFetch from '../../hooks/useFetch';
 
 // This page can't be reused, and default is set within the render function.
-// eslint-disable-next-line react/require-default-props
 const Config: React.FC<{ refreshInterval?: number }> = ({
   refreshInterval = 60000,
 }) => {

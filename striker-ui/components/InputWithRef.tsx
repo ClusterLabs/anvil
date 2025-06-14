@@ -1,10 +1,11 @@
-import { InputBaseProps } from '@mui/material';
+import {
+  CheckboxProps as MuiCheckboxProps,
+  InputProps as MuiInputProps,
+} from '@mui/material';
 import { debounce } from 'lodash';
 import {
   cloneElement,
-  ForwardedRef,
   forwardRef,
-  ReactElement,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -27,9 +28,9 @@ type InputWithRefOptionalPropsWithoutDefault<
 > = {
   debounceWait?: number;
   inputTestBatch?: InputTestBatch;
-  onBlurAppend?: InputBaseProps['onBlur'];
+  onBlurAppend?: MuiInputProps['onBlur'];
   onFirstRender?: InputFirstRenderFunction;
-  onFocusAppend?: InputBaseProps['onFocus'];
+  onFocusAppend?: MuiInputProps['onFocus'];
   onUnmount?: () => void;
   valueKey?: CreateInputOnChangeHandlerOptions<TypeName>['valueKey'];
 };
@@ -40,7 +41,9 @@ type InputWithRefOptionalProps<TypeName extends keyof MapToInputType> =
 
 type InputWithRefProps<
   TypeName extends keyof MapToInputType,
-  InputComponent extends ReactElement,
+  InputComponent extends React.ReactElement<
+    MuiInputProps & Pick<MuiCheckboxProps, 'checked'>
+  >,
 > = InputWithRefOptionalProps<TypeName> & {
   input: InputComponent;
 };
@@ -53,43 +56,39 @@ type InputForwardedRefContent<TypeName extends keyof MapToInputType> = {
 };
 
 const INPUT_TEST_ID = 'input';
+
 const MAP_TO_INITIAL_VALUE: MapToInputType = {
   boolean: false,
   number: 0,
   string: '',
 };
 
-const INPUT_WITH_REF_DEFAULT_PROPS: Required<
-  InputWithRefOptionalPropsWithDefault<'string'>
-> &
-  InputWithRefOptionalPropsWithoutDefault<'string'> = {
-  createInputOnChangeHandlerOptions: {},
-  debounceWait: 500,
-  required: false,
-  valueType: 'string',
-};
-
 const InputWithRef = forwardRef(
-  <TypeName extends keyof MapToInputType, InputComponent extends ReactElement>(
+  <
+    TypeName extends keyof MapToInputType,
+    InputComponent extends React.ReactElement<
+      MuiInputProps & Pick<MuiCheckboxProps, 'checked'>
+    >,
+  >(
     {
-      debounceWait = INPUT_WITH_REF_DEFAULT_PROPS.debounceWait,
+      debounceWait = 500,
       input,
       inputTestBatch,
       onBlurAppend,
       onFirstRender,
       onFocusAppend,
       onUnmount,
-      required: isRequired = INPUT_WITH_REF_DEFAULT_PROPS.required,
+      required: isRequired = false,
       valueKey,
-      valueType = INPUT_WITH_REF_DEFAULT_PROPS.valueType as TypeName,
+      valueType = 'string' as TypeName,
       // Props with initial value that depend on others.
       createInputOnChangeHandlerOptions: {
         postSet: postSetAppend,
         valueKey: onChangeValueKey = valueKey,
         ...restCreateInputOnChangeHandlerOptions
-      } = INPUT_WITH_REF_DEFAULT_PROPS.createInputOnChangeHandlerOptions as CreateInputOnChangeHandlerOptions<TypeName>,
+      } = {} as CreateInputOnChangeHandlerOptions<TypeName>,
     }: InputWithRefProps<TypeName, InputComponent>,
-    ref: ForwardedRef<InputForwardedRefContent<TypeName>>,
+    ref: React.ForwardedRef<InputForwardedRefContent<TypeName>>,
   ) => {
     const { props: inputProps } = input;
 
@@ -102,9 +101,11 @@ const InputWithRef = forwardRef(
       onBlur: initOnBlur,
       onChange: initOnChange,
       onFocus: initOnFocus,
-      [vKey]: initValue = MAP_TO_INITIAL_VALUE[valueType],
+      [vKey]: unknownValue = MAP_TO_INITIAL_VALUE[valueType],
       ...restInitProps
     } = inputProps;
+
+    const initValue = unknownValue as MapToInputType[TypeName];
 
     const [inputValue, setInputValue] =
       useState<MapToInputType[TypeName]>(initValue);
@@ -148,7 +149,7 @@ const InputWithRef = forwardRef(
       [debounceWait, doTestAndSet],
     );
 
-    const onBlur = useMemo<InputBaseProps['onBlur']>(
+    const onBlur = useMemo<MuiInputProps['onBlur']>(
       () =>
         initOnBlur ??
         (testInput &&
@@ -193,7 +194,7 @@ const InputWithRef = forwardRef(
         valueType,
       ],
     );
-    const onFocus = useMemo<InputBaseProps['onFocus']>(
+    const onFocus = useMemo<MuiInputProps['onFocus']>(
       () =>
         initOnFocus ??
         (inputTestBatch &&
@@ -253,7 +254,6 @@ const InputWithRef = forwardRef(
   },
 );
 
-InputWithRef.defaultProps = INPUT_WITH_REF_DEFAULT_PROPS;
 InputWithRef.displayName = 'InputWithRef';
 
 export type { InputForwardedRefContent, InputWithRefProps };

@@ -1,5 +1,5 @@
 import { Grid } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { useMemo } from 'react';
 
 import handleFormSubmit from './handleFormSubmit';
 import MessageGroup from '../MessageGroup';
@@ -12,7 +12,7 @@ import SwitchWithLabel from '../SwitchWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
 
-const ServerStartDependencyForm: FC<ServerStartDependencyFormProps> = (
+const ServerStartDependencyForm: React.FC<ServerStartDependencyFormProps> = (
   props,
 ) => {
   const { detail, servers, tools } = props;

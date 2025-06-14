@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
-import { FC, useMemo, useState } from 'react';
+import { Box as MuiBox } from '@mui/material';
+import { useMemo, useState } from 'react';
 
 import api from '../../lib/api';
 import FlexBox from '../FlexBox';
@@ -13,7 +13,7 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
-const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
+const ManageChangedSSHKeysForm: React.FC<ManageChangedSSHKeysFormProps> = ({
   mitmExternalHref = 'https://en.wikipedia.org/wiki/Man-in-the-middle_attack',
   refreshInterval = 10000,
 }) => {
@@ -138,12 +138,12 @@ const ManageChangedSSHKeysForm: FC<ManageChangedSSHKeysFormProps> = ({
               const { ip, name, short } = value.target;
 
               return (
-                <Box width="calc(100% - 4em)">
+                <MuiBox width="calc(100% - 4em)">
                   <BodyText noWrap>{short || name || ip}</BodyText>
                   <SmallText monospaced noWrap>
                     {badKey}
                   </SmallText>
-                </Box>
+                </MuiBox>
               );
             }}
             renderListItemCheckboxState={(key) => getCheck(key)}

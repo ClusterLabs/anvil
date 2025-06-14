@@ -1,4 +1,4 @@
-import { Box, Grid } from '@mui/material';
+import { Box as MuiBox, Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { capitalize } from 'lodash';
 import { useMemo, useState } from 'react';
@@ -27,7 +27,7 @@ const nZero = BigInt(0);
 const protocolOptions: SelectItem[] = [
   {
     displayValue: (
-      <Box>
+      <MuiBox>
         <BodyText inheritColour>
           Async (
           <InlineMonoText inheritColour noWrap>
@@ -39,19 +39,19 @@ const protocolOptions: SelectItem[] = [
           Replication writes are considered done when the data is in the active
           node&apos;s network transmit buffer.
         </BodyText>
-      </Box>
+      </MuiBox>
     ),
     value: 'short-throw',
   },
   {
     displayValue: (
-      <Box>
+      <MuiBox>
         <BodyText inheritColour>Sync</BodyText>
         <BodyText selected={false}>
           Replication writes are considered done when the data is written to
           disk on the DR host.
         </BodyText>
-      </Box>
+      </MuiBox>
     ),
     value: 'sync',
   },

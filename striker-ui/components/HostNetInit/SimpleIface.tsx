@@ -1,5 +1,5 @@
-import { Box, styled } from '@mui/material';
-import { FC, useMemo } from 'react';
+import { Box as MuiBox, styled } from '@mui/material';
+import { useMemo } from 'react';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';
 
@@ -7,7 +7,7 @@ import Decorator from '../Decorator';
 import IconButton from '../IconButton';
 import { MonoText } from '../Text';
 
-const BaseIface = styled(Box)({
+const BaseIface = styled(MuiBox)({
   alignItems: 'center',
   display: 'flex',
   flexDirection: 'row',
@@ -28,7 +28,7 @@ const BaseFloatingIface = styled(BaseIface)({
   zIndex: 999,
 });
 
-const SimpleIface: FC<SimpleIfaceProps> = (props) => {
+const SimpleIface: React.FC<SimpleIfaceProps> = (props) => {
   const { iface } = props;
 
   const decoratorColour = useMemo(
@@ -44,7 +44,7 @@ const SimpleIface: FC<SimpleIfaceProps> = (props) => {
   );
 };
 
-export const FloatingIface: FC<SimpleIfaceProps> = (props) => {
+export const FloatingIface: React.FC<SimpleIfaceProps> = (props) => {
   const { boxProps, iface } = props;
 
   return (
@@ -54,7 +54,7 @@ export const FloatingIface: FC<SimpleIfaceProps> = (props) => {
   );
 };
 
-export const AppliedIface: FC<AppliedIfaceProps> = (props) => {
+export const AppliedIface: React.FC<AppliedIfaceProps> = (props) => {
   const { boxProps, iface, onClose } = props;
 
   return (

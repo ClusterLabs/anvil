@@ -1,6 +1,6 @@
-import { Box, styled } from '@mui/material';
+import { Box as MuiBox, styled } from '@mui/material';
 
-const PanelHeader = styled(Box)({
+const PanelHeader = styled(MuiBox)({
   alignItems: 'center',
   display: 'flex',
   flexDirection: 'row',
