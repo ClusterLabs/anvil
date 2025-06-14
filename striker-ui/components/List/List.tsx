@@ -1,22 +1,20 @@
-import MuiAddIcon from '@mui/icons-material/Add';
-import MuiDeleteIcon from '@mui/icons-material/Delete';
-import MuiDoneIcon from '@mui/icons-material/Done';
-import MuiEditIcon from '@mui/icons-material/Edit';
-import MuiBox from '@mui/material/Box';
 import MuiList, { ListProps as MuiListProps } from '@mui/material/List';
 import MuiListItem from '@mui/material/ListItem';
 import MuiListItemButton from '@mui/material/ListItemButton';
 import MuiListItemIcon from '@mui/material/ListItemIcon';
 import { useCallback, useMemo } from 'react';
 
-import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';
+import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
 
-import Checkbox from './Checkbox';
-import Divider from './Divider';
-import FlexBox from './FlexBox';
-import IconButton from './IconButton';
-import Spinner from './Spinner';
-import { BodyText } from './Text';
+import Checkbox from '../Checkbox';
+import Divider from '../Divider';
+import FlexBox from '../FlexBox';
+import Spinner from '../Spinner';
+import { BodyText } from '../Text';
+import AddItemButton from './AddItemButton';
+import EditItemButton from './EditItemButton';
+import DeleteItemButton from './DeleteItemButton';
+import AllItemCheckbox from './AllItemCheckbox';
 
 const List = <Item,>(
   ...[props]: Parameters<React.FC<ListProps<Item>>>
@@ -35,7 +33,7 @@ const List = <Item,>(
     insertHeader: isInsertHeader = true,
     listEmpty,
     listItemIconMinWidth = '56px',
-    listItemKeyPrefix = 'list',
+    listItemKeyPrefix = 'list-item',
     listItemProps: { sx: listItemSx, ...restListItemProps } = {},
     listItems,
     listProps: { sx: listSx, ...restListProps } = {},
@@ -61,77 +59,21 @@ const List = <Item,>(
     [headerSpacing, listItemIconMinWidth],
   );
 
-  const addItemButton = useMemo(
-    () =>
-      isAllowAddItem ? (
-        <IconButton onClick={onAdd} size="small">
-          <MuiAddIcon />
-        </IconButton>
-      ) : undefined,
-    [isAllowAddItem, onAdd],
-  );
-  const deleteItemButton = useMemo(
-    () =>
-      isEdit && isAllowDelete ? (
-        <IconButton
-          disabled={disableDelete}
-          onClick={onDelete}
-          size="small"
-          sx={{
-            backgroundColor: RED,
-            color: GREY,
-
-            '&:hover': { backgroundColor: `${RED}F0` },
-          }}
-        >
-          <MuiDeleteIcon />
-        </IconButton>
-      ) : undefined,
-    [disableDelete, isAllowDelete, isEdit, onDelete],
-  );
-  const editItemButton = useMemo(() => {
-    if (isAllowEditItem) {
-      return (
-        <IconButton onClick={onEdit} size="small">
-          {isEdit ? <MuiDoneIcon sx={{ color: BLUE }} /> : <MuiEditIcon />}
-        </IconButton>
-      );
-    }
-
-    return undefined;
-  }, [isAllowEditItem, isEdit, onEdit]);
-  const checkAllElement = useMemo(() => {
-    let element;
-
-    if (isEdit && isAllowCheckItem) {
-      element = isAllowCheckAll ? (
-        <MuiBox sx={{ minWidth: checkAllMinWidth }}>
-          <Checkbox
-            edge="start"
-            onChange={onAllCheckboxChange}
-            {...getListCheckboxProps?.call(null)}
-          />
-        </MuiBox>
-      ) : (
-        <Divider sx={{ minWidth: checkAllMinWidth }} />
-      );
-    }
-
-    return element;
-  }, [
-    checkAllMinWidth,
-    getListCheckboxProps,
-    isAllowCheckAll,
-    isAllowCheckItem,
-    isEdit,
-    onAllCheckboxChange,
-  ]);
   const headerElement = useMemo(() => {
     const headerType = typeof header;
 
     return isInsertHeader && header ? (
       <FlexBox row spacing={headerSpacing} sx={{ height: '2.4em' }}>
-        {checkAllElement}
+        <AllItemCheckbox
+          allowAll={isAllowCheckAll}
+          allowItem={isAllowCheckItem}
+          edit={isEdit}
+          minWidth={checkAllMinWidth}
+          onChange={onAllCheckboxChange}
+          slotProps={{
+            checkbox: getListCheckboxProps?.call(null),
+          }}
+        />
         {['boolean', 'string'].includes(headerType) ? (
           <>
             {headerType === 'string' && <BodyText>{header}</BodyText>}
@@ -140,21 +82,39 @@ const List = <Item,>(
         ) : (
           header
         )}
-        {deleteItemButton}
-        {editItemButton}
-        {addItemButton}
+        <DeleteItemButton
+          allow={isAllowDelete}
+          disabled={disableDelete}
+          edit={isEdit}
+          onClick={onDelete}
+        />
+        <EditItemButton
+          allow={isAllowEditItem}
+          edit={isEdit}
+          onClick={onEdit}
+        />
+        <AddItemButton allow={isAllowAddItem} onClick={onAdd} />
       </FlexBox>
     ) : (
       header
     );
   }, [
-    addItemButton,
-    checkAllElement,
-    deleteItemButton,
-    editItemButton,
+    checkAllMinWidth,
+    disableDelete,
+    getListCheckboxProps,
     header,
     headerSpacing,
+    isAllowAddItem,
+    isAllowCheckAll,
+    isAllowCheckItem,
+    isAllowDelete,
+    isAllowEditItem,
+    isEdit,
     isInsertHeader,
+    onAdd,
+    onAllCheckboxChange,
+    onDelete,
+    onEdit,
   ]);
   const listEmptyElement = useMemo(
     () =>
@@ -245,7 +205,12 @@ const List = <Item,>(
       {headerElement}
       <MuiList
         {...restListProps}
-        sx={{ paddingBottom: 0, paddingTop: 0, ...listScrollSx, ...listSx }}
+        sx={{
+          paddingBottom: 0,
+          paddingTop: 0,
+          ...listScrollSx,
+          ...listSx,
+        }}
       >
         {listItemElements}
       </MuiList>
