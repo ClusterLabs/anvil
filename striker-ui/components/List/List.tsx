@@ -7,14 +7,11 @@ import { useCallback, useMemo } from 'react';
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
 
 import Checkbox from '../Checkbox';
-import Divider from '../Divider';
 import FlexBox from '../FlexBox';
+import ListHeader from './ListHeader';
 import Spinner from '../Spinner';
+import sxstring from '../../lib/sxstring';
 import { BodyText } from '../Text';
-import AddItemButton from './AddItemButton';
-import EditItemButton from './EditItemButton';
-import DeleteItemButton from './DeleteItemButton';
-import AllItemCheckbox from './AllItemCheckbox';
 
 const List = <Item,>(
   ...[props]: Parameters<React.FC<ListProps<Item>>>
@@ -54,50 +51,45 @@ const List = <Item,>(
     allowEditItem: isAllowEditItem = isAllowEdit,
   } = props;
 
-  const checkAllMinWidth = useMemo(
-    () => `calc(${listItemIconMinWidth} - ${headerSpacing})`,
-    [headerSpacing, listItemIconMinWidth],
-  );
+  const checkAllMinWidth = `calc(${listItemIconMinWidth} - ${headerSpacing})`;
 
-  const headerElement = useMemo(() => {
-    const headerType = typeof header;
-
-    return isInsertHeader && header ? (
-      <FlexBox row spacing={headerSpacing} sx={{ height: '2.4em' }}>
-        <AllItemCheckbox
-          allowAll={isAllowCheckAll}
-          allowItem={isAllowCheckItem}
+  const headerElement = useMemo<React.ReactNode>(() => {
+    if (isInsertHeader && header) {
+      return (
+        <ListHeader
           edit={isEdit}
-          minWidth={checkAllMinWidth}
-          onChange={onAllCheckboxChange}
           slotProps={{
-            checkbox: getListCheckboxProps?.call(null),
+            add: {
+              allow: isAllowAddItem,
+              onClick: onAdd,
+            },
+            all: {
+              allowAll: isAllowCheckAll,
+              allowItem: isAllowCheckItem,
+              minWidth: checkAllMinWidth,
+              onChange: onAllCheckboxChange,
+              slotProps: {
+                checkbox: getListCheckboxProps?.call(null),
+              },
+            },
+            delete: {
+              allow: isAllowDelete,
+              disabled: disableDelete,
+              onClick: onDelete,
+            },
+            edit: {
+              allow: isAllowEditItem,
+              onClick: onEdit,
+            },
           }}
-        />
-        {['boolean', 'string'].includes(headerType) ? (
-          <>
-            {headerType === 'string' && <BodyText>{header}</BodyText>}
-            <Divider sx={{ flexGrow: 1 }} />
-          </>
-        ) : (
-          header
-        )}
-        <DeleteItemButton
-          allow={isAllowDelete}
-          disabled={disableDelete}
-          edit={isEdit}
-          onClick={onDelete}
-        />
-        <EditItemButton
-          allow={isAllowEditItem}
-          edit={isEdit}
-          onClick={onEdit}
-        />
-        <AddItemButton allow={isAllowAddItem} onClick={onAdd} />
-      </FlexBox>
-    ) : (
-      header
-    );
+          spacing={headerSpacing}
+        >
+          {header}
+        </ListHeader>
+      );
+    }
+
+    return null;
   }, [
     checkAllMinWidth,
     disableDelete,
@@ -116,13 +108,9 @@ const List = <Item,>(
     onDelete,
     onEdit,
   ]);
+
   const listEmptyElement = useMemo(
-    () =>
-      typeof listEmpty === 'string' ? (
-        <BodyText align="center">{listEmpty}</BodyText>
-      ) : (
-        listEmpty
-      ),
+    () => sxstring(listEmpty, BodyText, { align: 'center' }),
     [listEmpty],
   );
 

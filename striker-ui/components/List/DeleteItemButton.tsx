@@ -1,14 +1,6 @@
-import IconButton, { IconButtonProps } from '../IconButton';
+import IconButton from '../IconButton';
 
-const DeleteItemButton: React.FC<
-  Pick<IconButtonProps, 'disabled' | 'onClick'> & {
-    allow?: boolean;
-    edit?: boolean;
-    slotProps?: {
-      button?: IconButtonProps;
-    };
-  }
-> = (props) => {
+const DeleteItemButton: React.FC<DeleteItemButtonProps> = (props) => {
   const { allow, disabled, edit, onClick, slotProps } = props;
 
   return (

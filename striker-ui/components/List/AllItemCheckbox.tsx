@@ -3,17 +3,7 @@ import { Box as MuiBox } from '@mui/material';
 import Checkbox from '../Checkbox';
 import Divider from '../Divider';
 
-const AllItemCheckbox: React.FC<
-  Pick<CheckboxProps, 'onChange'> & {
-    allowAll?: boolean;
-    allowItem?: boolean;
-    edit?: boolean;
-    minWidth?: number | string;
-    slotProps?: {
-      checkbox?: CheckboxProps;
-    };
-  }
-> = (props) => {
+const AllItemCheckbox: React.FC<AllItemCheckboxProps> = (props) => {
   const { allowAll, allowItem, edit, minWidth, onChange, slotProps } = props;
 
   if (!edit || !allowItem) {

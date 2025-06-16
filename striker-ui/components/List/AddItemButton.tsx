@@ -1,13 +1,6 @@
-import IconButton, { IconButtonProps } from '../IconButton';
+import IconButton from '../IconButton';
 
-const AddItemButton: React.FC<
-  Pick<IconButtonProps, 'onClick'> & {
-    allow?: boolean;
-    slotProps?: {
-      button?: IconButtonProps;
-    };
-  }
-> = (props) => {
+const AddItemButton: React.FC<AddItemButtonProps> = (props) => {
   const { allow, onClick, slotProps } = props;
 
   return (
