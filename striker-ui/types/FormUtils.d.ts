@@ -42,9 +42,7 @@ type FormUtils<M extends MapToInputTestID> = {
   isFormInvalid: boolean;
   isFormSubmitting: boolean;
   setApiMessage: (message?: Message) => void;
-  setFormValidity: import('react').Dispatch<
-    import('react').SetStateAction<FormValidity<M>>
-  >;
+  setFormValidity: (value: FormValidity<M>) => void;
   setMessage: (key: keyof M, message?: Message) => void;
   setMessageRe: (re: RegExp, message?: Message) => void;
   setValidity: (key: keyof M, value?: boolean) => void;
