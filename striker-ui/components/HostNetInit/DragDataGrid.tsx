@@ -18,6 +18,18 @@ const dragDataGridClasses = {
 const DragDataGrid = styled(MuiDataGrid)({
   color: GREY,
 
+  [`.${muiDataGridClasses.columnHeader}`]: {
+    '&:focus': {
+      outline: 'none',
+    },
+  },
+
+  [`.${muiDataGridClasses.columnHeaders}`]: {
+    [`.${muiDataGridClasses['row--borderBottom']}`]: {
+      backgroundColor: 'inherit',
+    },
+  },
+
   [`& .${muiIconButtonClasses.root}`]: {
     color: 'inherit',
   },
@@ -30,10 +42,6 @@ const DragDataGrid = styled(MuiDataGrid)({
     '&:focus-within': {
       outline: 'none',
     },
-  },
-
-  [`& .${muiDataGridClasses['row--borderBottom']}`]: {
-    background: 'inherit',
   },
 
   [`& .${muiDataGridClasses.row}`]: {
