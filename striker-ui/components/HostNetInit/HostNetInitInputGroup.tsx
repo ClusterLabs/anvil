@@ -141,6 +141,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
     (): GridColDef<APINetworkInterfaceOverview>[] => [
       {
         align: 'center',
+        display: 'flex',
         field: '',
         renderCell: (cell) => {
           const { uuid } = cell.row;
@@ -173,6 +174,7 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
         width: 1,
       },
       {
+        display: 'flex',
         field: 'name',
         flex: 1,
         headerName: 'Name',
