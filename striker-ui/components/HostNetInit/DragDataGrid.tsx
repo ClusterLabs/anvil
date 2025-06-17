@@ -32,6 +32,10 @@ const DragDataGrid = styled(MuiDataGrid)({
     },
   },
 
+  [`& .${muiDataGridClasses['row--borderBottom']}`]: {
+    background: 'inherit',
+  },
+
   [`& .${muiDataGridClasses.row}`]: {
     [`&.${dragDataGridClasses.draggable}:hover`]: {
       cursor: 'grab',
