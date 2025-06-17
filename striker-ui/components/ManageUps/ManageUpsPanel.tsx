@@ -1,13 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 
 import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
-import api from '../../lib/api';
 import { INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME } from './CommonUpsInputGroup';
 import ConfirmDialog from '../ConfirmDialog';
 import EditUpsInputGroup, { INPUT_ID_UPS_UUID } from './EditUpsInputGroup';
 import FlexBox from '../FlexBox';
 import FormDialog from '../FormDialog';
-import handleAPIError from '../../lib/handleAPIError';
 import List from '../List';
 import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
@@ -17,7 +15,6 @@ import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
 import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
-import useIsFirstRender from '../../hooks/useIsFirstRender';
 
 type UpsFormData = {
   agent: string;
@@ -97,8 +94,6 @@ const buildConfirmUpsFormData = ({
 };
 
 const ManageUpsPanel: React.FC = () => {
-  const isFirstRender = useIsFirstRender();
-
   const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const formDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
   const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
@@ -107,9 +102,9 @@ const ManageUpsPanel: React.FC = () => {
   const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
 
   const [isEditUpses, setIsEditUpses] = useState<boolean>(false);
-  const [isLoadingUpsTemplate, setIsLoadingUpsTemplate] =
-    useState<boolean>(true);
-  const [upsTemplate, setUpsTemplate] = useState<APIUpsTemplate | undefined>();
+
+  const { data: upsTemplate, loading: isLoadingUpsTemplate } =
+    useFetch<APIUpsTemplate>('/ups/template');
 
   const { data: upsOverviews, loading: isUpsOverviewLoading } =
     useFetch<APIUpsOverview>(`/ups`, {
@@ -325,20 +320,6 @@ const ManageUpsPanel: React.FC = () => {
     ),
     [],
   );
-
-  if (isFirstRender) {
-    api
-      .get<APIUpsTemplate>('/ups/template')
-      .then(({ data }) => {
-        setUpsTemplate(data);
-      })
-      .catch((error) => {
-        handleAPIError(error);
-      })
-      .finally(() => {
-        setIsLoadingUpsTemplate(false);
-      });
-  }
 
   return (
     <>
