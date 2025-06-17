@@ -1,9 +1,7 @@
-import {
-  Add as MuiAddIcon,
-  Delete as MuiDeleteIcon,
-  Done as MuiDoneIcon,
-  Edit as MuiEditIcon,
-} from '@mui/icons-material';
+import MuiAddIcon from '@mui/icons-material/Add';
+import MuiDeleteIcon from '@mui/icons-material/Delete';
+import MuiDoneIcon from '@mui/icons-material/Done';
+import MuiEditIcon from '@mui/icons-material/Edit';
 import {
   Box as MuiBox,
   List as MuiList,

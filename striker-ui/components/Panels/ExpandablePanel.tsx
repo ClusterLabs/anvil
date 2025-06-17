@@ -1,7 +1,5 @@
-import {
-  ExpandLess as MuiExpandLessIcon,
-  ExpandMore as MuiExpandMoreIcon,
-} from '@mui/icons-material';
+import MuiExpandLessIcon from '@mui/icons-material/ExpandLess';
+import MuiExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { Box as MuiBox, IconButton as MuiIconButton } from '@mui/material';
 import { useMemo, useState } from 'react';
 

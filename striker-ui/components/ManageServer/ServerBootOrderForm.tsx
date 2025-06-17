@@ -1,7 +1,5 @@
-import {
-  ArrowDownward as MuiArrowDownwardIcon,
-  ArrowUpward as MuiArrowUpwardIcon,
-} from '@mui/icons-material';
+import MuiArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import MuiArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import { Grid } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';

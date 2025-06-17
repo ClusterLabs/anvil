@@ -1,7 +1,5 @@
-import {
-  MoreVert as MuiMoreVertIcon,
-  Search as MuiSearchIcon,
-} from '@mui/icons-material';
+import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
+import MuiSearchIcon from '@mui/icons-material/Search';
 import {
   Box as MuiBox,
   boxClasses as muiBoxClasses,

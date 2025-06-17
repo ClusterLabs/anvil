@@ -1,4 +1,4 @@
-import { Add as MuiAddIcon } from '@mui/icons-material';
+import MuiAddIcon from '@mui/icons-material/Add';
 import { Grid } from '@mui/material';
 import {
   DataSizeUnit,

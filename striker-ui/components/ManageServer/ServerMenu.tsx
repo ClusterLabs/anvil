@@ -1,4 +1,4 @@
-import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
+import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
 import { Box as MuiBox, Grid } from '@mui/material';
 import { useMemo, useRef } from 'react';
 

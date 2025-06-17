@@ -1,7 +1,5 @@
-import {
-  Check as MuiCheckIcon,
-  DragHandle as MuiDragHandleIcon,
-} from '@mui/icons-material';
+import MuiCheckIcon from '@mui/icons-material/Check';
+import MuiDragHandleIcon from '@mui/icons-material/DragHandle';
 import { Box as MuiBox, BoxProps as MuiBoxProps, Grid } from '@mui/material';
 import { GridColDef } from '@mui/x-data-grid';
 import { capitalize } from 'lodash';

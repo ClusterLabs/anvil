@@ -1,7 +1,5 @@
-import {
-  Visibility as MuiVisibilityIcon,
-  VisibilityOff as MuiVisibilityOffIcon,
-} from '@mui/icons-material';
+import MuiVisibilityIcon from '@mui/icons-material/Visibility';
+import MuiVisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
   IconButton as MuiIconButton,
   IconButtonProps as MuiIconButtonProps,

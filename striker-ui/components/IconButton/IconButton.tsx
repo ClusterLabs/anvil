@@ -1,14 +1,12 @@
-import {
-  Delete as MuiDeleteIcon,
-  Add as MuiAddIcon,
-  Close as MuiCloseIcon,
-  ContentCopy as MuiContentCopy,
-  Done as MuiDoneIcon,
-  Edit as MuiEditIcon,
-  PlayCircle as MuiPlayCircleIcon,
-  Visibility as MuiVisibilityIcon,
-  VisibilityOff as MuiVisibilityOffIcon,
-} from '@mui/icons-material';
+import MuiAddIcon from '@mui/icons-material/Add';
+import MuiCloseIcon from '@mui/icons-material/Close';
+import MuiContentCopy from '@mui/icons-material/ContentCopy';
+import MuiDeleteIcon from '@mui/icons-material/Delete';
+import MuiDoneIcon from '@mui/icons-material/Done';
+import MuiEditIcon from '@mui/icons-material/Edit';
+import MuiPlayCircleIcon from '@mui/icons-material/PlayCircle';
+import MuiVisibilityIcon from '@mui/icons-material/Visibility';
+import MuiVisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import {
   IconButton as MuiIconButton,
   IconButtonProps as MuiIconButtonProps,

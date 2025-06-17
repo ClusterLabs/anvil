@@ -1,4 +1,4 @@
-import { Eject as MuiEjectIcon } from '@mui/icons-material';
+import MuiEjectIcon from '@mui/icons-material/Eject';
 import { Box as MuiBox, Grid } from '@mui/material';
 import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';

@@ -1,4 +1,4 @@
-import { Assignment as MuiAssignmentIcon } from '@mui/icons-material';
+import MuiAssignmentIcon from '@mui/icons-material/Assignment';
 import {
   AppBar as MuiAppBar,
   Box as MuiBox,

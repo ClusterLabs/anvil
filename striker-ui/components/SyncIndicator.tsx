@@ -1,4 +1,4 @@
-import { Sync as MuiSyncIcon } from '@mui/icons-material';
+import MuiSyncIcon from '@mui/icons-material/Sync';
 import { styled, SvgIconProps as MuiSvgIconProps } from '@mui/material';
 
 import { BLUE, UNSELECTED } from '../lib/consts/DEFAULT_THEME';

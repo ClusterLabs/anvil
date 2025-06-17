@@ -1,7 +1,5 @@
-import {
-  Check as MuiCheckIcon,
-  Close as MuiCloseIcon,
-} from '@mui/icons-material';
+import MuiCheckIcon from '@mui/icons-material/Check';
+import MuiCloseIcon from '@mui/icons-material/Close';
 import { SvgIconProps as MuiSvgIconProps } from '@mui/material';
 import { cloneElement, createElement } from 'react';
 

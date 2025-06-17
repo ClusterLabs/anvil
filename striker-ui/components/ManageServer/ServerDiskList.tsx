@@ -1,7 +1,5 @@
-import {
-  Album as MuiAlbumIcon,
-  Expand as MuiExpandIcon,
-} from '@mui/icons-material';
+import MuiAlbumIcon from '@mui/icons-material/Album';
+import MuiExpandIcon from '@mui/icons-material/Expand';
 import { Grid } from '@mui/material';
 import { capitalize } from 'lodash';
 import { useMemo, useRef, useState } from 'react';

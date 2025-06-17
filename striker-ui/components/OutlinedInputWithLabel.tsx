@@ -1,4 +1,4 @@
-import { QuestionMark as MuiQuestionMarkIcon } from '@mui/icons-material';
+import MuiQuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import {
   FormControl as MuiFormControl,
   FormControlProps as MuiFormControlProps,

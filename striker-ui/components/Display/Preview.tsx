@@ -1,4 +1,4 @@
-import { PowerSettingsNewOutlined as MuiPowerSettingsNewOutlinedIcon } from '@mui/icons-material';
+import MuiPowerSettingsNewOutlinedIcon from '@mui/icons-material/PowerSettingsNewOutlined';
 import {
   Box as MuiBox,
   BoxProps as MuiBoxProps,

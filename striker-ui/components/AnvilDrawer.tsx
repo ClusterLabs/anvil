@@ -1,7 +1,5 @@
-import {
-  Dashboard as MuiDashboardIcon,
-  Logout as MuiLogoutIcon,
-} from '@mui/icons-material';
+import MuiDashboardIcon from '@mui/icons-material/Dashboard';
+import MuiLogoutIcon from '@mui/icons-material/Logout';
 import {
   Drawer as MuiDrawer,
   List as MuiList,

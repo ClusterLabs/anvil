@@ -1,9 +1,7 @@
-import {
-  Close as MuiCloseIcon,
-  Error as MuiErrorIcon,
-  Info as MuiInfoIcon,
-  Warning as MuiWarningIcon,
-} from '@mui/icons-material';
+import MuiCloseIcon from '@mui/icons-material/Close';
+import MuiErrorIcon from '@mui/icons-material/Error';
+import MuiInfoIcon from '@mui/icons-material/Info';
+import MuiWarningIcon from '@mui/icons-material/Warning';
 import {
   Box as MuiBox,
   BoxProps as MuiBoxProps,
