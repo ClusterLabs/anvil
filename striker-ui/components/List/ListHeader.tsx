@@ -1,4 +1,4 @@
-import { styled } from '@mui/material';
+import styled from '@mui/material/styles/styled';
 
 import AddItemButton from './AddItemButton';
 import AllItemCheckbox from './AllItemCheckbox';
@@ -6,26 +6,28 @@ import DeleteItemButton from './DeleteItemButton';
 import Divider from '../Divider';
 import EditItemButton from './EditItemButton';
 import FlexBox from '../FlexBox';
-import sxstring from '../../lib/sxstring';
 import { BodyText } from '../Text';
+import sxstring from '../../lib/sxstring';
+
+type ListHeaderProps = {
+  divide?: boolean;
+  edit?: boolean;
+  slotProps?: {
+    add?: AddItemButtonProps;
+    all?: AllItemCheckboxProps;
+    delete?: DeleteItemButtonProps;
+    edit?: EditItemButtonProps;
+  };
+  spacing?: number | string;
+};
 
 const StyledDivider = styled(Divider)({
   flexGrow: 1,
 });
 
-const ListHeader: React.FC<
-  React.PropsWithChildren<{
-    divide?: boolean;
-    edit?: boolean;
-    slotProps?: {
-      add?: AddItemButtonProps;
-      all?: AllItemCheckboxProps;
-      delete?: DeleteItemButtonProps;
-      edit?: EditItemButtonProps;
-    };
-    spacing?: number | string;
-  }>
-> = (props) => {
+const ListHeader: React.FC<React.PropsWithChildren<ListHeaderProps>> = (
+  props,
+) => {
   const {
     children,
     edit,
@@ -46,5 +48,7 @@ const ListHeader: React.FC<
     </FlexBox>
   );
 };
+
+export type { ListHeaderProps };
 
 export default ListHeader;

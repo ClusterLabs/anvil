@@ -1,17 +1,23 @@
-import MuiList, { ListProps as MuiListProps } from '@mui/material/List';
-import MuiListItem from '@mui/material/ListItem';
-import MuiListItemButton from '@mui/material/ListItemButton';
-import MuiListItemIcon from '@mui/material/ListItemIcon';
-import { useCallback, useMemo } from 'react';
+import MuiList from '@mui/material/List';
+import styled from '@mui/material/styles/styled';
+import { createElement, useMemo } from 'react';
 
-import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
-
-import Checkbox from '../Checkbox';
 import FlexBox from '../FlexBox';
 import ListHeader from './ListHeader';
+import ListItem from './ListItem';
 import Spinner from '../Spinner';
-import sxstring from '../../lib/sxstring';
 import { BodyText } from '../Text';
+import sxstring from '../../lib/sxstring';
+
+const StyledList = styled(MuiList)({
+  paddingBottom: 0,
+  paddingTop: 0,
+});
+
+const ScrollableList = styled(StyledList)({
+  maxHeight: '100%',
+  overflowY: 'scroll',
+});
 
 const List = <Item,>(
   ...[props]: Parameters<React.FC<ListProps<Item>>>
@@ -31,9 +37,9 @@ const List = <Item,>(
     listEmpty,
     listItemIconMinWidth = '56px',
     listItemKeyPrefix = 'list-item',
-    listItemProps: { sx: listItemSx, ...restListItemProps } = {},
+    listItemProps,
     listItems,
-    listProps: { sx: listSx, ...restListProps } = {},
+    listProps,
     loading,
     onAdd,
     onDelete,
@@ -114,94 +120,57 @@ const List = <Item,>(
     [listEmpty],
   );
 
-  const listItemCheckbox = useCallback(
-    (key: string, checked?: boolean, checkboxProps?: CheckboxProps) =>
-      isEdit && isAllowCheckItem ? (
-        <MuiListItemIcon sx={{ minWidth: listItemIconMinWidth }}>
-          <Checkbox
-            checked={checked}
-            edge="start"
-            onChange={(...args) =>
-              onItemCheckboxChange?.call(null, key, ...args)
-            }
-            {...checkboxProps}
-          />
-        </MuiListItemIcon>
-      ) : undefined,
-    [isAllowCheckItem, isEdit, listItemIconMinWidth, onItemCheckboxChange],
-  );
-
-  const listItemElements = useMemo(() => {
-    if (loading) return <Spinner />;
-
-    if (!listItems) return listEmptyElement;
-
-    const entries = Object.entries(listItems);
-
-    if (entries.length <= 0) return listEmptyElement;
-
-    return entries.map(([key, value]) => {
-      const listItem = renderListItem(key, value);
-
-      return (
-        <MuiListItem
-          {...restListItemProps}
-          key={`${listItemKeyPrefix}-${key}`}
-          sx={{ paddingLeft: 0, paddingRight: 0, ...listItemSx }}
-        >
-          {listItemCheckbox(
-            key,
-            renderListItemCheckboxState?.call(null, key, value),
-            getListItemCheckboxProps?.call(null, key, value),
-          )}
-          {isAllowItemButton ? (
-            <MuiListItemButton
-              onClick={(...args) => {
-                onItemClick?.call(null, value, key, ...args);
-              }}
-              sx={{ borderRadius: BORDER_RADIUS }}
-            >
-              {listItem}
-            </MuiListItemButton>
-          ) : (
-            listItem
-          )}
-        </MuiListItem>
-      );
-    });
-  }, [
-    getListItemCheckboxProps,
-    isAllowItemButton,
-    listEmptyElement,
-    listItemCheckbox,
-    listItemKeyPrefix,
-    listItemSx,
-    listItems,
-    loading,
-    onItemClick,
-    renderListItem,
-    renderListItemCheckboxState,
-    restListItemProps,
-  ]);
-  const listScrollSx: MuiListProps['sx'] = useMemo(
-    () => (isScroll ? { maxHeight: '100%', overflowY: 'scroll' } : undefined),
-    [isScroll],
+  const listEntries = useMemo(
+    () => (listItems ? Object.entries(listItems) : []),
+    [listItems],
   );
 
   return (
     <FlexBox spacing={0} {...flexBoxProps}>
       {headerElement}
-      <MuiList
-        {...restListProps}
-        sx={{
-          paddingBottom: 0,
-          paddingTop: 0,
-          ...listScrollSx,
-          ...listSx,
-        }}
-      >
-        {listItemElements}
-      </MuiList>
+      {createElement(
+        isScroll ? ScrollableList : StyledList,
+        listProps,
+        <>
+          {loading && <Spinner />}
+          {listEntries.length > 0
+            ? listEntries.map(([itemKey, itemValue]) => {
+                const key = `${listItemKeyPrefix}-${itemKey}`;
+
+                return (
+                  <ListItem
+                    allowButton={isAllowItemButton}
+                    allowCheck={isAllowCheckItem}
+                    edit={isEdit}
+                    getChecked={renderListItemCheckboxState}
+                    itemKey={itemKey}
+                    itemValue={itemValue}
+                    key={key}
+                    onCheckboxChange={onItemCheckboxChange}
+                    onClick={(k, v, ...rest) => onItemClick?.(v, k, ...rest)}
+                    renderItem={renderListItem}
+                    slotProps={{
+                      checkbox: {
+                        slotProps: {
+                          checkbox: getListItemCheckboxProps?.(
+                            itemKey,
+                            itemValue,
+                          ),
+                          listItemIcon: {
+                            sx: {
+                              minWidth: listItemIconMinWidth,
+                            },
+                          },
+                        },
+                      },
+                      item: listItemProps,
+                    }}
+                  />
+                );
+              })
+            : listEmptyElement}
+        </>,
+      )}
     </FlexBox>
   );
 };
