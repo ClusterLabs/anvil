@@ -880,7 +880,7 @@ WHERE
 	$job_uuid = $anvil->Database->insert_or_update_jobs({
 		file                 => $THIS_FILE, 
 		line                 => __LINE__, 
-		debug                => $debug,
+		debug                => 2,	### TODO: Put this back to '$debug'
 		update_progress_only => 1,
 		clear_status         => $clear_status, 
 		job_uuid             => $job_uuid, 

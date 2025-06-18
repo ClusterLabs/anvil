@@ -55,7 +55,7 @@ $anvil->Get->switches({list => [
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => $anvil->data->{switches}});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0115", variables => { program => $THIS_FILE }});
 
-$anvil->Database->connect();
+$anvil->Database->connect({debug => 2});
 $anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0132"});
 if (not $anvil->data->{sys}{database}{connections})
 {
@@ -1025,6 +1025,7 @@ sub run_scanagent
 	
 	# Call scan-lvm
 	$anvil->Job->update_progress({
+		debug     => 2,
 		progress  => $anvil->Job->bump_progress({steps => 1}),
 		log_level => 1,
 		'print'   => 1, 
@@ -2424,6 +2425,7 @@ sub process_update
 	}
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0397", variables => $variables});
 	$anvil->Job->update_progress({
+		debug     => 2,
 		progress  => 90,
 		message   => "job_0397", 
 		variables => $variables, 
@@ -2444,6 +2446,7 @@ sub process_update
 	$variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0391", variables => $variables});
 	$anvil->Job->update_progress({
+		debug     => 2,
 		progress  => 100,
 		message   => "job_0391", 
 		variables => $variables, 
@@ -4916,7 +4919,7 @@ ORDER BY
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				}
-				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
 
 				# Update the local record to store this one.
 				$anvil->data->{dr_links}{host_uuid}{$dr_link_host_uuid}{$dr_link_anvil_uuid}{dr_link_uuid} = $dr_link_uuid;
@@ -4936,7 +4939,7 @@ ORDER BY
 				{
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
 				}
-				$anvil->Database->write({query => $queries, source => $THIS_FILE, line => __LINE__});
+				$anvil->Database->write({debug => 2, query => $queries, source => $THIS_FILE, line => __LINE__});
 			}
 		}
 		else
