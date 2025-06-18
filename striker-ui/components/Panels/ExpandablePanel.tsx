@@ -1,6 +1,7 @@
 import MuiExpandLessIcon from '@mui/icons-material/ExpandLess';
 import MuiExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { Box as MuiBox, IconButton as MuiIconButton } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiIconButton from '@mui/material/IconButton';
 import { useMemo, useState } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';

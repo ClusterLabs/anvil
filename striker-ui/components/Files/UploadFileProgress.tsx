@@ -1,4 +1,4 @@
-import { Box as MuiBox } from '@mui/material';
+import MuiBox from '@mui/material/Box';
 
 import { ProgressBar } from '../Bars';
 import FlexBox from '../FlexBox';

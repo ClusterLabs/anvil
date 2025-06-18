@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { useMemo, useRef, useState } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';

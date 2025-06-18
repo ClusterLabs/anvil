@@ -2,12 +2,10 @@ import MuiCloseIcon from '@mui/icons-material/Close';
 import MuiErrorIcon from '@mui/icons-material/Error';
 import MuiInfoIcon from '@mui/icons-material/Info';
 import MuiWarningIcon from '@mui/icons-material/Warning';
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
-  IconButton as MuiIconButton,
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import MuiIconButton, {
   IconButtonProps as MuiIconButtonProps,
-} from '@mui/material';
+} from '@mui/material/IconButton';
 import { useCallback, useMemo, useState } from 'react';
 
 import {

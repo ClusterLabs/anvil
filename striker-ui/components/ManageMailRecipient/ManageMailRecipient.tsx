@@ -1,4 +1,4 @@
-import { Grid2 as MuiGrid } from '@mui/material';
+import MuiGrid from '@mui/material/Grid2';
 import { useMemo, useState } from 'react';
 
 import AddMailRecipientForm from './AddMailRecipientForm';

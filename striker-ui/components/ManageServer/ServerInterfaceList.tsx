@@ -1,5 +1,6 @@
-import { Grid, Switch as MuiSwitch } from '@mui/material';
-import { capitalize } from 'lodash';
+import Grid from '@mui/material/Grid';
+import MuiSwitch from '@mui/material/Switch';
+import capitalize from 'lodash/capitalize';
 import { useMemo, useRef } from 'react';
 
 import { DialogWithHeader } from '../Dialog';

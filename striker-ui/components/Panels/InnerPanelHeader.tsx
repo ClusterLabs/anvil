@@ -1,4 +1,4 @@
-import { Box as MuiBox } from '@mui/material';
+import MuiBox from '@mui/material/Box';
 
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 

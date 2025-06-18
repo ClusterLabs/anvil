@@ -1,13 +1,12 @@
 import MuiPowerSettingsNewOutlinedIcon from '@mui/icons-material/PowerSettingsNewOutlined';
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
-  circularProgressClasses as muiCircularProgressClasses,
-  IconButton as MuiIconButton,
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import muiCircularProgressClasses from '@mui/material/CircularProgress/circularProgressClasses';
+import MuiIconButton, {
   IconButtonProps as MuiIconButtonProps,
-  LinkProps as MuiLinkProps,
-} from '@mui/material';
-import { capitalize, merge } from 'lodash';
+} from '@mui/material/IconButton';
+import { LinkProps as MuiLinkProps } from '@mui/material/Link';
+import capitalize from 'lodash/capitalize';
+import merge from 'lodash/merge';
 import { cloneElement, createElement, useMemo } from 'react';
 
 import { GREY, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';

@@ -1,9 +1,8 @@
-import {
-  InputLabel as MuiInputLabel,
-  inputLabelClasses as muiInputLabelClasses,
+import MuiInputLabel, {
   InputLabelProps as MuiInputLabelProps,
-} from '@mui/material';
-import { merge } from 'lodash';
+  inputLabelClasses as muiInputLabelClasses,
+} from '@mui/material/InputLabel';
+import merge from 'lodash/merge';
 import { useMemo } from 'react';
 
 import { BLACK, BORDER_RADIUS, GREY } from '../../lib/consts/DEFAULT_THEME';

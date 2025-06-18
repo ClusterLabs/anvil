@@ -1,6 +1,6 @@
 import MuiCheckIcon from '@mui/icons-material/Check';
 import MuiCloseIcon from '@mui/icons-material/Close';
-import { SvgIconProps as MuiSvgIconProps } from '@mui/material';
+import { SvgIconProps as MuiSvgIconProps } from '@mui/material/SvgIcon';
 import { cloneElement, createElement } from 'react';
 
 import { BLUE, PURPLE } from '../lib/consts/DEFAULT_THEME';

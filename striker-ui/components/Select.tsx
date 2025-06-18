@@ -1,13 +1,14 @@
 import MuiCloseIcon from '@mui/icons-material/Close';
-import {
-  IconButton as MuiIconButton,
+import MuiIconButton, {
   iconButtonClasses as muiIconButtonClasses,
-  inputClasses as muiInputClasses,
-  Select as MuiSelect,
+} from '@mui/material/IconButton';
+import muiInputClasses from '@mui/material/Input/inputClasses';
+import MuiSelect, {
   selectClasses as muiSelectClasses,
-  InputAdornment as MuiInputAdornment,
+} from '@mui/material/Select';
+import MuiInputAdornment, {
   inputAdornmentClasses as muiInputAdornmentClasses,
-} from '@mui/material';
+} from '@mui/material/InputAdornment';
 import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

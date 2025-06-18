@@ -1,8 +1,5 @@
-import {
-  DialogProps as MuiDialogProps,
-  Dialog as MuiDialog,
-} from '@mui/material';
-import { merge } from 'lodash';
+import MuiDialog, { DialogProps as MuiDialogProps } from '@mui/material/Dialog';
+import merge from 'lodash/merge';
 import {
   createContext,
   forwardRef,

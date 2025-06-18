@@ -1,6 +1,8 @@
-import { Box as MuiBox, createFilterOptions, Grid } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import { createFilterOptions } from '@mui/material/useAutocomplete';
 import { DataSize, dSize, dSizeStr } from 'format-data-size';
-import { isEqual } from 'lodash';
+import isEqual from 'lodash/isEqual';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { DSIZE_SELECT_ITEMS } from '../../lib/consts/DSIZES';

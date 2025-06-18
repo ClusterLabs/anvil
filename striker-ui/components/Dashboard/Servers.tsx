@@ -1,11 +1,8 @@
 import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
 import MuiSearchIcon from '@mui/icons-material/Search';
-import {
-  Box as MuiBox,
-  boxClasses as muiBoxClasses,
-  Grid,
-} from '@mui/material';
-import { debounce } from 'lodash';
+import MuiBox, { boxClasses as muiBoxClasses } from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import debounce from 'lodash/debounce';
 import { useMemo, useState } from 'react';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';

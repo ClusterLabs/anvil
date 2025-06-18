@@ -1,11 +1,8 @@
-import {
-  FormControl as MuiFormControl,
-  FormControlLabel as MuiFormControlLabel,
-  FormLabel as MuiFormLabel,
-  Radio as MuiRadio,
-  radioClasses as muiRadioClasses,
-  RadioGroup as MuiRadioGroup,
-} from '@mui/material';
+import MuiFormControl from '@mui/material/FormControl';
+import MuiFormControlLabel from '@mui/material/FormControlLabel';
+import MuiFormLabel from '@mui/material/FormLabel';
+import MuiRadio, { radioClasses as muiRadioClasses } from '@mui/material/Radio';
+import MuiRadioGroup from '@mui/material/RadioGroup';
 import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

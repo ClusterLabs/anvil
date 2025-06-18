@@ -1,8 +1,6 @@
-import {
-  Box as MuiBox,
-  formControlClasses as muiFormControlClasses,
-  outlinedInputClasses as muiOutlinedInputClasses,
-} from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import muiFormControlClasses from '@mui/material/FormControl/formControlClasses';
+import muiOutlinedInputClasses from '@mui/material/OutlinedInput/outlinedInputClasses';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 

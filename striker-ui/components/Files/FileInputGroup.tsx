@@ -1,5 +1,6 @@
-import { FormGroup as MuiFormGroup } from '@mui/material';
-import { cloneDeep, debounce } from 'lodash';
+import MuiFormGroup from '@mui/material/FormGroup';
+import cloneDeep from 'lodash/cloneDeep';
+import debounce from 'lodash/debounce';
 import { useCallback, useMemo } from 'react';
 
 import { UPLOAD_FILE_TYPES_ARRAY } from '../../lib/consts/UPLOAD_FILE_TYPES';

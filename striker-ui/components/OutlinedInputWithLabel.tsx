@@ -1,13 +1,13 @@
 import MuiQuestionMarkIcon from '@mui/icons-material/QuestionMark';
-import {
-  FormControl as MuiFormControl,
+import MuiFormControl, {
   FormControlProps as MuiFormControlProps,
-  IconButton as MuiIconButton,
+} from '@mui/material/FormControl';
+import MuiIconButton, {
   IconButtonProps as MuiIconButtonProps,
   iconButtonClasses as muiIconButtonClasses,
-  InputAdornment as MuiInputAdornment,
-  InputBaseComponentProps as MuiInputBaseComponentProps,
-} from '@mui/material';
+} from '@mui/material/IconButton';
+import MuiInputAdornment from '@mui/material/InputAdornment';
+import { InputBaseComponentProps as MuiInputBaseComponentProps } from '@mui/material/InputBase';
 import { useCallback, useMemo, useState } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

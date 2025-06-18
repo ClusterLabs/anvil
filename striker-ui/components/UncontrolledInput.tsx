@@ -1,9 +1,6 @@
+import { InputProps as MuiInputProps } from '@mui/material/Input';
+import { SwitchProps as MuiSwitchProps } from '@mui/material/Switch';
 import {
-  InputProps as MuiInputProps,
-  SwitchProps as MuiSwitchProps,
-} from '@mui/material';
-import {
-  ForwardedRef,
   cloneElement,
   forwardRef,
   useCallback,
@@ -24,7 +21,7 @@ const UncontrolledInput = forwardRef(
     >,
   >(
     props: UncontrolledInputProps<InputElement>,
-    ref: ForwardedRef<UncontrolledInputForwardedRefContent<ValueType>>,
+    ref: React.ForwardedRef<UncontrolledInputForwardedRefContent<ValueType>>,
   ) => {
     const {
       input,

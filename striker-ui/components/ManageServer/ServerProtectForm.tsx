@@ -1,6 +1,7 @@
-import { Box as MuiBox, Grid } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
 import { dSizeStr } from 'format-data-size';
-import { capitalize } from 'lodash';
+import capitalize from 'lodash/capitalize';
 import { useMemo, useState } from 'react';
 
 import { toHostDetailCalcableList } from '../../lib/api_converters';

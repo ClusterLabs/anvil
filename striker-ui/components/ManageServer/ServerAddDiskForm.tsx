@@ -1,5 +1,5 @@
 import MuiAddIcon from '@mui/icons-material/Add';
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import {
   DataSizeUnit,
   dSize,

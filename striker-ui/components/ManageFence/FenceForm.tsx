@@ -1,5 +1,6 @@
-import { Box as MuiBox, Grid } from '@mui/material';
-import { capitalize } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import capitalize from 'lodash/capitalize';
 import { useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';

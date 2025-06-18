@@ -1,5 +1,5 @@
-import { Grid } from '@mui/material';
-import { cloneDeep } from 'lodash';
+import Grid from '@mui/material/Grid';
+import cloneDeep from 'lodash/cloneDeep';
 import { useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';

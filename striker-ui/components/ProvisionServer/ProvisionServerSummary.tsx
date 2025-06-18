@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 

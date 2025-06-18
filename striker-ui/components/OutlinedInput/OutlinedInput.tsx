@@ -1,13 +1,13 @@
 import MuiVisibilityIcon from '@mui/icons-material/Visibility';
 import MuiVisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import {
-  IconButton as MuiIconButton,
+import MuiIconButton, {
   IconButtonProps as MuiIconButtonProps,
-  OutlinedInput as MuiOutlinedInput,
-  outlinedInputClasses as muiOutlinedInputClasses,
+} from '@mui/material/IconButton';
+import MuiOutlinedInput, {
   OutlinedInputProps as MuiOutlinedInputProps,
-} from '@mui/material';
-import { merge } from 'lodash';
+  outlinedInputClasses as muiOutlinedInputClasses,
+} from '@mui/material/OutlinedInput';
+import merge from 'lodash/merge';
 import { cloneElement, useMemo, useState } from 'react';
 
 import { GREY, PURPLE, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';

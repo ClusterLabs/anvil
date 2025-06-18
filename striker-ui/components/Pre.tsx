@@ -1,4 +1,4 @@
-import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
 
 import { TEXT } from '../lib/consts/DEFAULT_THEME';
 

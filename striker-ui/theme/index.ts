@@ -1,4 +1,5 @@
-import { createTheme, Theme } from '@mui/material';
+import createTheme from '@mui/material/styles/createTheme';
+import { Theme } from '@mui/material/styles/createThemeNoVars';
 import { switchClasses } from '@mui/material/Switch';
 
 import '@fontsource/roboto-condensed/300.css';

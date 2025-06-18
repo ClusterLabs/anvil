@@ -1,6 +1,5 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import Head from 'next/head';
-import { FC } from 'react';
 
 import Header from '../../components/Header';
 import { ManageMailRecipient } from '../../components/ManageMailRecipient';
@@ -8,7 +7,7 @@ import { ManageMailServer } from '../../components/ManageMailServer';
 import { ExpandablePanel, Panel, PanelHeader } from '../../components/Panels';
 import { HeaderText } from '../../components/Text';
 
-const MailConfig: FC = () => (
+const MailConfig: React.FC = () => (
   <>
     <Head>
       <title>Mail Config</title>
