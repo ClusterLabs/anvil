@@ -1,11 +1,7 @@
-import {
-  iconButtonClasses as muiIconButtonClasses,
-  styled,
-} from '@mui/material';
-import {
-  DataGrid as MuiDataGrid,
-  gridClasses as muiDataGridClasses,
-} from '@mui/x-data-grid';
+import muiIconButtonClasses from '@mui/material/IconButton/iconButtonClasses';
+import styled from '@mui/material/styles/styled';
+import { DataGrid as MuiDataGrid } from '@mui/x-data-grid/DataGrid/DataGrid';
+import { gridClasses as muiDataGridClasses } from '@mui/x-data-grid/constants/gridClasses';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
 

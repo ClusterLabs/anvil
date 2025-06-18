@@ -1,4 +1,4 @@
-import { styled } from '@mui/material';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import ContainedButton from './ContainedButton';

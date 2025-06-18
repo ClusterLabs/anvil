@@ -1,8 +1,6 @@
-import {
-  CheckboxProps as MuiCheckboxProps,
-  InputProps as MuiInputProps,
-} from '@mui/material';
-import { debounce } from 'lodash';
+import { CheckboxProps as MuiCheckboxProps } from '@mui/material/Checkbox';
+import { InputProps as MuiInputProps } from '@mui/material/Input';
+import debounce from 'lodash/debounce';
 import {
   cloneElement,
   forwardRef,

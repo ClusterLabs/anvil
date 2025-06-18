@@ -1,4 +1,5 @@
-import { Box as MuiBox, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 import Head from 'next/head';
 import { NextRouter, useRouter } from 'next/router';
 import { createElement, useContext, useMemo } from 'react';

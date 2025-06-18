@@ -1,4 +1,4 @@
-import { FormControlLabel as MuiFormControlLabel } from '@mui/material';
+import MuiFormControlLabel from '@mui/material/FormControlLabel';
 import { useMemo } from 'react';
 
 import Checkbox from './Checkbox';

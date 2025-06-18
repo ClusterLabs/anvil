@@ -1,8 +1,7 @@
-import {
-  Button as MuiButton,
+import MuiButton, {
   buttonClasses as muiButtonClasses,
-  styled,
-} from '@mui/material';
+} from '@mui/material/Button';
+import styled from '@mui/material/styles/styled';
 
 import {
   BLACK,

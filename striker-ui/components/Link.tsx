@@ -1,4 +1,5 @@
-import { Link as MuiLink, styled } from '@mui/material';
+import MuiLink from '@mui/material/Link';
+import styled from '@mui/material/styles/styled';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 

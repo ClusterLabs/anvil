@@ -1,8 +1,5 @@
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
-  FormControlProps as MuiFormControlProps,
-} from '@mui/material';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import { FormControlProps as MuiFormControlProps } from '@mui/material/FormControl';
 import {
   forwardRef,
   useImperativeHandle,

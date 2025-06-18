@@ -1,4 +1,6 @@
-import { Box as MuiBox, Divider as MuiDivider, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiDivider from '@mui/material/Divider';
+import styled from '@mui/material/styles/styled';
 import { useContext, useState } from 'react';
 
 import {

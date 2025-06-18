@@ -1,12 +1,10 @@
 import MuiDashboardIcon from '@mui/icons-material/Dashboard';
 import MuiLogoutIcon from '@mui/icons-material/Logout';
-import {
-  Drawer as MuiDrawer,
-  List as MuiList,
-  ListItem as MuiListItem,
-  ListItemButton as MuiListItemButton,
-  styled,
-} from '@mui/material';
+import MuiDrawer from '@mui/material/Drawer';
+import MuiList from '@mui/material/List';
+import MuiListItem from '@mui/material/ListItem';
+import MuiListItemButton from '@mui/material/ListItemButton';
+import styled from '@mui/material/styles/styled';
 import { useCookies } from 'react-cookie';
 
 import { OLD_ICON } from '../lib/consts/DEFAULT_THEME';

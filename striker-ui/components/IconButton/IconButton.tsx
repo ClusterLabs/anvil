@@ -7,12 +7,11 @@ import MuiEditIcon from '@mui/icons-material/Edit';
 import MuiPlayCircleIcon from '@mui/icons-material/PlayCircle';
 import MuiVisibilityIcon from '@mui/icons-material/Visibility';
 import MuiVisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import {
-  IconButton as MuiIconButton,
+import MuiIconButton, {
   IconButtonProps as MuiIconButtonProps,
-  inputClasses as muiInputClasses,
-  styled,
-} from '@mui/material';
+} from '@mui/material/IconButton';
+import muiInputClasses from '@mui/material/Input/inputClasses';
+import styled from '@mui/material/styles/styled';
 import { createElement, useMemo } from 'react';
 
 import {

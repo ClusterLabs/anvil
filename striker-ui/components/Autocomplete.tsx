@@ -1,18 +1,16 @@
-import {
-  Autocomplete as MuiAutocomplete,
+import MuiAutocomplete, {
   autocompleteClasses as muiAutocompleteClasses,
   AutocompleteProps as MuiAutocompleteProps,
   AutocompleteRenderInputParams as MuiAutocompleteRenderInputParams,
-  Box as MuiBox,
-  Grow as MuiGrow,
-  ListSubheader as MuiListSubheader,
-  outlinedInputClasses as muiOutlinedInputClasses,
-  Paper as MuiPaper,
-  PaperProps as MuiPaperProps,
-  svgIconClasses as muiSvgIconClasses,
-  styled,
-} from '@mui/material';
-import { merge } from 'lodash';
+} from '@mui/material/Autocomplete';
+import MuiBox from '@mui/material/Box';
+import MuiGrow from '@mui/material/Grow';
+import MuiListSubheader from '@mui/material/ListSubheader';
+import muiOutlinedInputClasses from '@mui/material/OutlinedInput/outlinedInputClasses';
+import MuiPaper, { PaperProps as MuiPaperProps } from '@mui/material/Paper';
+import muiSvgIconClasses from '@mui/material/SvgIcon/svgIconClasses';
+import styled from '@mui/material/styles/styled';
+import merge from 'lodash/merge';
 import { useMemo } from 'react';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';

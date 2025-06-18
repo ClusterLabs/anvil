@@ -1,4 +1,5 @@
-import { Divider as MuiDivider, styled } from '@mui/material';
+import MuiDivider from '@mui/material/Divider';
+import styled from '@mui/material/styles/styled';
 
 import { DIVIDER } from '../lib/consts/DEFAULT_THEME';
 

@@ -1,5 +1,7 @@
-import { Box as MuiBox, styled, Switch as MuiSwitch } from '@mui/material';
-import { capitalize } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import MuiSwitch from '@mui/material/Switch';
+import styled from '@mui/material/styles/styled';
+import capitalize from 'lodash/capitalize';
 
 import { LARGE_MOBILE_BREAKPOINT } from '../../lib/consts/DEFAULT_THEME';
 import HOST_STATUS from '../../lib/consts/HOST_STATUS';

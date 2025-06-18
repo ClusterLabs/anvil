@@ -1,10 +1,8 @@
-import {
-  Box as MuiBox,
-  circularProgressClasses as muiCircularProgressClasses,
-  Grid,
-  styled,
-} from '@mui/material';
-import { capitalize } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import muiCircularProgressClasses from '@mui/material/CircularProgress/circularProgressClasses';
+import Grid from '@mui/material/Grid';
+import styled from '@mui/material/styles/styled';
+import capitalize from 'lodash/capitalize';
 import { useMemo } from 'react';
 
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';

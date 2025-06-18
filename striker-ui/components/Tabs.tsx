@@ -1,12 +1,9 @@
-import {
-  Breakpoint as MuiBreakpoint,
-  tabClasses as muiTabClasses,
-  Tabs as MuiTabs,
-  tabsClasses as muiTabsClasses,
-  styled,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
+import muiTabClasses from '@mui/material/Tab/tabClasses';
+import MuiTabs, { tabsClasses as muiTabsClasses } from '@mui/material/Tabs';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { Breakpoint as MuiBreakpoint } from '@mui/material/node_modules/@mui/system/createBreakpoints/createBreakpoints';
+import useTheme from '@mui/material/styles/useTheme';
+import styled from '@mui/material/styles/styled';
 import { useCallback, useMemo } from 'react';
 
 import { BLUE, BORDER_RADIUS } from '../lib/consts/DEFAULT_THEME';

@@ -1,9 +1,7 @@
-import {
-  Box as MuiBox,
-  List as MuiList,
-  ListItem as MuiListItem,
-} from '@mui/material';
-import { isEmpty } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import MuiList from '@mui/material/List';
+import MuiListItem from '@mui/material/ListItem';
+import isEmpty from 'lodash/isEmpty';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 

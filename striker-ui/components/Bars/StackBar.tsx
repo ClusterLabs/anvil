@@ -1,9 +1,7 @@
-import {
-  Box as MuiBox,
-  linearProgressClasses as muiLinearProgressClasses,
-  styled,
-} from '@mui/material';
-import { merge } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import muiLinearProgressClasses from '@mui/material/LinearProgress/linearProgressClasses';
+import styled from '@mui/material/styles/styled';
+import merge from 'lodash/merge';
 import { createElement, useMemo } from 'react';
 
 import { GREY } from '../../lib/consts/DEFAULT_THEME';
@@ -50,9 +48,9 @@ const StackBar: React.FC<StackBarProps> = (props) => {
         const backgroundColor =
           typeof colour === 'string'
             ? colour
-            : Object.entries(colour)
+            : (Object.entries(colour)
                 .reverse()
-                .find(([mark]) => val >= Number(mark))?.[1] ?? GREY;
+                .find(([mark]) => val >= Number(mark))?.[1] ?? GREY);
 
         let position: 'absolute' | 'relative' = 'relative';
         let top: 0 | undefined;

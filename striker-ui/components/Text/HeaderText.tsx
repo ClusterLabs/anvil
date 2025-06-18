@@ -1,8 +1,7 @@
-import {
-  styled,
-  Typography as MuiTypography,
+import MuiTypography, {
   TypographyProps as MuiTypographyProps,
-} from '@mui/material';
+} from '@mui/material/Typography';
+import styled from '@mui/material/styles/styled';
 
 import { TEXT } from '../../lib/consts/DEFAULT_THEME';
 

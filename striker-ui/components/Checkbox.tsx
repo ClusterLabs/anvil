@@ -1,8 +1,7 @@
-import {
-  Checkbox as MuiCheckbox,
+import MuiCheckbox, {
   checkboxClasses as muiCheckboxClasses,
-  styled,
-} from '@mui/material';
+} from '@mui/material/Checkbox';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { BLACK, GREY } from '../lib/consts/DEFAULT_THEME';

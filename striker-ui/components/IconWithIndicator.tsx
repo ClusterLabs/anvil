@@ -1,9 +1,7 @@
-import MuiSvgIcon from '@mui/material/SvgIcon';
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import MuiSvgIcon, {
   SvgIconProps as MuiSvgIconProps,
-} from '@mui/material';
+} from '@mui/material/SvgIcon';
 import {
   createElement,
   forwardRef,

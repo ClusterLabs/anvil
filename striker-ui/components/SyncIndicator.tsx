@@ -1,5 +1,6 @@
 import MuiSyncIcon from '@mui/icons-material/Sync';
-import { styled, SvgIconProps as MuiSvgIconProps } from '@mui/material';
+import { SvgIconProps as MuiSvgIconProps } from '@mui/material/SvgIcon';
+import styled from '@mui/material/styles/styled';
 
 import { BLUE, UNSELECTED } from '../lib/consts/DEFAULT_THEME';
 
