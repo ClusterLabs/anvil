@@ -2439,7 +2439,7 @@ sub process_update
 		output      => $output, 
 		return_code => $return_code, 
 	}});
-	$anvil->Job->bump_progress({set => 92})
+	$anvil->Job->bump_progress({set => 92});
 	run_scanagent($anvil, "scan-drbd");
 	
 	# Done!
