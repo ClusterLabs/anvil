@@ -3,5 +3,5 @@ type CheckboxOptionalProps = {
   thinPadding?: boolean;
 };
 
-type CheckboxProps = import('@mui/material').CheckboxProps &
+type CheckboxProps = import('@mui/material/Checkbox').CheckboxProps &
   CheckboxOptionalProps;

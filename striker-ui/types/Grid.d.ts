@@ -1,5 +1,5 @@
 type GridLayout = {
-  [id: string]: import('@mui/material').GridProps | undefined;
+  [id: string]: import('@mui/material/Grid').GridProps | undefined;
 };
 
 type GridOptionalProps = {
@@ -7,12 +7,15 @@ type GridOptionalProps = {
     index: number,
     key: string,
   ) => Partial<
-    Pick<import('@mui/material').GridProps, 'xs' | 'sm' | 'md' | 'lg' | 'xl'>
+    Pick<
+      import('@mui/material/Grid').GridProps,
+      'xs' | 'sm' | 'md' | 'lg' | 'xl'
+    >
   >;
-  wrapperBoxProps?: import('@mui/material').BoxProps;
+  wrapperBoxProps?: import('@mui/material/Box').BoxProps;
 };
 
-type GridProps = import('@mui/material').GridProps &
+type GridProps = import('@mui/material/Grid').GridProps &
   GridOptionalProps & {
     layout: GridLayout;
   };

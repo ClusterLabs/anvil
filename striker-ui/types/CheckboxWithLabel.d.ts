@@ -3,10 +3,10 @@ type CheckboxWithLabelOptionalProps = Partial<
 > & {
   checkboxProps?: Partial<CheckboxProps>;
   formControlLabelProps?: Partial<
-    import('@mui/material').FormControlLabelProps
+    import('@mui/material/FormControlLabel').FormControlLabelProps
   >;
 };
 
 type CheckboxWithLabelProps = CheckboxWithLabelOptionalProps & {
-  label: import('@mui/material').FormControlLabelProps['label'];
+  label: import('@mui/material/FormControlLabel').FormControlLabelProps['label'];
 };

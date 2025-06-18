@@ -23,7 +23,7 @@ type CommonFenceInputGroupOptionalProps = {
   fenceTemplate?: APIFenceTemplate;
   previousFenceName?: string;
   previousFenceParameters?: FenceParameters;
-  fenceParameterTooltipProps?: import('@mui/material').TooltipProps;
+  fenceParameterTooltipProps?: import('@mui/material/Tooltip').TooltipProps;
 };
 
 type CommonFenceInputGroupProps<M extends MapToInputTestID> =

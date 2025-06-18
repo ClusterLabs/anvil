@@ -79,7 +79,7 @@ type ServerFormProps = {
 /** ServerFormGrid */
 
 type ServerFormGridProps<Values extends FormikValues> =
-  import('@mui/material').GridProps & {
+  import('@mui/material/Grid').GridProps & {
     formik: Formik<Values>;
   };
 

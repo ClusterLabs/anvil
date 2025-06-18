@@ -1,5 +1,5 @@
 type PieProgressUnderlineProps =
-  import('@mui/material').CircularProgressProps & {
+  import('@mui/material/CircularProgress').CircularProgressProps & {
     offset?: {
       multiplier?: number;
       unit?: string;
@@ -9,8 +9,8 @@ type PieProgressUnderlineProps =
 type PieProgressProps = {
   error?: boolean;
   slotProps?: {
-    box?: import('@mui/material').BoxProps;
-    pie?: import('@mui/material').CircularProgressProps;
+    box?: import('@mui/material/Box').BoxProps;
+    pie?: import('@mui/material/CircularProgress').CircularProgressProps;
     underline?: PieProgressUnderlineProps;
   };
   value?: number;

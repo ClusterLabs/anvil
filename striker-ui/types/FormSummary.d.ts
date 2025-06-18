@@ -19,13 +19,13 @@ type GetFormEntryLabelFunction = (
 
 type GetFormEntryPropsFunction = (
   args: CommonFormEntryHandlerArgs,
-) => import('@mui/material').ListItemProps;
+) => import('@mui/material/ListItem').ListItemProps;
 
 type GetFormEntriesPropsFunction<T extends FormEntries> = (args: {
   depth: number;
   entries: T;
   key?: string;
-}) => import('@mui/material').ListProps;
+}) => import('@mui/material/List').ListProps;
 
 type RenderFormValueFunction = (
   args: CommonFormEntryHandlerArgs,

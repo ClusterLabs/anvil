@@ -1,5 +1,5 @@
 type FullSizeOptionalProps = {
-  onClickCloseButton?: import('@mui/material').IconButtonProps['onClick'];
+  onClickCloseButton?: import('@mui/material/IconButton').IconButtonProps['onClick'];
   vncReconnectTimerStart?: number;
 };
 

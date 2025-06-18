@@ -1,1 +1,1 @@
-type LinkProps = import('@mui/material').LinkProps;
+type LinkProps = import('@mui/material/Link').LinkProps;

@@ -1,4 +1,4 @@
-import { GridColDef } from '@mui/x-data-grid';
+import { GridColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
 import { useMemo } from 'react';
 
 import ContainedButton from '../ContainedButton';
