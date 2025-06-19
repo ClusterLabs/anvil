@@ -67,7 +67,11 @@ const EMPTY_SERVER_PATHS: ServerPath = {
       'qemu-kvm': {},
     },
   },
-  var: { www: { html: {} } },
+  var: {
+    www: {
+      html: {},
+    },
+  },
 };
 
 const generatePaths = (
