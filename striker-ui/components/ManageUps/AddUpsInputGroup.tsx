@@ -45,105 +45,49 @@ const AddUpsInputGroup = <
 
   const upsTypeOptions = useMemo<SelectItem[]>(
     () =>
-      upsTemplate
-        ? Object.entries(upsTemplate).map<SelectItem>(
-            ([
-              upsTypeId,
-              {
-                brand,
-                description,
-                links: { 0: link },
-              },
-            ]) => {
-              let linkElement: React.ReactNode;
+      Object.entries(upsTemplate).map<SelectItem>(
+        ([
+          upsTypeId,
+          {
+            brand,
+            description,
+            links: { 0: link },
+          },
+        ]) => {
+          let linkElement: React.ReactNode;
 
-              if (link) {
-                const { linkHref, linkLabel } = link;
+          if (link) {
+            const { linkHref, linkLabel } = link;
 
-                linkElement = (
-                  <Link
-                    href={linkHref}
-                    onClick={(event) => {
-                      // Don't trigger the (parent) item selection event.
-                      event.stopPropagation();
-                    }}
-                    sx={{ display: 'inline-flex', color: BLACK }}
-                    target="_blank"
-                  >
-                    {linkLabel}
-                  </Link>
-                );
-              }
+            linkElement = (
+              <Link
+                href={linkHref}
+                onClick={(event) => {
+                  // Don't trigger the (parent) item selection event.
+                  event.stopPropagation();
+                }}
+                sx={{ display: 'inline-flex', color: BLACK }}
+                target="_blank"
+              >
+                {linkLabel}
+              </Link>
+            );
+          }
 
-              return {
-                displayValue: (
-                  <FlexBox spacing={0}>
-                    <BodyText inverted>{brand}</BodyText>
-                    <BodyText inverted>
-                      {description} ({linkElement})
-                    </BodyText>
-                  </FlexBox>
-                ),
-                value: upsTypeId,
-              };
-            },
-          )
-        : [],
+          return {
+            displayValue: (
+              <FlexBox spacing={0}>
+                <BodyText inverted>{brand}</BodyText>
+                <BodyText inverted>
+                  {description} ({linkElement})
+                </BodyText>
+              </FlexBox>
+            ),
+            value: upsTypeId,
+          };
+        },
+      ),
     [upsTemplate],
-  );
-
-  const pickUpsTypeElement = useMemo(
-    () =>
-      upsTemplate && (
-        <SelectWithLabel
-          formControlProps={{ sx: { marginTop: '.3em' } }}
-          id={INPUT_ID_UPS_TYPE}
-          label={INPUT_LABEL_UPS_TYPE}
-          onChange={({ target: { value: rawNewValue } }) => {
-            const newValue = String(rawNewValue);
-
-            setValidity(INPUT_ID_UPS_TYPE, true);
-            setInputUpsTypeIdValue(newValue);
-          }}
-          required
-          selectItems={upsTypeOptions}
-          selectProps={{
-            onClearIndicatorClick: () => {
-              setValidity(INPUT_ID_UPS_TYPE, false);
-              setInputUpsTypeIdValue('');
-            },
-            renderValue: (rawValue) => {
-              const upsTypeId = String(rawValue);
-              const { brand } = upsTemplate[upsTypeId];
-
-              return brand;
-            },
-          }}
-          value={inputUpsTypeIdValue}
-        />
-      ),
-    [upsTemplate, upsTypeOptions, inputUpsTypeIdValue, setValidity],
-  );
-
-  const content = useMemo<React.ReactElement>(
-    () =>
-      isExternalLoading ? (
-        <Spinner />
-      ) : (
-        <FlexBox>
-          {pickUpsTypeElement}
-          {inputUpsTypeIdValue && (
-            <CommonUpsInputGroup formUtils={formUtils} previous={previous} />
-          )}
-        </FlexBox>
-      ),
-    [
-      formUtils,
-      inputUpsTypeIdValue,
-      isExternalLoading,
-      pickUpsTypeElement,
-      previous,
-    ],
   );
 
   useEffect(() => {
@@ -154,7 +98,43 @@ const AddUpsInputGroup = <
     }
   }, [buildInputFirstRenderFunction, inputUpsTypeIdValue, isFirstRender]);
 
-  return content;
+  if (isExternalLoading) {
+    return <Spinner />;
+  }
+
+  return (
+    <FlexBox>
+      <SelectWithLabel
+        formControlProps={{ sx: { marginTop: '.3em' } }}
+        id={INPUT_ID_UPS_TYPE}
+        label={INPUT_LABEL_UPS_TYPE}
+        onChange={({ target: { value: rawNewValue } }) => {
+          const newValue = String(rawNewValue);
+
+          setValidity(INPUT_ID_UPS_TYPE, true);
+          setInputUpsTypeIdValue(newValue);
+        }}
+        required
+        selectItems={upsTypeOptions}
+        selectProps={{
+          onClearIndicatorClick: () => {
+            setValidity(INPUT_ID_UPS_TYPE, false);
+            setInputUpsTypeIdValue('');
+          },
+          renderValue: (rawValue) => {
+            const upsTypeId = String(rawValue);
+            const { brand } = upsTemplate[upsTypeId];
+
+            return brand;
+          },
+        }}
+        value={inputUpsTypeIdValue}
+      />
+      {inputUpsTypeIdValue && (
+        <CommonUpsInputGroup formUtils={formUtils} previous={previous} />
+      )}
+    </FlexBox>
+  );
 };
 
 export { INPUT_ID_UPS_TYPE, INPUT_LABEL_UPS_TYPE };

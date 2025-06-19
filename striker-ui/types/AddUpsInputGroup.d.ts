@@ -3,7 +3,7 @@ type AddUpsInputGroupOptionalProps = {
   previous?: CommonUpsInputGroupOptionalProps['previous'] & {
     upsTypeId?: string;
   };
-  upsTemplate?: APIUpsTemplate;
+  upsTemplate: APIUpsTemplate;
 };
 
 type AddUpsInputGroupProps<M extends MapToInputTestID> =
