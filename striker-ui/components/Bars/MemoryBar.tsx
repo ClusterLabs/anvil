@@ -1,4 +1,4 @@
-import { merge } from 'lodash';
+import merge from 'lodash/merge';
 import { useMemo } from 'react';
 
 import { BLUE, PURPLE, RED } from '../../lib/consts/DEFAULT_THEME';

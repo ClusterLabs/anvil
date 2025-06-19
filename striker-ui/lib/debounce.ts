@@ -1,8 +1,8 @@
-import { debounce as baseDebounce } from 'lodash';
+import base from 'lodash/debounce';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-type BaseDebounce<Fn extends (...args: any) => any> = typeof baseDebounce<Fn>;
+type BaseDebounce<Fn extends (...args: any) => any> = typeof base<Fn>;
 
 const debounce = <Fn extends (...args: any) => any>(
   fn: Fn,
@@ -12,7 +12,7 @@ const debounce = <Fn extends (...args: any) => any>(
 ): ReturnType<BaseDebounce<Fn>> => {
   const { wait = 500, ...rest } = options;
 
-  return baseDebounce<Fn>(fn, wait, rest);
+  return base<Fn>(fn, wait, rest);
 };
 
 export default debounce;

@@ -1,5 +1,7 @@
 import { FormikValues, getIn, setIn, useFormik } from 'formik';
-import { isEqual, isObject, isString } from 'lodash';
+import isEqual from 'lodash/isEqual';
+import isObject from 'lodash/isObject';
+import isString from 'lodash/isString';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import * as yup from 'yup';
 
