@@ -1187,7 +1187,7 @@ sub handle_links
 		if ($anvil->data->{switches}{anvil})
 		{
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				job_status => "failed",
@@ -1200,7 +1200,7 @@ sub handle_links
 		else
 		{
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				job_status => "failed",
@@ -1230,7 +1230,7 @@ sub handle_links
 				problem    => $problem,
 			}});
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				job_status => "failed",
@@ -1252,7 +1252,7 @@ sub handle_links
 		if ($anvil->data->{switches}{anvil})
 		{
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				job_status => "failed",
@@ -1265,7 +1265,7 @@ sub handle_links
 		else
 		{
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				job_status => "failed",
@@ -1298,7 +1298,7 @@ sub handle_links
 	if ($problem)
 	{
 		$anvil->Job->update_progress({
-			progress   => $anvil->Job->bump_progress({ steps => 1 }),
+			progress   => $anvil->Job->bump_progress({steps => 1}),
 			log_level  => 1,
 			'print'    => 1,
 			job_status => "failed",
@@ -1317,7 +1317,7 @@ sub handle_links
 			}
 		}
 		print "\n";
-		$anvil->Job->update_progress({ progress => 100 });
+		$anvil->Job->update_progress({progress => 100});
 		$anvil->nice_exit({exit_code => 1});
 	}
 	
@@ -1394,7 +1394,7 @@ sub handle_links
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { returned_dr_link_uuid => $returned_dr_link_uuid }});
 		
 		$anvil->Job->update_progress({
-			progress   => $anvil->Job->bump_progress({ steps => 1 }),
+			progress   => $anvil->Job->bump_progress({steps => 1}),
 			log_level  => 1,
 			'print'    => 1,
 			message    => "log_0734",
@@ -1415,7 +1415,7 @@ sub handle_links
 				'delete'     => 1,
 			});
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				message    => "log_0735",
@@ -1429,7 +1429,7 @@ sub handle_links
 		{
 			# Link didn't exist, nothing to unlink.
 			$anvil->Job->update_progress({
-				progress   => $anvil->Job->bump_progress({ steps => 1 }),
+				progress   => $anvil->Job->bump_progress({steps => 1}),
 				log_level  => 1,
 				'print'    => 1,
 				message    => "log_0736",
@@ -1440,7 +1440,7 @@ sub handle_links
 			});
 		}
 	}
-	$anvil->Job->update_progress({ progress => 100 });
+	$anvil->Job->update_progress({progress => 100});
 	$anvil->nice_exit({exit_code => 0});
 
 	return(0);
@@ -1452,7 +1452,7 @@ sub sanity_check
 	
 	# Begin sanity checks
 	$anvil->Job->update_progress({
-		progress  => 10,
+		progress  => $anvil->Job->bump_progress({steps => 5}),
 		log_level => 1,
 		'print'   => 1, 
 		message   => "job_0358", 
@@ -2052,7 +2052,7 @@ sub sanity_check
 	# Sanity checks complete!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0359"});
 	$anvil->Job->update_progress({
-		progress => 20,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0359", 
 	});
 	
@@ -2122,7 +2122,7 @@ sub sanity_check
 					};
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0404", variables => $variables});
 					$anvil->Job->update_progress({
-						progress  => 12,
+						progress  => $anvil->Job->bump_progress({steps => 2}),
 						message   => "job_0404", 
 						variables => $variables, 
 					});
@@ -2206,7 +2206,7 @@ sub process_update
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0395", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 25,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "job_0395", 
 			variables => $variables, 
 		});
@@ -2263,7 +2263,7 @@ sub process_update
 	my $variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0387", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 50,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0387", 
 		variables => $variables, 
 	});
@@ -2279,7 +2279,7 @@ sub process_update
 	}});
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0388", variables => $variables});
 	$anvil->Job->update_progress({
-		progress => 60,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0388", 
 	});
 	run_scanagent($anvil, "scan-drbd");
@@ -2298,7 +2298,7 @@ sub process_update
 		my $variables = { host_name => $peer_host_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0389", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 70,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0389", 
 			variables => $variables, 
 		});
@@ -2333,7 +2333,7 @@ sub process_update
 	# Now watch until out volume(s) are UpToDate
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0390"});
 	$anvil->Job->update_progress({
-		progress => 70,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0390", 
 	});
 	
@@ -2407,7 +2407,7 @@ sub process_update
 				};
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0396", variables => $variables});
 				$anvil->Job->update_progress({
-					progress  => 80,
+					progress  => $anvil->Job->bump_progress({steps => 5}),
 					message   => "job_0396", 
 					variables => $variables, 
 				});
@@ -2415,7 +2415,7 @@ sub process_update
 			else
 			{
 				$anvil->Job->update_progress({
-					progress  => 75,
+					progress  => $anvil->Job->bump_progress({steps => 5}),
 					message   => "job_0398", 
 					variables => $variables, 
 				});
@@ -2426,7 +2426,7 @@ sub process_update
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0397", variables => $variables});
 	$anvil->Job->update_progress({
 		debug     => 2,
-		progress  => 90,
+		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "job_0397", 
 		variables => $variables, 
 	});
@@ -2446,7 +2446,7 @@ sub process_update
 	$variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0391", variables => $variables});
 	$anvil->Job->update_progress({
-		debug     => 2,
+		debug     => $anvil->Job->bump_progress({steps => 2}),
 		progress  => 100,
 		message   => "job_0391", 
 		variables => $variables, 
@@ -2499,7 +2499,7 @@ sub process_disconnect
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0392", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 25,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "job_0392", 
 			variables => $variables, 
 		});
@@ -2556,7 +2556,7 @@ sub process_disconnect
 	my $variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0393", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 50,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0393", 
 		variables => $variables, 
 	});
@@ -2628,7 +2628,7 @@ sub process_connect
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0386", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 25,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "job_0386", 
 			variables => $variables, 
 		});
@@ -2685,7 +2685,7 @@ sub process_connect
 	my $variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0387", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 50,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0387", 
 		variables => $variables, 
 	});
@@ -2720,7 +2720,7 @@ sub process_connect
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0388", variables => $variables});
 	$anvil->Job->update_progress({
-		progress => 60,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0388", 
 	});
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
@@ -2738,7 +2738,7 @@ sub process_connect
 		$variables = { host_name => $peer_host_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0389", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 70,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0389", 
 			variables => $variables, 
 		});
@@ -2771,7 +2771,7 @@ sub process_connect
 	# Now watch until we connect to at least one peer.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0390"});
 	$anvil->Job->update_progress({
-		progress => 80,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0390", 
 	});
 	my $waiting = 1;
@@ -2825,7 +2825,7 @@ sub process_connect
 			# We're ready.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0379"});
 			$anvil->Job->update_progress({
-				progress => 95,
+				progress => $anvil->Job->bump_progress({steps => 5}),
 				message  => "job_0379", 
 			});
 			$waiting = 0;
@@ -2894,7 +2894,7 @@ sub process_remove
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0407", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 25,
+			progress  => $anvil->Job->bump_progress({steps => 10}),
 			message   => "job_0407", 
 			variables => $variables, 
 		});
@@ -2950,7 +2950,7 @@ sub process_remove
 	# Sanity checks complete!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0406", variables => { server => $anvil->data->{server}{'server-name'} }});
 	$anvil->Job->update_progress({
-		progress => 30,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0406,!!server!".$anvil->data->{server}{'server-name'}."!!", 
 	});
 	
@@ -2958,7 +2958,7 @@ sub process_remove
 	my $variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0393", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 40,
+		progress  => $anvil->Job->bump_progress({steps => 5}),
 		message   => "job_0393", 
 		variables => $variables, 
 	});
@@ -2993,7 +2993,7 @@ sub process_remove
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0417", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 45,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0417", 
 			variables => $variables, 
 		});
@@ -3010,7 +3010,7 @@ sub process_remove
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0418"});
 		run_scanagent($anvil, "scan-drbd");
 		$anvil->Job->update_progress({
-			progress => 50,
+			progress => $anvil->Job->bump_progress({steps => 5}),
 			message  => "job_0418", 
 		});
 		$anvil->DRBD->gather_data({debug => 2});
@@ -3020,7 +3020,6 @@ sub process_remove
 	my $old_resource_config = $anvil->Storage->read_file({file => $config_file});
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { old_resource_config => $old_resource_config }});
 	
-	my $progress = "50";
 	foreach my $volume (sort {$a cmp $b} keys %{$anvil->data->{new}{resource}{$server_name}{volume}})
 	{
 		my $local_lv = $anvil->data->{new}{resource}{$server_name}{host}{$dr_short_host_name}{volume}{$volume}{backing_disk};
@@ -3029,7 +3028,6 @@ sub process_remove
 			local_lv => $local_lv, 
 		}});
 		
-		$progress++;
 		my $variables = {
 			server   => $server_name, 
 			volume   => $volume,
@@ -3039,7 +3037,7 @@ sub process_remove
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0408", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => $progress,
+				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "job_0408", 
 				variables => $variables, 
 			});
@@ -3063,10 +3061,9 @@ sub process_remove
 			else
 			{
 				# Gone.
-				$progress++;
 				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0410"});
 				$anvil->Job->update_progress({
-					progress  => $progress,
+					progress  => $anvil->Job->bump_progress({steps => 1}),
 					message   => "job_0410", 
 				});
 				run_scanagent($anvil, "scan-lvm");
@@ -3076,7 +3073,7 @@ sub process_remove
 		{
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0409", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => $progress,
+				progress  => $anvil->Job->bump_progress({steps => 1}),
 				message   => "job_0409", 
 				variables => $variables, 
 			});
@@ -3086,7 +3083,7 @@ sub process_remove
 	# Tell the user we're generationg the new resource config now.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0411"});
 	$anvil->Job->update_progress({
-		progress  => 70,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0411", 
 	});
 	
@@ -3210,12 +3207,11 @@ sub process_remove
 	
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0412"});
 	$anvil->Job->update_progress({
-		progress  => 72,
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "job_0412", 
 	});
 	
 	# Copy the new config to the peers.
-	$progress = 72;
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid)
 	{
 		next if $this_host_uuid eq $anvil->Get->host_uuid();
@@ -3232,10 +3228,9 @@ sub process_remove
 			host_name  => $peer_host_name, 
 			ip_address => $peer_ip, 
 		};
-		$progress += 2;
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0369", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => $progress,
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "job_0369", 
 			variables => $variables, 
 		});
@@ -3305,7 +3300,7 @@ sub process_remove
 	# Call 'drbdadm adjust <server>' to update the running configs.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0413"});
 	$anvil->Job->update_progress({
-		progress => 76,
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "job_0413", 
 	});
 	
@@ -3332,7 +3327,7 @@ sub process_remove
 		my $variables = { host_name => $peer_host_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0414", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 77,
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "job_0414", 
 			variables => $variables, 
 		});
@@ -3367,7 +3362,7 @@ sub process_remove
 	$variables = { config_file => $config_file };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0415", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 80,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0415", 
 		variables => $variables, 
 	});
@@ -3494,7 +3489,7 @@ sub process_protect
 	# Sanity checks complete!
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0360", variables => { server => $anvil->data->{server}{'server-name'} }});
 	$anvil->Job->update_progress({
-		progress => 30,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0360,!!server!".$anvil->data->{server}{'server-name'}."!!", 
 	});
 	
@@ -3833,7 +3828,7 @@ sub process_protect
 	};
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0361", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 40,
+		progress  => $anvil->Job->bump_progress({steps => 10}),
 		message   => "job_0361", 
 		variables => $variables, 
 	});
@@ -3847,7 +3842,7 @@ sub process_protect
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0362", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => 43,
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "job_0362", 
 				variables => $variables, 
 			});
@@ -3897,7 +3892,7 @@ sub process_protect
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0363", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => 47,
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "job_0363", 
 				variables => $variables, 
 			});
@@ -4213,7 +4208,7 @@ sub process_protect
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0364", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 50,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0364", 
 			variables => $variables, 
 		});
@@ -4269,7 +4264,7 @@ sub process_protect
 		my $variables = { backup_file => $backup_file };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0365", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 60,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0365", 
 			variables => $variables, 
 		});
@@ -4288,7 +4283,7 @@ sub process_protect
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { backup_file => $backup_file }});
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0366"});
 		$anvil->Job->update_progress({
-			progress  => 65,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0366", 
 		});
 		
@@ -4303,7 +4298,7 @@ sub process_protect
 			};
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0345", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => 70,
+				progress  => $anvil->Job->bump_progress({steps => 5}),
 				message   => "error_0345", 
 				variables => $variables, 
 			});
@@ -4311,7 +4306,7 @@ sub process_protect
 			# Restoring the old config now.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0346"});
 			$anvil->Job->update_progress({
-				progress => 75,
+				progress => $anvil->Job->bump_progress({steps => 5}),
 				message  => "error_0346", 
 			});
 			
@@ -4320,7 +4315,7 @@ sub process_protect
 			$variables = { file => $backup_file };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "error_0347", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => 80,
+				progress  => $anvil->Job->bump_progress({steps => 5}),
 				message   => "error_0347", 
 				variables => $variables, 
 			});
@@ -4351,7 +4346,7 @@ sub process_protect
 		# New config is good! Update the file on the peers.
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0367"});
 		$anvil->Job->update_progress({
-			progress => 70,
+			progress => $anvil->Job->bump_progress({steps => 5}),
 			message  => "job_0367", 
 		});
 	}
@@ -4359,7 +4354,7 @@ sub process_protect
 	# New config is good! Update the file on the peers.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0368"});
 	$anvil->Job->update_progress({
-		progress => 72,
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "job_0368", 
 	});
 	
@@ -4383,7 +4378,7 @@ sub process_protect
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0369", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 75,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0369", 
 			variables => $variables, 
 		});
@@ -4438,7 +4433,7 @@ sub process_protect
 	# different server, it knows the used ports list is updated.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0381"});
 	$anvil->Job->update_progress({
-		progress => 76,
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "job_0381", 
 	});
 	foreach my $this_host_uuid ($node1_host_uuid, $node2_host_uuid, $dr_host_uuid)
@@ -4456,7 +4451,7 @@ sub process_protect
 		my $variables = { host_name => $peer_host_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0382", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 77,
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "job_0382", 
 			variables => $variables, 
 		});
@@ -4491,7 +4486,7 @@ sub process_protect
 	# Create the LV and MD on DR.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0370"});
 	$anvil->Job->update_progress({
-		progress  => 78,
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "job_0370", 
 	});
 	my $create_md = 0;
@@ -4511,7 +4506,7 @@ sub process_protect
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0371", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 80,
+			progress  => $anvil->Job->bump_progress({steps => 2}),
 			message   => "job_0371", 
 			variables => $variables, 
 		});
@@ -4539,7 +4534,7 @@ fi";
 			my $variables = { lv_path => $lv_path };
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0372", variables => $variables});
 			$anvil->Job->update_progress({
-				progress  => 80,
+				progress  => $anvil->Job->bump_progress({steps => 2}),
 				message   => "job_0372", 
 				variables => $variables, 
 			});
@@ -4614,7 +4609,7 @@ fi";
 	# Reload the config.
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0373"});
 	$anvil->Job->update_progress({
-		progress => 85,
+		progress => $anvil->Job->bump_progress({steps => 5}),
 		message  => "job_0373", 
 	});
 	my $shell_call = $anvil->data->{path}{exe}{drbdadm}." adjust ".$server_name;
@@ -4643,7 +4638,7 @@ fi";
 		};
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0374", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 85,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0374", 
 			variables => $variables, 
 		});
@@ -4676,7 +4671,7 @@ fi";
 	$variables = { server => $server_name };
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0375", variables => $variables});
 	$anvil->Job->update_progress({
-		progress  => 88,
+		progress  => $anvil->Job->bump_progress({steps => 2}),
 		message   => "job_0375", 
 		variables => $variables, 
 	});
@@ -4703,7 +4698,7 @@ fi";
 		$variables = { host_name => $peer_host_name };
 		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0376", variables => $variables});
 		$anvil->Job->update_progress({
-			progress  => 90,
+			progress  => $anvil->Job->bump_progress({steps => 5}),
 			message   => "job_0376", 
 			variables => $variables, 
 		});
@@ -4735,7 +4730,7 @@ fi";
 	# Now watch until the DR host shows up
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0377"});
 	$anvil->Job->update_progress({
-		progress => 92,
+		progress => $anvil->Job->bump_progress({steps => 2}),
 		message  => "job_0377", 
 	});
 	my $waiting = 1;
@@ -4783,7 +4778,7 @@ fi";
 			# We're ready.
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0379"});
 			$anvil->Job->update_progress({
-				progress => 98,
+				progress => $anvil->Job->bump_progress({steps => 2}),
 				message  => "job_0379", 
 			});
 			$waiting = 0;
@@ -4811,7 +4806,7 @@ sub load_job
 	$anvil->Job->clear();
 	$anvil->Job->get_job_details();
 	$anvil->Job->update_progress({
-		progress         => 1,
+		progress         => $anvil->Job->bump_progress({steps => 1}),
 		job_picked_up_by => $$, 
 		job_picked_up_at => time, 
 		message          => "message_0267", 
