@@ -1,4 +1,5 @@
-import Grid from '../Grid';
+import Grid from '@mui/material/Grid2';
+
 import InputWithRef from '../InputWithRef';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import {
@@ -23,6 +24,7 @@ const CommonUpsInputGroup = <
     formUtils: {
       buildFinishInputTestBatchFunction,
       buildInputFirstRenderFunction,
+      buildInputUnmountFunction,
       setMessage,
     },
     previous: {
@@ -33,67 +35,68 @@ const CommonUpsInputGroup = <
 
   return (
     <Grid
-      columns={{ xs: 1, sm: 2 }}
-      layout={{
-        'common-ups-input-cell-host-name': {
-          children: (
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_UPS_NAME}
-                  label={INPUT_LABEL_UPS_NAME}
-                  value={previousUpsName}
-                />
-              }
-              inputTestBatch={buildPeacefulStringTestBatch(
-                INPUT_LABEL_UPS_NAME,
-                () => {
-                  setMessage(INPUT_ID_UPS_NAME);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_UPS_NAME),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_UPS_NAME, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_NAME)}
-              required
-            />
-          ),
-        },
-        'common-ups-input-cell-ip-address': {
-          children: (
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_UPS_IP}
-                  label={INPUT_LABEL_UPS_IP}
-                  value={previousIpAddress}
-                />
-              }
-              inputTestBatch={buildIPAddressTestBatch(
-                INPUT_LABEL_UPS_IP,
-                () => {
-                  setMessage(INPUT_ID_UPS_IP);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_UPS_IP),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_UPS_IP, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_IP)}
-              required
-            />
-          ),
-        },
+      columns={{
+        xs: 1,
+        sm: 2,
       }}
+      container
       spacing="1em"
-    />
+      width="100%"
+    >
+      <Grid size="grow">
+        <InputWithRef
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_UPS_NAME}
+              label={INPUT_LABEL_UPS_NAME}
+              value={previousUpsName}
+            />
+          }
+          inputTestBatch={buildPeacefulStringTestBatch(
+            INPUT_LABEL_UPS_NAME,
+            () => {
+              setMessage(INPUT_ID_UPS_NAME);
+            },
+            {
+              onFinishBatch:
+                buildFinishInputTestBatchFunction(INPUT_ID_UPS_NAME),
+            },
+            (message) => {
+              setMessage(INPUT_ID_UPS_NAME, { children: message });
+            },
+          )}
+          onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_NAME)}
+          onUnmount={buildInputUnmountFunction(INPUT_ID_UPS_NAME)}
+          required
+        />
+      </Grid>
+      <Grid size="grow">
+        <InputWithRef
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_UPS_IP}
+              label={INPUT_LABEL_UPS_IP}
+              value={previousIpAddress}
+            />
+          }
+          inputTestBatch={buildIPAddressTestBatch(
+            INPUT_LABEL_UPS_IP,
+            () => {
+              setMessage(INPUT_ID_UPS_IP);
+            },
+            {
+              onFinishBatch: buildFinishInputTestBatchFunction(INPUT_ID_UPS_IP),
+            },
+            (message) => {
+              setMessage(INPUT_ID_UPS_IP, { children: message });
+            },
+          )}
+          onFirstRender={buildInputFirstRenderFunction(INPUT_ID_UPS_IP)}
+          onUnmount={buildInputUnmountFunction(INPUT_ID_UPS_IP)}
+          required
+        />
+      </Grid>
+    </Grid>
   );
 };
 
