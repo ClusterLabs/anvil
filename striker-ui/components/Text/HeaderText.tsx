@@ -19,7 +19,7 @@ type HeaderTextProps = MuiTypographyProps & HeaderTextOptionalProps;
 
 const HeaderText: React.FC<HeaderTextProps> = ({
   text,
-  // Dependants:
+  // Dependents:
   children = text,
 
   ...restHeaderTextProps

@@ -66,7 +66,7 @@ const BodyText: React.FC<BodyTextProps> = ({
   selected: isSelect = true,
   sx,
   text = null,
-  // Dependants:
+  // Dependents:
   children = text,
 
   ...muiTypographyRestProps

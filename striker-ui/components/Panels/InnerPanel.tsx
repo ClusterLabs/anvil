@@ -17,7 +17,7 @@ const InnerPanel: React.FC<InnerPanelProps> = ({
   headerMarginOffset: hmo = '.3em',
   ml,
   mv = '1.4em',
-  // Dependants:
+  // Dependents:
   mb = mv,
   mt = mv,
   ...restMuiBoxProps
