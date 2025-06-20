@@ -19211,15 +19211,7 @@ sub resync_databases
 			
 			# Strip the last comma and the add the schema.table name.
 			$query =~ s/, $/ /;
-			$query .= "FROM ".$schema.".".$table;
-			if ($schema eq "history")
-			{
-				$query .= " ORDER BY utc_modified_date DESC, history_id DESC;";
-			}
-			else
-			{
-				$query .= " ORDER BY utc_modified_date DESC;";
-			}
+			$query .= "FROM ".$schema.".".$table." ORDER BY utc_modified_date DESC;";
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0074", variables => { 
 				uuid  => $anvil->Database->get_host_from_uuid({debug => $debug, short => 1, host_uuid => $uuid}), 
 				query => $query,
