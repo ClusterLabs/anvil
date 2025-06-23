@@ -1,107 +1,36 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
-import AddUpsInputGroup, { INPUT_ID_UPS_TYPE } from './AddUpsInputGroup';
-import { INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME } from './CommonUpsInputGroup';
-import ConfirmDialog from '../ConfirmDialog';
-import EditUpsInputGroup, { INPUT_ID_UPS_UUID } from './EditUpsInputGroup';
+import { DialogWithHeader } from '../Dialog';
 import FlexBox from '../FlexBox';
-import FormDialog from '../FormDialog';
+import handleFormSubmit from '../Form/handleFormSubmit';
 import List from '../List';
-import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
-import { BodyText, HeaderText, InlineMonoText, MonoText } from '../Text';
+import { BodyText, HeaderText, InlineMonoText } from '../Text';
+import UpsForm, { AddOrEditUpsRequestBody } from './UpsForm';
+import UpsInputGroup from './UpsInputGroup';
+import getUpsFormikInitialValues from './getInitialValues';
 import useChecklist from '../../hooks/useChecklist';
-import useConfirmDialogProps from '../../hooks/useConfirmDialogProps';
+import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
+import buildUpsSchema from './schemas/buildUpsSchema';
 
-type UpsFormData = {
-  agent: string;
-  brand: string;
-  ipAddress: string;
-  name: string;
-  typeId: string;
-  uuid: string;
-};
-
-const getFormData = (
-  upsTemplate: APIUpsTemplate,
-  ...[{ target }]: Parameters<React.FormEventHandler<HTMLDivElement>>
-): UpsFormData => {
-  const { elements } = target as HTMLFormElement;
-
-  const { value: name } = elements.namedItem(
-    INPUT_ID_UPS_NAME,
-  ) as HTMLInputElement;
-  const { value: ipAddress } = elements.namedItem(
-    INPUT_ID_UPS_IP,
-  ) as HTMLInputElement;
-
-  const inputUpsTypeId = elements.namedItem(INPUT_ID_UPS_TYPE);
-
-  let agent = '';
-  let brand = '';
-  let typeId = '';
-
-  if (inputUpsTypeId) {
-    ({ value: typeId } = inputUpsTypeId as HTMLInputElement);
-    ({ agent, brand } = upsTemplate[typeId]);
-  }
-
-  const inputUpsUUID = elements.namedItem(INPUT_ID_UPS_UUID);
-
-  let uuid = '';
-
-  if (inputUpsUUID) {
-    ({ value: uuid } = inputUpsUUID as HTMLInputElement);
-  }
-
-  return {
-    agent,
-    brand,
-    ipAddress,
-    name,
-    typeId,
-    uuid,
-  };
-};
-
-const buildConfirmUpsFormData = ({
-  brand,
-  ipAddress,
-  name,
-  uuid,
-}: UpsFormData) => {
-  const listItems: Record<string, { label: string; value: string }> = {
-    'ups-brand': { label: 'Brand', value: brand },
-    'ups-name': { label: 'Host name', value: name },
-    'ups-ip-address': { label: 'IP address', value: ipAddress },
-  };
-
-  return (
-    <List
-      listItems={listItems}
-      listItemProps={{ sx: { padding: 0 } }}
-      renderListItem={(part, { label, value }) => (
-        <FlexBox fullWidth growFirst key={`confirm-ups-${uuid}-${part}`} row>
-          <BodyText>{label}</BodyText>
-          <MonoText>{value}</MonoText>
-        </FlexBox>
-      )}
-    />
-  );
-};
+import {
+  INPUT_ID_UPS_IP,
+  INPUT_ID_UPS_NAME,
+  INPUT_ID_UPS_TYPE,
+} from './inputIds';
 
 const ManageUpsPanel: React.FC = () => {
-  const confirmDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-  const formDialogRef = useRef<ConfirmDialogForwardedRefContent>({});
-  const messageGroupRef = useRef<MessageGroupForwardedRefContent>({});
+  const addDialogRef = useRef<DialogForwardedRefContent | null>(null);
+  const editDialogRef = useRef<DialogForwardedRefContent | null>(null);
 
-  const [confirmDialogProps, setConfirmDialogProps] = useConfirmDialogProps();
-  const [formDialogProps, setFormDialogProps] = useConfirmDialogProps();
+  const confirm = useConfirmDialog();
 
   const [isEditUpses, setIsEditUpses] = useState<boolean>(false);
+
+  const [editUuid, setEditUuid] = useState<string>('');
 
   const { data: upsTemplate, loading: isLoadingUpsTemplate } =
     useFetch<APIUpsTemplate>('/ups/template');
@@ -111,127 +40,14 @@ const ManageUpsPanel: React.FC = () => {
       refreshInterval: 60000,
     });
 
-  const formUtils = useFormUtils(
-    [INPUT_ID_UPS_IP, INPUT_ID_UPS_NAME, INPUT_ID_UPS_TYPE],
-    messageGroupRef,
-  );
-  const { isFormInvalid, isFormSubmitting, submitForm } = formUtils;
+  const editTarget = upsOverviews?.[editUuid];
 
   const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
     useChecklist({
       list: upsOverviews,
     });
 
-  const buildEditUpsFormDialogProps = useCallback<
-    (args: APIUpsOverview[string]) => ConfirmDialogProps
-  >(
-    ({ upsAgent, upsIPAddress, upsName, upsUUID }) => {
-      // Determine the type of existing UPS based on its scan agent.
-      // TODO: should identity an existing UPS's type in the DB.
-      const upsTypeId: string =
-        Object.entries(upsTemplate ?? {}).find(
-          ([, { agent }]) => upsAgent === agent,
-        )?.[0] ?? '';
-
-      return {
-        actionProceedText: 'Update',
-        content: (
-          <EditUpsInputGroup
-            formUtils={formUtils}
-            previous={{
-              upsIPAddress,
-              upsName,
-              upsTypeId,
-            }}
-            upsTemplate={upsTemplate}
-            upsUUID={upsUUID}
-          />
-        ),
-        onSubmitAppend: (event) => {
-          if (!upsTemplate) {
-            return;
-          }
-
-          const editData = getFormData(upsTemplate, event);
-          const { name: newUpsName } = editData;
-
-          setConfirmDialogProps({
-            actionProceedText: 'Update',
-            content: buildConfirmUpsFormData(editData),
-            onProceedAppend: () => {
-              submitForm({
-                body: editData,
-                getErrorMsg: (parentMsg) => (
-                  <>Failed to update UPS. {parentMsg}</>
-                ),
-                method: 'put',
-                successMsg: `Successfully updated UPS ${upsName}`,
-                url: `/ups/${upsUUID}`,
-              });
-            },
-            titleText: (
-              <HeaderText>
-                Update{' '}
-                <InlineMonoText fontSize="inherit">{newUpsName}</InlineMonoText>{' '}
-                with the following data?
-              </HeaderText>
-            ),
-          });
-
-          confirmDialogRef.current.setOpen?.call(null, true);
-        },
-        titleText: (
-          <HeaderText>
-            Update UPS{' '}
-            <InlineMonoText fontSize="inherit">{upsName}</InlineMonoText>
-          </HeaderText>
-        ),
-      };
-    },
-    [formUtils, setConfirmDialogProps, submitForm, upsTemplate],
-  );
-
-  const addUpsFormDialogProps = useMemo<ConfirmDialogProps>(
-    () => ({
-      actionProceedText: 'Add',
-      content: (
-        <AddUpsInputGroup formUtils={formUtils} upsTemplate={upsTemplate} />
-      ),
-      onSubmitAppend: (event) => {
-        if (!upsTemplate) {
-          return;
-        }
-
-        const addData = getFormData(upsTemplate, event);
-        const { brand: upsBrand, name: upsName } = addData;
-
-        setConfirmDialogProps({
-          actionProceedText: 'Add',
-          content: buildConfirmUpsFormData(addData),
-          onProceedAppend: () => {
-            submitForm({
-              body: addData,
-              getErrorMsg: (parentMsg) => <>Failed to add UPS. {parentMsg}</>,
-              method: 'post',
-              successMsg: `Successfully added UPS ${upsName}`,
-              url: '/ups',
-            });
-          },
-          titleText: (
-            <HeaderText>
-              Add a{' '}
-              <InlineMonoText fontSize="inherit">{upsBrand}</InlineMonoText> UPS
-              with the following data?
-            </HeaderText>
-          ),
-        });
-
-        confirmDialogRef.current.setOpen?.call(null, true);
-      },
-      titleText: 'Add a UPS',
-    }),
-    [formUtils, setConfirmDialogProps, submitForm, upsTemplate],
-  );
+  const deleteUtils = useFormUtils([]);
 
   const listElement = useMemo(
     () => (
@@ -244,15 +60,14 @@ const ManageUpsPanel: React.FC = () => {
         listEmpty="No Ups(es) registered."
         listItems={upsOverviews}
         onAdd={() => {
-          setFormDialogProps(addUpsFormDialogProps);
-          formDialogRef.current.setOpen?.call(null, true);
+          addDialogRef.current?.setOpen(true);
         }}
         onDelete={() => {
-          setConfirmDialogProps(
+          confirm.setConfirmDialogProps(
             buildDeleteDialogProps({
               getConfirmDialogTitle: (count) => `Delete ${count} UPSes?`,
               onProceedAppend: () => {
-                submitForm({
+                deleteUtils.submitForm({
                   body: { uuids: checks },
                   getErrorMsg: (parentMsg) => (
                     <>Failed to delete UPS(es). {parentMsg}</>
@@ -267,7 +82,7 @@ const ManageUpsPanel: React.FC = () => {
             }),
           );
 
-          confirmDialogRef.current.setOpen?.call(null, true);
+          confirm.setConfirmDialogOpen(true);
         }}
         onEdit={() => {
           setIsEditUpses((previous) => !previous);
@@ -276,8 +91,9 @@ const ManageUpsPanel: React.FC = () => {
           setCheck(key, checked);
         }}
         onItemClick={(value) => {
-          setFormDialogProps(buildEditUpsFormDialogProps(value));
-          formDialogRef.current.setOpen?.call(null, true);
+          setEditUuid(value.upsUUID);
+
+          editDialogRef.current?.setOpen(true);
         }}
         renderListItemCheckboxState={(key) => getCheck(key)}
         renderListItem={(upsUUID, { upsAgent, upsIPAddress, upsName }) => (
@@ -290,35 +106,22 @@ const ManageUpsPanel: React.FC = () => {
       />
     ),
     [
-      addUpsFormDialogProps,
       buildDeleteDialogProps,
-      buildEditUpsFormDialogProps,
       checks,
+      confirm,
+      deleteUtils,
       getCheck,
       hasChecks,
       isEditUpses,
       setCheck,
-      setConfirmDialogProps,
-      setFormDialogProps,
-      submitForm,
       upsOverviews,
     ],
   );
+
   const panelContent = useMemo(
     () =>
       isLoadingUpsTemplate || isUpsOverviewLoading ? <Spinner /> : listElement,
     [isLoadingUpsTemplate, isUpsOverviewLoading, listElement],
-  );
-
-  const messageArea = useMemo(
-    () => (
-      <MessageGroup
-        count={1}
-        defaultMessageType="warning"
-        ref={messageGroupRef}
-      />
-    ),
-    [],
   );
 
   return (
@@ -329,19 +132,129 @@ const ManageUpsPanel: React.FC = () => {
         </PanelHeader>
         {panelContent}
       </Panel>
-      <FormDialog
-        {...formDialogProps}
-        disableProceed={isFormInvalid}
-        loadingAction={isFormSubmitting}
-        preActionArea={messageArea}
-        ref={formDialogRef}
+      <DialogWithHeader header="Add a UPS" ref={addDialogRef} showClose wide>
+        {upsTemplate && (
+          <UpsForm
+            config={{
+              initialValues: getUpsFormikInitialValues(upsTemplate),
+              onSubmit: (values, helpers) => {
+                const {
+                  [INPUT_ID_UPS_IP]: ipAddress,
+                  [INPUT_ID_UPS_NAME]: name,
+                  [INPUT_ID_UPS_TYPE]: typeId,
+                } = values;
+
+                const { agent, brand } = upsTemplate[typeId];
+
+                handleFormSubmit({
+                  confirm,
+                  getRequestBody: (): AddOrEditUpsRequestBody => ({
+                    agent,
+                    brand,
+                    ipAddress,
+                    name,
+                    typeId,
+                    uuid: '',
+                  }),
+                  getSummary: () => ({
+                    brand,
+                    name,
+                    ipAddress,
+                  }),
+                  header: (
+                    <HeaderText>
+                      Add a{' '}
+                      <InlineMonoText fontSize="inherit">
+                        {brand}
+                      </InlineMonoText>{' '}
+                      UPS with the following data?
+                    </HeaderText>
+                  ),
+                  helpers,
+                  onError: () => `Failed to add UPS.`,
+                  onSuccess: () => `Successfully added UPS ${name}`,
+                  operation: 'add',
+                  url: `/ups`,
+                  values,
+                });
+              },
+              validationSchema: buildUpsSchema(upsTemplate),
+            }}
+            operation="add"
+          >
+            <UpsInputGroup upsTemplate={upsTemplate} />
+          </UpsForm>
+        )}
+      </DialogWithHeader>
+      <DialogWithHeader
+        header={
+          editTarget && (
+            <HeaderText>
+              Update UPS{' '}
+              <InlineMonoText fontSize="inherit">
+                {editTarget.upsName}
+              </InlineMonoText>
+            </HeaderText>
+          )
+        }
+        ref={editDialogRef}
         showClose
-      />
-      <ConfirmDialog
-        closeOnProceed
-        {...confirmDialogProps}
-        ref={confirmDialogRef}
-      />
+        wide
+      >
+        {upsTemplate && editTarget && (
+          <UpsForm
+            config={{
+              initialValues: getUpsFormikInitialValues(upsTemplate, editTarget),
+              onSubmit: (values, helpers) => {
+                const {
+                  [INPUT_ID_UPS_IP]: ipAddress,
+                  [INPUT_ID_UPS_NAME]: name,
+                  [INPUT_ID_UPS_TYPE]: typeId,
+                } = values;
+
+                const { agent, brand } = upsTemplate[typeId];
+
+                handleFormSubmit({
+                  confirm,
+                  getRequestBody: (): AddOrEditUpsRequestBody => ({
+                    agent,
+                    brand,
+                    ipAddress,
+                    name,
+                    typeId,
+                    uuid: editTarget.upsUUID,
+                  }),
+                  getSummary: () => ({
+                    brand,
+                    name,
+                    ipAddress,
+                    uuid: editTarget.upsUUID,
+                  }),
+                  header: (
+                    <HeaderText>
+                      Update{' '}
+                      <InlineMonoText fontSize="inherit">{name}</InlineMonoText>{' '}
+                      with the following data?
+                    </HeaderText>
+                  ),
+                  helpers,
+                  onError: () => `Failed to update UPS.`,
+                  onSuccess: () =>
+                    `Successfully updated UPS ${editTarget.upsName}`,
+                  operation: 'edit',
+                  url: `/ups/${editTarget.upsUUID}`,
+                  values,
+                });
+              },
+              validationSchema: buildUpsSchema(upsTemplate),
+            }}
+            operation="edit"
+          >
+            <UpsInputGroup upsTemplate={upsTemplate} />
+          </UpsForm>
+        )}
+      </DialogWithHeader>
+      {confirm.confirmDialog}
     </>
   );
 };
