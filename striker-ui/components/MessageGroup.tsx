@@ -157,6 +157,6 @@ const MessageGroup = forwardRef<
 
 MessageGroup.displayName = 'MessageGroup';
 
-export type { MessageGroupForwardedRefContent };
+export type { MessageGroupForwardedRefContent, MessageGroupProps };
 
 export default MessageGroup;

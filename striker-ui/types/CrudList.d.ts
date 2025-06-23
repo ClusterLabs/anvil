@@ -3,16 +3,18 @@ type CrudListEntryRef<Detail> = {
   value?: Detail;
 };
 
+type CrudListConfirmHelpers = {
+  finish: (header: React.ReactNode, message: Message) => void;
+  loading: (value: boolean) => void;
+  open: (value?: boolean) => void;
+  prepare: (value: ConfirmDialogProps) => void;
+};
+
 type CrudListFormTools = {
   add: {
     open: (value?: boolean) => void;
   };
-  confirm: {
-    finish: (header: React.ReactNode, message: Message) => void;
-    loading: (value: boolean) => void;
-    open: (value?: boolean) => void;
-    prepare: (value: React.SetStateAction<ConfirmDialogProps>) => void;
-  };
+  confirm: CrudListConfirmHelpers;
   edit: {
     open: (value?: boolean) => void;
   };

@@ -1,8 +1,10 @@
 import ActionGroup from '../ActionGroup';
 
+type FormOperation = 'add' | 'delete' | 'edit' | 'update';
+
 type FormActionGroupProps<V extends FormikValues> = {
   formikUtils: FormikUtils<V>;
-  operation: 'add' | 'delete' | 'update';
+  operation: FormOperation;
   slotProps?: {
     group?: ActionGroupProps;
     submit?: ContainedButtonProps;
@@ -36,6 +38,6 @@ const FormActionGroup = <V extends FormikValues>(
   return <ActionGroup actions={[submit]} {...slotProps?.group} />;
 };
 
-export type { FormActionGroupProps };
+export type { FormActionGroupProps, FormOperation };
 
 export default FormActionGroup;

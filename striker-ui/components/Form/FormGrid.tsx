@@ -28,6 +28,6 @@ const FormGrid = <V extends FormikValues>(
   );
 };
 
-export type { FormGridProps as FormProps };
+export type { FormGridProps };
 
 export default FormGrid;
