@@ -34,9 +34,7 @@ const createForm = <V extends FormikValues>(params?: FormFactoryParams<V>) => {
       params?.context?.defaultValue ?? null,
     );
 
-  const Form: React.FC<FormProps<V>> = (
-    ...[props]: Parameters<React.FC<React.PropsWithChildren<FormProps<V>>>>
-  ): ReturnType<React.FC<FormProps<V>>> => {
+  const Form: React.FC<React.PropsWithChildren<FormProps<V>>> = (props) => {
     const { children, config, operation, slotProps } = props;
 
     const formikUtils = useFormikUtils<V>(config);
