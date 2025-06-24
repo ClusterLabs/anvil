@@ -32,19 +32,22 @@ const ManageUpsPanel: React.FC = () => {
 
   const [editUuid, setEditUuid] = useState<string>('');
 
-  const { data: upsTemplate, loading: isLoadingUpsTemplate } =
+  const { data: upsTemplate, loading: loadingUpsTemplate } =
     useFetch<APIUpsTemplate>('/ups/template');
 
-  const { data: upsOverviews, loading: isUpsOverviewLoading } =
-    useFetch<APIUpsOverviewList>(`/ups`, {
-      refreshInterval: 60000,
-    });
+  const {
+    data: upses,
+    loading: loadingUpses,
+    mutate: getUpses,
+  } = useFetch<APIUpsOverviewList>(`/ups`, {
+    refreshInterval: 60000,
+  });
 
-  const editTarget = upsOverviews?.[editUuid];
+  const editTarget = upses?.[editUuid];
 
   const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
     useChecklist({
-      list: upsOverviews,
+      list: upses,
     });
 
   const deleteUtils = useFormUtils([]);
@@ -58,7 +61,7 @@ const ManageUpsPanel: React.FC = () => {
         edit={isEditUpses}
         header
         listEmpty="No Ups(es) registered."
-        listItems={upsOverviews}
+        listItems={upses}
         onAdd={() => {
           addDialogRef.current?.setOpen(true);
         }}
@@ -77,7 +80,7 @@ const ManageUpsPanel: React.FC = () => {
                 });
               },
               renderEntry: ({ key }) => (
-                <BodyText>{upsOverviews?.[key].upsName}</BodyText>
+                <BodyText>{upses?.[key].upsName}</BodyText>
               ),
             }),
           );
@@ -114,14 +117,13 @@ const ManageUpsPanel: React.FC = () => {
       hasChecks,
       isEditUpses,
       setCheck,
-      upsOverviews,
+      upses,
     ],
   );
 
   const panelContent = useMemo(
-    () =>
-      isLoadingUpsTemplate || isUpsOverviewLoading ? <Spinner /> : listElement,
-    [isLoadingUpsTemplate, isUpsOverviewLoading, listElement],
+    () => (loadingUpsTemplate || loadingUpses ? <Spinner /> : listElement),
+    [loadingUpsTemplate, loadingUpses, listElement],
   );
 
   return (
@@ -133,7 +135,7 @@ const ManageUpsPanel: React.FC = () => {
         {panelContent}
       </Panel>
       <DialogWithHeader header="Add a UPS" ref={addDialogRef} showClose wide>
-        {upsOverviews && upsTemplate && (
+        {upses && upsTemplate && (
           <UpsForm
             config={{
               initialValues: getUpsFormikInitialValues(upsTemplate),
@@ -162,23 +164,21 @@ const ManageUpsPanel: React.FC = () => {
                     ipAddress,
                   }),
                   header: (
-                    <HeaderText>
-                      Add a{' '}
-                      <InlineMonoText fontSize="inherit">
-                        {brand}
-                      </InlineMonoText>{' '}
-                      UPS with the following data?
-                    </HeaderText>
+                    <HeaderText>Add a UPS with the following data?</HeaderText>
                   ),
                   helpers,
                   onError: () => `Failed to add UPS.`,
-                  onSuccess: () => `Successfully added UPS ${name}`,
+                  onSuccess: () => {
+                    getUpses();
+
+                    return `Successfully added UPS ${name}`;
+                  },
                   operation: 'add',
                   url: `/ups`,
                   values,
                 });
               },
-              validationSchema: buildUpsSchema(upsOverviews, upsTemplate),
+              validationSchema: buildUpsSchema(upses, upsTemplate),
             }}
             operation="add"
           >
@@ -201,7 +201,7 @@ const ManageUpsPanel: React.FC = () => {
         showClose
         wide
       >
-        {upsOverviews && upsTemplate && editTarget && (
+        {upses && upsTemplate && editTarget && (
           <UpsForm
             config={{
               initialValues: getUpsFormikInitialValues(upsTemplate, editTarget),
@@ -239,15 +239,18 @@ const ManageUpsPanel: React.FC = () => {
                   ),
                   helpers,
                   onError: () => `Failed to update UPS.`,
-                  onSuccess: () =>
-                    `Successfully updated UPS ${editTarget.upsName}`,
+                  onSuccess: () => {
+                    getUpses();
+
+                    return `Successfully updated UPS ${editTarget.upsName}`;
+                  },
                   operation: 'edit',
                   url: `/ups/${editTarget.upsUUID}`,
                   values,
                 });
               },
               validationSchema: buildUpsSchema(
-                upsOverviews,
+                upses,
                 upsTemplate,
                 editTarget.upsUUID,
               ),
