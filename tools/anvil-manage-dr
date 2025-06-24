@@ -1024,16 +1024,7 @@ sub run_scanagent
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { agent => $agent }});
 	
 	# Call scan-lvm
-	$anvil->Job->update_progress({
-		debug     => 2,
-		progress  => $anvil->Job->bump_progress({steps => 1}),
-		log_level => 1,
-		'print'   => 1, 
-		message   => "message_0518", 
-		variables => {
-			scan_agent => $agent,
-		},
-	});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "message_0518", variables => { scan_agent => $agent }});
 	$anvil->ScanCore->call_scan_agents({debug => 2, agent => $agent});
 	
 	return(0);

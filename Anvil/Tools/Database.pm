@@ -11346,7 +11346,7 @@ INSERT INTO
     ".$anvil->Database->quote($job_title).", 
     ".$anvil->Database->quote($job_description).", 
     ".$anvil->Database->quote($job_status).", 
-    ".$anvil->Database->quote($anvil->Database->refresh_timestamp({debug => $debug}))."
+    ".$anvil->Database->quote($anvil->Database->refresh_timestamp)."
 );
 ";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
@@ -11475,7 +11475,7 @@ SET ";
 					}});
 				}
 				$query .= "
-    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp({debug => $debug}))." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     job_uuid         = ".$anvil->Database->quote($job_uuid)." 
 ";
@@ -11522,7 +11522,7 @@ SET
     job_title        = ".$anvil->Database->quote($job_title).", 
     job_description  = ".$anvil->Database->quote($job_description).", 
     job_status       = ".$anvil->Database->quote($job_status).", 
-    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp({debug => $debug}))." 
+    modified_date    = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
 WHERE 
     job_uuid         = ".$anvil->Database->quote($job_uuid)." 
 ";
