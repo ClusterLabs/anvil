@@ -43,11 +43,13 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
         size={{
           xs: 1,
           sm: 2,
+          md: 1,
         }}
       >
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={INPUT_ID_USER_NAME}
               inputProps={{
                 readOnly: readonlyName,
@@ -64,6 +66,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={INPUT_ID_USER_PASSWORD}
               label="Password"
               name={INPUT_ID_USER_PASSWORD}
@@ -78,6 +81,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
         <UncontrolledInput
           input={
             <OutlinedInputWithLabel
+              disableAutofill
               id={INPUT_ID_USER_CONFIRM_PASSWORD}
               inputProps={{
                 readOnly: !formik.values[INPUT_ID_USER_PASSWORD],
