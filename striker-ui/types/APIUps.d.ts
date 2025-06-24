@@ -13,10 +13,10 @@ type APIUpsTemplate = {
 };
 
 type APIUpsOverview = {
-  [upsUUID: string]: {
-    upsAgent: string;
-    upsIPAddress: string;
-    upsName: string;
-    upsUUID: string;
-  };
+  upsAgent: string;
+  upsIPAddress: string;
+  upsName: string;
+  upsUUID: string;
 };
+
+type APIUpsOverviewList = Record<string, APIUpsOverview>;
