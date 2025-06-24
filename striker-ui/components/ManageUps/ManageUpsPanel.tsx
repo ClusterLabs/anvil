@@ -171,6 +171,8 @@ const ManageUpsPanel: React.FC = () => {
                   onSuccess: () => {
                     getUpses();
 
+                    addDialogRef.current?.setOpen(false);
+
                     return `Successfully added UPS ${name}`;
                   },
                   operation: 'add',
@@ -241,6 +243,8 @@ const ManageUpsPanel: React.FC = () => {
                   onError: () => `Failed to update UPS.`,
                   onSuccess: () => {
                     getUpses();
+
+                    editDialogRef.current?.setOpen(false);
 
                     return `Successfully updated UPS ${editTarget.upsName}`;
                   },
