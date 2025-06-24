@@ -1,7 +1,7 @@
 import createForm from '../Form/FormFactory';
 import { UpsFormikValues } from './schemas/buildUpsSchema';
 
-type AddOrEditUpsRequestBody = {
+type CreateOrUpdateUpsRequestBody = {
   agent: string;
   brand: string;
   ipAddress: string;
@@ -16,7 +16,7 @@ const {
   useFormContext: useUpsFormContext,
 } = createForm<UpsFormikValues>();
 
-export type { AddOrEditUpsRequestBody };
+export type { CreateOrUpdateUpsRequestBody };
 
 export { UpsFormContext, useUpsFormContext };
 

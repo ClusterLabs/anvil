@@ -1,13 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import FlexBox from '../FlexBox';
 import handleFormSubmit from '../Form/handleFormSubmit';
 import List from '../List';
 import { Panel, PanelHeader } from '../Panels';
-import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText } from '../Text';
-import UpsForm, { AddOrEditUpsRequestBody } from './UpsForm';
+import UpsForm, { CreateOrUpdateUpsRequestBody } from './UpsForm';
 import UpsInputGroup from './UpsInputGroup';
 import getUpsFormikInitialValues from './getUpsFormikInitialValues';
 import useChecklist from '../../hooks/useChecklist';
@@ -52,79 +51,7 @@ const ManageUpsPanel: React.FC = () => {
 
   const deleteUtils = useFormUtils([]);
 
-  const listElement = useMemo(
-    () => (
-      <List
-        allowEdit
-        allowItemButton={isEditUpses}
-        disableDelete={!hasChecks}
-        edit={isEditUpses}
-        header
-        listEmpty="No Ups(es) registered."
-        listItems={upses}
-        onAdd={() => {
-          addDialogRef.current?.setOpen(true);
-        }}
-        onDelete={() => {
-          confirm.setConfirmDialogProps(
-            buildDeleteDialogProps({
-              getConfirmDialogTitle: (count) => `Delete ${count} UPSes?`,
-              onProceedAppend: () => {
-                deleteUtils.submitForm({
-                  body: { uuids: checks },
-                  getErrorMsg: (parentMsg) => (
-                    <>Failed to delete UPS(es). {parentMsg}</>
-                  ),
-                  method: 'delete',
-                  url: '/ups',
-                });
-              },
-              renderEntry: ({ key }) => (
-                <BodyText>{upses?.[key].upsName}</BodyText>
-              ),
-            }),
-          );
-
-          confirm.setConfirmDialogOpen(true);
-        }}
-        onEdit={() => {
-          setIsEditUpses((previous) => !previous);
-        }}
-        onItemCheckboxChange={(key, event, checked) => {
-          setCheck(key, checked);
-        }}
-        onItemClick={(value) => {
-          setEditUuid(value.upsUUID);
-
-          editDialogRef.current?.setOpen(true);
-        }}
-        renderListItemCheckboxState={(key) => getCheck(key)}
-        renderListItem={(upsUUID, { upsAgent, upsIPAddress, upsName }) => (
-          <FlexBox fullWidth row>
-            <BodyText>{upsName}</BodyText>
-            <BodyText>agent=&quot;{upsAgent}&quot;</BodyText>
-            <BodyText>ip=&quot;{upsIPAddress}&quot;</BodyText>
-          </FlexBox>
-        )}
-      />
-    ),
-    [
-      buildDeleteDialogProps,
-      checks,
-      confirm,
-      deleteUtils,
-      getCheck,
-      hasChecks,
-      isEditUpses,
-      setCheck,
-      upses,
-    ],
-  );
-
-  const panelContent = useMemo(
-    () => (loadingUpsTemplate || loadingUpses ? <Spinner /> : listElement),
-    [loadingUpsTemplate, loadingUpses, listElement],
-  );
+  const loadingAll = loadingUpses || loadingUpsTemplate;
 
   return (
     <>
@@ -132,9 +59,68 @@ const ManageUpsPanel: React.FC = () => {
         <PanelHeader>
           <HeaderText>Manage UPSes</HeaderText>
         </PanelHeader>
-        {panelContent}
+        <List
+          allowEdit
+          allowItemButton={isEditUpses}
+          disableDelete={!hasChecks}
+          edit={isEditUpses}
+          header
+          listEmpty="No Ups(es) registered."
+          listItems={upses}
+          loading={loadingUpses}
+          onAdd={() => {
+            addDialogRef.current?.setOpen(true);
+          }}
+          onDelete={() => {
+            confirm.setConfirmDialogProps(
+              buildDeleteDialogProps({
+                getConfirmDialogTitle: (count) => `Delete ${count} UPSes?`,
+                onProceedAppend: () => {
+                  deleteUtils.submitForm({
+                    body: { uuids: checks },
+                    getErrorMsg: (parentMsg) => (
+                      <>Failed to delete UPS(es). {parentMsg}</>
+                    ),
+                    method: 'delete',
+                    url: '/ups',
+                  });
+                },
+                renderEntry: ({ key }) => (
+                  <BodyText>{upses?.[key].upsName}</BodyText>
+                ),
+              }),
+            );
+
+            confirm.setConfirmDialogOpen(true);
+          }}
+          onEdit={() => {
+            setIsEditUpses((previous) => !previous);
+          }}
+          onItemCheckboxChange={(key, event, checked) => {
+            setCheck(key, checked);
+          }}
+          onItemClick={(value) => {
+            setEditUuid(value.upsUUID);
+
+            editDialogRef.current?.setOpen(true);
+          }}
+          renderListItemCheckboxState={(key) => getCheck(key)}
+          renderListItem={(upsUUID, { upsAgent, upsIPAddress, upsName }) => (
+            <FlexBox fullWidth row>
+              <BodyText>{upsName}</BodyText>
+              <BodyText>agent=&quot;{upsAgent}&quot;</BodyText>
+              <BodyText>ip=&quot;{upsIPAddress}&quot;</BodyText>
+            </FlexBox>
+          )}
+        />
       </Panel>
-      <DialogWithHeader header="Add a UPS" ref={addDialogRef} showClose wide>
+      <DialogWithHeader
+        header="Add a UPS"
+        loading={loadingAll}
+        ref={addDialogRef}
+        showClose
+        wide
+      >
         {upses && upsTemplate && (
           <UpsForm
             config={{
@@ -150,7 +136,7 @@ const ManageUpsPanel: React.FC = () => {
 
                 handleFormSubmit({
                   confirm,
-                  getRequestBody: (): AddOrEditUpsRequestBody => ({
+                  getRequestBody: (): CreateOrUpdateUpsRequestBody => ({
                     agent,
                     brand,
                     ipAddress,
@@ -199,6 +185,7 @@ const ManageUpsPanel: React.FC = () => {
             </HeaderText>
           )
         }
+        loading={loadingAll}
         ref={editDialogRef}
         showClose
         wide
@@ -218,7 +205,7 @@ const ManageUpsPanel: React.FC = () => {
 
                 handleFormSubmit({
                   confirm,
-                  getRequestBody: (): AddOrEditUpsRequestBody => ({
+                  getRequestBody: (): CreateOrUpdateUpsRequestBody => ({
                     agent,
                     brand,
                     ipAddress,
