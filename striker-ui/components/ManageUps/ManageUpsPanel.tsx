@@ -9,7 +9,7 @@ import Spinner from '../Spinner';
 import { BodyText, HeaderText, InlineMonoText } from '../Text';
 import UpsForm, { AddOrEditUpsRequestBody } from './UpsForm';
 import UpsInputGroup from './UpsInputGroup';
-import getUpsFormikInitialValues from './getInitialValues';
+import getUpsFormikInitialValues from './getUpsFormikInitialValues';
 import useChecklist from '../../hooks/useChecklist';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
@@ -36,7 +36,7 @@ const ManageUpsPanel: React.FC = () => {
     useFetch<APIUpsTemplate>('/ups/template');
 
   const { data: upsOverviews, loading: isUpsOverviewLoading } =
-    useFetch<APIUpsOverview>(`/ups`, {
+    useFetch<APIUpsOverviewList>(`/ups`, {
       refreshInterval: 60000,
     });
 
@@ -133,7 +133,7 @@ const ManageUpsPanel: React.FC = () => {
         {panelContent}
       </Panel>
       <DialogWithHeader header="Add a UPS" ref={addDialogRef} showClose wide>
-        {upsTemplate && (
+        {upsOverviews && upsTemplate && (
           <UpsForm
             config={{
               initialValues: getUpsFormikInitialValues(upsTemplate),
@@ -178,7 +178,7 @@ const ManageUpsPanel: React.FC = () => {
                   values,
                 });
               },
-              validationSchema: buildUpsSchema(upsTemplate),
+              validationSchema: buildUpsSchema(upsOverviews, upsTemplate),
             }}
             operation="add"
           >
@@ -201,7 +201,7 @@ const ManageUpsPanel: React.FC = () => {
         showClose
         wide
       >
-        {upsTemplate && editTarget && (
+        {upsOverviews && upsTemplate && editTarget && (
           <UpsForm
             config={{
               initialValues: getUpsFormikInitialValues(upsTemplate, editTarget),
@@ -246,7 +246,11 @@ const ManageUpsPanel: React.FC = () => {
                   values,
                 });
               },
-              validationSchema: buildUpsSchema(upsTemplate),
+              validationSchema: buildUpsSchema(
+                upsOverviews,
+                upsTemplate,
+                editTarget.upsUUID,
+              ),
             }}
             operation="edit"
           >

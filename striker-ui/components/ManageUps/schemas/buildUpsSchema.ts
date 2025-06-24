@@ -6,14 +6,19 @@ import {
   INPUT_ID_UPS_TYPE,
 } from '../inputIds';
 
+import buildUpsNameSchema from './buildUpsNameSchema';
 import { yupIpv4 } from '../../../lib/yupCommons';
 
-const buildUpsSchema = (template: APIUpsTemplate) => {
+const buildUpsSchema = (
+  upses: APIUpsOverviewList,
+  template: APIUpsTemplate,
+  uuid = '',
+) => {
   const ids = Object.keys(template);
 
   return yup.object({
     [INPUT_ID_UPS_IP]: yupIpv4().required(),
-    [INPUT_ID_UPS_NAME]: yup.string().required(),
+    [INPUT_ID_UPS_NAME]: buildUpsNameSchema(uuid, upses).required(),
     [INPUT_ID_UPS_TYPE]: yup.string().required().oneOf(ids),
   });
 };
