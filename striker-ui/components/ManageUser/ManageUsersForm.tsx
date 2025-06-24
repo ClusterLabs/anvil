@@ -40,15 +40,20 @@ const ManageUsersForm: React.FC = () => {
     onError: (error) => {
       setListMessage(handleAPIError(error));
     },
-    periodic: true,
   });
 
   const editTarget = users?.[editUuid];
 
   const editAdmin = editTarget?.userName === 'admin';
 
-  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist({ list: users });
+  const {
+    buildDeleteDialogProps,
+    checks,
+    getCheck,
+    hasChecks,
+    resetChecks,
+    setCheck,
+  } = useChecklist({ list: users });
 
   const deleteUtils = useFormUtils([]);
 
@@ -77,15 +82,26 @@ const ManageUsersForm: React.FC = () => {
           onDelete={() => {
             confirm.setConfirmDialogProps(
               buildDeleteDialogProps({
-                getConfirmDialogTitle: (length) =>
-                  `Delete the following ${length} users?`,
+                getConfirmDialogTitle: (count) =>
+                  `Delete the following ${count} users?`,
                 onProceedAppend: () => {
                   deleteUtils.submitForm({
                     body: { uuids: checks },
-                    getErrorMsg: (parentMsg) => (
-                      <>Delete user(s) failed. {parentMsg}</>
-                    ),
+                    getErrorMsg: (parentMsg) => {
+                      confirm.finishConfirm('Error', {
+                        children: `Failed to delete user(s). ${parentMsg}`,
+                      });
+
+                      return null;
+                    },
                     method: 'delete',
+                    onSuccess: () => {
+                      resetChecks();
+
+                      getUsers();
+
+                      confirm.setConfirmDialogOpen(false);
+                    },
                     url: '/user',
                   });
                 },
@@ -220,7 +236,7 @@ const ManageUsersForm: React.FC = () => {
             }}
             operation="edit"
           >
-            <UserInputGroup readonlyName={editAdmin} />
+            <UserInputGroup readonlyName={editAdmin} requirePassword={false} />
           </UserForm>
         )}
       </DialogWithHeader>
