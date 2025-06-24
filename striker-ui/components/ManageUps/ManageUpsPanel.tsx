@@ -44,10 +44,16 @@ const ManageUpsPanel: React.FC = () => {
 
   const editTarget = upses?.[editUuid];
 
-  const { buildDeleteDialogProps, checks, getCheck, hasChecks, setCheck } =
-    useChecklist({
-      list: upses,
-    });
+  const {
+    buildDeleteDialogProps,
+    checks,
+    getCheck,
+    hasChecks,
+    resetChecks,
+    setCheck,
+  } = useChecklist({
+    list: upses,
+  });
 
   const deleteUtils = useFormUtils([]);
 
@@ -78,10 +84,21 @@ const ManageUpsPanel: React.FC = () => {
                 onProceedAppend: () => {
                   deleteUtils.submitForm({
                     body: { uuids: checks },
-                    getErrorMsg: (parentMsg) => (
-                      <>Failed to delete UPS(es). {parentMsg}</>
-                    ),
+                    getErrorMsg: (parentMsg) => {
+                      confirm.finishConfirm('Error', {
+                        children: `Failed to delete UPS(es). ${parentMsg}`,
+                      });
+
+                      return null;
+                    },
                     method: 'delete',
+                    onSuccess: () => {
+                      resetChecks();
+
+                      getUpses();
+
+                      confirm.setConfirmDialogOpen(false);
+                    },
                     url: '/ups',
                   });
                 },
