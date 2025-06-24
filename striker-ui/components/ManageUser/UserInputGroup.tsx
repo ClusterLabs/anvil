@@ -15,10 +15,11 @@ import {
 
 type UserInputGroupProps = {
   readonlyName?: boolean;
+  requirePassword?: boolean;
 };
 
 const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
-  const { readonlyName } = props;
+  const { readonlyName, requirePassword = true } = props;
 
   const context = useUserFormContext(UserFormContext);
 
@@ -57,6 +58,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
               label="Username"
               name={INPUT_ID_USER_NAME}
               onChange={handleChange}
+              required
               value={formik.values[INPUT_ID_USER_NAME]}
             />
           }
@@ -71,6 +73,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
               label="Password"
               name={INPUT_ID_USER_PASSWORD}
               onChange={handleChange}
+              required={requirePassword}
               type={INPUT_TYPES.password}
               value={formik.values[INPUT_ID_USER_PASSWORD]}
             />
@@ -89,6 +92,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
               label="Confirm password"
               name={INPUT_ID_USER_CONFIRM_PASSWORD}
               onChange={handleChange}
+              required={Boolean(formik.values[INPUT_ID_USER_PASSWORD])}
               type={INPUT_TYPES.password}
               value={formik.values[INPUT_ID_USER_CONFIRM_PASSWORD]}
             />
