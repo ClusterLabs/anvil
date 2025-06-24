@@ -104,9 +104,8 @@ const UpsInputGroup = (
       spacing="1em"
       width="100%"
     >
-      <MuiGrid size="grow" width="100%">
+      <MuiGrid width="100%">
         <SelectWithLabel
-          // formControlProps={{ sx: { marginTop: '.3em' } }}
           id={INPUT_ID_UPS_TYPE}
           label="UPS type"
           name={INPUT_ID_UPS_TYPE}

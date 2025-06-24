@@ -48,14 +48,16 @@ const createForm = <V extends FormikValues>(params?: FormFactoryParams<V>) => {
 
     return (
       <FormGrid formikUtils={formikUtils} {...slotProps?.grid}>
-        <FormContext value={formContextValue}>{children}</FormContext>
-        <MuiGrid size="grow" width="100%">
+        <MuiGrid width="100%">
+          <FormContext value={formContextValue}>{children}</FormContext>
+        </MuiGrid>
+        <MuiGrid width="100%">
           <FormMessageGroup
             formikUtils={formikUtils}
             {...slotProps?.messages}
           />
         </MuiGrid>
-        <MuiGrid size="grow" width="100%">
+        <MuiGrid width="100%">
           <FormActionGroup
             formikUtils={formikUtils}
             operation={operation}

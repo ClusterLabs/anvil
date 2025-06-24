@@ -21,6 +21,8 @@ const FormGrid = <V extends FormikValues>(
 
         formikUtils.formik.handleSubmit(event);
       }}
+      spacing="1em"
+      width="100%"
       {...slotProps?.grid}
     >
       {children}
