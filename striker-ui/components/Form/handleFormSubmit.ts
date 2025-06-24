@@ -23,6 +23,9 @@ type FormSubmitHandlerParams<
   onError?: (error: AxiosError<ReqBody, ResBody>) => React.ReactNode;
   onSuccess?: () => React.ReactNode;
   operation: FormOperation;
+  slotProps?: {
+    summary?: Partial<FormSummaryProps<V | S>>;
+  };
   tools?: CrudListFormTools;
   url: string;
   values: V;
@@ -59,8 +62,13 @@ const toProceedLabel = (operation: FormOperation): string => {
   }
 };
 
-const handleFormSubmit = <V extends FormikValues>(
-  params: FormSubmitHandlerParams<V>,
+const handleFormSubmit = <
+  V extends FormikValues,
+  S extends Record<string, unknown> = Record<string, unknown>,
+  ReqBody = unknown,
+  ResBody = unknown,
+>(
+  params: FormSubmitHandlerParams<V, S, ReqBody, ResBody>,
 ) => {
   const {
     description,
@@ -71,6 +79,7 @@ const handleFormSubmit = <V extends FormikValues>(
     onError,
     onSuccess,
     operation,
+    slotProps,
     tools,
     url,
     values,
@@ -88,8 +97,9 @@ const handleFormSubmit = <V extends FormikValues>(
     actionProceedText: toProceedLabel(operation),
     content:
       description ??
-      createElement(FormSummary, {
+      createElement(FormSummary<S | V>, {
         entries: summary ?? values,
+        ...slotProps?.summary,
       }),
     onCancelAppend: () => helpers.setSubmitting(false),
     onProceedAppend: () => {
