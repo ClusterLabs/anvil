@@ -1,6 +1,6 @@
 import ConfigPeersForm from './ConfigPeersForm';
 import ManageChangedSSHKeysForm from './ManageChangedSSHKeysForm';
-import ManageUsersForm from './ManageUsersForm';
+import ManageUsersForm from '../ManageUser/ManageUsersForm';
 import { Panel } from '../Panels';
 
 const ComplexOperationsPanel: React.FC = () => (

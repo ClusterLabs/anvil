@@ -1,13 +1,11 @@
-type UserOverviewMetadata = {
+type APIUserOverview = {
   userName: string;
   userUUID: string;
 };
 
-type UserOverviewMetadataList = {
-  [userUUID: string]: UserOverviewMetadata;
-};
+type APIUserOverviewList = Record<string, APIUserOverview>;
 
-type CreateUserRequestBody = {
+type CreateOrUpdateUserRequestBody = {
   userName: string;
   password: string;
 };
