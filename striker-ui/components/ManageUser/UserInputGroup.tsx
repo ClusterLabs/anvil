@@ -53,7 +53,7 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
               disableAutofill
               id={INPUT_ID_USER_NAME}
               inputProps={{
-                readOnly: readonlyName,
+                disabled: readonlyName,
               }}
               label="Username"
               name={INPUT_ID_USER_NAME}
@@ -86,9 +86,6 @@ const UserInputGroup: React.FC<UserInputGroupProps> = (props) => {
             <OutlinedInputWithLabel
               disableAutofill
               id={INPUT_ID_USER_CONFIRM_PASSWORD}
-              inputProps={{
-                readOnly: !formik.values[INPUT_ID_USER_PASSWORD],
-              }}
               label="Confirm password"
               name={INPUT_ID_USER_CONFIRM_PASSWORD}
               onChange={handleChange}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import handleFormSubmit from '../Form/handleFormSubmit';
@@ -33,7 +33,7 @@ const ManageUsersForm: React.FC = () => {
   const [editUuid, setEditUuid] = useState<string>('');
 
   const {
-    data: users,
+    data: usersWithCurrent,
     loading: loadingUsers,
     mutate: getUsers,
   } = useFetch<APIUserOverviewList>(`/user`, {
@@ -42,9 +42,23 @@ const ManageUsersForm: React.FC = () => {
     },
   });
 
-  const editTarget = users?.[editUuid];
+  const admin = usersWithCurrent?.current?.userName === 'admin';
 
-  const editAdmin = editTarget?.userName === 'admin';
+  const users = useMemo(
+    () =>
+      usersWithCurrent &&
+      Object.values(usersWithCurrent).reduce<APIUserOverviewList>(
+        (previous, user) => {
+          previous[user.userUUID] = user;
+
+          return previous;
+        },
+        {},
+      ),
+    [usersWithCurrent],
+  );
+
+  const editTarget = users?.[editUuid];
 
   const {
     buildDeleteDialogProps,
@@ -56,8 +70,6 @@ const ManageUsersForm: React.FC = () => {
   } = useChecklist({ list: users });
 
   const deleteUtils = useFormUtils([]);
-
-  const admin = users?.current?.userName === 'admin';
 
   return (
     <>
@@ -236,7 +248,10 @@ const ManageUsersForm: React.FC = () => {
             }}
             operation="edit"
           >
-            <UserInputGroup readonlyName={editAdmin} requirePassword={false} />
+            <UserInputGroup
+              readonlyName={editTarget.userName === 'admin'}
+              requirePassword={false}
+            />
           </UserForm>
         )}
       </DialogWithHeader>
