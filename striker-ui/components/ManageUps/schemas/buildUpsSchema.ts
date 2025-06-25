@@ -1,13 +1,13 @@
 import * as yup from 'yup';
 
+import buildUpsNameSchema from './buildUpsNameSchema';
+import { yupIpv4 } from '../../../lib/yupCommons';
+
 import {
   INPUT_ID_UPS_IP,
   INPUT_ID_UPS_NAME,
   INPUT_ID_UPS_TYPE,
 } from '../inputIds';
-
-import buildUpsNameSchema from './buildUpsNameSchema';
-import { yupIpv4 } from '../../../lib/yupCommons';
 
 const buildUpsSchema = (
   upses: APIUpsOverviewList,

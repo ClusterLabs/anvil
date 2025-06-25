@@ -1,12 +1,12 @@
 import * as yup from 'yup';
 
+import buildUserNameSchema from './buildUserNameSchema';
+
 import {
   INPUT_ID_USER_CONFIRM_PASSWORD,
   INPUT_ID_USER_NAME,
   INPUT_ID_USER_PASSWORD,
 } from '../inputIds';
-
-import buildUserNameSchema from './buildUserNameSchema';
 
 const buildUserSchema = (users: APIUserOverviewList, uuid = '') => {
   const passwordSchema = yup.string();
