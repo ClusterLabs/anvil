@@ -1,11 +1,11 @@
-import ConfigPeersForm from './ConfigPeersForm';
 import ManageChangedSSHKeysForm from './ManageChangedSSHKeysForm';
+import ManagePeerStriker from '../ManagePeerStriker/ManagePeerStriker';
 import ManageUsersForm from '../ManageUser/ManageUsersForm';
 import { Panel } from '../Panels';
 
 const ComplexOperationsPanel: React.FC = () => (
   <Panel>
-    <ConfigPeersForm />
+    <ManagePeerStriker />
     <ManageChangedSSHKeysForm />
     <ManageUsersForm />
   </Panel>
