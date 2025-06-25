@@ -69,7 +69,9 @@ const PeerStrikerInputGroup: React.FC = () => {
       <MuiGrid>
         <CheckboxWithLabel
           checked={formik.values[INPUT_ID_PEER_STRIKER_PING_TEST]}
+          id={INPUT_ID_PEER_STRIKER_PING_TEST}
           label="Ping"
+          name={INPUT_ID_PEER_STRIKER_PING_TEST}
           onChange={formik.handleChange}
         />
       </MuiGrid>
