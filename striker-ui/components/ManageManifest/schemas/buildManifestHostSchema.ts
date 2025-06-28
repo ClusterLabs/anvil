@@ -10,7 +10,7 @@ import { INPUT_ID_AH_IPMI_IP } from '../inputIds';
 
 const buildManifestHostSchema = () =>
   yup.object({
-    [INPUT_ID_AH_IPMI_IP]: yupIpv4().required(),
+    [INPUT_ID_AH_IPMI_IP]: yupIpv4(),
     fences: yup.lazy((obj) =>
       yup.object(buildYupDynamicObject(obj, buildManifestHostFenceSchema())),
     ),

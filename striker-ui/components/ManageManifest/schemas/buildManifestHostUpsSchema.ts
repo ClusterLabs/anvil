@@ -4,7 +4,7 @@ import { INPUT_ID_AH_UPS_POWER_HOST } from '../inputIds';
 
 const buildManifestHostUpsSchema = () =>
   yup.object({
-    [INPUT_ID_AH_UPS_POWER_HOST]: yup.boolean().required(),
+    [INPUT_ID_AH_UPS_POWER_HOST]: yup.boolean(),
   });
 
 export default buildManifestHostUpsSchema;
