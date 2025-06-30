@@ -95,7 +95,6 @@ type AnNetworkTypeChangeEventHandler =
   AnNetworkChangeEventHandler<SelectChangeEventHandler>;
 
 type AnNetworkInputGroupOptionalProps = {
-  readonlyNetworkName?: boolean;
   showGateway?: boolean;
 };
 

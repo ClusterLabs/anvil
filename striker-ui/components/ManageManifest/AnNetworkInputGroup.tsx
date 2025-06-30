@@ -26,7 +26,7 @@ const networkTypeOptions = ['bcn', 'ifn', 'mn', 'sn'].map((type) => ({
 const netSeqInputWidth = '3.4em';
 
 const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
-  const { networkId, readonlyNetworkName, showGateway } = props;
+  const { networkId, showGateway } = props;
 
   const context = useManifestFormContext(ManifestFormContext);
 
@@ -73,7 +73,6 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
               required
               selectItems={networkTypeOptions}
               selectProps={{
-                disabled: readonlyNetworkName,
                 renderValue: (value) => `${NETWORK_TYPES[value]}`,
               }}
               value={
@@ -133,40 +132,56 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
           spacing="1em"
         >
           <MuiGrid size={1}>
-            <OutlinedInputWithLabel
-              id={chains[INPUT_ID_AN_MIN_IP]}
-              label="IP address"
-              name={chains[INPUT_ID_AN_MIN_IP]}
-              onChange={handleChange}
-              required
-              value={
-                formik.values.netconf.networks[networkId][INPUT_ID_AN_MIN_IP]
+            <UncontrolledInput
+              input={
+                <OutlinedInputWithLabel
+                  id={chains[INPUT_ID_AN_MIN_IP]}
+                  label="IP address"
+                  name={chains[INPUT_ID_AN_MIN_IP]}
+                  onChange={handleChange}
+                  required
+                  value={
+                    formik.values.netconf.networks[networkId][
+                      INPUT_ID_AN_MIN_IP
+                    ]
+                  }
+                />
               }
             />
           </MuiGrid>
           <MuiGrid size={1}>
-            <OutlinedInputWithLabel
-              id={chains[INPUT_ID_AN_SUBNET_MASK]}
-              label="Subnet mask"
-              name={chains[INPUT_ID_AN_SUBNET_MASK]}
-              onChange={handleChange}
-              required
-              value={
-                formik.values.netconf.networks[networkId][
-                  INPUT_ID_AN_SUBNET_MASK
-                ]
+            <UncontrolledInput
+              input={
+                <OutlinedInputWithLabel
+                  id={chains[INPUT_ID_AN_SUBNET_MASK]}
+                  label="Subnet mask"
+                  name={chains[INPUT_ID_AN_SUBNET_MASK]}
+                  onChange={handleChange}
+                  required
+                  value={
+                    formik.values.netconf.networks[networkId][
+                      INPUT_ID_AN_SUBNET_MASK
+                    ]
+                  }
+                />
               }
             />
           </MuiGrid>
           {showGateway && (
             <MuiGrid size={1}>
-              <OutlinedInputWithLabel
-                id={chains[INPUT_ID_AN_GATEWAY]}
-                label="Gateway"
-                name={chains[INPUT_ID_AN_GATEWAY]}
-                onChange={handleChange}
-                value={
-                  formik.values.netconf.networks[networkId][INPUT_ID_AN_GATEWAY]
+              <UncontrolledInput
+                input={
+                  <OutlinedInputWithLabel
+                    id={chains[INPUT_ID_AN_GATEWAY]}
+                    label="Gateway"
+                    name={chains[INPUT_ID_AN_GATEWAY]}
+                    onChange={handleChange}
+                    value={
+                      formik.values.netconf.networks[networkId][
+                        INPUT_ID_AN_GATEWAY
+                      ]
+                    }
+                  />
                 }
               />
             </MuiGrid>

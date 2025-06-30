@@ -2,6 +2,7 @@ import MuiGrid from '@mui/material/Grid2';
 
 import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import UncontrolledInput from '../UncontrolledInput';
 
 import {
   INPUT_ID_AI_DOMAIN,
@@ -32,33 +33,45 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
       {...slotProps?.grid}
     >
       <MuiGrid size={1}>
-        <OutlinedInputWithLabel
-          id={INPUT_ID_AI_PREFIX}
-          label="Prefix"
-          name={INPUT_ID_AI_PREFIX}
-          onChange={handleChange}
-          required
-          value={formik.values[INPUT_ID_AI_PREFIX]}
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_PREFIX}
+              label="Prefix"
+              name={INPUT_ID_AI_PREFIX}
+              onChange={handleChange}
+              required
+              value={formik.values[INPUT_ID_AI_PREFIX]}
+            />
+          }
         />
       </MuiGrid>
       <MuiGrid size={1}>
-        <OutlinedInputWithLabel
-          id={INPUT_ID_AI_DOMAIN}
-          label="Domain name"
-          name={INPUT_ID_AI_DOMAIN}
-          onChange={handleChange}
-          required
-          value={formik.values[INPUT_ID_AI_DOMAIN]}
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_DOMAIN}
+              label="Domain name"
+              name={INPUT_ID_AI_DOMAIN}
+              onChange={handleChange}
+              required
+              value={formik.values[INPUT_ID_AI_DOMAIN]}
+            />
+          }
         />
       </MuiGrid>
       <MuiGrid size={1}>
-        <OutlinedInputWithLabel
-          id={INPUT_ID_AI_SEQUENCE}
-          label="Sequence"
-          name={INPUT_ID_AI_SEQUENCE}
-          onChange={handleChange}
-          required
-          value={formik.values[INPUT_ID_AI_SEQUENCE]}
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_SEQUENCE}
+              label="Sequence"
+              name={INPUT_ID_AI_SEQUENCE}
+              onChange={handleChange}
+              required
+              value={formik.values[INPUT_ID_AI_SEQUENCE]}
+            />
+          }
         />
       </MuiGrid>
     </MuiGrid>
