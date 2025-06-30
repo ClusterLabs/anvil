@@ -79,10 +79,7 @@ type AnIdInputGroupOptionalProps = {
   previous?: Partial<ManifestAnId>;
 };
 
-type AnIdInputGroupProps<M extends MapToInputTestID> =
-  AnIdInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-  };
+type AnIdInputGroupProps = AnIdInputGroupOptionalProps;
 
 type AnNetworkEventHandlerPreviousArgs = {
   networkId: string;
