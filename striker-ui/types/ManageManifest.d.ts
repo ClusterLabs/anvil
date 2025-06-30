@@ -97,18 +97,11 @@ type AnNetworkInputGroupProps = {
   showGateway?: boolean;
 };
 
-type AnHostInputGroupOptionalProps = {
-  hostLabel?: string;
-  previous?: Pick<ManifestHost, 'fences' | 'ipmiIp' | 'networks' | 'upses'>;
+type AnHostInputGroupProps = {
+  hostSequence: string;
+  knownFences: APIManifestTemplateFenceList;
+  knownUpses: APIManifestTemplateUpsList;
 };
-
-type AnHostInputGroupProps<M extends MapToInputTestID> =
-  AnHostInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    hostId: string;
-    hostNumber: number;
-    hostType: string;
-  };
 
 type AnNetworkConfigInputGroupProps = {
   slotProps?: {
@@ -116,21 +109,13 @@ type AnNetworkConfigInputGroupProps = {
   };
 };
 
-type AnHostConfigInputGroupOptionalProps = {
-  knownFences?: APIManifestTemplateFenceList;
-  knownUpses?: APIManifestTemplateUpsList;
-  previous?: Partial<ManifestHostConfig>;
+type AnHostConfigInputGroupProps = {
+  knownFences: APIManifestTemplateFenceList;
+  knownUpses: APIManifestTemplateUpsList;
 };
 
-type AnHostConfigInputGroupProps<M extends MapToInputTestID> =
-  AnHostConfigInputGroupOptionalProps & {
-    anSequence: number;
-    formUtils: FormUtils<M>;
-    networkListEntries: Array<[string, ManifestNetwork]>;
-  };
-
 type AddManifestInputGroupOptionalProps = Pick<
-  AnHostConfigInputGroupOptionalProps,
+  AnHostConfigInputGroupProps,
   'knownFences' | 'knownUpses'
 > & {
   previous?: Partial<ManifestAnId> & {
