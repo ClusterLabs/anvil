@@ -71,13 +71,11 @@ type MapToManifestFormInputHandler = Record<string, ManifestFormInputHandler>;
 
 /** ---------- Component types ---------- */
 
-type AnIdInputGroupOptionalProps = {
+type AnIdInputGroupProps = {
   slotProps?: {
-    grid?: import('@mui/material/Grid2').Grid2Props;
+    container?: import('@mui/material/Grid2').Grid2Props;
   };
 };
-
-type AnIdInputGroupProps = AnIdInputGroupOptionalProps;
 
 type AnNetworkEventHandlerPreviousArgs = {
   networkId: string;
@@ -94,12 +92,9 @@ type AnNetworkCloseEventHandler =
 type AnNetworkTypeChangeEventHandler =
   AnNetworkChangeEventHandler<SelectChangeEventHandler>;
 
-type AnNetworkInputGroupOptionalProps = {
-  showGateway?: boolean;
-};
-
-type AnNetworkInputGroupProps = AnNetworkInputGroupOptionalProps & {
+type AnNetworkInputGroupProps = {
   networkId: string;
+  showGateway?: boolean;
 };
 
 type AnHostInputGroupOptionalProps = {
@@ -115,18 +110,11 @@ type AnHostInputGroupProps<M extends MapToInputTestID> =
     hostType: string;
   };
 
-type AnNetworkConfigInputGroupOptionalProps = {
-  previous?: Partial<ManifestNetworkConfig>;
-};
-
-type AnNetworkConfigInputGroupProps<M extends MapToInputTestID> =
-  AnNetworkConfigInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    networkListEntries: Array<[string, ManifestNetwork]>;
-    setNetworkList: import('react').Dispatch<
-      import('react').SetStateAction<ManifestNetworkList>
-    >;
+type AnNetworkConfigInputGroupProps = {
+  slotProps?: {
+    container?: import('@mui/material/Grid2').Grid2Props;
   };
+};
 
 type AnHostConfigInputGroupOptionalProps = {
   knownFences?: APIManifestTemplateFenceList;
