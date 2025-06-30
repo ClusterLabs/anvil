@@ -4148,8 +4148,8 @@ The duplicate will be removed.</key>
 		<key name="warning_0034">[ Warning ] - The host UUID: [#!variable!host_uuid!#] wasn't found. Unable to add any authorized keys.</key>
 		<key name="warning_0035">[ Warning ] - The host UUID: [#!variable!host_uuid!#] has not users with SSH public keys registered. Nothing to add any authorized keys files.</key>
 		<key name="warning_0036">[ Warning ] - Failed to down (stop) the DRBD resource: [#!variable!resource!#]</key>
-		<key name="warning_0037">#!free!#</key>
-		<key name="warning_0038">#!free!#</key>
+		<key name="warning_0037">[ Warning ] - The job: [#!variable!job_uuid!#] on the database server: [#!variable!db_host!#] is newer (unix time old: [#!variable!old_modified_date!#], new: [#!variable!new_modified_date!#]). Using it's data to replace the one read earlier.</key>
+		<key name="warning_0038">[ Warning ] - The job: [#!variable!job_uuid!#] on the database server: [#!variable!db_host!#] has the same modified time, but has a higher progress (old: [#!variable!old_progress!#], new: [#!variable!new_progress!#]. Using it's data to replace the one we read earlier.</key>
 		<key name="warning_0039">#!free!#</key>
 		<key name="warning_0040">#!free!#</key>
 		<key name="warning_0041">[ Warning ] - There was a problem saving the install manifest. The reason may be in the: [#!data!path::log::main!#] log file on this host.</key>
