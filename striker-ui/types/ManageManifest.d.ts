@@ -72,11 +72,9 @@ type MapToManifestFormInputHandler = Record<string, ManifestFormInputHandler>;
 /** ---------- Component types ---------- */
 
 type AnIdInputGroupOptionalProps = {
-  debounceWait?: number;
-  onSequenceChange?: import('react').ChangeEventHandler<
-    HTMLInputElement | HTMLTextAreaElement
-  >;
-  previous?: Partial<ManifestAnId>;
+  slotProps?: {
+    grid?: import('@mui/material/Grid2').Grid2Props;
+  };
 };
 
 type AnIdInputGroupProps = AnIdInputGroupOptionalProps;
@@ -97,39 +95,13 @@ type AnNetworkTypeChangeEventHandler =
   AnNetworkChangeEventHandler<SelectChangeEventHandler>;
 
 type AnNetworkInputGroupOptionalProps = {
-  debounceWait?: number;
-  inputGatewayLabel?: string;
-  inputMinIpLabel?: string;
-  inputSubnetMaskLabel?: string;
-  onClose?: AnNetworkCloseEventHandler;
-  onNetworkGatewayChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkMinIpChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkSubnetMaskChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkTypeChange?: AnNetworkTypeChangeEventHandler;
-  previous?: {
-    gateway?: string;
-    minIp?: string;
-    subnetMask?: string;
-  };
   readonlyNetworkName?: boolean;
-  showCloseButton?: boolean;
   showGateway?: boolean;
 };
 
-type AnNetworkInputGroupProps<M extends MapToInputTestID> =
-  AnNetworkInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    networkId: string;
-    networkNumber: number;
-    networkType: string;
-    networkTypeOptions: SelectItem[];
-  };
+type AnNetworkInputGroupProps = AnNetworkInputGroupOptionalProps & {
+  networkId: string;
+};
 
 type AnHostInputGroupOptionalProps = {
   hostLabel?: string;

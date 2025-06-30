@@ -9,7 +9,9 @@ import {
   INPUT_ID_AI_SEQUENCE,
 } from './inputIds';
 
-const AnIdInputGroup: React.FC<AnIdInputGroupProps> = () => {
+const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
+  const { slotProps } = props;
+
   const context = useManifestFormContext(ManifestFormContext);
 
   if (!context) {
@@ -27,6 +29,7 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = () => {
       }}
       container
       spacing="1em"
+      {...slotProps?.grid}
     >
       <MuiGrid size={1}>
         <OutlinedInputWithLabel
