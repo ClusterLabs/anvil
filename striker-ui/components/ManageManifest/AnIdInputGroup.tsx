@@ -30,7 +30,7 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
       }}
       container
       spacing="1em"
-      {...slotProps?.grid}
+      {...slotProps?.container}
     >
       <MuiGrid size={1}>
         <UncontrolledInput
