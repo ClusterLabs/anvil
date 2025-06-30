@@ -9,6 +9,7 @@ import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
+import deleteNetwork from './deleteNetwork';
 
 import {
   INPUT_ID_AN_GATEWAY,
@@ -41,8 +42,6 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
       [INPUT_ID_AN_NETWORK_NUMBER]: `${network}.${INPUT_ID_AN_NETWORK_NUMBER}`,
       [INPUT_ID_AN_NETWORK_TYPE]: `${network}.${INPUT_ID_AN_NETWORK_TYPE}`,
       [INPUT_ID_AN_SUBNET_MASK]: `${network}.${INPUT_ID_AN_SUBNET_MASK}`,
-      network,
-      networks,
     };
   }, [networkId]);
 
@@ -109,9 +108,7 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
         <IconButton
           mapPreset="delete"
           onClick={() => {
-            const { [networkId]: rm, ...keep } = formik.values.netconf.networks;
-
-            formik.setFieldValue(chains.networks, keep, true);
+            formik.setValues(deleteNetwork(formik.values, networkId), true);
           }}
           sx={{
             padding: '.2em',
