@@ -109,28 +109,10 @@ type AnNetworkConfigInputGroupProps = {
   };
 };
 
-type AnHostConfigInputGroupProps = {
-  knownFences: APIManifestTemplateFenceList;
-  knownUpses: APIManifestTemplateUpsList;
-};
-
-type AddManifestInputGroupOptionalProps = Pick<
-  AnHostConfigInputGroupProps,
+type AnHostConfigInputGroupProps = Pick<
+  AnHostInputGroupProps,
   'knownFences' | 'knownUpses'
-> & {
-  previous?: Partial<ManifestAnId> & {
-    hostConfig?: Partial<ManifestHostConfig>;
-    networkConfig?: Partial<ManifestNetworkConfig>;
-  };
-};
-
-type AddManifestInputGroupProps<M extends MapToInputTestID> =
-  AddManifestInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-  };
-
-type EditManifestInputGroupProps<M extends MapToInputTestID> =
-  AddManifestInputGroupProps<M>;
+>;
 
 /** RunManifestForm */
 
