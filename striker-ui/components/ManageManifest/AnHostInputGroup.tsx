@@ -8,6 +8,7 @@ import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SwitchWithLabel from '../SwitchWithLabel';
 import { BodyText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
+import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 import {
   INPUT_ID_AH_FENCE_PORT,
@@ -40,7 +41,17 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
 
   const { changeFieldValue, formik, handleChange } = context.formikUtils;
 
-  const upses = Object.entries(formik.values.hosts[hostSequence].upses);
+  const fences = Object.entries<
+    ManifestFormikValues['hosts'][string]['fences'][string]
+  >(formik.values.hosts[hostSequence].fences);
+
+  const networks = Object.entries<
+    ManifestFormikValues['hosts'][string]['networks'][string]
+  >(formik.values.hosts[hostSequence].networks);
+
+  const upses = Object.entries<
+    ManifestFormikValues['hosts'][string]['upses'][string]
+  >(formik.values.hosts[hostSequence].upses);
 
   return (
     <InnerPanel mv={0}>
@@ -65,42 +76,40 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
                   It is recommended to provide at least 1 fence device plug.
                 </MessageBox>
               </MuiGrid>
-              {Object.entries(formik.values.hosts[hostSequence].networks).map(
-                (entry) => {
-                  const [networkId, hostNetwork] = entry;
+              {networks.map((entry) => {
+                const [networkId, hostNetwork] = entry;
 
-                  const { [INPUT_ID_AH_NETWORK_IP]: ip } = hostNetwork;
+                const { [INPUT_ID_AH_NETWORK_IP]: ip } = hostNetwork;
 
-                  const inputId = `${chains.networks}.${networkId}.${INPUT_ID_AH_NETWORK_IP}`;
+                const inputId = `${chains.networks}.${networkId}.${INPUT_ID_AH_NETWORK_IP}`;
 
-                  const {
-                    [INPUT_ID_AN_NETWORK_NUMBER]: sequence,
-                    [INPUT_ID_AN_NETWORK_TYPE]: type = '',
-                  } = formik.values.netconf.networks[networkId];
+                const {
+                  [INPUT_ID_AN_NETWORK_NUMBER]: sequence,
+                  [INPUT_ID_AN_NETWORK_TYPE]: type = '',
+                } = formik.values.netconf.networks[networkId];
 
-                  const inputLabel = `${type.toUpperCase()} ${sequence} IP`;
+                const inputLabel = `${type.toUpperCase()} ${sequence} IP`;
 
-                  return (
-                    <MuiGrid
-                      key={`host-${hostSequence}-network-${networkId}`}
-                      size={1}
-                    >
-                      <UncontrolledInput
-                        input={
-                          <OutlinedInputWithLabel
-                            id={inputId}
-                            label={inputLabel}
-                            name={inputId}
-                            onChange={handleChange}
-                            required
-                            value={ip}
-                          />
-                        }
-                      />
-                    </MuiGrid>
-                  );
-                },
-              )}
+                return (
+                  <MuiGrid
+                    key={`host-${hostSequence}-network-${networkId}`}
+                    size={1}
+                  >
+                    <UncontrolledInput
+                      input={
+                        <OutlinedInputWithLabel
+                          id={inputId}
+                          label={inputLabel}
+                          name={inputId}
+                          onChange={handleChange}
+                          required
+                          value={ip}
+                        />
+                      }
+                    />
+                  </MuiGrid>
+                );
+              })}
               <MuiGrid size={1}>
                 <UncontrolledInput
                   input={
@@ -116,38 +125,36 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
                   }
                 />
               </MuiGrid>
-              {Object.entries(formik.values.hosts[hostSequence].fences).map(
-                (entry) => {
-                  const [fenceUuid, hostFence] = entry;
+              {fences.map((entry) => {
+                const [fenceUuid, hostFence] = entry;
 
-                  const { [INPUT_ID_AH_FENCE_PORT]: plug } = hostFence;
+                const { [INPUT_ID_AH_FENCE_PORT]: plug } = hostFence;
 
-                  const inputId = `${chains.fences}.${fenceUuid}.${INPUT_ID_AH_FENCE_PORT}`;
+                const inputId = `${chains.fences}.${fenceUuid}.${INPUT_ID_AH_FENCE_PORT}`;
 
-                  const { [fenceUuid]: fence } = knownFences;
+                const { [fenceUuid]: fence } = knownFences;
 
-                  const inputLabel = `Plug on ${fence.fenceName}`;
+                const inputLabel = `Plug on ${fence.fenceName}`;
 
-                  return (
-                    <MuiGrid
-                      key={`host-${hostSequence}-fence-${fenceUuid}`}
-                      size={1}
-                    >
-                      <UncontrolledInput
-                        input={
-                          <OutlinedInputWithLabel
-                            id={inputId}
-                            label={inputLabel}
-                            name={inputId}
-                            onChange={handleChange}
-                            value={plug}
-                          />
-                        }
-                      />
-                    </MuiGrid>
-                  );
-                },
-              )}
+                return (
+                  <MuiGrid
+                    key={`host-${hostSequence}-fence-${fenceUuid}`}
+                    size={1}
+                  >
+                    <UncontrolledInput
+                      input={
+                        <OutlinedInputWithLabel
+                          id={inputId}
+                          label={inputLabel}
+                          name={inputId}
+                          onChange={handleChange}
+                          value={plug}
+                        />
+                      }
+                    />
+                  </MuiGrid>
+                );
+              })}
             </MuiGrid>
           </MuiGrid>
           {upses.length && (
