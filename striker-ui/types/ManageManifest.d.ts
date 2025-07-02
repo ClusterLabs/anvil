@@ -123,7 +123,7 @@ type RunManifestFormOptionalProps = {
 type RunManifestFormProps = RunManifestFormOptionalProps & {
   detail: APIManifestDetail;
   knownFences: APIManifestTemplateFenceList;
-  knownHosts: APIHostOverviewList;
+  knownHosts: APIHostDetailList;
   knownUpses: APIManifestTemplateUpsList;
   tools: CrudListFormTools;
 };

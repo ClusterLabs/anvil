@@ -63,18 +63,18 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
   const hostOptions = useMemo(
     () =>
       knownHostEntries.map<SelectItem<string>>((entry) => {
-        const [, { anvil, hostName, hostUUID }] = entry;
+        const [, { anvil, name, uuid }] = entry;
 
         return {
           displayValue: (
             <FlexBox spacing={0}>
-              <BodyText inverted>{hostName}</BodyText>
+              <BodyText inverted>{name}</BodyText>
               <SmallText inverted>
                 {anvil ? `Used by ${anvil.name}` : `Ready`}
               </SmallText>
             </FlexBox>
           ),
-          value: hostUUID,
+          value: uuid,
         };
       }),
     [knownHostEntries],
@@ -109,14 +109,14 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
               }
             } else if (shortRenameTo) {
               const found = knownHostEntries.find(
-                ([, { shortHostName }]) => shortHostName === shortRenameTo,
+                ([, { short }]) => short === shortRenameTo,
               );
 
               if (found) {
                 const [, foundValue] = found;
 
                 hostAnvil = foundValue.anvil;
-                hostUuid = foundValue.hostUUID;
+                hostUuid = foundValue.uuid;
               }
             }
 
@@ -162,7 +162,7 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
             const prettyId = `${type.replace('node', 'Subnode')} ${number}`;
 
             previous[prettyId] = {
-              useHost: knownHosts[uuid].hostName,
+              useHost: knownHosts[uuid].name,
               renameTo: `${hosts[id].hostName}.${manifestDomain}`,
             };
 
@@ -289,10 +289,10 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
                 selectProps={{
                   renderValue: (uuid) => {
                     const {
-                      [uuid]: { hostName },
+                      [uuid]: { name },
                     } = knownHosts;
 
-                    return hostName;
+                    return name;
                   },
                 }}
                 value={formik.values.hosts[hostId].uuid}
@@ -532,9 +532,8 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
     const usedHostsCsv = usedHosts
       .slice(1)
       .reduce<string>(
-        (previous, host) =>
-          `${previous}, ${knownHosts[host.uuid].shortHostName}`,
-        knownHosts[usedHosts[0].uuid].shortHostName,
+        (previous, host) => `${previous}, ${knownHosts[host.uuid].short}`,
+        knownHosts[usedHosts[0].uuid].short,
       );
 
     return (
