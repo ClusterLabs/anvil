@@ -13,6 +13,7 @@ import {
   INPUT_ID_ANC_DNS,
   INPUT_ID_ANC_NTP,
 } from './inputIds';
+import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 const AnNetworkConfigInputGroup: React.FC<AnNetworkConfigInputGroupProps> = (
   props,
@@ -40,7 +41,9 @@ const AnNetworkConfigInputGroup: React.FC<AnNetworkConfigInputGroupProps> = (
 
   const { formik, handleChange } = context.formikUtils;
 
-  const networkEntries = Object.entries(formik.values.netconf.networks);
+  const networkEntries = Object.entries<
+    ManifestFormikValues['netconf']['networks'][string]
+  >(formik.values.netconf.networks);
 
   return (
     <MuiGrid
