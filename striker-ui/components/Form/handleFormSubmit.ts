@@ -24,6 +24,7 @@ type FormSubmitHandlerParams<
   onSuccess?: () => React.ReactNode;
   operation: FormOperation;
   slotProps?: {
+    confirm?: Partial<ConfirmDialogProps>;
     summary?: Partial<FormSummaryProps<V | S>>;
   };
   tools?: CrudListFormTools;
@@ -137,6 +138,7 @@ const handleFormSubmit = <
     },
     proceedColour: operation === 'delete' ? 'red' : 'blue',
     titleText: header,
+    ...slotProps?.confirm,
   };
 
   confirm?.prepare(props);
