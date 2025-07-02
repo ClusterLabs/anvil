@@ -61,7 +61,7 @@ const AnNetworkConfigInputGroup: React.FC<AnNetworkConfigInputGroupProps> = (
         const [id, value] = network;
 
         return (
-          <MuiGrid key={`netconf-network-${id}`} size="grow" width="100%">
+          <MuiGrid key={`netconf-network-${id}`} width="100%">
             <AnNetworkInputGroup
               networkId={id}
               showGateway={value[INPUT_ID_AN_NETWORK_TYPE] === 'ifn'}

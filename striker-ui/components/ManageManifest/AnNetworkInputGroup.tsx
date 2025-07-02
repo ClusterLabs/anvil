@@ -24,7 +24,7 @@ const networkTypeOptions = ['bcn', 'ifn', 'mn', 'sn'].map((type) => ({
   value: type,
 }));
 
-const netSeqInputWidth = '3.4em';
+const netSeqInputWidth = '4em';
 
 const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
   const { networkId, showGateway } = props;
@@ -54,7 +54,7 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
   return (
     <InnerPanel mv={0}>
       <InnerPanelHeader>
-        <MuiGrid container spacing="0.1em">
+        <MuiGrid container spacing="0.1em" width="100%">
           <MuiGrid
             width={{
               xs: '100%',
@@ -82,6 +82,7 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
             />
           </MuiGrid>
           <MuiGrid
+            size="grow"
             width={{
               xs: '100%',
               sm: netSeqInputWidth,
@@ -127,6 +128,7 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
           }}
           container
           spacing="1em"
+          width="100%"
         >
           <MuiGrid size={1}>
             <UncontrolledInput
