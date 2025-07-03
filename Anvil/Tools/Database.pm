@@ -5040,8 +5040,12 @@ WHERE
 		# Don't do anything if there isn't an active file handle for this DB.
 		next if ((not $anvil->data->{cache}{database_handle}{$db_uuid}) or ($anvil->data->{cache}{database_handle}{$db_uuid} !~ /^DBI::db=HASH/));
 		my $this_db_host_name = $anvil->Get->host_name_from_uuid({host_uuid => $db_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			db_uuid           => $db_uuid, 
+			this_db_host_name => $this_db_host_name,
+		}});
 		
-		my $results = $anvil->Database->query({query => $query, source => $THIS_FILE, line => __LINE__});
+		my $results = $anvil->Database->query({uuid => $db_uuid, query => $query, source => $THIS_FILE, line => __LINE__});
 		my $count   = @{$results};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			results => $results, 
@@ -5087,6 +5091,7 @@ WHERE
 			}});
 			
 			# Look to see if this job was seen already, and if so, if the modfified_date is newer.
+			my $refresh = 0;
 			if (exists $anvil->data->{jobs}{running}{$job_uuid})
 			{
 				# We've seen it, 
@@ -5106,6 +5111,8 @@ WHERE
 				if ($modified_date_unix > $old_modified_date_unix)
 				{
 					# This one is newer.
+					$refresh = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { refresh => $refresh }});
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0037", variables => { 
 						db_host           => $this_db_host_name,
 						job_uuid          => $job_uuid, 
@@ -5116,6 +5123,8 @@ WHERE
 				elsif (($modified_date_unix eq $old_modified_date_unix) && ($job_progress > $old_job_progress))
 				{
 					# This has the same mtime but is a higher progress.
+					$refresh = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { refresh => $refresh }});
 					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "warning_0038", variables => { 
 						db_host      => $this_db_host_name,
 						job_uuid     => $job_uuid, 
@@ -5126,7 +5135,7 @@ WHERE
 			}
 			
 			# If the job is done, see if it was recently enough to care about it.
-			if (($job_progress eq "100") && (($updated_seconds_ago == 0) or ($updated_seconds_ago > $ended_within)))
+			if ((not $refresh) && (($job_progress eq "100") && (($updated_seconds_ago == 0) or ($updated_seconds_ago > $ended_within))))
 			{
 				# Skip it
 				next;
