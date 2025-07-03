@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import FlexBox from '../FlexBox';
+import FormScrollBox from '../Form/FormScrollBox';
 import handleFormSubmit from '../Form/handleFormSubmit';
 import IconButton from '../IconButton';
 import List from '../List';
@@ -268,10 +269,12 @@ const ManageManifestPanel: React.FC = () => {
             }}
             operation="add"
           >
-            <ManifestInputGroup
-              knownFences={manifestTemplate.fences}
-              knownUpses={manifestTemplate.upses}
-            />
+            <FormScrollBox>
+              <ManifestInputGroup
+                knownFences={manifestTemplate.fences}
+                knownUpses={manifestTemplate.upses}
+              />
+            </FormScrollBox>
           </ManifestForm>
         )}
       </DialogWithHeader>
@@ -327,10 +330,12 @@ const ManageManifestPanel: React.FC = () => {
             }}
             operation="edit"
           >
-            <ManifestInputGroup
-              knownFences={manifestTemplate.fences}
-              knownUpses={manifestTemplate.upses}
-            />
+            <FormScrollBox>
+              <ManifestInputGroup
+                knownFences={manifestTemplate.fences}
+                knownUpses={manifestTemplate.upses}
+              />
+            </FormScrollBox>
           </ManifestForm>
         )}
       </DialogWithHeader>
