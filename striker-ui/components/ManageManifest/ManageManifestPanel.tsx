@@ -326,7 +326,7 @@ const ManageManifestPanel: React.FC = () => {
                   values,
                 });
               },
-              validationSchema: buildManifestSchema(manifests),
+              validationSchema: buildManifestSchema(manifests, manifest.name),
             }}
             operation="edit"
           >

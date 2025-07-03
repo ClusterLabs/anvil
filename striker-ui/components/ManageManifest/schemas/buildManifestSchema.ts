@@ -1,19 +1,30 @@
 import * as yup from 'yup';
 
+import buildManifestHostSchema from './buildManifestHostSchema';
 import buildManifestNetworkConfigSchema from './buildManifestNetworkConfigSchema';
+import buildYupDynamicObject from '../../../lib/buildYupDynamicObject';
+import { yupGetNotOneOf } from '../../../lib/yupCommons';
 
 import {
   INPUT_ID_AI_DOMAIN,
   INPUT_ID_AI_PREFIX,
   INPUT_ID_AI_SEQUENCE,
 } from '../inputIds';
-import buildYupDynamicObject from '../../../lib/buildYupDynamicObject';
-import buildManifestHostSchema from './buildManifestHostSchema';
 
-const buildManifestSchema = (manifests: APIManifestOverviewList) => {
-  const values = Object.values(manifests);
+const buildManifestSchema = (manifests: APIManifestOverviewList, skip = '') => {
+  let filterBy: ((manifest: APIManifestOverview) => boolean) | undefined;
 
-  const names = values.map<string>((manifest) => manifest.manifestName);
+  if (skip) {
+    filterBy = (manifest) => manifest.manifestName !== skip;
+  }
+
+  const names = yupGetNotOneOf<APIManifestOverview>(
+    manifests,
+    (manifest) => manifest.manifestName,
+    {
+      filterBy,
+    },
+  );
 
   return yup.object({
     [INPUT_ID_AI_DOMAIN]: yup.string().required(),
@@ -34,13 +45,6 @@ const buildManifestSchema = (manifests: APIManifestOverviewList) => {
           const paddedSequence = String(sequence).padStart(2, '0');
 
           const name = `${prefix}-anvil-${paddedSequence}`;
-
-          // console.dir({
-          //   prefix,
-          //   sequence,
-          //   paddedSequence,
-          //   name,
-          // });
 
           if (names.includes(name)) {
             return createError({
