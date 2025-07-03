@@ -181,7 +181,10 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
                   const inputLabel = `Uses ${ups.upsName}`;
 
                   return (
-                    <MuiGrid key={`host-${hostSequence}-ups-${upsUuid}`}>
+                    <MuiGrid
+                      key={`host-${hostSequence}-ups-${upsUuid}`}
+                      size={1}
+                    >
                       <SwitchWithLabel
                         checked={power}
                         id={inputId}
