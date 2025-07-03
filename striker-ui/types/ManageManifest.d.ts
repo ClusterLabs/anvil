@@ -99,8 +99,6 @@ type AnNetworkInputGroupProps = {
 
 type AnHostInputGroupProps = {
   hostSequence: string;
-  knownFences: APIManifestTemplateFenceList;
-  knownUpses: APIManifestTemplateUpsList;
 };
 
 type AnNetworkConfigInputGroupProps = {
@@ -109,10 +107,11 @@ type AnNetworkConfigInputGroupProps = {
   };
 };
 
-type AnHostConfigInputGroupProps = Pick<
-  AnHostInputGroupProps,
-  'knownFences' | 'knownUpses'
->;
+type AnHostConfigInputGroupProps = {
+  slotProps?: {
+    container?: import('@mui/material/Grid2').Grid2Props;
+  };
+};
 
 /** RunManifestForm */
 

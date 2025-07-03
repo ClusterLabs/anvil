@@ -1,7 +1,10 @@
 import MuiGrid from '@mui/material/Grid2';
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 
 import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import MessageBox from '../MessageBox';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
@@ -20,9 +23,13 @@ import {
 } from './inputIds';
 
 const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
-  const { hostSequence, knownFences, knownUpses } = props;
+  const { hostSequence } = props;
 
   const context = useManifestFormContext(ManifestFormContext);
+
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
+  );
 
   const chains = useMemo(() => {
     const host = `hosts.${hostSequence}`;
@@ -35,9 +42,11 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
     };
   }, [hostSequence]);
 
-  if (!context) {
+  if (!context || !inputContext) {
     return null;
   }
+
+  const { fences: knownFences, upses: knownUpses } = inputContext.template;
 
   const { changeFieldValue, formik, handleChange } = context.formikUtils;
 

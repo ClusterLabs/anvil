@@ -6,7 +6,7 @@ import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
 const AnHostConfigInputGroup: React.FC<AnHostConfigInputGroupProps> = (
   props,
 ) => {
-  const { knownFences, knownUpses } = props;
+  const { slotProps } = props;
 
   const context = useManifestFormContext(ManifestFormContext);
 
@@ -17,14 +17,10 @@ const AnHostConfigInputGroup: React.FC<AnHostConfigInputGroupProps> = (
   const { formik } = context.formikUtils;
 
   return (
-    <MuiGrid container spacing="1em" width="100%">
+    <MuiGrid container spacing="1em" width="100%" {...slotProps?.container}>
       {Object.keys(formik.values.hosts).map((hostSequence) => (
         <MuiGrid key={`host-${hostSequence}`} width="100%">
-          <AnHostInputGroup
-            hostSequence={hostSequence}
-            knownFences={knownFences}
-            knownUpses={knownUpses}
-          />
+          <AnHostInputGroup hostSequence={hostSequence} />
         </MuiGrid>
       ))}
     </MuiGrid>

@@ -7,6 +7,7 @@ import handleFormSubmit from '../Form/handleFormSubmit';
 import IconButton from '../IconButton';
 import List from '../List';
 import ManifestForm from './ManifestForm';
+import ManifestInputContext from './ManifestInputContext';
 import ManifestInputGroup from './ManifestInputGroup';
 import { Panel, PanelHeader } from '../Panels';
 import RunManifestForm from './RunManifestForm';
@@ -269,12 +270,16 @@ const ManageManifestPanel: React.FC = () => {
             }}
             operation="add"
           >
-            <FormScrollBox>
-              <ManifestInputGroup
-                knownFences={manifestTemplate.fences}
-                knownUpses={manifestTemplate.upses}
-              />
-            </FormScrollBox>
+            <ManifestInputContext
+              value={{
+                hosts,
+                template: manifestTemplate,
+              }}
+            >
+              <FormScrollBox>
+                <ManifestInputGroup />
+              </FormScrollBox>
+            </ManifestInputContext>
           </ManifestForm>
         )}
       </DialogWithHeader>
@@ -330,12 +335,16 @@ const ManageManifestPanel: React.FC = () => {
             }}
             operation="edit"
           >
-            <FormScrollBox>
-              <ManifestInputGroup
-                knownFences={manifestTemplate.fences}
-                knownUpses={manifestTemplate.upses}
-              />
-            </FormScrollBox>
+            <ManifestInputContext
+              value={{
+                hosts,
+                template: manifestTemplate,
+              }}
+            >
+              <FormScrollBox>
+                <ManifestInputGroup />
+              </FormScrollBox>
+            </ManifestInputContext>
           </ManifestForm>
         )}
       </DialogWithHeader>
