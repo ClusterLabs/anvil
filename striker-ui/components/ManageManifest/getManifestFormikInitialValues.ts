@@ -28,27 +28,57 @@ const populateHostFence = (
     const { fenceUUID: uuid } = fence;
 
     previous[uuid] = {
-      [INPUT_ID_AH_FENCE_PORT]: used?.[uuid].fencePort ?? '',
+      [INPUT_ID_AH_FENCE_PORT]: used[uuid]?.fencePort ?? '',
     };
 
     return previous;
   }, initial);
 
 const populateHostNetwork = (
-  known: ManifestFormikValues['netconf']['networks'][string][],
+  parentSequence: number,
+  hostSequence: number,
+  known: [string, ManifestFormikValues['netconf']['networks'][string]][],
   used: ManifestHostNetworkList = {},
   initial: ManifestFormikValues['hosts'][string]['networks'] = {},
 ): typeof initial =>
-  known.reduce<typeof initial>((previous, network) => {
+  known.reduce<typeof initial>((previous, entry) => {
+    const [key, network] = entry;
+
     const {
-      [INPUT_ID_AN_NETWORK_NUMBER]: sequence,
+      [INPUT_ID_AN_NETWORK_NUMBER]: sequence = 0,
       [INPUT_ID_AN_NETWORK_TYPE]: type,
     } = network;
 
     const id = `${type}${sequence}`;
 
-    previous[id] = {
-      [INPUT_ID_AH_NETWORK_IP]: used?.[id].networkIp ?? '',
+    const o3 = 10 + 2 * (parentSequence - 1);
+    const o4 = hostSequence;
+
+    let o2 = 0;
+
+    let fallback: string;
+
+    switch (type) {
+      case 'bcn':
+        o2 = 200 + sequence;
+        fallback = `10.${o2}.${o3}.${o4}`;
+        break;
+      case 'mn':
+        o2 = 199;
+        fallback = `10.${o2}.${o3}.${o4}`;
+        break;
+      case 'sn':
+        o2 = 100 + sequence;
+        fallback = `10.${o2}.${o3}.${o4}`;
+        break;
+      default:
+        fallback = '';
+    }
+
+    // Ensure the host network object keys match the netconf.networks object
+    // keys for easier add or remove operations.
+    previous[key] = {
+      [INPUT_ID_AH_NETWORK_IP]: used[id]?.networkIp ?? fallback,
     };
 
     return previous;
@@ -63,7 +93,7 @@ const populateHostUps = (
     const { upsUUID: uuid } = ups;
 
     previous[uuid] = {
-      [INPUT_ID_AH_UPS_POWER_HOST]: used?.[uuid].isUsed ?? false,
+      [INPUT_ID_AH_UPS_POWER_HOST]: used[uuid]?.isUsed ?? false,
     };
 
     return previous;
@@ -121,8 +151,8 @@ const getManifestFormikInitialValues = (
         [INPUT_ID_AN_GATEWAY]: gateway,
         [INPUT_ID_AN_MIN_IP]: minIp,
         [INPUT_ID_AN_NETWORK_NUMBER]: sequence,
-        [INPUT_ID_AN_SUBNET_MASK]: subnetMask,
         [INPUT_ID_AN_NETWORK_TYPE]: type,
+        [INPUT_ID_AN_SUBNET_MASK]: subnetMask,
       };
     });
 
@@ -133,7 +163,9 @@ const getManifestFormikInitialValues = (
         [INPUT_ID_AH_IPMI_IP]: ipmiIp,
         fences: populateHostFence(knownFences, host.fences),
         networks: populateHostNetwork(
-          Object.values(values.netconf.networks),
+          detail.sequence,
+          sequence,
+          Object.entries(values.netconf.networks),
           host.networks,
         ),
         upses: populateHostUps(knownUpses, host.upses),
@@ -144,37 +176,43 @@ const getManifestFormikInitialValues = (
 
     values[INPUT_ID_AI_DOMAIN] = template.domain;
     values[INPUT_ID_AI_PREFIX] = template.prefix;
-    values[INPUT_ID_AI_SEQUENCE] = template.sequence + 1;
+    values[INPUT_ID_AI_SEQUENCE] = template.sequence;
 
     values.netconf.networks = {
       defaultbcn: {
         [INPUT_ID_AN_GATEWAY]: '',
-        [INPUT_ID_AN_MIN_IP]: '',
+        [INPUT_ID_AN_MIN_IP]: '10.201.0.0',
         [INPUT_ID_AN_NETWORK_NUMBER]: 1,
-        [INPUT_ID_AN_SUBNET_MASK]: '',
         [INPUT_ID_AN_NETWORK_TYPE]: 'bcn',
+        [INPUT_ID_AN_SUBNET_MASK]: '255.255.0.0',
       },
       defaultifn: {
         [INPUT_ID_AN_GATEWAY]: '',
         [INPUT_ID_AN_MIN_IP]: '',
         [INPUT_ID_AN_NETWORK_NUMBER]: 1,
-        [INPUT_ID_AN_SUBNET_MASK]: '',
         [INPUT_ID_AN_NETWORK_TYPE]: 'ifn',
+        [INPUT_ID_AN_SUBNET_MASK]: '',
       },
       defaultsn: {
         [INPUT_ID_AN_GATEWAY]: '',
-        [INPUT_ID_AN_MIN_IP]: '',
+        [INPUT_ID_AN_MIN_IP]: '10.101.0.0',
         [INPUT_ID_AN_NETWORK_NUMBER]: 1,
-        [INPUT_ID_AN_SUBNET_MASK]: '',
         [INPUT_ID_AN_NETWORK_TYPE]: 'sn',
+        [INPUT_ID_AN_SUBNET_MASK]: '255.255.0.0',
       },
     };
+
+    values.netconf[INPUT_ID_ANC_DNS] = '8.8.8.8,8.8.4.4';
 
     [1, 2].forEach((sequence) => {
       values.hosts[sequence] = {
         [INPUT_ID_AH_IPMI_IP]: '',
         fences: populateHostFence(knownFences),
-        networks: populateHostNetwork(Object.values(values.netconf.networks)),
+        networks: populateHostNetwork(
+          template.sequence,
+          sequence,
+          Object.entries(values.netconf.networks),
+        ),
         upses: populateHostUps(knownUpses),
       };
     });
