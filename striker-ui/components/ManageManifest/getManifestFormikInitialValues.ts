@@ -193,6 +193,13 @@ const getManifestFormikInitialValues = (
         [INPUT_ID_AN_NETWORK_TYPE]: 'ifn',
         [INPUT_ID_AN_SUBNET_MASK]: '',
       },
+      defaultmn: {
+        [INPUT_ID_AN_GATEWAY]: '',
+        [INPUT_ID_AN_MIN_IP]: '10.199.0.0',
+        [INPUT_ID_AN_NETWORK_NUMBER]: 1,
+        [INPUT_ID_AN_NETWORK_TYPE]: 'mn',
+        [INPUT_ID_AN_SUBNET_MASK]: '255.255.0.0',
+      },
       defaultsn: {
         [INPUT_ID_AN_GATEWAY]: '',
         [INPUT_ID_AN_MIN_IP]: '10.101.0.0',
