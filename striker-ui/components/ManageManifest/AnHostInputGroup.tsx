@@ -46,9 +46,9 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
     return null;
   }
 
-  const { fences: knownFences, upses: knownUpses } = inputContext.template;
-
   const { changeFieldValue, formik, handleChange } = context.formikUtils;
+
+  const { fences: knownFences, upses: knownUpses } = inputContext.template;
 
   const fences = Object.entries<
     ManifestFormikValues['hosts'][string]['fences'][string]
