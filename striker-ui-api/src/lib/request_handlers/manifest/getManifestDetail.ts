@@ -239,7 +239,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
                     const { uuid: upsUuid } = upsUuidContainer;
 
                     upses[upsName] = {
-                      isUsed: Boolean(used),
+                      isUsed: used === '1',
                       upsName,
                       upsUuid,
                     };
