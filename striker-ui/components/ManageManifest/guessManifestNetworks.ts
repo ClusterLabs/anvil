@@ -3,6 +3,7 @@ import { Netmask } from 'netmask';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 import {
+  INPUT_ID_AH_IPMI_IP,
   INPUT_ID_AH_NETWORK_IP,
   INPUT_ID_AI_DOMAIN,
   INPUT_ID_AI_PREFIX,
@@ -50,6 +51,11 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
     if (!hostInputs) {
       return;
     }
+
+    guessed.hosts[subnodeSequence] = {
+      ...guessed.hosts[subnodeSequence],
+      [INPUT_ID_AH_IPMI_IP]: host.ipmi.ip,
+    };
 
     Object.entries(values.netconf.networks).forEach((entry) => {
       const [networkId, network] = entry;
