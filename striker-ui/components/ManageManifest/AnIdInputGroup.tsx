@@ -1,8 +1,13 @@
 import MuiGrid from '@mui/material/Grid2';
+import { useContext } from 'react';
 
 import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
+import guessManifestNetworks from './guessManifestNetworks';
 
 import {
   INPUT_ID_AI_DOMAIN,
@@ -15,11 +20,18 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
 
   const context = useManifestFormContext(ManifestFormContext);
 
-  if (!context) {
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
+  );
+
+  if (!context || !inputContext) {
     return null;
   }
 
-  const { formik, handleChange } = context.formikUtils;
+  const { formik, getFieldChanged, handleChange, setValuesKai } =
+    context.formikUtils;
+
+  const { hosts } = inputContext;
 
   return (
     <MuiGrid
@@ -67,7 +79,25 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
               id={INPUT_ID_AI_SEQUENCE}
               label="Sequence"
               name={INPUT_ID_AI_SEQUENCE}
-              onChange={handleChange}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_SEQUENCE] = Number(value);
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
               required
               value={formik.values[INPUT_ID_AI_SEQUENCE]}
             />
