@@ -1,5 +1,6 @@
 import * as yup from 'yup';
 
+import buildDuplicateTestConfig from './buildDuplicateTestConfig';
 import buildManifestHostSchema from './buildManifestHostSchema';
 import buildManifestNetworkConfigSchema from './buildManifestNetworkConfigSchema';
 import buildYupDynamicObject from '../../../lib/buildYupDynamicObject';
@@ -33,29 +34,12 @@ const buildManifestSchema = (manifests: APIManifestOverviewList, skip = '') => {
       .min(1)
       .max(5)
       .required()
-      .test({
-        exclusive: true,
-        message: '${path} already exists',
-        name: 'existing-name',
-        test: (prefix, context) => {
-          const { createError, parent } = context;
-
-          const { [INPUT_ID_AI_SEQUENCE]: sequence } = parent;
-
-          const paddedSequence = String(sequence).padStart(2, '0');
-
-          const name = `${prefix}-anvil-${paddedSequence}`;
-
-          if (names.includes(name)) {
-            return createError({
-              message: `${name} already exists`,
-            });
-          }
-
-          return true;
-        },
-      }),
-    [INPUT_ID_AI_SEQUENCE]: yup.number().min(1).required(),
+      .test(buildDuplicateTestConfig<string>(names)),
+    [INPUT_ID_AI_SEQUENCE]: yup
+      .number()
+      .min(1)
+      .required()
+      .test(buildDuplicateTestConfig<number>(names)),
     netconf: buildManifestNetworkConfigSchema(),
     hosts: yup.lazy((obj) =>
       yup.object(buildYupDynamicObject(obj, buildManifestHostSchema())),
