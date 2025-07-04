@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
+import guessHostNetwork from './guessHostNetwork';
 import guessManifestNetworks from './guessManifestNetworks';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
@@ -45,41 +46,15 @@ const populateHostNetwork = (
   known.reduce<typeof initial>((previous, entry) => {
     const [key, network] = entry;
 
-    const {
-      [INPUT_ID_AN_NETWORK_NUMBER]: sequence = 0,
-      [INPUT_ID_AN_NETWORK_TYPE]: type,
-    } = network;
-
-    const id = `${type}${sequence}`;
-
-    const o3 = 10 + 2 * (parentSequence - 1);
-    const o4 = hostSequence;
-
-    let o2 = 0;
-
-    let fallback: string;
-
-    switch (type) {
-      case 'bcn':
-        o2 = 200 + sequence;
-        fallback = `10.${o2}.${o3}.${o4}`;
-        break;
-      case 'mn':
-        o2 = 199;
-        fallback = `10.${o2}.${o3}.${o4}`;
-        break;
-      case 'sn':
-        o2 = 100 + sequence;
-        fallback = `10.${o2}.${o3}.${o4}`;
-        break;
-      default:
-        fallback = '';
-    }
-
     // Ensure the host network object keys match the netconf.networks object
     // keys for easier add or remove operations.
     previous[key] = {
-      [INPUT_ID_AH_NETWORK_IP]: used[id]?.networkIp ?? fallback,
+      [INPUT_ID_AH_NETWORK_IP]: guessHostNetwork(
+        parentSequence,
+        hostSequence,
+        network,
+        used,
+      ),
     };
 
     return previous;
