@@ -16,7 +16,7 @@ type APIManifestDetail = ManifestAnId & {
   hostConfig: ManifestHostConfig;
   name: string;
   networkConfig: ManifestNetworkConfig;
-  uuid?: string;
+  uuid: string;
 };
 
 type APIManifestTemplateFence = {
