@@ -293,6 +293,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
     },
     prefix,
     sequence: Number(sequence),
+    uuid: manifestUuid,
   };
 
   response.status(200).send(manifestData);
