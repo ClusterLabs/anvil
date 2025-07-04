@@ -29,6 +29,53 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
     [INPUT_ID_AI_SEQUENCE]: nodeSequence,
   } = values;
 
+  const guessed = { ...values };
+
+  const networkEntries = Object.entries(values.netconf.networks);
+
+  networkEntries.forEach((entry) => {
+    const [networkId, network] = entry;
+
+    const {
+      [INPUT_ID_AN_NETWORK_NUMBER]: networkSequence = 0,
+      [INPUT_ID_AN_NETWORK_TYPE]: networkType,
+    } = network;
+
+    const guessedNetwork: ManifestFormikValues['netconf']['networks'][string] =
+      {
+        ...guessed.netconf.networks[networkId],
+      };
+
+    const networkChain = `netconf.networks.${networkId}`;
+
+    if (!getFieldChanged?.(`${networkChain}.${INPUT_ID_AN_MIN_IP}`)) {
+      let o2 = 0;
+
+      let minIp: string;
+
+      switch (networkType) {
+        case 'bcn':
+          o2 = 200 + Number(networkSequence);
+          minIp = `10.${o2}.0.0`;
+          break;
+        case 'mn':
+          o2 = 199;
+          minIp = `10.${o2}.0.0`;
+          break;
+        case 'sn':
+          o2 = 100 + Number(networkSequence);
+          minIp = `10.${o2}.0.0`;
+          break;
+        default:
+          minIp = '';
+      }
+
+      guessedNetwork[INPUT_ID_AN_MIN_IP] = minIp;
+    }
+
+    guessed.netconf.networks[networkId] = guessedNetwork;
+  });
+
   const matchedHosts = Object.values(hosts).filter((host) => {
     const { name } = host;
 
@@ -38,8 +85,6 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
 
     return re.test(name);
   });
-
-  const guessed = { ...values };
 
   matchedHosts.forEach((host) => {
     const tail = host.short.replace(/^.*n(\d+)$/, '$1');
@@ -57,7 +102,7 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
       [INPUT_ID_AH_IPMI_IP]: host.ipmi.ip,
     };
 
-    Object.entries(values.netconf.networks).forEach((entry) => {
+    networkEntries.forEach((entry) => {
       const [networkId, network] = entry;
 
       const {

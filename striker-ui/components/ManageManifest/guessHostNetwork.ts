@@ -27,7 +27,7 @@ const guessHostNetwork = (
 
   switch (type) {
     case 'bcn':
-      o2 = 200 + sequence;
+      o2 = 200 + Number(sequence);
       fallback = `10.${o2}.${o3}.${o4}`;
       break;
     case 'mn':
@@ -35,7 +35,7 @@ const guessHostNetwork = (
       fallback = `10.${o2}.${o3}.${o4}`;
       break;
     case 'sn':
-      o2 = 100 + sequence;
+      o2 = 100 + Number(sequence);
       fallback = `10.${o2}.${o3}.${o4}`;
       break;
     default:
