@@ -175,7 +175,7 @@ const getManifestRequestBody = (
     networks,
   } = netconf;
 
-  const body: APIBuildManifestRequestBody = {
+  const requestBody: APIBuildManifestRequestBody = {
     domain,
     hostConfig: {
       hosts: getHosts(template, values),
@@ -189,7 +189,7 @@ const getManifestRequestBody = (
     sequence,
   };
 
-  return body;
+  return requestBody;
 };
 
 export default getManifestRequestBody;

@@ -22,6 +22,8 @@ import useFetch from '../../hooks/useFetch';
 import useFormUtils from '../../hooks/useFormUtils';
 import buildManifestSchema from './schemas/buildManifestSchema';
 
+const summaryMaxDepth = 6;
+
 const ManageManifestPanel: React.FC = () => {
   const addDialogRef = useRef<DialogForwardedRefContent>(null);
   const editDialogRef = useRef<DialogForwardedRefContent>(null);
@@ -36,7 +38,7 @@ const ManageManifestPanel: React.FC = () => {
     loading: loadingManifests,
     mutate: getManifestOverviews,
   } = useFetch<APIManifestOverviewList>('/manifest', {
-    refreshInterval: 10000,
+    refreshInterval: 60000,
   });
 
   const {
@@ -241,7 +243,8 @@ const ManageManifestPanel: React.FC = () => {
 
                 handleFormSubmit({
                   confirm,
-                  getRequestBody: () => requestBody,
+                  getRequestBody: (ignore, summary) => summary,
+                  getSummary: () => requestBody,
                   header: `Add install manifest with the following?`,
                   helpers,
                   onError: () => `Failed to add install manifest.`,
@@ -260,6 +263,9 @@ const ManageManifestPanel: React.FC = () => {
                           {countHostFences(requestBody).messages}
                         </FlexBox>
                       ),
+                    },
+                    summary: {
+                      maxDepth: summaryMaxDepth,
                     },
                   },
                   url: '/manifest',
@@ -306,7 +312,8 @@ const ManageManifestPanel: React.FC = () => {
 
                 handleFormSubmit({
                   confirm,
-                  getRequestBody: () => requestBody,
+                  getRequestBody: (ignore, summary) => summary,
+                  getSummary: () => requestBody,
                   header: `Update install manifest ${manifest.name} with the following?`,
                   helpers,
                   onError: () => `Failed to update install manifest.`,
@@ -325,6 +332,9 @@ const ManageManifestPanel: React.FC = () => {
                           {countHostFences(requestBody).messages}
                         </FlexBox>
                       ),
+                    },
+                    summary: {
+                      maxDepth: summaryMaxDepth,
                     },
                   },
                   url: `/manifest/${manifest.uuid}`,
