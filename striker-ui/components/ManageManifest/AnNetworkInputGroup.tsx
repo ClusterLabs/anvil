@@ -1,14 +1,18 @@
 import MuiGrid from '@mui/material/Grid2';
-import { useMemo } from 'react';
+import { useContext, useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
 import IconButton from '../IconButton';
 import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
 import UncontrolledInput from '../UncontrolledInput';
+import guessManifestNetworks from './guessManifestNetworks';
 import deleteNetwork from './deleteNetwork';
 
 import {
@@ -31,6 +35,10 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
 
   const context = useManifestFormContext(ManifestFormContext);
 
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
+  );
+
   const chains = useMemo(() => {
     const networks = `netconf.networks`;
 
@@ -45,11 +53,19 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
     };
   }, [networkId]);
 
-  if (!context) {
+  if (!context || !inputContext) {
     return null;
   }
 
-  const { changeFieldValue, formik, handleChange } = context.formikUtils;
+  const {
+    changeFieldValue,
+    formik,
+    getFieldChanged,
+    handleChange,
+    setValuesKai,
+  } = context.formikUtils;
+
+  const { hosts } = inputContext;
 
   return (
     <InnerPanel mv={0}>
@@ -66,6 +82,26 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
               name={chains[INPUT_ID_AN_NETWORK_TYPE]}
               onChange={(event) => {
                 const { value } = event.target;
+
+                setValuesKai({
+                  event: event as unknown as React.ChangeEvent<{
+                    name: string;
+                  }>,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow.netconf.networks[networkId] = {
+                      ...shallow.netconf.networks[networkId],
+                      [INPUT_ID_AN_NETWORK_TYPE]: value,
+                    };
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
 
                 changeFieldValue(chains[INPUT_ID_AN_NETWORK_TYPE], value, true);
               }}
@@ -94,7 +130,28 @@ const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
                   id={chains[INPUT_ID_AN_NETWORK_NUMBER]}
                   label="#"
                   name={chains[INPUT_ID_AN_NETWORK_NUMBER]}
-                  onChange={handleChange}
+                  onChange={(event) => {
+                    const { value } = event.target;
+
+                    setValuesKai({
+                      debounce: true,
+                      event,
+                      values: (previous) => {
+                        const shallow = { ...previous };
+
+                        shallow.netconf.networks[networkId] = {
+                          ...shallow.netconf.networks[networkId],
+                          [INPUT_ID_AN_NETWORK_NUMBER]: Number(value),
+                        };
+
+                        return guessManifestNetworks({
+                          getFieldChanged,
+                          hosts,
+                          values: shallow,
+                        });
+                      },
+                    });
+                  }}
                   required
                   value={
                     formik.values.netconf.networks[networkId][

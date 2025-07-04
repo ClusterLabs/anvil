@@ -28,8 +28,7 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
     return null;
   }
 
-  const { formik, getFieldChanged, handleChange, setValuesKai } =
-    context.formikUtils;
+  const { formik, getFieldChanged, setValuesKai } = context.formikUtils;
 
   const { hosts } = inputContext;
 
@@ -51,7 +50,25 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
               id={INPUT_ID_AI_PREFIX}
               label="Prefix"
               name={INPUT_ID_AI_PREFIX}
-              onChange={handleChange}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_PREFIX] = value;
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
               required
               value={formik.values[INPUT_ID_AI_PREFIX]}
             />
@@ -65,7 +82,25 @@ const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
               id={INPUT_ID_AI_DOMAIN}
               label="Domain name"
               name={INPUT_ID_AI_DOMAIN}
-              onChange={handleChange}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_DOMAIN] = value;
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
               required
               value={formik.values[INPUT_ID_AI_DOMAIN]}
             />
