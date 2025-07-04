@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
+import guessManifestNetworks from './guessManifestNetworks';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 import {
@@ -104,7 +105,7 @@ const getManifestFormikInitialValues = (
   hosts: APIHostDetailList,
   detail?: APIManifestDetail,
 ): ManifestFormikValues => {
-  const values: ManifestFormikValues = {
+  let values: ManifestFormikValues = {
     [INPUT_ID_AI_DOMAIN]: '',
     [INPUT_ID_AI_PREFIX]: '',
     [INPUT_ID_AI_SEQUENCE]: 1,
@@ -222,6 +223,11 @@ const getManifestFormikInitialValues = (
         ),
         upses: populateHostUps(knownUpses),
       };
+    });
+
+    values = guessManifestNetworks({
+      hosts,
+      values,
     });
   }
 
