@@ -9,6 +9,12 @@ import disassembleCamel from '../lib/disassembleCamel';
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
 
+const isNone = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'number' && !Number.isFinite(value)) ||
+  (typeof value === 'string' && value.trim().length === 0);
+
 const renderEntryValueWithMono: RenderFormValueFunction = ({ entry }) => (
   <MonoText whiteSpace="nowrap">{String(entry)}</MonoText>
 );
@@ -26,7 +32,7 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
 const renderEntryValueBase: RenderFormValueFunction = (args) => {
   const { entry, hasPassword } = args;
 
-  if (isEmpty(entry)) {
+  if (isNone(entry)) {
     return <BodyText>none</BodyText>;
   }
 
