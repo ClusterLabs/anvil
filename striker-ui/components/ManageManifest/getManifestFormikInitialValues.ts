@@ -27,10 +27,10 @@ const populateHostFence = (
   initial: ManifestFormikValues['hosts'][string]['fences'] = {},
 ): typeof initial =>
   known.reduce<typeof initial>((previous, fence) => {
-    const { fenceUUID: uuid } = fence;
+    const { fenceName: name, fenceUUID: uuid } = fence;
 
     previous[uuid] = {
-      [INPUT_ID_AH_FENCE_PORT]: used[uuid]?.fencePort ?? '',
+      [INPUT_ID_AH_FENCE_PORT]: used[name]?.fencePort ?? '',
     };
 
     return previous;
@@ -66,10 +66,10 @@ const populateHostUps = (
   initial: ManifestFormikValues['hosts'][string]['upses'] = {},
 ): typeof initial =>
   known.reduce<typeof initial>((previous, ups) => {
-    const { upsUUID: uuid } = ups;
+    const { upsName: name, upsUUID: uuid } = ups;
 
     previous[uuid] = {
-      [INPUT_ID_AH_UPS_POWER_HOST]: used[uuid]?.isUsed ?? false,
+      [INPUT_ID_AH_UPS_POWER_HOST]: used[name]?.isUsed ?? false,
     };
 
     return previous;
