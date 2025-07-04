@@ -18,7 +18,7 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
   getFieldChanged,
   hosts,
   values,
-}: Pick<FormikUtils<V>, 'getFieldChanged'> & {
+}: Partial<Pick<FormikUtils<V>, 'getFieldChanged'>> & {
   hosts: APIHostDetailList;
   values: ManifestFormikValues;
 }): ManifestFormikValues => {
@@ -77,7 +77,7 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
 
       const networkChain = `netconf.networks.${networkId}`;
 
-      if (!getFieldChanged(`${networkChain}.${INPUT_ID_AN_MIN_IP}`)) {
+      if (!getFieldChanged?.(`${networkChain}.${INPUT_ID_AN_MIN_IP}`)) {
         let subnet: Netmask;
 
         try {
@@ -89,13 +89,13 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
         guessedNetwork[INPUT_ID_AN_MIN_IP] = subnet.base;
       }
 
-      if (!getFieldChanged(`${networkChain}.${INPUT_ID_AN_SUBNET_MASK}`)) {
+      if (!getFieldChanged?.(`${networkChain}.${INPUT_ID_AN_SUBNET_MASK}`)) {
         guessedNetwork[INPUT_ID_AN_SUBNET_MASK] = subnetMask;
       }
 
       if (
         key === host.netconf.gatewayInterface &&
-        !getFieldChanged(`${networkChain}.${INPUT_ID_AN_GATEWAY}`)
+        !getFieldChanged?.(`${networkChain}.${INPUT_ID_AN_GATEWAY}`)
       ) {
         guessedNetwork[INPUT_ID_AN_GATEWAY] = host.netconf.gateway;
       }
@@ -111,7 +111,7 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
 
       const hostNetworkChain = `hosts.${subnodeSequence}.networks.${networkId}`;
 
-      if (!getFieldChanged(`${hostNetworkChain}.${INPUT_ID_AH_NETWORK_IP}`)) {
+      if (!getFieldChanged?.(`${hostNetworkChain}.${INPUT_ID_AH_NETWORK_IP}`)) {
         guessedHostNetwork[INPUT_ID_AH_NETWORK_IP] = ip;
       }
 
