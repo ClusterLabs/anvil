@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "eslint:base": "eslint --max-warnings=0",
     "lint": "npm run eslint:base -- . && npm run prettier:base -- --check",
     "lint:next": "next lint",
