@@ -71,18 +71,11 @@ type MapToManifestFormInputHandler = Record<string, ManifestFormInputHandler>;
 
 /** ---------- Component types ---------- */
 
-type AnIdInputGroupOptionalProps = {
-  debounceWait?: number;
-  onSequenceChange?: import('react').ChangeEventHandler<
-    HTMLInputElement | HTMLTextAreaElement
-  >;
-  previous?: Partial<ManifestAnId>;
-};
-
-type AnIdInputGroupProps<M extends MapToInputTestID> =
-  AnIdInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
+type AnIdInputGroupProps = {
+  slotProps?: {
+    container?: import('@mui/material/Grid2').Grid2Props;
   };
+};
 
 type AnNetworkEventHandlerPreviousArgs = {
   networkId: string;
@@ -99,97 +92,26 @@ type AnNetworkCloseEventHandler =
 type AnNetworkTypeChangeEventHandler =
   AnNetworkChangeEventHandler<SelectChangeEventHandler>;
 
-type AnNetworkInputGroupOptionalProps = {
-  debounceWait?: number;
-  inputGatewayLabel?: string;
-  inputMinIpLabel?: string;
-  inputSubnetMaskLabel?: string;
-  onClose?: AnNetworkCloseEventHandler;
-  onNetworkGatewayChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkMinIpChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkSubnetMaskChange?: AnNetworkChangeEventHandler<
-    import('react').ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>
-  >;
-  onNetworkTypeChange?: AnNetworkTypeChangeEventHandler;
-  previous?: {
-    gateway?: string;
-    minIp?: string;
-    subnetMask?: string;
-  };
-  readonlyNetworkName?: boolean;
-  showCloseButton?: boolean;
+type AnNetworkInputGroupProps = {
+  networkId: string;
   showGateway?: boolean;
 };
 
-type AnNetworkInputGroupProps<M extends MapToInputTestID> =
-  AnNetworkInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    networkId: string;
-    networkNumber: number;
-    networkType: string;
-    networkTypeOptions: SelectItem[];
-  };
-
-type AnHostInputGroupOptionalProps = {
-  hostLabel?: string;
-  previous?: Pick<ManifestHost, 'fences' | 'ipmiIp' | 'networks' | 'upses'>;
+type AnHostInputGroupProps = {
+  hostSequence: string;
 };
 
-type AnHostInputGroupProps<M extends MapToInputTestID> =
-  AnHostInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    hostId: string;
-    hostNumber: number;
-    hostType: string;
-  };
-
-type AnNetworkConfigInputGroupOptionalProps = {
-  previous?: Partial<ManifestNetworkConfig>;
-};
-
-type AnNetworkConfigInputGroupProps<M extends MapToInputTestID> =
-  AnNetworkConfigInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
-    networkListEntries: Array<[string, ManifestNetwork]>;
-    setNetworkList: import('react').Dispatch<
-      import('react').SetStateAction<ManifestNetworkList>
-    >;
-  };
-
-type AnHostConfigInputGroupOptionalProps = {
-  knownFences?: APIManifestTemplateFenceList;
-  knownUpses?: APIManifestTemplateUpsList;
-  previous?: Partial<ManifestHostConfig>;
-};
-
-type AnHostConfigInputGroupProps<M extends MapToInputTestID> =
-  AnHostConfigInputGroupOptionalProps & {
-    anSequence: number;
-    formUtils: FormUtils<M>;
-    networkListEntries: Array<[string, ManifestNetwork]>;
-  };
-
-type AddManifestInputGroupOptionalProps = Pick<
-  AnHostConfigInputGroupOptionalProps,
-  'knownFences' | 'knownUpses'
-> & {
-  previous?: Partial<ManifestAnId> & {
-    hostConfig?: Partial<ManifestHostConfig>;
-    networkConfig?: Partial<ManifestNetworkConfig>;
+type AnNetworkConfigInputGroupProps = {
+  slotProps?: {
+    container?: import('@mui/material/Grid2').Grid2Props;
   };
 };
 
-type AddManifestInputGroupProps<M extends MapToInputTestID> =
-  AddManifestInputGroupOptionalProps & {
-    formUtils: FormUtils<M>;
+type AnHostConfigInputGroupProps = {
+  slotProps?: {
+    container?: import('@mui/material/Grid2').Grid2Props;
   };
-
-type EditManifestInputGroupProps<M extends MapToInputTestID> =
-  AddManifestInputGroupProps<M>;
+};
 
 /** RunManifestForm */
 
@@ -200,7 +122,7 @@ type RunManifestFormOptionalProps = {
 type RunManifestFormProps = RunManifestFormOptionalProps & {
   detail: APIManifestDetail;
   knownFences: APIManifestTemplateFenceList;
-  knownHosts: APIHostOverviewList;
+  knownHosts: APIHostDetailList;
   knownUpses: APIManifestTemplateUpsList;
   tools: CrudListFormTools;
 };

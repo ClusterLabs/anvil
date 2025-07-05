@@ -1,7 +1,7 @@
 type CheckboxChangeEventHandler = Exclude<CheckboxProps['onChange'], undefined>;
 
 type ListItemButtonChangeEventHandler = Exclude<
-  import('@mui/material').ListItemButtonProps['onClick'],
+  import('@mui/material/ListItemButton').ListItemButtonProps['onClick'],
   undefined
 >;
 
@@ -24,9 +24,9 @@ type ListOptionalProps<T = unknown> = {
   listEmpty?: import('react').ReactNode;
   listItemIconMinWidth?: number | string;
   listItemKeyPrefix?: string;
-  listItemProps?: import('@mui/material').ListItemProps;
+  listItemProps?: import('@mui/material/ListItem').ListItemProps;
   listItems?: T[] | Record<string, T>;
-  listProps?: import('@mui/material').ListProps;
+  listProps?: import('@mui/material/List').ListProps;
   loading?: boolean;
   onAdd?: import('../components/IconButton').IconButtonProps['onClick'];
   onDelete?: import('../components/IconButton').IconButtonProps['onClick'];

@@ -1,4 +1,5 @@
-import { Grid, Switch as MuiSwitch } from '@mui/material';
+import Grid from '@mui/material/Grid';
+import MuiSwitch from '@mui/material/Switch';
 import { useMemo, useState } from 'react';
 
 import api from '../../lib/api';

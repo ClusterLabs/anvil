@@ -1,8 +1,6 @@
-import {
-  CheckboxProps as MuiCheckboxProps,
-  InputProps as MuiInputProps,
-} from '@mui/material';
-import { debounce } from 'lodash';
+import { CheckboxProps as MuiCheckboxProps } from '@mui/material/Checkbox';
+import { InputProps as MuiInputProps } from '@mui/material/Input';
+import debounce from 'lodash/debounce';
 import {
   cloneElement,
   forwardRef,
@@ -10,6 +8,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -109,8 +108,9 @@ const InputWithRef = forwardRef(
 
     const [inputValue, setInputValue] =
       useState<MapToInputType[TypeName]>(initValue);
-    const [isChangedByUser, setIsChangedByUser] = useState<boolean>(false);
-    const [isInputValid, setIsInputValid] = useState<boolean>(false);
+
+    const changedByUserRef = useRef<boolean>(false);
+    const validRef = useRef<boolean>(false);
 
     const setValue: StateSetter = useCallback((value) => {
       setInputValue(value as MapToInputType[TypeName]);
@@ -138,8 +138,9 @@ const InputWithRef = forwardRef(
             isIgnoreOnCallbacks: true,
           }) ?? false;
 
+        validRef.current = valid;
+
         onFirstRender?.call(null, { isValid: valid });
-        setIsInputValid(valid);
       },
       [onFirstRender, testInput],
     );
@@ -159,11 +160,13 @@ const InputWithRef = forwardRef(
                 target: { value },
               },
             } = args;
-            const isValid = testInput({
+
+            const valid = testInput({
               inputs: { [INPUT_TEST_ID]: { value } },
             });
 
-            setIsInputValid(isValid);
+            validRef.current = valid;
+
             onBlurAppend?.call(null, ...args);
           })),
       [initOnBlur, onBlurAppend, testInput],
@@ -172,7 +175,8 @@ const InputWithRef = forwardRef(
       () =>
         createInputOnChangeHandler<TypeName>({
           postSet: (...args) => {
-            setIsChangedByUser(true);
+            changedByUserRef.current = true;
+
             initOnChange?.call(null, ...args);
             postSetAppend?.call(null, ...args);
           },
@@ -225,22 +229,23 @@ const InputWithRef = forwardRef(
      * This allows us to populate the input based on value from other field(s).
      */
     useEffect(() => {
-      if (isChangedByUser || inputValue === initValue || !initValue) return;
+      if (changedByUserRef.current || inputValue === initValue || !initValue)
+        return;
 
       doTestAndSet(initValue);
 
       setInputValue(initValue);
-    }, [doTestAndSet, initValue, inputValue, isChangedByUser]);
+    }, [doTestAndSet, initValue, inputValue]);
 
     useImperativeHandle(
       ref,
       () => ({
-        getIsChangedByUser: () => isChangedByUser,
+        getIsChangedByUser: () => changedByUserRef.current,
         getValue: () => inputValue,
-        isValid: () => isInputValid,
+        isValid: () => validRef.current,
         setValue,
       }),
-      [inputValue, isChangedByUser, isInputValid, setValue],
+      [inputValue, setValue],
     );
 
     return cloneElement(input, {

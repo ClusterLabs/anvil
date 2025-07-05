@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 import { useContext, useMemo } from 'react';
 
 import ActionGroup from '../ActionGroup';

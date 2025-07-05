@@ -1,14 +1,10 @@
-import {
-  Close as MuiCloseIcon,
-  Dashboard as MuiDashboardIcon,
-  Fullscreen as MuiFullscreenIcon,
-  Keyboard as MuiKeyboardIcon,
-} from '@mui/icons-material';
-import {
-  Box as MuiBox,
-  styled,
-  Typography as MuiTypography,
-} from '@mui/material';
+import MuiCloseIcon from '@mui/icons-material/Close';
+import MuiDashboardIcon from '@mui/icons-material/Dashboard';
+import MuiFullscreenIcon from '@mui/icons-material/Fullscreen';
+import MuiKeyboardIcon from '@mui/icons-material/Keyboard';
+import MuiBox from '@mui/material/Box';
+import MuiTypography from '@mui/material/Typography';
+import styled from '@mui/material/styles/styled';
 import RFB from '@novnc/novnc/core/rfb';
 import dynamic from 'next/dynamic';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';

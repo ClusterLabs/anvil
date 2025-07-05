@@ -70,7 +70,7 @@ type HostNetSummaryProps<Values extends HostNetInitFormikExtension> = {
 /** SimpleIface */
 
 type SimpleIfaceOptionalProps = {
-  boxProps?: import('@mui/material').BoxProps;
+  boxProps?: import('@mui/material/Box').BoxProps;
 };
 
 type SimpleIfaceProps = SimpleIfaceOptionalProps & {

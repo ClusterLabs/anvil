@@ -1,9 +1,7 @@
-import { SvgIconComponent as MuiSvgIconComponent } from '@mui/icons-material';
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import MuiSvgIcon, {
   SvgIconProps as MuiSvgIconProps,
-} from '@mui/material';
+} from '@mui/material/SvgIcon';
 import {
   createElement,
   forwardRef,
@@ -31,7 +29,7 @@ type IconWithIndicatorOptionalProps = IconWithIndicatorOptionalPropsWithDefault;
 
 type IconWithIndicatorProps = MuiBoxProps &
   IconWithIndicatorOptionalProps & {
-    icon: MuiSvgIconComponent;
+    icon: typeof MuiSvgIcon;
   };
 
 type IconWithIndicatorForwardedRefContent = {

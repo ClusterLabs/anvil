@@ -1,5 +1,5 @@
-import { Grid } from '@mui/material';
-import { isEmpty } from 'lodash';
+import Grid from '@mui/material/Grid';
+import isEmpty from 'lodash/isEmpty';
 import { useMemo, useRef } from 'react';
 
 import ActionGroup from '../ActionGroup';

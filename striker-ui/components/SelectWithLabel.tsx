@@ -1,10 +1,8 @@
-import {
-  Checkbox as MuiCheckbox,
-  FormControl as MuiFormControl,
-  menuClasses as muiMenuClasses,
-  selectClasses as muiSelectClasses,
-} from '@mui/material';
-import { merge } from 'lodash';
+import MuiCheckbox from '@mui/material/Checkbox';
+import MuiFormControl from '@mui/material/FormControl';
+import muiMenuClasses from '@mui/material/Menu/menuClasses';
+import muiSelectClasses from '@mui/material/Select/selectClasses';
+import merge from 'lodash/merge';
 import { useCallback, useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

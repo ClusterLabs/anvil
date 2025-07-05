@@ -1,4 +1,4 @@
-import { BoxProps as MuiBoxProps } from '@mui/material';
+import { BoxProps as MuiBoxProps } from '@mui/material/Box';
 
 import { InnerPanel, InnerPanelHeader } from '../Panels';
 import ServerMenu from '../ManageServer/ServerMenu';

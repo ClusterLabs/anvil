@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 
 import { REP_LABEL_PASSW } from '../../lib/consts/REG_EXP_PATTERNS';
 

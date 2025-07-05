@@ -1,8 +1,7 @@
-import { useMemo } from 'react';
-import {
-  Typography as MuiTypography,
+import MuiTypography, {
   TypographyProps as MuiTypographyProps,
-} from '@mui/material';
+} from '@mui/material/Typography';
+import { useMemo } from 'react';
 
 import { BLACK, TEXT, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
 
@@ -67,7 +66,7 @@ const BodyText: React.FC<BodyTextProps> = ({
   selected: isSelect = true,
   sx,
   text = null,
-  // Dependants:
+  // Dependents:
   children = text,
 
   ...muiTypographyRestProps

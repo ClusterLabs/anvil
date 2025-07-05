@@ -93,7 +93,14 @@ router.use(
   },
   express.static(htmlDir, {
     extensions: ['html'],
-    maxAge: COOKIE_ORIGINAL_MAX_AGE,
+    setHeaders: (response, path) => {
+      if (/[/](?:media|pngs)[/]/.test(path)) {
+        response.setHeader(
+          'Cache-Control',
+          `public, max-age=${COOKIE_ORIGINAL_MAX_AGE}`,
+        );
+      }
+    },
   }),
 );
 

@@ -1,7 +1,10 @@
 type MapToInputType = Pick<MapToType, 'boolean' | 'number' | 'string'>;
 
 type InputOnChangeParameters = Parameters<
-  Exclude<import('@mui/material').InputBaseProps['onChange'], undefined>
+  Exclude<
+    import('@mui/material/InputBase').InputBaseProps['onChange'],
+    undefined
+  >
 >;
 
 type StateSetter = (value: unknown) => void;

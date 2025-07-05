@@ -1,5 +1,5 @@
-import { Box as MuiBox, BoxProps as MuiBoxProps } from '@mui/material';
-import { merge } from 'lodash';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import merge from 'lodash/merge';
 import { useMemo } from 'react';
 
 type FlexBoxDirection = 'column' | 'row';

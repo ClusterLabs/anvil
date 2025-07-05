@@ -1,4 +1,5 @@
-import { Box as MuiBox, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { BORDER_RADIUS, DIVIDER } from '../../lib/consts/DEFAULT_THEME';
@@ -16,7 +17,7 @@ const InnerPanel: React.FC<InnerPanelProps> = ({
   headerMarginOffset: hmo = '.3em',
   ml,
   mv = '1.4em',
-  // Dependants:
+  // Dependents:
   mb = mv,
   mt = mv,
   ...restMuiBoxProps

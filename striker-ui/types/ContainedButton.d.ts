@@ -4,5 +4,5 @@ type ContainedButtonOptionalProps = {
   background?: ContainedButtonBackground;
 };
 
-type ContainedButtonProps = import('@mui/material').ButtonProps &
+type ContainedButtonProps = import('@mui/material/Button').ButtonProps &
   ContainedButtonOptionalProps;

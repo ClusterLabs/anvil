@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import MuiBox from '@mui/material/Box';
 import { useMemo, useState } from 'react';
 
 import AnvilList from './AnvilList';
@@ -50,7 +50,7 @@ const Anvil: React.FC<{
     periodic: true,
   });
 
-  return <Box display="none" />;
+  return <MuiBox display="none" />;
 };
 
 const Anvils: React.FC<{ list: AnvilList }> = (props) => {

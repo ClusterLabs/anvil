@@ -1,4 +1,4 @@
-import { BoxProps as MuiBoxProps } from '@mui/material';
+import { BoxProps as MuiBoxProps } from '@mui/material/Box';
 import { forwardRef, useMemo } from 'react';
 
 import ConfirmDialog from './ConfirmDialog';

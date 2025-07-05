@@ -1,5 +1,6 @@
-import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
-import { Box as MuiBox, Grid } from '@mui/material';
+import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
+import MuiBox from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
 import { useMemo, useRef } from 'react';
 
 import ButtonWithMenu from '../ButtonWithMenu';

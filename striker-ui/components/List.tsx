@@ -1,17 +1,12 @@
-import {
-  Add as MuiAddIcon,
-  Delete as MuiDeleteIcon,
-  Done as MuiDoneIcon,
-  Edit as MuiEditIcon,
-} from '@mui/icons-material';
-import {
-  Box as MuiBox,
-  List as MuiList,
-  ListItem as MuiListItem,
-  ListItemButton as MuiListItemButton,
-  ListItemIcon as MuiListItemIcon,
-  ListProps as MuiListProps,
-} from '@mui/material';
+import MuiAddIcon from '@mui/icons-material/Add';
+import MuiDeleteIcon from '@mui/icons-material/Delete';
+import MuiDoneIcon from '@mui/icons-material/Done';
+import MuiEditIcon from '@mui/icons-material/Edit';
+import MuiBox from '@mui/material/Box';
+import MuiList, { ListProps as MuiListProps } from '@mui/material/List';
+import MuiListItem from '@mui/material/ListItem';
+import MuiListItemButton from '@mui/material/ListItemButton';
+import MuiListItemIcon from '@mui/material/ListItemIcon';
 import { useCallback, useMemo } from 'react';
 
 import { BLUE, BORDER_RADIUS, GREY, RED } from '../lib/consts/DEFAULT_THEME';

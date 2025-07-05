@@ -1,4 +1,4 @@
-type MuiMenuProps = import('@mui/material').MenuProps;
+type MuiMenuProps = import('@mui/material/Menu').MenuProps;
 
 type MenuOptionalProps<T = unknown> = Pick<MuiMenuProps, 'open'> & {
   getItemDisabled?: (key: string, value: T) => boolean | undefined;

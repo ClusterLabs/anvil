@@ -1,13 +1,11 @@
-import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
-import {
-  Box as MuiBox,
-  Checkbox as MuiCheckbox,
-  Divider as MuiDivider,
-  List as MuiList,
-  ListItemButton as MuiListItemButton,
-  styled,
-  Typography as MuiTypography,
-} from '@mui/material';
+import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
+import MuiBox from '@mui/material/Box';
+import MuiCheckbox from '@mui/material/Checkbox';
+import MuiDivider from '@mui/material/Divider';
+import MuiList from '@mui/material/List';
+import MuiListItemButton from '@mui/material/ListItemButton';
+import MuiTypography from '@mui/material/Typography';
+import styled from '@mui/material/styles/styled';
 import { useState, useContext, useRef, useMemo } from 'react';
 
 import {

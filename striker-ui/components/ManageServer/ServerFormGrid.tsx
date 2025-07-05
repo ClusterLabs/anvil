@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 
 const ServerFormGrid = <Values extends FormikValues>(
   ...[props]: Parameters<React.FC<ServerFormGridProps<Values>>>

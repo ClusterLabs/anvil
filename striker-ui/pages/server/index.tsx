@@ -1,4 +1,5 @@
-import { Box, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useMemo } from 'react';
@@ -105,7 +106,7 @@ const Server = (): React.ReactElement => {
 
   const views: Record<string, React.ReactNode> = {
     vnc: (
-      <Box className={classes.fullView}>
+      <MuiBox className={classes.fullView}>
         <FullSize
           node={server.anvil}
           onClickCloseButton={() => {
@@ -115,7 +116,7 @@ const Server = (): React.ReactElement => {
           }}
           server={server}
         />
-      </Box>
+      </MuiBox>
     ),
   };
 

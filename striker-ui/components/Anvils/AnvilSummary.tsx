@@ -1,4 +1,5 @@
-import { Grid, grid2Classes as muiGridClasses } from '@mui/material';
+import Grid from '@mui/material/Grid';
+import muiGridClasses from '@mui/material/Grid2/grid2Classes';
 import { dSizeStr } from 'format-data-size';
 import { useMemo } from 'react';
 

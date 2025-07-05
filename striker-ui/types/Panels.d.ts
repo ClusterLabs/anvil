@@ -6,7 +6,7 @@ type InnerPanelOptionalProps = {
 };
 
 type InnerPanelProps = InnerPanelOptionalProps &
-  import('@mui/material').BoxProps;
+  import('@mui/material/Box').BoxProps;
 
 /** ExpandablePanel */
 
@@ -24,7 +24,7 @@ type ExpandablePanelProps = ExpandablePanelOptionalProps & {
 /** Panel */
 
 type PanelOptionalProps = {
-  paperProps?: import('@mui/material').BoxProps;
+  paperProps?: import('@mui/material/Box').BoxProps;
 };
 
-type PanelProps = PanelOptionalProps & import('@mui/material').PaperProps;
+type PanelProps = PanelOptionalProps & import('@mui/material/Paper').PaperProps;

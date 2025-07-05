@@ -1,4 +1,5 @@
-import { ListSubheader as MuiListSubheader, styled } from '@mui/material';
+import MuiListSubheader from '@mui/material/ListSubheader';
+import styled from '@mui/material/styles/styled';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 

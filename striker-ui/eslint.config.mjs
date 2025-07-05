@@ -129,6 +129,21 @@ const config = defineConfig([
       /** @deprecated */
       'no-path-concat': 'off',
 
+      // Don't import large packages from bucket when possible.
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: '^@mui/[^/]+$',
+            },
+            {
+              regex: '^lodash$',
+            },
+          ],
+        },
+      ],
+
       /** @deprecated */
       'no-return-await': 'off',
 

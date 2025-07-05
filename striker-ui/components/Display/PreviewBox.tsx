@@ -1,4 +1,5 @@
-import { Box as MuiBox, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 
 const PreviewBox = styled(MuiBox)({
   alignItems: 'center',

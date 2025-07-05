@@ -76,6 +76,7 @@ type ManifestDetail = {
   };
   prefix: string;
   sequence: number;
+  uuid: string;
 };
 
 type ManifestExecutionHost = {
@@ -105,7 +106,7 @@ type ManifestTemplate = {
   };
 };
 
-type BuildManifestRequestBody = Omit<ManifestDetail, 'name'>;
+type BuildManifestRequestBody = Omit<ManifestDetail, 'name' | 'uuid'>;
 
 type RunManifestRequestBody = {
   debug?: number;

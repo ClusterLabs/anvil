@@ -1,9 +1,6 @@
-import {
-  menuClasses as muiMenuClasses,
-  MenuItemProps as MuiMenuItemProps,
-  Menu as MuiMenu,
-  styled,
-} from '@mui/material';
+import MuiMenu, { menuClasses as muiMenuClasses } from '@mui/material/Menu';
+import { MenuItemProps as MuiMenuItemProps } from '@mui/material/MenuItem';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

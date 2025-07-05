@@ -1,4 +1,5 @@
-import { CircularProgress as MuiCircularProgress, styled } from '@mui/material';
+import MuiCircularProgress from '@mui/material/CircularProgress';
+import styled from '@mui/material/styles/styled';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';
 

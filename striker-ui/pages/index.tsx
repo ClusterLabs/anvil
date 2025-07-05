@@ -1,4 +1,4 @@
-import { Box } from '@mui/material';
+import MuiBox from '@mui/material/Box';
 import Head from 'next/head';
 
 import AnvilSummaryList from '../components/Anvils/AnvilSummaryList';
@@ -7,7 +7,7 @@ import DrHostSummaryList from '../components/Hosts/DrHostSummaryList';
 import Header from '../components/Header';
 
 const Dashboard: React.FC = () => (
-  <Box>
+  <MuiBox>
     <Head>
       <title>Dashboard</title>
     </Head>
@@ -15,7 +15,7 @@ const Dashboard: React.FC = () => (
     <Servers />
     <AnvilSummaryList />
     <DrHostSummaryList />
-  </Box>
+  </MuiBox>
 );
 
 export default Dashboard;

@@ -1,8 +1,6 @@
-import {
-  Box as MuiBox,
-  GlobalStyles as MuiGlobalStyles,
-  styled,
-} from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiGlobalStyles from '@mui/material/GlobalStyles';
+import styled from '@mui/material/styles/styled';
 
 import {
   BORDER_RADIUS,

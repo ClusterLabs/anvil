@@ -33,6 +33,11 @@ type FormikValidationSchemaHelpers<
   required: (field: string) => boolean | undefined;
 };
 
+type FormikValuesSetterParameters<Values extends FormikValues> = {
+  validate?: boolean;
+  values: React.SetStateAction<Values>;
+};
+
 type FormikUtils<Values extends FormikValues> = {
   changeFieldValue: Formik<Values>['setFieldValue'];
   disabledSubmit: boolean;
@@ -42,5 +47,23 @@ type FormikUtils<Values extends FormikValues> = {
   getFieldIsDiff: (field: string) => boolean;
   handleChange: FormikChangeHandler<Values>;
   setFieldChanged: (field: string, value?: boolean) => void;
+  /**
+   * Extends `formik.setValues` with optional debounce, changing state, and
+   * changed-by-user flag.
+   *
+   * "Kai": IYKYK
+   *
+   * @param params.debounce when `true`, debounce will be used.
+   * @param params.event change event from the input event handler.
+   * @returns `void`
+   */
+  setValuesKai: (
+    params: FormikValuesSetterParameters<Values> & {
+      debounce?: boolean;
+      event?: React.ChangeEvent<{
+        name: string;
+      }>;
+    },
+  ) => void;
   validationSchemaHelpers?: FormikValidationSchemaHelpers;
 };

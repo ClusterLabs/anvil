@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import Grid from '@mui/material/Grid';
 
 const PageBody: React.FC<React.PropsWithChildren> = (props) => {
   const { children } = props;

@@ -1,9 +1,8 @@
-import {
-  Box as MuiBox,
-  CircularProgress as MuiCircularProgress,
+import MuiBox from '@mui/material/Box';
+import MuiCircularProgress, {
   CircularProgressProps as MuiCircularProgressProps,
-  styled,
-} from '@mui/material';
+} from '@mui/material/CircularProgress';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { BLUE, DISABLED, PURPLE, RED } from '../lib/consts/DEFAULT_THEME';

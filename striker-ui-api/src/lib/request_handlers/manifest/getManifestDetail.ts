@@ -239,7 +239,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
                     const { uuid: upsUuid } = upsUuidContainer;
 
                     upses[upsName] = {
-                      isUsed: Boolean(used),
+                      isUsed: used === '1',
                       upsName,
                       upsUuid,
                     };
@@ -293,6 +293,7 @@ export const getManifestDetail: RequestHandler = async (request, response) => {
     },
     prefix,
     sequence: Number(sequence),
+    uuid: manifestUuid,
   };
 
   response.status(200).send(manifestData);

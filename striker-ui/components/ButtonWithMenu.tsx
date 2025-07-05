@@ -1,6 +1,6 @@
-import { MoreVert as MuiMoreVertIcon } from '@mui/icons-material';
-import { Box as MuiBox } from '@mui/material';
-import { merge } from 'lodash';
+import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
+import MuiBox from '@mui/material/Box';
+import merge from 'lodash/merge';
 import { useCallback, useMemo, useState } from 'react';
 
 import ContainedButton from './ContainedButton';

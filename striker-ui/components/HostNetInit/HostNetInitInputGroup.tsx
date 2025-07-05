@@ -1,10 +1,9 @@
-import {
-  Check as MuiCheckIcon,
-  DragHandle as MuiDragHandleIcon,
-} from '@mui/icons-material';
-import { Box as MuiBox, BoxProps as MuiBoxProps, Grid } from '@mui/material';
-import { GridColDef } from '@mui/x-data-grid';
-import { capitalize } from 'lodash';
+import MuiCheckIcon from '@mui/icons-material/Check';
+import MuiDragHandleIcon from '@mui/icons-material/DragHandle';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import Grid from '@mui/material/Grid';
+import { GridColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
+import capitalize from 'lodash/capitalize';
 import { useMemo, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 

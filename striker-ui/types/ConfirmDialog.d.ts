@@ -16,7 +16,7 @@ type ConfirmDialogOptionalProps = {
   proceedButtonProps?: ContainedButtonProps;
   proceedColour?: 'blue' | 'red';
   scrollContent?: boolean;
-  scrollBoxProps?: import('@mui/material').BoxProps;
+  scrollBoxProps?: import('@mui/material/Box').BoxProps;
   showActionArea?: boolean;
 };
 

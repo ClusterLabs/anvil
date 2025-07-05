@@ -1,399 +1,251 @@
-import { debounce } from 'lodash';
-import { useMemo } from 'react';
+import MuiGrid from '@mui/material/Grid2';
+import { useContext, useMemo } from 'react';
 
 import NETWORK_TYPES from '../../lib/consts/NETWORK_TYPES';
 
-import Grid from '../Grid';
 import IconButton from '../IconButton';
-import InputWithRef from '../InputWithRef';
+import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SelectWithLabel from '../SelectWithLabel';
-import { buildIPAddressTestBatch } from '../../lib/test_input';
+import UncontrolledInput from '../UncontrolledInput';
+import guessManifestNetworks from './guessManifestNetworks';
+import deleteNetwork from './deleteNetwork';
 
-const INPUT_ID_PREFIX_AN_NETWORK = 'an-network-input';
+import {
+  INPUT_ID_AN_GATEWAY,
+  INPUT_ID_AN_MIN_IP,
+  INPUT_ID_AN_NETWORK_NUMBER,
+  INPUT_ID_AN_NETWORK_TYPE,
+  INPUT_ID_AN_SUBNET_MASK,
+} from './inputIds';
 
-const INPUT_CELL_ID_PREFIX_AN = `${INPUT_ID_PREFIX_AN_NETWORK}-cell`;
+const networkTypeOptions = ['bcn', 'ifn', 'mn', 'sn'].map((type) => ({
+  displayValue: NETWORK_TYPES[type] ?? 'Unknown network',
+  value: type,
+}));
 
-const MAP_TO_AN_INPUT_HANDLER: MapToManifestFormInputHandler = {
-  gateway: (container, input) => {
-    const {
-      dataset: { networkId = '' },
-      value,
-    } = input;
-    const {
-      networkConfig: { networks },
-    } = container;
+const netSeqInputWidth = '4em';
 
-    networks[networkId].networkGateway = value;
-  },
-  minip: (container, input) => {
-    const {
-      dataset: { networkId = '' },
-      value,
-    } = input;
-    const {
-      networkConfig: { networks },
-    } = container;
+const AnNetworkInputGroup: React.FC<AnNetworkInputGroupProps> = (props) => {
+  const { networkId, showGateway } = props;
 
-    networks[networkId].networkMinIp = value;
-  },
-  network: (container, input) => {
-    const {
-      dataset: { networkId = '', networkNumber: rawNn = '', networkType = '' },
-    } = input;
-    const {
-      networkConfig: { networks },
-    } = container;
-    const networkNumber = Number.parseInt(rawNn, 10);
+  const context = useManifestFormContext(ManifestFormContext);
 
-    networks[networkId] = {
-      networkNumber,
-      networkType,
-    } as ManifestNetwork;
-  },
-  subnetmask: (container, input) => {
-    const {
-      dataset: { networkId = '' },
-      value,
-    } = input;
-    const {
-      networkConfig: { networks },
-    } = container;
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
+  );
 
-    networks[networkId].networkSubnetMask = value;
-  },
-};
+  const chains = useMemo(() => {
+    const networks = `netconf.networks`;
 
-const buildInputIdANGateway = (networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-gateway`;
+    const network = `${networks}.${networkId}`;
 
-const buildInputIdANMinIp = (networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-min-ip`;
+    return {
+      [INPUT_ID_AN_GATEWAY]: `${network}.${INPUT_ID_AN_GATEWAY}`,
+      [INPUT_ID_AN_MIN_IP]: `${network}.${INPUT_ID_AN_MIN_IP}`,
+      [INPUT_ID_AN_NETWORK_NUMBER]: `${network}.${INPUT_ID_AN_NETWORK_NUMBER}`,
+      [INPUT_ID_AN_NETWORK_TYPE]: `${network}.${INPUT_ID_AN_NETWORK_TYPE}`,
+      [INPUT_ID_AN_SUBNET_MASK]: `${network}.${INPUT_ID_AN_SUBNET_MASK}`,
+    };
+  }, [networkId]);
 
-const buildInputIdANNetworkType = (networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-network-type`;
+  if (!context || !inputContext) {
+    return null;
+  }
 
-const buildInputIdANSubnetMask = (networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}-subnet-mask`;
-
-const AnNetworkInputGroup = <M extends MapToInputTestID>(
-  ...[props]: Parameters<React.FC<AnNetworkInputGroupProps<M>>>
-): ReturnType<React.FC<AnNetworkInputGroupProps<M>>> => {
   const {
-    debounceWait = 500,
-    formUtils: {
-      buildFinishInputTestBatchFunction,
-      buildInputFirstRenderFunction,
-      buildInputUnmountFunction,
-      setMessage,
-    },
-    inputGatewayLabel = 'Gateway',
-    inputMinIpLabel = 'IP address',
-    inputSubnetMaskLabel = 'Subnet mask',
-    networkId,
-    networkNumber,
-    networkType,
-    networkTypeOptions,
-    onClose,
-    onNetworkGatewayChange,
-    onNetworkMinIpChange,
-    onNetworkSubnetMaskChange,
-    onNetworkTypeChange,
-    previous: {
-      gateway: previousGateway,
-      minIp: previousIpAddress,
-      subnetMask: previousSubnetMask,
-    } = {},
-    readonlyNetworkName: isReadonlyNetworkName,
-    showCloseButton: isShowCloseButton,
-    showGateway: isShowGateway,
-  } = props;
+    changeFieldValue,
+    formik,
+    getFieldChanged,
+    handleChange,
+    setValuesKai,
+  } = context.formikUtils;
 
-  const networkName = useMemo(
-    () => `${NETWORK_TYPES[networkType]} ${networkNumber}`,
-    [networkNumber, networkType],
-  );
-
-  const inputCellIdGateway = useMemo(
-    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-gateway`,
-    [networkId],
-  );
-  const inputCellIdIp = useMemo(
-    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-ip`,
-    [networkId],
-  );
-  const inputCellIdSubnetMask = useMemo(
-    () => `${INPUT_CELL_ID_PREFIX_AN}-${networkId}-subnet-mask`,
-    [networkId],
-  );
-
-  const inputIdANNetwork = useMemo(
-    () => `${INPUT_ID_PREFIX_AN_NETWORK}-${networkId}`,
-    [networkId],
-  );
-
-  const inputIdGateway = useMemo(
-    () => buildInputIdANGateway(networkId),
-    [networkId],
-  );
-  const inputIdMinIp = useMemo(
-    () => buildInputIdANMinIp(networkId),
-    [networkId],
-  );
-  const inputIdNetworkType = useMemo(
-    () => buildInputIdANNetworkType(networkId),
-    [networkId],
-  );
-  const inputIdSubnetMask = useMemo(
-    () => buildInputIdANSubnetMask(networkId),
-    [networkId],
-  );
-
-  const inputCellGatewayDisplay = useMemo(
-    () => (isShowGateway ? undefined : 'none'),
-    [isShowGateway],
-  );
-
-  const debounceNetworkGatewayChangeHandler = useMemo(
-    () =>
-      onNetworkGatewayChange && debounce(onNetworkGatewayChange, debounceWait),
-    [debounceWait, onNetworkGatewayChange],
-  );
-
-  const debounceNetworkMinIpChangeHandler = useMemo(
-    () => onNetworkMinIpChange && debounce(onNetworkMinIpChange, debounceWait),
-    [debounceWait, onNetworkMinIpChange],
-  );
-
-  const debounceNetworkSubnetMaskChangeHandler = useMemo(
-    () =>
-      onNetworkSubnetMaskChange &&
-      debounce(onNetworkSubnetMaskChange, debounceWait),
-    [debounceWait, onNetworkSubnetMaskChange],
-  );
-
-  const closeButtonElement = useMemo<React.ReactNode>(
-    () =>
-      isShowCloseButton && (
-        <IconButton
-          mapPreset="close"
-          iconProps={{ fontSize: 'small' }}
-          onClick={(...args) => {
-            onClose?.call(null, { networkId, networkType }, ...args);
-          }}
-          sx={{
-            padding: '.2em',
-            position: 'absolute',
-            right: '-.6rem',
-            top: '-.2rem',
-          }}
-        />
-      ),
-    [isShowCloseButton, networkId, networkType, onClose],
-  );
-
-  const inputGatewayElement = useMemo<React.ReactNode>(() => {
-    let result: React.ReactNode;
-
-    if (isShowGateway && inputIdGateway) {
-      result = (
-        <InputWithRef
-          createInputOnChangeHandlerOptions={{
-            postSet: (...args) =>
-              debounceNetworkGatewayChangeHandler?.call(
-                null,
-                { networkId, networkType },
-                ...args,
-              ),
-          }}
-          input={
-            <OutlinedInputWithLabel
-              baseInputProps={{
-                'data-handler': 'gateway',
-                'data-network-id': networkId,
-              }}
-              id={inputIdGateway}
-              label={inputGatewayLabel}
-              value={previousGateway}
-            />
-          }
-          inputTestBatch={buildIPAddressTestBatch(
-            `${networkName} ${inputGatewayLabel}`,
-            () => {
-              setMessage(inputIdGateway);
-            },
-            {
-              onFinishBatch: buildFinishInputTestBatchFunction(inputIdGateway),
-            },
-            (message) => {
-              setMessage(inputIdGateway, { children: message });
-            },
-          )}
-          onFirstRender={buildInputFirstRenderFunction(inputIdGateway)}
-          onUnmount={buildInputUnmountFunction(inputIdGateway)}
-          required={isShowGateway}
-        />
-      );
-    }
-
-    return result;
-  }, [
-    isShowGateway,
-    inputIdGateway,
-    networkId,
-    inputGatewayLabel,
-    previousGateway,
-    networkName,
-    buildFinishInputTestBatchFunction,
-    buildInputFirstRenderFunction,
-    buildInputUnmountFunction,
-    debounceNetworkGatewayChangeHandler,
-    networkType,
-    setMessage,
-  ]);
+  const { hosts } = inputContext;
 
   return (
     <InnerPanel mv={0}>
       <InnerPanelHeader>
-        <InputWithRef
-          input={
+        <MuiGrid container spacing="0.1em" width="100%">
+          <MuiGrid
+            width={{
+              xs: '100%',
+              sm: `calc(100% - ${netSeqInputWidth})`,
+            }}
+          >
             <SelectWithLabel
-              id={inputIdNetworkType}
-              isReadOnly={isReadonlyNetworkName}
-              onChange={(...args) => {
-                onNetworkTypeChange?.call(
-                  null,
-                  { networkId, networkType },
-                  ...args,
-                );
+              id={chains[INPUT_ID_AN_NETWORK_TYPE]}
+              name={chains[INPUT_ID_AN_NETWORK_TYPE]}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  event: event as unknown as React.ChangeEvent<{
+                    name: string;
+                  }>,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow.netconf.networks[networkId] = {
+                      ...shallow.netconf.networks[networkId],
+                      [INPUT_ID_AN_NETWORK_TYPE]: value,
+                    };
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+
+                changeFieldValue(chains[INPUT_ID_AN_NETWORK_TYPE], value, true);
               }}
+              required
               selectItems={networkTypeOptions}
               selectProps={{
-                renderValue: () => networkName,
+                renderValue: (value) => `${NETWORK_TYPES[value]}`,
               }}
-              value={networkType}
+              value={
+                formik.values.netconf.networks[networkId][
+                  INPUT_ID_AN_NETWORK_TYPE
+                ]
+              }
             />
-          }
+          </MuiGrid>
+          <MuiGrid
+            size="grow"
+            width={{
+              xs: '100%',
+              sm: netSeqInputWidth,
+            }}
+          >
+            <UncontrolledInput
+              input={
+                <OutlinedInputWithLabel
+                  id={chains[INPUT_ID_AN_NETWORK_NUMBER]}
+                  label="#"
+                  name={chains[INPUT_ID_AN_NETWORK_NUMBER]}
+                  onChange={(event) => {
+                    const { value } = event.target;
+
+                    setValuesKai({
+                      debounce: true,
+                      event,
+                      values: (previous) => {
+                        const shallow = { ...previous };
+
+                        shallow.netconf.networks[networkId] = {
+                          ...shallow.netconf.networks[networkId],
+                          [INPUT_ID_AN_NETWORK_NUMBER]: Number(value),
+                        };
+
+                        return guessManifestNetworks({
+                          getFieldChanged,
+                          hosts,
+                          values: shallow,
+                        });
+                      },
+                    });
+                  }}
+                  required
+                  value={
+                    formik.values.netconf.networks[networkId][
+                      INPUT_ID_AN_NETWORK_NUMBER
+                    ]
+                  }
+                />
+              }
+            />
+          </MuiGrid>
+        </MuiGrid>
+        <IconButton
+          mapPreset="delete"
+          onClick={() => {
+            formik.setValues(deleteNetwork(formik.values, networkId), true);
+          }}
+          sx={{
+            padding: '.2em',
+            position: 'absolute',
+            right: '-.5em',
+            top: '-.2em',
+          }}
         />
-        {closeButtonElement}
       </InnerPanelHeader>
       <InnerPanelBody>
-        <input
-          hidden
-          id={inputIdANNetwork}
-          readOnly
-          data-handler="network"
-          data-network-id={networkId}
-          data-network-number={networkNumber}
-          data-network-type={networkType}
-        />
-        <Grid
-          columns={{ xs: 1, sm: 2, md: 3 }}
-          layout={{
-            [inputCellIdIp]: {
-              children: (
-                <InputWithRef
-                  createInputOnChangeHandlerOptions={{
-                    postSet: (...args) =>
-                      debounceNetworkMinIpChangeHandler?.call(
-                        null,
-                        { networkId, networkType },
-                        ...args,
-                      ),
-                  }}
-                  input={
-                    <OutlinedInputWithLabel
-                      baseInputProps={{
-                        'data-handler': 'minip',
-                        'data-network-id': networkId,
-                      }}
-                      id={inputIdMinIp}
-                      label={inputMinIpLabel}
-                      value={previousIpAddress}
-                    />
-                  }
-                  inputTestBatch={buildIPAddressTestBatch(
-                    `${networkName} ${inputMinIpLabel}`,
-                    () => {
-                      setMessage(inputIdMinIp);
-                    },
-                    {
-                      onFinishBatch:
-                        buildFinishInputTestBatchFunction(inputIdMinIp),
-                    },
-                    (message) => {
-                      setMessage(inputIdMinIp, { children: message });
-                    },
-                  )}
-                  onFirstRender={buildInputFirstRenderFunction(inputIdMinIp)}
-                  onUnmount={buildInputUnmountFunction(inputIdMinIp)}
-                  required
-                />
-              ),
-            },
-            [inputCellIdSubnetMask]: {
-              children: (
-                <InputWithRef
-                  createInputOnChangeHandlerOptions={{
-                    postSet: (...args) =>
-                      debounceNetworkSubnetMaskChangeHandler?.call(
-                        null,
-                        { networkId, networkType },
-                        ...args,
-                      ),
-                  }}
-                  input={
-                    <OutlinedInputWithLabel
-                      baseInputProps={{
-                        'data-handler': 'subnetmask',
-                        'data-network-id': networkId,
-                      }}
-                      id={inputIdSubnetMask}
-                      label={inputSubnetMaskLabel}
-                      value={previousSubnetMask}
-                    />
-                  }
-                  inputTestBatch={buildIPAddressTestBatch(
-                    `${networkName} ${inputSubnetMaskLabel}`,
-                    () => {
-                      setMessage(inputIdSubnetMask);
-                    },
-                    {
-                      onFinishBatch:
-                        buildFinishInputTestBatchFunction(inputIdSubnetMask),
-                    },
-                    (message) => {
-                      setMessage(inputIdSubnetMask, { children: message });
-                    },
-                  )}
-                  onFirstRender={buildInputFirstRenderFunction(
-                    inputIdSubnetMask,
-                  )}
-                  onUnmount={buildInputUnmountFunction(inputIdSubnetMask)}
-                  required
-                />
-              ),
-            },
-            [inputCellIdGateway]: {
-              children: inputGatewayElement,
-              display: inputCellGatewayDisplay,
-            },
+        <MuiGrid
+          columns={{
+            xs: 1,
+            sm: 2,
+            md: 3,
           }}
+          container
           spacing="1em"
-        />
+          width="100%"
+        >
+          <MuiGrid size={1}>
+            <UncontrolledInput
+              input={
+                <OutlinedInputWithLabel
+                  id={chains[INPUT_ID_AN_MIN_IP]}
+                  label="IP address"
+                  name={chains[INPUT_ID_AN_MIN_IP]}
+                  onChange={handleChange}
+                  required
+                  value={
+                    formik.values.netconf.networks[networkId][
+                      INPUT_ID_AN_MIN_IP
+                    ]
+                  }
+                />
+              }
+            />
+          </MuiGrid>
+          <MuiGrid size={1}>
+            <UncontrolledInput
+              input={
+                <OutlinedInputWithLabel
+                  id={chains[INPUT_ID_AN_SUBNET_MASK]}
+                  label="Subnet mask"
+                  name={chains[INPUT_ID_AN_SUBNET_MASK]}
+                  onChange={handleChange}
+                  required
+                  value={
+                    formik.values.netconf.networks[networkId][
+                      INPUT_ID_AN_SUBNET_MASK
+                    ]
+                  }
+                />
+              }
+            />
+          </MuiGrid>
+          {showGateway && (
+            <MuiGrid size={1}>
+              <UncontrolledInput
+                input={
+                  <OutlinedInputWithLabel
+                    id={chains[INPUT_ID_AN_GATEWAY]}
+                    label="Gateway"
+                    name={chains[INPUT_ID_AN_GATEWAY]}
+                    onChange={handleChange}
+                    value={
+                      formik.values.netconf.networks[networkId][
+                        INPUT_ID_AN_GATEWAY
+                      ]
+                    }
+                  />
+                }
+              />
+            </MuiGrid>
+          )}
+        </MuiGrid>
       </InnerPanelBody>
     </InnerPanel>
   );
-};
-
-export {
-  INPUT_ID_PREFIX_AN_NETWORK,
-  MAP_TO_AN_INPUT_HANDLER,
-  buildInputIdANGateway,
-  buildInputIdANMinIp,
-  buildInputIdANNetworkType,
-  buildInputIdANSubnetMask,
 };
 
 export default AnNetworkInputGroup;

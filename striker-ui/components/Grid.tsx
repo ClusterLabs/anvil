@@ -1,4 +1,5 @@
-import { Box as MuiBox, Grid as MuiGrid } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiGrid from '@mui/material/Grid';
 import { useMemo } from 'react';
 
 const Grid: React.FC<GridProps> = ({

@@ -1,416 +1,218 @@
-import { useMemo } from 'react';
+import MuiGrid from '@mui/material/Grid2';
+import { useContext, useMemo } from 'react';
 
-import FlexBox from '../FlexBox';
-import Grid from '../Grid';
-import InputWithRef from '../InputWithRef';
+import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import MessageBox from '../MessageBox';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
 import { InnerPanel, InnerPanelBody, InnerPanelHeader } from '../Panels';
 import SwitchWithLabel from '../SwitchWithLabel';
-import {
-  buildIPAddressTestBatch,
-  buildPeacefulStringTestBatch,
-} from '../../lib/test_input';
 import { BodyText } from '../Text';
+import UncontrolledInput from '../UncontrolledInput';
+import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
-const INPUT_ID_PREFIX_AN_HOST = 'an-host-input';
+import {
+  INPUT_ID_AH_FENCE_PORT,
+  INPUT_ID_AH_IPMI_IP,
+  INPUT_ID_AH_NETWORK_IP,
+  INPUT_ID_AH_UPS_POWER_HOST,
+  INPUT_ID_AN_NETWORK_NUMBER,
+  INPUT_ID_AN_NETWORK_TYPE,
+} from './inputIds';
 
-const INPUT_CELL_ID_PREFIX_AH = `${INPUT_ID_PREFIX_AN_HOST}-cell`;
+const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
+  const { hostSequence } = props;
 
-const INPUT_LABEL_AH_IPMI_IP = 'IPMI IP';
+  const context = useManifestFormContext(ManifestFormContext);
 
-const MAP_TO_AH_INPUT_HANDLER: MapToManifestFormInputHandler = {
-  fence: (container, input) => {
-    const {
-      dataset: { hostId = '', fenceId = '', fenceName = '' },
-      value: fencePort,
-    } = input;
-    const {
-      hostConfig: {
-        hosts: { [hostId]: host },
-      },
-    } = container;
-    const { fences = {} } = host;
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
+  );
 
-    fences[fenceId] = {
-      fenceName,
-      fencePort,
+  const chains = useMemo(() => {
+    const host = `hosts.${hostSequence}`;
+
+    return {
+      [INPUT_ID_AH_IPMI_IP]: `${host}.${INPUT_ID_AH_IPMI_IP}`,
+      fences: `${host}.fences`,
+      networks: `${host}.networks`,
+      upses: `${host}.upses`,
     };
-    host.fences = fences;
-  },
-  host: (container, input) => {
-    const {
-      dataset: { hostId = '', hostNumber: rawHostNumber = '', hostType = '' },
-    } = input;
-    const hostNumber = Number.parseInt(rawHostNumber, 10);
+  }, [hostSequence]);
 
-    container.hostConfig.hosts[hostId] = {
-      hostNumber,
-      hostType,
-    };
-  },
-  ipmi: (container, input) => {
-    const {
-      dataset: { hostId = '' },
-      value: ipmiIp,
-    } = input;
-    const {
-      hostConfig: {
-        hosts: { [hostId]: host },
-      },
-    } = container;
+  if (!context || !inputContext) {
+    return null;
+  }
 
-    host.ipmiIp = ipmiIp;
-  },
-  network: (container, input) => {
-    const {
-      dataset: {
-        hostId = '',
-        networkId = '',
-        networkNumber: rawNetworkNumber = '',
-        networkType = '',
-      },
-      value: networkIp,
-    } = input;
-    const {
-      hostConfig: {
-        hosts: { [hostId]: host },
-      },
-    } = container;
-    const { networks = {} } = host;
-    const networkNumber = Number.parseInt(rawNetworkNumber, 10);
+  const { changeFieldValue, formik, handleChange } = context.formikUtils;
 
-    networks[networkId] = {
-      networkIp,
-      networkNumber,
-      networkType,
-    };
-    host.networks = networks;
-  },
-  ups: (container, input) => {
-    const {
-      checked: isUsed,
-      dataset: { hostId = '', upsId = '', upsName = '' },
-    } = input;
-    const {
-      hostConfig: {
-        hosts: { [hostId]: host },
-      },
-    } = container;
-    const { upses = {} } = host;
+  const { fences: knownFences, upses: knownUpses } = inputContext.template;
 
-    upses[upsId] = {
-      isUsed,
-      upsName,
-    };
-    host.upses = upses;
-  },
-};
+  const fences = Object.entries<
+    ManifestFormikValues['hosts'][string]['fences'][string]
+  >(formik.values.hosts[hostSequence].fences);
 
-const GRID_COLUMNS = { xs: 1, sm: 2, md: 3 };
-const GRID_SPACING = '1em';
+  const networks = Object.entries<
+    ManifestFormikValues['hosts'][string]['networks'][string]
+  >(formik.values.hosts[hostSequence].networks);
 
-const buildInputIdAHFencePort = (hostId: string, fenceId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${fenceId}-port`;
-
-const buildInputIdAHIpmiIp = (hostId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-ipmi-ip`;
-
-const buildInputIdAHNetworkIp = (hostId: string, networkId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${networkId}-ip`;
-
-const buildInputIdAHUpsPowerHost = (hostId: string, upsId: string): string =>
-  `${INPUT_ID_PREFIX_AN_HOST}-${hostId}-${upsId}-power-host`;
-
-const AnHostInputGroup = <M extends MapToInputTestID>(
-  ...[props]: Parameters<React.FC<AnHostInputGroupProps<M>>>
-): ReturnType<React.FC<AnHostInputGroupProps<M>>> => {
-  const {
-    formUtils: {
-      buildFinishInputTestBatchFunction,
-      buildInputFirstRenderFunction,
-      buildInputUnmountFunction,
-      setMessage,
-    },
-    hostId,
-    hostNumber,
-    hostType,
-    previous: {
-      fences: fenceList = {},
-      ipmiIp: previousIpmiIp,
-      networks: networkList = {},
-      upses: upsList = {},
-    } = {},
-    // Props that depend on others.
-    hostLabel = `${hostType.replace('node', 'subnode')} ${hostNumber}`,
-  } = props;
-
-  const fenceListEntries = useMemo(
-    () => Object.entries(fenceList),
-    [fenceList],
-  );
-  const networkListEntries = useMemo(
-    () => Object.entries(networkList),
-    [networkList],
-  );
-  const upsListEntries = useMemo(() => Object.entries(upsList), [upsList]);
-
-  const isShowUpsListGrid = useMemo(
-    () => Boolean(upsListEntries.length),
-    [upsListEntries.length],
-  );
-
-  const inputIdAHHost = useMemo(
-    () => `${INPUT_ID_PREFIX_AN_HOST}-${hostId}`,
-    [hostId],
-  );
-  const inputIdAHIpmiIp = useMemo(() => buildInputIdAHIpmiIp(hostId), [hostId]);
-
-  const inputCellIdAHIpmiIp = useMemo(
-    () => `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-ipmi-ip`,
-    [hostId],
-  );
-
-  const fenceListGridLayout = useMemo(
-    () =>
-      fenceListEntries.reduce<GridLayout>(
-        (previous, [fenceId, { fenceName, fencePort }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${fenceId}-port`;
-
-          const inputId = buildInputIdAHFencePort(hostId, fenceId);
-          const inputLabel = `Plug on ${fenceName}`;
-
-          previous[cellId] = {
-            children: (
-              <InputWithRef
-                input={
-                  <OutlinedInputWithLabel
-                    baseInputProps={{
-                      'data-handler': 'fence',
-                      'data-host-id': hostId,
-                      'data-fence-id': fenceId,
-                      'data-fence-name': fenceName,
-                    }}
-                    id={inputId}
-                    label={inputLabel}
-                    value={fencePort}
-                  />
-                }
-                inputTestBatch={buildPeacefulStringTestBatch(
-                  `${hostId} ${inputLabel}`,
-                  () => {
-                    setMessage(inputId);
-                  },
-                  { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
-                  (message) => {
-                    setMessage(inputId, { children: message });
-                  },
-                )}
-                onFirstRender={buildInputFirstRenderFunction(inputId)}
-              />
-            ),
-          };
-
-          return previous;
-        },
-        {},
-      ),
-    [
-      buildFinishInputTestBatchFunction,
-      buildInputFirstRenderFunction,
-      fenceListEntries,
-      hostId,
-      setMessage,
-    ],
-  );
-
-  const networkListGridLayout = useMemo(
-    () =>
-      networkListEntries.reduce<GridLayout>(
-        (previous, [networkId, { networkIp, networkNumber, networkType }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${networkId}-ip`;
-
-          const inputId = buildInputIdAHNetworkIp(hostId, networkId);
-          const inputLabel = `${networkType.toUpperCase()} ${networkNumber} IP`;
-
-          previous[cellId] = {
-            children: (
-              <InputWithRef
-                input={
-                  <OutlinedInputWithLabel
-                    baseInputProps={{
-                      'data-handler': 'network',
-                      'data-host-id': hostId,
-                      'data-network-id': networkId,
-                      'data-network-number': networkNumber,
-                      'data-network-type': networkType,
-                    }}
-                    id={inputId}
-                    label={inputLabel}
-                    value={networkIp}
-                  />
-                }
-                inputTestBatch={buildIPAddressTestBatch(
-                  `${hostId} ${inputLabel}`,
-                  () => {
-                    setMessage(inputId);
-                  },
-                  { onFinishBatch: buildFinishInputTestBatchFunction(inputId) },
-                  (message) => {
-                    setMessage(inputId, { children: message });
-                  },
-                )}
-                onFirstRender={buildInputFirstRenderFunction(inputId)}
-                onUnmount={buildInputUnmountFunction(inputId)}
-                required
-              />
-            ),
-          };
-
-          return previous;
-        },
-        {},
-      ),
-    [
-      networkListEntries,
-      hostId,
-      buildFinishInputTestBatchFunction,
-      buildInputFirstRenderFunction,
-      buildInputUnmountFunction,
-      setMessage,
-    ],
-  );
-
-  const upsListGridLayout = useMemo(
-    () =>
-      upsListEntries.reduce<GridLayout>(
-        (previous, [upsId, { isUsed, upsName }]) => {
-          const cellId = `${INPUT_CELL_ID_PREFIX_AH}-${hostId}-${upsId}-power-host`;
-
-          const inputId = buildInputIdAHUpsPowerHost(hostId, upsId);
-          const inputLabel = `Uses ${upsName}`;
-
-          previous[cellId] = {
-            children: (
-              <InputWithRef
-                input={
-                  <SwitchWithLabel
-                    baseInputProps={{
-                      'data-handler': 'ups',
-                      'data-host-id': hostId,
-                      'data-ups-id': upsId,
-                      'data-ups-name': upsName,
-                    }}
-                    checked={isUsed}
-                    id={inputId}
-                    label={inputLabel}
-                  />
-                }
-                valueType="boolean"
-              />
-            ),
-          };
-
-          return previous;
-        },
-        {},
-      ),
-    [hostId, upsListEntries],
-  );
-
-  const upsListGrid = useMemo(
-    () =>
-      isShowUpsListGrid && (
-        <Grid
-          columns={GRID_COLUMNS}
-          layout={upsListGridLayout}
-          spacing={GRID_SPACING}
-        />
-      ),
-    [isShowUpsListGrid, upsListGridLayout],
-  );
+  const upses = Object.entries<
+    ManifestFormikValues['hosts'][string]['upses'][string]
+  >(formik.values.hosts[hostSequence].upses);
 
   return (
     <InnerPanel mv={0}>
       <InnerPanelHeader>
-        <BodyText>{hostLabel}</BodyText>
+        <BodyText>Subnode {hostSequence}</BodyText>
       </InnerPanelHeader>
       <InnerPanelBody>
-        <input
-          hidden
-          id={inputIdAHHost}
-          readOnly
-          data-handler="host"
-          data-host-id={hostId}
-          data-host-number={hostNumber}
-          data-host-type={hostType}
-        />
-        <FlexBox>
-          <Grid
-            columns={GRID_COLUMNS}
-            layout={{
-              'fence-message': {
-                children: (
-                  <MessageBox>
-                    It is recommended to provide at least 1 fence device plug.
-                  </MessageBox>
-                ),
-                width: '100%',
-                xs: 0,
-              },
-              ...networkListGridLayout,
-              [inputCellIdAHIpmiIp]: {
-                children: (
-                  <InputWithRef
-                    input={
-                      <OutlinedInputWithLabel
-                        baseInputProps={{
-                          'data-handler': 'ipmi',
-                          'data-host-id': hostId,
+        <MuiGrid container spacing="1em" width="100%">
+          <MuiGrid width="100%">
+            <MuiGrid
+              columns={{
+                xs: 1,
+                sm: 2,
+                md: 3,
+              }}
+              container
+              spacing="1em"
+              width="100%"
+            >
+              <MuiGrid width="100%">
+                <MessageBox>
+                  It is recommended to provide at least 1 fence device plug.
+                </MessageBox>
+              </MuiGrid>
+              {networks.map((entry) => {
+                const [networkId, hostNetwork] = entry;
+
+                const { [INPUT_ID_AH_NETWORK_IP]: ip } = hostNetwork;
+
+                const inputId = `${chains.networks}.${networkId}.${INPUT_ID_AH_NETWORK_IP}`;
+
+                const {
+                  [INPUT_ID_AN_NETWORK_NUMBER]: sequence,
+                  [INPUT_ID_AN_NETWORK_TYPE]: type = '',
+                } = formik.values.netconf.networks[networkId];
+
+                const inputLabel = `${type.toUpperCase()} ${sequence} IP`;
+
+                return (
+                  <MuiGrid
+                    key={`host-${hostSequence}-network-${networkId}`}
+                    size={1}
+                  >
+                    <UncontrolledInput
+                      input={
+                        <OutlinedInputWithLabel
+                          id={inputId}
+                          label={inputLabel}
+                          name={inputId}
+                          onChange={handleChange}
+                          required
+                          value={ip}
+                        />
+                      }
+                    />
+                  </MuiGrid>
+                );
+              })}
+              <MuiGrid size={1}>
+                <UncontrolledInput
+                  input={
+                    <OutlinedInputWithLabel
+                      id={chains[INPUT_ID_AH_IPMI_IP]}
+                      label="IPMI IP"
+                      name={chains[INPUT_ID_AH_IPMI_IP]}
+                      onChange={handleChange}
+                      value={
+                        formik.values.hosts[hostSequence][INPUT_ID_AH_IPMI_IP]
+                      }
+                    />
+                  }
+                />
+              </MuiGrid>
+              {fences.map((entry) => {
+                const [fenceUuid, hostFence] = entry;
+
+                const { [INPUT_ID_AH_FENCE_PORT]: plug } = hostFence;
+
+                const inputId = `${chains.fences}.${fenceUuid}.${INPUT_ID_AH_FENCE_PORT}`;
+
+                const { [fenceUuid]: fence } = knownFences;
+
+                const inputLabel = `Plug on ${fence.fenceName}`;
+
+                return (
+                  <MuiGrid
+                    key={`host-${hostSequence}-fence-${fenceUuid}`}
+                    size={1}
+                  >
+                    <UncontrolledInput
+                      input={
+                        <OutlinedInputWithLabel
+                          id={inputId}
+                          label={inputLabel}
+                          name={inputId}
+                          onChange={handleChange}
+                          value={plug}
+                        />
+                      }
+                    />
+                  </MuiGrid>
+                );
+              })}
+            </MuiGrid>
+          </MuiGrid>
+          {upses.length && (
+            <MuiGrid width="100%">
+              <MuiGrid
+                columns={{
+                  xs: 1,
+                  sm: 2,
+                  md: 3,
+                }}
+                container
+                spacing="1em"
+                width="100%"
+              >
+                {upses.map((entry) => {
+                  const [upsUuid, hostUps] = entry;
+
+                  const { [INPUT_ID_AH_UPS_POWER_HOST]: power } = hostUps;
+
+                  const inputId = `${chains.upses}.${upsUuid}.${INPUT_ID_AH_UPS_POWER_HOST}`;
+
+                  const { [upsUuid]: ups } = knownUpses;
+
+                  const inputLabel = `Uses ${ups.upsName}`;
+
+                  return (
+                    <MuiGrid
+                      key={`host-${hostSequence}-ups-${upsUuid}`}
+                      size={1}
+                    >
+                      <SwitchWithLabel
+                        checked={power}
+                        id={inputId}
+                        label={inputLabel}
+                        name={inputId}
+                        onChange={(event, checked) => {
+                          changeFieldValue(inputId, checked, true);
                         }}
-                        id={inputIdAHIpmiIp}
-                        label={INPUT_LABEL_AH_IPMI_IP}
-                        value={previousIpmiIp}
                       />
-                    }
-                    inputTestBatch={buildIPAddressTestBatch(
-                      `${hostId} ${INPUT_LABEL_AH_IPMI_IP}`,
-                      () => {
-                        setMessage(inputIdAHIpmiIp);
-                      },
-                      {
-                        onFinishBatch:
-                          buildFinishInputTestBatchFunction(inputIdAHIpmiIp),
-                      },
-                      (message) => {
-                        setMessage(inputIdAHIpmiIp, { children: message });
-                      },
-                    )}
-                    onFirstRender={buildInputFirstRenderFunction(
-                      inputIdAHIpmiIp,
-                    )}
-                    onUnmount={buildInputUnmountFunction(inputIdAHIpmiIp)}
-                  />
-                ),
-              },
-              ...fenceListGridLayout,
-            }}
-            spacing={GRID_SPACING}
-          />
-          {upsListGrid}
-        </FlexBox>
+                    </MuiGrid>
+                  );
+                })}
+              </MuiGrid>
+            </MuiGrid>
+          )}
+        </MuiGrid>
       </InnerPanelBody>
     </InnerPanel>
   );
-};
-
-export {
-  INPUT_ID_PREFIX_AN_HOST,
-  MAP_TO_AH_INPUT_HANDLER,
-  buildInputIdAHFencePort,
-  buildInputIdAHIpmiIp,
-  buildInputIdAHNetworkIp,
-  buildInputIdAHUpsPowerHost,
 };
 
 export default AnHostInputGroup;

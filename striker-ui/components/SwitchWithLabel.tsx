@@ -1,8 +1,6 @@
-import {
-  FormControlLabel as MuiFormControlLabel,
-  styled,
-  Switch as MuiSwitch,
-} from '@mui/material';
+import MuiFormControlLabel from '@mui/material/FormControlLabel';
+import MuiSwitch from '@mui/material/Switch';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { GREY } from '../lib/consts/DEFAULT_THEME';

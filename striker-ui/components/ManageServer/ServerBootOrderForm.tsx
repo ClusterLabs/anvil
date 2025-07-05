@@ -1,10 +1,8 @@
-import {
-  ArrowDownward as MuiArrowDownwardIcon,
-  ArrowUpward as MuiArrowUpwardIcon,
-} from '@mui/icons-material';
-import { Grid } from '@mui/material';
-import { GridColDef } from '@mui/x-data-grid';
-import { capitalize } from 'lodash';
+import MuiArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import MuiArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import Grid from '@mui/material/Grid';
+import { GridColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
+import capitalize from 'lodash/capitalize';
 import { useMemo, useState } from 'react';
 
 import FlexBox from '../FlexBox';

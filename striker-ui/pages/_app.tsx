@@ -1,5 +1,5 @@
 import { CacheProvider, EmotionCache } from '@emotion/react';
-import { ThemeProvider } from '@mui/material';
+import MuiThemeProvider from '@mui/material/styles/ThemeProvider';
 import { AppProps } from 'next/app';
 import { CookiesProvider } from 'react-cookie';
 
@@ -34,11 +34,11 @@ const App: React.FC<MyAppProps> = (props) => {
 
   return (
     <CacheProvider value={emotionCache}>
-      <ThemeProvider theme={theme}>
+      <MuiThemeProvider theme={theme}>
         <CookiesProvider>
           <PageWrapper {...props} />
         </CookiesProvider>
-      </ThemeProvider>
+      </MuiThemeProvider>
     </CacheProvider>
   );
 };

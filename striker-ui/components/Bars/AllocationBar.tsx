@@ -1,4 +1,4 @@
-import { styled } from '@mui/material';
+import styled from '@mui/material/styles/styled';
 
 import { PURPLE, RED, BLUE } from '../../lib/consts/DEFAULT_THEME';
 

@@ -1,5 +1,4 @@
-import { Grid } from '@mui/material';
-
+import Grid from '@mui/material/Grid';
 import { useCallback, useMemo, useRef } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';

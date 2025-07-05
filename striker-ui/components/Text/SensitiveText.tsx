@@ -1,4 +1,5 @@
-import { Box as MuiBox, styled } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 import { useMemo, useState } from 'react';
 
 import { BORDER_RADIUS, EERIE_BLACK } from '../../lib/consts/DEFAULT_THEME';

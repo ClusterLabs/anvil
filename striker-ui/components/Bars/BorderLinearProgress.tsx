@@ -1,8 +1,7 @@
-import {
-  LinearProgress as MuiLinearProgress,
+import MuiLinearProgress, {
   linearProgressClasses as muiLinearProgressClasses,
-  styled,
-} from '@mui/material';
+} from '@mui/material/LinearProgress';
+import styled from '@mui/material/styles/styled';
 
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
 

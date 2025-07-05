@@ -1,5 +1,6 @@
-import { Box as MuiBox, styled } from '@mui/material';
-import { InsertLink as MuiInsertLinkIcon } from '@mui/icons-material';
+import MuiInsertLinkIcon from '@mui/icons-material/InsertLink';
+import MuiBox from '@mui/material/Box';
+import styled from '@mui/material/styles/styled';
 import * as prettyBytes from 'pretty-bytes';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';

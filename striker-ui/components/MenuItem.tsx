@@ -1,8 +1,7 @@
-import {
-  MenuItem as MuiMenuItem,
+import MuiMenuItem, {
   menuItemClasses as muiMenuItemClasses,
-  styled,
-} from '@mui/material';
+} from '@mui/material/MenuItem';
+import styled from '@mui/material/styles/styled';
 
 import { GREY, TEXT } from '../lib/consts/DEFAULT_THEME';
 

@@ -1,4 +1,5 @@
-import { Grid, menuClasses as muiMenuClasses } from '@mui/material';
+import Grid from '@mui/material/Grid';
+import muiMenuClasses from '@mui/material/Menu/menuClasses';
 import { AxiosError } from 'axios';
 import { useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';

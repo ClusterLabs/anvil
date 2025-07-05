@@ -1,4 +1,6 @@
-import { Grid, useMediaQuery, useTheme } from '@mui/material';
+import Grid from '@mui/material/Grid';
+import useTheme from '@mui/material/styles/useTheme';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';

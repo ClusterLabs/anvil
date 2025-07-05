@@ -1,154 +1,146 @@
-import { debounce } from 'lodash';
-import { useMemo } from 'react';
+import MuiGrid from '@mui/material/Grid2';
+import { useContext } from 'react';
 
-import Grid from '../Grid';
-import InputWithRef from '../InputWithRef';
+import { ManifestFormContext, useManifestFormContext } from './ManifestForm';
+import ManifestInputContext, {
+  ManifestInputContextValue,
+} from './ManifestInputContext';
 import OutlinedInputWithLabel from '../OutlinedInputWithLabel';
+import UncontrolledInput from '../UncontrolledInput';
+import guessManifestNetworks from './guessManifestNetworks';
+
 import {
-  buildNumberTestBatch,
-  buildPeacefulStringTestBatch,
-} from '../../lib/test_input';
+  INPUT_ID_AI_DOMAIN,
+  INPUT_ID_AI_PREFIX,
+  INPUT_ID_AI_SEQUENCE,
+} from './inputIds';
 
-const INPUT_ID_PREFIX_AN_ID = 'an-id-input';
+const AnIdInputGroup: React.FC<AnIdInputGroupProps> = (props) => {
+  const { slotProps } = props;
 
-const INPUT_ID_AI_DOMAIN = `${INPUT_ID_PREFIX_AN_ID}-domain`;
-const INPUT_ID_AI_PREFIX = `${INPUT_ID_PREFIX_AN_ID}-prefix`;
-const INPUT_ID_AI_SEQUENCE = `${INPUT_ID_PREFIX_AN_ID}-sequence`;
+  const context = useManifestFormContext(ManifestFormContext);
 
-const INPUT_LABEL_AI_DOMAIN = 'Domain name';
-const INPUT_LABEL_AI_PREFIX = 'Prefix';
-const INPUT_LABEL_AI_SEQUENCE = 'Sequence';
-
-const AnIdInputGroup = <
-  M extends {
-    [K in
-      | typeof INPUT_ID_AI_DOMAIN
-      | typeof INPUT_ID_AI_PREFIX
-      | typeof INPUT_ID_AI_SEQUENCE]: string;
-  },
->(
-  ...[props]: Parameters<React.FC<AnIdInputGroupProps<M>>>
-): ReturnType<React.FC<AnIdInputGroupProps<M>>> => {
-  const {
-    debounceWait = 500,
-    formUtils: {
-      buildFinishInputTestBatchFunction,
-      buildInputFirstRenderFunction,
-      setMessage,
-    },
-    onSequenceChange,
-    previous: {
-      domain: previousDomain,
-      prefix: previousPrefix,
-      sequence: previousSequence,
-    } = {},
-  } = props;
-
-  const debounceSequenceChangeHandler = useMemo(
-    () => onSequenceChange && debounce(onSequenceChange, debounceWait),
-    [debounceWait, onSequenceChange],
+  const inputContext = useContext<ManifestInputContextValue | null>(
+    ManifestInputContext,
   );
+
+  if (!context || !inputContext) {
+    return null;
+  }
+
+  const { formik, getFieldChanged, setValuesKai } = context.formikUtils;
+
+  const { hosts } = inputContext;
 
   return (
-    <Grid
-      columns={{ xs: 1, sm: 2, md: 3 }}
-      layout={{
-        'an-id-input-cell-prefix': {
-          children: (
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_AI_PREFIX}
-                  label={INPUT_LABEL_AI_PREFIX}
-                  value={previousPrefix}
-                />
-              }
-              inputTestBatch={buildPeacefulStringTestBatch(
-                INPUT_LABEL_AI_PREFIX,
-                () => {
-                  setMessage(INPUT_ID_AI_PREFIX);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_AI_PREFIX),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_AI_PREFIX, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_AI_PREFIX)}
-              required
-            />
-          ),
-        },
-        'an-id-input-cell-domain': {
-          children: (
-            <InputWithRef
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_AI_DOMAIN}
-                  label={INPUT_LABEL_AI_DOMAIN}
-                  value={previousDomain}
-                />
-              }
-              inputTestBatch={buildPeacefulStringTestBatch(
-                INPUT_LABEL_AI_DOMAIN,
-                () => {
-                  setMessage(INPUT_ID_AI_DOMAIN);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_AI_DOMAIN),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_AI_DOMAIN, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(INPUT_ID_AI_DOMAIN)}
-              required
-            />
-          ),
-        },
-        'an-id-input-cell-sequence': {
-          children: (
-            <InputWithRef
-              createInputOnChangeHandlerOptions={{
-                postSet: debounceSequenceChangeHandler,
-              }}
-              input={
-                <OutlinedInputWithLabel
-                  id={INPUT_ID_AI_SEQUENCE}
-                  label={INPUT_LABEL_AI_SEQUENCE}
-                  value={previousSequence}
-                />
-              }
-              inputTestBatch={buildNumberTestBatch(
-                INPUT_LABEL_AI_SEQUENCE,
-                () => {
-                  setMessage(INPUT_ID_AI_SEQUENCE);
-                },
-                {
-                  onFinishBatch:
-                    buildFinishInputTestBatchFunction(INPUT_ID_AI_SEQUENCE),
-                },
-                (message) => {
-                  setMessage(INPUT_ID_AI_SEQUENCE, { children: message });
-                },
-              )}
-              onFirstRender={buildInputFirstRenderFunction(
-                INPUT_ID_AI_SEQUENCE,
-              )}
-              required
-              valueType="number"
-            />
-          ),
-        },
+    <MuiGrid
+      columns={{
+        xs: 1,
+        sm: 2,
+        md: 3,
       }}
+      container
       spacing="1em"
-    />
+      {...slotProps?.container}
+    >
+      <MuiGrid size={1}>
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_PREFIX}
+              label="Prefix"
+              name={INPUT_ID_AI_PREFIX}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_PREFIX] = value;
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
+              required
+              value={formik.values[INPUT_ID_AI_PREFIX]}
+            />
+          }
+        />
+      </MuiGrid>
+      <MuiGrid size={1}>
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_DOMAIN}
+              label="Domain name"
+              name={INPUT_ID_AI_DOMAIN}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_DOMAIN] = value;
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
+              required
+              value={formik.values[INPUT_ID_AI_DOMAIN]}
+            />
+          }
+        />
+      </MuiGrid>
+      <MuiGrid size={1}>
+        <UncontrolledInput
+          input={
+            <OutlinedInputWithLabel
+              id={INPUT_ID_AI_SEQUENCE}
+              label="Sequence"
+              name={INPUT_ID_AI_SEQUENCE}
+              onChange={(event) => {
+                const { value } = event.target;
+
+                setValuesKai({
+                  debounce: true,
+                  event,
+                  values: (previous) => {
+                    const shallow = { ...previous };
+
+                    shallow[INPUT_ID_AI_SEQUENCE] = Number(value);
+
+                    return guessManifestNetworks({
+                      getFieldChanged,
+                      hosts,
+                      values: shallow,
+                    });
+                  },
+                });
+              }}
+              required
+              value={formik.values[INPUT_ID_AI_SEQUENCE]}
+            />
+          }
+        />
+      </MuiGrid>
+    </MuiGrid>
   );
 };
-
-export { INPUT_ID_AI_DOMAIN, INPUT_ID_AI_PREFIX, INPUT_ID_AI_SEQUENCE };
 
 export default AnIdInputGroup;

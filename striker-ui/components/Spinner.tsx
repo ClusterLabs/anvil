@@ -1,9 +1,6 @@
-import {
-  Box as MuiBox,
-  BoxProps as MuiBoxProps,
-  CircularProgressProps as MuiCircularProgressProps,
-  styled,
-} from '@mui/material';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
+import { CircularProgressProps as MuiCircularProgressProps } from '@mui/material/CircularProgress';
+import styled from '@mui/material/styles/styled';
 
 import CircularProgress from './CircularProgress';
 

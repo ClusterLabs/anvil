@@ -1,12 +1,12 @@
 type CheckboxWithLabelOptionalProps = Partial<
-  Pick<CheckboxProps, 'checked' | 'onChange'>
+  Pick<CheckboxProps, 'checked' | 'id' | 'name' | 'onChange'>
 > & {
-  checkboxProps?: Partial<CheckboxProps>;
-  formControlLabelProps?: Partial<
-    import('@mui/material').FormControlLabelProps
-  >;
+  slotProps?: {
+    checkbox?: Partial<CheckboxProps>;
+    label?: import('@mui/material/FormControlLabel').FormControlLabelProps;
+  };
 };
 
 type CheckboxWithLabelProps = CheckboxWithLabelOptionalProps & {
-  label: import('@mui/material').FormControlLabelProps['label'];
+  label: React.ReactNode;
 };

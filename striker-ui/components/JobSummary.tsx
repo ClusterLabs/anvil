@@ -1,4 +1,4 @@
-import { Menu as MuiMenu } from '@mui/material';
+import MuiMenu from '@mui/material/Menu';
 import {
   forwardRef,
   useImperativeHandle,

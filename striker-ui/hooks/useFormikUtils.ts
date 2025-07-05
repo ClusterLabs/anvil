@@ -1,5 +1,7 @@
 import { FormikValues, getIn, setIn, useFormik } from 'formik';
-import { isEqual, isObject, isString } from 'lodash';
+import isEqual from 'lodash/isEqual';
+import isObject from 'lodash/isObject';
+import isString from 'lodash/isString';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import * as yup from 'yup';
 
@@ -73,6 +75,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
   const debounceHandleChange = useMemo(() => {
     const base = debounce((...args: Parameters<typeof formik.handleChange>) => {
       formik.handleChange(...args);
+
       setChanging(false);
     });
 
@@ -82,7 +85,10 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
       const [maybeEvent] = args;
 
       if (!isString(maybeEvent)) {
-        const event = maybeEvent as React.ChangeEvent<{ name: string }>;
+        const event = maybeEvent as React.ChangeEvent<{
+          name: string;
+        }>;
+
         const target = event.target ? event.target : event.currentTarget;
 
         setFieldChanged(target.name, true);
@@ -96,6 +102,42 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     //
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formik.handleChange, setFieldChanged]);
+
+  const setValuesKai = useMemo(() => {
+    const set = (
+      ...[params]: Parameters<FormikUtils<Values>['setValuesKai']>
+    ) => {
+      const { validate = true, values } = params;
+
+      formik.setValues(values, validate);
+
+      setChanging(false);
+    };
+
+    const debounced = debounce(set);
+
+    return (...[params]: Parameters<FormikUtils<Values>['setValuesKai']>) => {
+      const { debounce: de, event } = params;
+
+      setChanging(true);
+
+      if (event) {
+        const target = event.target ? event.target : event.currentTarget;
+
+        setFieldChanged(target.name, true);
+      }
+
+      if (de) {
+        debounced(params);
+      } else {
+        set(params);
+      }
+    };
+
+    // Don't include the whole `formik` object because only `setValues` is used.
+    //
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formik.setValues, setFieldChanged]);
 
   const disabledSubmit = useMemo(
     () =>
@@ -157,6 +199,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
     getFieldIsDiff,
     handleChange: debounceHandleChange,
     setFieldChanged,
+    setValuesKai,
     validationSchemaHelpers,
   };
 };

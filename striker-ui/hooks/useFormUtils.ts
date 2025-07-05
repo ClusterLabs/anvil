@@ -1,4 +1,4 @@
-import { MutableRefObject, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useReducer, useState } from 'react';
 
 import api from '../lib/api';
 import buildObjectStateSetterCallback, {
@@ -8,16 +8,66 @@ import handleAPIError from '../lib/handleAPIError';
 import { Message } from '../components/MessageBox';
 import { MessageGroupForwardedRefContent } from '../components/MessageGroup';
 
+type FormValidityAction<
+  U extends string,
+  I extends InputIds<U>,
+  M extends MapToInputId<U, I>,
+> = {
+  key?: keyof M;
+  re?: RegExp;
+  replace?: FormValidity<M>;
+  value?: boolean;
+};
+
+const formValidityReducer = <
+  U extends string,
+  I extends InputIds<U>,
+  M extends MapToInputId<U, I>,
+>(
+  previous: FormValidity<M>,
+  action: FormValidityAction<U, I, M>,
+): FormValidity<M> => {
+  const { key, re, replace, value } = action;
+
+  if (key) {
+    if (previous[key] === value) {
+      return previous;
+    }
+
+    return buildObjectStateSetterCallback<FormValidity<M>>(
+      key,
+      value,
+    )(previous);
+  }
+
+  if (re) {
+    return buildRegExpObjectStateSetterCallback<FormValidity<M>>(
+      re,
+      value,
+    )(previous);
+  }
+
+  if (replace) {
+    return replace;
+  }
+
+  return previous;
+};
+
 const useFormUtils = <
   U extends string,
   I extends InputIds<U>,
   M extends MapToInputId<U, I>,
 >(
   ids: I,
-  messageGroupRef: MutableRefObject<MessageGroupForwardedRefContent>,
+  messageGroupRef?: React.RefObject<MessageGroupForwardedRefContent>,
 ): FormUtils<M> => {
   const [formSubmitting, setFormSubmitting] = useState<boolean>(false);
-  const [formValidity, setFormValidity] = useState<FormValidity<M>>({});
+
+  const [formValidity, dispatchFormValidity] = useReducer<
+    FormValidity<M>,
+    [FormValidityAction<U, I, M>]
+  >(formValidityReducer, {});
 
   const setApiMessage = useCallback(
     (message?: Message) =>
@@ -39,16 +89,24 @@ const useFormUtils = <
     [messageGroupRef],
   );
 
+  const setFormValidity = useCallback((value: FormValidity<M>) => {
+    dispatchFormValidity({
+      replace: value,
+    });
+  }, []);
+
   const setValidity = useCallback((key: keyof M, value?: boolean) => {
-    setFormValidity(
-      buildObjectStateSetterCallback<FormValidity<M>>(key, value),
-    );
+    dispatchFormValidity({
+      key,
+      value,
+    });
   }, []);
 
   const setValidityRe = useCallback((re: RegExp, value?: boolean) => {
-    setFormValidity(
-      buildRegExpObjectStateSetterCallback<FormValidity<M>>(re, value),
-    );
+    dispatchFormValidity({
+      re,
+      value,
+    });
   }, []);
 
   const unsetKey = useCallback(
@@ -68,16 +126,16 @@ const useFormUtils = <
   );
 
   const buildFinishInputTestBatchFunction = useCallback(
-    (key: keyof M) => (result: boolean) => {
-      setValidity(key, result);
+    (key: keyof M) => (value: boolean) => {
+      setValidity(key, value);
     },
     [setValidity],
   );
 
   const buildInputFirstRenderFunction = useCallback(
     (key: keyof M) =>
-      ({ isValid }: InputFirstRenderFunctionArgs) => {
-        setValidity(key, isValid);
+      ({ isValid: value }: InputFirstRenderFunctionArgs) => {
+        setValidity(key, value);
       },
     [setValidity],
   );

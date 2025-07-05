@@ -1,4 +1,5 @@
-import { Box as MuiBox, Tooltip as MuiTooltip } from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiTooltip from '@mui/material/Tooltip';
 import { useMemo } from 'react';
 
 import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';

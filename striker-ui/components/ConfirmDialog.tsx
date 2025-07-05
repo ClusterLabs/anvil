@@ -1,4 +1,4 @@
-import { Box as MuiBox } from '@mui/material';
+import MuiBox from '@mui/material/Box';
 import {
   createElement,
   forwardRef,
@@ -34,8 +34,8 @@ const ConfirmDialog = forwardRef<
       preActionArea,
       proceedButtonProps,
       proceedColour = 'blue',
-      scrollContent = false,
       scrollBoxProps,
+      scrollContent = false,
       showActionArea = true,
       showCancel,
       showClose,

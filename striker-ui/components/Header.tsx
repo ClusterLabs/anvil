@@ -1,11 +1,9 @@
-import { Assignment as MuiAssignmentIcon } from '@mui/icons-material';
-import {
-  AppBar as MuiAppBar,
-  Box as MuiBox,
-  Button as MuiButton,
-  IconButton as MuiIconButton,
-  styled,
-} from '@mui/material';
+import MuiAssignmentIcon from '@mui/icons-material/Assignment';
+import MuiAppBar from '@mui/material/AppBar';
+import MuiBox from '@mui/material/Box';
+import MuiButton from '@mui/material/Button';
+import MuiIconButton from '@mui/material/IconButton';
+import styled from '@mui/material/styles/styled';
 import { useRef, useState } from 'react';
 
 import { BORDER_RADIUS, OLD_ICON, RED } from '../lib/consts/DEFAULT_THEME';

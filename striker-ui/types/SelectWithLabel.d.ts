@@ -11,7 +11,7 @@ type OperateSelectItemFunction<Value = string> = (value: Value) => boolean;
 type SelectWithLabelOptionalProps<Value = string> = {
   checkItem?: OperateSelectItemFunction<Value>;
   disableItem?: OperateSelectItemFunction<Value>;
-  formControlProps?: import('@mui/material').FormControlProps;
+  formControlProps?: import('@mui/material/FormControl').FormControlProps;
   hideItem?: OperateSelectItemFunction<Value>;
   isCheckableItems?: boolean;
   isReadOnly?: boolean;

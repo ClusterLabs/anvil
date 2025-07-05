@@ -1,13 +1,14 @@
+import MuiBox from '@mui/material/Box';
+import MuiFormControl from '@mui/material/FormControl';
+import muiInputLabelClasses from '@mui/material/InputLabel/inputLabelClasses';
 import {
-  Box as MuiBox,
-  inputLabelClasses as muiInputLabelClasses,
   OutlinedInputProps as MuiOutlinedInputProps,
   outlinedInputClasses as muiOutlinedInputClasses,
-  Slider as MuiSlider,
-  sliderClasses as muiSliderClasses,
+} from '@mui/material/OutlinedInput';
+import MuiSlider, {
   SliderProps as MuiSliderProps,
-  FormControl as MuiFormControl,
-} from '@mui/material';
+  sliderClasses as muiSliderClasses,
+} from '@mui/material/Slider';
 import { useState } from 'react';
 
 import { BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';

@@ -1,10 +1,8 @@
-import {
-  Box as MuiBox,
-  Divider as MuiDivider,
-  List as MuiList,
-  ListItemButton as MuiListItemButton,
-  styled,
-} from '@mui/material';
+import MuiBox from '@mui/material/Box';
+import MuiDivider from '@mui/material/Divider';
+import MuiList from '@mui/material/List';
+import MuiListItemButton from '@mui/material/ListItemButton';
+import styled from '@mui/material/styles/styled';
 import { useRouter } from 'next/router';
 
 import {

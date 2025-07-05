@@ -1,4 +1,4 @@
-type MuiInputBaseProps = import('@mui/material').InputBaseProps;
+type MuiInputBaseProps = import('@mui/material/InputBase').InputBaseProps;
 
 type MuiInputBasePropsBlurEventHandler = Exclude<
   MuiInputBaseProps['onBlur'],

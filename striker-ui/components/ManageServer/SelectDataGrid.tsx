@@ -1,5 +1,5 @@
-import { styled } from '@mui/material';
-import { gridClasses as muiDataGridClasses } from '@mui/x-data-grid';
+import styled from '@mui/material/styles/styled';
+import { gridClasses as muiDataGridClasses } from '@mui/x-data-grid/constants/gridClasses';
 
 import { BLUE, GREY } from '../../lib/consts/DEFAULT_THEME';
 

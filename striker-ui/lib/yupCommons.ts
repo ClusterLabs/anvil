@@ -3,10 +3,27 @@ import * as yup from 'yup';
 
 import { REP_IPV4, REP_MAC, REP_UUID } from './consts/REG_EXP_PATTERNS';
 
-/**
- * This is OK because yup uses the template string syntax internally to access
- * the field name.
- */
+export const yupGetNotOneOf = <
+  V,
+  N = string,
+  R extends Record<string, V> = Record<string, V>,
+>(
+  ls: R,
+  getOne: (value: V) => N,
+  options: {
+    filterBy?: (value: V) => boolean;
+  } = {},
+): N[] => {
+  const { filterBy } = options;
+
+  let values: V[] = Object.values<V>(ls);
+
+  if (filterBy) {
+    values = values.filter(filterBy);
+  }
+
+  return values.map<N>(getOne);
+};
 
 export const yupLaxMac = () =>
   yup.string().matches(REP_MAC, {

@@ -1,9 +1,8 @@
-import {
-  Tab as MuiTab,
-  tabClasses as muiTabClasses,
+import MuiTab, {
   TabProps as MuiTabProps,
-  styled,
-} from '@mui/material';
+  tabClasses as muiTabClasses,
+} from '@mui/material/Tab';
+import styled from '@mui/material/styles/styled';
 import { useMemo } from 'react';
 
 import { BLUE, BORDER_RADIUS, GREY } from '../lib/consts/DEFAULT_THEME';

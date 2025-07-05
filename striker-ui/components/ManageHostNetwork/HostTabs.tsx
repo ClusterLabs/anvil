@@ -1,7 +1,4 @@
-import {
-  Grid2 as MuiGrid,
-  grid2Classes as muiGridClasses,
-} from '@mui/material';
+import MuiGrid, { grid2Classes as muiGridClasses } from '@mui/material/Grid2';
 
 import { DIVIDER } from '../../lib/consts/DEFAULT_THEME';
 

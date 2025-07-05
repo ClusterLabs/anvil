@@ -1,15 +1,19 @@
-import {
-  Box as MuiBox,
-  List as MuiList,
-  ListItem as MuiListItem,
-} from '@mui/material';
-import { isEmpty } from 'lodash';
+import MuiBox from '@mui/material/Box';
+import MuiList from '@mui/material/List';
+import MuiListItem from '@mui/material/ListItem';
+import isEmpty from 'lodash/isEmpty';
 
 import { REP_LABEL_PASSW } from '../lib/consts/REG_EXP_PATTERNS';
 
 import disassembleCamel from '../lib/disassembleCamel';
 import FlexBox from './FlexBox';
 import { BodyText, MonoText, SensitiveText } from './Text';
+
+const isNone = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (typeof value === 'number' && !Number.isFinite(value)) ||
+  (typeof value === 'string' && value.trim().length === 0);
 
 const renderEntryValueWithMono: RenderFormValueFunction = ({ entry }) => (
   <MonoText whiteSpace="nowrap">{String(entry)}</MonoText>
@@ -28,7 +32,7 @@ const renderEntryValueWithPassword: RenderFormValueFunction = (args) => {
 const renderEntryValueBase: RenderFormValueFunction = (args) => {
   const { entry, hasPassword } = args;
 
-  if (isEmpty(entry)) {
+  if (isNone(entry)) {
     return <BodyText>none</BodyText>;
   }
 

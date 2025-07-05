@@ -11,7 +11,7 @@ type IconButtonPresetMapToStateIconBundle =
 
 type IconButtonStateIconBundle = {
   iconType: CreatableComponent;
-  iconProps?: import('@mui/material').SvgIconProps;
+  iconProps?: import('@mui/material/SvgIcon').SvgIconProps;
 };
 
 type IconButtonMapToStateIconBundle = Record<string, IconButtonStateIconBundle>;
@@ -19,11 +19,11 @@ type IconButtonMapToStateIconBundle = Record<string, IconButtonStateIconBundle>;
 type IconButtonVariant = 'contained' | 'normal' | 'redcontained';
 
 type IconButtonMouseEventHandler =
-  import('@mui/material').IconButtonProps['onClick'];
+  import('@mui/material/IconButton').IconButtonProps['onClick'];
 
 type IconButtonOptionalProps = {
   defaultIcon?: CreatableComponent;
-  iconProps?: import('@mui/material').SvgIconProps;
+  iconProps?: import('@mui/material/SvgIcon').SvgIconProps;
   mapPreset?: IconButtonPresetMapToStateIconBundle;
   mapToIcon?: IconButtonMapToStateIconBundle;
   state?: string;
