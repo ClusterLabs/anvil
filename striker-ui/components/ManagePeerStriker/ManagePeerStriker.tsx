@@ -313,6 +313,11 @@ const ManagePeerStriker: React.FC<ManagePeerStrikerProps> = ({
                     return `Successfully started peer striker registration.`;
                   },
                   operation: 'add',
+                  slotProps: {
+                    summary: {
+                      hasPassword: true,
+                    },
+                  },
                   url: `/host/connection`,
                   values,
                 });
