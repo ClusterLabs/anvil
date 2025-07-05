@@ -34,8 +34,8 @@ type FormikValidationSchemaHelpers<
 };
 
 type FormikValuesSetterParameters<Values extends FormikValues> = {
-  validate?: Parameters<Formik<Values>['setValues']>[1];
-  values: Parameters<Formik<Values>['setValues']>[0];
+  validate?: boolean;
+  values: React.SetStateAction<Values>;
 };
 
 type FormikUtils<Values extends FormikValues> = {
