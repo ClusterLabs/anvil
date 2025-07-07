@@ -1550,6 +1550,8 @@ AND
 
 This returns the full host name for the local machine.
 
+B<< Note >>; To prevent host name duplication when the host name is not set during OS install, if the short host name is 'localhost', the short host UUID will be appended to the actual short host name. Ie: C<< localhost.localdomain >> will return something like C<< localhost-143ddf94.localdomain >>.
+
 Parameters;
 
 =head3 refresh (optional, default '0')
@@ -1592,7 +1594,7 @@ sub host_name
 		}
 		else
 		{
-			# Did we get a real answer? If it's "unet", the string will be emtpy.
+			# Did we get a real answer? If it's "unset", the string will be emtpy.
 			if (not $host_name)
 			{
 				# Try seeing if there is a transient hostname.
@@ -1612,6 +1614,21 @@ sub host_name
 			
 			# Cache the answer
 			$anvil->data->{sys}{host_name} = $host_name;
+		}
+	}
+	
+	# If the host name is 'localhost', appeand the short UUID 
+	if (($host_name =~ /^localhost\./) or ($host_name eq "localhost"))
+	{
+		my $host_uuid =  $anvil->Get->host_uuid();
+		   $host_uuid =~ s/^(\w+?)-.*$/$1/;
+		if ($host_name eq "localhost")
+		{
+			$host_name .= "-".$host_uuid;
+		}
+		else
+		{
+			$host_name =~ s/localhost\./localhost-${host_uuid}\./;
 		}
 	}
 	
@@ -1951,7 +1968,7 @@ sub host_uuid
 	elsif (not $anvil->{HOST}{UUID})
 	{
 		# Read /etc/anvil/host.uuid if it exists. If not, and if we're root, we'll create that file 
-		# using the UUID from dmidecode.
+		# using the UUID from dmidecode, or failing that, by generating our own UUID.
 		my $uuid = "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			'$<'                    => $<, 
@@ -1967,12 +1984,22 @@ sub host_uuid
 		elsif (($< == 0) or ($> == 0))
 		{
 			# Create the UUID file.
-			($uuid, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"});
-			$uuid = lc($uuid);
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-				uuid        => $uuid, 
-				return_code => $return_code,
-			}});
+			if ($anvil->data->{path}{exe}{dmidecode})
+			{
+				($uuid, my $return_code) = $anvil->System->call({debug => $debug, shell_call => $anvil->data->{path}{exe}{dmidecode}." --string system-uuid"});
+				$uuid = lc($uuid);
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+					uuid        => $uuid, 
+					return_code => $return_code,
+				}});
+			}
+			
+			if (not $uuid)
+			{
+				# This is likely an ARM system or similar without dmidecode.
+				$uuid = $anvil->Get->uuid;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { uuid => $uuid }});
+			}
 		}
 		else
 		{
