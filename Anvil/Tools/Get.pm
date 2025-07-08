@@ -1617,7 +1617,7 @@ sub host_name
 		}
 	}
 	
-	# If the host name is 'localhost', appeand the short UUID 
+	# If the host name is 'localhost', append the short UUID 
 	if (($host_name =~ /^localhost\./) or ($host_name eq "localhost"))
 	{
 		my $host_uuid =  $anvil->Get->host_uuid();
