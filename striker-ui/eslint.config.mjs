@@ -22,6 +22,10 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
+const configImportTypescript = { ...importPlugin.flatConfigs.typescript };
+
+delete configImportTypescript.plugins;
+
 /**
  * @type {import('eslint').Linter.Config}
  */
@@ -55,7 +59,12 @@ const config = defineConfig([
       // importPlugin.flatConfigs.warnings,
 
       // Previously: "plugin:import/typescript"
-      importPlugin.flatConfigs.typescript,
+      //
+      // Originally:
+      // importPlugin.flatConfigs.typescript,
+      //
+      // After removing the duplicated plugin "import" from "airbnb":
+      configImportTypescript,
 
       // Previously: "plugin:jsx-a11y/recommended"
       //
