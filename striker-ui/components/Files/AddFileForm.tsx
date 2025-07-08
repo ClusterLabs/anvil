@@ -210,7 +210,14 @@ const AddFileForm: React.FC<AddFileFormProps> = (props) => {
             multiple
             name="files"
             onChange={handleSelectFiles}
-            ref={filePickerRef}
+            ref={(input) => {
+              // Assigning the ref alone makes the ref always null, probably due
+              // to a mix of the periodic updates and conditional rendering.
+              //
+              // Use the callback style to ensure the assignment is done every
+              // render.
+              filePickerRef.current = input;
+            }}
             style={{ display: 'none' }}
             type="file"
           />
