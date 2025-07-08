@@ -166,7 +166,8 @@ const AnHostInputGroup: React.FC<AnHostInputGroupProps> = (props) => {
               })}
             </MuiGrid>
           </MuiGrid>
-          {upses.length && (
+          {/* Don't only use the length because react will display `0` when false. */}
+          {upses.length > 0 && (
             <MuiGrid width="100%">
               <MuiGrid
                 columns={{
