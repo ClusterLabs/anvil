@@ -120,6 +120,14 @@ update_passwords($anvil);
 my $ntp_updated = $anvil->System->check_ntp({debug => 2});
 $anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ntp_updated => $ntp_updated }});
 
+# If we're a DR host, grow the PV if needed.
+my $host_type = $anvil->Get->host_type;
+$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
+if ($host_type eq "dr")
+{
+	$anvil->Storage->auto_grow_pv({debug => 2});
+}
+
 # Make sure that we set the network->wait_on_network() timeout back to 180.
 $anvil->Storage->update_config({
 	append   => 1,
