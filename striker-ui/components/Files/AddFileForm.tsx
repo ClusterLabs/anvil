@@ -8,7 +8,7 @@ import ContainedButton from '../ContainedButton';
 import FileInputGroup from './FileInputGroup';
 import FlexBox from '../FlexBox';
 import handleAPIError from '../../lib/handleAPIError';
-import MessageGroup, { MessageGroupForwardedRefContent } from '../MessageGroup';
+import MessageGroup from '../MessageGroup';
 import fileListSchema from './schema';
 import UploadFileProgress from './UploadFileProgress';
 import useFormikUtils from '../../hooks/useFormikUtils';
@@ -30,15 +30,23 @@ const setUploadProgress: (
 const AddFileForm: React.FC<AddFileFormProps> = (props) => {
   const { anvils, drHosts } = props;
 
-  const messageGroupRef = useRef<MessageGroupForwardedRefContent>(null);
-
   const filePickerRef = useRef<HTMLInputElement>(null);
+
+  const [messages, setMessages] = useState<Messages>({});
 
   const [uploads, setUploads] = useState<UploadFiles | undefined>();
 
   const setApiMessage = useCallback(
     (msg?: Message) =>
-      messageGroupRef?.current?.setMessage?.call(null, 'api', msg),
+      setMessages((previous) => {
+        const { api: rm, ...shallow } = previous;
+
+        if (msg) {
+          shallow.api = msg;
+        }
+
+        return shallow;
+      }),
     [],
   );
 
@@ -193,7 +201,7 @@ const AddFileForm: React.FC<AddFileFormProps> = (props) => {
 
   return (
     <FlexBox>
-      <MessageGroup ref={messageGroupRef} />
+      <MessageGroup messages={messages} />
       {uploads ? (
         <UploadFileProgress uploads={uploads} />
       ) : (
