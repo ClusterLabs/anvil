@@ -592,7 +592,7 @@ The definition data passed in was:
 		<key name="error_0374">The long-throw license file: [#!variable!file!#] was not found, so unable to install it.</key>
 		<key name="error_0375">There was a problem with the "Long-throw" license file. This will prevent Long-Throw DR from working. Details of the error will be recorded in the log file.</key>
 		<key name="error_0376">[ Error ] - (At least) two interfaces have the same MAC address assigned to them. This should not happen, and would cause endless reboots. Unable to complete configuration, please re-map the network again and watch for duplicates. The duplicate MAC address is: [#!variable!mac_address!#] which is used by both: [#!variable!iface1!#] and: [#!variable!iface2!#].</key>
-		<key name="error_0377">[ Error ] - The '--type' must be 'host' or 'dr'. Was given: [#!variable!type!#].</key>
+		<key name="error_0377">[ Error ] - The '--type' must be 'node' or 'dr'. Was given: [#!variable!type!#].</key>
 		<key name="error_0378">[ Error ] - The UUID: [#!variable!uuid!#] is not a valid UUID.</key>
 		<key name="error_0379">[ Error ] - Neither '--host-ip-address' or '--target' were used to define who we are trying to connect to.</key>
 		<key name="error_0380">[ Error ] - The UUID: [#!variable!uuid!#] passed in by the switch: [--#!variable!switch!#] appears to be invalid.</key>
