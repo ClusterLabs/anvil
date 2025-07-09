@@ -1010,7 +1010,7 @@ defaults::log::facility						=	local0
 # This controls what language logs are recorded in. Be sure that the language exists before changing it!
 defaults::log::language						=	en_CA
 
-# This controls the default log level. See 'perldoc Anvil::Tools::Logs' for details.
+# This controls the default log level. See 'perldoc Anvil::Tools::Log' for details.
 defaults::log::level						=	1
 
 # This controls whether sensitive log entries are logged or not. Generally, this should be left disabled!
