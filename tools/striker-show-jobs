@@ -81,6 +81,7 @@ sub show_jobs
 		debug         => 2, 
 		job_host_uuid => $anvil->data->{switches}{host_uuid} ? $anvil->data->{switches}{host_uuid} : "all", 
 		ended_within  => $anvil->data->{switches}{'ended-within'},
+		job_uuid      => $anvil->data->{switches}{'job-uuid'}, 
 	});
 	
 	# Sort them into hosts, and then sort them by picked-up time (if we sorted by modified date, the 
@@ -90,6 +91,7 @@ sub show_jobs
 	my $jobs_found = 0;
 	foreach my $job_uuid (sort {$a cmp $b} keys %{$anvil->data->{jobs}{running}})
 	{
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
 		if (($anvil->data->{switches}{'job-uuid'}) && ($anvil->data->{switches}{'job-uuid'} ne $job_uuid))
 		{
 			next;
