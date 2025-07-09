@@ -73,6 +73,9 @@ sub striker_checks
 	# This checks to make sure that the new dr_links table exists, and that existing anvil_dr1_host_uuid 
 	# entries are copied.
 	update_dr_links($anvil);
+	
+	# This removes the old anvil_dr1_host_uuid column from the database.
+	remove_dr1_host_column($anvil);
 
 	# This replaces anvil_uuid with host_uuid to support more granular location info to support the new
 	# multi-target DR system
@@ -353,6 +356,67 @@ CREATE TRIGGER trigger_dr_links
 		}
 	}
 
+	return(0);
+}
+
+sub remove_dr1_host_column
+{
+	my ($anvil) = @_;
+	
+	foreach my $uuid (sort {$a cmp $b} keys %{$anvil->data->{cache}{database_handle}})
+	{
+		my $query = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'anvils' AND column_name = 'anvil_dr1_host_uuid';";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+		
+		my $count = $anvil->Database->query({query => $query, uuid => $uuid, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { count => $count }});
+		
+		if ($count)
+		{
+			my $queries = [];
+			push @{$queries}, "ALTER TABLE public.anvils DROP COLUMN anvil_dr1_host_uuid;";
+			push @{$queries}, "ALTER TABLE history.anvils DROP COLUMN anvil_dr1_host_uuid;";
+			push @{$queries}, "DROP FUNCTION history_anvils() CASCADE;";
+			push @{$queries}, q|CREATE FUNCTION history_anvils() RETURNS trigger
+AS $$
+DECLARE
+    history_anvils RECORD;
+BEGIN
+    SELECT INTO history_anvils * FROM anvils WHERE anvil_uuid = new.anvil_uuid;
+    INSERT INTO history.anvils
+        (anvil_uuid, 
+         anvil_name, 
+         anvil_description, 
+         anvil_password, 
+         anvil_node1_host_uuid,
+         anvil_node2_host_uuid,
+         modified_date)
+    VALUES
+        (history_anvils.anvil_uuid, 
+         history_anvils.anvil_name, 
+         history_anvils.anvil_description, 
+         history_anvils.anvil_password, 
+         history_anvils.anvil_node1_host_uuid,
+         history_anvils.anvil_node2_host_uuid,
+         history_anvils.modified_date);
+    RETURN NULL;
+END;
+$$
+LANGUAGE plpgsql;
+ALTER FUNCTION history_anvils() OWNER TO admin;
+
+CREATE TRIGGER trigger_anvils
+    AFTER INSERT OR UPDATE ON anvils
+    FOR EACH ROW EXECUTE PROCEDURE history_anvils();
+|;
+			foreach my $query (@{$queries})
+			{
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "log_0124", variables => { query => $query }});
+			}
+			$anvil->Database->write({debug => 2, uuid => $uuid, query => $queries, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
 	return(0);
 }
 

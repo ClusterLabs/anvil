@@ -351,12 +351,10 @@ CREATE TABLE anvils (
     anvil_password           text                        not null,                -- This is the 'hacluster' user password. It is also used to access nodes that don't have a specific password set.
     anvil_node1_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 1. 
     anvil_node2_host_uuid    uuid,                                                -- This is the host_uuid of the machine that is used as node 2. 
-    anvil_dr1_host_uuid      uuid,                                                -- This is the host_uuid of the machine that is used as DR host. 
     modified_date            timestamp with time zone    not null, 
     
     FOREIGN KEY(anvil_node1_host_uuid) REFERENCES hosts(host_uuid), 
-    FOREIGN KEY(anvil_node2_host_uuid) REFERENCES hosts(host_uuid), 
-    FOREIGN KEY(anvil_dr1_host_uuid) REFERENCES hosts(host_uuid) 
+    FOREIGN KEY(anvil_node2_host_uuid) REFERENCES hosts(host_uuid) 
 );
 ALTER TABLE anvils OWNER TO admin;
 
@@ -368,7 +366,6 @@ CREATE TABLE history.anvils (
     anvil_password           text,
     anvil_node1_host_uuid    uuid,
     anvil_node2_host_uuid    uuid,
-    anvil_dr1_host_uuid      uuid,
     modified_date            timestamp with time zone    not null 
 );
 ALTER TABLE history.anvils OWNER TO admin;
@@ -386,7 +383,6 @@ BEGIN
          anvil_password, 
          anvil_node1_host_uuid,
          anvil_node2_host_uuid,
-         anvil_dr1_host_uuid,
          modified_date)
     VALUES
         (history_anvils.anvil_uuid, 
@@ -395,7 +391,6 @@ BEGIN
          history_anvils.anvil_password, 
          history_anvils.anvil_node1_host_uuid,
          history_anvils.anvil_node2_host_uuid,
-         history_anvils.anvil_dr1_host_uuid,
          history_anvils.modified_date);
     RETURN NULL;
 END;
