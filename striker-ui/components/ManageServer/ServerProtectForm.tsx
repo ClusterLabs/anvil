@@ -34,13 +34,7 @@ const protocols: Record<
   'short-throw': {
     displayValue: (
       <MuiBox>
-        <BodyText inheritColour>
-          Async (
-          <InlineMonoText inheritColour noWrap>
-            short-throw
-          </InlineMonoText>
-          )
-        </BodyText>
+        <BodyText inheritColour>Async (short-throw)</BodyText>
         <BodyText selected={false}>
           Replication writes are considered done when the data is in the active
           node&apos;s network transmit buffer.
