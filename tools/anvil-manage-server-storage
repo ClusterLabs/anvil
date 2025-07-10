@@ -342,7 +342,7 @@ sub manage_disk
 			foreach my $volume_number (sort {$a cmp $b} keys %{$anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}})
 			{
 				next if not defined $volume_number or $volume_number eq "";
-				my $device_path  = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
+				my $device_path = $anvil->data->{drbd_resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$volume_number}{device_path};
 				next if $device_path eq "DELETED";
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 					's1:volume_number' => $volume_number,
@@ -834,7 +834,7 @@ sub manage_disk_add
 			my $test_drbd_volume = 0;
 			for (0..100)
 			{
-				if (not $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$test_drbd_volume}{device_path})
+				if (not $anvil->data->{new}{resource}{$drbd_resource}{host_uuid}{$host_uuid}{volume_number}{$test_drbd_volume}{backing_disk})
 				{
 					# This is free.
 					$next_drbd_volume = $test_drbd_volume;
@@ -1135,7 +1135,7 @@ sub manage_disk_add
 					$new_res_file .= $line."
 
                 volume ".$next_drbd_volume." {
-                        device    /dev/drbd_".$drbd_resource."_".$next_drbd_volume." minor ".$anvil->data->{new_drbd}{$short_host_name}{resource}{$drbd_resource}{volume}{$next_drbd_volume}{minor}.";
+                        device    minor ".$anvil->data->{new_drbd}{$short_host_name}{resource}{$drbd_resource}{volume}{$next_drbd_volume}{minor}.";
                         disk      ".$anvil->data->{new_drbd}{$in_on_host}{resource}{$drbd_resource}{volume}{$next_drbd_volume}{backing_disk}.";
                         meta-disk internal;
                 }
