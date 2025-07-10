@@ -86,25 +86,25 @@ if ($anvil->data->{switches}{show})
 	show_data($anvil);
 	$anvil->nice_exit({exit_code => 0});
 }
-
-if ($anvil->data->{switches}{member})
+elsif ($anvil->data->{switches}{member})
 {
 	manage_group_member($anvil);
 }
-
-if ($anvil->data->{switches}{group})
+elsif ($anvil->data->{switches}{group})
 {
 	manage_group($anvil);
 }
-
-#show_data($anvil);
+else
+{
+	show_data($anvil);
+}
 
 # We're done
 $anvil->Job->update_progress({
 	progress  => 100, 
 	message   => "job_0281", 
-	'print'   => 1,
-	log_level => 1,
+	'print'   => 0,
+	log_level => 2,
 	file      => $THIS_FILE, 
 	line      => __LINE__,
 });
