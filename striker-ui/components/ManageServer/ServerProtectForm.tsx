@@ -25,8 +25,13 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const nZero = BigInt(0);
 
-const protocolOptions: SelectItem[] = [
-  {
+const protocols: Record<
+  string,
+  SelectItem & {
+    inputValue?: string;
+  }
+> = {
+  'short-throw': {
     displayValue: (
       <MuiBox>
         <BodyText inheritColour>
@@ -42,9 +47,10 @@ const protocolOptions: SelectItem[] = [
         </BodyText>
       </MuiBox>
     ),
+    inputValue: 'Async (short-throw)',
     value: 'short-throw',
   },
-  {
+  sync: {
     displayValue: (
       <MuiBox>
         <BodyText inheritColour>Sync</BodyText>
@@ -56,7 +62,9 @@ const protocolOptions: SelectItem[] = [
     ),
     value: 'sync',
   },
-];
+};
+
+const protocolOptions = Object.values(protocols);
 
 const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
   const { detail, drs, tools } = props;
@@ -137,7 +145,7 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
   const formikUtils = useFormikUtils<ServerProtectFormikValues>({
     initialValues: {
       lvmVgUuid: null,
-      protocol: 'sync',
+      protocol: 'short-throw',
     },
     onSubmit: (values, helpers) => {
       setJobRegistered(false);
@@ -461,7 +469,8 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
           required
           selectItems={protocolOptions}
           selectProps={{
-            renderValue: (value) => value,
+            renderValue: (value) =>
+              protocols[value]?.inputValue ?? capitalize(value),
           }}
           value={formik.values.protocol}
         />
