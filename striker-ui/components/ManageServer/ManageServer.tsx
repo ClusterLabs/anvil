@@ -1,4 +1,4 @@
-import Grid from '@mui/material/Grid';
+import MuiGrid from '@mui/material/Grid2';
 import styled from '@mui/material/styles/styled';
 import { useRef, useState } from 'react';
 
@@ -141,10 +141,16 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
   return (
     <>
       <Panel>
-        <Grid container spacing="1em">
-          <Grid item width={{ xs: '100%', sm: '14em', md: '20em' }}>
-            <Grid columns={1} container spacing="1em">
-              <Grid item width="100%">
+        <MuiGrid container spacing="1em" width="100%">
+          <MuiGrid
+            width={{
+              xs: '100%',
+              sm: '14em',
+              md: '20em',
+            }}
+          >
+            <MuiGrid container spacing="1em" width="100%">
+              <MuiGrid width="100%">
                 <PreviewFrame server={detail}>
                   <Preview
                     server={detail}
@@ -154,8 +160,8 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
                     {...slotProps?.preview}
                   />
                 </PreviewFrame>
-              </Grid>
-              <Grid item width="100%">
+              </MuiGrid>
+              <MuiGrid width="100%">
                 <Tabs
                   onChange={(event, id) => {
                     setTabId(id);
@@ -205,19 +211,24 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
 
                   <Tab {...tabs.delete} />
                 </Tabs>
-              </Grid>
-            </Grid>
-          </Grid>
-          <Grid display={{ xs: 'none', sm: 'initial' }} item>
+              </MuiGrid>
+            </MuiGrid>
+          </MuiGrid>
+          <MuiGrid
+            display={{
+              xs: 'none',
+              sm: 'initial',
+            }}
+          >
             <Divider orientation="vertical" />
-          </Grid>
-          {/* Take the remaining space with xs=true */}
-          <Grid item xs>
+          </MuiGrid>
+          {/* Take the remaining space with size=grow */}
+          <MuiGrid size="grow">
             <TabContent changingTabId={tabId} tabId={tabs.general.value}>
               <PanelHeader>
                 <HeaderText>{tabs.general.label}</HeaderText>
               </PanelHeader>
-              <Grid container rowSpacing="0.4em">
+              <MuiGrid container rowSpacing="0.4em" width="100%">
                 {[
                   {
                     header: 'UUID',
@@ -236,18 +247,18 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
                     value: detail.host ? detail.host.short : 'None',
                   },
                 ].map(({ header, value }) => (
-                  <Grid key={`general-${header}`} item width="100%">
-                    <Grid columnSpacing="1em" container>
-                      <Grid item width="10em">
+                  <MuiGrid key={`general-${header}`} width="100%">
+                    <MuiGrid columnSpacing="1em" container width="100%">
+                      <MuiGrid width="10em">
                         <BodyText>{header}</BodyText>
-                      </Grid>
-                      <Grid item xs>
+                      </MuiGrid>
+                      <MuiGrid size="grow">
                         <MonoText>{value}</MonoText>
-                      </Grid>
-                    </Grid>
-                  </Grid>
+                      </MuiGrid>
+                    </MuiGrid>
+                  </MuiGrid>
                 ))}
-              </Grid>
+              </MuiGrid>
             </TabContent>
 
             <TabContent changingTabId={tabId} tabId={tabs.bootOrder.value}>
@@ -330,8 +341,8 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
                 tools={formTools.current}
               />
             </TabContent>
-          </Grid>
-        </Grid>
+          </MuiGrid>
+        </MuiGrid>
       </Panel>
       {confirmDialog}
     </>
