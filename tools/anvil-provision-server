@@ -645,6 +645,12 @@ sub provision_server
 		{
 			$shell_call .= " --boot menu=on \\\n";
 		}
+		if (($anvil->data->{job}{os} eq "win11")   or 
+		    ($anvil->data->{job}{os} eq "win2k22") or 
+		    ($anvil->data->{job}{os} eq "win2k25"))
+		{
+			$shell_call .= " --video model=virtio \\\n";
+		}
 		
 		$shell_call .= " --noautoconsole > /var/log/anvil-server_".$server.".log\n";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});

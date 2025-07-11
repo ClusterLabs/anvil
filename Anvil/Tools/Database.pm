@@ -4963,7 +4963,9 @@ Jobs that reached 100% within this number of seconds ago will be included. If th
 
 This is the host that we're getting a list of jobs from. If this is set to C<< all >>, all jobs are loaded from all hosts.
 
-This method takes no parameters.
+=head3 job_uuid (optional)
+
+If this is set, then the job details will be loaded, even if the job is older than C<< ended_within >> or C<< job_host_uuid >> is set.
 
 =cut
 sub get_jobs
@@ -4976,9 +4978,11 @@ sub get_jobs
 	my $return        = [];
 	my $ended_within  = defined $parameter->{ended_within}  ? $parameter->{ended_within}  : 0;
 	my $job_host_uuid = defined $parameter->{job_host_uuid} ? $parameter->{job_host_uuid} : "";
+	my $get_job_uuid  = defined $parameter->{job_uuid}      ? $parameter->{job_uuid}      : "";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 		ended_within  => $ended_within, 
 		job_host_uuid => $job_host_uuid, 
+		get_job_uuid  => $get_job_uuid, 
 	}});
 	
 	if ($ended_within !~ /^\d+$/)
@@ -5020,7 +5024,13 @@ SELECT
     round(extract(epoch from modified_date)) 
 FROM 
     jobs ";
-	if ($job_host_uuid ne "all")
+	if ($get_job_uuid)
+	{
+		$query .= "
+WHERE 
+    job_uuid = ".$anvil->Database->quote($get_job_uuid);
+	}
+	elsif ($job_host_uuid ne "all")
 	{
 		$query .= "
 WHERE 
@@ -5135,7 +5145,17 @@ WHERE
 			}
 			
 			# If the job is done, see if it was recently enough to care about it.
-			if ((not $refresh) && (($job_progress eq "100") && (($updated_seconds_ago == 0) or ($updated_seconds_ago > $ended_within))))
+			if (
+			    (not $get_job_uuid) && 
+			    (not $refresh)      && 
+			    (
+			     ($job_progress eq "100") && 
+			     (
+			      ($updated_seconds_ago == 0) or 
+			      ($updated_seconds_ago > $ended_within)
+			     )
+			    )
+			   )
 			{
 				# Skip it
 				next;
