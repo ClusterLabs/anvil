@@ -1,6 +1,7 @@
 import MuiArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import MuiArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import Grid from '@mui/material/Grid';
+import styled from '@mui/material/styles/styled';
 import { GridColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
 import capitalize from 'lodash/capitalize';
 import { useMemo, useState } from 'react';
@@ -13,6 +14,12 @@ import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import { MonoText } from '../Text';
 import useFormikUtils from '../../hooks/useFormikUtils';
+
+const SelectDataGridWrapper = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  width: '100%',
+});
 
 const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
   const { detail, tools } = props;
@@ -164,74 +171,74 @@ const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
 
   return (
     <ServerFormGrid<ServerBootOrderFormikValues> formik={formik}>
-      <Grid item alignSelf="center">
-        <FlexBox spacing=".6em">
-          <IconButton
-            disabled={disableUp}
-            onClick={() => {
-              const { order } = formik.values;
+      <Grid item width="100%">
+        <FlexBox row spacing="1em">
+          <FlexBox spacing=".6em">
+            <IconButton
+              disabled={disableUp}
+              onClick={() => {
+                const { order } = formik.values;
 
-              const indexA = selectedRowPosition;
+                const indexA = selectedRowPosition;
 
-              if (disableUp) return;
+                if (disableUp) return;
 
-              const indexB = indexA - 1;
+                const indexB = indexA - 1;
 
-              // Swap [..., b, a, ...] in boot array.
+                // Swap [..., b, a, ...] in boot array.
 
-              const { [indexB]: b, [indexA]: a } = order;
+                const { [indexB]: b, [indexA]: a } = order;
 
-              const clone = [...order];
+                const clone = [...order];
 
-              clone.splice(indexB, 2, a, b);
+                clone.splice(indexB, 2, a, b);
 
-              formik.setFieldValue(chains.order, clone, true);
-            }}
-          >
-            <MuiArrowUpwardIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            disabled={disableDown}
-            onClick={() => {
-              const { order } = formik.values;
+                formik.setFieldValue(chains.order, clone, true);
+              }}
+            >
+              <MuiArrowUpwardIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              disabled={disableDown}
+              onClick={() => {
+                const { order } = formik.values;
 
-              const indexA = selectedRowPosition;
+                const indexA = selectedRowPosition;
 
-              if (disableDown) return;
+                if (disableDown) return;
 
-              const indexB = indexA + 1;
+                const indexB = indexA + 1;
 
-              // Swap [..., a, b, ...] in boot array.
+                // Swap [..., a, b, ...] in boot array.
 
-              const { [indexA]: a, [indexB]: b } = order;
+                const { [indexA]: a, [indexB]: b } = order;
 
-              const clone = [...order];
+                const clone = [...order];
 
-              clone.splice(indexA, 2, b, a);
+                clone.splice(indexA, 2, b, a);
 
-              formik.setFieldValue(chains.order, clone, true);
-            }}
-          >
-            <MuiArrowDownwardIcon fontSize="small" />
-          </IconButton>
+                formik.setFieldValue(chains.order, clone, true);
+              }}
+            >
+              <MuiArrowDownwardIcon fontSize="small" />
+            </IconButton>
+          </FlexBox>
+          <SelectDataGridWrapper>
+            <SelectDataGrid<ServerBootOrderRow>
+              columns={dataGridColumns}
+              disableColumnMenu
+              getRowId={(row) => row.index}
+              hideFooter
+              onRowSelectionModelChange={(model) => {
+                const [rowId] = model;
+
+                setSelectedRowId(Number(rowId));
+              }}
+              rows={dataGridRows}
+            />
+          </SelectDataGridWrapper>
         </FlexBox>
       </Grid>
-      <Grid item flexGrow={1}>
-        <SelectDataGrid<ServerBootOrderRow>
-          autoHeight
-          columns={dataGridColumns}
-          disableColumnMenu
-          getRowId={(row) => row.index}
-          hideFooter
-          onRowSelectionModelChange={(model) => {
-            const [rowId] = model;
-
-            setSelectedRowId(Number(rowId));
-          }}
-          rows={dataGridRows}
-        />
-      </Grid>
-
       <Grid item width="100%">
         <ServerFormSubmit
           detail={detail}
