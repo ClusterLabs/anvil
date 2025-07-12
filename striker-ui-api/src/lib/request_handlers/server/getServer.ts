@@ -135,8 +135,16 @@ export const getServer: RequestHandler<
       d3.anvil_uuid,
       d3.anvil_name,
       d3.anvil_description,
-      COALESCE(d4.server_text_uuid, '') AS server_text_uuid,
-      COALESCE(d4.server_name, '') AS server_name,
+      COALESCE(
+        d4.server_text_uuid,
+        d1.server_uuid_or_name,
+        ''
+      ) AS server_text_uuid,
+      COALESCE(
+        d4.server_name,
+        d1.server_uuid_or_name,
+        ''
+      ) AS server_name,
       COALESCE(
         d4.server_text_uuid,
         d4.server_name,
