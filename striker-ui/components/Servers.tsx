@@ -16,7 +16,7 @@ import {
   RED,
   TEXT,
 } from '../lib/consts/DEFAULT_THEME';
-import serverState from '../lib/consts/SERVERS';
+import SERVER from '../lib/consts/SERVER';
 
 import api from '../lib/api';
 import { AnvilContext } from './AnvilContext';
@@ -377,7 +377,8 @@ const Servers: React.FC<{ anvil: AnvilListItem[] }> = (props) => {
                           <BodyText text={server.name} />
                           <BodyText
                             text={
-                              serverState.get(server.state) || 'Not Available'
+                              SERVER.states.map.get(server.state) ||
+                              'Not Available'
                             }
                           />
                         </MuiBox>

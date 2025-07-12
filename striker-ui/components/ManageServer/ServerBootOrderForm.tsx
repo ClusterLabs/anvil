@@ -1,23 +1,32 @@
-import MuiArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import MuiArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import Grid from '@mui/material/Grid';
+import styled from '@mui/material/styles/styled';
 import { GridColDef } from '@mui/x-data-grid/models/colDef/gridColDef';
 import capitalize from 'lodash/capitalize';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef } from 'react';
 
 import FlexBox from '../FlexBox';
-import handleFormSubmit from './handleFormSubmit';
-import IconButton from '../IconButton';
+import OrderControlBox, {
+  OrderControlBoxForwardedRefContent,
+} from './OrderControlBox';
 import SelectDataGrid from './SelectDataGrid';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import { MonoText } from '../Text';
+import handleFormSubmit from './handleFormSubmit';
 import useFormikUtils from '../../hooks/useFormikUtils';
+
+const SelectDataGridWrapper = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  width: '100%',
+});
 
 const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
   const { detail, tools } = props;
 
-  const [selectedRowId, setSelectedRowId] = useState<number | undefined>();
+  const controlRef = useRef<OrderControlBoxForwardedRefContent<number> | null>(
+    null,
+  );
 
   const initialBootOrder = useMemo(() => {
     const [, ...disks] = detail.devices.diskOrderBy.boot;
@@ -56,36 +65,6 @@ const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
   });
 
   const { disabledSubmit, formik } = formikUtils;
-
-  const chains = useMemo(
-    () => ({
-      order: `order`,
-    }),
-    [],
-  );
-
-  /**
-   * Position of the selected row ID (or disk index) in the boot order array.
-   */
-  const selectedRowPosition = useMemo<number>(() => {
-    if (selectedRowId === undefined) return -1;
-
-    return formik.values.order.indexOf(selectedRowId);
-  }, [formik.values.order, selectedRowId]);
-
-  const disableUp = useMemo<boolean>(() => {
-    const index = selectedRowPosition;
-
-    return index < 1;
-  }, [selectedRowPosition]);
-
-  const disableDown = useMemo<boolean>(() => {
-    const index = selectedRowPosition;
-
-    const last = formik.values.order.length - 1;
-
-    return index < 0 || index >= last;
-  }, [formik.values.order.length, selectedRowPosition]);
 
   const dataGridRows = useMemo(() => {
     const ls: number[] = formik.values.order;
@@ -164,74 +143,31 @@ const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
 
   return (
     <ServerFormGrid<ServerBootOrderFormikValues> formik={formik}>
-      <Grid item alignSelf="center">
-        <FlexBox spacing=".6em">
-          <IconButton
-            disabled={disableUp}
-            onClick={() => {
-              const { order } = formik.values;
-
-              const indexA = selectedRowPosition;
-
-              if (disableUp) return;
-
-              const indexB = indexA - 1;
-
-              // Swap [..., b, a, ...] in boot array.
-
-              const { [indexB]: b, [indexA]: a } = order;
-
-              const clone = [...order];
-
-              clone.splice(indexB, 2, a, b);
-
-              formik.setFieldValue(chains.order, clone, true);
+      <Grid item width="100%">
+        <FlexBox row spacing="1em">
+          <OrderControlBox<number, ServerBootOrderFormikValues>
+            formikUtils={formikUtils}
+            ref={(controls) => {
+              controlRef.current = controls;
             }}
-          >
-            <MuiArrowUpwardIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            disabled={disableDown}
-            onClick={() => {
-              const { order } = formik.values;
+          />
+          <SelectDataGridWrapper>
+            <SelectDataGrid<ServerBootOrderRow>
+              columns={dataGridColumns}
+              disableColumnMenu
+              // Use disk index as row ID
+              getRowId={(row) => row.index}
+              hideFooter
+              onRowSelectionModelChange={(model) => {
+                const [rowId] = model;
 
-              const indexA = selectedRowPosition;
-
-              if (disableDown) return;
-
-              const indexB = indexA + 1;
-
-              // Swap [..., a, b, ...] in boot array.
-
-              const { [indexA]: a, [indexB]: b } = order;
-
-              const clone = [...order];
-
-              clone.splice(indexA, 2, b, a);
-
-              formik.setFieldValue(chains.order, clone, true);
-            }}
-          >
-            <MuiArrowDownwardIcon fontSize="small" />
-          </IconButton>
+                controlRef.current?.setSelectedId(Number(rowId));
+              }}
+              rows={dataGridRows}
+            />
+          </SelectDataGridWrapper>
         </FlexBox>
       </Grid>
-      <Grid item flexGrow={1}>
-        <SelectDataGrid<ServerBootOrderRow>
-          autoHeight
-          columns={dataGridColumns}
-          disableColumnMenu
-          getRowId={(row) => row.index}
-          hideFooter
-          onRowSelectionModelChange={(model) => {
-            const [rowId] = model;
-
-            setSelectedRowId(Number(rowId));
-          }}
-          rows={dataGridRows}
-        />
-      </Grid>
-
       <Grid item width="100%">
         <ServerFormSubmit
           detail={detail}

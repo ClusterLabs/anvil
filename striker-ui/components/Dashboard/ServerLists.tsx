@@ -53,8 +53,8 @@ const ServerLists: React.FC<ServerListProps> = (props) => {
 
   if (loadingAnvils) {
     return (
-      <Grid container spacing="1em">
-        <Spinner mt={0} />
+      <Grid container justifyContent="center" spacing="1em">
+        <Spinner />
       </Grid>
     );
   }

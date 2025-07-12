@@ -51,22 +51,23 @@ const useFetch = <
     ...restConfig
   } = options;
 
-  let ri: SWRConfiguration<
-    ResData,
-    Err,
-    BareFetcher<ResData>
-  >['refreshInterval'];
+  const ri = useMemo<
+    SWRConfiguration<ResData, Err, BareFetcher<ResData>>['refreshInterval']
+  >(() => {
+    if (periodic) {
+      return 5000;
+    }
 
-  if (periodic) {
-    ri = 5000;
-  } else {
-    ri = refreshInterval;
-  }
+    return refreshInterval;
+  }, [periodic, refreshInterval]);
 
   const {
     data,
     error,
-    isValidating: validating,
+    // DO NOT get the validating flag directly from the SWR hook. React will
+    // re-render every time the validating flag changes, which will cause the
+    // component where this hook is used **and** all of its children to
+    // re-render!
     mutate,
   } = useSWR<ResData, Err>(url, fetcher, {
     refreshInterval: ri,
@@ -78,9 +79,18 @@ const useFetch = <
     [data, mod],
   );
 
-  const loading = !error && !data;
+  const loading = useMemo<boolean>(() => !error && !data, [data, error]);
 
-  return { altData, data, error, mutate, loading, validating };
+  return {
+    altData,
+    data,
+    error,
+    mutate,
+    loading,
+    // TODO: replace the validating flag with "something", like a context, to
+    // minimize the re-render scope when the flag changes.
+    validating: false,
+  };
 };
 
 export default useFetch;

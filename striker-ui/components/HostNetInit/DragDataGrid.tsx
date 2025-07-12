@@ -1,4 +1,5 @@
 import muiIconButtonClasses from '@mui/material/IconButton/iconButtonClasses';
+import muiTypographyClasses from '@mui/material/Typography/typographyClasses';
 import styled from '@mui/material/styles/styled';
 import { DataGrid as MuiDataGrid } from '@mui/x-data-grid/DataGrid';
 import { gridClasses as muiDataGridClasses } from '@mui/x-data-grid/constants/gridClasses';
@@ -14,20 +15,22 @@ const dragDataGridClasses = {
 const DragDataGrid = styled(MuiDataGrid)({
   color: GREY,
 
-  [`.${muiDataGridClasses.columnHeader}`]: {
+  [`& .${dragDataGridClasses.draggable}`]: {
+    '&:hover': {
+      cursor: 'grab',
+
+      [`& .${muiDataGridClasses.cell}`]: {
+        [`& .${muiTypographyClasses.root}`]: {
+          cursor: 'auto',
+        },
+      },
+    },
+  },
+
+  [`& .${muiDataGridClasses.columnHeader}`]: {
     '&:focus': {
       outline: 'none',
     },
-  },
-
-  [`.${muiDataGridClasses.columnHeaders}`]: {
-    [`.${muiDataGridClasses['row--borderBottom']}`]: {
-      backgroundColor: 'inherit',
-    },
-  },
-
-  [`& .${muiIconButtonClasses.root}`]: {
-    color: 'inherit',
   },
 
   [`& .${muiDataGridClasses.cell}`]: {
@@ -40,14 +43,14 @@ const DragDataGrid = styled(MuiDataGrid)({
     },
   },
 
-  [`& .${muiDataGridClasses.row}`]: {
-    [`&.${dragDataGridClasses.draggable}:hover`]: {
-      cursor: 'grab',
-
-      [`& .${muiDataGridClasses.cell} p`]: {
-        cursor: 'auto',
-      },
+  [`& .${muiDataGridClasses['container--top']}`]: {
+    '& [role="row"]': {
+      backgroundColor: 'transparent',
     },
+  },
+
+  [`& .${muiIconButtonClasses.root}`]: {
+    color: 'inherit',
   },
 }) as typeof MuiDataGrid;
 

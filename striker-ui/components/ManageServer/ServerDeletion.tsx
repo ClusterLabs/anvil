@@ -1,4 +1,5 @@
 import Grid from '@mui/material/Grid';
+import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 
 import handleAction from './handleAction';
@@ -12,6 +13,8 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 
 const ServerDeletion: React.FC<ServerDeletionProps> = (props) => {
   const { detail, tools } = props;
+
+  const router = useRouter();
 
   const formikUtils = useFormikUtils<ServerDeletionFormikValues>({
     initialValues: {
@@ -43,7 +46,7 @@ const ServerDeletion: React.FC<ServerDeletionProps> = (props) => {
             helpers.setSubmitting(false);
           },
           onSuccess: () => {
-            window.location.replace('/');
+            router.replace('/');
           },
         },
       );
