@@ -6,6 +6,7 @@ import capitalize from 'lodash/capitalize';
 import { useMemo } from 'react';
 
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
+import SERVER from '../../lib/consts/SERVER';
 
 import Decorator, { Colours } from '../Decorator';
 import { Preview, PreviewBox as BasePreviewBox } from '../Display';
@@ -49,7 +50,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   const server = servers[serverUuid];
 
   const blocking = useMemo(
-    () => ['deleting', 'provisioning', 'renaming'].includes(server.state),
+    () => SERVER.states.blocking.includes(server.state),
     [server.state],
   );
 

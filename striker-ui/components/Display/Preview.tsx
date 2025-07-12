@@ -10,6 +10,7 @@ import merge from 'lodash/merge';
 import { cloneElement, createElement, useMemo } from 'react';
 
 import { GREY, UNSELECTED } from '../../lib/consts/DEFAULT_THEME';
+import SERVER from '../../lib/consts/SERVER';
 
 import PieProgress from '../PieProgress';
 import PreviewBox from './PreviewBox';
@@ -73,7 +74,7 @@ const Preview = <Server extends ServerCore>(
   );
 
   const blocking = useMemo<boolean>(
-    () => ['deleting', 'provisioning', 'renaming'].includes(server.state),
+    () => SERVER.states.blocking.includes(server.state),
     [server.state],
   );
 

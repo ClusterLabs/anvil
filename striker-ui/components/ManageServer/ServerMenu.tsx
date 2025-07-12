@@ -3,6 +3,8 @@ import MuiBox from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { useMemo, useRef } from 'react';
 
+import SERVER from '../../lib/consts/SERVER';
+
 import ButtonWithMenu from '../ButtonWithMenu';
 import { MAP_TO_COLOUR } from '../ContainedButton';
 import Divider from '../Divider';
@@ -37,7 +39,7 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
   const off = useMemo(() => server.state === 'shut off', [server.state]);
 
   const blocking = useMemo(
-    () => ['deleting', 'provisioning', 'renaming'].includes(server.state),
+    () => SERVER.states.blocking.includes(server.state),
     [server.state],
   );
 

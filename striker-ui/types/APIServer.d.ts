@@ -1,11 +1,14 @@
 type ServerState =
   | 'crashed'
+  | 'deleting'
   | 'idle'
+  | 'in bootup'
   | 'in shutdown'
   | 'migrating'
   | 'paused'
   | 'pmsuspended'
   | 'provisioning'
+  | 'renaming'
   | 'running'
   | 'shut off';
 
