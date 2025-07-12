@@ -49,10 +49,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   const server = servers[serverUuid];
 
   const blocking = useMemo(
-    () =>
-      ['deleting', 'provisioning', 'renaming'].some(
-        (state) => server.state === state,
-      ),
+    () => ['deleting', 'provisioning', 'renaming'].includes(server.state),
     [server.state],
   );
 
