@@ -30,7 +30,7 @@ const PreviewBox = styled(BasePreviewBox)(() => {
   };
 });
 
-const ProvisionProgressBox = styled(BasePreviewBox)(() => {
+const BlockingJobsProgressBox = styled(BasePreviewBox)(() => {
   const width = '3.2em';
 
   return {
@@ -48,12 +48,15 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
 
   const server = servers[serverUuid];
 
-  const provisioning = useMemo(
-    () => server.state === 'provisioning',
+  const blocking = useMemo(
+    () =>
+      ['deleting', 'provisioning', 'renaming'].some(
+        (state) => server.state === state,
+      ),
     [server.state],
   );
 
-  const provisionProgress = useMemo(() => {
+  const blockingJobsProgress = useMemo(() => {
     const { jobs } = server;
 
     if (!jobs) {
@@ -61,7 +64,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
     }
 
     return (
-      <ProvisionProgressBox>
+      <BlockingJobsProgressBox>
         {...Object.values(jobs).map((job, index) => {
           const { peer, progress, uuid } = job;
 
@@ -95,7 +98,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
             />
           );
         })}
-      </ProvisionProgressBox>
+      </BlockingJobsProgressBox>
     );
   }, [server]);
 
@@ -104,8 +107,8 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   let serverName: React.ReactNode;
   let serverState: React.ReactNode;
 
-  if (provisioning) {
-    decorator = <Grid item>{provisionProgress}</Grid>;
+  if (blocking) {
+    decorator = <Grid item>{blockingJobsProgress}</Grid>;
 
     serverName = <BodyText noWrap>{server.name}</BodyText>;
 
