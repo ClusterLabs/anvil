@@ -24,7 +24,9 @@ const SelectDataGridWrapper = styled('div')({
 const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
   const { detail, tools } = props;
 
-  const controlRef = useRef<OrderControlBoxForwardedRefContent<number>>(null);
+  const controlRef = useRef<OrderControlBoxForwardedRefContent<number> | null>(
+    null,
+  );
 
   const initialBootOrder = useMemo(() => {
     const [, ...disks] = detail.devices.diskOrderBy.boot;
@@ -143,7 +145,12 @@ const ServerBootOrderForm: React.FC<ServerBootOrderFormProps> = (props) => {
     <ServerFormGrid<ServerBootOrderFormikValues> formik={formik}>
       <Grid item width="100%">
         <FlexBox row spacing="1em">
-          <OrderControlBox formikUtils={formikUtils} ref={controlRef} />
+          <OrderControlBox<number, ServerBootOrderFormikValues>
+            formikUtils={formikUtils}
+            ref={(controls) => {
+              controlRef.current = controls;
+            }}
+          />
           <SelectDataGridWrapper>
             <SelectDataGrid<ServerBootOrderRow>
               columns={dataGridColumns}
