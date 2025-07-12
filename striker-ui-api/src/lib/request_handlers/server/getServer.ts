@@ -178,7 +178,11 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           uuid: jobHostUuid,
         };
 
-        previous[jobServerName] = previous[jobServerName] ?? {
+        // Only use name when UUID isn't available, i.e. when server is
+        // provisioning (not recorded as a "servers" record yet).
+        const id = serverUuid || jobServerName;
+
+        previous[id] = previous[id] ?? {
           anvil: {
             description: jobAnvilDescription,
             name: jobAnvilName,
@@ -190,7 +194,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           uuid: jobUuid,
         };
 
-        const { [jobServerName]: server } = previous;
+        const { [id]: server } = previous;
 
         const peer = Number(jobOnPeer) === 1;
 
