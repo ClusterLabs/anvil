@@ -72,13 +72,22 @@ const Preview = <Server extends ServerCore>(
     [slotProps?.screenshotBox],
   );
 
+  const blocking = useMemo<boolean>(
+    () => ['deleting', 'provisioning', 'renaming'].includes(server.state),
+    [server.state],
+  );
+
   const content = useMemo(() => {
-    if (server.jobs) {
+    if (blocking) {
+      if (!server.jobs) {
+        return undefined;
+      }
+
       return cloneElement(
         wrapper,
         wrapperProps,
         <>
-          <BodyText>Provisioning...</BodyText>
+          <BodyText>{capitalize(server.state)}...</BodyText>
           {Object.values(server.jobs).map((job, index) => {
             const { peer, progress, uuid } = job;
 
@@ -178,6 +187,7 @@ const Preview = <Server extends ServerCore>(
       staleMsg,
     );
   }, [
+    blocking,
     loadingPreview,
     nao,
     preview,
@@ -191,7 +201,7 @@ const Preview = <Server extends ServerCore>(
   ]);
 
   const button = useMemo(() => {
-    const disabled = Boolean(server.jobs);
+    const disabled = blocking;
 
     let buttonProps = slotProps?.button;
     let buttonSx;
@@ -221,13 +231,7 @@ const Preview = <Server extends ServerCore>(
       },
       content,
     );
-  }, [
-    content,
-    handleClickPreview,
-    previewHref,
-    server.jobs,
-    slotProps?.button,
-  ]);
+  }, [blocking, content, handleClickPreview, previewHref, slotProps?.button]);
 
   return button;
 };

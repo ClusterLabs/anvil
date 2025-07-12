@@ -54,15 +54,13 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
   );
 
   const blockingJobsProgress = useMemo(() => {
-    const { jobs } = server;
-
-    if (!jobs) {
+    if (!server.jobs) {
       return undefined;
     }
 
     return (
       <BlockingJobsProgressBox>
-        {...Object.values(jobs).map((job, index) => {
+        {Object.values(server.jobs).map((job, index) => {
           const { peer, progress, uuid } = job;
 
           const size = `calc(2.8em - ${1.5 * index}em)`;
@@ -97,7 +95,7 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
         })}
       </BlockingJobsProgressBox>
     );
-  }, [server]);
+  }, [server.jobs]);
 
   let decorator: React.ReactNode;
   let preview: React.ReactNode;
