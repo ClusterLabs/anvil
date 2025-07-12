@@ -83,12 +83,16 @@ export const getServer: RequestHandler<
         WHEN job_progress < 100
           THEN (
             CASE
+              WHEN job_command LIKE '%boot-server%'
+                THEN 'in bootup'
               WHEN job_command LIKE '%delete-server%'
                 THEN 'deleting'
               WHEN job_command LIKE '%provision-server%'
                 THEN 'provisioning'
               WHEN job_command LIKE '%rename-server%'
                 THEN 'renaming'
+              WHEN job_command LIKE '%shutdown-server%'
+                THEN 'in shutdown'
               ELSE NULL
             END
           )
@@ -98,9 +102,11 @@ export const getServer: RequestHandler<
     WHERE
         job_command LIKE ANY (
           ARRAY[
+            '%boot-server%',
             '%delete-server%',
             '%provision-server%',
-            '%rename-server%'
+            '%rename-server%',
+            '%shutdown-server%'
           ]
         )
       AND
