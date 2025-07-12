@@ -77,12 +77,18 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           END AS job_on_peer,
           SUBSTRING(d1.job_data, 'server_name=([^\\n]*)') AS server_name,
           CASE
-            WHEN d1.job_command LIKE '%delete-server%'
-              THEN 'deleting'
-            WHEN d1.job_command LIKE '%provision-server%'
-              THEN 'provisioning'
-            WHEN d1.job_command LIKE '%rename-server%'
-              THEN 'renaming'
+            WHEN d1.job_progress < 100
+              THEN (
+                CASE
+                  WHEN d1.job_command LIKE '%delete-server%'
+                    THEN 'deleting'
+                  WHEN d1.job_command LIKE '%provision-server%'
+                    THEN 'provisioning'
+                  WHEN d1.job_command LIKE '%rename-server%'
+                    THEN 'renaming'
+                  ELSE NULL
+                END
+              )
             ELSE NULL
           END as server_state_from_job,
           d2.host_uuid,
@@ -157,7 +163,7 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
       }
 
       if (serverUuid) {
-        previous[serverUuid] = {
+        previous[serverUuid] = previous[serverUuid] ?? {
           anvil: {
             description: anvilDescription,
             name: anvilName,
@@ -191,16 +197,19 @@ export const getServer = buildGetRequestHandler((request, hooks) => {
           host,
           name: jobServerName,
           state: '',
-          uuid: jobUuid,
+          uuid: '',
         };
 
         const { [id]: server } = previous;
 
+        // Only applicable to provisioning jobs
         const peer = Number(jobOnPeer) === 1;
 
         const progress = Number(jobProgress);
 
-        if (progress < 100 && jobServerState) {
+        // Only check state on the main job when there are multiple across
+        // different hosts
+        if (!peer && jobServerState) {
           // Update server state based on the running job
           server.state = jobServerState;
         }
