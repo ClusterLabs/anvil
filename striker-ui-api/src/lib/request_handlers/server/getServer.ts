@@ -106,7 +106,7 @@ export const getServer: RequestHandler<
       AND
         modified_date > current_timestamp - interval '5 minutes'`;
 
-  const sqlCastServers = `
+  const sqlCastServerUuids = `
     SELECT
       *,
       CAST(server_uuid AS text) AS server_text_uuid
@@ -114,13 +114,19 @@ export const getServer: RequestHandler<
 
   // Check for deleted servers in root query to not only exclude the deleted
   // servers, but also exclude their jobs; jobs for deleted servers will remain
-  // if the condition is applied at the join due to "left join"
+  // if the condition is applied at the join due to "left join".
+  //
+  // Reminder that evaluating "not deleted" on a NULL value will result in
+  // UNKNOWN instead of TRUE, which excludes such records from the results.
+  // Must use IS or IS NOT to evaluate NULL values.
+  //
+  // Only use name as key when UUID isn't available, i.e. when server is
+  // provisioning (not recorded as a "servers" record yet).
   const sqlGetJobs = `
     SELECT
       d1.job_uuid,
       d1.job_progress,
       d1.job_on_peer,
-      d1.server_uuid_or_name,
       d1.server_state_from_job,
       d2.host_uuid,
       d2.host_name,
@@ -129,8 +135,13 @@ export const getServer: RequestHandler<
       d3.anvil_uuid,
       d3.anvil_name,
       d3.anvil_description,
-      COALESCE(d4.server_text_uuid, ''),
-      COALESCE(d4.server_name, '')
+      COALESCE(d4.server_text_uuid, '') AS server_text_uuid,
+      COALESCE(d4.server_name, '') AS server_name,
+      COALESCE(
+        d4.server_text_uuid,
+        d4.server_name,
+        d1.server_uuid_or_name
+      ) AS job_server_key
     FROM (${sqlScopeJobs}) AS d1
     JOIN (${sqlHosts()}) AS d2
       ON d2.host_uuid = d1.job_host_uuid
@@ -139,7 +150,7 @@ export const getServer: RequestHandler<
         d3.anvil_node1_host_uuid,
         d3.anvil_node2_host_uuid
       )
-    LEFT JOIN (${sqlCastServers}) AS d4
+    LEFT JOIN (${sqlCastServerUuids}) AS d4
       ON d1.server_uuid_or_name IN (
         d4.server_text_uuid,
         d4.server_name
@@ -147,10 +158,13 @@ export const getServer: RequestHandler<
     WHERE
         ${conditions.job}
       AND
-        d4.server_state != '${DELETED}'
+        (
+            d4.server_state IS NULL
+          OR
+            d4.server_state != '${DELETED}'
+        )
     ORDER BY
-      d4.server_name,
-      d1.server_uuid_or_name,
+      job_server_key,
       d1.job_on_peer,
       d1.modified_date DESC;`;
 
@@ -209,7 +223,6 @@ export const getServer: RequestHandler<
       jobUuid,
       jobProgress,
       jobOnPeer,
-      jobServerUuidOrName,
       jobServerState,
       jobHostUuid,
       jobHostName,
@@ -220,6 +233,7 @@ export const getServer: RequestHandler<
       jobAnvilDescription,
       jobServerUuid,
       jobServerName,
+      jobServerKey,
     ] = row as string[];
 
     const host: ServerOverviewHost = {
@@ -229,11 +243,7 @@ export const getServer: RequestHandler<
       uuid: jobHostUuid,
     };
 
-    // Only use name when UUID isn't available, i.e. when server is
-    // provisioning (not recorded as a "servers" record yet).
-    const id = jobServerUuid || jobServerName || jobServerUuidOrName;
-
-    servers[id] = servers[id] ?? {
+    servers[jobServerKey] = servers[jobServerKey] ?? {
       anvil: {
         description: jobAnvilDescription,
         name: jobAnvilName,
@@ -245,18 +255,7 @@ export const getServer: RequestHandler<
       uuid: jobServerUuid,
     };
 
-    const { [id]: server } = servers;
-
-    poutvar({
-      jobOnPeer: {
-        type: typeof jobOnPeer,
-        value: jobOnPeer,
-      },
-      jobProgress: {
-        type: typeof jobProgress,
-        value: jobProgress,
-      },
-    });
+    const { [jobServerKey]: server } = servers;
 
     // Only applicable to provisioning jobs
     const peer = Number(jobOnPeer) === 1;
@@ -278,6 +277,14 @@ export const getServer: RequestHandler<
       progress,
       uuid: jobUuid,
     };
+
+    poutvar(
+      {
+        key: jobServerKey,
+        server,
+      },
+      `Server after processing its jobs: `,
+    );
   });
 
   return respond.s200(servers);
