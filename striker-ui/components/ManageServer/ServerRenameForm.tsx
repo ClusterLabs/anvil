@@ -1,4 +1,5 @@
 import Grid from '@mui/material/Grid';
+import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 
 import handleFormSubmit from './handleFormSubmit';
@@ -14,6 +15,8 @@ import useFormikUtils from '../../hooks/useFormikUtils';
 const ServerRenameForm: React.FC<ServerRenameFormProps> = (props) => {
   const { detail, servers, tools } = props;
 
+  const router = useRouter();
+
   const formikUtils = useFormikUtils<ServerRenameFormikValues>({
     initialValues: {
       name: detail.name,
@@ -25,6 +28,11 @@ const ServerRenameForm: React.FC<ServerRenameFormProps> = (props) => {
         tools,
         () => `/server/${detail.uuid}/rename`,
         () => `Rename ${detail.name}?`,
+        {
+          onSuccess: () => {
+            router.replace('/');
+          },
+        },
       );
     },
     validationSchema: buildRenameSchema(detail, servers),

@@ -2,6 +2,7 @@ export * from './addDiskRb';
 export * from './addIfaceRb';
 export * from './changeIsoRb';
 export * from './deleteIfaceRb';
+export * from './getServerQs';
 export * from './growDiskRb';
 export * from './migrateRb';
 export * from './renameRb';

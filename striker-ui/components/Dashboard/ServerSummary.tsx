@@ -6,6 +6,7 @@ import capitalize from 'lodash/capitalize';
 import { useMemo } from 'react';
 
 import { BORDER_RADIUS } from '../../lib/consts/DEFAULT_THEME';
+import SERVER from '../../lib/consts/SERVER';
 
 import Decorator, { Colours } from '../Decorator';
 import { Preview, PreviewBox as BasePreviewBox } from '../Display';
@@ -30,7 +31,7 @@ const PreviewBox = styled(BasePreviewBox)(() => {
   };
 });
 
-const ProvisionProgressBox = styled(BasePreviewBox)(() => {
+const BlockingJobsProgressBox = styled(BasePreviewBox)(() => {
   const width = '3.2em';
 
   return {
@@ -48,21 +49,19 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
 
   const server = servers[serverUuid];
 
-  const provisioning = useMemo(
-    () => server.state === 'provisioning',
+  const blocking = useMemo(
+    () => SERVER.states.blocking.includes(server.state),
     [server.state],
   );
 
-  const provisionProgress = useMemo(() => {
-    const { jobs } = server;
-
-    if (!jobs) {
+  const blockingJobsProgress = useMemo(() => {
+    if (!server.jobs) {
       return undefined;
     }
 
     return (
-      <ProvisionProgressBox>
-        {...Object.values(jobs).map((job, index) => {
+      <BlockingJobsProgressBox>
+        {Object.values(server.jobs).map((job, index) => {
           const { peer, progress, uuid } = job;
 
           const size = `calc(2.8em - ${1.5 * index}em)`;
@@ -95,17 +94,17 @@ const ServerSummary: React.FC<ServerListItemProps> = (props) => {
             />
           );
         })}
-      </ProvisionProgressBox>
+      </BlockingJobsProgressBox>
     );
-  }, [server]);
+  }, [server.jobs]);
 
   let decorator: React.ReactNode;
   let preview: React.ReactNode;
   let serverName: React.ReactNode;
   let serverState: React.ReactNode;
 
-  if (provisioning) {
-    decorator = <Grid item>{provisionProgress}</Grid>;
+  if (blocking) {
+    decorator = <Grid item>{blockingJobsProgress}</Grid>;
 
     serverName = <BodyText noWrap>{server.name}</BodyText>;
 
