@@ -19,38 +19,102 @@ const ScrollableList = styled(StyledList)({
   overflowY: 'scroll',
 });
 
+const ListItems = <Item,>(
+  ...[props]: Parameters<React.FC<ListProps<Item>>>
+): ReturnType<React.FC<ListProps<Item>>> => {
+  const {
+    allowEdit: isAllowEdit = false,
+    allowItemButton: isAllowItemButton = false,
+    edit: isEdit = false,
+    getListItemCheckboxProps,
+    listEmpty,
+    listItemIconMinWidth = '56px',
+    listItemKeyPrefix = 'list-item',
+    listItemProps,
+    listItems,
+    loading,
+    onItemCheckboxChange,
+    onItemClick,
+    renderListItem = (key) => <BodyText>{key}</BodyText>,
+    renderListItemCheckboxState,
+    // Dependents:
+    allowCheckItem: isAllowCheckItem = isAllowEdit,
+  } = props;
+
+  const listEmptyElement = useMemo(
+    () => sxstring(listEmpty, BodyText, { align: 'center' }),
+    [listEmpty],
+  );
+
+  const listEntries = useMemo(
+    () => (listItems ? Object.entries(listItems) : []),
+    [listItems],
+  );
+
+  if (loading) {
+    return <Spinner mt={0} />;
+  }
+
+  return (
+    <>
+      {listEntries.length > 0
+        ? listEntries.map(([itemKey, itemValue]) => {
+            const key = `${listItemKeyPrefix}-${itemKey}`;
+
+            return (
+              <ListItem
+                allowButton={isAllowItemButton}
+                allowCheck={isAllowCheckItem}
+                edit={isEdit}
+                getChecked={renderListItemCheckboxState}
+                itemKey={itemKey}
+                itemValue={itemValue}
+                key={key}
+                onCheckboxChange={onItemCheckboxChange}
+                onClick={(k, v, ...rest) => onItemClick?.(v, k, ...rest)}
+                renderItem={renderListItem}
+                slotProps={{
+                  checkbox: {
+                    slotProps: {
+                      checkbox: getListItemCheckboxProps?.(itemKey, itemValue),
+                      listItemIcon: {
+                        sx: {
+                          minWidth: listItemIconMinWidth,
+                        },
+                      },
+                    },
+                  },
+                  item: listItemProps,
+                }}
+              />
+            );
+          })
+        : listEmptyElement}
+    </>
+  );
+};
+
 const List = <Item,>(
   ...[props]: Parameters<React.FC<ListProps<Item>>>
 ): ReturnType<React.FC<ListProps<Item>>> => {
   const {
     allowCheckAll: isAllowCheckAll = false,
     allowEdit: isAllowEdit = false,
-    allowItemButton: isAllowItemButton = false,
     disableDelete = false,
     edit: isEdit = false,
     flexBoxProps,
     getListCheckboxProps,
-    getListItemCheckboxProps,
     header,
     headerSpacing = '.3em',
     insertHeader: isInsertHeader = true,
-    listEmpty,
     listItemIconMinWidth = '56px',
-    listItemKeyPrefix = 'list-item',
-    listItemProps,
-    listItems,
     listProps,
-    loading,
     onAdd,
     onDelete,
     onEdit,
     onAllCheckboxChange,
-    onItemCheckboxChange,
-    onItemClick,
-    renderListItem = (key) => <BodyText>{key}</BodyText>,
-    renderListItemCheckboxState,
     scroll: isScroll = false,
-    // Input props that depend on other input props.
+    // Dependents:
     allowAddItem: isAllowAddItem = isAllowEdit,
     allowCheckItem: isAllowCheckItem = isAllowEdit,
     allowDelete: isAllowDelete = isAllowEdit,
@@ -115,61 +179,13 @@ const List = <Item,>(
     onEdit,
   ]);
 
-  const listEmptyElement = useMemo(
-    () => sxstring(listEmpty, BodyText, { align: 'center' }),
-    [listEmpty],
-  );
-
-  const listEntries = useMemo(
-    () => (listItems ? Object.entries(listItems) : []),
-    [listItems],
-  );
-
   return (
     <FlexBox spacing={0} {...flexBoxProps}>
       {headerElement}
       {createElement(
         isScroll ? ScrollableList : StyledList,
         listProps,
-        <>
-          {loading && <Spinner />}
-          {listEntries.length > 0
-            ? listEntries.map(([itemKey, itemValue]) => {
-                const key = `${listItemKeyPrefix}-${itemKey}`;
-
-                return (
-                  <ListItem
-                    allowButton={isAllowItemButton}
-                    allowCheck={isAllowCheckItem}
-                    edit={isEdit}
-                    getChecked={renderListItemCheckboxState}
-                    itemKey={itemKey}
-                    itemValue={itemValue}
-                    key={key}
-                    onCheckboxChange={onItemCheckboxChange}
-                    onClick={(k, v, ...rest) => onItemClick?.(v, k, ...rest)}
-                    renderItem={renderListItem}
-                    slotProps={{
-                      checkbox: {
-                        slotProps: {
-                          checkbox: getListItemCheckboxProps?.(
-                            itemKey,
-                            itemValue,
-                          ),
-                          listItemIcon: {
-                            sx: {
-                              minWidth: listItemIconMinWidth,
-                            },
-                          },
-                        },
-                      },
-                      item: listItemProps,
-                    }}
-                  />
-                );
-              })
-            : listEmptyElement}
-        </>,
+        <ListItems<Item> {...props} />,
       )}
     </FlexBox>
   );

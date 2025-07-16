@@ -33,7 +33,7 @@ const ListHeader: React.FC<React.PropsWithChildren<ListHeaderProps>> = (
     edit,
     slotProps,
     spacing,
-    // Dependants:
+    // Dependents:
     divide = ['boolean', 'string'].includes(typeof children),
   } = props;
 
