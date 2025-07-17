@@ -1,3 +1,45 @@
+type AddItemButtonProps = Pick<
+  import('../components/IconButton').IconButtonProps,
+  'onClick'
+> & {
+  allow?: boolean;
+  slotProps?: {
+    button?: IconButtonProps;
+  };
+};
+
+type AllItemCheckboxProps = Pick<CheckboxProps, 'onChange'> & {
+  allowAll?: boolean;
+  allowItem?: boolean;
+  edit?: boolean;
+  minWidth?: number | string;
+  slotProps?: {
+    checkbox?: CheckboxProps;
+  };
+};
+
+type DeleteItemButtonProps = Pick<
+  import('../components/IconButton').IconButtonProps,
+  'disabled' | 'onClick'
+> & {
+  allow?: boolean;
+  edit?: boolean;
+  slotProps?: {
+    button?: IconButtonProps;
+  };
+};
+
+type EditItemButtonProps = Pick<
+  import('../components/IconButton').IconButtonProps,
+  'onClick'
+> & {
+  allow?: boolean;
+  edit?: boolean;
+  slotProps?: {
+    button?: IconButtonProps;
+  };
+};
+
 type CheckboxChangeEventHandler = Exclude<CheckboxProps['onChange'], undefined>;
 
 type ListItemButtonChangeEventHandler = Exclude<

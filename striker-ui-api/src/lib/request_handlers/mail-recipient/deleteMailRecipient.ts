@@ -17,9 +17,9 @@ export const deleteMailRecipient: RequestHandler<
   const { uuid } = response.locals.target;
 
   const sqlGetAlertOverride = `
-    SELECT alert_override_uuid
-    FROM (${sqlAlertOverrides()})
-    WHERE alert_override_recipient_uuid = '${uuid}';`;
+    SELECT a.alert_override_uuid
+    FROM (${sqlAlertOverrides()}) AS a
+    WHERE a.alert_override_recipient_uuid = '${uuid}';`;
 
   try {
     const rows = await query<[string][]>(sqlGetAlertOverride);
