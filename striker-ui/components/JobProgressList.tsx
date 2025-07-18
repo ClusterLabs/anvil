@@ -1,5 +1,5 @@
 import Grid from '@mui/material/Grid';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import MessageBox from './MessageBox';
 import PieProgress from './PieProgress';
@@ -10,6 +10,8 @@ import useFetch from '../hooks/useFetch';
 
 const JobProgressList: React.FC<JobProgressListProps> = (props) => {
   const { commands, getLabel, names, progress, uuids } = props;
+
+  const [maxJobs, setMaxJobs] = useState<number>(0);
 
   const qs = useMemo<string>(() => {
     const params = new URLSearchParams();
@@ -57,13 +59,17 @@ const JobProgressList: React.FC<JobProgressListProps> = (props) => {
 
       progress.set(total / scope.length);
 
+      if (maxJobs < scope.length) {
+        setMaxJobs(scope.length);
+      }
+
       return scope;
     },
     refreshInterval: 3000,
   });
 
   const label = useMemo(
-    () => sxstring(getLabel?.call(null, progress.value), BodyText),
+    () => sxstring(getLabel?.(progress.value), BodyText),
     [getLabel, progress.value],
   );
 
@@ -75,7 +81,11 @@ const JobProgressList: React.FC<JobProgressListProps> = (props) => {
     return <MessageBox type="warning">Failed to get jobs.</MessageBox>;
   }
 
-  if (!jobs.length) {
+  if (maxJobs === 0) {
+    return <BodyText>Waiting for jobs to start...</BodyText>;
+  }
+
+  if (jobs.length === 0) {
     return null;
   }
 
