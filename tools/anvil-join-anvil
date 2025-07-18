@@ -3288,9 +3288,12 @@ sub check_corosync
 	my $waiting      = 1;
 	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
 	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $host_uuid    = $anvil->Get->host_uuid();
+	$anvil->Database->get_ip_addresses({debug => 2});
 	while ($waiting)
 	{
-		### TODO: Add MN where appropriate
+		### TODO: These shouldn't be statically <net>1, but instead based on the actual nets on the 
+		###       system.
 		my $problem          =  $anvil->Cluster->parse_cib({debug => 3});
 		my $peer_ready       =  $anvil->data->{cib}{parsed}{peer}{ready};
 		my $peer_name        =  $anvil->data->{cib}{parsed}{peer}{name};
@@ -3298,11 +3301,13 @@ sub check_corosync
 		   $peer_short_name  =~ s/\..*$//;
 		my $peer_bcn_name    =  $peer_short_name.".bcn1";
 		my $peer_sn_name     =  $peer_short_name.".sn1";
+		my $peer_mn_name     =  $peer_short_name.".mn1";
 		my $local_ready      =  $anvil->data->{cib}{parsed}{'local'}{ready};
 		my $local_name       =  $anvil->data->{cib}{parsed}{'local'}{name};
 		my $local_short_name =  $anvil->Get->short_host_name;
 		my $local_bcn_name   =  $local_short_name.".bcn1";
 		my $local_sn_name    =  $local_short_name.".sn1";
+		my $local_mn_name    =  $local_short_name.".mn1";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			problem          => $problem, 
 			peer_ready       => $peer_ready,
@@ -3310,6 +3315,7 @@ sub check_corosync
 			peer_short_name  => $peer_short_name, 
 			peer_bcn_name    => $peer_bcn_name, 
 			peer_sn_name     => $peer_sn_name, 
+			peer_mn_name     => $peer_mn_name, 
 			local_ready      => $local_ready,
 			local_name       => $local_name, 
 			local_short_name => $local_short_name, 
@@ -3326,13 +3332,28 @@ sub check_corosync
 				target   => $peer_bcn_name,
 				password => $new_password,
 			});
-			my $sn_access = $anvil->Remote->test_access({
-				target   => $peer_sn_name,
-				password => $new_password,
-			});
+			my $sn_access = 1;
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}{ip_address}))
+			{
+				$sn_access = $anvil->Remote->test_access({
+					target   => $peer_sn_name,
+					password => $new_password,
+				});
+			}
+			my $mn_access = 1;
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}{ip_address}))
+			{
+				$mn_access = $anvil->Remote->test_access({
+					target   => $peer_mn_name,
+					password => $new_password,
+				});
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				bcn_access => $bcn_access, 
 				sn_access  => $sn_access, 
+				mn_access  => $mn_access, 
 			}});
 			if (($bcn_access) && ($sn_access))
 			{
