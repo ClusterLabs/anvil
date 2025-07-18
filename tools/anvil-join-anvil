@@ -3336,6 +3336,7 @@ sub check_corosync
 				target   => $peer_bcn_name,
 				password => $new_password,
 			});
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_access => $bcn_access }});
 			my $sn_access = 1;
 			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}) && 
 			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}{ip_address}))
@@ -3344,6 +3345,7 @@ sub check_corosync
 					target   => $peer_sn_name,
 					password => $new_password,
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sn_access => $sn_access }});
 			}
 			my $mn_access = 1;
 			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
@@ -3353,13 +3355,9 @@ sub check_corosync
 					target   => $peer_mn_name,
 					password => $new_password,
 				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mn_access => $mn_access }});
 			}
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-				bcn_access => $bcn_access, 
-				sn_access  => $sn_access, 
-				mn_access  => $mn_access, 
-			}});
-			if (($bcn_access) && ($sn_access))
+			if (($bcn_access) && ($sn_access) && ($mn_access))
 			{
 				# We're ready!
 				update_progress($anvil, ($anvil->data->{job}{progress}+1), "job_0347");
