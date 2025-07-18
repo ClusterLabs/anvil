@@ -2,6 +2,7 @@ import MuiBox from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { dSizeStr } from 'format-data-size';
 import capitalize from 'lodash/capitalize';
+import lowerFirst from 'lodash/lowerFirst';
 import { useMemo, useState } from 'react';
 
 import { toHostDetailCalcableList } from '../../lib/api_converters';
@@ -221,7 +222,10 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
             </InlineMonoText>{' '}
             is configured to be protected by{' '}
             <InlineMonoText noWrap>{dr.short}</InlineMonoText> using protocol{' '}
-            <InlineMonoText noWrap>{protocol}</InlineMonoText>.
+            <InlineMonoText noWrap>
+              {lowerFirst(protocols[protocol]?.inputValue ?? protocol)}
+            </InlineMonoText>
+            .
           </BodyText>
         </Grid>
         <Grid item xs>
@@ -464,7 +468,7 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
           selectItems={protocolOptions}
           selectProps={{
             renderValue: (value) =>
-              protocols[value]?.inputValue ?? capitalize(value),
+              capitalize(protocols[value]?.inputValue ?? value),
           }}
           value={formik.values.protocol}
         />
