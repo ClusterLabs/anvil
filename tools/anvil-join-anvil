@@ -3302,12 +3302,14 @@ sub check_corosync
 		my $peer_bcn_name    =  $peer_short_name.".bcn1";
 		my $peer_sn_name     =  $peer_short_name.".sn1";
 		my $peer_mn_name     =  $peer_short_name.".mn1";
+		my $peer_ifn_name    =  $peer_short_name.".ifn1";
 		my $local_ready      =  $anvil->data->{cib}{parsed}{'local'}{ready};
 		my $local_name       =  $anvil->data->{cib}{parsed}{'local'}{name};
 		my $local_short_name =  $anvil->Get->short_host_name;
 		my $local_bcn_name   =  $local_short_name.".bcn1";
 		my $local_sn_name    =  $local_short_name.".sn1";
 		my $local_mn_name    =  $local_short_name.".mn1";
+		my $local_ifn_name   =  $local_short_name.".ifn1";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			problem          => $problem, 
 			peer_ready       => $peer_ready,
@@ -3316,11 +3318,13 @@ sub check_corosync
 			peer_bcn_name    => $peer_bcn_name, 
 			peer_sn_name     => $peer_sn_name, 
 			peer_mn_name     => $peer_mn_name, 
+			peer_ifn_name    => $peer_ifn_name, 
 			local_ready      => $local_ready,
 			local_name       => $local_name, 
 			local_short_name => $local_short_name, 
 			local_bcn_name   => $local_bcn_name, 
 			local_sn_name    => $local_sn_name, 
+			local_ifn_name   => $local_ifn_name,
 		}});
 		if ((not $problem) && ($peer_ready) && ($local_ready))
 		{
@@ -3443,7 +3447,17 @@ sub check_corosync
 								
 								# Is this the local or peer node?
 								my $test_ring0_addr = $peer_bcn_name;
-								my $test_ring1_addr = $peer_sn_name;
+								my $test_ring1_addr = $local_ifn_name;
+								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}{ip_address}))
+								{
+									$test_ring1_addr = $local_sn_name;
+								}
+								elsif ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}{ip_address}))
+								{
+									$test_ring1_addr = $local_mn_name;
+								}
 								if (($in_node_name eq $anvil->Get->host_name) or ($in_node_name eq $anvil->Get->short_host_name))
 								{
 									# It's us
@@ -3461,7 +3475,7 @@ sub check_corosync
 								{
 									# Rewrite the nodelist body.
 									my $new_nodelist_body  = "        ring0_addr: ".$test_ring0_addr."\n";
-									$new_nodelist_body .= "        ring1_addr: ".$test_ring1_addr."\n";
+									   $new_nodelist_body .= "        ring1_addr: ".$test_ring1_addr."\n";
 									foreach my $nodelist_line (split/\n/, $nodelist_body)
 									{
 										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_line => $nodelist_line }});
