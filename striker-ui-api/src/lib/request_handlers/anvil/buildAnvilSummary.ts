@@ -102,7 +102,7 @@ export const buildAnvilSummary = async ({
     SELECT
       COUNT(a.host_uuid) AS number_of_hosts,
       SUM(
-        CAST(a.host_status = 'offline' AS int)
+        CAST(a.host_status = 'powered off' AS int)
       ) AS host_offline,
       SUM(
         CAST(b.scan_cluster_node_cluster_member AS int)
@@ -200,19 +200,38 @@ export const buildAnvilSummary = async ({
       host.state = 'online';
       host.state_message = buildHostStateMessage(3);
       host.state_percent = 100;
-    } else if (crmd) {
+
+      return;
+    }
+
+    if (crmd) {
       host.state = 'crmd';
       host.state_message = buildHostStateMessage(4);
       host.state_percent = 75;
-    } else if (ccm) {
+
+      return;
+    }
+
+    if (ccm) {
       host.state = 'in_ccm';
       host.state_message = buildHostStateMessage(5);
       host.state_percent = 50;
-    } else {
+
+      return;
+    }
+
+    if (host.state === 'online') {
+      // Translate 'online' (which strictly means the host has access to the
+      // database(s)) -> 'booted', to avoid confusing with "online in cluster.
       host.state = 'booted';
       host.state_message = buildHostStateMessage(6);
       host.state_percent = 25;
+
+      return;
     }
+
+    // The remaining host_status values can be used as-is since they don't
+    // express the host's position in its cluster.
   });
 
   hostDrbdResourceRows.forEach((row) => {
