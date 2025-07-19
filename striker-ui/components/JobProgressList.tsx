@@ -4,14 +4,17 @@ import { useMemo, useState } from 'react';
 import MessageBox from './MessageBox';
 import PieProgress from './PieProgress';
 import Spinner from './Spinner';
-import sxstring from '../lib/sxstring';
 import { BodyText } from './Text';
 import useFetch from '../hooks/useFetch';
+import sxstring from '../lib/sxstring';
+import { now } from '../lib/time';
 
 const JobProgressList: React.FC<JobProgressListProps> = (props) => {
   const { commands, getLabel, names, progress, uuids } = props;
 
   const [maxJobs, setMaxJobs] = useState<number>(0);
+
+  const loaded = useMemo<number>(() => now(), []);
 
   const qs = useMemo<string>(() => {
     const params = new URLSearchParams();
@@ -28,8 +31,10 @@ const JobProgressList: React.FC<JobProgressListProps> = (props) => {
       });
     }
 
+    params.append('start', String(loaded));
+
     return params.toString();
-  }, [commands, names]);
+  }, [commands, loaded, names]);
 
   const { altData: jobs, loading } = useFetch<
     APIJobOverviewList,
