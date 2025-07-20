@@ -1628,9 +1628,9 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0342">#!free!#</key>
 		<key name="job_0343">#!free!#</key>
 		<key name="job_0344">Verifying that corosync is configured to use the SN1 as a fall-back communication channel.</key>
-		<key name="job_0345">Verifying (and waiting if needed) for the cluster to be be up and the BCN1 and, if available, the SN1 and MN1 connections to be active.</key>
+		<key name="job_0345">Verifying (and waiting if needed) for the cluster to be be up and the all available connections to our peer are active.</key>
 		<key name="job_0346">The cluster is up.</key>
-		<key name="job_0347">Both the BCN1 and SN1 links are working between the nodes. Checking corosync now...</key>
+		<key name="job_0347">All available links are working between the nodes. Checking corosync now...</key>
 		<key name="job_0348">Synchronizing the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		<key name="job_0349">Loading the new corosync config exited with return code: [#!variable!return_code!#] and output: [#!variable!output!#]</key>
 		<key name="job_0350">#!free!#</key>
