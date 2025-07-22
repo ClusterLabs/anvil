@@ -3289,7 +3289,6 @@ sub check_corosync
 	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
 	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
 	my $host_uuid    = $anvil->Get->host_uuid();
-	$anvil->Database->get_ip_addresses({debug => 2});
 	while ($waiting)
 	{
 		### TODO: These shouldn't be statically <net>1, but instead based on the actual nets on the 
@@ -3333,6 +3332,18 @@ sub check_corosync
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0346"});
 			
 			# Verify we can ping the peer on the BCN and SN.
+			$anvil->Database->get_ip_addresses({debug => 2});
+			
+			### TODO: Remove this when done debugging.
+			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}})
+			{
+				my $ip = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$network}{ip_address};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:network' => $network,
+					's2:ip'      => $ip,
+				}});
+			}
+			
 			my $bcn_access = 0;
 			my $ifn_access = 0;
 			my $sn_access  = 0;
@@ -3348,7 +3359,7 @@ sub check_corosync
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_access => $bcn_access }});
 				if (not $bcn_access)
 				{
-					$problem = 1
+					$problem = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				}
 			}
@@ -3362,7 +3373,7 @@ sub check_corosync
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn_access => $ifn_access }});
 				if (not $ifn_access)
 				{
-					$problem = 1
+					$problem = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				}
 			}
@@ -3376,7 +3387,7 @@ sub check_corosync
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mn_access => $sn_access }});
 				if (not $sn_access)
 				{
-					$problem = 1
+					$problem = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				}
 			}
@@ -3390,7 +3401,7 @@ sub check_corosync
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mn_access => $mn_access }});
 				if (not $mn_access)
 				{
-					$problem = 1
+					$problem = 1;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
 				}
 			}
