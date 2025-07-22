@@ -3334,7 +3334,8 @@ sub check_corosync
 			# Verify we can ping the peer on the BCN and SN.
 			$anvil->Database->get_ip_addresses({debug => 2});
 			
-			### TODO: Remove this when done debugging.
+			# Some builds failed on this logic below, so this logging helps us debug when theat 
+			# happens. 
 			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}})
 			{
 				my $ip = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$network}{ip_address};
