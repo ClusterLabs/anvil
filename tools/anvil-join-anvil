@@ -3288,9 +3288,11 @@ sub check_corosync
 	my $waiting      = 1;
 	my $anvil_uuid   = $anvil->data->{sys}{anvil_uuid};
 	my $new_password = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_password};
+	my $host_uuid    = $anvil->Get->host_uuid();
 	while ($waiting)
 	{
-		### TODO: Add MN where appropriate
+		### TODO: These shouldn't be statically <net>1, but instead based on the actual nets on the 
+		###       system.
 		my $problem          =  $anvil->Cluster->parse_cib({debug => 3});
 		my $peer_ready       =  $anvil->data->{cib}{parsed}{peer}{ready};
 		my $peer_name        =  $anvil->data->{cib}{parsed}{peer}{name};
@@ -3298,23 +3300,31 @@ sub check_corosync
 		   $peer_short_name  =~ s/\..*$//;
 		my $peer_bcn_name    =  $peer_short_name.".bcn1";
 		my $peer_sn_name     =  $peer_short_name.".sn1";
+		my $peer_mn_name     =  $peer_short_name.".mn1";
+		my $peer_ifn_name    =  $peer_short_name.".ifn1";
 		my $local_ready      =  $anvil->data->{cib}{parsed}{'local'}{ready};
 		my $local_name       =  $anvil->data->{cib}{parsed}{'local'}{name};
 		my $local_short_name =  $anvil->Get->short_host_name;
 		my $local_bcn_name   =  $local_short_name.".bcn1";
 		my $local_sn_name    =  $local_short_name.".sn1";
+		my $local_mn_name    =  $local_short_name.".mn1";
+		my $local_ifn_name   =  $local_short_name.".ifn1";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			problem          => $problem, 
 			peer_ready       => $peer_ready,
 			peer_name        => $peer_name, 
 			peer_short_name  => $peer_short_name, 
 			peer_bcn_name    => $peer_bcn_name, 
+			peer_ifn_name    => $peer_ifn_name, 
 			peer_sn_name     => $peer_sn_name, 
+			peer_mn_name     => $peer_mn_name, 
 			local_ready      => $local_ready,
 			local_name       => $local_name, 
 			local_short_name => $local_short_name, 
 			local_bcn_name   => $local_bcn_name, 
+			local_ifn_name   => $local_ifn_name,
 			local_sn_name    => $local_sn_name, 
+			local_mn_name    => $local_mn_name, 
 		}});
 		if ((not $problem) && ($peer_ready) && ($local_ready))
 		{
@@ -3322,19 +3332,87 @@ sub check_corosync
 			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, 'print' => 1, level => 1, key => "job_0346"});
 			
 			# Verify we can ping the peer on the BCN and SN.
-			my $bcn_access = $anvil->Remote->test_access({
-				target   => $peer_bcn_name,
-				password => $new_password,
-			});
-			my $sn_access = $anvil->Remote->test_access({
-				target   => $peer_sn_name,
-				password => $new_password,
-			});
+			$anvil->Database->get_ip_addresses({debug => 2});
+			
+			# Some builds failed on this logic below, so this logging helps us debug when theat 
+			# happens. 
+			foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{hosts}{host_uuid}{$host_uuid}{network}})
+			{
+				my $ip = $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{$network}{ip_address};
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					's1:network' => $network,
+					's2:ip'      => $ip,
+				}});
+			}
+			
+			my $bcn_access = 0;
+			my $ifn_access = 0;
+			my $sn_access  = 0;
+			my $mn_access  = 0;
+			my $problem    = 0;
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{bcn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{bcn1}{ip_address}))
+			{
+				$bcn_access = $anvil->Remote->test_access({
+					target   => $peer_bcn_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bcn_access => $bcn_access }});
+				if (not $bcn_access)
+				{
+					$problem = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				}
+			}
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{ifn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{ifn1}{ip_address}))
+			{
+				$ifn_access = $anvil->Remote->test_access({
+					target   => $peer_ifn_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { ifn_access => $ifn_access }});
+				if (not $ifn_access)
+				{
+					$problem = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				}
+			}
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}{ip_address}))
+			{
+				$sn_access = $anvil->Remote->test_access({
+					target   => $peer_sn_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sn_access => $sn_access }});
+				if (not $sn_access)
+				{
+					$problem = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				}
+			}
+			if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
+			    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}{ip_address}))
+			{
+				$mn_access = $anvil->Remote->test_access({
+					target   => $peer_mn_name,
+					password => $new_password,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mn_access => $mn_access }});
+				if (not $mn_access)
+				{
+					$problem = 1;
+					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { problem => $problem }});
+				}
+			}
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 				bcn_access => $bcn_access, 
+				ifn_access => $ifn_access, 
 				sn_access  => $sn_access, 
+				mn_access  => $mn_access, 
 			}});
-			if (($bcn_access) && ($sn_access))
+			if (not $problem)
 			{
 				# We're ready!
 				update_progress($anvil, ($anvil->data->{job}{progress}+1), "job_0347");
@@ -3420,15 +3498,147 @@ sub check_corosync
 								$in_node = 0;
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { in_node => $in_node }});
 								
-								# Is this the local or peer node?
-								my $test_ring0_addr = $peer_bcn_name;
-								my $test_ring1_addr = $peer_sn_name;
+								# Which networks are we using? Ideally BCN 
+								# and MN, but it depends if the MN, or even
+								# SN, exists.
+								# First, is this the local or peer node?
+								my $this_is = "peer";
 								if (($in_node_name eq $anvil->Get->host_name) or ($in_node_name eq $anvil->Get->short_host_name))
 								{
 									# It's us
-									$test_ring0_addr = $local_bcn_name;
-									$test_ring1_addr = $local_sn_name;
+									$this_is = "local";
 								}
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_is => $this_is }});
+								
+								my $test_ring0_addr = "";
+								my $test_ring1_addr = "";
+								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{bcn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{bcn1}{ip_address}))
+								{
+									# BCN is the primary ring, when available
+									if ($this_is eq "local")
+									{
+										$test_ring0_addr = $local_bcn_name;
+									}
+									else
+									{
+										$test_ring0_addr = $peer_bcn_name;
+									}
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+								}
+								# The migration network is the second choice.
+								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}{ip_address}))
+								{
+									if ($this_is eq "local")
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $local_mn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $local_mn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+									else
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $peer_mn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $peer_mn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+								}
+								# storage network is the third choice
+								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{sn1}{ip_address}))
+								{
+									if ($this_is eq "local")
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $local_sn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $local_sn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+									else
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $peer_sn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $peer_sn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+								}
+								# The internet facing network is the network 
+								# of last resort
+								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{ifn1}) && 
+								    ($anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{ifn1}{ip_address}))
+								{
+									if ($this_is eq "local")
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $local_ifn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $local_ifn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+									else
+									{
+										# Have we found ring0 yet?
+										if (not $test_ring0_addr)
+										{
+											# No, use this for ring0.
+											$test_ring0_addr = $peer_ifn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
+										}
+										elsif (not $test_ring1_addr)
+										{
+											# Yes, use this for ring1
+											$test_ring1_addr = $peer_ifn_name;
+											$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring1_addr => $test_ring1_addr }});
+										}
+									}
+								}
+								
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 									's1:ring0_addr'      => $ring0_addr, 
 									's2:test_ring0_addr' => $test_ring0_addr,
@@ -3440,7 +3650,10 @@ sub check_corosync
 								{
 									# Rewrite the nodelist body.
 									my $new_nodelist_body  = "        ring0_addr: ".$test_ring0_addr."\n";
-									$new_nodelist_body .= "        ring1_addr: ".$test_ring1_addr."\n";
+									if ($test_ring1_addr)
+									{
+										$new_nodelist_body .= "        ring1_addr: ".$test_ring1_addr."\n";
+									}
 									foreach my $nodelist_line (split/\n/, $nodelist_body)
 									{
 										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { nodelist_line => $nodelist_line }});
