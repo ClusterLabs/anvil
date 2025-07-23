@@ -3519,13 +3519,12 @@ sub check_corosync
 									if ($this_is eq "local")
 									{
 										$test_ring0_addr = $local_bcn_name;
-										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
 									}
 									else
 									{
 										$test_ring0_addr = $peer_bcn_name;
-										$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
 									}
+									$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { test_ring0_addr => $test_ring0_addr }});
 								}
 								# The migration network is the second choice.
 								if ((exists $anvil->data->{hosts}{host_uuid}{$host_uuid}{network}{mn1}) && 
