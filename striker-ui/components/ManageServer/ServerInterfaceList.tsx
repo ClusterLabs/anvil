@@ -161,9 +161,7 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
           <Grid item width="100%">
             <JobProgressList
               getLabel={(progress) =>
-                progress === 100
-                  ? 'Interface(s) changed.'
-                  : 'Changing interface(s)...'
+                progress === 100 ? 'Finished.' : 'Changing interface(s)...'
               }
               names={[`server::${detail.uuid}::set_interface_state`]}
               progress={{
