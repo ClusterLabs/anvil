@@ -3385,7 +3385,7 @@ sub check_corosync
 					target   => $peer_sn_name,
 					password => $new_password,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { mn_access => $sn_access }});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { sn_access => $sn_access }});
 				if (not $sn_access)
 				{
 					$problem = 1;
