@@ -1,16 +1,17 @@
 import Grid from '@mui/material/Grid';
 import MuiSwitch from '@mui/material/Switch';
 import capitalize from 'lodash/capitalize';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
 import Divider from '../Divider';
 import FlexBox from '../FlexBox';
-import handleAction from './handleAction';
 import IconButton from '../IconButton';
+import JobProgressList from '../JobProgressList';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
 import { MonoText, SmallText } from '../Text';
+import handleAction from './handleAction';
 
 const STATE_ACTION: Record<string, string> = {
   down: 'plug-in',
@@ -26,6 +27,10 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
   const { detail, tools } = props;
 
   const addDialogRef = useRef<DialogForwardedRefContent>(null);
+
+  const [jobProgress, setJobProgress] = useState<number>(0);
+
+  const [jobRegistered, setJobRegistered] = useState<boolean>(false);
 
   const ifaces = useMemo(
     () =>
@@ -82,6 +87,8 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                       onChange={() => {
                         const { [state]: action } = STATE_ACTION;
 
+                        setJobRegistered(false);
+
                         handleAction(
                           tools,
                           `/server/${detail.uuid}/set-interface-state`,
@@ -98,6 +105,9 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                                   Successfully registered {action} interface job
                                 </>
                               ),
+                            },
+                            onSuccess: () => {
+                              setJobRegistered(true);
                             },
                           },
                         );
@@ -147,6 +157,22 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
             }}
           />
         </Grid>
+        {jobRegistered && (
+          <Grid item width="100%">
+            <JobProgressList
+              getLabel={(progress) =>
+                progress === 100
+                  ? 'Interface(s) changed.'
+                  : 'Changing interface(s)...'
+              }
+              names={[`server::${detail.uuid}::set_interface_state`]}
+              progress={{
+                set: setJobProgress,
+                value: jobProgress,
+              }}
+            />
+          </Grid>
+        )}
       </Grid>
       <DialogWithHeader
         header="Add interface"
