@@ -190,7 +190,7 @@ export const buildAnvilSummary = async ({
 
     const { [uuid]: host } = hosts;
 
-    if (!host) {
+    if (!host || !['online'].includes(host.state)) {
       return;
     }
 
