@@ -102,7 +102,7 @@ export const buildAnvilSummary = async ({
     SELECT
       COUNT(a.host_uuid) AS number_of_hosts,
       SUM(
-        CAST(a.host_status = 'powered off' AS int)
+        CAST(a.host_status != 'online' AS int)
       ) AS host_offline,
       SUM(
         CAST(b.scan_cluster_node_cluster_member AS int)
@@ -119,6 +119,9 @@ export const buildAnvilSummary = async ({
     SELECT
       COUNT(a.scan_drbd_peer_uuid) AS number_of_peers,
       SUM(
+        CAST(b.host_status != 'online' AS int)
+      ) AS peer_offline,
+      SUM(
         CAST(a.scan_drbd_peer_connection_state = 'off' AS int)
       ) AS connection_off,
       SUM(
@@ -131,6 +134,8 @@ export const buildAnvilSummary = async ({
         a.scan_drbd_peer_estimated_time_to_sync
       ) AS max_estimated_time_to_sync
     FROM (${sqlScanDrbdPeers()}) AS a
+    JOIN (${sqlHosts()}) AS b
+      ON b.host_uuid = a.scan_drbd_peer_host_uuid
     WHERE a.scan_drbd_peer_host_uuid IN (
       '${subnode1Uuid}',
       '${subnode2Uuid}'
@@ -280,6 +285,7 @@ export const buildAnvilSummary = async ({
   nodeDrbdSummaryRows.forEach((row) => {
     const [
       numPeers,
+      numPeerOffline,
       numConnectionOff,
       numLocalDiskUptodate,
       numPeerDiskUptodate,
@@ -291,7 +297,7 @@ export const buildAnvilSummary = async ({
       return;
     }
 
-    if (numConnectionOff === numPeers) {
+    if (numPeerOffline === numPeers || numConnectionOff === numPeers) {
       // All peer records have connection state as off
       result.anvilStatus.drbd.status = 'offline';
     } else if (maxEstimatedTimeToSync > 0) {
