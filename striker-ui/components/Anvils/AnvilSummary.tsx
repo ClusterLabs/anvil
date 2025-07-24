@@ -118,7 +118,7 @@ const AnvilSummary: React.FC<AnvilSummaryProps> = (props) => {
 
             let stateValue: string = state;
 
-            if (!['offline', 'online'].includes(state)) {
+            if (!['powered off', 'online'].includes(state)) {
               stateValue = `${state} (${stateProgress}%)`;
             }
 
