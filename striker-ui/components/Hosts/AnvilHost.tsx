@@ -57,13 +57,17 @@ const StyledBox = styled(MuiBox)(({ theme }) => ({
   },
 }));
 
-const selectStateMessage = (regex: RegExp, message: string): string => {
+const selectStateMessage = (
+  regex: RegExp,
+  message: string,
+): React.ReactNode => {
   const msg = regex.exec(message);
 
   if (msg) {
     return HOST_STATUS.get(msg[0]) || 'Error code not recognized';
   }
-  return 'Error code not found';
+
+  return null;
 };
 
 const selectDecorator = (state: APIHostStatus): Colours => {
