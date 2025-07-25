@@ -836,6 +836,11 @@ The XML that failed sanity check was:
 		<key name="error_0493">You want to name your group 'DELETED'? Well that's cheaky... Exiting.</key>
 		<key name="error_0495"><![CDATA[The storage group: [#!variable!sg_name!#] exists on the Anvil! node: [#!variable!anvil_name!#], but no new name was given via '--new-name <name>' nothing to do.]]></key>
 		<key name="error_0496">This DR host is not connected to any Anvil! nodes yet, nothing to restore.</key>
+		<key name="error_0497">[ Error ] - Failed to meet install dependencies. Is the High-Availability entitlement activated for this host?
+====
+#!variable!error!#
+====
+</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
