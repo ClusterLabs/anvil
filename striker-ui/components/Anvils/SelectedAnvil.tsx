@@ -44,7 +44,7 @@ const selectDecorator = (state: string): Colours => {
 const isAnvilOn = (anvil: AnvilListItem): boolean =>
   !(
     anvil.hosts.findIndex(
-      ({ state }: AnvilStatusHost) => state !== 'offline',
+      ({ state }: AnvilStatusHost) => state !== 'powered off',
     ) === -1
   );
 

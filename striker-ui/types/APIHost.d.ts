@@ -29,7 +29,7 @@ type APIHostConnectionOverviewList = {
 
 type APIHostInstallTarget = 'enabled' | 'disabled';
 
-type APIHostStatus = 'offline' | 'booted' | 'crmd' | 'in_ccm' | 'online';
+type APIHostStatus = 'powered off' | 'booted' | 'crmd' | 'in_ccm' | 'online';
 
 type APIHostDrbdResource = {
   connection: {

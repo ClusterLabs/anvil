@@ -275,6 +275,8 @@ type APIServerDetailProtect = {
   protocol: string;
   status: {
     connection: string;
+    maxEstimatedTimeToSync: number;
+    overall: string;
   };
 };
 

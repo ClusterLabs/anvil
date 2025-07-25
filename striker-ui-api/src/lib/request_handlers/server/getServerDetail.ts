@@ -636,14 +636,14 @@ export const getServerDetail: RequestHandler<
       SELECT
         i.scan_drbd_resource_name,
         CAST(i.scan_drbd_resource_xml AS xml) AS resource_xml,
-        COUNT(iii.scan_drbd_peer_uuid) AS number_of_peers,
+        COUNT(iii.scan_drbd_peer_uuid) AS peer_count,
         SUM(
           CAST(
             iii.scan_drbd_peer_connection_state IN (
               'standalone'
             ) AS int
           )
-        ) AS number_of_standalone,
+        ) AS standalone_count,
         SUM(
           CAST(
             iii.scan_drbd_peer_connection_state IN (
@@ -652,7 +652,19 @@ export const getServerDetail: RequestHandler<
               'synctarget'
             ) AS int
           )
-        ) AS number_of_connected
+        ) AS connected_count,
+        SUM(
+          CAST(iii.scan_drbd_peer_connection_state = 'off' AS int)
+        ) AS off_count,
+        SUM(
+          CAST(iii.scan_drbd_peer_local_disk_state = 'uptodate' AS int)
+        ) AS local_uptodate_count,
+        SUM(
+          CAST(iii.scan_drbd_peer_disk_state = 'uptodate' AS int)
+        ) AS peer_uptodate_count,
+        MAX(
+          iii.scan_drbd_peer_estimated_time_to_sync
+        ) AS max_estimated_time_to_sync
       FROM (${sqlScanDrbdResources()}) AS i
       LEFT JOIN (${sqlScanDrbdVolumes()}) AS ii
         ON ii.scan_drbd_volume_scan_drbd_resource_uuid = i.scan_drbd_resource_uuid
@@ -677,9 +689,13 @@ export const getServerDetail: RequestHandler<
             THEN 'sync'
           ELSE 'short-throw'
         END as dr_connection_protocol,
-        a.number_of_peers,
-        a.number_of_standalone,
-        a.number_of_connected
+        a.peer_count,
+        a.standalone_count,
+        a.connected_count,
+        a.off_count,
+        a.local_uptodate_count,
+        a.peer_uptodate_count,
+        a.max_estimated_time_to_sync
       FROM
         scope AS a,
         XMLTABLE(
@@ -700,9 +716,13 @@ export const getServerDetail: RequestHandler<
         AND
           c.server_uuid = '${serverUuid}'
       GROUP BY
-        a.number_of_connected,
-        a.number_of_standalone,
-        a.number_of_peers,
+        a.connected_count,
+        a.local_uptodate_count,
+        a.max_estimated_time_to_sync,
+        a.off_count,
+        a.peer_count,
+        a.peer_uptodate_count,
+        a.standalone_count,
         b.drbd_connection_protocol,
         d.host_uuid;`;
 
@@ -718,20 +738,47 @@ export const getServerDetail: RequestHandler<
     }
 
     protectStatusRows.forEach((row) => {
-      const [drUuid, protocol, numPeers, numStandalone, numConnected] = row;
+      const [
+        drUuid,
+        protocol,
+        numPeers,
+        numStandalone,
+        numConnected,
+        numOff,
+        numLocalUptodate,
+        numPeerUptodate,
+        maxEstimatedTimeToSync,
+      ] = row as [string, string, ...number[]];
 
       const protect: ServerDetailProtect = {
         drUuid,
         protocol,
         status: {
-          connection: 'disconnected',
+          connection: '',
+          maxEstimatedTimeToSync: 0,
+          overall: '',
         },
       };
 
-      if (numStandalone) {
+      if (numOff === numPeers) {
+        protect.status.connection = 'off';
+      } else if (numStandalone > 0) {
         protect.status.connection = 'standalone';
       } else if (numConnected === numPeers) {
         protect.status.connection = 'connected';
+      } else {
+        protect.status.connection = 'disconnected';
+      }
+
+      if (numOff === numPeers) {
+        protect.status.overall = 'offline';
+      } else if (maxEstimatedTimeToSync > 0) {
+        protect.status.maxEstimatedTimeToSync = maxEstimatedTimeToSync;
+        protect.status.overall = 'syncing';
+      } else if (numLocalUptodate + numPeerUptodate === numPeers * 2) {
+        protect.status.overall = 'optimal';
+      } else {
+        protect.status.overall = 'degraded';
       }
 
       server.protect[drUuid] = protect;

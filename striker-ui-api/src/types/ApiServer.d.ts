@@ -205,11 +205,21 @@ type ServerDetailMemory = {
   size: string;
 };
 
+/**
+ * @property {string} status.connection - the connection part of the
+ * replication status
+ * @property {number} status.maxEstimatedTimeToSync - the max disk sync time in
+ * **seconds**
+ * @property {string} status.overall - overall replication status, including
+ * connection and disk status
+ */
 type ServerDetailProtect = {
   drUuid: string;
   protocol: string;
   status: {
     connection: string;
+    maxEstimatedTimeToSync: number;
+    overall: string;
   };
 };
 

@@ -57,20 +57,24 @@ const StyledBox = styled(MuiBox)(({ theme }) => ({
   },
 }));
 
-const selectStateMessage = (regex: RegExp, message: string): string => {
+const selectStateMessage = (
+  regex: RegExp,
+  message: string,
+): React.ReactNode => {
   const msg = regex.exec(message);
 
   if (msg) {
     return HOST_STATUS.get(msg[0]) || 'Error code not recognized';
   }
-  return 'Error code not found';
+
+  return null;
 };
 
-const selectDecorator = (state: string): Colours => {
+const selectDecorator = (state: APIHostStatus): Colours => {
   switch (state) {
     case 'online':
       return 'ok';
-    case 'offline':
+    case 'powered off':
       return 'off';
     default:
       return 'warning';
@@ -106,9 +110,9 @@ const AnvilHost: React.FC<AnvilHostProps> = (props) => {
           }
 
           const online = host.state === 'online';
-          const offline = host.state === 'offline';
+          const poweredOff = host.state === 'powered off';
           const notOnline = !online;
-          const notOffline = !offline;
+          const notPoweredOff = !poweredOff;
 
           return (
             <InnerPanel key={host.host_uuid}>
@@ -135,9 +139,9 @@ const AnvilHost: React.FC<AnvilHostProps> = (props) => {
                 </MuiBox>
                 <MuiBox flexGrow={1}>
                   <MuiSwitch
-                    checked={notOffline}
+                    checked={notPoweredOff}
                     onChange={() => {
-                      const action = notOffline ? 'stop' : 'start';
+                      const action = notPoweredOff ? 'stop' : 'start';
                       const command = `${action}-subnode`;
 
                       const capped = capitalize(action);
@@ -212,7 +216,7 @@ const AnvilHost: React.FC<AnvilHostProps> = (props) => {
                 <MuiBox>
                   <MuiSwitch
                     checked={online}
-                    disabled={offline}
+                    disabled={poweredOff}
                     onChange={() => {
                       const action = online ? 'leave' : 'join';
                       const command = `${action}-an`;
@@ -287,7 +291,7 @@ const AnvilHost: React.FC<AnvilHostProps> = (props) => {
                   />
                 </MuiBox>
               </MuiBox>
-              {notOnline && notOffline && (
+              {notOnline && notPoweredOff && (
                 <>
                   <MuiBox display="flex" width="100%" className={classes.state}>
                     <MuiBox>

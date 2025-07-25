@@ -2,26 +2,29 @@ import MuiBox from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import { dSizeStr } from 'format-data-size';
 import capitalize from 'lodash/capitalize';
+import lowerFirst from 'lodash/lowerFirst';
 import { useMemo, useState } from 'react';
 
-import { toHostDetailCalcableList } from '../../lib/api_converters';
 import Autocomplete from '../Autocomplete';
 import ContainedButton from '../ContainedButton';
-import handleAction from './handleAction';
-import handleFormSubmit from './handleFormSubmit';
 import JobProgressList from '../JobProgressList';
 import List from '../List';
 import MessageBox from '../MessageBox';
 import MessageGroup from '../MessageGroup';
-import { protectSchema } from './schemas';
 import SelectWithLabel from '../SelectWithLabel';
 import ServerFormGrid from './ServerFormGrid';
 import ServerFormSubmit from './ServerFormSubmit';
 import Spinner from '../Spinner';
 import SwitchWithLabel from '../SwitchWithLabel';
 import { BodyText, InlineMonoText } from '../Text';
+import handleAction from './handleAction';
+import handleFormSubmit from './handleFormSubmit';
 import useFetch from '../../hooks/useFetch';
 import useFormikUtils from '../../hooks/useFormikUtils';
+import { toHostDetailCalcableList } from '../../lib/api_converters';
+import { toDrbdStatusColour } from '../../lib/colours';
+import { ago } from '../../lib/time';
+import { protectSchema } from './schemas';
 
 const nZero = BigInt(0);
 
@@ -212,6 +215,12 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
 
     const connected = status.connection === 'connected';
 
+    let etts: string | undefined;
+
+    if (status.maxEstimatedTimeToSync) {
+      etts = ago(status.maxEstimatedTimeToSync);
+    }
+
     return (
       <Grid alignItems="center" container spacing="1em">
         <Grid item width="100%">
@@ -221,7 +230,21 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
             </InlineMonoText>{' '}
             is configured to be protected by{' '}
             <InlineMonoText noWrap>{dr.short}</InlineMonoText> using protocol{' '}
-            <InlineMonoText noWrap>{protocol}</InlineMonoText>.
+            <InlineMonoText noWrap>
+              {lowerFirst(protocols[protocol]?.inputValue ?? protocol)}
+            </InlineMonoText>
+            .
+          </BodyText>
+        </Grid>
+        <Grid item width="100%">
+          <BodyText>
+            Replication status:{' '}
+            <InlineMonoText
+              inheritColour
+              color={toDrbdStatusColour(status.overall)}
+            >
+              {status.overall} {etts && ` (estimated ~${etts})`}
+            </InlineMonoText>{' '}
           </BodyText>
         </Grid>
         <Grid item xs>
@@ -346,6 +369,20 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
             Remove protection
           </ContainedButton>
         </Grid>
+        {jobRegistered && (
+          <Grid item width="100%">
+            <JobProgressList
+              getLabel={(progress) =>
+                progress === 100 ? 'Finished.' : 'Protecting...'
+              }
+              names={['dr::protect']}
+              progress={{
+                set: setJobProgress,
+                value: jobProgress,
+              }}
+            />
+          </Grid>
+        )}
       </Grid>
     );
   }
@@ -464,7 +501,7 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
           selectItems={protocolOptions}
           selectProps={{
             renderValue: (value) =>
-              protocols[value]?.inputValue ?? capitalize(value),
+              capitalize(protocols[value]?.inputValue ?? value),
           }}
           value={formik.values.protocol}
         />
@@ -473,7 +510,7 @@ const BaseServerProtectForm: React.FC<BaseServerProtectFormProps> = (props) => {
         <Grid item width="100%">
           <JobProgressList
             getLabel={(progress) =>
-              progress === 100 ? 'Config changed.' : 'Changing config...'
+              progress === 100 ? 'Finished.' : 'Changing config...'
             }
             names={[
               'dr::link',

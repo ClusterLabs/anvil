@@ -102,7 +102,7 @@ export const buildAnvilSummary = async ({
     SELECT
       COUNT(a.host_uuid) AS number_of_hosts,
       SUM(
-        CAST(a.host_status = 'offline' AS int)
+        CAST(a.host_status != 'online' AS int)
       ) AS host_offline,
       SUM(
         CAST(b.scan_cluster_node_cluster_member AS int)
@@ -119,6 +119,9 @@ export const buildAnvilSummary = async ({
     SELECT
       COUNT(a.scan_drbd_peer_uuid) AS number_of_peers,
       SUM(
+        CAST(b.host_status != 'online' AS int)
+      ) AS peer_offline,
+      SUM(
         CAST(a.scan_drbd_peer_connection_state = 'off' AS int)
       ) AS connection_off,
       SUM(
@@ -131,6 +134,8 @@ export const buildAnvilSummary = async ({
         a.scan_drbd_peer_estimated_time_to_sync
       ) AS max_estimated_time_to_sync
     FROM (${sqlScanDrbdPeers()}) AS a
+    JOIN (${sqlHosts()}) AS b
+      ON b.host_uuid = a.scan_drbd_peer_host_uuid
     WHERE a.scan_drbd_peer_host_uuid IN (
       '${subnode1Uuid}',
       '${subnode2Uuid}'
@@ -190,7 +195,7 @@ export const buildAnvilSummary = async ({
 
     const { [uuid]: host } = hosts;
 
-    if (!host) {
+    if (!host || !['online'].includes(host.state)) {
       return;
     }
 
@@ -200,19 +205,38 @@ export const buildAnvilSummary = async ({
       host.state = 'online';
       host.state_message = buildHostStateMessage(3);
       host.state_percent = 100;
-    } else if (crmd) {
+
+      return;
+    }
+
+    if (crmd) {
       host.state = 'crmd';
       host.state_message = buildHostStateMessage(4);
       host.state_percent = 75;
-    } else if (ccm) {
+
+      return;
+    }
+
+    if (ccm) {
       host.state = 'in_ccm';
       host.state_message = buildHostStateMessage(5);
       host.state_percent = 50;
-    } else {
+
+      return;
+    }
+
+    if (host.state === 'online') {
+      // Translate 'online' (which strictly means the host has access to the
+      // database(s)) -> 'booted', to avoid confusing with "online in cluster.
       host.state = 'booted';
       host.state_message = buildHostStateMessage(6);
       host.state_percent = 25;
+
+      return;
     }
+
+    // The remaining host_status values can be used as-is since they don't
+    // express the host's position in its cluster.
   });
 
   hostDrbdResourceRows.forEach((row) => {
@@ -261,6 +285,7 @@ export const buildAnvilSummary = async ({
   nodeDrbdSummaryRows.forEach((row) => {
     const [
       numPeers,
+      numPeerOffline,
       numConnectionOff,
       numLocalDiskUptodate,
       numPeerDiskUptodate,
@@ -272,7 +297,7 @@ export const buildAnvilSummary = async ({
       return;
     }
 
-    if (numConnectionOff === numPeers) {
+    if (numPeerOffline === numPeers || numConnectionOff === numPeers) {
       // All peer records have connection state as off
       result.anvilStatus.drbd.status = 'offline';
     } else if (maxEstimatedTimeToSync > 0) {

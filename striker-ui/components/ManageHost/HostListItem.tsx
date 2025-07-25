@@ -5,7 +5,7 @@ import { BodyText, MonoText } from '../Text';
 
 const MAP_TO_DECORATOR_COLOUR: Record<string, Colours> = {
   online: 'ok',
-  offline: 'off',
+  'powered off': 'off',
 };
 
 const MAP_TO_HOST_TYPE_DISPLAY: Record<string, string> = {
