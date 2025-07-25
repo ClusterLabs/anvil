@@ -897,10 +897,6 @@ EOF
 				$anvil->nice_exit({exit_code => 6});
 			}
 		}
-		# Still alive? Exit generically.
-		update_progress($anvil, 100, "error_0498,!!error!".$error."!!");
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0498", variables => { error => $error }});
-		$anvil->nice_exit({exit_code => 6});
 	}
 	
 	$anvil->data->{job}{progress} += 5;

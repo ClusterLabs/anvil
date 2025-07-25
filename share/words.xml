@@ -841,11 +841,6 @@ The XML that failed sanity check was:
 #!variable!error!#
 ====
 </key>
-		<key name="error_0498">[ Error ] - There was an error installing the Anvil! software. The error waas:
-====
-#!variable!error!#
-====
-</key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
