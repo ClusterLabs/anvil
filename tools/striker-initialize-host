@@ -883,6 +883,26 @@ EOF
 		return_code => $return_code,
 	}});
 	
+	# Check if the install failed because of missing add-on subscriptions.
+	if ($error)
+	{
+		foreach my $line (split/\n/, $error)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if (($line =~ /nothing provides pcs/) or ($line =~ /nothing provides pacemaker/))
+			{
+				# Missing HA Add-on
+				update_progress($anvil, 100, "error_0497,!!error!".$error."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0497", variables => { error => $error }});
+				$anvil->nice_exit({exit_code => 6});
+			}
+		}
+		# Still alive? Exit generically.
+		update_progress($anvil, 100, "error_0498,!!error!".$error."!!");
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "error_0498", variables => { error => $error }});
+		$anvil->nice_exit({exit_code => 6});
+	}
+	
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0043");
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0043"});
