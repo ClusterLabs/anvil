@@ -116,6 +116,26 @@ sub configure_lvm
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0273");
 	}
 	
+	# Check to see if we need to grow the PV.
+	$anvil->data->{job}{progress} += 1;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0341"});
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0341");
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-host'}." --auto-grow-pv --confirm".$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		debug       => 3,
+		shell_call  => $shell_call, 
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error, 
+		return_code => $return_code,
+	}});
+	
 	return(0);
 }
 
