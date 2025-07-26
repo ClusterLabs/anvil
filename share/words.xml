@@ -1548,7 +1548,7 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0257">Ready to create jobs to assemble Anvil! systems.</key>
 		<key name="job_0258">Created (or updated) the Anvil! [#!variable!anvil_name!#] with the UUID: [#!variable!anvil_uuid!#].</key>
 		<key name="job_0259">Created the job for: [#!variable!machine_name!#] with host UUID: [#!variable!host_uuid!#] to the Anvil!: [#!variable!anvil_name!#] with the job UUID: [#!variable!job_uuid!#].</key>
-		<key name="job_0260">#!free!#</key>
+		<key name="job_0260">Checking if we need to enable any add-ons...</key>
 		<key name="job_0261">The job UUID: [#!variable!job_uuid!#] is at: [#!variable!progress!#%].</key>
 		<key name="job_0262">Not all jobs are done yet, will check again in a bit.</key>
 		<key name="job_0263">All jobs are complete! Baring problems, the Anvil! system(s) should now be ready to use.</key>
@@ -1628,8 +1628,8 @@ Use the 'Short ID' that best matches your OS.</key>
 		<key name="job_0337">The target machine is already off, nothing to do.</key>
 		<key name="job_0338">Reset a server</key>
 		<key name="job_0339">This hard-resets the server, but leaves it running so the console remains active.</key>
-		<key name="job_0340">#!free!#</key>
-		<key name="job_0341">#!free!#</key>
+		<key name="job_0340">Enabling the repo: [#!variable!repo!#].</key>
+		<key name="job_0341">Checking if the host has free space to reclaim.</key>
 		<key name="job_0342">#!free!#</key>
 		<key name="job_0343">#!free!#</key>
 		<key name="job_0344">Verifying that corosync is configured to use the SN1 as a fall-back communication channel.</key>

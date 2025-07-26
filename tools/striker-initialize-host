@@ -116,6 +116,26 @@ sub configure_lvm
 		update_progress($anvil, $anvil->data->{job}{progress}, "job_0273");
 	}
 	
+	# Check to see if we need to grow the PV.
+	$anvil->data->{job}{progress} += 1;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, 'print' => 1, key => "job_0341"});
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0341");
+	my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-host'}." --auto-grow-pv --confirm".$anvil->Log->switches;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+	my ($output, $error, $return_code) = $anvil->Remote->call({
+		debug       => 3,
+		shell_call  => $shell_call, 
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		output      => $output, 
+		error       => $error, 
+		return_code => $return_code,
+	}});
+	
 	return(0);
 }
 
@@ -855,8 +875,108 @@ EOF
 		}});
 	}
 	
-	# Install the anvil package now.
+	# If the target is RHEL, make sure they enable the needed add-ons.
+	$anvil->data->{job}{progress}++;
+	update_progress($anvil, $anvil->data->{job}{progress}, "job_0260");
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0260"});
+	my ($os_type, $os_arch) = $anvil->Get->os_type({
+		debug       => 2,
+		password    => $anvil->data->{data}{password}, 
+		port        => $anvil->data->{data}{ssh_port}, 
+		target      => $anvil->data->{data}{host_ip_address},
+		remote_user => "root", 
+	});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		os_type => $os_type, 
+		os_arch => $os_arch,
+	}});
+	
 	my $package = $anvil->data->{data}{type} eq "dr" ? "anvil-dr" : "anvil-node";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 'package' => $package }});
+	if ($os_type =~ /rhel(\d+)/)
+	{
+		my $version = $1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { version => $version }});
+		
+		my $ha_repo                                        = "rhel-".$version."-for-x86_64-highavailability-rpms"; 
+		my $codeready_repo                                 = "codeready-builder-for-rhel-".$version."-x86_64-rpms";
+		   $anvil->data->{repos}{$ha_repo}{enabled}        = 1;
+		   $anvil->data->{repos}{$codeready_repo}{enabled} = 1;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			"repos::${ha_repo}::enabled"        => $anvil->data->{repos}{$ha_repo}{enabled},
+			"repos::${codeready_repo}::enabled" => $anvil->data->{repos}{$codeready_repo}{enabled},
+		}});
+		
+		# Get the list of repos.
+		my $repo_id    = "";
+		my $shell_call = $anvil->data->{path}{exe}{'subscription-manager'}." repos";
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+		my ($output, $error, $return_code) = $anvil->Remote->call({
+			debug       => 2,
+			shell_call  => $shell_call,
+			password    => $anvil->data->{data}{password}, 
+			port        => $anvil->data->{data}{ssh_port}, 
+			target      => $anvil->data->{data}{host_ip_address},
+			remote_user => "root", 
+			timeout     => 3600,
+		});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			output      => $output, 
+			error       => $error, 
+			return_code => $return_code,
+		}});
+		
+		my $this_repo = "";
+		foreach my $line (split/\n/, $output)
+		{
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { line => $line }});
+			if ($line =~ /Repo ID:\s+(.*)/)
+			{
+				$this_repo = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_repo => $this_repo }});
+			}
+			if ($line =~ /Enabled:\s+(\d)/)
+			{
+				$anvil->data->{repos}{$this_repo}{enabled} = $1;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { "repos::${this_repo}::enabled" => $anvil->data->{repos}{$this_repo}{enabled} }});
+			}
+		}
+		
+		# All systems need code-ready, subnodes only need HA
+		foreach my $repo ($codeready_repo, $ha_repo)
+		{
+			next if (($package ne "anvil-node") && ($repo eq $ha_repo));
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				"repos::${repo}::enabled" => $anvil->data->{repos}{$repo}{enabled}, 
+			}});
+			if (not $anvil->data->{repos}{$repo}{enabled})
+			{
+				# Enable the repo.
+				$anvil->data->{job}{progress}++;
+				update_progress($anvil, $anvil->data->{job}{progress}, "job_0340,!!repo!".$repo."!!");
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, 'print' => 1, key => "job_0340", variables => { repo => $repo }});
+				
+				my $shell_call = $anvil->data->{path}{exe}{'subscription-manager'}." repos --enable ".$repo;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
+				my ($output, $error, $return_code) = $anvil->Remote->call({
+					debug       => 2,
+					shell_call  => $shell_call,
+					password    => $anvil->data->{data}{password}, 
+					port        => $anvil->data->{data}{ssh_port}, 
+					target      => $anvil->data->{data}{host_ip_address},
+					remote_user => "root", 
+					timeout     => 3600,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output, 
+					error       => $error, 
+					return_code => $return_code,
+				}});
+			}
+		}
+	}
+	
+	# Install the anvil package now.
 	$anvil->data->{job}{progress} += 5;
 	update_progress($anvil, $anvil->data->{job}{progress}, "job_0042,!!package!".$package."!!");
 	$anvil->data->{job}{progress} += 5;
