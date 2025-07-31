@@ -35,8 +35,10 @@ my $THIS_FILE = "System.pm";
 # enable_daemon
 # find_matching_ip
 # host_name
+# list_qemu_kvm_processes
 # maintenance_mode
 # manage_authorized_keys
+# open_all_local_server_websockify_processes
 # pids
 # parse_lshw
 # read_ssh_config
@@ -4083,6 +4085,60 @@ sub host_name
 }
 
 
+=head2 list_qemu_kvm_processes
+
+Gets all qemu-kvm processes on the local machine and returns a hash containing them, each with PID as key and a hash containing the full command as value.
+
+It's expected to run on subnodes, but can run on strikers harmlessly.
+
+=cut
+sub list_qemu_kvm_processes
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->list_qemu_kvm_processes()" } });
+
+	my $shell_call = $anvil->data->{path}{exe}{'pgrep'}." -af '".$anvil->data->{path}{exe}{'qemu-kvm'}."'";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+
+	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output       => $output,
+		return_code  => $return_code,
+	} });
+
+	if ($return_code)
+	{
+		return ("");
+	}
+
+	my $processes = {};
+
+	foreach my $line (split(/\n/, $output))
+	{
+		chomp($line);
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line } });
+
+		my ($pid, $command) = $line =~ /^(\d+)\s+(.*)$/;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			command => $command,
+			pid     => $pid,
+		} });
+
+		$processes->{$pid} = { command => $command };
+	}
+
+	return ($processes);
+}
+
+
 =head2 maintenance_mode
 
 This sets, clears or checks if the local system is in maintenance mode. Any system in maintenance mode will not be used by normal Anvil! tasks.
@@ -4353,6 +4409,54 @@ sub manage_authorized_keys
 	
 	return($updated);
 }
+
+
+=head2 open_all_local_server_websockify_processes
+
+Tries to open a websockify process for each server running on the local machine. If there's already a working websockify process for the server, then nothing will be done.
+
+It's expected to run on subnodes, but can run on strikers harmlessly.
+
+=cut
+sub open_all_local_server_websockify_processes
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->open_all_local_server_websockify_processes()" } });
+
+	my ($processes) = $anvil->System->list_qemu_kvm_processes();
+
+	foreach my $process (values %{$processes})
+	{
+		my $command = $process->{command};
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command } });
+
+		my ($server_name) = $command =~ /-name\s+guest=([^,]+)/;
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name } });
+
+		if (not $server_name)
+		{
+			next;
+		}
+
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-vnc-pipe'}." --server ".$server_name." --open";
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+
+		my ($output, $return_code) = $anvil->System->call({ background => 1, debug => $debug, shell_call => $shell_call });
+
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			output       => $output,
+			return_code  => $return_code,
+		} });
+	}
+}
+
 
 =head2 pids
 
@@ -6370,107 +6474,6 @@ sub _match_port_to_service
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { service_name => $service_name }});
 	return($service_name);
-}
-
-
-=head2 list_qemu_kvm_processes
-
-Gets all qemu-kvm processes on the local machine and returns a hash containing them, each with PID as key and a hash containing the full command as value.
-
-It's expected to run on subnodes, but can run on strikers harmlessly.
-
-=cut
-sub list_qemu_kvm_processes
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-
-	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->list_qemu_kvm_processes()" } });
-
-	my $shell_call = $anvil->data->{path}{exe}{'pgrep'}." -af '".$anvil->data->{path}{exe}{'qemu-kvm'}."'";
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
-
-	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		output       => $output,
-		return_code  => $return_code,
-	} });
-
-	if ($return_code)
-	{
-		return ("");
-	}
-
-	my $processes = {};
-
-	foreach my $line (split(/\n/, $output))
-	{
-		chomp($line);
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line } });
-
-		my ($pid, $command) = $line =~ /^(\d+)\s+(.*)$/;
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-			command => $command,
-			pid     => $pid,
-		} });
-
-		$processes->{$pid} = { command => $command };
-	}
-
-	return ($processes);
-}
-
-
-=head2 open_all_local_server_websockify_processes
-
-Tries to open a websockify process for each server running on the local machine. If there's already a working websockify process for the server, then nothing will be done.
-
-It's expected to run on subnodes, but can run on strikers harmlessly.
-
-=cut
-sub open_all_local_server_websockify_processes
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-
-	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->open_all_local_server_websockify_processes()" } });
-
-	my ($processes) = $anvil->System->list_qemu_kvm_processes();
-
-	foreach my $process (values %{$processes})
-	{
-		my $command = $process->{command};
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command } });
-
-		my ($server_name) = $command =~ /-name\s+guest=([^,]+)/;
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name } });
-
-		if (not $server_name)
-		{
-			next;
-		}
-
-		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-vnc-pipe'}." --server ".$server_name." --open";
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
-
-		my ($output, $return_code) = $anvil->System->call({ background => 1, debug => $debug, shell_call => $shell_call });
-
-		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-			output       => $output,
-			return_code  => $return_code,
-		} });
-	}
 }
 
 1;
