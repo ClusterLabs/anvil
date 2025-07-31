@@ -6387,15 +6387,15 @@ sub list_qemu_kvm_processes
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 
-	$anvil->Log->entry({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->list_qemu_kvm_processes()" } });
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->list_qemu_kvm_processes()" } });
 
 	my $shell_call = $anvil->data->{path}{exe}{'pgrep'}." -af '".$anvil->data->{path}{exe}{'qemu-kvm'}."'";
 
-	$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
 
 	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
 
-	$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 		output       => $output,
 		return_code  => $return_code,
 	} });
@@ -6411,11 +6411,11 @@ sub list_qemu_kvm_processes
 	{
 		chomp($line);
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line } });
 
 		my ($pid, $command) = $line =~ /^(\d+)\s+(.*)$/;
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			command => $command,
 			pid     => $pid,
 		} });
@@ -6441,7 +6441,7 @@ sub open_all_local_server_websockify_processes
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 
-	$anvil->Log->entry({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->open_all_local_server_websockify_processes()" } });
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->open_all_local_server_websockify_processes()" } });
 
 	my ($processes) = $anvil->System->list_qemu_kvm_processes();
 
@@ -6449,11 +6449,11 @@ sub open_all_local_server_websockify_processes
 	{
 		my $command = $process->{command};
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command } });
 
 		my ($server_name) = $command =~ /-name\s+guest=([^,]+)/;
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name } });
 
 		if (not $server_name)
 		{
@@ -6462,11 +6462,11 @@ sub open_all_local_server_websockify_processes
 
 		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-vnc-pipe'}." --server ".$server_name." --open";
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
 
 		my ($output, $return_code) = $anvil->System->call({ background => 1, debug => $debug, shell_call => $shell_call });
 
-		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
 			output       => $output,
 			return_code  => $return_code,
 		} });
