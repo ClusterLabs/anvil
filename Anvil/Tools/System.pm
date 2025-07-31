@@ -6372,6 +6372,14 @@ sub _match_port_to_service
 	return($service_name);
 }
 
+
+=head2 list_qemu_kvm_processes
+
+Gets all qemu-kvm processes on the local machine and returns a hash containing them, each with PID as key and a hash containing the full command as value.
+
+It's expected to run on subnodes, but can run on strikers harmlessly.
+
+=cut
 sub list_qemu_kvm_processes
 {
 	my $self      = shift;
@@ -6418,6 +6426,14 @@ sub list_qemu_kvm_processes
 	return ($processes);
 }
 
+
+=head2 open_all_local_server_websockify_processes
+
+Tries to open a websockify process for each server running on the local machine. If there's already a working websockify process for the server, then nothing will be done.
+
+It's expected to run on subnodes, but can run on strikers harmlessly.
+
+=cut
 sub open_all_local_server_websockify_processes
 {
 	my $self      = shift;
