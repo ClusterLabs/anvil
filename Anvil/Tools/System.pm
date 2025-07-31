@@ -6372,4 +6372,89 @@ sub _match_port_to_service
 	return($service_name);
 }
 
+sub list_qemu_kvm_processes
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	$anvil->Log->entry({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->list_qemu_kvm_processes()" } });
+
+	my $shell_call = $anvil->data->{path}{exe}{'pgrep'}." -af '".$anvil->data->{path}{exe}{'qemu-kvm'}."'";
+
+	$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+
+	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
+
+	$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output       => $output,
+		return_code  => $return_code,
+	} });
+
+	if ($return_code)
+	{
+		return ("");
+	}
+
+	my $processes = {};
+
+	foreach my $line (split(/\n/, $output))
+	{
+		chomp($line);
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line } });
+
+		my ($pid, $command) = $line =~ /^(\d+)\s+(.*)$/;
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			command => $command,
+			pid     => $pid,
+		} });
+
+		$processes->{$pid} = { command => $command };
+	}
+
+	return ($processes);
+}
+
+sub open_all_local_server_websockify_processes
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+
+	$anvil->Log->entry({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->open_all_local_server_websockify_processes()" } });
+
+	my ($processes) = $anvil->System->list_qemu_kvm_processes();
+
+	foreach my $process (values %{$processes})
+	{
+		my $command = $process->{command};
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { command => $command } });
+
+		my ($server_name) = $command =~ /-name\s+guest=([^,]+)/;
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { server_name => $server_name } });
+
+		if (not $server_name)
+		{
+			next;
+		}
+
+		my $shell_call = $anvil->data->{path}{exe}{'anvil-manage-vnc-pipe'}." --server ".$server_name." --open";
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+
+		my ($output, $return_code) = $anvil->System->call({ background => 1, debug => $debug, shell_call => $shell_call });
+
+		$anvil->Log->variables({ 'print' => 1, source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+			output       => $output,
+			return_code  => $return_code,
+		} });
+	}
+}
+
 1;
