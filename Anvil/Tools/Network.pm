@@ -28,6 +28,7 @@ my $THIS_FILE = "Network.pm";
 # get_ip_from_mac
 # get_ips
 # get_network
+# get_next_available_port
 # is_local
 # is_our_interface
 # is_ip_in_network
@@ -2068,70 +2069,6 @@ sub find_target_ip
 }
 
 
-=head2 get_next_available_port
-
-This takes a starting port and attempts to get the next available port for use. The starting port is returned when it's available.
-
-=head3 start
-
-The starting port to begin testing for availability.
-
-=head3 step_operator
-
-Accepts one of C<< + >> or C<< - >> which controls whether to search up or down from the starting port.
-
-=head3 step_size
-
-Controls the difference to add or subtract on the current port when testing.
-
-=cut
-sub get_next_available_port
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = $parameter->{debug} // 3;
-
-	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_next_available_port()" } });
-
-	my $start         = $parameter->{start}         // 0;
-	my $step_operator = $parameter->{step_operator} // "+";
-	my $step_size     = $parameter->{step_size}     // 1;
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		start         => $start,
-		step_operator => $step_operator,
-		step_size     => $step_size,
-	} });
-
-	if (
-		(not $anvil->Validate->positive_integer({ number => $start }))
-		|| (not $step_operator =~ /^[+-]$/)
-		|| (not $anvil->Validate->positive_integer({ number => $step_size })) )
-	{
-		return ("");
-	}
-
-	my $shell_call = "port=".$start." && while [[ -n \$(".$anvil->data->{path}{exe}{'ss'}." -antHO \"( sport = :\${port} )\") ]]; do (( port ".$step_operator."= ".$step_size." )); done && echo \$port";
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
-
-	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
-
-	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
-		output       => $output,
-		return_code  => $return_code,
-	} });
-
-	if ($return_code)
-	{
-		return ("");
-	}
-
-	return ($output);
-}
-
-
 =head2 get_company_from_mac
 
 This takes a MAC address (or the first six bytes) and returns the company that owns the OUI. If the company name is not found, an expty string is returned.
@@ -3009,6 +2946,70 @@ sub get_network
 	}
 	
 	return($network);
+}
+
+
+=head2 get_next_available_port
+
+This takes a starting port and attempts to get the next available port for use. The starting port is returned when it's available.
+
+=head3 start
+
+The starting port to begin testing for availability.
+
+=head3 step_operator
+
+Accepts one of C<< + >> or C<< - >> which controls whether to search up or down from the starting port.
+
+=head3 step_size
+
+Controls the difference to add or subtract on the current port when testing.
+
+=cut
+sub get_next_available_port
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = $parameter->{debug} // 3;
+
+	$anvil->Log->entry({ source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Network->get_next_available_port()" } });
+
+	my $start         = $parameter->{start}         // 0;
+	my $step_operator = $parameter->{step_operator} // "+";
+	my $step_size     = $parameter->{step_size}     // 1;
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		start         => $start,
+		step_operator => $step_operator,
+		step_size     => $step_size,
+	} });
+
+	if (
+		(not $anvil->Validate->positive_integer({ number => $start }))
+		|| (not $step_operator =~ /^[+-]$/)
+		|| (not $anvil->Validate->positive_integer({ number => $step_size })) )
+	{
+		return ("");
+	}
+
+	my $shell_call = "port=".$start." && while [[ -n \$(".$anvil->data->{path}{exe}{'ss'}." -antHO \"( sport = :\${port} )\") ]]; do (( port ".$step_operator."= ".$step_size." )); done && echo \$port";
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call } });
+
+	my ($output, $return_code) = $anvil->System->call({ debug => $debug, shell_call => $shell_call });
+
+	$anvil->Log->variables({ source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		output       => $output,
+		return_code  => $return_code,
+	} });
+
+	if ($return_code)
+	{
+		return ("");
+	}
+
+	return ($output);
 }
 
 
