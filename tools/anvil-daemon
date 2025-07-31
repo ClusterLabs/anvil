@@ -517,7 +517,10 @@ sub handle_periodic_tasks
 		
 		# This checks to see if there are any keys in the DB that need to be added to authorized_keys.
 		check_authorized_keys($anvil);
-		
+
+		# Check for missing websockify process(es) and set them up when needed.
+		$anvil->System->open_all_local_server_websockify_processes();
+
 		# Do Striker-specific minute tasks
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_type => $host_type }});
 		if ($host_type eq "striker")
