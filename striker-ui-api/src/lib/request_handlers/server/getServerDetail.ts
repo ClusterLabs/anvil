@@ -267,12 +267,15 @@ export const getServerDetail: RequestHandler<
 
     sql = `
       SELECT
-        server_network_uuid,
-        server_network_mac_address,
-        server_network_vnet_device,
-        server_network_link_state
-      FROM server_networks
-      WHERE server_network_server_uuid = '${serverUuid}';`;
+        a.server_network_uuid,
+        a.server_network_mac_address,
+        a.server_network_vnet_device,
+        a.server_network_link_state,
+        COALESCE(b.mac_to_ip_ip_address, '')
+      FROM server_networks AS a
+      LEFT JOIN mac_to_ip AS b
+        ON b.mac_to_ip_mac_address = a.server_network_mac_address
+      WHERE a.server_network_server_uuid = '${serverUuid}';`;
 
     try {
       rows = await query(sql);
@@ -287,10 +290,11 @@ export const getServerDetail: RequestHandler<
 
     const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
       (previous, row) => {
-        const [uuid, mac, device, state] = row;
+        const [uuid, mac, device, state, ip] = row;
 
         previous[mac] = {
           device,
+          ip,
           mac,
           state,
           uuid,
