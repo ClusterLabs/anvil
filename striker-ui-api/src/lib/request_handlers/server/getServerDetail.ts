@@ -440,7 +440,7 @@ export const getServerDetail: RequestHandler<
 
     if (Array.isArray(iface)) {
       ifaceArray = iface;
-    } else if (disk) {
+    } else if (iface) {
       ifaceArray = [iface];
     }
 
