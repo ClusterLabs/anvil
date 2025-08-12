@@ -574,6 +574,7 @@ export const getServerDetail: RequestHandler<
         alias: {
           name: alias?.['@_name'],
         },
+        ip: netIface.ip,
         link: {
           state: link?.['@_state'] ?? netIface?.state,
         },
