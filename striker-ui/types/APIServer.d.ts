@@ -247,6 +247,10 @@ type APIServerDetailInterface = {
   alias: {
     name: string;
   };
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   link: {
     state: string;
   };

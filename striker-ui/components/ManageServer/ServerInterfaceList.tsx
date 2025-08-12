@@ -4,14 +4,13 @@ import capitalize from 'lodash/capitalize';
 import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
-import Divider from '../Divider';
-import FlexBox from '../FlexBox';
 import IconButton from '../IconButton';
 import JobProgressList from '../JobProgressList';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
-import { MonoText, SmallText } from '../Text';
+import { BodyText, MonoText, SmallText } from '../Text';
 import handleAction from './handleAction';
+import { ago, now } from '../../lib/time';
 
 const STATE_ACTION: Record<string, string> = {
   down: 'plug-in',
@@ -44,6 +43,8 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
     [detail.devices.interfaces],
   );
 
+  const nao = now();
+
   return (
     <>
       <Grid container>
@@ -62,6 +63,7 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
             }}
             renderListItem={(mac, iface) => {
               const {
+                ip,
                 link: { state },
                 model: { type },
                 source: { bridge },
@@ -115,14 +117,20 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                     />
                   </Grid>
                   <Grid item xs>
-                    <FlexBox xs="column" md="row" columnSpacing={0}>
+                    <MonoText noWrap>
+                      {dev} ({type})
+                    </MonoText>
+                    <MonoText noWrap>{bridge}</MonoText>
+                  </Grid>
+                  <Grid item>
+                    <MonoText noWrap>{mac}</MonoText>
+                    {ip.address ? (
                       <MonoText noWrap>
-                        {dev} ({type})
+                        {ip.address} (changed {ago(nao - ip.timestamp)} ago)
                       </MonoText>
-                      <Divider flexItem orientation="vertical" />
-                      <MonoText noWrap>{mac}</MonoText>
-                    </FlexBox>
-                    <MonoText>{bridge}</MonoText>
+                    ) : (
+                      <BodyText>IP: not found yet</BodyText>
+                    )}
                   </Grid>
                   <Grid item>
                     <IconButton
