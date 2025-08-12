@@ -177,6 +177,7 @@ const ManageManifestPanel: React.FC = () => {
                     onSuccess: () => {
                       resetChecks();
 
+                      getManifestTemplate();
                       getManifestOverviews();
 
                       confirm.setConfirmDialogOpen(false);
@@ -249,6 +250,7 @@ const ManageManifestPanel: React.FC = () => {
                   helpers,
                   onError: () => `Failed to add install manifest.`,
                   onSuccess: () => {
+                    getManifestTemplate();
                     getManifestOverviews();
 
                     addDialogRef.current?.setOpen(false);
@@ -318,6 +320,7 @@ const ManageManifestPanel: React.FC = () => {
                   helpers,
                   onError: () => `Failed to update install manifest.`,
                   onSuccess: () => {
+                    getManifestTemplate();
                     getManifestOverviews();
 
                     editDialogRef.current?.setOpen(false);
