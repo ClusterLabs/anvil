@@ -271,7 +271,10 @@ export const getServerDetail: RequestHandler<
         a.server_network_mac_address,
         a.server_network_vnet_device,
         a.server_network_link_state,
-        COALESCE(b.mac_to_ip_ip_address, '')
+        COALESCE(b.mac_to_ip_ip_address, ''),
+        EXTRACT(
+          epoch from b.modified_date
+        ) AS modified_epoch
       FROM server_networks AS a
       LEFT JOIN mac_to_ip AS b
         ON b.mac_to_ip_mac_address = a.server_network_mac_address
@@ -290,11 +293,14 @@ export const getServerDetail: RequestHandler<
 
     const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
       (previous, row) => {
-        const [uuid, mac, device, state, ip] = row;
+        const [uuid, mac, device, state, ipAddress, ipModified] = row;
 
         previous[mac] = {
           device,
-          ip,
+          ip: {
+            address: ipAddress,
+            timestamp: Number(ipModified),
+          },
           mac,
           state,
           uuid,

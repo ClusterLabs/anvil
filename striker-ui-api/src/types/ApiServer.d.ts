@@ -270,7 +270,10 @@ type ServerDetailVncInfo = {
 
 type ServerNetworkInterface = {
   device: string;
-  ip: string;
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   mac: string;
   state: string;
   uuid: string;
