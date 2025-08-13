@@ -1,5 +1,6 @@
 import { Netmask } from 'netmask';
 
+import guessHostNetwork from './guessHostNetwork';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 import {
@@ -29,7 +30,11 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
     [INPUT_ID_AI_SEQUENCE]: nodeSequence,
   } = values;
 
+  // Make a copy of the current form values for guessing.
+
   const guessed = { ...values };
+
+  // 1. guess properties of all subnets
 
   const networkEntries = Object.entries(values.netconf.networks);
 
@@ -76,6 +81,39 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
     guessed.netconf.networks[networkId] = guessedNetwork;
   });
 
+  // 2. guess hosts' BCN, MN, and SN IPs
+
+  const hostEntries = Object.entries(values.hosts);
+
+  hostEntries.forEach((hostEntry) => {
+    const [subnodeSequence] = hostEntry;
+
+    networkEntries.forEach((networkEntry) => {
+      const [networkId, network] = networkEntry;
+
+      const guessedHostNetwork: ManifestFormikValues['hosts'][string]['networks'][string] =
+        {
+          ...guessed.hosts[subnodeSequence].networks[networkId],
+        };
+
+      const hostNetworkChain = `hosts.${subnodeSequence}.networks.${networkId}`;
+
+      if (!getFieldChanged?.(`${hostNetworkChain}.${INPUT_ID_AH_NETWORK_IP}`)) {
+        const ip = guessHostNetwork(
+          nodeSequence,
+          Number(subnodeSequence),
+          network,
+        );
+
+        guessedHostNetwork[INPUT_ID_AH_NETWORK_IP] = ip;
+      }
+
+      guessed.hosts[subnodeSequence].networks[networkId] = guessedHostNetwork;
+    });
+  });
+
+  // 3. attempt to find configured host(s) for the manifest
+
   const matchedHosts = Object.values(hosts).filter((host) => {
     const { name } = host;
 
@@ -85,6 +123,8 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
 
     return re.test(name);
   });
+
+  // 4. attempt to use values from the configured host(s) for the manifest
 
   matchedHosts.forEach((host) => {
     const tail = host.short.replace(/^.*n(\d+)$/, '$1');
