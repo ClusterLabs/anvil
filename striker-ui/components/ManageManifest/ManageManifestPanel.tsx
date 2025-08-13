@@ -123,21 +123,10 @@ const ManageManifestPanel: React.FC = () => {
           knownFences={manifestTemplate.fences}
           knownHosts={hosts}
           knownUpses={manifestTemplate.upses}
-          onSubmitSuccess={() => {
-            getManifestTemplate();
-            getHostOverviews();
-          }}
           tools={formTools}
         />
       ),
-    [
-      formTools,
-      getHostOverviews,
-      getManifestTemplate,
-      hosts,
-      manifest,
-      manifestTemplate,
-    ],
+    [formTools, hosts, manifest, manifestTemplate],
   );
 
   return (
@@ -156,6 +145,9 @@ const ManageManifestPanel: React.FC = () => {
           listItems={manifests}
           loading={loadingMinimum}
           onAdd={() => {
+            getManifestTemplate();
+            getHostOverviews();
+
             addDialogRef.current?.setOpen(true);
           }}
           onDelete={() => {
@@ -177,7 +169,6 @@ const ManageManifestPanel: React.FC = () => {
                     onSuccess: () => {
                       resetChecks();
 
-                      getManifestTemplate();
                       getManifestOverviews();
 
                       confirm.setConfirmDialogOpen(false);
@@ -200,6 +191,9 @@ const ManageManifestPanel: React.FC = () => {
             setCheck(key, checked);
           }}
           onItemClick={({ manifestUUID }) => {
+            getManifestTemplate();
+            getHostOverviews();
+
             editDialogRef.current?.setOpen(true);
 
             getManifest(`/${manifestUUID}`);
@@ -211,6 +205,9 @@ const ManageManifestPanel: React.FC = () => {
                 disabled={editManifests}
                 mapPreset="play"
                 onClick={() => {
+                  getManifestTemplate();
+                  getHostOverviews();
+
                   runDialogRef.current?.setOpen(true);
 
                   getManifest(`/${manifestUUID}`);
@@ -250,7 +247,6 @@ const ManageManifestPanel: React.FC = () => {
                   helpers,
                   onError: () => `Failed to add install manifest.`,
                   onSuccess: () => {
-                    getManifestTemplate();
                     getManifestOverviews();
 
                     addDialogRef.current?.setOpen(false);
@@ -320,7 +316,6 @@ const ManageManifestPanel: React.FC = () => {
                   helpers,
                   onError: () => `Failed to update install manifest.`,
                   onSuccess: () => {
-                    getManifestTemplate();
                     getManifestOverviews();
 
                     editDialogRef.current?.setOpen(false);
