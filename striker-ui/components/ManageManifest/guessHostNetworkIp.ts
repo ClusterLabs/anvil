@@ -5,7 +5,7 @@ import {
   INPUT_ID_AN_NETWORK_TYPE,
 } from './inputIds';
 
-const guessHostNetwork = (
+const guessHostNetworkIp = (
   parentSequence: number,
   hostSequence: number,
   known: ManifestFormikValues['netconf']['networks'][string],
@@ -42,7 +42,7 @@ const guessHostNetwork = (
       fallback = '';
   }
 
-  return used[id]?.networkIp ?? fallback;
+  return used[id]?.networkIp || fallback;
 };
 
-export default guessHostNetwork;
+export default guessHostNetworkIp;

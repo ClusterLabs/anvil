@@ -1,6 +1,7 @@
 import { Netmask } from 'netmask';
 
-import guessHostNetwork from './guessHostNetwork';
+import guessHostIpmiIp from './guessHostIpmiIp';
+import guessHostNetworkIp from './guessHostNetworkIp';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
 import {
@@ -91,15 +92,18 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
     networkEntries.forEach((networkEntry) => {
       const [networkId, network] = networkEntry;
 
+      const { [INPUT_ID_AN_NETWORK_TYPE]: networkType } = network;
+
       const guessedHostNetwork: ManifestFormikValues['hosts'][string]['networks'][string] =
         {
           ...guessed.hosts[subnodeSequence].networks[networkId],
         };
 
-      const hostNetworkChain = `hosts.${subnodeSequence}.networks.${networkId}`;
+      const hostChain = `hosts.${subnodeSequence}`;
+      const hostNetworkChain = `${hostChain}.networks.${networkId}`;
 
       if (!getFieldChanged?.(`${hostNetworkChain}.${INPUT_ID_AH_NETWORK_IP}`)) {
-        const ip = guessHostNetwork(
+        const ip = guessHostNetworkIp(
           nodeSequence,
           Number(subnodeSequence),
           network,
@@ -109,6 +113,16 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
       }
 
       guessed.hosts[subnodeSequence].networks[networkId] = guessedHostNetwork;
+
+      if (networkType !== 'bcn') {
+        return;
+      }
+
+      if (!getFieldChanged?.(`${hostChain}.${INPUT_ID_AH_IPMI_IP}`)) {
+        const ip = guessHostIpmiIp(guessedHostNetwork[INPUT_ID_AH_NETWORK_IP]);
+
+        guessed.hosts[subnodeSequence][INPUT_ID_AH_IPMI_IP] = ip;
+      }
     });
   });
 
