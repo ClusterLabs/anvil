@@ -110,6 +110,10 @@ type ServerOverview = {
     uuid: string;
   };
   host?: ServerOverviewHost;
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   jobs?: Record<string, ServerOverviewJob>;
   name: string;
   state: string;
