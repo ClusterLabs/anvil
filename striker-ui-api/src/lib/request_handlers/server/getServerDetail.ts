@@ -555,6 +555,11 @@ export const getServerDetail: RequestHandler<
       }),
     );
 
+    let ifnIp: ServerDetail['ip'] = {
+      address: '',
+      timestamp: 0,
+    };
+
     const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
       const {
         '@_type': ifaceType,
@@ -569,6 +574,12 @@ export const getServerDetail: RequestHandler<
       const macAddress = mac?.['@_address'] ?? '';
 
       const { [macAddress]: netIface } = netIfaces;
+
+      const sourceBridge = String(source?.['@_bridge'] ?? '');
+
+      if (!ifnIp.address && sourceBridge.includes('ifn')) {
+        ifnIp = netIface.ip;
+      }
 
       return {
         alias: {
@@ -585,7 +596,7 @@ export const getServerDetail: RequestHandler<
           type: model?.['@_type'],
         },
         source: {
-          bridge: source?.['@_bridge'],
+          bridge: sourceBridge,
         },
         target: {
           dev: target?.['@_dev'],
@@ -623,6 +634,7 @@ export const getServerDetail: RequestHandler<
         interfaces,
       },
       host,
+      ip: ifnIp,
       libvirt: {
         nicModels,
       },
