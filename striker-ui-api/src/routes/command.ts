@@ -7,6 +7,7 @@ import {
   poweroffStriker,
   rebootStriker,
   runManifest,
+  scanNetwork,
   startAn,
   startServer,
   startSubnode,
@@ -25,6 +26,7 @@ router
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
   .put('/run-manifest/:manifestUuid', runManifest)
+  .put('/scan-network', scanNetwork)
   .put('/start-an/:uuid', startAn)
   .put('/start-server/:uuid', startServer)
   .put('/start-subnode/:uuid', startSubnode)
