@@ -70,7 +70,7 @@ export const getServer: RequestHandler<
   const sqlGetServerIps = `
     SELECT
       a1.server_uuid,
-      b4.mac_to_ip_ip_address,
+      COALESCE(b4.mac_to_ip_ip_address, ''),
       EXTRACT(
         epoch from b4.modified_date
       ) AS modified_epoch
