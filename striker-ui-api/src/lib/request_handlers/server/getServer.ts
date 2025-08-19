@@ -315,6 +315,10 @@ export const getServer: RequestHandler<
         uuid: jobAnvilUuid,
       },
       host,
+      ip: {
+        address: '',
+        timestamp: 0,
+      },
       name: jobServerName,
       state: '',
       uuid: jobServerUuid,
