@@ -18,7 +18,7 @@ export const scanNetwork: RequestHandler<
   try {
     registered.uuid = await job({
       file: __filename,
-      job_command: `${SERVER_PATHS.usr.sbin['striker-scan-network'].self} --log-secure`,
+      job_command: `${SERVER_PATHS.usr.sbin['striker-scan-network'].self} --log-secure --force`,
       job_description: 'job_0067',
       job_name: 'scan-network::refresh',
       job_title: 'job_0066',
