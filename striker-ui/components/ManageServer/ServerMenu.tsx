@@ -1,3 +1,4 @@
+import MuiContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MuiMoreVertIcon from '@mui/icons-material/MoreVert';
 import MuiBox from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -8,6 +9,7 @@ import SERVER from '../../lib/consts/SERVER';
 import ButtonWithMenu from '../ButtonWithMenu';
 import { MAP_TO_COLOUR } from '../ContainedButton';
 import Divider from '../Divider';
+import FlexBox from '../FlexBox';
 import ServerIp from './ServerIp';
 import { BodyText } from '../Text';
 import handleAction from './handleAction';
@@ -47,16 +49,21 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
   const items = useMemo<Record<string, ServerOption>>(() => {
     const result: Record<string, ServerOption> = {
       ip: {
-        disabled: () => true,
+        onClick: () => {
+          navigator.clipboard.writeText(server.ip.address);
+        },
         render: () => (
-          <ServerIp
-            ip={server.ip}
-            slotProps={{
-              text: {
-                inheritColour: true,
-              },
-            }}
-          />
+          <FlexBox growFirst row>
+            <ServerIp
+              ip={server.ip}
+              slotProps={{
+                text: {
+                  inheritColour: true,
+                },
+              }}
+            />
+            <MuiContentCopyIcon color="inherit" fontSize="small" />
+          </FlexBox>
         ),
       },
       server: {

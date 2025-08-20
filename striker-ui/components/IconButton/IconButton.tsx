@@ -1,6 +1,6 @@
 import MuiAddIcon from '@mui/icons-material/Add';
 import MuiCloseIcon from '@mui/icons-material/Close';
-import MuiContentCopy from '@mui/icons-material/ContentCopy';
+import MuiContentCopyIcon from '@mui/icons-material/ContentCopy';
 import MuiDeleteIcon from '@mui/icons-material/Delete';
 import MuiDoneIcon from '@mui/icons-material/Done';
 import MuiEditIcon from '@mui/icons-material/Edit';
@@ -61,7 +61,7 @@ const MAP_TO_CLOSE_ICON: IconButtonMapToStateIconBundle = {
 };
 
 const MAP_TO_COPY_ICON: IconButtonMapToStateIconBundle = {
-  none: { iconType: MuiContentCopy },
+  none: { iconType: MuiContentCopyIcon },
 };
 
 const MAP_TO_DELETE_ICON: IconButtonMapToStateIconBundle = {
