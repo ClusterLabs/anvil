@@ -48,7 +48,16 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     const result: Record<string, ServerOption> = {
       ip: {
         disabled: () => true,
-        render: () => <ServerIp ip={server.ip} />,
+        render: () => (
+          <ServerIp
+            ip={server.ip}
+            slotProps={{
+              text: {
+                inheritColour: true,
+              },
+            }}
+          />
+        ),
       },
       server: {
         disabled: () => blocking,

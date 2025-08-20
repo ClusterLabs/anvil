@@ -1,32 +1,36 @@
-import MuiBox from '@mui/material/Box';
+import MuiBox, { BoxProps as MuiBoxProps } from '@mui/material/Box';
 
-import { BodyText } from '../Text';
+import { BodyText, BodyTextProps } from '../Text';
 import { ago, now } from '../../lib/time';
 
 type ServerIpProps<Server extends ServerMinimum> = {
   ip: Server['ip'];
+  slotProps?: {
+    box?: MuiBoxProps;
+    text?: BodyTextProps;
+  };
 };
 
 const ServerIp = <T extends ServerMinimum>(
   ...[props]: Parameters<React.FC<ServerIpProps<T>>>
 ): ReturnType<React.FC<ServerIpProps<T>>> => {
-  const { ip } = props;
+  const { ip, slotProps } = props;
 
   const nao = now();
 
   return (
-    <MuiBox>
+    <MuiBox {...slotProps?.box}>
       {ip.address ? (
         <>
-          <BodyText inheritColour noWrap>
+          <BodyText noWrap {...slotProps?.text}>
             {ip.address}
           </BodyText>
-          <BodyText inheritColour noWrap variant="caption">
+          <BodyText noWrap variant="caption" {...slotProps?.text}>
             Changed {ago(nao - ip.timestamp)} ago
           </BodyText>
         </>
       ) : (
-        <BodyText inheritColour noWrap>
+        <BodyText noWrap {...slotProps?.text}>
           IP: not found yet
         </BodyText>
       )}

@@ -4,6 +4,8 @@ import capitalize from 'lodash/capitalize';
 import { useMemo, useRef, useState } from 'react';
 
 import { DialogWithHeader } from '../Dialog';
+import Divider from '../Divider';
+import FlexBox from '../FlexBox';
 import IconButton from '../IconButton';
 import JobProgressList from '../JobProgressList';
 import List from '../List';
@@ -121,8 +123,11 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                     <MonoText noWrap>{bridge}</MonoText>
                   </Grid>
                   <Grid item>
-                    <MonoText noWrap>{mac}</MonoText>
-                    <ServerIp ip={ip} />
+                    <FlexBox spacing="0.5em" sm="row" xs="column">
+                      <ServerIp ip={ip} />
+                      <Divider flexItem orientation="vertical" />
+                      <MonoText noWrap>{mac}</MonoText>
+                    </FlexBox>
                   </Grid>
                   <Grid item>
                     <IconButton
