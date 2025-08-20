@@ -9,6 +9,7 @@ import {
 } from '../Display';
 import Divider from '../Divider';
 import { Panel, PanelHeader } from '../Panels';
+import ScanNetworkButton from '../ScanNetworkButton';
 import ServerBootOrderForm from './ServerBootOrderForm';
 import ServerCpuForm from './ServerCpuForm';
 import ServerDeletion from './ServerDeletion';
@@ -292,6 +293,7 @@ const ManageServer: React.FC<ManageServerProps> = (props) => {
             <TabContent changingTabId={tabId} tabId={tabs.interfaces.value}>
               <PanelHeader>
                 <HeaderText>{tabs.interfaces.label}</HeaderText>
+                <ScanNetworkButton />
               </PanelHeader>
               <ServerInterfaceList detail={detail} tools={formTools.current} />
             </TabContent>

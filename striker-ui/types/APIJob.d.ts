@@ -37,3 +37,7 @@ type APIJobDetail = APIJobOverview & {
   status: Record<string, APIJobStatus>;
   updated: number;
 };
+
+type APIRegisteredJob = {
+  uuid: string;
+};
