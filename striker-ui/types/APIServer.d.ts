@@ -13,6 +13,10 @@ type ServerState =
   | 'shut off';
 
 type ServerMinimum = {
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   name: string;
   state: ServerState;
   uuid: string;
@@ -191,13 +195,10 @@ type APIServerOverviewJob = {
   uuid: string;
 };
 
-type APIServerOverview = {
+type APIServerOverview = ServerMinimum & {
   anvil: APIServerOverviewAnvil;
   host?: APIServerOverviewHost;
   jobs?: Record<string, APIServerOverviewJob>;
-  name: string;
-  state: ServerState;
-  uuid: string;
 };
 
 type APIServerOverviewList = Record<string, APIServerOverview>;

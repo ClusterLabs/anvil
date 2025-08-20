@@ -8,8 +8,9 @@ import SERVER from '../../lib/consts/SERVER';
 import ButtonWithMenu from '../ButtonWithMenu';
 import { MAP_TO_COLOUR } from '../ContainedButton';
 import Divider from '../Divider';
-import handleAction from './handleAction';
+import ServerIp from './ServerIp';
 import { BodyText } from '../Text';
+import handleAction from './handleAction';
 import useConfirmDialog from '../../hooks/useConfirmDialog';
 
 const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
@@ -43,8 +44,12 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
     [server.state],
   );
 
-  const options = useMemo<Record<string, ServerOption>>(() => {
-    const ops: Record<string, ServerOption> = {
+  const items = useMemo<Record<string, ServerOption>>(() => {
+    const result: Record<string, ServerOption> = {
+      ip: {
+        disabled: () => true,
+        render: () => <ServerIp ip={server.ip} />,
+      },
       server: {
         disabled: () => blocking,
         href: () => `/server?name=${server.name}`,
@@ -208,22 +213,22 @@ const ServerMenu = <Node extends NodeMinimum, Server extends ServerMinimum>(
       ),
     };
 
-    ops['power on'] = powerOn;
+    result['power on'] = powerOn;
 
-    ops.reset = reset;
+    result.reset = reset;
 
-    ops['power off'] = powerOff;
-    ops['force off'] = forceOff;
+    result['power off'] = powerOff;
+    result['force off'] = forceOff;
 
-    return ops;
-  }, [node.name, off, blocking, server.name, server.uuid]);
+    return result;
+  }, [blocking, node.name, off, server.ip, server.name, server.uuid]);
 
   return (
     <MuiBox>
       <ButtonWithMenu<ServerOption>
         getItemDisabled={(key, value) => value.disabled?.call(null, key, value)}
         getItemHref={(key, value) => value.href?.call(null, key, value)}
-        items={options}
+        items={items}
         onItemClick={(key, value) => value.onClick?.call(null, key, value)}
         renderItem={(key, value) => value.render(key, value)}
         {...slotProps?.button}

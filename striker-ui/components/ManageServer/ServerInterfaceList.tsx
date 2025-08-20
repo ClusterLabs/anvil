@@ -8,9 +8,9 @@ import IconButton from '../IconButton';
 import JobProgressList from '../JobProgressList';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
-import { BodyText, MonoText, SmallText } from '../Text';
+import ServerIp from './ServerIp';
+import { MonoText, SmallText } from '../Text';
 import handleAction from './handleAction';
-import { ago, now } from '../../lib/time';
 
 const STATE_ACTION: Record<string, string> = {
   down: 'plug-in',
@@ -42,8 +42,6 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
       }, {}),
     [detail.devices.interfaces],
   );
-
-  const nao = now();
 
   return (
     <>
@@ -124,13 +122,7 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                   </Grid>
                   <Grid item>
                     <MonoText noWrap>{mac}</MonoText>
-                    {ip.address ? (
-                      <MonoText noWrap>
-                        {ip.address} (changed {ago(nao - ip.timestamp)} ago)
-                      </MonoText>
-                    ) : (
-                      <BodyText>IP: not found yet</BodyText>
-                    )}
+                    <ServerIp ip={ip} />
                   </Grid>
                   <Grid item>
                     <IconButton
