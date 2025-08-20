@@ -26,7 +26,7 @@ const ServerIp = <T extends ServerMinimum>(
             {ip.address}
           </BodyText>
           <BodyText noWrap variant="caption" {...slotProps?.text}>
-            Changed {ago(nao - ip.timestamp)} ago
+            Changed {ago(Math.round(nao - ip.timestamp))} ago
           </BodyText>
         </>
       ) : (
