@@ -122,11 +122,20 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                     </MonoText>
                     <MonoText noWrap>{bridge}</MonoText>
                   </Grid>
-                  <Grid item>
-                    <FlexBox spacing="0.5em" sm="row" xs="column">
-                      <ServerIp ip={ip} />
-                      <Divider flexItem orientation="vertical" />
+                  <Grid item xs>
+                    <FlexBox columnSpacing="0.5em" sm="row" xs="column">
                       <MonoText noWrap>{mac}</MonoText>
+                      <Divider
+                        flexItem
+                        orientation="vertical"
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'initial',
+                          },
+                        }}
+                      />
+                      <ServerIp ip={ip} />
                     </FlexBox>
                   </Grid>
                   <Grid item>
