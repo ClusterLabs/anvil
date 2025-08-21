@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { Panel, PanelHeader } from '../Panels';
 import Spinner from '../Spinner';
@@ -9,6 +9,8 @@ import useConfirmDialog from '../../hooks/useConfirmDialog';
 import useFetch from '../../hooks/useFetch';
 
 const StrikerInit: React.FC = () => {
+  const ipRef = useRef<string>('');
+
   const [initJobUuid, setInitJobUuid] = useState<string | undefined>();
 
   const {
@@ -56,7 +58,11 @@ const StrikerInit: React.FC = () => {
 
   if (initJobUuid) {
     return (
-      <StrikerInitProgress jobUuid={initJobUuid} reinit={Boolean(detail)} />
+      <StrikerInitProgress
+        ipRef={ipRef}
+        jobUuid={initJobUuid}
+        reinit={Boolean(detail)}
+      />
     );
   }
 
@@ -68,6 +74,7 @@ const StrikerInit: React.FC = () => {
         </PanelHeader>
         <StrikerInitForm
           detail={detail}
+          ipRef={ipRef}
           onSubmitSuccess={(data) => {
             setInitJobUuid(data.jobUuid);
           }}
