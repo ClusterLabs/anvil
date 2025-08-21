@@ -17,3 +17,4 @@ export * from './sqlScanLvmVgs';
 export * from './sqlServers';
 export * from './sqlStorageGroupMembers';
 export * from './sqlStorageGroups';
+export * from './sqlVariables';

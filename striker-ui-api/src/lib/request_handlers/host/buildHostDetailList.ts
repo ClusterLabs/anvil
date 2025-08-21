@@ -17,6 +17,7 @@ import {
   sqlScanDrbdVolumes,
   sqlScanLvmVgs,
   sqlServers,
+  sqlVariables,
 } from '../../sqls';
 
 const regexps = {
@@ -262,7 +263,7 @@ export const buildHostDetailList = async (
       a.variable_name,
       a.variable_value,
       b.network_interface_uuid
-    FROM variables AS a
+    FROM (${sqlVariables()}) AS a
     LEFT JOIN (${sqlNetworkInterfaces()}) AS b
       ON b.network_interface_mac_address = a.variable_value
     WHERE
