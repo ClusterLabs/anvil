@@ -641,5 +641,23 @@ export const buildHostDetailList = async (
     };
   });
 
+  // Do a simple test on all networks and drop the failing ones
+
+  Object.keys(hosts).forEach((uuid) => {
+    const { [uuid]: host } = hosts;
+
+    const { networks } = host.netconf;
+
+    Object.keys(networks).forEach((id) => {
+      const { [id]: network } = networks;
+
+      if (network.type && network.sequence) {
+        return;
+      }
+
+      delete networks[id];
+    });
+  });
+
   return hosts;
 };
