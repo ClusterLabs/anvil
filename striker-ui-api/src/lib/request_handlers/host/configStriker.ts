@@ -4,6 +4,7 @@ import { SERVER_PATHS } from '../../consts';
 
 import { getLocalHostUUID, job } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
+import { deleteConfigVariables } from './deleteConfigVariables';
 import { buildNetworkConfig } from '../../fconfig';
 import { Responder } from '../../Responder';
 import { configStrikerRequestBodySchema } from './schemas';
@@ -62,6 +63,8 @@ export const configStriker: RequestHandler<
 
   try {
     const localHostUuid = getLocalHostUUID();
+
+    await deleteConfigVariables(localHostUuid);
 
     await setConfigVariables(configData, localHostUuid);
 

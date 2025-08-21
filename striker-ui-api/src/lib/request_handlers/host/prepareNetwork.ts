@@ -5,6 +5,7 @@ import { SERVER_PATHS } from '../../consts';
 
 import { job, query } from '../../accessModule';
 import { buildJobDataFromObject } from '../../buildJobData';
+import { deleteConfigVariables } from './deleteConfigVariables';
 import { buildNetworkConfig } from '../../fconfig';
 import { Responder } from '../../Responder';
 import {
@@ -84,6 +85,8 @@ export const prepareNetwork: RequestHandler<
   poutvar(configData, `Prepare network on host ${hostUuid} with data: `);
 
   try {
+    await deleteConfigVariables(hostUuid);
+
     await setConfigVariables(configData, hostUuid);
 
     await job({
