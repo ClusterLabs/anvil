@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import guessHostNetwork from './guessHostNetwork';
+import guessHostIpmiIp from './guessHostIpmiIp';
+import guessHostNetworkIp from './guessHostNetworkIp';
 import guessManifestNetworks from './guessManifestNetworks';
 import { ManifestFormikValues } from './schemas/buildManifestSchema';
 
@@ -36,6 +37,34 @@ const populateHostFence = (
     return previous;
   }, initial);
 
+const populateHostIpmi = (
+  manifestNetworks: [
+    string,
+    ManifestFormikValues['netconf']['networks'][string],
+  ][],
+  hostNetworks: ManifestFormikValues['hosts'][string]['networks'],
+  used = '',
+): string => {
+  const bcn = manifestNetworks.find((entry) => {
+    const [, network] = entry;
+
+    const { [INPUT_ID_AN_NETWORK_TYPE]: networkType } = network;
+
+    return networkType === 'bcn';
+  });
+
+  if (!bcn) {
+    return '';
+  }
+
+  const [networkId] = bcn;
+
+  return guessHostIpmiIp(
+    hostNetworks[networkId]?.[INPUT_ID_AH_NETWORK_IP],
+    used,
+  );
+};
+
 const populateHostNetwork = (
   parentSequence: number,
   hostSequence: number,
@@ -49,7 +78,7 @@ const populateHostNetwork = (
     // Ensure the host network object keys match the netconf.networks object
     // keys for easier add or remove operations.
     previous[key] = {
-      [INPUT_ID_AH_NETWORK_IP]: guessHostNetwork(
+      [INPUT_ID_AH_NETWORK_IP]: guessHostNetworkIp(
         parentSequence,
         hostSequence,
         network,
@@ -135,17 +164,25 @@ const getManifestFormikInitialValues = (
     Object.values(hostConfig.hosts).forEach((host) => {
       const { hostNumber: sequence, ipmiIp = '' } = host;
 
+      const networkEntries = Object.entries(values.netconf.networks);
+
       values.hosts[sequence] = {
         [INPUT_ID_AH_IPMI_IP]: ipmiIp,
         fences: populateHostFence(knownFences, host.fences),
         networks: populateHostNetwork(
           detail.sequence,
           sequence,
-          Object.entries(values.netconf.networks),
+          networkEntries,
           host.networks,
         ),
         upses: populateHostUps(knownUpses, host.upses),
       };
+
+      values.hosts[sequence][INPUT_ID_AH_IPMI_IP] = populateHostIpmi(
+        networkEntries,
+        values.hosts[sequence].networks,
+        ipmiIp,
+      );
     });
   } else {
     // Try to guess values based on those provided during striker init.
@@ -188,16 +225,23 @@ const getManifestFormikInitialValues = (
     values.netconf[INPUT_ID_ANC_DNS] = '8.8.8.8,8.8.4.4';
 
     [1, 2].forEach((sequence) => {
+      const networkEntries = Object.entries(values.netconf.networks);
+
       values.hosts[sequence] = {
         [INPUT_ID_AH_IPMI_IP]: '',
         fences: populateHostFence(knownFences),
         networks: populateHostNetwork(
           template.sequence,
           sequence,
-          Object.entries(values.netconf.networks),
+          networkEntries,
         ),
         upses: populateHostUps(knownUpses),
       };
+
+      values.hosts[sequence][INPUT_ID_AH_IPMI_IP] = populateHostIpmi(
+        networkEntries,
+        values.hosts[sequence].networks,
+      );
     });
 
     values = guessManifestNetworks({

@@ -110,6 +110,10 @@ type ServerOverview = {
     uuid: string;
   };
   host?: ServerOverviewHost;
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   jobs?: Record<string, ServerOverviewJob>;
   name: string;
   state: string;
@@ -181,6 +185,10 @@ type ServerDetailHostBridgeList = Record<string, ServerDetailHostBridge>;
 type ServerDetailInterface = {
   alias: {
     name: string;
+  };
+  ip: {
+    address: string;
+    timestamp: number;
   };
   link: {
     state: string;
@@ -270,6 +278,10 @@ type ServerDetailVncInfo = {
 
 type ServerNetworkInterface = {
   device: string;
+  ip: {
+    address: string;
+    timestamp: number;
+  };
   mac: string;
   state: string;
   uuid: string;

@@ -17,6 +17,7 @@ import {
   sqlScanDrbdVolumes,
   sqlScanLvmVgs,
   sqlServers,
+  sqlVariables,
 } from '../../sqls';
 
 const regexps = {
@@ -262,7 +263,7 @@ export const buildHostDetailList = async (
       a.variable_name,
       a.variable_value,
       b.network_interface_uuid
-    FROM variables AS a
+    FROM (${sqlVariables()}) AS a
     LEFT JOIN (${sqlNetworkInterfaces()}) AS b
       ON b.network_interface_mac_address = a.variable_value
     WHERE
@@ -638,6 +639,24 @@ export const buildHostDetailList = async (
       used: String(vgnUsed),
       uuid,
     };
+  });
+
+  // Do a simple test on all networks and drop the failing ones
+
+  Object.keys(hosts).forEach((uuid) => {
+    const { [uuid]: host } = hosts;
+
+    const { networks } = host.netconf;
+
+    Object.keys(networks).forEach((id) => {
+      const { [id]: network } = networks;
+
+      if (network.type && network.sequence) {
+        return;
+      }
+
+      delete networks[id];
+    });
   });
 
   return hosts;

@@ -491,6 +491,8 @@ FROM
 WHERE 
     variable_name LIKE '\%_mac_to_set::value' 
 AND 
+    variable_value != 'DELETED' 
+AND 
     variable_source_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid)." 
 ORDER BY 
     variable_name ASC;";
@@ -2837,6 +2839,8 @@ WHERE
     variable_name 
 LIKE 
     'form::config_step%' 
+AND 
+    variable_value != 'DELETED' 
 AND 
     variable_source_table = 'hosts' 
 AND 

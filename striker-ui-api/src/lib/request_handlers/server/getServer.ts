@@ -67,6 +67,38 @@ export const getServer: RequestHandler<
     WHERE ${conditions.server}
     ORDER BY a1.server_name;`;
 
+  const sqlGetServerIps = `
+    SELECT
+      a1.server_uuid,
+      COALESCE(b4.mac_to_ip_ip_address, ''),
+      EXTRACT(
+        epoch from b4.modified_date
+      ) AS modified_epoch
+    FROM
+      (${sqlServers()}) AS a1,
+      server_definitions AS b2,
+      XMLTABLE(
+        'domain/devices/interface'
+        PASSING CAST(
+          b2.server_definition_xml AS xml
+        )
+        COLUMNS
+          bridge_name text
+            PATH 'source/@bridge',
+          mac_address text
+            PATH 'mac/@address'
+      ) AS b3
+    LEFT JOIN mac_to_ip AS b4
+      ON b4.mac_to_ip_mac_address = b3.mac_address
+    WHERE
+        ${conditions.server}
+      AND
+        b2.server_definition_server_uuid = a1.server_uuid
+      AND
+        b3.bridge_name LIKE '%ifn%'
+    ORDER BY b3.bridge_name
+    LIMIT 1;`;
+
   const sqlScopeJobs = `
     SELECT
       *,
@@ -185,14 +217,14 @@ export const getServer: RequestHandler<
   let results: QueryResult[];
 
   try {
-    results = await queries(sqlGetServers, sqlGetJobs);
+    results = await queries(sqlGetServers, sqlGetServerIps, sqlGetJobs);
   } catch (error) {
     return respond.s500('c4bfdf0', `Failed to get servers; CAUSE: ${error}`);
   }
 
   const servers: ServerOverviewList = {};
 
-  const [serverRows, jobRows] = results;
+  const [serverRows, serverIpRows, jobRows] = results;
 
   serverRows.forEach((row) => {
     const [
@@ -226,10 +258,29 @@ export const getServer: RequestHandler<
         uuid: anvilUuid,
       },
       host,
+      ip: {
+        address: '',
+        timestamp: 0,
+      },
       name: serverName,
       state: serverState,
       uuid: serverUuid,
     };
+  });
+
+  serverIpRows.forEach((row) => {
+    const [serverUuid, ipAddress, modifiedEpoch] = row as string[];
+
+    const { [serverUuid]: server } = servers;
+
+    if (!server) {
+      return;
+    }
+
+    const { ip } = server;
+
+    ip.address = ipAddress;
+    ip.timestamp = Number(modifiedEpoch);
   });
 
   jobRows.forEach((row) => {
@@ -264,6 +315,10 @@ export const getServer: RequestHandler<
         uuid: jobAnvilUuid,
       },
       host,
+      ip: {
+        address: '',
+        timestamp: 0,
+      },
       name: jobServerName,
       state: '',
       uuid: jobServerUuid,

@@ -267,12 +267,18 @@ export const getServerDetail: RequestHandler<
 
     sql = `
       SELECT
-        server_network_uuid,
-        server_network_mac_address,
-        server_network_vnet_device,
-        server_network_link_state
-      FROM server_networks
-      WHERE server_network_server_uuid = '${serverUuid}';`;
+        a.server_network_uuid,
+        a.server_network_mac_address,
+        a.server_network_vnet_device,
+        a.server_network_link_state,
+        COALESCE(b.mac_to_ip_ip_address, ''),
+        EXTRACT(
+          epoch from b.modified_date
+        ) AS modified_epoch
+      FROM server_networks AS a
+      LEFT JOIN mac_to_ip AS b
+        ON b.mac_to_ip_mac_address = a.server_network_mac_address
+      WHERE a.server_network_server_uuid = '${serverUuid}';`;
 
     try {
       rows = await query(sql);
@@ -287,10 +293,14 @@ export const getServerDetail: RequestHandler<
 
     const netIfaces = rows.reduce<ServerNetworkInterfaceList>(
       (previous, row) => {
-        const [uuid, mac, device, state] = row;
+        const [uuid, mac, device, state, ipAddress, ipModified] = row;
 
         previous[mac] = {
           device,
+          ip: {
+            address: ipAddress,
+            timestamp: Number(ipModified),
+          },
           mac,
           state,
           uuid,
@@ -440,7 +450,7 @@ export const getServerDetail: RequestHandler<
 
     if (Array.isArray(iface)) {
       ifaceArray = iface;
-    } else if (disk) {
+    } else if (iface) {
       ifaceArray = [iface];
     }
 
@@ -545,6 +555,11 @@ export const getServerDetail: RequestHandler<
       }),
     );
 
+    let ifnIp: ServerDetail['ip'] = {
+      address: '',
+      timestamp: 0,
+    };
+
     const interfaces = ifaceArray.map<ServerDetailInterface>((value) => {
       const {
         '@_type': ifaceType,
@@ -560,10 +575,17 @@ export const getServerDetail: RequestHandler<
 
       const { [macAddress]: netIface } = netIfaces;
 
+      const sourceBridge = String(source?.['@_bridge'] ?? '');
+
+      if (!ifnIp.address && sourceBridge.includes('ifn')) {
+        ifnIp = netIface.ip;
+      }
+
       return {
         alias: {
           name: alias?.['@_name'],
         },
+        ip: netIface.ip,
         link: {
           state: link?.['@_state'] ?? netIface?.state,
         },
@@ -574,7 +596,7 @@ export const getServerDetail: RequestHandler<
           type: model?.['@_type'],
         },
         source: {
-          bridge: source?.['@_bridge'],
+          bridge: sourceBridge,
         },
         target: {
           dev: target?.['@_dev'],
@@ -612,6 +634,7 @@ export const getServerDetail: RequestHandler<
         interfaces,
       },
       host,
+      ip: ifnIp,
       libvirt: {
         nicModels,
       },

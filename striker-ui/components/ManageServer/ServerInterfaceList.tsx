@@ -10,6 +10,7 @@ import IconButton from '../IconButton';
 import JobProgressList from '../JobProgressList';
 import List from '../List';
 import ServerAddInterfaceForm from './ServerAddInterfaceForm';
+import ServerIp from './ServerIp';
 import { MonoText, SmallText } from '../Text';
 import handleAction from './handleAction';
 
@@ -62,6 +63,7 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
             }}
             renderListItem={(mac, iface) => {
               const {
+                ip,
                 link: { state },
                 model: { type },
                 source: { bridge },
@@ -115,14 +117,26 @@ const ServerInterfaceList: React.FC<ServerInterfaceListProps> = (props) => {
                     />
                   </Grid>
                   <Grid item xs>
-                    <FlexBox xs="column" md="row" columnSpacing={0}>
-                      <MonoText noWrap>
-                        {dev} ({type})
-                      </MonoText>
-                      <Divider flexItem orientation="vertical" />
+                    <MonoText noWrap>
+                      {dev} ({type})
+                    </MonoText>
+                    <MonoText noWrap>{bridge}</MonoText>
+                  </Grid>
+                  <Grid item xs>
+                    <FlexBox columnSpacing="0.5em" sm="row" xs="column">
                       <MonoText noWrap>{mac}</MonoText>
+                      <Divider
+                        flexItem
+                        orientation="vertical"
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'initial',
+                          },
+                        }}
+                      />
+                      <ServerIp ip={ip} />
                     </FlexBox>
-                    <MonoText>{bridge}</MonoText>
                   </Grid>
                   <Grid item>
                     <IconButton

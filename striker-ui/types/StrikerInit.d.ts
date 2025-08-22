@@ -12,6 +12,7 @@ type StrikerInitFormikValues = HostNetInitFormikExtension & {
 
 type StrikerInitFormOptionalProps = {
   detail?: APIHostDetail;
+  ipRef?: React.RefObject<string>;
   onSubmitSuccess?: (data: APIStrikerInitResponseBody) => void;
 };
 
@@ -22,6 +23,7 @@ type StrikerInitFormProps = StrikerInitFormOptionalProps & {
 /** StrikerInitProgress */
 
 type StrikerInitProgressProps = {
+  ipRef?: React.RefObject<string>;
   jobUuid: string;
   reinit: boolean;
 };

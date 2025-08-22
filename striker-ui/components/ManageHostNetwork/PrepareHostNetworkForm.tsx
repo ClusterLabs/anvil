@@ -77,54 +77,59 @@ const PrepareHostNetworkForm: React.FC<PrepareHostNetworkFormProps> = (
 
   const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);
 
-  const formikUtils = useFormikUtils<PrepareHostNetworkFormikValues>({
-    initialValues: buildFormikInitialValues(detail),
-    onSubmit: (values, { setSubmitting }) => {
-      const requestBody = buildInitRequestBody(values, ifaces.current);
+  const formikUtils = useFormikUtils<PrepareHostNetworkFormikValues>(
+    {
+      initialValues: buildFormikInitialValues(detail),
+      onSubmit: (values, { setSubmitting }) => {
+        const requestBody = buildInitRequestBody(values, ifaces.current);
 
-      tools.confirm.prepare({
-        actionProceedText: 'Prepare network',
-        content: ifaces.current && (
-          <PrepareHostNetworkSummary
-            gatewayIface={requestBody.gatewayInterface}
-            ifaces={ifaces.current}
-            values={values}
-          />
-        ),
-        onCancelAppend: () => setSubmitting(false),
-        onProceedAppend: () => {
-          tools.confirm.loading(true);
+        tools.confirm.prepare({
+          actionProceedText: 'Prepare network',
+          content: ifaces.current && (
+            <PrepareHostNetworkSummary
+              gatewayIface={requestBody.gatewayInterface}
+              ifaces={ifaces.current}
+              values={values}
+            />
+          ),
+          onCancelAppend: () => setSubmitting(false),
+          onProceedAppend: () => {
+            tools.confirm.loading(true);
 
-          api
-            .put(`/host/${detail.uuid}?handler=subnode-network`, requestBody)
-            .then(() => {
-              tools.confirm.finish('Success', {
-                children: (
-                  <>Successfully started network config on {detail.short}</>
-                ),
+            api
+              .put(`/host/${detail.uuid}?handler=subnode-network`, requestBody)
+              .then(() => {
+                tools.confirm.finish('Success', {
+                  children: (
+                    <>Successfully started network config on {detail.short}</>
+                  ),
+                });
+              })
+              .catch((error) => {
+                const emsg = handleAPIError(error);
+
+                emsg.children = (
+                  <>
+                    Failed to prepare network on {detail.short}. {emsg.children}
+                  </>
+                );
+
+                tools.confirm.finish('Error', emsg);
+
+                setSubmitting(false);
               });
-            })
-            .catch((error) => {
-              const emsg = handleAPIError(error);
+          },
+          titleText: `Prepare network on ${detail.short} with the following?`,
+        });
 
-              emsg.children = (
-                <>
-                  Failed to prepare network on {detail.short}. {emsg.children}
-                </>
-              );
-
-              tools.confirm.finish('Error', emsg);
-
-              setSubmitting(false);
-            });
-        },
-        titleText: `Prepare network on ${detail.short} with the following?`,
-      });
-
-      tools.confirm.open();
+        tools.confirm.open();
+      },
+      validationSchema: prepareHostNetworkSchema,
     },
-    validationSchema: prepareHostNetworkSchema,
-  });
+    {
+      allowClean: true,
+    },
+  );
 
   const { disabledSubmit, formik, formikErrors, handleChange } = formikUtils;
 

@@ -113,7 +113,7 @@ const guessOrgPrefix = (orgName: string, max = 5): string => {
 };
 
 const StrikerInitForm: React.FC<StrikerInitFormProps> = (props) => {
-  const { detail, onSubmitSuccess, tools } = props;
+  const { detail, ipRef, onSubmitSuccess, tools } = props;
 
   const ifaces = useRef<APINetworkInterfaceOverviewList | null>(null);
 
@@ -121,6 +121,18 @@ const StrikerInitForm: React.FC<StrikerInitFormProps> = (props) => {
     initialValues: buildFormikInitialValues(detail),
     onSubmit: (values, { setSubmitting }) => {
       const requestBody = buildInitRequestBody(values, ifaces.current);
+
+      if (ipRef) {
+        requestBody.networks.forEach((network) => {
+          const { ipAddress, sequence, type } = network;
+
+          if (`${type}${sequence}` !== requestBody.gatewayInterface) {
+            return;
+          }
+
+          ipRef.current = ipAddress;
+        });
+      }
 
       tools.confirm.prepare({
         actionProceedText: 'Initialize',
