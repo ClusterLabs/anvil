@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-toastify';
 
 import ConfirmDialog from '../components/ConfirmDialog';
-import MessageBox from '../components/MessageBox';
+import { BodyText } from '../components/Text';
 
 const useConfirmDialog = (
   args: {
@@ -38,19 +39,18 @@ const useConfirmDialog = (
   );
 
   const setConfirmDialogOpen = useCallback(
-    (value: boolean) => confirmDialogRef?.current?.setOpen?.call(null, value),
+    (value: boolean) => confirmDialogRef?.current?.setOpen?.(value),
     [],
   );
 
   const finishConfirm = useCallback(
-    (title: React.ReactNode, message: Message) =>
-      setConfirmDialogProps({
-        actionProceedText: '',
-        content: <MessageBox {...message} />,
-        showActionArea: false,
-        showClose: true,
-        titleText: title,
-      }),
+    (title: React.ReactNode, message: Message) => {
+      confirmDialogRef?.current?.setOpen?.(false);
+
+      const type = /error/i.test(String(title)) ? 'error' : 'success';
+
+      toast[type]<React.ReactNode>(<BodyText>{message.children}</BodyText>);
+    },
     [],
   );
 
