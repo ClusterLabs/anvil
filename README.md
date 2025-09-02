@@ -6,6 +6,12 @@ Major components;
 * The "Striker" Web interface
 * Tools for Striker dashboards, Anvil! nodes and DR targets
 
-This project is being designed for EL 9 (RHEL/Alma), Pacemaker 2, DRBD v9, Corosync 3 and Kronosnet 1.
+Lastest Release: v3.2
+
+What is an Anvil! and why do I care?
+- https://www.alteeve.com/w/What_is_an_Anvil!_and_why_do_I_care%3F
+
+Build an M3 Anvil! Cluster
+- https://www.alteeve.com/w/Build_an_M3_Anvil!_Cluster
 
 © Alteeve's Niche! Inc. 1997-2025
