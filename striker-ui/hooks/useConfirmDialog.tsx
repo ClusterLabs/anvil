@@ -2,7 +2,6 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 
 import ConfirmDialog from '../components/ConfirmDialog';
-import { BodyText } from '../components/Text';
 
 const useConfirmDialog = (
   args: {
@@ -49,7 +48,7 @@ const useConfirmDialog = (
 
       const type = /error/i.test(String(title)) ? 'error' : 'success';
 
-      toast[type]<React.ReactNode>(<BodyText>{message.children}</BodyText>);
+      toast[type]<React.ReactNode>(message.children);
     },
     [],
   );

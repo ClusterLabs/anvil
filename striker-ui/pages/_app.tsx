@@ -2,12 +2,12 @@ import { CacheProvider, EmotionCache } from '@emotion/react';
 import MuiThemeProvider from '@mui/material/styles/ThemeProvider';
 import { AppProps } from 'next/app';
 import { CookiesProvider } from 'react-cookie';
-import { ToastContainer } from 'react-toastify';
 
 import createEmotionCache from '../lib/create_emotion_cache/createEmotionCache';
 import theme from '../theme';
 import '../styles/globals.css';
 
+import ToastContainer from '../components/ToastContainer';
 import useSessionExpiryCheck from '../hooks/useSessionExpiryCheck';
 
 const clientSideEmotionCache = createEmotionCache();
@@ -30,7 +30,7 @@ const PageWrapper: React.FC<MyAppProps> = ({ Component, pageProps }) => {
   return (
     <>
       <Component {...pageProps} />
-      <ToastContainer theme="dark" />
+      <ToastContainer position="bottom-right" />
     </>
   );
 };
