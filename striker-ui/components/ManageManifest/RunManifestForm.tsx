@@ -100,14 +100,19 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
                 },
               } = existingAnvil;
 
-              hostUuid = uuid;
+              // Check whether the host actually exists before assigning
+              if (uuid in knownHosts) {
+                hostUuid = uuid;
+              }
 
               const knownHost = knownHosts[uuid];
 
               if (knownHost) {
                 hostAnvil = knownHost.anvil;
               }
-            } else if (shortRenameTo) {
+            }
+
+            if (!hostUuid && shortRenameTo) {
               const found = knownHostEntries.find(
                 ([, { short }]) => short === shortRenameTo,
               );
