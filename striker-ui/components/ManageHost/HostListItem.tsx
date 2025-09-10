@@ -1,7 +1,9 @@
+import MuiGrid from '@mui/material/Grid2';
+
 import Decorator, { Colours } from '../Decorator';
 import Divider from '../Divider';
-import FlexBox from '../FlexBox';
 import { BodyText, MonoText } from '../Text';
+import { ago, now } from '../../lib/time';
 
 const MAP_TO_DECORATOR_COLOUR: Record<string, Colours> = {
   online: 'ok',
@@ -16,38 +18,46 @@ const MAP_TO_HOST_TYPE_DISPLAY: Record<string, string> = {
 const HostListItem: React.FC<HostListItemProps> = (props) => {
   const { data } = props;
 
-  const { hostName, hostStatus, hostType, shortHostName } = data;
+  const { hostName, hostStatus, hostType, modified, shortHostName } = data;
+
+  const nao = now();
 
   return (
-    <FlexBox row spacing=".5em">
-      <Decorator
-        colour={MAP_TO_DECORATOR_COLOUR[hostStatus] ?? 'warning'}
-        sx={{
-          alignSelf: 'stretch',
-          height: 'auto',
-        }}
-      />
-      <FlexBox flexGrow={1} spacing={0}>
-        <FlexBox sm="row" spacing=".5em">
-          <BodyText>{MAP_TO_HOST_TYPE_DISPLAY[hostType]}</BodyText>
-          <MonoText whiteSpace="nowrap">{shortHostName}</MonoText>
-          <Divider
-            orientation="vertical"
-            sx={{
-              alignSelf: 'stretch',
-              height: 'auto',
+    <MuiGrid alignItems="center" container spacing="0.5em" width="100%">
+      <MuiGrid alignSelf="stretch">
+        <Decorator colour={MAP_TO_DECORATOR_COLOUR[hostStatus] || 'warning'} />
+      </MuiGrid>
+      <MuiGrid size="grow">
+        <MuiGrid columnSpacing="0.5em" container width="100%">
+          <MuiGrid>
+            <BodyText noWrap>{MAP_TO_HOST_TYPE_DISPLAY[hostType]}</BodyText>
+          </MuiGrid>
+          <MuiGrid>
+            <MonoText noWrap>{shortHostName}</MonoText>
+          </MuiGrid>
+          <MuiGrid
+            display={{
+              xs: 'none',
+              md: 'flex',
             }}
-          />
-          <MonoText
-            sx={{ display: { xs: 'none', sm: 'flex' } }}
-            whiteSpace="nowrap"
           >
-            {hostName}
-          </MonoText>
-        </FlexBox>
-        <BodyText>{hostStatus}</BodyText>
-      </FlexBox>
-    </FlexBox>
+            <Divider flexItem orientation="vertical" />
+          </MuiGrid>
+          <MuiGrid
+            display={{
+              xs: 'none',
+              md: 'flex',
+            }}
+          >
+            <MonoText noWrap>{hostName}</MonoText>
+          </MuiGrid>
+        </MuiGrid>
+        <BodyText noWrap>{hostStatus}</BodyText>
+      </MuiGrid>
+      <MuiGrid>
+        <BodyText noWrap>Last changed: {ago(nao - modified)} ago</BodyText>
+      </MuiGrid>
+    </MuiGrid>
   );
 };
 
