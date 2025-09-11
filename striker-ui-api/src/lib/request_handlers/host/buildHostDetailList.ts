@@ -118,6 +118,9 @@ export const buildHostDetailList = async (
       a.host_type,
       a.host_ipmi,
       a.host_status,
+      ROUND(
+        EXTRACT(epoch from a.modified_date)
+      ) AS modified_epoch,
       b.anvil_uuid,
       b.anvil_name,
       b.anvil_description
@@ -148,6 +151,7 @@ export const buildHostDetailList = async (
       type,
       ipmiCommand,
       status,
+      modified,
       anvilUuid,
       anvilName,
       anvilDescription,
@@ -160,6 +164,7 @@ export const buildHostDetailList = async (
       configured: false,
       drbdResources: {},
       ipmi,
+      modified: Number(modified),
       name,
       netconf: {
         dns: '',

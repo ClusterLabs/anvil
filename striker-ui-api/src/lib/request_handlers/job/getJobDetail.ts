@@ -8,7 +8,7 @@ import { sqlHosts } from '../../sqls';
 /**
  * Removes empty elements from the start of the given string array.
  * @param strings - string array
- * @returns modifed string array
+ * @returns modified string array
  */
 const trimStart = (strings: string[]): string[] => {
   let count = 0;

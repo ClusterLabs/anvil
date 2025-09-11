@@ -70,6 +70,7 @@ type HostOverview = {
   hostStatus: string;
   hostType: string;
   hostUUID: string;
+  modified: number;
   shortHostName: string;
 };
 
@@ -82,6 +83,7 @@ type HostDetail = {
     uuid: string;
   };
   configured: boolean;
+  modified: number;
   name: string;
   short: string;
   status: {

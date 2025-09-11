@@ -1,3 +1,4 @@
+import MuiBox from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo } from 'react';
@@ -7,7 +8,6 @@ import INPUT_TYPES from '../../lib/consts/INPUT_TYPES';
 import ActionGroup from '../ActionGroup';
 import api from '../../lib/api';
 import Checkbox from '../Checkbox';
-import FlexBox from '../FlexBox';
 import FormSummary from '../FormSummary';
 import handleAPIError from '../../lib/handleAPIError';
 import MessageBox from '../MessageBox';
@@ -18,6 +18,7 @@ import SelectWithLabel from '../SelectWithLabel';
 import { BodyText, MonoText, SmallText } from '../Text';
 import UncontrolledInput from '../UncontrolledInput';
 import useFormikUtils from '../../hooks/useFormikUtils';
+import { ago, now } from '../../lib/time';
 
 const NONE = '--';
 
@@ -41,6 +42,8 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
   const { hosts } = hostConfig;
   const { dnsCsv, networks, ntpCsv } = networkConfig;
 
+  const nao = now();
+
   const hostEntries = useMemo(() => Object.entries(hosts), [hosts]);
 
   const networkEntries = useMemo(() => Object.entries(networks), [networks]);
@@ -63,21 +66,23 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
   const hostOptions = useMemo(
     () =>
       knownHostEntries.map<SelectItem<string>>((entry) => {
-        const [, { anvil, name, uuid }] = entry;
+        const [, { anvil, modified, short, uuid }] = entry;
 
         return {
           displayValue: (
-            <FlexBox spacing={0}>
-              <BodyText inverted>{name}</BodyText>
-              <SmallText inverted>
-                {anvil ? `Used by ${anvil.name}` : `Ready`}
+            <MuiBox>
+              <BodyText inheritColour noWrap>
+                {short} ({anvil ? `in ${anvil.name}` : `not in node`})
+              </BodyText>
+              <SmallText inheritColour noWrap>
+                Last changed: {ago(nao - modified)} ago
               </SmallText>
-            </FlexBox>
+            </MuiBox>
           ),
           value: uuid,
         };
       }),
-    [knownHostEntries],
+    [knownHostEntries, nao],
   );
 
   const { disabledSubmit, formik, formikErrors, handleChange } =
@@ -100,14 +105,19 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
                 },
               } = existingAnvil;
 
-              hostUuid = uuid;
+              // Check whether the host actually exists before assigning
+              if (uuid in knownHosts) {
+                hostUuid = uuid;
+              }
 
               const knownHost = knownHosts[uuid];
 
               if (knownHost) {
                 hostAnvil = knownHost.anvil;
               }
-            } else if (shortRenameTo) {
+            }
+
+            if (!hostUuid && shortRenameTo) {
               const found = knownHostEntries.find(
                 ([, { short }]) => short === shortRenameTo,
               );
@@ -289,10 +299,10 @@ const RunManifestForm: React.FC<RunManifestFormProps> = (props) => {
                 selectProps={{
                   renderValue: (uuid) => {
                     const {
-                      [uuid]: { name },
+                      [uuid]: { short },
                     } = knownHosts;
 
-                    return name;
+                    return short;
                   },
                 }}
                 value={formik.values.hosts[hostId].uuid}
