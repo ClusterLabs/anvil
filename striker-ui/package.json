@@ -24,7 +24,7 @@
     "@mui/material": "^6.4.12",
     "@mui/x-data-grid": "^7.29.6",
     "@novnc/novnc": "https://github.com/novnc/noVNC/archive/refs/tags/v1.6.0.tar.gz",
-    "axios": "^1.8.2",
+    "axios": "^1.12.0",
     "format-data-size": "^0.1.0",
     "formik": "^2.4.3",
     "lodash": "^4.17.21",
