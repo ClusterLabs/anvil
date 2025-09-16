@@ -215,6 +215,7 @@ sub configure_machine_networks
 				my $name_prefix    = "a".$padded_sequence;
 				my $host_name      = $anvil->data->{base}{prefix}."-".$name_prefix.$machine_suffix.".".$anvil->data->{base}{domain};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
+				# TODO: remove all related variable entrys after confirming job_data works.
 				$anvil->Database->insert_or_update_variables({
 					variable_name         => "form::config_step2::host_name::value", 
 					variable_value        => $host_name, 
@@ -224,6 +225,8 @@ sub configure_machine_networks
 					variable_source_uuid  => $machine_host_uuid, 
 					variable_source_table => "hosts", 
 				});
+				# Initialize job_data for the anvil-configure-host job with a first line.
+				my $configure_host_job_data = "form::config_step2::host_name::value=".$host_name;
 				
 				$anvil->data->{process}{anvil}{$anvil_number}{$key}{host_name} = $host_name;
 				
@@ -248,6 +251,7 @@ sub configure_machine_networks
 						variable_source_uuid  => $machine_host_uuid, 
 						variable_source_table => "hosts", 
 					});
+					$configure_host_job_data .= "\nform::config_step1::".$network_key."::value=".$network_count;
 					
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
 					foreach my $network_number (sort {$a cmp $b} keys %{$anvil->data->{anvil}{$anvil_number}{$machine_type}{$machine_number}{network}{$network}})
@@ -298,6 +302,7 @@ sub configure_machine_networks
 							variable_source_uuid  => $machine_host_uuid, 
 							variable_source_table => "hosts", 
 						});
+						$configure_host_job_data .= "\nform::config_step2::".$link1_key."::value=".$link1_mac;
 						$anvil->Database->insert_or_update_variables({
 							variable_name         => "form::config_step2::".$link2_key."::value", 
 							variable_value        => $link2_mac, 
@@ -307,6 +312,7 @@ sub configure_machine_networks
 							variable_source_uuid  => $machine_host_uuid, 
 							variable_source_table => "hosts", 
 						});
+						$configure_host_job_data .= "\nform::config_step2::".$link2_key."::value=".$link2_mac;
 						
 						# Store the bridge variables
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_bridge => $create_bridge }});
@@ -319,6 +325,7 @@ sub configure_machine_networks
 							variable_source_uuid  => $machine_host_uuid, 
 							variable_source_table => "hosts", 
 						});
+						$configure_host_job_data .= "\nform::config_step2::".$bridge_key."::value=".$create_bridge;
 						
 						# Store the IP variables
 						$anvil->Database->insert_or_update_variables({
@@ -330,6 +337,7 @@ sub configure_machine_networks
 							variable_source_uuid  => $machine_host_uuid, 
 							variable_source_table => "hosts", 
 						});
+						$configure_host_job_data .= "\nform::config_step2::".$ip_key."::value=".$ip_address;
 						
 						# Store the subnet mask variables
 						$anvil->Database->insert_or_update_variables({
@@ -341,6 +349,7 @@ sub configure_machine_networks
 							variable_source_uuid  => $machine_host_uuid, 
 							variable_source_table => "hosts", 
 						});
+						$configure_host_job_data .= "\nform::config_step2::".$subnet_key."::value=".$subnet_mask;
 						
 						if ($network_name eq $anvil->data->{base}{gateway_network})
 						{
@@ -358,6 +367,7 @@ sub configure_machine_networks
 								variable_source_uuid  => $machine_host_uuid, 
 								variable_source_table => "hosts", 
 							});
+							$configure_host_job_data .= "\nform::config_step2::gateway_interface::value=".$anvil->data->{base}{gateway_network};
 							
 							# Gateway IP
 							$anvil->Database->insert_or_update_variables({
@@ -369,6 +379,7 @@ sub configure_machine_networks
 								variable_source_uuid  => $machine_host_uuid, 
 								variable_source_table => "hosts", 
 							});
+							$configure_host_job_data .= "\nform::config_step2::gateway::value=".$anvil->data->{base}{gateway};
 							
 							$anvil->Database->insert_or_update_variables({
 								variable_name         => "form::config_step2::dns::value", 
@@ -379,6 +390,7 @@ sub configure_machine_networks
 								variable_source_uuid  => $machine_host_uuid, 
 								variable_source_table => "hosts", 
 							});
+							$configure_host_job_data .= "\nform::config_step2::dns::value=".$anvil->data->{base}{dns};
 						}
 					}
 				}
@@ -387,7 +399,7 @@ sub configure_machine_networks
 					debug           => 2,
 					job_host_uuid   => $machine_host_uuid, 
 					job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}." --debug ".$anvil->Log->switches, 
-					job_data        => "form::config_step2", 
+					job_data        => $configure_host_job_data, 
 					job_name        => "configure::network", 
 					job_title       => "job_0001", 
 					job_description => "job_0071", 
