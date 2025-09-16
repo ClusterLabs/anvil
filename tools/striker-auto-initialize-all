@@ -1636,6 +1636,19 @@ sub striker_stage1
 	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_value}       = $gateway_network;
 	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_description} = "";
 	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_section}     = "config_step2";
+
+	my $configure_host_job_data  = "form::config_step1::organization::value=".$organization_name;
+	   $configure_host_job_data .= "\nform::config_step1::prefix::value=".$prefix;
+	   $configure_host_job_data .= "\nform::config_step1::domain::value=".$domain;
+	   $configure_host_job_data .= "\nform::config_step1::ifn_count::value=".$ifn_count;
+	   $configure_host_job_data .= "\nform::config_step1::sequence::value=".$striker_number;
+	   $configure_host_job_data .= "\nform::config_step2::host_name::value=".$host_name;
+	   $configure_host_job_data .= "\nform::config_step2::striker_user::value=admin";
+	   $configure_host_job_data .= "\nform::config_step2::striker_password::value=".$new_password;
+	   $configure_host_job_data .= "\nform::config_step2::dns::value=".$dns;
+	   $configure_host_job_data .= "\nform::config_step2::gateway::value=".$gateway;
+	   $configure_host_job_data .= "\nform::config_step2::gateway_interface::value=".$gateway_network;
+
 	foreach my $network (sort {$a cmp $b} keys %{$anvil->data->{striker}{$striker_number}{network}})
 	{
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
@@ -1704,7 +1717,11 @@ sub striker_stage1
 			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_value}         = $link1_mac;
 			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_description}   = "striker_0029";
 			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_section}       = "config_step2";
-			
+
+			$configure_host_job_data .= "\n".$ip_key."=".$ip;
+			$configure_host_job_data .= "\n".$subnet_mask_key."=".$subnet_mask;
+			$configure_host_job_data .= "\n".$link1_mac_key."=".$link1_mac;
+
 			if (exists $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2})
 			{
 				if ((not defined $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2}{mac}) or (not $anvil->data->{striker}{$striker_number}{network}{$network}{$network_number}{'link'}{2}{mac}))
@@ -1723,10 +1740,13 @@ sub striker_stage1
 				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_value}       = $link2_mac;
 				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_description} = "striker_0029";
 				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_section}     = "config_step2";
+
+				$configure_host_job_data .= "\n".$link2_mac_key."=".$link2_mac;
 			}
 		}
 	}
 	
+	# TODO: remove the variable entries after confirming job_data works.
 	# Now, for each variable, record it to the database.
 	foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{striker}{stage1}{variables}})
 	{
@@ -1758,7 +1778,7 @@ sub striker_stage1
 		debug           => 2,
 		job_host_uuid   => $anvil->data->{cgi}{host_uuid}{value}, 
 		job_command     => $anvil->data->{path}{exe}{'anvil-configure-host'}." --debug ".$anvil->Log->switches, 
-		job_data        => "form::config_step2", 
+		job_data        => $configure_host_job_data, 
 		job_name        => "configure::network", 
 		job_title       => "job_0001", 
 		job_description => "job_0071", 
