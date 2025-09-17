@@ -215,16 +215,6 @@ sub configure_machine_networks
 				my $name_prefix    = "a".$padded_sequence;
 				my $host_name      = $anvil->data->{base}{prefix}."-".$name_prefix.$machine_suffix.".".$anvil->data->{base}{domain};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { host_name => $host_name }});
-				# TODO: remove all related variable entrys after confirming job_data works.
-				$anvil->Database->insert_or_update_variables({
-					variable_name         => "form::config_step2::host_name::value", 
-					variable_value        => $host_name, 
-					variable_default      => "", 
-					variable_description  => "striker_0159", 
-					variable_section      => "config_step2", 
-					variable_source_uuid  => $machine_host_uuid, 
-					variable_source_table => "hosts", 
-				});
 				# Initialize job_data for the anvil-configure-host job with a first line.
 				my $configure_host_job_data = "form::config_step2::host_name::value=".$host_name;
 				
@@ -242,15 +232,6 @@ sub configure_machine_networks
 					}});
 					
 					# Store the network counts.
-					$anvil->Database->insert_or_update_variables({
-						variable_name         => "form::config_step1::".$network_key."::value", 
-						variable_value        => $network_count, 
-						variable_default      => "", 
-						variable_description  => "striker_0163", 
-						variable_section      => "config_step1", 
-						variable_source_uuid  => $machine_host_uuid, 
-						variable_source_table => "hosts", 
-					});
 					$configure_host_job_data .= "\nform::config_step1::".$network_key."::value=".$network_count;
 					
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { network => $network }});
@@ -293,62 +274,17 @@ sub configure_machine_networks
 						}});
 						
 						# Store the link info
-						$anvil->Database->insert_or_update_variables({
-							variable_name         => "form::config_step2::".$link1_key."::value", 
-							variable_value        => $link1_mac, 
-							variable_default      => "", 
-							variable_description  => "striker_0156", 
-							variable_section      => "config_step2", 
-							variable_source_uuid  => $machine_host_uuid, 
-							variable_source_table => "hosts", 
-						});
 						$configure_host_job_data .= "\nform::config_step2::".$link1_key."::value=".$link1_mac;
-						$anvil->Database->insert_or_update_variables({
-							variable_name         => "form::config_step2::".$link2_key."::value", 
-							variable_value        => $link2_mac, 
-							variable_default      => "", 
-							variable_description  => "striker_0157", 
-							variable_section      => "config_step2", 
-							variable_source_uuid  => $machine_host_uuid, 
-							variable_source_table => "hosts", 
-						});
 						$configure_host_job_data .= "\nform::config_step2::".$link2_key."::value=".$link2_mac;
 						
-						# Store the bridge variables
+						# Store the bridge
 						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { create_bridge => $create_bridge }});
-						$anvil->Database->insert_or_update_variables({
-							variable_name         => "form::config_step2::".$bridge_key."::value", 
-							variable_value        => $create_bridge, 
-							variable_default      => "", 
-							variable_description  => "striker_0158", 
-							variable_section      => "config_step2", 
-							variable_source_uuid  => $machine_host_uuid, 
-							variable_source_table => "hosts", 
-						});
 						$configure_host_job_data .= "\nform::config_step2::".$bridge_key."::value=".$create_bridge;
 						
-						# Store the IP variables
-						$anvil->Database->insert_or_update_variables({
-							variable_name         => "form::config_step2::".$ip_key."::value", 
-							variable_value        => $ip_address, 
-							variable_default      => "", 
-							variable_description  => "striker_0153,!!say_network!".$network_name."!!", 
-							variable_section      => "config_step2", 
-							variable_source_uuid  => $machine_host_uuid, 
-							variable_source_table => "hosts", 
-						});
+						# Store the IP
 						$configure_host_job_data .= "\nform::config_step2::".$ip_key."::value=".$ip_address;
 						
-						# Store the subnet mask variables
-						$anvil->Database->insert_or_update_variables({
-							variable_name         => "form::config_step2::".$subnet_key."::value", 
-							variable_value        => $subnet_mask, 
-							variable_default      => "", 
-							variable_description  => "striker_0154,!!say_network!".$network_name."!!", 
-							variable_section      => "config_step2", 
-							variable_source_uuid  => $machine_host_uuid, 
-							variable_source_table => "hosts", 
-						});
+						# Store the subnet mask
 						$configure_host_job_data .= "\nform::config_step2::".$subnet_key."::value=".$subnet_mask;
 						
 						if ($network_name eq $anvil->data->{base}{gateway_network})
@@ -358,38 +294,9 @@ sub configure_machine_networks
 								network_name            => $network_name, 
 								'base::gateway_network' => $anvil->data->{base}{gateway_network}, 
 							}});
-							$anvil->Database->insert_or_update_variables({
-								variable_name         => "form::config_step2::gateway_interface::value", 
-								variable_value        => $anvil->data->{base}{gateway_network}, 
-								variable_default      => "", 
-								variable_description  => "striker_0155", 
-								variable_section      => "config_step2", 
-								variable_source_uuid  => $machine_host_uuid, 
-								variable_source_table => "hosts", 
-							});
 							$configure_host_job_data .= "\nform::config_step2::gateway_interface::value=".$anvil->data->{base}{gateway_network};
-							
 							# Gateway IP
-							$anvil->Database->insert_or_update_variables({
-								variable_name         => "form::config_step2::gateway::value", 
-								variable_value        => $anvil->data->{base}{gateway}, 
-								variable_default      => "", 
-								variable_description  => "striker_0036", 
-								variable_section      => "config_step2", 
-								variable_source_uuid  => $machine_host_uuid, 
-								variable_source_table => "hosts", 
-							});
 							$configure_host_job_data .= "\nform::config_step2::gateway::value=".$anvil->data->{base}{gateway};
-							
-							$anvil->Database->insert_or_update_variables({
-								variable_name         => "form::config_step2::dns::value", 
-								variable_value        => $anvil->data->{base}{dns}, 
-								variable_default      => "", 
-								variable_description  => "striker_0038", 
-								variable_section      => "config_step2", 
-								variable_source_uuid  => $machine_host_uuid, 
-								variable_source_table => "hosts", 
-							});
 							$configure_host_job_data .= "\nform::config_step2::dns::value=".$anvil->data->{base}{dns};
 						}
 					}
@@ -1601,41 +1508,6 @@ sub striker_stage1
 		gateway           => $gateway, 
 		gateway_network   => $gateway_network, 
 	}});
-	
-	# Load the variables.
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_value}            = $organization_name;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_description}      = "striker_0004";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::organization::value'}{variable_section}          = "config_step1";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_value}                  = $prefix;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_description}            = "striker_0006";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::prefix::value'}{variable_section}                = "config_step1";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_value}                  = $domain;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_description}            = "striker_0008";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::domain::value'}{variable_section}                = "config_step1";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_value}               = $ifn_count;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_description}         = "striker_0012";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::ifn_count::value'}{variable_section}             = "config_step1";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_value}                = $striker_number;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_description}          = "striker_0010";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step1::sequence::value'}{variable_section}              = "config_step1";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_value}               = $host_name;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_description}         = "striker_0017";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::host_name::value'}{variable_section}             = "config_step2";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_value}            = "admin";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_description}      = "striker_0032";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_user::value'}{variable_section}          = "config_step2";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_value}        = $new_password;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_description}  = "striker_0034";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::striker_password::value'}{variable_section}      = "config_step2";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_value}                     = $dns;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_description}               = "striker_0038";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::dns::value'}{variable_section}                   = "config_step2";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_value}                 = $gateway;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_description}           = "striker_0036";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway::value'}{variable_section}               = "config_step2";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_value}       = $gateway_network;
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_description} = "";
-	$anvil->data->{striker}{stage1}{variables}{'form::config_step2::gateway_interface::value'}{variable_section}     = "config_step2";
 
 	my $configure_host_job_data  = "form::config_step1::organization::value=".$organization_name;
 	   $configure_host_job_data .= "\nform::config_step1::prefix::value=".$prefix;
@@ -1707,16 +1579,6 @@ sub striker_stage1
 				's4:link1_mac_key'   => $link1_mac_key, 
 				's5:link1_mac'       => $link1_mac,
 			}});
-			
-			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_value}                = $ip;
-			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_description}          = "striker_0024";
-			$anvil->data->{striker}{stage1}{variables}{$ip_key}{variable_section}              = "config_step2";
-			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_value}       = $subnet_mask;
-			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_description} = "striker_0025";
-			$anvil->data->{striker}{stage1}{variables}{$subnet_mask_key}{variable_section}     = "config_step2";
-			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_value}         = $link1_mac;
-			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_description}   = "striker_0029";
-			$anvil->data->{striker}{stage1}{variables}{$link1_mac_key}{variable_section}       = "config_step2";
 
 			$configure_host_job_data .= "\n".$ip_key."=".$ip;
 			$configure_host_job_data .= "\n".$subnet_mask_key."=".$subnet_mask;
@@ -1737,40 +1599,10 @@ sub striker_stage1
 					's1:link2_mac_key' => $link2_mac_key, 
 					's2:link2_mac'     => $link2_mac,
 				}});
-				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_value}       = $link2_mac;
-				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_description} = "striker_0029";
-				$anvil->data->{striker}{stage1}{variables}{$link2_mac_key}{variable_section}     = "config_step2";
 
 				$configure_host_job_data .= "\n".$link2_mac_key."=".$link2_mac;
 			}
 		}
-	}
-	
-	# TODO: remove the variable entries after confirming job_data works.
-	# Now, for each variable, record it to the database.
-	foreach my $variable (sort {$a cmp $b} keys %{$anvil->data->{striker}{stage1}{variables}})
-	{
-		my $value       = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_value};
-		my $description = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_description};
-		my $section     = $anvil->data->{striker}{stage1}{variables}{$variable}{variable_section};
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-			's1:variable'    => $variable, 
-			's2:value'       => $value,
-			's3:description' => $description, 
-			's4:section'     => $section,
-		}});
-		
-		my ($variable_uuid) = $anvil->Database->insert_or_update_variables({
-			variable_name         => $variable, 
-			variable_value        => $value, 
-			variable_default      => "", 
-			variable_description  => $description, 
-			variable_section      => $section, 
-			variable_source_uuid  => $anvil->Get->host_uuid, 
-			variable_source_table => "hosts", 
-		});
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { variable_uuid => $variable_uuid }});
-		
 	}
 	
 	# Call anvil-configure-host now.
