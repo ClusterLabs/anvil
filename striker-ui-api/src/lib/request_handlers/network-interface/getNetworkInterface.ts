@@ -1,18 +1,28 @@
-import { LOCAL } from '../../consts';
+import { RequestHandler } from 'express';
 
-import buildGetRequestHandler from '../buildGetRequestHandler';
-import { buildQueryResultReducer } from '../../buildQueryResultModifier';
+import { Responder } from '../../Responder';
+import { queries } from '../../accessModule';
 import { toHostUUID } from '../../convertHostUUID';
+import { getNetworkInterfaceParamsSchema } from './schemas';
 import { sqlIpAddresses, sqlNetworkInterfaces } from '../../sqls';
 
-export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
-  const {
-    params: { hostUUID: rHostUuid = LOCAL },
-  } = request;
+export const getNetworkInterface: RequestHandler<
+  GetNetworkInterfaceParams,
+  NetworkInterfaceOverviewList
+> = async (request, response) => {
+  const respond = new Responder(response);
 
-  const hostUuid = toHostUUID(rHostUuid);
+  let params: GetNetworkInterfaceParams;
 
-  const query = `
+  try {
+    params = await getNetworkInterfaceParamsSchema.validate(request.params);
+  } catch (error) {
+    return respond.s400('bc11764', `Invalid query params; CAUSE: ${error}`);
+  }
+
+  const hostUuid = toHostUUID(params.host);
+
+  const sqlGetHostNics = `
     SELECT
       a.network_interface_uuid,
       a.network_interface_mac_address,
@@ -47,40 +57,50 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
     WHERE a.network_interface_host_uuid = '${hostUuid}'
     ORDER BY a.network_interface_name;`;
 
-  const afterQueryReturn: QueryResultModifierFunction =
-    buildQueryResultReducer<NetworkInterfaceOverviewList>((previous, row) => {
-      const [
-        uuid,
-        mac,
-        name,
-        device,
-        state,
-        speed,
-        order,
-        ip,
-        subnetMask,
-        gateway,
-        dns,
-      ] = row;
+  let results: QueryResult[];
 
-      previous[uuid] = {
-        device,
-        dns,
-        gateway,
-        ip,
-        mac,
-        name,
-        order: Number(order),
-        speed: Number(speed),
-        state,
-        subnetMask,
-        uuid,
-      };
+  try {
+    results = await queries(sqlGetHostNics);
+  } catch (error) {
+    return respond.s500(
+      'bbdcb0f',
+      `Failed to get network interfaces on [${hostUuid}]; CAUSE: ${error}`,
+    );
+  }
 
-      return previous;
-    }, {});
+  const [nicRows] = results;
 
-  hooks.afterQueryReturn = afterQueryReturn;
+  const nics: NetworkInterfaceOverviewList = {};
 
-  return query;
-});
+  nicRows.forEach((row) => {
+    const [
+      uuid,
+      mac,
+      name,
+      device,
+      state,
+      speed,
+      order,
+      ip,
+      subnetMask,
+      gateway,
+      dns,
+    ] = row as string[];
+
+    nics[uuid] = {
+      device,
+      dns,
+      gateway,
+      ip,
+      mac,
+      name,
+      order: Number(order),
+      speed: Number(speed),
+      state,
+      subnetMask,
+      uuid,
+    };
+  });
+
+  return respond.s200(nics);
+};

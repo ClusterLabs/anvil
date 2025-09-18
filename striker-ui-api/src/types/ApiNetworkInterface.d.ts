@@ -16,3 +16,7 @@ type NetworkInterfaceOverview = {
 };
 
 type NetworkInterfaceOverviewList = Record<string, NetworkInterfaceOverview>;
+
+type GetNetworkInterfaceParams = {
+  host: string;
+};
