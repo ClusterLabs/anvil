@@ -17,6 +17,7 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
       a.network_interface_uuid,
       a.network_interface_mac_address,
       a.network_interface_name,
+      a.network_interface_device,
       CASE
         WHEN a.network_interface_link_state = '1'
           AND a.network_interface_operational = 'up'
@@ -52,6 +53,7 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
         uuid,
         mac,
         name,
+        device,
         state,
         speed,
         order,
@@ -62,6 +64,7 @@ export const getNetworkInterface = buildGetRequestHandler((request, hooks) => {
       ] = row;
 
       previous[uuid] = {
+        device,
         dns,
         gateway,
         ip,
