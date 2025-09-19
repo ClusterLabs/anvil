@@ -10,20 +10,33 @@ type NetworkInterfaceOverviewMetadata = {
   networkInterfaceOrder: number;
 };
 
+type APINetworkInterfaceSlot = {
+  link: number;
+  network: {
+    sequence: number;
+    type: string;
+  };
+};
+
+/**
+ * @property {number} speed - Unit: mbps
+ */
 type APINetworkInterfaceOverview = {
+  alias: string;
   dns: null | string;
   gateway: null | string;
   ip: null | string;
   mac: string;
   name: string;
   order: number;
-  // Unit: mbps
+  slot?: APINetworkInterfaceSlot;
   speed: number;
   state: string;
   subnetMask: null | string;
   uuid: string;
 };
 
-type APINetworkInterfaceOverviewList = {
-  [uuid: string]: APINetworkInterfaceOverview;
-};
+type APINetworkInterfaceOverviewList = Record<
+  string,
+  APINetworkInterfaceOverview
+>;

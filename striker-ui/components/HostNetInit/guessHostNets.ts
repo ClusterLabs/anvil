@@ -1,16 +1,16 @@
 import cloneDeep from 'lodash/cloneDeep';
 
 const guessHostNets = <F extends HostNetInitFormikExtension>({
-  appliedIfaces,
+  appliedNics,
   chains,
-  data,
+  nics,
   formikUtils,
   host,
   subnodeCount = 2,
 }: {
-  appliedIfaces: Record<string, boolean>;
+  appliedNics: Record<string, boolean>;
   chains: Record<'dns' | 'gateway' | 'networkInit' | 'networks', string>;
-  data: APINetworkInterfaceOverviewList;
+  nics: APINetworkInterfaceOverviewList;
   formikUtils: FormikUtils<F>;
   host: HostNetInitHost;
   subnodeCount?: number;
@@ -20,7 +20,7 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   // Clone at the level that includes all possible changes.
   const clone = cloneDeep(formik.values.networkInit);
 
-  const ifaceValues = Object.values(data);
+  const ifaceValues = Object.values(nics);
 
   // Categorize unapplied interfaces based on their IP.
   const candidates = ifaceValues.reduce<
@@ -29,7 +29,7 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
     (previous, iface) => {
       const { ip, uuid } = iface;
 
-      if (appliedIfaces[uuid] || !ip) {
+      if (appliedNics[uuid] || !ip) {
         return previous;
       }
 
