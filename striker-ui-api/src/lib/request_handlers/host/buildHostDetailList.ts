@@ -9,9 +9,9 @@ import join from '../../join';
 import { perr, poutvar } from '../../shell';
 import {
   sqlHosts,
-  sqlIfaceAlias,
   sqlIpAddresses,
   sqlNetworkInterfaces,
+  sqlNetworkInterfacesWithAliasBreakdown,
   sqlScanDrbdPeers,
   sqlScanDrbdResources,
   sqlScanDrbdVolumes,
@@ -229,23 +229,15 @@ export const buildHostDetailList = async (
       a.network_interface_uuid,
       a.network_interface_host_uuid,
       a.network_interface_mac_address,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xType}'
-      ) AS network_type,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xNum}'
-      ) AS network_number,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xLink}'
-      ) AS network_link,
+      a.network_interface_network_type,
+      a.network_interface_network_number,
+      a.network_interface_network_link,
       e.ip_address_address,
       e.ip_address_subnet_mask,
       e.ip_address_gateway,
       e.ip_address_default_gateway,
       e.ip_address_dns
-    FROM (${sqlNetworkInterfaces()}) AS a
-    JOIN (${sqlIfaceAlias()}) AS b
-      ON b.network_interface_uuid = a.network_interface_uuid
+    FROM (${sqlNetworkInterfacesWithAliasBreakdown()}) AS a
     LEFT JOIN bonds AS c
       ON c.bond_uuid = a.network_interface_bond_uuid
     LEFT JOIN bridges AS d
@@ -260,7 +252,7 @@ export const buildHostDetailList = async (
         d.bridge_uuid
       )
     WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
-    ORDER BY b.network_interface_alias;`;
+    ORDER BY a.network_interface_alias;`;
 
   const sqlGetVariables = `
     SELECT

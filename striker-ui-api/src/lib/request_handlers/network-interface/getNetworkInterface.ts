@@ -4,7 +4,10 @@ import { Responder } from '../../Responder';
 import { queries } from '../../accessModule';
 import { toHostUUID } from '../../convertHostUUID';
 import { getNetworkInterfaceParamsSchema } from './schemas';
-import { sqlIpAddresses, sqlNetworkInterfaces } from '../../sqls';
+import {
+  sqlIpAddresses,
+  sqlNetworkInterfacesWithAliasBreakdown,
+} from '../../sqls';
 
 export const getNetworkInterface: RequestHandler<
   GetNetworkInterfaceParams,
@@ -28,6 +31,10 @@ export const getNetworkInterface: RequestHandler<
       a.network_interface_mac_address,
       a.network_interface_name,
       a.network_interface_device,
+      a.network_interface_alias,
+      a.network_interface_network_type,
+      a.network_interface_network_number,
+      a.network_interface_network_link,
       CASE
         WHEN a.network_interface_link_state = '1'
           AND a.network_interface_operational = 'up'
@@ -36,23 +43,23 @@ export const getNetworkInterface: RequestHandler<
       END AS iface_state,
       a.network_interface_speed,
       ROW_NUMBER() OVER(ORDER BY a.modified_date DESC) AS iface_order,
-      d.ip_address_address,
-      d.ip_address_subnet_mask,
-      d.ip_address_gateway,
-      d.ip_address_dns
-    FROM (${sqlNetworkInterfaces()}) AS a
-    LEFT JOIN bonds AS b
-      ON b.bond_uuid = a.network_interface_bond_uuid
-    LEFT JOIN bridges AS c
-      ON c.bridge_uuid IN (
+      e.ip_address_address,
+      e.ip_address_subnet_mask,
+      e.ip_address_gateway,
+      e.ip_address_dns
+    FROM (${sqlNetworkInterfacesWithAliasBreakdown()}) AS a
+    LEFT JOIN bonds AS c
+      ON c.bond_uuid = a.network_interface_bond_uuid
+    LEFT JOIN bridges AS d
+      ON d.bridge_uuid IN (
         a.network_interface_bridge_uuid,
-        b.bond_bridge_uuid
+        c.bond_bridge_uuid
       )
-    LEFT JOIN (${sqlIpAddresses()}) AS d
-      ON d.ip_address_on_uuid IN (
+    LEFT JOIN (${sqlIpAddresses()}) AS e
+      ON e.ip_address_on_uuid IN (
         a.network_interface_uuid,
-        b.bond_uuid,
-        c.bridge_uuid
+        c.bond_uuid,
+        d.bridge_uuid
       )
     WHERE a.network_interface_host_uuid = '${hostUuid}'
     ORDER BY a.network_interface_name;`;
@@ -78,6 +85,10 @@ export const getNetworkInterface: RequestHandler<
       mac,
       name,
       device,
+      alias,
+      networkType,
+      networkNumber,
+      networkLink,
       state,
       speed,
       order,
@@ -87,7 +98,8 @@ export const getNetworkInterface: RequestHandler<
       dns,
     ] = row as string[];
 
-    nics[uuid] = {
+    const nic: NetworkInterfaceOverview = {
+      alias,
       device,
       dns,
       gateway,
@@ -100,6 +112,18 @@ export const getNetworkInterface: RequestHandler<
       subnetMask,
       uuid,
     };
+
+    if (networkType) {
+      nic.slot = {
+        link: Number(networkLink),
+        network: {
+          sequence: Number(networkNumber),
+          type: networkType,
+        },
+      };
+    }
+
+    nics[uuid] = nic;
   });
 
   return respond.s200(nics);

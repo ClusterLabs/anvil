@@ -1,7 +1,16 @@
+type NetworkInterfaceSlot = {
+  link: number;
+  network: {
+    sequence: number;
+    type: string;
+  };
+};
+
 /**
  * @property {number} speed - Unit: mbps
  */
 type NetworkInterfaceOverview = {
+  alias: string;
   device: string;
   dns: null | string;
   gateway: null | string;
@@ -9,6 +18,7 @@ type NetworkInterfaceOverview = {
   mac: string;
   name: string;
   order: number;
+  slot?: NetworkInterfaceSlot;
   speed: number;
   state: string;
   subnetMask: null | string;
