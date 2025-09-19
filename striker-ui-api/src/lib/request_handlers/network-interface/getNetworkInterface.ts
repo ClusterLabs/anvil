@@ -115,7 +115,7 @@ export const getNetworkInterface: RequestHandler<
 
     if (networkType) {
       nic.slot = {
-        link: Number(networkLink),
+        link: Number(networkLink.replace(/^[^\d]+(\d+)$/, '$1')),
         network: {
           sequence: Number(networkNumber),
           type: networkType,
