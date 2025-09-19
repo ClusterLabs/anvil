@@ -30,7 +30,6 @@ export const getNetworkInterface: RequestHandler<
       a.network_interface_uuid,
       a.network_interface_mac_address,
       a.network_interface_name,
-      a.network_interface_device,
       a.network_interface_alias,
       a.network_interface_network_type,
       a.network_interface_network_number,
@@ -84,7 +83,6 @@ export const getNetworkInterface: RequestHandler<
       uuid,
       mac,
       name,
-      device,
       alias,
       networkType,
       networkNumber,
@@ -100,7 +98,6 @@ export const getNetworkInterface: RequestHandler<
 
     const nic: NetworkInterfaceOverview = {
       alias,
-      device,
       dns,
       gateway,
       ip,

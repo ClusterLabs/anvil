@@ -11,7 +11,6 @@ type NetworkInterfaceSlot = {
  */
 type NetworkInterfaceOverview = {
   alias: string;
-  device: string;
   dns: null | string;
   gateway: null | string;
   ip: null | string;
