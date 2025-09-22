@@ -11,18 +11,20 @@ type NetworkInterfaceOverviewMetadata = {
 };
 
 type APINetworkInterfaceSlot = {
+  alias: string;
+  dns: null | string;
+  gateway: null | string;
+  ip: null | string;
   link: number;
-  network: {
-    sequence: number;
-    type: string;
-  };
+  sequence: number;
+  subnetMask: null | string;
+  type: string;
 };
 
 /**
  * @property {number} speed - Unit: mbps
  */
 type APINetworkInterfaceOverview = {
-  alias: string;
   dns: null | string;
   gateway: null | string;
   ip: null | string;
