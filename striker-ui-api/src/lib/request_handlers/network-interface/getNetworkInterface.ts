@@ -6,6 +6,8 @@ import { toHostUUID } from '../../convertHostUUID';
 import { getNetworkInterfaceParamsSchema } from './schemas';
 import {
   sqlIpAddresses,
+  sqlNetworkInterfaces,
+  sqlNetworkInterfacesWithAlias,
   sqlNetworkInterfacesWithAliasBreakdown,
 } from '../../sqls';
 
@@ -30,10 +32,6 @@ export const getNetworkInterface: RequestHandler<
       a.network_interface_uuid,
       a.network_interface_mac_address,
       a.network_interface_name,
-      a.network_interface_alias,
-      a.network_interface_network_type,
-      a.network_interface_network_number,
-      a.network_interface_network_link,
       CASE
         WHEN a.network_interface_link_state = '1'
           AND a.network_interface_operational = 'up'
@@ -46,7 +44,7 @@ export const getNetworkInterface: RequestHandler<
       e.ip_address_subnet_mask,
       e.ip_address_gateway,
       e.ip_address_dns
-    FROM (${sqlNetworkInterfacesWithAliasBreakdown()}) AS a
+    FROM (${sqlNetworkInterfaces()}) AS a
     LEFT JOIN bonds AS c
       ON c.bond_uuid = a.network_interface_bond_uuid
     LEFT JOIN bridges AS d
@@ -63,10 +61,48 @@ export const getNetworkInterface: RequestHandler<
     WHERE a.network_interface_host_uuid = '${hostUuid}'
     ORDER BY a.network_interface_name;`;
 
+  const sqlGetSavedNics = `
+    WITH all_nics_history AS (
+      SELECT
+        ROW_NUMBER() OVER(
+          PARTITION BY a.network_interface_mac_address
+          ORDER BY a.modified_date DESC
+        ) AS history_sequence,
+        a.network_interface_mac_address,
+        a.network_interface_alias,
+        e.ip_address_address,
+        e.ip_address_subnet_mask,
+        e.ip_address_gateway,
+        e.ip_address_dns,
+        a.network_interface_network_type,
+        a.network_interface_network_number,
+        a.network_interface_network_link
+      FROM (${sqlNetworkInterfacesWithAliasBreakdown(
+        `(${sqlNetworkInterfacesWithAlias('history.network_interfaces')}) AS i`,
+      )}) AS a
+      LEFT JOIN history.bonds AS c
+        ON c.bond_uuid = a.network_interface_bond_uuid
+      LEFT JOIN history.bridges AS d
+        ON d.bridge_uuid IN (
+          a.network_interface_bridge_uuid,
+          c.bond_bridge_uuid
+        )
+      JOIN history.ip_addresses AS e
+        ON e.ip_address_on_uuid IN (
+          a.network_interface_uuid,
+          c.bond_uuid,
+          d.bridge_uuid
+        )
+      ORDER BY a.modified_date
+    )
+    SELECT *
+    FROM all_nics_history
+    WHERE history_sequence = 1;`;
+
   let results: QueryResult[];
 
   try {
-    results = await queries(sqlGetHostNics);
+    results = await queries(sqlGetHostNics, sqlGetSavedNics);
   } catch (error) {
     return respond.s500(
       'bbdcb0f',
@@ -74,30 +110,19 @@ export const getNetworkInterface: RequestHandler<
     );
   }
 
-  const [nicRows] = results;
+  const [nicRows, savedRows] = results;
 
   const nics: NetworkInterfaceOverviewList = {};
 
+  const macToUuid: Record<string, string> = {};
+
   nicRows.forEach((row) => {
-    const [
-      uuid,
-      mac,
-      name,
-      alias,
-      networkType,
-      networkNumber,
-      networkLink,
-      state,
-      speed,
-      order,
-      ip,
-      subnetMask,
-      gateway,
-      dns,
-    ] = row as string[];
+    const [uuid, mac, name, state, speed, order, ip, subnetMask, gateway, dns] =
+      row as string[];
+
+    macToUuid[mac] = uuid;
 
     const nic: NetworkInterfaceOverview = {
-      alias,
       dns,
       gateway,
       ip,
@@ -110,17 +135,48 @@ export const getNetworkInterface: RequestHandler<
       uuid,
     };
 
-    if (networkType) {
-      nic.slot = {
-        link: Number(networkLink.replace(/^[^\d]+(\d+)$/, '$1')),
-        network: {
-          sequence: Number(networkNumber),
-          type: networkType,
-        },
-      };
+    nics[uuid] = nic;
+  });
+
+  savedRows.forEach((row) => {
+    const [
+      mac,
+      alias,
+      ip,
+      subnetMask,
+      gateway,
+      dns,
+      networkType,
+      networkNumber,
+      networkLink,
+    ] = row.slice(1) as string[];
+
+    if (!networkType) {
+      return;
     }
 
-    nics[uuid] = nic;
+    const uuid = macToUuid[mac];
+
+    if (!uuid) {
+      return;
+    }
+
+    const nic: NetworkInterfaceOverview = nics[uuid];
+
+    if (!nic) {
+      return;
+    }
+
+    nic.slot = {
+      alias,
+      dns,
+      gateway,
+      ip,
+      link: Number(networkLink.replace(/^[^\d]+(\d+)$/, '$1')),
+      sequence: Number(networkNumber),
+      subnetMask,
+      type: networkType,
+    };
   });
 
   return respond.s200(nics);
