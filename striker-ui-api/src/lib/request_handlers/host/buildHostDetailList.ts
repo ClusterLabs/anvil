@@ -22,7 +22,8 @@ import {
 
 const regexps = {
   network: {
-    id: new RegExp(`^${P_IF.id}`),
+    typeSequenceFromName: new RegExp(`::(${P_IF.type})(${P_IF.num})`),
+    idFromPart: new RegExp(`^${P_IF.id}`),
   },
 };
 
@@ -44,7 +45,7 @@ const setvarParams: Record<
 
     let value: boolean | number | string = original;
 
-    if (regexps.network.id.test(head)) {
+    if (regexps.network.idFromPart.test(head)) {
       chain = ['netconf', 'networks', head, camel(...rest)];
 
       if (/create_bridge/.test(part)) {
@@ -475,7 +476,15 @@ export const buildHostDetailList = async (
 
     setChain(chain, ifaceUuid, host);
 
-    const matches = name.match(regexps.network.id);
+    const matches = name.match(regexps.network.typeSequenceFromName);
+
+    poutvar(
+      {
+        name,
+        matches,
+      },
+      `Getting network type and sequence from MAC variable: `,
+    );
 
     if (!matches) {
       return;
