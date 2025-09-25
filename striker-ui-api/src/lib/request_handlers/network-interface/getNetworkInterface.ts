@@ -62,7 +62,7 @@ export const getNetworkInterface: RequestHandler<
     ORDER BY a.network_interface_name;`;
 
   const sqlGetSavedNics = `
-    WITH all_nics_history AS (
+    WITH host_nics_history AS (
       SELECT
         ROW_NUMBER() OVER(
           PARTITION BY a.network_interface_mac_address
@@ -93,10 +93,15 @@ export const getNetworkInterface: RequestHandler<
           c.bond_uuid,
           d.bridge_uuid
         )
+      WHERE a.network_interface_mac_address IN (
+        SELECT network_interface_mac_address
+        FROM network_interfaces
+        WHERE network_interface_host_uuid = '${hostUuid}'
+      )
       ORDER BY a.modified_date
     )
     SELECT *
-    FROM all_nics_history
+    FROM host_nics_history
     WHERE history_sequence = 1;`;
 
   let results: QueryResult[];
