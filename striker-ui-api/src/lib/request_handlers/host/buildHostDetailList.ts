@@ -9,9 +9,9 @@ import join from '../../join';
 import { perr, poutvar } from '../../shell';
 import {
   sqlHosts,
-  sqlIfaceAlias,
   sqlIpAddresses,
   sqlNetworkInterfaces,
+  sqlNetworkInterfacesWithAliasBreakdown,
   sqlScanDrbdPeers,
   sqlScanDrbdResources,
   sqlScanDrbdVolumes,
@@ -22,7 +22,8 @@ import {
 
 const regexps = {
   network: {
-    id: new RegExp(`^${P_IF.id}`),
+    typeSequenceFromName: new RegExp(`::(${P_IF.type})(${P_IF.num})`),
+    idFromPart: new RegExp(`^${P_IF.id}`),
   },
 };
 
@@ -44,7 +45,7 @@ const setvarParams: Record<
 
     let value: boolean | number | string = original;
 
-    if (regexps.network.id.test(head)) {
+    if (regexps.network.idFromPart.test(head)) {
       chain = ['netconf', 'networks', head, camel(...rest)];
 
       if (/create_bridge/.test(part)) {
@@ -229,23 +230,15 @@ export const buildHostDetailList = async (
       a.network_interface_uuid,
       a.network_interface_host_uuid,
       a.network_interface_mac_address,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xType}'
-      ) AS network_type,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xNum}'
-      ) AS network_number,
-      SUBSTRING(
-        b.network_interface_alias, '${P_IF.xLink}'
-      ) AS network_link,
+      a.network_interface_network_type,
+      a.network_interface_network_number,
+      a.network_interface_network_link,
       e.ip_address_address,
       e.ip_address_subnet_mask,
       e.ip_address_gateway,
       e.ip_address_default_gateway,
       e.ip_address_dns
-    FROM (${sqlNetworkInterfaces()}) AS a
-    JOIN (${sqlIfaceAlias()}) AS b
-      ON b.network_interface_uuid = a.network_interface_uuid
+    FROM (${sqlNetworkInterfacesWithAliasBreakdown()}) AS a
     LEFT JOIN bonds AS c
       ON c.bond_uuid = a.network_interface_bond_uuid
     LEFT JOIN bridges AS d
@@ -260,7 +253,7 @@ export const buildHostDetailList = async (
         d.bridge_uuid
       )
     WHERE a.network_interface_host_uuid IN (${hostUuidsCsv})
-    ORDER BY b.network_interface_alias;`;
+    ORDER BY a.network_interface_alias;`;
 
   const sqlGetVariables = `
     SELECT
@@ -483,7 +476,15 @@ export const buildHostDetailList = async (
 
     setChain(chain, ifaceUuid, host);
 
-    const matches = name.match(regexps.network.id);
+    const matches = name.match(regexps.network.typeSequenceFromName);
+
+    poutvar(
+      {
+        name,
+        matches,
+      },
+      `Getting network type and sequence from MAC variable: `,
+    );
 
     if (!matches) {
       return;

@@ -79,9 +79,9 @@ const HostNetInitInputGroup = <Values extends HostNetInitFormikExtension>(
           setLostConnection(false);
 
           guessHostNets({
-            appliedIfaces,
+            appliedNics: appliedIfaces,
             chains,
-            data,
+            nics: data,
             host,
             formikUtils,
           });

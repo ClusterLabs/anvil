@@ -1,3 +1,17 @@
+type NetworkInterfaceSlot = {
+  alias: string;
+  dns: null | string;
+  gateway: null | string;
+  ip: null | string;
+  link: number;
+  sequence: number;
+  subnetMask: null | string;
+  type: string;
+};
+
+/**
+ * @property {number} speed - Unit: mbps
+ */
 type NetworkInterfaceOverview = {
   dns: null | string;
   gateway: null | string;
@@ -5,7 +19,7 @@ type NetworkInterfaceOverview = {
   mac: string;
   name: string;
   order: number;
-  // Unit: Mbps
+  slot?: NetworkInterfaceSlot;
   speed: number;
   state: string;
   subnetMask: null | string;
@@ -13,3 +27,7 @@ type NetworkInterfaceOverview = {
 };
 
 type NetworkInterfaceOverviewList = Record<string, NetworkInterfaceOverview>;
+
+type GetNetworkInterfaceParams = {
+  host: string;
+};
