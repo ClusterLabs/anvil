@@ -2318,7 +2318,7 @@ Job Details;
 		<key name="log_0367">- Storage is valid and ready.</key>
 		<key name="log_0368">The bridge: [#!variable!bridge!#] is available for this server.</key>
 		<key name="log_0369">The server wants to connect to the bridge: [#!variable!bridge!#] which we do not have on this node.</key>
-		<key name="log_0370">#!free!#</key>
+		<key name="log_0370">Mail server configuration disabled, skipping SMTP server config checks.</key>
 		<key name="log_0371">#!free!#</key>
 		<key name="log_0372">#!free!#</key>
 		<key name="log_0373">#!free!#</key>
