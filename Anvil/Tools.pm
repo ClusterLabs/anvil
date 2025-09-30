@@ -1070,6 +1070,9 @@ sub _set_defaults
 		},
 	};
 	$anvil->data->{feature} = {
+		'manage-smtp'	=>	{
+			disable		=>	0,
+		}, 
 		scancore	=>	{
 			disable		=>	{
 				'preventative-live-migration'	=>	0,
