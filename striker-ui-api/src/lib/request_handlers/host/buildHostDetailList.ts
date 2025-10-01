@@ -263,7 +263,10 @@ export const buildHostDetailList = async (
       b.network_interface_uuid
     FROM (${sqlVariables()}) AS a
     LEFT JOIN (${sqlNetworkInterfaces()}) AS b
-      ON b.network_interface_mac_address = a.variable_value
+      ON
+          b.network_interface_host_uuid = a.variable_source_uuid
+        AND
+          b.network_interface_mac_address = a.variable_value
     WHERE
         a.variable_source_uuid IN (${hostUuidsCsv})
       AND
