@@ -15,9 +15,14 @@ const now = (ms?: boolean): number => {
 const last = (
   time: number,
   duration: number,
-  { ms }: { ms?: boolean } = {},
+  options: {
+    ms?: boolean;
+    now?: number;
+  } = {},
 ): boolean => {
-  const diff = now(ms) - time;
+  const { ms, now: nao = now(ms) } = options;
+
+  const diff = nao - time;
 
   return diff <= duration;
 };
