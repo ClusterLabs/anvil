@@ -116,3 +116,9 @@ type RunManifestRequestBody = {
   rerun?: boolean;
   reuseHosts?: boolean;
 };
+
+type RunManifestSanitizedRequestBody = import('yup').InferType<
+  ReturnType<
+    typeof import('../lib/request_handlers/command/schemas').buildRunManifestRequestBodySchema
+  >
+>;

@@ -1,9 +1,9 @@
 import assert from 'assert';
 import { RequestHandler } from 'express';
 
-import { REP_PEACEFUL_STRING, REP_UUID } from '../../consts/REG_EXP_PATTERNS';
 import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
+import { Responder } from '../../Responder';
 import {
   getData,
   getHostData,
@@ -12,45 +12,65 @@ import {
   query,
   sub,
 } from '../../accessModule';
-import { ResponseError } from '../../ResponseError';
-import { sanitize } from '../../sanitize';
-import { perr } from '../../shell';
+import { buildRunManifestRequestBodySchema } from './schemas';
 
 export const runManifest: RequestHandler<
-  { manifestUuid: string },
+  Express.RhParamsDictionary,
   undefined | ResponseErrorBody,
-  RunManifestRequestBody
+  RunManifestRequestBody,
+  Express.RhReqQuery,
+  LocalsRequestTarget
 > = async (request, response) => {
-  const {
-    params: { manifestUuid: rawManifestUuid },
-    body: {
-      debug = 2,
-      description: rawDescription,
-      hosts: rawHostList = {},
-      password: rawPassword,
-      rerun: rawRerun,
-      reuseHosts: rawReuseHosts,
-    } = {},
-  } = request;
+  const respond = new Responder(response);
 
-  const manifestUuid = sanitize(rawManifestUuid, 'string', {
-    modifierType: 'sql',
-  });
-  const rerun = sanitize(rawRerun, 'boolean');
-  const reuseHosts = sanitize(rawReuseHosts, 'boolean');
+  const { uuid: manifestUuid } = response.locals.target;
 
-  let description = sanitize(rawDescription, 'string');
-  let password = sanitize(rawPassword, 'string');
+  let rawHostListData: AnvilDataHostListHash | undefined;
+  let rawManifestListData: AnvilDataManifestListHash | undefined;
+  let rawSysData: AnvilDataSysHash | undefined;
 
-  const hostList: ManifestExecutionHostList = {};
+  try {
+    rawHostListData = await getHostData();
+    rawManifestListData = await getManifestData(manifestUuid);
+    rawSysData = await getData('sys');
 
-  const handleAssertError = (assertError: unknown) => {
-    perr(
-      `Failed to assert value when trying to run manifest ${manifestUuid}; CAUSE: ${assertError}`,
+    assert.ok(rawHostListData, `Missing host list data`);
+    assert.ok(rawManifestListData, `Missing manifest list data`);
+    assert.ok(rawSysData, `Missing sys data`);
+  } catch (error) {
+    return respond.s500(
+      '5342377',
+      `Failed to load data related to manifest [${manifestUuid}]; CAUSE: ${error}`,
     );
+  }
 
-    response.status(400).send();
-  };
+  const {
+    manifest_uuid: {
+      [manifestUuid]: {
+        parsed: { name: manifestName },
+      },
+    },
+  } = rawManifestListData;
+
+  let body: RunManifestSanitizedRequestBody;
+
+  try {
+    body = await buildRunManifestRequestBodySchema({
+      hosts: rawHostListData,
+      manifest: manifestUuid,
+      manifests: rawManifestListData,
+      sys: rawSysData,
+    }).validate(request.body);
+  } catch (error) {
+    return respond.s400(
+      'd125ada',
+      `Failed to assert value when trying to run manifest [${manifestUuid}]; CAUSE: ${error}`,
+    );
+  }
+
+  const { debug, hosts, rerun } = body;
+
+  let { description, password } = body;
 
   if (rerun) {
     const sql = `
@@ -67,162 +87,67 @@ export const runManifest: RequestHandler<
     try {
       rows = await query<string[][]>(sql);
     } catch (error) {
-      const rserror = new ResponseError(
+      return respond.s500(
         '49e0e02',
         `Failed to get existing record with manifest [${manifestUuid}]; CAUSE: ${error}`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(500).send(rserror.body);
     }
 
     if (!rows.length) {
-      const rserror = new ResponseError(
-        '2d42e16',
-        `No record found on rerun manifest [${manifestUuid}]`,
+      return respond.s500(
+        '02a4c3d',
+        `Failed to find existing record with manifest [${manifestUuid}] when expected`,
       );
-
-      perr(rserror.toString());
-
-      return response.status(404).send(rserror.body);
     }
 
-    // Assign existing values before value assertions.
+    // Reuse values from the existing setup.
     ({
       0: [description, password],
     } = rows);
   }
 
-  try {
-    assert(
-      REP_PEACEFUL_STRING.test(description),
-      `Description must be a peaceful string; got: [${description}]`,
-    );
+  const joinAnvilJobs: JobParams[] = [];
 
-    assert(
-      REP_PEACEFUL_STRING.test(password),
-      `Password must be a peaceful string; got [${password}]`,
-    );
+  const anvilSqlParams = Object.values(hosts).reduce<Record<string, string>>(
+    (previous, host) => {
+      joinAnvilJobs.push({
+        debug,
+        file: __filename,
+        job_command: SERVER_PATHS.usr.sbin['anvil-join-anvil'].self,
+        job_data: `as_machine=${host.id},manifest_uuid=${manifestUuid}`,
+        job_description: 'job_0073',
+        job_host_uuid: host.uuid,
+        job_name: `join_anvil::${host.id}`,
+        job_title: 'job_0072',
+      });
 
-    const uniqueList: Record<string, boolean | undefined> = {};
-    const isHostListUnique = !Object.values(rawHostList).some(
-      ({ number, type, uuid }) => {
-        const id = `${type}${number}`;
-        assert(
-          /^node[12]$/.test(id),
-          `Host ID must be "node" followed by 1 or 2; got [${id}]`,
-        );
+      previous[`anvil_${host.id}_host_uuid`] = host.uuid;
 
-        assert(
-          REP_UUID.test(uuid),
-          `Host UUID assigned to ${id} must be a UUIDv4; got [${uuid}]`,
-        );
-
-        const isIdDuplicate = Boolean(uniqueList[id]);
-        const isUuidDuplicate = Boolean(uniqueList[uuid]);
-
-        uniqueList[id] = true;
-        uniqueList[uuid] = true;
-
-        hostList[id] = { id, number, type, uuid };
-
-        return isIdDuplicate || isUuidDuplicate;
-      },
-    );
-
-    assert(isHostListUnique, `Each entry in hosts must be unique`);
-  } catch (assertError) {
-    return handleAssertError(assertError);
-  }
-
-  let rawHostListData: AnvilDataHostListHash | undefined;
-  let rawManifestListData: AnvilDataManifestListHash | undefined;
-  let rawSysData: AnvilDataSysHash | undefined;
-
-  try {
-    rawHostListData = await getHostData();
-    rawManifestListData = await getManifestData(manifestUuid);
-    rawSysData = await getData('sys');
-  } catch (subError) {
-    perr(`Failed to get install manifest ${manifestUuid}; CAUSE: ${subError}`);
-
-    return response.status(500).send();
-  }
-
-  if (!rawHostListData || !rawManifestListData || !rawSysData) {
-    return response.status(404).send();
-  }
-
-  const { host_uuid: hostUuidMapToData } = rawHostListData;
-  const {
-    manifest_uuid: {
-      [manifestUuid]: {
-        parsed: { name: manifestName },
-      },
+      return previous;
     },
-  } = rawManifestListData;
-  const { hosts: { by_uuid: mapToHostNameData = {} } = {} } = rawSysData;
-
-  const joinAnJobs: JobParams[] = [];
-
-  let anParams: Record<string, string>;
-
-  try {
-    anParams = Object.values(hostList).reduce<Record<string, string>>(
-      (previous, { id: hostId = '', uuid: hostUuid }) => {
-        const hostName = mapToHostNameData[hostUuid];
-        const { anvil_name: anName } = hostUuidMapToData[hostUuid];
-
-        if (anName && !reuseHosts) {
-          assert(
-            anName !== manifestName,
-            `Cannot use [${hostName}] for [${manifestName}] because it belongs to [${anName}]; set reuseHost:true to allow this`,
-          );
-        }
-
-        joinAnJobs.push({
-          debug,
-          file: __filename,
-          job_command: SERVER_PATHS.usr.sbin['anvil-join-anvil'].self,
-          job_data: `as_machine=${hostId},manifest_uuid=${manifestUuid}`,
-          job_description: 'job_0073',
-          job_host_uuid: hostUuid,
-          job_name: `join_anvil::${hostId}`,
-          job_title: 'job_0072',
-        });
-
-        previous[`anvil_${hostId}_host_uuid`] = hostUuid;
-
-        return previous;
-      },
-      {
-        anvil_description: description,
-        anvil_name: manifestName,
-        anvil_password: password,
-      },
-    );
-  } catch (assertError) {
-    handleAssertError(assertError);
-
-    return;
-  }
+    {
+      anvil_description: description,
+      anvil_name: manifestName,
+      anvil_password: password,
+    },
+  );
 
   try {
-    const [newAnUuid]: [string] = await sub('insert_or_update_anvils', {
-      params: [anParams],
+    const [newAnvilUuid]: [string] = await sub('insert_or_update_anvils', {
+      params: [anvilSqlParams],
     });
 
-    for (const jobParams of joinAnJobs) {
-      jobParams.job_data += `,anvil_uuid=${newAnUuid}`;
+    for (const jobParams of joinAnvilJobs) {
+      jobParams.job_data += `,anvil_uuid=${newAnvilUuid}`;
 
       await job(jobParams);
     }
-  } catch (subError) {
-    perr(`Failed to record new anvil node entry; CAUSE: ${subError}`);
-
-    return response.status(500).send();
+  } catch (error) {
+    return respond.s500(
+      'b301232',
+      `Failed to record new anvil node entry; CAUSE: ${error}`,
+    );
   }
 
-  response.status(204).send();
+  return respond.s204();
 };
