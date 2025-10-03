@@ -44,7 +44,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       getJobUrl = () => '/job',
       onFetchSuccessAppend,
       openInitially = false,
-      refreshInterval,
+      refreshInterval = 5000,
     },
     ref,
   ) => {
@@ -101,7 +101,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
           // Handle completed jobs...
 
           if (
-            last(rawJob.modified, 4, {
+            last(rawJob.modified, refreshInterval / 1000, {
               now: responded,
             })
           ) {
@@ -121,7 +121,6 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
         onFetchSuccessAppend?.call(null, rawJobs);
       },
-      periodic: true,
       refreshInterval,
     });
 
