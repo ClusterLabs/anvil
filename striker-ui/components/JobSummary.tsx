@@ -1,5 +1,5 @@
 import MuiMenu from '@mui/material/Menu';
-import {
+import React, {
   forwardRef,
   useImperativeHandle,
   useMemo,
@@ -13,7 +13,7 @@ import FlexBox from './FlexBox';
 import JobDetail from './JobDetail';
 import JobSummaryItem from './JobSummaryItem';
 import List from './List';
-import { now } from '../lib/time';
+import { last, now } from '../lib/time';
 import useFetch from '../hooks/useFetch';
 
 type JobSummaryOptionalPropsWithDefault = {
@@ -65,6 +65,8 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
         // TODO: show no jobs until toasts are in place.
       },
       onSuccess: (rawJobs) => {
+        const responded = now();
+
         Object.keys(rawJobs).forEach((uuid) => {
           const { [uuid]: rawJob } = rawJobs;
 
@@ -98,12 +100,22 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
           // Handle completed jobs...
 
-          if (toast.isActive(toastId)) {
+          if (
+            last(rawJob.modified, 4, {
+              now: responded,
+            })
+          ) {
             toast.dismiss(toastId);
 
             const label = rawJob.title || rawJob.name;
 
-            toast.success<React.ReactNode>(<>Finished &quot;{label}&quot;</>);
+            if (rawJob.error.count) {
+              toast.error<React.ReactNode>(
+                <>Finished &quot;{label}&quot; with errors</>,
+              );
+            } else {
+              toast.success<React.ReactNode>(<>Finished &quot;{label}&quot;</>);
+            }
           }
         });
 
