@@ -63,7 +63,7 @@ export const runManifest: RequestHandler<
     );
   }
 
-  const { debug, hosts, rerun } = body;
+  const { hosts, rerun } = body;
 
   let { description, password } = body;
 
@@ -106,7 +106,6 @@ export const runManifest: RequestHandler<
   const anvilSqlParams = Object.values(hosts).reduce<Record<string, string>>(
     (previous, host) => {
       joinAnvilJobs.push({
-        debug,
         file: __filename,
         job_command: SERVER_PATHS.usr.sbin['anvil-join-anvil'].self,
         job_data: `as_machine=${host.id},manifest_uuid=${manifestUuid}`,
