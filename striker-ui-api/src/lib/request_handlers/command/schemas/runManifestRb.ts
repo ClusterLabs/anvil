@@ -48,11 +48,33 @@ export const buildRunManifestRequestBodySchema = (known: {
   return yup
     .object({
       debug: yup.number().default(2),
-      description: yup.string().ensure(),
+      description: yup
+        .string()
+        .when(['rerun'], (values, schema) => {
+          const [rerun] = values;
+
+          if (rerun) {
+            return schema;
+          }
+
+          return schema.required();
+        })
+        .ensure(),
       hosts: yup.lazy((hosts) =>
         yup.object(yupDynamicObject(hosts, runManifestHost)),
       ),
-      password: yup.string().ensure(),
+      password: yup
+        .string()
+        .when(['rerun'], (values, schema) => {
+          const [rerun] = values;
+
+          if (rerun) {
+            return schema;
+          }
+
+          return schema.required();
+        })
+        .ensure(),
       rerun: yup.boolean(),
       reuseHosts: yup.boolean(),
     })
