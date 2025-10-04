@@ -26,6 +26,7 @@ router
   .put('/leave-an/:uuid', leaveAn)
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
+  .put('/run-manifest/:uuid', validateRequestTarget(), runManifest)
   .put('/scan-network', scanNetwork)
   .put('/start-an/:uuid', startAn)
   .put('/start-server/:uuid', startServer)
@@ -34,11 +35,5 @@ router
   .put('/stop-server/:uuid', stopServer)
   .put('/stop-subnode/:uuid', stopSubnode)
   .put('/update-system', updateSystem);
-
-router.use(
-  '/run-manifest/:uuid',
-  validateRequestTarget(),
-  express.Router().put('/', runManifest),
-);
 
 export default router;
