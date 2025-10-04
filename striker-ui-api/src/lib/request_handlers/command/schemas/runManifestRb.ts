@@ -15,19 +15,20 @@ const hostIds = Array.from(
   },
 );
 
-export const runManifestHost = yup.object({
-  id: yup
-    .string()
-    .ensure()
-    .when(['number', 'type'], (values, schema) => {
-      const [sequence, type] = values;
+export const runManifestHost = yup
+  .object({
+    id: yup.string().ensure(),
+    number: yup.number().required(),
+    type: yup.string().required().oneOf(['node']),
+    uuid: yupLaxUuid().required(),
+  })
+  .transform((host) => {
+    const shallow = { ...host };
 
-      return schema.transform(() => `${type}${sequence}`);
-    }),
-  number: yup.number().required(),
-  type: yup.string().required().oneOf(['node']),
-  uuid: yupLaxUuid().required(),
-});
+    shallow.id = `${shallow.type}${shallow.number}`;
+
+    return shallow;
+  });
 
 export const buildRunManifestRequestBodySchema = (known: {
   hosts: AnvilDataHostListHash;
