@@ -5,7 +5,6 @@ import SERVER_PATHS from '../../consts/SERVER_PATHS';
 
 import { Responder } from '../../Responder';
 import {
-  getData,
   getHostData,
   getManifestData,
   job,
@@ -27,16 +26,13 @@ export const runManifest: RequestHandler<
 
   let rawHostListData: AnvilDataHostListHash | undefined;
   let rawManifestListData: AnvilDataManifestListHash | undefined;
-  let rawSysData: AnvilDataSysHash | undefined;
 
   try {
     rawHostListData = await getHostData();
     rawManifestListData = await getManifestData(manifestUuid);
-    rawSysData = await getData('sys');
 
     assert.ok(rawHostListData, `Missing host list data`);
     assert.ok(rawManifestListData, `Missing manifest list data`);
-    assert.ok(rawSysData, `Missing sys data`);
   } catch (error) {
     return respond.s500(
       '5342377',
@@ -59,7 +55,6 @@ export const runManifest: RequestHandler<
       hosts: rawHostListData,
       manifest: manifestUuid,
       manifests: rawManifestListData,
-      sys: rawSysData,
     }).validate(request.body);
   } catch (error) {
     return respond.s400(

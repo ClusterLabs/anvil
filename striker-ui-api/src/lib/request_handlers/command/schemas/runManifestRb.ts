@@ -34,7 +34,6 @@ export const buildRunManifestRequestBodySchema = (known: {
   hosts: AnvilDataHostListHash;
   manifest: string;
   manifests: AnvilDataManifestListHash;
-  sys: AnvilDataSysHash;
 }) => {
   const { host_uuid: hostUuidMapToData } = known.hosts;
 
@@ -45,8 +44,6 @@ export const buildRunManifestRequestBodySchema = (known: {
       },
     },
   } = known.manifests;
-
-  const { hosts: { by_uuid: mapToHostNameData = {} } = {} } = known.sys;
 
   return yup
     .object({
@@ -174,7 +171,7 @@ export const buildRunManifestRequestBodySchema = (known: {
         if (!result && last) {
           return createError({
             message: `Cannot use [${
-              mapToHostNameData[last.uuid]
+              hostUuidMapToData[last.uuid]?.host_name
             }] for [${manifestName}] because it belongs to [${
               hostUuidMapToData[last.uuid]?.anvil_name
             }]; set reuseHost:true to allow this`,
