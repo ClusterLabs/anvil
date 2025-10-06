@@ -12,6 +12,7 @@ import {
   sub,
 } from '../../accessModule';
 import { buildRunManifestRequestBodySchema } from './schemas';
+import { yupLaxUuid } from '../../yupCommons';
 
 export const runManifest: RequestHandler<
   Express.RhParamsDictionary,
@@ -130,6 +131,8 @@ export const runManifest: RequestHandler<
     const [newAnvilUuid]: [string] = await sub('insert_or_update_anvils', {
       params: [anvilSqlParams],
     });
+
+    await yupLaxUuid().validate(newAnvilUuid);
 
     for (const jobParams of joinAnvilJobs) {
       jobParams.job_data += `,anvil_uuid=${newAnvilUuid}`;
