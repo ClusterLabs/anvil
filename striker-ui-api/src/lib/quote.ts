@@ -1,37 +1,14 @@
 import { un2n } from './un2n';
 
 /**
- * FROM SANDBOX:
+ * Wraps a string in quotes.
  *
- *  ivt = (value) => { let x = value; let n = 0; while (x > 0) { x >>= 1; n += 1; } return n; }
+ * @param {string} value the string to wrap quotes around
  *
- *  quote = (value) => {
-      const encoded = encodeURIComponent(value);
-      const matches = encoded.matchAll(/(?:%5C)*(?:%22)/g);
-      console.dir({ matches });
-      if (!matches) return value;
-      let previous = encoded;
-      let offset = 0;
-      for (const match of matches) {
-          console.dir({ match });
-          const before = match[0];
-          console.dir({ previous, before });
-          const backslashes = before.match(/(?:%5C)/g) ?? [];
-          console.dir({ backslashes });
-          const exponent = ivt(backslashes.length + 1);
-          console.dir({ exponent });
-          const lengthAfter = Math.pow(2, exponent) * 3;
-          console.dir({ lengthAfter });
-          const after = '%22'.padStart(lengthAfter, '%5C');
-          console.dir({ after });
-          previous = `${previous.slice(0, match.index + offset)}${after}${previous.slice(match.index + offset + before.length)}`;
-          console.dir({ previous });
-          offset += lengthAfter - before.length;
-          console.dir({ offset });
-      }
-      return decodeURIComponent(`%22${previous}%22`);
-    };
-  */
+ * @param {string} options.char the character to wrap with; default: `"`
+ *
+ * @returns the string wrapped by quotes
+ */
 export const quote = (
   value: string,
   options: {
@@ -73,10 +50,12 @@ export const quote = (
     const backslashes = before.match(allBackslashes) ?? [];
 
     // The number of backslashes needed in each "quoted layer" can be
-    // calculated with `2 ^ n - 1`
-
+    // calculated with `2 ^ n - 1`.
+    //
+    // Get the exponent to calculate the backslahes needed for the next layer.
     const exponent = un2n(backslashes.length + 1);
 
+    // Simplify `2 ^ n - 1 + 1` because we need to include the quote's length.
     const lengthAfter = Math.pow(2, exponent) * encoded.backslash.length;
 
     const after = encoded.quote.padStart(lengthAfter, encoded.backslash);
