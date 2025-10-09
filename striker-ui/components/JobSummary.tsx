@@ -1,19 +1,19 @@
 import MuiMenu from '@mui/material/Menu';
-import {
+import React, {
   forwardRef,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { toast } from 'react-toastify';
 
 import { DialogWithHeader } from './Dialog';
 import FlexBox from './FlexBox';
 import JobDetail from './JobDetail';
+import JobSummaryItem from './JobSummaryItem';
 import List from './List';
-import PieProgress from './PieProgress';
-import { BodyText } from './Text';
-import { elapsed, now } from '../lib/time';
+import { last, now } from '../lib/time';
 import useFetch from '../hooks/useFetch';
 
 type JobSummaryOptionalPropsWithDefault = {
@@ -44,7 +44,7 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       getJobUrl = () => '/job',
       onFetchSuccessAppend,
       openInitially = false,
-      refreshInterval,
+      refreshInterval = 5000,
     },
     ref,
   ) => {
@@ -57,18 +57,70 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
       HTMLElement | undefined
     >();
 
-    // Epoch in seconds
+    // Epoch in seconds, set at pre-render
     const loaded = useMemo(() => now(), []);
-    const nao = now();
 
     const { data: jobs } = useFetch<APIJobOverviewList>(getJobUrl(loaded), {
       onError: () => {
         // TODO: show no jobs until toasts are in place.
       },
-      onSuccess: (rawAnvilJobs) => {
-        onFetchSuccessAppend?.call(null, rawAnvilJobs);
+      onSuccess: (rawJobs) => {
+        const responded = now();
+
+        Object.keys(rawJobs).forEach((uuid) => {
+          const { [uuid]: rawJob } = rawJobs;
+
+          const toastId = `job-toast-${uuid}`;
+
+          if (rawJob.progress < 100) {
+            // Handle incomplete jobs...
+
+            if (toast.isActive(toastId)) {
+              // Update the toast contents when it already exists.
+              toast.update<React.ReactNode>(toastId, {
+                render: <JobSummaryItem job={rawJob} />,
+              });
+
+              return;
+            }
+
+            // Make a new toast when it's new.
+            toast<React.ReactNode>(<JobSummaryItem job={rawJob} />, {
+              autoClose: false,
+              onClick: () => {
+                setJobUuid(uuid);
+
+                detailDialogRef.current?.setOpen(true);
+              },
+              toastId,
+            });
+
+            return;
+          }
+
+          // Handle completed jobs...
+
+          if (
+            last(rawJob.modified, refreshInterval / 1000, {
+              now: responded,
+            })
+          ) {
+            toast.dismiss(toastId);
+
+            const label = rawJob.title || rawJob.name;
+
+            if (rawJob.error.count) {
+              toast.error<React.ReactNode>(
+                <>Finished &quot;{label}&quot; with errors</>,
+              );
+            } else {
+              toast.success<React.ReactNode>(<>Finished &quot;{label}&quot;</>);
+            }
+          }
+        });
+
+        onFetchSuccessAppend?.call(null, rawJobs);
       },
-      periodic: true,
       refreshInterval,
     });
 
@@ -96,54 +148,12 @@ const JobSummary = forwardRef<JobSummaryForwardedRefContent, JobSummaryProps>(
 
               detailDialogRef.current?.setOpen(true);
             }}
-            renderListItem={(uuid, job) => {
-              const { host, name, progress, started, title } = job;
-              const { shortName: shortHostName } = host;
-              const label = title || name;
-
-              let status: string;
-
-              if (started) {
-                const { unit, value } = elapsed(nao - started);
-
-                status = `Started ~${value}${unit} ago on ${shortHostName}.`;
-              } else {
-                status = `Queued on ${shortHostName}`;
-              }
-
-              return (
-                <FlexBox fullWidth spacing=".2em">
-                  <FlexBox row spacing=".5em">
-                    <PieProgress
-                      error={Boolean(job.error.count)}
-                      slotProps={{
-                        pie: {
-                          sx: {
-                            flexShrink: 0,
-                          },
-                        },
-                      }}
-                      value={progress}
-                    />
-                    <BodyText
-                      sx={{
-                        overflowX: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {label}
-                    </BodyText>
-                  </FlexBox>
-                  <BodyText>{status}</BodyText>
-                </FlexBox>
-              );
-            }}
+            renderListItem={(uuid, job) => <JobSummaryItem job={job} />}
             scroll
           />
         </FlexBox>
       ),
-      [jobs, nao],
+      [jobs],
     );
 
     return (
