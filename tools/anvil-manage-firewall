@@ -133,6 +133,7 @@ sub wait_for_server
 		level    => 2,
 		message  => "job_0401,!!server!".$anvil->data->{switches}{server}."!!", 
 	});
+	### TODO: Check if the server is running on the peer if it's not running here.
 	my $wait_until  = time + 60;
 	my $waiting     = 1;
 	my $server_name = $anvil->data->{switches}{server};
