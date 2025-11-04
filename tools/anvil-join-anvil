@@ -486,7 +486,7 @@ sub configure_servers
 	}
 	
 	# Walk through the resources and any we find, see if they need to be sync'ed.
-	$anvil->Database->get_servers({debug => 3});
+	$anvil->Database->get_servers({debug => 2});
 	foreach my $server (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
 	{
 		my $status  = $anvil->data->{cib}{parsed}{data}{server}{$server}{status};

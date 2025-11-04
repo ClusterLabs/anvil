@@ -1,4 +1,5 @@
 import { access } from './instance';
+import { quote } from '../quote';
 
 export const opSub = (
   subroutine: string,
@@ -22,7 +23,7 @@ export const opSub = (
       result = String(p);
     }
 
-    return `"${result.replaceAll('"', '\\"')}"`;
+    return quote(result);
   });
 
   return `x ${chain} ${subParams.join(' ')}`;

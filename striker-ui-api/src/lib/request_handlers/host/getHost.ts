@@ -83,6 +83,9 @@ export const getHost: RequestHandler<
       a.host_status,
       a.host_type,
       a.host_uuid,
+      ROUND(
+        EXTRACT(epoch from a.modified_date)
+      ) AS modified_epoch,
       b.anvil_uuid,
       b.anvil_name,
       c.variable_value
@@ -117,6 +120,7 @@ export const getHost: RequestHandler<
       hostStatus,
       hostType,
       hostUuid,
+      modified,
       anvilUuid,
       anvilName,
       hostConfigured,
@@ -137,6 +141,7 @@ export const getHost: RequestHandler<
       hostStatus,
       hostType,
       hostUUID: hostUuid,
+      modified: Number(modified),
       shortHostName: getShortHostName(hostName),
     };
   });

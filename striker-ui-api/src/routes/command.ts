@@ -1,5 +1,6 @@
 import express from 'express';
 
+import { validateRequestTarget } from '../middlewares';
 import {
   getHostSSH,
   joinAn,
@@ -25,7 +26,7 @@ router
   .put('/leave-an/:uuid', leaveAn)
   .put('/poweroff-host', poweroffStriker)
   .put('/reboot-host', rebootStriker)
-  .put('/run-manifest/:manifestUuid', runManifest)
+  .put('/run-manifest/:uuid', validateRequestTarget(), runManifest)
   .put('/scan-network', scanNetwork)
   .put('/start-an/:uuid', startAn)
   .put('/start-server/:uuid', startServer)

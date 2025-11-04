@@ -12,6 +12,7 @@ import { BodyText, MonoText, SensitiveText } from './Text';
 const isNone = (value: unknown) =>
   value === undefined ||
   value === null ||
+  (typeof value === 'object' && isEmpty(value)) ||
   (typeof value === 'number' && !Number.isFinite(value)) ||
   (typeof value === 'string' && value.trim().length === 0);
 

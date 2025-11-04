@@ -105,6 +105,12 @@ sub check_config
 	
 	my $problem = 0;
 	
+	if ($anvil->data->{feature}{'manage-smtp'}{disable})
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0370"});
+		return(0);
+	}
+	
 	# We check to see if there are any emails in the queue. If we see queued emails for more than five 
 	# minutes, and a second mail server is configured, we'll automatically reconfigure for the next 
 	# known server.

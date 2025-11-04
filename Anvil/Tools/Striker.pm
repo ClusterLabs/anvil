@@ -328,7 +328,7 @@ sub generate_manifest
 ';
 		foreach my $fence_name (sort {$a cmp $b} keys %{$machines->{$machine}{fence}})
 		{
-			$manifest_xml .= '				<fence name="'.$fence_name.'" port="'.$machines->{$machine}{fence}{$fence_name}.'" />
+			$manifest_xml .= '				<fence name="'.$fence_name.'" plug="'.$machines->{$machine}{fence}{$fence_name}.'" />
 ';
 		}
 		$manifest_xml .= '			</fences>
@@ -951,7 +951,7 @@ The parsed manifest XML is stored as (<machine> == node1, node2 or dr1):
  manifests::manifest_uuid::<manifest_uuid>::parsed::networks::name::<network_name>::gateway         = <gateway ip, if any>
  manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::name                        = <host name>
  manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ipmi_ip                     = <ip of IPMI BMC, if any>
- manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::fence::<fence_name>::port   = <'port' name/number (see fence agent man page)
+ manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::fence::<fence_name>::plug   = <'plug' name/number (see fence agent man page)
  manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::ups::<ups_name>::used       = <1 if powered by USB, 0 if not>
  manifests::manifest_uuid::<manifest_uuid>::parsed::machine::<machine>::network::<network_name>::ip = <ip used on network>
 
@@ -1127,6 +1127,7 @@ WHERE
 		my $bcn_count = 0;
 		my $sn_count  = 0;
 		my $ifn_count = 0;
+		my $mn_count  = 0;
 		foreach my $hash_ref (@{$parsed_xml->{networks}{network}})
 		{
 			my $network_name                                                                                            = $hash_ref->{name};
@@ -1141,14 +1142,17 @@ WHERE
 			if    ($network_name =~ /^bcn/) { $bcn_count++; }
 			elsif ($network_name =~ /^sn/)  { $sn_count++; }
 			elsif ($network_name =~ /^ifn/) { $ifn_count++; }
+			elsif ($network_name =~ /^mn/)  { $mn_count++; }
 		}
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn} = $bcn_count;
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn}  = $sn_count;
 		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn} = $ifn_count;
+		$anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{mn}  = $mn_count;
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::bcn" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{bcn}, 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::sn"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{sn}, 
 			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::ifn" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{ifn}, 
+			"manifests::manifest_uuid::${manifest_uuid}::parsed::networks::count::mn"  => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{networks}{count}{mn}, 
 		}});
 		
 		foreach my $machine (sort {$a cmp $b} keys %{$parsed_xml->{machines}})
@@ -1189,9 +1193,11 @@ WHERE
 			if (ref($parsed_xml->{machines}{$machine}{fences}{fence}) eq "HASH")
 			{
 				my $fence_name                                                                                                   = $parsed_xml->{machines}{$machine}{fences}{fence}{name};
-				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $parsed_xml->{machines}{$machine}{fences}{fence}{port};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $parsed_xml->{machines}{$machine}{fences}{fence}{plug} ? $parsed_xml->{machines}{$machine}{fences}{fence}{plug} : $parsed_xml->{machines}{$machine}{fences}{fence}{port};
+				   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{plug} = $parsed_xml->{machines}{$machine}{fences}{fence}{plug} ? $parsed_xml->{machines}{$machine}{fences}{fence}{plug} : $parsed_xml->{machines}{$machine}{fences}{fence}{port};
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
+					"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::plug" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{plug}, 
 				}});
 			}
 			elsif (ref($parsed_xml->{machines}{$machine}{fences}{fence}) eq "ARRAY")
@@ -1199,9 +1205,11 @@ WHERE
 				foreach my $hash_ref (@{$parsed_xml->{machines}{$machine}{fences}{fence}})
 				{
 					my $fence_name                                                                                                   = $hash_ref->{name};
-					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{port};
+					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port} = $hash_ref->{plug} ? $hash_ref->{plug} : $hash_ref->{port};
+					   $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{plug} = $hash_ref->{plug} ? $hash_ref->{plug} : $hash_ref->{port};
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::port" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{port}, 
+						"manifests::manifest_uuid::${manifest_uuid}::parsed::machine::${machine}::fence::${fence_name}::plug" => $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$machine}{fence}{$fence_name}{plug}, 
 					}});
 				}
 			}

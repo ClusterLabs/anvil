@@ -78,6 +78,7 @@ type APIHostOverview = {
   hostStatus: APIHostStatus;
   hostType: string;
   hostUUID: string;
+  modified: number;
   shortHostName: string;
 };
 
@@ -92,6 +93,7 @@ type APIHostDetail = {
     uuid: string;
   };
   configured: boolean;
+  modified: number;
   name: string;
   short: string;
   status: {

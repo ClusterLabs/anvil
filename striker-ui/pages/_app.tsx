@@ -7,6 +7,7 @@ import createEmotionCache from '../lib/create_emotion_cache/createEmotionCache';
 import theme from '../theme';
 import '../styles/globals.css';
 
+import ToastContainer from '../components/ToastContainer';
 import useSessionExpiryCheck from '../hooks/useSessionExpiryCheck';
 
 const clientSideEmotionCache = createEmotionCache();
@@ -26,7 +27,12 @@ interface MyAppProps extends AppProps {
 const PageWrapper: React.FC<MyAppProps> = ({ Component, pageProps }) => {
   useSessionExpiryCheck();
 
-  return <Component {...pageProps} />;
+  return (
+    <>
+      <Component {...pageProps} />
+      <ToastContainer position="bottom-right" />
+    </>
+  );
 };
 
 const App: React.FC<MyAppProps> = (props) => {

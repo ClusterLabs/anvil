@@ -1,16 +1,16 @@
 import cloneDeep from 'lodash/cloneDeep';
 
 const guessHostNets = <F extends HostNetInitFormikExtension>({
-  appliedIfaces,
+  appliedNics,
   chains,
-  data,
+  nics,
   formikUtils,
   host,
   subnodeCount = 2,
 }: {
-  appliedIfaces: Record<string, boolean>;
+  appliedNics: Record<string, boolean>;
   chains: Record<'dns' | 'gateway' | 'networkInit' | 'networks', string>;
-  data: APINetworkInterfaceOverviewList;
+  nics: APINetworkInterfaceOverviewList;
   formikUtils: FormikUtils<F>;
   host: HostNetInitHost;
   subnodeCount?: number;
@@ -20,27 +20,99 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   // Clone at the level that includes all possible changes.
   const clone = cloneDeep(formik.values.networkInit);
 
-  const ifaceValues = Object.values(data);
+  // Get the host network slot values as readonly.
+  const hostNets: ReadonlyArray<[string, HostNetFormikValues]> =
+    Object.entries<HostNetFormikValues>(formik.values.networkInit.networks);
 
-  // Categorize unapplied interfaces based on their IP.
-  const candidates = ifaceValues.reduce<
+  // List unapplied interfaces.
+  const unappliedNics = Object.values(nics).filter((nic) => {
+    const { uuid } = nic;
+
+    return !appliedNics[uuid];
+  });
+
+  // Put as many known interfaces into their previous slot(s) and return the
+  // unused interfaces.
+  const unknownNics = unappliedNics.filter((nic) => {
+    const { slot: nicSlot } = nic;
+
+    if (!nicSlot) {
+      return true;
+    }
+
+    const found = hostNets.find((pair) => {
+      const [, hostSlot] = pair;
+
+      return (
+        `${hostSlot.type}${hostSlot.sequence}` ===
+        `${nicSlot.type}${nicSlot.sequence}`
+      );
+    });
+
+    if (!found) {
+      return true;
+    }
+
+    // At this point, we found a host slot for this NIC to fit in.
+
+    const [key] = found;
+
+    const slot = clone.networks[key];
+
+    const initialParent: Readonly<HostNetInitFormikValues> =
+      formik.initialValues.networkInit;
+    const initialSlot: Readonly<HostNetFormikValues> | undefined =
+      initialParent.networks[key];
+
+    const linkIndex = nicSlot.link - 1;
+
+    const netChain = `${chains.networks}.${key}`;
+    const linkChain = `${netChain}.interfaces.${linkIndex}`;
+    const ipChain = `${netChain}.ip`;
+    const maskChain = `${netChain}.subnetMask`;
+
+    if (!getFieldChanged(linkChain) && !initialSlot?.interfaces[linkIndex]) {
+      slot.interfaces[linkIndex] = nic.uuid;
+    }
+
+    if (!getFieldChanged(ipChain) && !initialSlot?.ip) {
+      slot.ip = nicSlot.ip || '';
+    }
+
+    if (!getFieldChanged(maskChain) && !initialSlot?.subnetMask) {
+      slot.subnetMask = nicSlot.subnetMask || '';
+    }
+
+    if (!getFieldChanged(chains.dns) && !initialParent.dns) {
+      clone.dns = nicSlot.dns || '';
+    }
+
+    if (!getFieldChanged(chains.gateway) && !initialParent.gateway) {
+      clone.gateway = nicSlot.gateway || '';
+    }
+
+    return false;
+  });
+
+  // Categorize unknown interfaces based on their IP.
+  const candidates = unknownNics.reduce<
     Record<'bcn' | 'ifn' | 'mn' | 'sn', APINetworkInterfaceOverview[]>
   >(
-    (previous, iface) => {
-      const { ip, uuid } = iface;
+    (previous, nic) => {
+      const { ip } = nic;
 
-      if (appliedIfaces[uuid] || !ip) {
+      if (!ip) {
         return previous;
       }
 
       if (/^10\.10/.test(ip)) {
-        previous.sn.push(iface);
+        previous.sn.push(nic);
       } else if (/^10\.19/.test(ip)) {
-        previous.mn.push(iface);
+        previous.mn.push(nic);
       } else if (/^10\.20/.test(ip)) {
-        previous.bcn.push(iface);
+        previous.bcn.push(nic);
       } else {
-        previous.ifn.push(iface);
+        previous.ifn.push(nic);
       }
 
       return previous;
@@ -51,10 +123,6 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
       mn: [],
       sn: [],
     },
-  );
-
-  const hostNets = Object.entries<HostNetFormikValues>(
-    formik.values.networkInit.networks,
   );
 
   // Categorize slots based on their type.
@@ -104,7 +172,7 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
       slots[slotType].forEach(([key]) => {
         const slot = clone.networks[key];
 
-        const initialSlot: HostNetFormikValues | undefined =
+        const initialSlot: Readonly<HostNetFormikValues> | undefined =
           formik.initialValues.networkInit.networks[key];
 
         const netChain = `${chains.networks}.${key}`;
@@ -149,10 +217,10 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
   slots.ifn.forEach(([key]) => {
     const slot = clone.networks[key];
 
-    const initialSlot: HostNetFormikValues | undefined =
-      formik.initialValues.networkInit.networks[key];
-    const initialParent: HostNetInitFormikValues =
+    const initialParent: Readonly<HostNetInitFormikValues> =
       formik.initialValues.networkInit;
+    const initialSlot: Readonly<HostNetFormikValues> | undefined =
+      initialParent.networks[key];
 
     const netChain = `${chains.networks}.${key}`;
     const ifChain = `${netChain}.interfaces.0`;
@@ -161,7 +229,9 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
 
     const candidate = candidates.ifn.shift();
 
-    if (!candidate) return;
+    if (!candidate) {
+      return;
+    }
 
     if (!getFieldChanged(ifChain) && !initialSlot?.interfaces[0]) {
       slot.interfaces[0] = candidate.uuid;
@@ -175,7 +245,9 @@ const guessHostNets = <F extends HostNetInitFormikExtension>({
       slot.subnetMask = candidate.subnetMask || '';
     }
 
-    if (slot.sequence !== '1') return;
+    if (slot.sequence !== '1') {
+      return;
+    }
 
     if (!getFieldChanged(chains.dns) && !initialParent.dns) {
       clone.dns = candidate.dns || '';
