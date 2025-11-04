@@ -195,7 +195,7 @@ sub create_constraint
 	# Make sure there's a rule to apply the node attribute against.
 	my $rule_found = 0;
 	my $rule_name  = "drbd-fenced_".$target_server;
-	my $shell_call = $conf->{path}{exe}{pcs_direct}." constraint location config show ".$target_server;
+	my $shell_call = $conf->{path}{exe}{pcs_direct}." constraint location config resource ".$target_server;
 	to_log($conf, {message => "Calling: [".$shell_call."]", 'line' => __LINE__, level => 1});
 	open (my $file_handle, $shell_call." 2>&1 |") or die "Failed to call: [".$shell_call."]. The error was: $!\n";
 	while(<$file_handle>)

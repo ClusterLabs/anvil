@@ -1389,14 +1389,14 @@ sub check_stonith_config
 			my $fence_arguments = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_arguments};
 			my $fence_agent     = $anvil->data->{fences}{fence_uuid}{$fence_uuid}{fence_agent};
 			my $stonith_name    = ($fence_agent =~ /^fence_(.*)$/)[0]."_".$node."_".$fence_name; 
-			my $port            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
+			my $plug            = $anvil->data->{manifests}{manifest_uuid}{$manifest_uuid}{parsed}{machine}{$node}{fence}{$device}{port};
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 				device          => $device, 
 				fence_uuid      => $fence_uuid, 
 				fence_name      => $fence_name, 
 				fence_arguments => $fence_arguments =~ /passw/ ? $anvil->Log->is_secure($fence_arguments) : $fence_arguments,
 				stonith_name    => $stonith_name, 
-				port            => $port, 
+				plug            => $plug, 
 			}});
 			
 			# We use this to tell if there are two or more entries per agent. If there
@@ -1449,25 +1449,25 @@ sub check_stonith_config
 				}});
 			}
 			
-			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { port => $port }});
-			if ($port)
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { plug => $plug }});
+			if ($plug)
 			{
-				$port                 =~ s/"/\\"/g;
-				$pcs_add_command      .= "port=\"".$port."\" ";
-				$old_switches->{port} =  $port;
+				$plug                 =~ s/"/\\"/g;
+				$pcs_add_command      .= "plug=\"".$plug."\" ";
+				$old_switches->{plug} =  $plug;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					pcs_add_command => $pcs_add_command =~ /passw/ ? $anvil->Log->is_secure($pcs_add_command) : $pcs_add_command, 
-					"old_switches->{port}" => $old_switches->{port},
+					"old_switches->{plug}" => $old_switches->{plug},
 				}});
 			}
 			else
 			{
-				# If the port is required but not defined, remove this.
+				# If the plug is required but not defined, remove this.
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 					"fence_data::${fence_agent}::parameters::port::required" => $anvil->data->{fence_data}{$fence_agent}{parameters}{port}{required}, 
-					port                                                     => $port,
+					plug                                                     => $plug,
 				}});
-				if (($anvil->data->{fence_data}{$fence_agent}{parameters}{port}{required}) && (not $port))
+				if (($anvil->data->{fence_data}{$fence_agent}{parameters}{port}{required}) && (not $plug))
 				{
 					if (exists $anvil->data->{cib}{parsed}{cib}{resources}{primitive}{$stonith_name})
 					{
@@ -1505,8 +1505,8 @@ sub check_stonith_config
 					
 					if ($old_entry ne $new_entry)
 					{
-						# If the port was removed, delete his entry.
-						if (not $port)
+						# If the plug was removed, delete his entry.
+						if (not $plug)
 						{
 							$delete_old = 1;
 							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { delete_old => $delete_old }});
@@ -1622,7 +1622,6 @@ sub check_stonith_config
 				}
 			}
 		}
-		
 		
 		### If we had a fence_ipmilan entry, add a 'fence_delay' entry, if needed.
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
