@@ -6,7 +6,7 @@ Major components;
 * The "Striker" Web interface
 * Tools for Striker dashboards, Anvil! nodes and DR targets
 
-Lastest Release: v3.3
+Lastest Release: v3.2.1
 
 What is an Anvil! and why do I care?
 - https://www.alteeve.com/w/What_is_an_Anvil!_and_why_do_I_care%3F
