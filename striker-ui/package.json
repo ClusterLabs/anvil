@@ -29,7 +29,7 @@
     "formik": "^2.4.3",
     "lodash": "^4.17.21",
     "netmask": "^2.0.2",
-    "next": "^15.3.3",
+    "next": "^15.5.9",
     "pretty-bytes": "^7.0.0",
     "react": "^19.1.0",
     "react-cookie": "^8.0.1",
