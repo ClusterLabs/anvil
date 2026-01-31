@@ -29,6 +29,8 @@ const useActiveFetch = <ResData, ReqData = unknown>(
   const [loading, setLoading] = useState<boolean>(false);
 
   const fetch = useCallback<ActiveFetcher<ReqData>>(
+    // We can't change the fetcher type, so let's ignore the lint error
+    // eslint-disable-next-line default-param-last
     (urlPostfix = '', config) => {
       const url = `${urlPrefix}${urlPostfix}`;
 
