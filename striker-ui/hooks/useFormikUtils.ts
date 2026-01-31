@@ -32,9 +32,7 @@ const isEqualIn = (
 
 const useFormikUtils = <Values extends FormikValues = FormikValues>(
   formikConfig: FormikConfig<Values>,
-  options: {
-    allowClean?: boolean;
-  } = {},
+  options: FormikUtilsOptions = {},
 ): FormikUtils<Values> => {
   const changed = useRef<Tree<boolean>>({});
 
@@ -148,7 +146,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
       // The following will:
       // - evaluate to `false` when allow clean submit,
       // - fallback to dirty check when **not** allow clean submit
-      (!options.allowClean && !formik.dirty) ||
+      (!options.allowCleanSubmit && !formik.dirty) ||
       !formik.isValid ||
       formik.isValidating ||
       formik.isSubmitting,
@@ -158,7 +156,7 @@ const useFormikUtils = <Values extends FormikValues = FormikValues>(
       formik.isSubmitting,
       formik.isValid,
       formik.isValidating,
-      options.allowClean,
+      options.allowCleanSubmit,
     ],
   );
 

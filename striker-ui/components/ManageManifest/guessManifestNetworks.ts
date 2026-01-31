@@ -153,8 +153,12 @@ const guessManifestNetworks = <V extends ManifestFormikValues>({
 
     guessed.hosts[subnodeSequence] = {
       ...guessed.hosts[subnodeSequence],
-      [INPUT_ID_AH_IPMI_IP]: host.ipmi.ip,
     };
+
+    // Don't overwrite the IPMI IP when there's nothing to overwrite with!
+    if (host.ipmi.ip) {
+      guessed.hosts[subnodeSequence][INPUT_ID_AH_IPMI_IP] = host.ipmi.ip;
+    }
 
     networkEntries.forEach((entry) => {
       const [networkId, network] = entry;

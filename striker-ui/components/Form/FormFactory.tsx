@@ -19,14 +19,15 @@ type FormFactoryParams<V extends FormikValues> = {
 type FormProps<V extends FormikValues> = Pick<
   FormActionGroupProps<V>,
   'operation'
-> & {
-  config: FormikConfig<V>;
-  slotProps?: {
-    actions?: FormActionGroupProps<V>;
-    grid?: FormGridProps<V>;
-    messages?: FormMessageGroupProps<V>;
+> &
+  FormikUtilsOptions & {
+    config: FormikConfig<V>;
+    slotProps?: {
+      actions?: FormActionGroupProps<V>;
+      grid?: FormGridProps<V>;
+      messages?: FormMessageGroupProps<V>;
+    };
   };
-};
 
 const createForm = <V extends FormikValues>(params?: FormFactoryParams<V>) => {
   const FormContext: React.Context<FormContextValue<V> | null> =
@@ -35,9 +36,9 @@ const createForm = <V extends FormikValues>(params?: FormFactoryParams<V>) => {
     );
 
   const Form: React.FC<React.PropsWithChildren<FormProps<V>>> = (props) => {
-    const { children, config, operation, slotProps } = props;
+    const { allowCleanSubmit, children, config, operation, slotProps } = props;
 
-    const formikUtils = useFormikUtils<V>(config);
+    const formikUtils = useFormikUtils<V>(config, { allowCleanSubmit });
 
     const formContextValue = useMemo<FormContextValue<V> | null>(
       () => ({

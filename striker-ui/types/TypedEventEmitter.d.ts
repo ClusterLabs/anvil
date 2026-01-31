@@ -1,7 +1,9 @@
+type BaseEventEmitter = import('events');
+
 declare interface TypedEventEmitter<
   MapToEventListenerParameters extends Record<string | symbol, unknown[]>,
   EventName = keyof MapToEventListenerParameters,
-> extends import('events').EventEmitter {
+> extends BaseEventEmitter {
   emit(
     event: EventName,
     ...args: MapToEventListenerParameters[EventName]

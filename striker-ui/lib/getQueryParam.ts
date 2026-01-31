@@ -8,6 +8,6 @@ const getQueryParam = (
 ): string =>
   queryParam instanceof Array
     ? queryParam.slice(0, limit).join(joinSeparator)
-    : queryParam ?? fallbackValue;
+    : (queryParam ?? fallbackValue);
 
 export default getQueryParam;

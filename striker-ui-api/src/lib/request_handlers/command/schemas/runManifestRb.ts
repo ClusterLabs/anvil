@@ -92,7 +92,7 @@ export const buildRunManifestRequestBodySchema = (known: {
           {},
         );
 
-        let last: typeof hosts[number] | undefined;
+        let last: (typeof hosts)[number] | undefined;
 
         const result = hosts.every((host) => {
           last = host;
@@ -130,7 +130,7 @@ export const buildRunManifestRequestBodySchema = (known: {
 
         const checklist: Record<string, boolean> = {};
 
-        let last: typeof hosts[number] | undefined;
+        let last: (typeof hosts)[number] | undefined;
 
         const result = hosts.every((host) => {
           last = host;
@@ -168,7 +168,7 @@ export const buildRunManifestRequestBodySchema = (known: {
 
         const hosts = Object.values(body.hosts);
 
-        let last: typeof hosts[number] | undefined;
+        let last: (typeof hosts)[number] | undefined;
 
         const result = hosts.every((host) => {
           last = host;
