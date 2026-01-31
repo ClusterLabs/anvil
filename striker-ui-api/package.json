@@ -4,10 +4,10 @@
   "description": "API for striker-ui",
   "scripts": {
     "build": "webpack",
-    "eslint:base": "eslint --ext js,ts --max-warnings=0",
+    "eslint:base": "eslint --max-warnings=0",
     "lint": "npm run eslint:base -- . && npm run prettier:base -- --check",
     "lint:fix": "npm run eslint:base -- --fix . && npm run prettier:base -- --write",
-    "prettier:base": "prettier '**/*.{js,json,md,ts}'",
+    "prettier:base": "prettier './!(out)/**/*.{js,json,md,ts}'",
     "start": "npm run build && node out/index.js"
   },
   "dependencies": {
