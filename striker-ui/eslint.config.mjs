@@ -30,7 +30,13 @@ delete configImportTypescript.plugins;
  * @type {import('eslint').Linter.Config}
  */
 const config = defineConfig([
-  globalIgnores(['node_modules/', '.next/', 'out/', '**/*.config.{js,mjs}']),
+  globalIgnores([
+    '.next/',
+    'next-env.d.ts',
+    'node_modules/',
+    'out/',
+    '**/*.config.{js,mjs}',
+  ]),
   // Previously: "airbnb"
   //
   // Convert the old eslintrc config
@@ -83,7 +89,7 @@ const config = defineConfig([
       prettierConfig,
 
       // Replaces: "next/core-web-vitals"
-      nextPlugin.flatConfig.recommended,
+      nextPlugin.configs.recommended,
     ],
 
     files: ['**/*.{js,jsx,ts,tsx}'],
