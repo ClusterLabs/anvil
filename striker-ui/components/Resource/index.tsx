@@ -2,8 +2,6 @@ import { Panel } from '../Panels';
 import { HeaderText } from '../Text';
 import ResourceVolumes from './ResourceVolumes';
 
-
-
 const Resource = ({
   resource,
 }: {
