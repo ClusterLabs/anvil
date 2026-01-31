@@ -228,6 +228,7 @@ const ManageManifestPanel: React.FC = () => {
       >
         {manifests && manifestTemplate && hosts && (
           <ManifestForm
+            allowCleanSubmit
             config={{
               initialValues: getManifestFormikInitialValues(
                 manifestTemplate,
