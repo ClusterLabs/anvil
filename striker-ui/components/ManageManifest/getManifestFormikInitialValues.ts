@@ -59,10 +59,12 @@ const populateHostIpmi = (
 
   const [networkId] = bcn;
 
-  return guessHostIpmiIp(
+  const ip = guessHostIpmiIp(
     hostNetworks[networkId]?.[INPUT_ID_AH_NETWORK_IP],
     used,
   );
+
+  return ip;
 };
 
 const populateHostNetwork = (
