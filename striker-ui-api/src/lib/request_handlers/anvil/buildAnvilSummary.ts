@@ -190,7 +190,7 @@ export const buildAnvilSummary = async ({
   hostClusterFlagRows.forEach((row) => {
     const [uuid, ccm, crmd, cluster, maintenance] = row as [
       string,
-      ...number[]
+      ...number[],
     ];
 
     const { [uuid]: host } = hosts;
