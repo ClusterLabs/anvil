@@ -67,3 +67,7 @@ type FormikUtils<Values extends FormikValues> = {
   ) => void;
   validationSchemaHelpers?: FormikValidationSchemaHelpers;
 };
+
+type FormikUtilsOptions = {
+  allowCleanSubmit?: boolean;
+};

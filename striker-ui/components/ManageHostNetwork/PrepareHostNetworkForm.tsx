@@ -127,7 +127,7 @@ const PrepareHostNetworkForm: React.FC<PrepareHostNetworkFormProps> = (
       validationSchema: prepareHostNetworkSchema,
     },
     {
-      allowClean: true,
+      allowCleanSubmit: true,
     },
   );
 
