@@ -172,7 +172,7 @@ const Preview = <Server extends ServerCore>(
       <MuiBox
         alt={`${capitalize(server.state)}. Preview unavailable`}
         component="img"
-        src={`data:image;base64,${preview}`}
+        src={`data:image/jpeg;base64,${preview}`}
         sx={merge(
           {
             color: GREY,
