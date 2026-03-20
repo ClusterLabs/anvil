@@ -1014,6 +1014,22 @@ sub reconfigure_bridges
 					my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bridge_uuid, variable => "ipv4.method", value => "disabled"});
 					   ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bridge_uuid, variable => "ipv6.method", value => "disabled"});
 					
+					# Disable STP on the bridge (critical for Cisco BPDU Guard support, if STP is enabled, Cisco kills the port)
+					$anvil->Job->update_progress({
+						progress  => $anvil->Job->bump_progress({steps => 1}), 
+						message   => "message_0528", 
+						log_level => 1,
+						'print'   => 1, 
+						job_uuid  => $anvil->data->{job}{uuid},
+						file      => $THIS_FILE, 
+						line      => __LINE__,
+						variables => { 
+							device      => $bridge_name,
+							device_uuid => $bridge_uuid, 
+						},
+					});
+			    ($output, $return_code) = $anvil->Network->modify_connection({uuid => $bridge_uuid, variable => "bridge.stp", value => "no"});
+					
 					my $shell_call = $anvil->data->{path}{exe}{nmcli}." connection up ".$bridge_name;
 					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { shell_call => $shell_call }});
 					($output, $return_code) = $anvil->System->call({shell_call => $shell_call});
