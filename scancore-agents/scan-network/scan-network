@@ -838,30 +838,14 @@ sub collect_data
 			elsif (-d $full_path."/bridge")
 			{
 				# It's a bridge
-				$type               =  "bridge";
-				$bridge_id          =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/bridge_id"});
-				$bridge_stp_enabled =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/stp_state"});
-				$bridge_id          =~ s/\n$//;
-				$bridge_stp_enabled =~ s/\n$//;
-				$speed              = 0;
+				$type      =  "bridge";
+				$bridge_id =  $anvil->Storage->read_file({debug => 3, file => $full_path."/bridge/bridge_id"});
+				$bridge_id =~ s/\n$//;
+				$speed     = 0;
 				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
-					type               => $type,
-					bridge_id          => $bridge_id, 
-					bridge_stp_enabled => $bridge_stp_enabled, 
+					type      => $type,
+					bridge_id => $bridge_id, 
 				}});
-				if ($bridge_stp_enabled eq "0")
-				{
-					$bridge_stp_enabled = "disabled";
-				}
-				elsif ($bridge_stp_enabled eq "1")
-				{
-					$bridge_stp_enabled = "enabled_kernel";
-				}
-				elsif ($bridge_stp_enabled eq "2")
-				{
-					$bridge_stp_enabled = "enabled_userland";
-				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { bridge_stp_enabled => $bridge_stp_enabled }});
 			}
 			
 			# If this is a 'vnet' device, set 'operational' to up
@@ -880,7 +864,6 @@ sub collect_data
 				bond_master          => $bond_master, 
 				bond_mode            => $bond_mode, 
 				bridge_id            => $bridge_id, 
-				bridge_stp_enabled   => $bridge_stp_enabled, 
 				down_delay           => $down_delay, 
 				duplex               => $duplex, 
 				interface            => $interface,
@@ -946,7 +929,6 @@ sub collect_data
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode}            = $bond_mode; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bond_master}          = $bond_master; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id}            = $bridge_id; 
-			$anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled}   = $bridge_stp_enabled; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{down_delay}           = $down_delay; 
 			$anvil->data->{network}{$local_host}{interface}{$interface}{duplex}               = $duplex;
 			$anvil->data->{network}{$local_host}{interface}{$interface}{ip}                   = $ip_address; 
@@ -970,7 +952,6 @@ sub collect_data
 				"network::${local_host}::interface::${interface}::bond_mode"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_mode},
 				"network::${local_host}::interface::${interface}::bond_master"          => $anvil->data->{network}{$local_host}{interface}{$interface}{bond_master},
 				"network::${local_host}::interface::${interface}::bridge_id"            => $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id}, 
-				"network::${local_host}::interface::${interface}::bridge_stp_enabled"   => $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled}, 
 				"network::${local_host}::interface::${interface}::down_delay"           => $anvil->data->{network}{$local_host}{interface}{$interface}{down_delay},
 				"network::${local_host}::interface::${interface}::duplex"               => $anvil->data->{network}{$local_host}{interface}{$interface}{duplex},
 				"network::${local_host}::interface::${interface}::ip"                   => $anvil->data->{network}{$local_host}{interface}{$interface}{ip},
@@ -1033,7 +1014,6 @@ sub collect_data
 			$anvil->data->{new}{bridge}{$interface}{id}          = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_id};
 			$anvil->data->{new}{bridge}{$interface}{mac_address} = $anvil->data->{network}{$local_host}{interface}{$interface}{mac_address}; 
 			$anvil->data->{new}{bridge}{$interface}{mtu}         = $anvil->data->{network}{$local_host}{interface}{$interface}{mtu};
-			$anvil->data->{new}{bridge}{$interface}{stp_enabled} = $anvil->data->{network}{$local_host}{interface}{$interface}{bridge_stp_enabled};
 			$anvil->data->{new}{bridge}{$interface}{tx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{tx_bytes};
 			$anvil->data->{new}{bridge}{$interface}{rx_bytes}    = $anvil->data->{network}{$local_host}{interface}{$interface}{rx_bytes}; 
 			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -1041,7 +1021,6 @@ sub collect_data
 				"new::bridge::${interface}::id"          => $anvil->data->{new}{bridge}{$interface}{id}, 
 				"new::bridge::${interface}::mac_address" => $anvil->data->{new}{bridge}{$interface}{mac_address}, 
 				"new::bridge::${interface}::mtu"         => $anvil->data->{new}{bridge}{$interface}{mtu}, 
-				"new::bridge::${interface}::stp_enabled" => $anvil->data->{new}{bridge}{$interface}{stp_enabled}, 
 				"new::bridge::${interface}::tx_bytes"    => $anvil->data->{new}{bridge}{$interface}{tx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bridge}{$interface}{tx_bytes}}).")", 
 				"new::bridge::${interface}::rx_bytes"    => $anvil->data->{new}{bridge}{$interface}{rx_bytes}." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $anvil->data->{new}{bridge}{$interface}{rx_bytes}}).")", 
 			}});
@@ -3988,7 +3967,8 @@ sub check_bridges
 		my $new_bridge_id   = $anvil->data->{new}{bridge}{$bridge_name}{id};
 		my $new_mac_address = $anvil->data->{new}{bridge}{$bridge_name}{mac_address};
 		my $new_mtu         = $anvil->data->{new}{bridge}{$bridge_name}{mtu};
-		my $new_stp_enabled = $anvil->data->{new}{bridge}{$bridge_name}{stp_enabled};
+		my $nmcli_uuid      = $anvil->data->{nmcli}{name}{$bridge_name}{uuid};
+		my $new_stp_enabled = $nmcli_uuid ? $anvil->data->{nmcli}{uuid}{$nmcli_uuid}{'bridge.stp'} : "unknown";
 		my $new_tx_bytes    = $anvil->data->{new}{bridge}{$bridge_name}{tx_bytes};
 		my $new_rx_bytes    = $anvil->data->{new}{bridge}{$bridge_name}{rx_bytes};
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
@@ -3996,10 +3976,42 @@ sub check_bridges
 			new_bridge_id   => $new_bridge_id, 
 			new_mac_address => $new_mac_address, 
 			new_mtu         => $new_mtu, 
+			nmcli_uuid      => $nmcli_uuid,
 			new_stp_enabled => $new_stp_enabled, 
 			new_tx_bytes    => $new_tx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_tx_bytes}).")", 
 			new_rx_bytes    => $new_rx_bytes." (".$anvil->Convert->bytes_to_human_readable({'bytes' => $new_rx_bytes}).")", 
 		}});
+
+		# This needs to be off to work with Cisco BPDU Guard. If STP is enabled, Cisco shuts down the port.
+		if ($new_stp_enabled eq "yes") 
+		{
+			# If the user has disabled STP management, don't proceed.
+			if ((exists $anvil->data->{network}{stp}{manage}) && ($anvil->data->{network}{stp}{manage} eq 0))
+			{
+				# Don't proceed.
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_alert_0066", variables => { name => $bridge_name }});
+			}
+			else
+			{
+				# Change it to no.
+				my ($output, $return_code) = $anvil->Network->modify_connection({uuid => $nmcli_uuid, variable => "bridge.stp", value => "no"});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+					output      => $output,
+					return_code => $return_code, 
+				}});
+
+				$new_stp_enabled = "no";
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { new_stp_enabled => $new_stp_enabled }});
+
+				$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 2, key => "scan_network_alert_0065", variables => { name => $bridge_name }});
+				$anvil->Alert->register({
+					alert_level => "notice", 
+					message     => "scan_network_alert_0065", 
+					variables   => { name => $bridge_name },
+					set_by      => $THIS_FILE,
+				});
+			}
+		}
 		
 		# New or existing?
 		if (exists $anvil->data->{bridges}{name_to_uuid}{$bridge_name})

@@ -3572,6 +3572,7 @@ proceeding.
 		<key name="message_0525">[ Note ] - Updating the user: [#!variable!user!#]'s authorized_keys file: [#!variable!file!#] to add the key for the user: [#!variable!ssh_user!#] on the host: [#!variable!ssh_host!#].</key>
 		<key name="message_0526">Unable to access the host: [#!variable!host_name!#]! is it down?</key>
 		<key name="message_0527">Inaccessible machine!</key>
+		<key name="message_0528"> - Disabling STP on the bridge: [#!variable!device!#] (#!variable!device_uuid!#).</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
