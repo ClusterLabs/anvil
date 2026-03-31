@@ -2090,7 +2090,7 @@ The database connection error was:
 		<key name="log_0173"><![CDATA[[ Error ] - Asked to validate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
 		<key name="log_0174"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#], but that variable was not found.]]></key>
 		<key name="log_0175"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#] on the host: [#!variable!target!#], but that variable was not found.]]></key>
-		<key name="log_0176">The password: [#!variable!password!#] was successfully used to connect to the host: [#!variable!target!#], however the target user's authorized keys file: [#!variable!file!#] was not read. As such, we can not setup passwordless SSH. Given the initial connection test was without password, we will return '0' to indicate no access.</key>
+		<key name="log_0176">#!free!#</key>
 		<key name="log_0177">No cookies were read, the use is not logged in.</key>
 		<key name="log_0178">The user's UUID: [#!variable!uuid!#] was read, but it didn't match any known users.</key>
 		<key name="log_0179">The user has been logged out.</key>
@@ -2108,7 +2108,7 @@ The database connection error was:
 		<key name="log_0191">Connection only to: [#!variable!db_uuid!#], skipping: [#!variable!uuid!#].</key>
 		<key name="log_0192">The connection to the database: [#!variable!server!#] has failed. Will attempt to reconnect to the database(s).</key>
 		<key name="log_0193">The public RSA key appears to have not been read properly. Read the key: [#!variable!key!#] from the file: [#!variable!file!#]. Expected the key to start with 'ssh-rsa '.</key>
-		<key name="log_0194">It looks like the attempt to add our RSA key to: [#!variable!file!#] on: [#!variable!target!#] failed. Returning '0' as we failed to connect using no password, as originally called.</key>
+		<key name="log_0194">It looks like the attempt to add our RSA key to: [#!variable!target!#] failed. Returning '0' as we failed to connect using no password, as originally called.</key>
 		<key name="log_0195">Successfully connected to: [#!variable!target!#] without a password!</key>
 		<key name="log_0196">Despite adding our key, we seemed to have failed to connect to: [#!variable!target!#] without a password, as originall requested.</key>
 		<key name="log_0197"><![CDATA[System->maintenance_mode() was passed an invalid 'set' value: [#!variable!set!#]. No action taken.]]></key>
