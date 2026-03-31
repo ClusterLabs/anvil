@@ -2090,7 +2090,7 @@ The database connection error was:
 		<key name="log_0173"><![CDATA[[ Error ] - Asked to validate a password encoded with the algorithm: [#!variable!user_algorithm!#], which is not recognized. Only 'sha256', 'sha384' and 'sha512' are currently supported.]]></key>
 		<key name="log_0174"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#], but that variable was not found.]]></key>
 		<key name="log_0175"><![CDATA[[ Error ] - Asked to update the variable: [#!variable!variable!#] in the configuration file: [#!variable!file!#] on the host: [#!variable!target!#], but that variable was not found.]]></key>
-		<key name="log_0176">#!free!#</key>
+		<key name="log_0176">It looks like the attempt to add our RSA key to: [#!variable!target!#] failed because the key already exists. We'll try to connect again.</key>
 		<key name="log_0177">No cookies were read, the use is not logged in.</key>
 		<key name="log_0178">The user's UUID: [#!variable!uuid!#] was read, but it didn't match any known users.</key>
 		<key name="log_0179">The user has been logged out.</key>
