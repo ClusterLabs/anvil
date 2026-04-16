@@ -48,7 +48,6 @@ my $THIS_FILE = "Storage.pm";
 # update_config
 # update_file
 # write_file
-# _create_rsync_wrapper
 # _wait_if_changing
 
 =pod
@@ -4882,7 +4881,7 @@ sub rsync
 		if ($password)
 		{
 			# Remote target, wrapper needed.
-			$wrapper_script = $anvil->Storage->_create_rsync_wrapper({
+			$wrapper_script = $anvil->System->create_rsync_wrapper({
 				debug    => $debug,
 				target   => $target,
 				password => $password, 
@@ -6052,83 +6051,6 @@ fi";
 #############################################################################################################
 
 
-=head2 _create_rsync_wrapper
-
-This does the actual work of creating the C<< expect >> wrapper script and returns the path to that wrapper for C<< rsync >> calls.
-
-If there is a problem, an empty string will be returned.
-
-Parameters;
-
-=head3 target (required)
-
-This is the IP address or (resolvable) host name of the remote machine.
-
-=head3 password (required)
-
-This is the password of the user you will be connecting to the remote machine as.
-
-=cut
-sub _create_rsync_wrapper
-{
-	my $self      = shift;
-	my $parameter = shift;
-	my $anvil     = $self->parent;
-	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_create_rsync_wrapper()" }});
-	
-	# Check my parameters.
-	my $target   = defined $parameter->{target}   ? $parameter->{target}   : "";
-	my $password = defined $parameter->{password} ? $parameter->{password} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		password => $anvil->Log->is_secure($password), 
-		target   => $target, 
-	}});
-	
-	if (not $target)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->_create_rsync_wrapper()", parameter => "target" }});
-		return("");
-	}
-	if (not $password)
-	{
-		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "Storage->_create_rsync_wrapper()", parameter => "password" }});
-		return("");
-	}
-	
-	### NOTE: The first line needs to be the '#!...' line, hence the odd formatting below.
-	my $timeout        = 3600;
-	my $wrapper_script = "/tmp/rsync.$target";
-	my $wrapper_body   = "#!".$anvil->data->{path}{exe}{expect}."
-set timeout ".$timeout."
-eval spawn rsync \$argv
-expect \"password:\" \{ send \"".$password."\\n\" \}
-expect eof
-";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
-		wrapper_script => $wrapper_script, 
-		wrapper_body   => $wrapper_body, 
-	}});
-	$anvil->Storage->write_file({
-		debug     => $debug,
-		body      => $wrapper_body,
-		file      => $wrapper_script,
-		mode      => "0700",
-		overwrite => 1,
-		secure    => 1,
-	});
-	
-	if (not -e $wrapper_script)
-	{
-		# Failed!
-		$wrapper_script = "";
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { wrapper_script => $wrapper_script }});
-	}
-	
-	return($wrapper_script);
-}
-
-
 =head3 _wait_if_changing
 
 This takes a full path to a file, and watches it for at specified number of seconds to see if the size is changing. If it is, this method waits until the file size stops changing. 
@@ -6154,7 +6076,7 @@ sub _wait_if_changing
 	my $parameter = shift;
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
-	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_create_rsync_wrapper()" }});
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Storage->_wait_if_changing()" }});
 	
 	# Check my parameters.
 	my $file      = defined $parameter->{file}      ? $parameter->{file}      : "";

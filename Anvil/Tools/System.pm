@@ -14,6 +14,7 @@ use JSON;
 use Text::Diff;
 use String::ShellQuote;
 use Encode;
+use File::Basename;
 
 our $VERSION  = "3.0.0";
 my $THIS_FILE = "System.pm";
@@ -31,6 +32,8 @@ my $THIS_FILE = "System.pm";
 # check_storage
 # collect_ipmi_data
 # configure_ipmi
+# create_rsync_wrapper
+# create_ssh_copy_id_wrapper
 # disable_daemon
 # enable_daemon
 # find_matching_ip
@@ -50,7 +53,9 @@ my $THIS_FILE = "System.pm";
 # stty_echo
 # update_hosts
 # wait_on_dnf
+# _abort_if_ci
 # _check_anvil_conf
+# _create_wrapper_with_expect
 # _load_firewalld_zones
 # _load_specific_firewalld_zone
 # _match_port_to_service
@@ -3221,6 +3226,72 @@ LIMIT 1
 	return($host_ipmi);
 }
 
+=head2 create_rsync_wrapper
+
+This creates the C<< expect >> wrapper script and returns the path to that wrapper for C<< rsync >> calls.
+
+See System->_create_wrapper_with_expect() for details.
+
+Parameters;
+
+=head3 password (required)
+
+This is the password of the user you will be connecting to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the remote machine.
+
+This is suppied to C<< id >> in System->_create_wrapper_with_expect().
+
+=cut
+sub create_rsync_wrapper
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->create_rsync_wrapper()" }});
+
+	$parameter->{exe} = $anvil->data->{path}{exe}{'rsync'};
+	$parameter->{id}  = $parameter->{target};
+
+	return $anvil->System->_create_wrapper_with_expect($parameter);
+}
+
+=head2 create_ssh_copy_id_wrapper
+
+This creates the C<< expect >> wrapper script and returns the path to that wrapper for C<< ssh-copy-id >> calls.
+
+See System->_create_wrapper_with_expect() for details.
+
+Parameters;
+
+=head3 password (required)
+
+This is the password of the user you will be connecting to the remote machine as.
+
+=head3 target (optional)
+
+This is the IP address or (resolvable) host name of the remote machine.
+
+This is suppied to C<< id >> in System->_create_wrapper_with_expect().
+
+=cut
+sub create_ssh_copy_id_wrapper
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->create_ssh_copy_id_wrapper()" }});
+
+	$parameter->{exe} = $anvil->data->{path}{exe}{'ssh-copy-id'};
+	$parameter->{id}  = $parameter->{target};
+
+	return $anvil->System->_create_wrapper_with_expect($parameter);
+}
+
 =head2 disable_daemon
 
 This method disables a daemon. The return code from the disable request will be returned.
@@ -6243,6 +6314,96 @@ sub _check_anvil_conf
 	}
 	
 	return(0);
+}
+
+=head2 _create_wrapper_with_expect
+
+This does the actual work of creating the C<< expect >> wrapper script and returns the path to that wrapper for C<< exe >> calls.
+
+If there is a problem, an empty string will be returned.
+
+This should NOT be called directly, use it with something like create_rsync_wrapper or create_ssh_copy_id_wrapper
+
+Parameters;
+
+=head3 exe (required)
+
+This is the executable to wrap with expect.
+
+=head3 password (required)
+
+This is the password to supply to the C<< exe >>.
+
+=head3 id (optional)
+
+This is the wrapper's readable identifier.
+
+For example, it can be the IP address or (resolvable) host name of the remote machine when creating a rsync wrapper.
+
+=cut
+sub _create_wrapper_with_expect
+{
+	my $self      = shift;
+	my $parameter = shift;
+	my $anvil     = $self->parent;
+	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
+	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "System->_create_wrapper_with_expect()" }});
+
+	# Check my parameters.
+	my $exe      = defined $parameter->{exe}      ? $parameter->{exe}      : "";
+	my $id       = defined $parameter->{id}       ? $parameter->{id}       : "";
+	my $password = defined $parameter->{password} ? $parameter->{password} : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		exe      => $exe,
+		id       => $id,
+		password => $anvil->Log->is_secure($password),
+	}});
+
+	if (not $exe)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "System->_create_wrapper_with_expect()", parameter => "target" }});
+		return("");
+	}
+	if (not $password)
+	{
+		$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 0, priority => "err", key => "log_0020", variables => { method => "System->_create_wrapper_with_expect()", parameter => "password" }});
+		return("");
+	}
+
+	my $exe_name       = basename($exe);
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { exe_name => $exe_name }});
+
+	### NOTE: The first line needs to be the '#!...' line, hence the odd formatting below.
+	my $timeout        = 3600;
+	my $wrapper_script = $anvil->data->{path}{directories}{tmp}."/".$exe_name.".".$id;
+	my $wrapper_body   = "#!".$anvil->data->{path}{exe}{expect}."
+set timeout ".$timeout."
+eval spawn ".$exe." \$argv
+expect \"password:\" \{ send \"".$password."\\n\" \}
+expect eof
+";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => {
+		wrapper_script => $wrapper_script,
+		wrapper_body   => $wrapper_body,
+	}});
+	$anvil->Storage->write_file({
+		debug     => $debug,
+		backup    => 0,
+		body      => $wrapper_body,
+		file      => $wrapper_script,
+		mode      => "0700",
+		overwrite => 1,
+		secure    => 1,
+	});
+
+	if (not -e $wrapper_script)
+	{
+		# Failed!
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 0, list => { wrapper_script => $wrapper_script }});
+		return("");
+	}
+
+	return($wrapper_script);
 }
 
 =head2 _load_firewalld_zones

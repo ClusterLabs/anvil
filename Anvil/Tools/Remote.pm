@@ -1319,105 +1319,64 @@ sub test_access
 					}});
 					return(0);
 				}
-				
-				# Read the target's authorized_keys file.
-				my $target_authorized_keys_file = "/root/.ssh/authorized_keys";
-				if ($user ne "root")
-				{
-					$target_authorized_keys_file = "/home/".$user."/.ssh/authorized_keys";
-				}
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { target_authorized_keys_file => $target_authorized_keys_file }});
-				
-				my $old_authorized_keys_body = $anvil->Storage->read_file({
-					debug       => $debug, 
-					file        => $target_authorized_keys_file,
-					force_read  => 1,
-					port        => $port, 
-					password    => $this_password, 
-					remote_user => $user, 
-					target      => $target,
+
+				my $wrapper_script = $anvil->System->create_ssh_copy_id_wrapper({
+					debug    => $debug,
+					target   => $target,
+					password => $this_password,
 				});
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { old_authorized_keys_body => $old_authorized_keys_body }});
-				if ($old_authorized_keys_body eq "!!error!!")
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { wrapper_script => $wrapper_script }});
+
+				my $shell_call = $wrapper_script." -i ".$public_key_file." -p ".$port." ".$user."@".$target;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { shell_call => $shell_call }});
+
+				# Copy the public key to the target
+				my ($output, $return_code) = $anvil->System->call({secure => 1, shell_call => $shell_call});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, secure => 1, list => { output => $output, return_code => $return_code }});
+
+				if (($wrapper_script) && (-e $wrapper_script))
 				{
-					# Failed to read.
-					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0176", variables => { 
-						target   => $target,
-						password => $anvil->Log->is_secure($this_password), 
-						file     => $public_key_file,
-					}});
-					return(0);
+					unlink $wrapper_script;
 				}
-				
-				# Look for our key
-				my $key_found                = 0;
-				my $new_authorized_keys_body = "";
-				foreach my $line (split/\n/, $old_authorized_keys_body)
+
+				if ($return_code)
 				{
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { line => $line }});
-					if ($line eq $rsa_key)
+					if ($output =~ / All keys were skipped because they already exist on the remote system/s)
 					{
-						$key_found = 1;
-						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { key_found => $key_found }});
-						last;
-					}
-					$new_authorized_keys_body .= $line."\n";
-				}
-				
-				if (not $key_found)
-				{
-					# Append our key.
-					$new_authorized_keys_body .= $rsa_key."\n";
-					
-					# Write out the new file.
-					my $problem = $anvil->Storage->write_file({
-						debug       => $debug, 
-						backup      => 1, 
-						file        => $target_authorized_keys_file,
-						body        => $new_authorized_keys_body, 
-						group       => $user, 
-						mode        => "0644",
-						overwrite   => 1,
-						port        => $port, 
-						password    => $this_password, 
-						target      => $target,
-						user        => $user,
-						remote_user => $user, 
-					});
-					if ($problem)
-					{
-						# Failed.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0194", variables => { 
-							target => $target,
-							file   => $target_authorized_keys_file,
-						}});
-						return(0);
-					}
-					
-					# Try to connect again, without a password this time.
-					my $access = $anvil->Remote->test_access({
-						debug    => $debug, 
-						'close'  => $close,
-						password => "", 
-						port     => $port, 
-						target   => $target,
-						user     => $user,
-					});
-					$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
-					
-					# Did we get access?
-					if ($access)
-					{
-						# Success!
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0195", variables => { target => $target }});
-						return($access);
+						# Continue to retry because the key exists on the target.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0176", variables => { target => $target }});
 					}
 					else
 					{
-						# Welp, we tried.
-						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0196", variables => { target => $target }});
-						return($access);
+						# Log and stop here because adding the key failed with a different reason.
+						$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0194", variables => { target => $target }});
+						return(0);
 					}
+				}
+
+				# Try to connect again, without a password this time.
+				my $access = $anvil->Remote->test_access({
+					debug    => $debug,
+					'close'  => $close,
+					password => "",
+					port     => $port,
+					target   => $target,
+					user     => $user,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { access => $access }});
+
+				# Did we get access?
+				if ($access)
+				{
+					# Success!
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0195", variables => { target => $target }});
+					return($access);
+				}
+				else
+				{
+					# Welp, we tried.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, priority => "alert", key => "log_0196", variables => { target => $target }});
+					return($access);
 				}
 			}
 			else
