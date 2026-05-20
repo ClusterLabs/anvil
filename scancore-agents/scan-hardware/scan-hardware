@@ -335,13 +335,6 @@ sub collect_cpu_data
 				speed	=>	$this_frequency, 
 			};
 			
-			### TODO: DELETE THIS
-			if ($this_processor == 2)
-			{ 
-				$this_frequency = 399; 
-				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_frequency => $this_frequency }});
-			}
-			
 			if ($this_frequency < 500)
 			{
 				# This could be a problem with a core being stuck 
@@ -383,7 +376,7 @@ sub collect_cpu_data
 								's2:current_time' => $current_time, 
 								's3:last_ran'     => $last_ran, 
 							}});
-							if ((not $last_ran) or ($last_ran < 86400))
+							if ((not $last_ran) or ($last_ran > 86400))
 							{
 								# Record this time so no others try to 
 								# flash for at least another day.
@@ -414,6 +407,13 @@ sub collect_cpu_data
 									job_host_uuid   => $anvil->Get->host_uuid,
 								});
 								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+							}
+							elsif ($last_ran)
+							{
+								# Log that we've run too recently to run again.
+								$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0035", variables => { 
+									last_ran => $anvil->Convert->add_commas({number => $last_ran}),
+								}});
 							}
 						}
 					}
