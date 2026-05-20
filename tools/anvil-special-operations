@@ -62,6 +62,11 @@ if ($anvil->data->{switches}{task} eq "refresh-drbd-resource")
 	refresh_drbd_resource($anvil);
 }
 
+if ($anvil->data->{switches}{task} eq "run-script")
+{
+	run_script($anvil);
+}
+
 $anvil->nice_exit({exit_code => 0});
 
 
@@ -117,4 +122,76 @@ sub refresh_drbd_resource
 	$anvil->nice_exit({exit_code => 0});
 	
 	return(0);
+}
+
+sub run_script
+{
+	my ($anvil) = @_;
+	
+	my $job_data = $anvil->data->{jobs}{job_data};
+	my $script   = ($job_data =~ /script=(.*)$/)[0];
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { script => $script }});
+	
+	if (not $script)
+	{
+		# No resource.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1, 
+			'print'    => 1, 
+			message    => "error_0498", 
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	if ((not -e $script) && (not -x $script))
+	{
+		# No resource.
+		$anvil->Job->update_progress({
+			progress   => 100,
+			log_level  => 1, 
+			'print'    => 1, 
+			message    => "error_0499", 
+			variables  => { script => $script },
+			job_status => "failed", 
+		});
+		$anvil->nice_exit({exit_code => 1});
+	}
+	
+	# Log that we're calling
+	$anvil->Job->update_progress({
+		progress  => 10,
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0529", 
+		variables => { script => $script },
+	});
+	
+	# Call
+	my $runtime = time;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { runtime => $runtime }});
+	
+	my ($output, $return_code) = $anvil->System->call({debug => 3, shell_call => $script});
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		output      => $output, 
+		return_code => $return_code, 
+	}});
+	
+	$runtime = time - $runtime;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { runtime => $runtime }});
+	
+	# Log the output and exit.
+	$anvil->Job->update_progress({
+		progress  => 100,
+		log_level => 1,
+		'print'   => 1, 
+		message   => "message_0530", 
+		variables => { 
+			script      => $script, 
+			runtime     => $runtime,
+			return_code => $return_code, 
+			output      => $output, 
+		},
+	});
+	$anvil->nice_exit({exit_code => 0});
 }

@@ -164,6 +164,9 @@ The differences are:
 ====
 		</key>
 		<key name="scan_hardware_alert_0031">The issue with mismatched CPU vmx flags has been resolved.</key>
+		<key name="scan_hardware_alert_0032">The CPU core: [#!variable!core!#] speed has dropped to: [#!variable!speed!#]. This is below normal throttling.</key>
+		<key name="scan_hardware_alert_0033">The CPU core: [#!variable!core!#] speed has risen back up to: [#!variable!speed!#]. This is an expected speed.</key>
+		<key name="scan_hardware_alert_0034">There is a slow-cpu trigger script: [#!variable!script!#]. It has not been run in at least 24 hours, so we will run it now.</key>
 		
 		<!-- Log entries -->
 		<key name="scan_hardware_log_0001">#!free!#</key>

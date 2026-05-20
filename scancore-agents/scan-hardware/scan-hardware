@@ -166,12 +166,18 @@ sub collect_cpu_data
 	my $bugs_mismatch      = 0;
 	my $model              = "";
 	my $model_mismatch     = 0;
+	my $this_processor     = 0;
 	my $cpu_info           = $anvil->Storage->read_file({debug => 3, file => $anvil->data->{path}{proc}{cpuinfo}});
 	foreach my $line (split/\n/, $cpu_info)
 	{
 		$line = $anvil->Words->clean_spaces({string => $line});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { line => $line }});
 		
+		if ($line =~ /^processor\s*: (\d+)$/)
+		{
+			$this_processor = $1;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_processor => $this_processor }});
+		}
 		if ($line =~ /^flags\s*: (.*?)$/)
 		{
 			# Full list of flags: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/x86/include/asm/cpufeatures.h
@@ -312,6 +318,127 @@ sub collect_cpu_data
 						message     => "scan_hardware_alert_0005", 
 						variables   => $variables,
 						set_by      => $THIS_FILE,
+					});
+				}
+			}
+		}
+		if ($line =~ /^cpu MHz\s*: (.*?)$/)
+		{
+			my $this_frequency =  $1;
+			   $this_frequency =~ s/\.\d+$//;
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				's1:this_processor' => $this_processor, 
+				's2:this_frequency' => $this_frequency,
+			}});
+			my $variables = { 
+				core	=>	$this_processor,
+				speed	=>	$this_frequency, 
+			};
+			
+			### TODO: DELETE THIS
+			if ($this_processor == 2)
+			{ 
+				$this_frequency = 399; 
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { this_frequency => $this_frequency }});
+			}
+			
+			if ($this_frequency < 500)
+			{
+				# This could be a problem with a core being stuck 
+				my $changed = $anvil->Alert->check_alert_sent({
+					debug          => 3,
+					record_locator => "scan_hardware::cpu_core::".$this_processor."::low_speed",
+					set_by         => $THIS_FILE,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# This is a new drop for this core.
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						log_level   => 1, 
+						message     => "scan_hardware_alert_0032", 
+						set_by      => $THIS_FILE,
+						variables   => $variables, 
+					});
+					
+					# If there is a script, run it. 
+					if (exists $anvil->data->{scancore}{$THIS_FILE}{'cpu-trigger-script'})
+					{
+						my $script = $anvil->data->{scancore}{$THIS_FILE}{'cpu-trigger-script'};
+						$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { script => $script }});
+						if (-x $script)
+						{
+							# When (if) did I last flash? Don't flash more than once per day.
+							my $state_name = "scan-hardware::cpu-trigger-script::last_ran";
+							my $query      = "SELECT state_note FROM states WHERE state_name = ".$anvil->Database->quote($state_name)." AND state_host_uuid = ".$anvil->Database->quote($anvil->Get->host_uuid).";";
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+							
+							my $state_note   = $anvil->Database->query({level => 2, query => $query, source => $THIS_FILE, line => __LINE__})->[0]->[0];
+							   $state_note   = 0 if not defined $state_note;
+							my $current_time = time;
+							my $last_ran     = $state_note ? $current_time - $state_note : 0;
+							$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+								's1:state_note'   => $state_note, 
+								's2:current_time' => $current_time, 
+								's3:last_ran'     => $last_ran, 
+							}});
+							if ((not $last_ran) or ($last_ran < 86400))
+							{
+								# Record this time so no others try to 
+								# flash for at least another day.
+								my ($state_uuid) = $anvil->Database->insert_or_update_states({
+									state_name => $state_name, 
+									state_note => $current_time, 
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { state_uuid => $state_uuid }});
+								
+								# Warn the user
+								$anvil->Alert->register({
+									alert_level => "alert", 
+									log_level   => 1, 
+									message     => "scan_hardware_alert_0034", 
+									set_by      => $THIS_FILE,
+									variables   => { script => $script }, 
+								});
+								
+								# Register a job (we can't run it directly, it would time out the agent).
+								my ($job_uuid) = $anvil->Database->insert_or_update_jobs({
+									debug           => 2, 
+									job_command     => $anvil->data->{path}{exe}{'anvil-special-operations'}." --task run-script -vv", 
+									job_data        => "script=".$script, 
+									job_name        => "scan-hardware::cpu-trigger-script", 
+									job_title       => "job_0421", 
+									job_description => "job_0422", 
+									job_progress    => 0,
+									job_host_uuid   => $anvil->Get->host_uuid,
+								});
+								$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { job_uuid => $job_uuid }});
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				# Do we have an alert to clear?
+				my $changed = $anvil->Alert->check_alert_sent({
+					debug          => 3,
+					record_locator => "scan_hardware::cpu_core::".$this_processor."::low_speed",
+					set_by         => $THIS_FILE,
+					clear          => 1,
+				});
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { changed => $changed }});
+				if ($changed)
+				{
+					# Register an alert-cleared event.
+					$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_hardware_alert_0033", variables => $variables});
+					$anvil->Alert->register({
+						alert_level => "notice", 
+						clear       => 1,
+						message     => "scan_hardware_alert_0033", 
+						set_by      => $THIS_FILE,
+						variables   => $variables, 
 					});
 				}
 			}
