@@ -841,6 +841,8 @@ The XML that failed sanity check was:
 #!variable!error!#
 ====
 </key>
+		<key name="error_0498"><![CDATA[[ Error ] - The task 'run-script' was called but the job_data wasn't set with 'script=/path/to/script'.]]></key>
+		<key name="error_0499"><![CDATA[[ Error ] - The task 'run-script' was asked to run the script: [#!variable!script!#] but either it doesn't exist or it isn't executable.]]></key>
 
 		<!-- Files templates -->
 		<!-- NOTE: Translating these files requires an understanding of which lines are translatable -->
@@ -1741,8 +1743,8 @@ Note: This is a permanent action! If you protect this server again later, a full
 		<key name="job_0418">Re-parsing the replicated storage configuration.</key>
 		<key name="job_0419">The server: [#!variable!server!#] was found to be running outside the cluster. Asking it to shut down now.</key>
 		<key name="job_0420">The server: [#!variable!server!#] is still running two minutes after asking it to stop. It might have woken up on the first press and ignored the shutdown request (Hi Windows). Pressing the power button again.</key>
-		<key name="job_0421">#!free!#</key>
-		<key name="job_0422">#!free!#</key>
+		<key name="job_0421">CPU Speed Triggered Script</key>
+		<key name="job_0422">One (or more) CPU cores are running below 500 MHz, and there is a scancore::scan-hardware::cpu-trigger-script script defined. This hasn't been run in at least 24 hours, so it will be run now.</key>
 		<key name="job_0423">#!free!#</key>
 		<key name="job_0424">#!free!#</key>
 		<key name="job_0425">#!free!#</key>
@@ -3566,13 +3568,23 @@ proceeding.
 		<key name="message_0522">  - The resource config file: [#!variable!file!#] has changed and will be updated. The difference is:
 ==============
 #!variable!difference!#
-==============</key>
+==============
+</key>
 		<key name="message_0523">  - Updating the file: [#!variable!file!#] on the target: [#!variable!target_ip!#] and then adjusting the resource: [#!variable!resource!#].</key>
 		<key name="message_0524">Manually calling 'scan-drbd' to make sure the device path is removed from resource files.</key>
 		<key name="message_0525">[ Note ] - Updating the user: [#!variable!user!#]'s authorized_keys file: [#!variable!file!#] to add the key for the user: [#!variable!ssh_user!#] on the host: [#!variable!ssh_host!#].</key>
 		<key name="message_0526">Unable to access the host: [#!variable!host_name!#]! is it down?</key>
 		<key name="message_0527">Inaccessible machine!</key>
 		<key name="message_0528"> - Disabling STP on the bridge: [#!variable!device!#] (#!variable!device_uuid!#).</key>
+		<key name="message_0529">About to run the script: [#!variable!script!#]. Depending on the task, this could take some time.</key>
+		<key name="message_0530">
+The script: [#!variable!script!#] ran for: [#!variable!runtime!#] seconds.
+It exited with the return code: [#!variable!return_code!#].
+The output (if any) is below:
+==============
+#!variable!output!#
+==============
+</key>
 
 		<!-- Translate names (protocols, etc) -->
 		<key name="name_0001">Normal Password</key>	<!-- plain-text in mail-server -->
