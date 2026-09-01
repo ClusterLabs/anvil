@@ -933,6 +933,9 @@ INSERT INTO
 		}
 	}
 	
+	# Check for stopped servers that are recorded as such.
+	check_server_state($anvil);
+	
 	### TODO: Check for / repair bad cluster config issues
 	# If we're still alive, we're either node 1, or we're node 2 and node 1 is not ready. If we're not ready, 
 	if ($stonith_max_attempts ne "INFINITY")
@@ -942,6 +945,95 @@ INSERT INTO
 	
 	return(0);
 }
+
+	
+# If both nodes are online, compare the server status against the database 'server_state'. If the `pcs' shows
+# the service as stopped but the database shows the server as 'running', check both nodes using virsh to see 
+# if the server is acutally off. If it's not running on either node (and DR, if applicatble), change the DB 
+# state to 'stopped'.
+sub check_server_state
+{
+	my ($anvil) = @_;
+	
+	my $anvil_uuid      = $anvil->Cluster->get_anvil_uuid();
+	my $anvil_name      = $anvil->data->{anvils}{anvil_uuid}{$anvil_uuid}{anvil_name};
+	my $short_host_name = $anvil->Get->short_host_name;
+	my $local_ready     = $anvil->data->{cib}{parsed}{'local'}{ready};
+	my $peer_ready      = $anvil->data->{cib}{parsed}{peer}{ready};
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+		anvil_uuid      => $anvil_uuid, 
+		anvil_name      => $anvil_name, 
+		short_host_name => $short_host_name,
+		local_ready     => $local_ready, 
+		peer_ready      => $peer_ready, 
+	}});
+	
+	# Only proceed with these checks if both nodes are in the cluster
+	next if ((not $local_ready) or (not $peer_ready));
+	
+	# I'll need the DRBD resource data.
+	$anvil->Database->get_drbd_data({debug => 2});
+	
+	# Now loop through the servers
+	foreach my $server_name (sort {$a cmp $b} keys %{$anvil->data->{cib}{parsed}{data}{server}})
+	{
+		my $server_uuid       = $anvil->data->{servers}{server_name}{$server_name}{server_uuid};
+		my $server_state      = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_state};
+		my $server_anvil_uuid = $anvil->data->{servers}{server_uuid}{$server_uuid}{server_anvil_uuid};
+		my $server_anvil_name = $anvil->data->{anvils}{anvil_uuid}{$server_anvil_uuid}{anvil_name};
+		my $server_role       = $anvil->data->{cib}{parsed}{data}{server}{$server_name}{role};
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			server_name       => $server_name, 
+			server_uuid       => $server_uuid, 
+			server_state      => $server_state, 
+			server_anvil_uuid => $server_anvil_uuid, 
+			server_anvil_name => $server_anvil_name, 
+		}});
+		# Make sure this really is our server, that the server is "running" according to the DB, and
+		# "stopped" according to pacemaker.
+		next if $anvil_uuid       ne $server_anvil_uuid;
+		next if lc($server_role)  ne "stopped";
+		next if lc($server_state) ne "running";
+		
+		# If we're here, we need to check that the server isn't running elsewhere. To include DR in
+		# the check, we need to read the list of hosts from DRBD.
+		my $all_secondary = 1;
+		foreach my $peer_host_name (sort {$a cmp $b} keys %{$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$server_name}{volume}{0}{peer_name}})
+		{
+			my $local_role = $anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$server_name}{volume}{0}{peer_name}{$peer_host_name}{local_role};
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+				peer_host_name => $peer_host_name, 
+				local_role     => $local_role, 
+			}});
+			
+			if (lc($local_role) eq "primary")
+			{
+				$all_secondary = 0;
+				$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { all_secondary => $all_secondary }});
+			}
+		}
+		
+		if ($all_secondary)
+		{
+			# Mark the server_state as stopped.
+			$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => 1, key => "scan_cluster_log_0015", variables => { server_name => $server_name }});
+			my $query = "
+UPDATE 
+    servers 
+SET 
+    server_state  = 'shut off', 
+    modified_date = ".$anvil->Database->quote($anvil->Database->refresh_timestamp)." 
+WHERE 
+    server_uuid   = ".$anvil->Database->quote($server_uuid)."
+;";
+			$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { query => $query }});
+			$anvil->Database->write({query => $query, source => $THIS_FILE, line => __LINE__});
+		}
+	}
+	
+	return(0);
+}
+
 
 # Read in existing data from the database.
 sub read_last_scan

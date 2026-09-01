@@ -113,7 +113,7 @@ sub show_status
 	# Load host information so that we can check for IPMI configs, if needed.
 	$anvil->Database->get_hosts();
 	$anvil->Database->get_anvils();
-	$anvil->Database->get_servers();
+	$anvil->Database->get_servers({debug => 2});
 	
 	# It can take a second to collect the data, so we don't clear the screen until we're ready to 
 	# display the new data

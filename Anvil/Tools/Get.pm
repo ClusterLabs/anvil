@@ -1648,6 +1648,10 @@ Parameters;
 
 This is the C<< host_uuid >> to translate into a host name.
 
+=head3 short (optional, default 0)
+
+If set to C<<1>>, the short version of the host name is returned.
+
 =cut
 sub host_name_from_uuid
 {
@@ -1659,7 +1663,11 @@ sub host_name_from_uuid
 	
 	my $host_name = "";
 	my $host_uuid = defined $parameter->{host_uuid} ? $parameter->{host_uuid} : "";
-	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_uuid => $host_uuid }});
+	my $short     = defined $parameter->{short}     ? $parameter->{short}     : "";
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		host_uuid => $host_uuid,
+		short     => $short,
+	}});
 	
 	if ($host_uuid eq "NULL")
 	{
@@ -1687,6 +1695,13 @@ WHERE
 		# Found it
 		$host_name = defined $results->[0]->[0] ? $results->[0]->[0] : "";
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+	}
+	
+	if ($short)
+	{
+		$host_name =~ s/\..*$//;
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
+		
 	}
 	
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { host_name => $host_name }});
