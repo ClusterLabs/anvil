@@ -57,6 +57,7 @@ In Maintenance Mode: ..... [#!variable!maintenance_mode!#]
 		<key name="scan_cluster_log_0012">Found the stale DRBD fenced attribute: [#!variable!attribute!#], removing it.</key>
 		<key name="scan_cluster_log_0013">Found a duplicate Anvil! node. The entry with 'scan_cluster_uuid': [#!variable!scan_cluster_uuid!#] is older, and will now be marked as deleted.</key>
 		<key name="scan_cluster_log_0014">This Anvil! node does not appear to be in the Anvil! cluster yet, skipping the loading of cluster nodes.</key>
+		<key name="scan_cluster_log_0015">This server: [#!variable!server_name!#] is shows as started, but appears to be off. Marking it stopped.</key>
 		
 		<!-- Units -->
 		<key name="scan_cluster_unit_0001">Yes</key>

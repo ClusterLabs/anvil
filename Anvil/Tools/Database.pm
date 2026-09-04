@@ -3282,10 +3282,7 @@ sub get_drbd_data
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_drbd_data()" }});
 	
-	if (not ref($anvil->data->{hosts}{host_uuid}) eq "HASH")
-	{
-		$anvil->Database->get_hosts({debug => $debug});
-	}
+	$anvil->Database->get_hosts({debug => $debug});
 	
 	# This calls up the entry for this host. There will only be one.
 	my $query = "
@@ -3314,7 +3311,12 @@ FROM
 		# services tables.
 		my $scan_drbd_uuid      = $row->[0]; 
 		my $scan_drbd_host_uuid = $row->[1];
-		my $short_host_name     = $anvil->data->{hosts}{host_uuid}{$scan_drbd_host_uuid}{short_host_name};
+		my $short_host_name     = $anvil->Get->host_name_from_uuid({short => 1, host_uuid => $scan_drbd_host_uuid});
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
+			scan_drbd_uuid      => $scan_drbd_uuid,
+			scan_drbd_host_uuid => $scan_drbd_host_uuid,
+			short_host_name     => $short_host_name, 
+		}});
 		
 		# Store the old data now.
 		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml}       = $row->[2];
@@ -3322,7 +3324,7 @@ FROM
 		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md}         = $row->[4];
 		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_timeout}          = $row->[5];
 		$anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_total_sync_speed} = $row->[6];
-		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 3, list => { 
+		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => 2, list => { 
 			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_common_xml"       => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_common_xml},
 			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_disk"       => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_disk},
 			"drbd::host_name::${short_host_name}::scan_drbd_uuid::${scan_drbd_uuid}::scan_drbd_flush_md"         => $anvil->data->{drbd}{host_name}{$short_host_name}{scan_drbd_uuid}{$scan_drbd_uuid}{scan_drbd_flush_md},
@@ -3359,7 +3361,7 @@ FROM
 		my $resource_uuid                = $row->[0]; 
 		my $scan_drbd_resource_host_uuid = $row->[1];
 		my $scan_drbd_resource_name      = $row->[2]; 
-		my $short_host_name              = $anvil->data->{hosts}{host_uuid}{$scan_drbd_resource_host_uuid}{short_host_name};
+		my $short_host_name              = $anvil->Get->host_name_from_uuid({short => 1, host_uuid => $scan_drbd_resource_host_uuid});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			resource_uuid                => $resource_uuid, 
 			scan_drbd_resource_host_uuid => $scan_drbd_resource_host_uuid, 
@@ -3412,12 +3414,13 @@ FROM
 		my $scan_drbd_volume_scan_drbd_resource_uuid = $row->[2]; 
 		my $scan_drbd_volume_number                  = $row->[3];
 		my $resource_name                            = $anvil->data->{drbd}{resource_uuid}{$scan_drbd_volume_scan_drbd_resource_uuid}{resource_name};
-		my $short_host_name                          = $anvil->data->{hosts}{host_uuid}{$scan_drbd_volume_host_uuid}{short_host_name};
+		my $short_host_name                          = $anvil->Get->host_name_from_uuid({short => 1, host_uuid => $scan_drbd_volume_host_uuid});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+			scan_drbd_volume_uuid                    => $scan_drbd_volume_uuid,
 			scan_drbd_volume_host_uuid               => $scan_drbd_volume_host_uuid, 
 			scan_drbd_volume_scan_drbd_resource_uuid => $scan_drbd_volume_scan_drbd_resource_uuid,
 			scan_drbd_volume_number                  => $scan_drbd_volume_number, 
-			short_host_name                          => $short_host_name, 
+			resource_name                            => $resource_name,
 		}});
 		
 		$anvil->data->{drbd}{host_name}{$short_host_name}{resource_name}{$resource_name}{volume}{$scan_drbd_volume_number}{volume_uuid}   = $row->[0]; 
@@ -3479,18 +3482,18 @@ FROM
 		my $scan_drbd_peer_host_uuid             = $row->[1];
 		my $scan_drbd_peer_scan_drbd_volume_uuid = $row->[2]; 
 		my $scan_drbd_peer_host_name             = $row->[3];
-		my $short_host_name                      = $anvil->data->{hosts}{host_uuid}{$scan_drbd_peer_host_uuid}{short_host_name};
 		my $resource_uuid                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{resource_uuid};
 		my $resource_name                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{resource_name}; 
 		my $volume_number                        = $anvil->data->{drbd}{volume_uuid}{$scan_drbd_peer_scan_drbd_volume_uuid}{volume_number};
+		my $short_host_name                          = $anvil->Get->host_name_from_uuid({short => 1, host_uuid => $scan_drbd_peer_host_uuid});
 		$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
 			scan_drbd_peer_host_uuid             => $scan_drbd_peer_host_uuid, 
 			scan_drbd_peer_scan_drbd_volume_uuid => $scan_drbd_peer_scan_drbd_volume_uuid,
 			scan_drbd_peer_host_name             => $scan_drbd_peer_host_name, 
-			short_host_name                      => $short_host_name, 
 			resource_uuid                        => $resource_uuid, 
 			resource_name                        => $resource_name, 
 			volume_number                        => $volume_number, 
+			short_host_name                      => $short_host_name, 
 		}});
 		
 		# Store
@@ -3530,10 +3533,8 @@ FROM
 		}});
 	}
 	
-	
 	return(0);
 }
-
 
 
 =head2 get_fences
@@ -6211,7 +6212,11 @@ To simplify lookup of server UUIDs by server names, this hash is also set;
 
  servers::anvil_uuid::<anvil_uuid>::server_name::<server_name>::server_uuid
 
-This method takes no parameters.
+Parameters;
+
+=head3 include_deleted (Optional, default 0)
+
+If set to C<< 1 >>, deleted servers are included when loading the data. When C<< 0 >> is set, the default, any servers with C<< serveer_state >> set to C<< DELETED >> are ignored.
 
 =cut
 sub get_servers
@@ -6221,6 +6226,11 @@ sub get_servers
 	my $anvil     = $self->parent;
 	my $debug     = defined $parameter->{debug} ? $parameter->{debug} : 3;
 	$anvil->Log->entry({source => $THIS_FILE, line => __LINE__, level => $debug, key => "log_0125", variables => { method => "Database->get_servers()" }});
+	
+	my $include_deleted = defined $parameter->{include_deleted} ? $parameter->{include_deleted} : 0;
+	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { 
+		include_deleted => $include_deleted, 
+	}});
 	
 	# Delete any data from past scans.
 	delete $anvil->data->{servers}{server_uuid};
@@ -6252,7 +6262,14 @@ FROM
     servers a,
     server_definitions b 
 WHERE 
-    a.server_uuid = b.server_definition_server_uuid
+    a.server_uuid = b.server_definition_server_uuid";
+	if (not $include_deleted)
+	{
+		$query .= "
+AND 
+    server_state != 'DELETED'";
+	}
+	$query .= "
 ;";
 	$anvil->Log->variables({source => $THIS_FILE, line => __LINE__, level => $debug, list => { query => $query }});
 	
